@@ -1,0 +1,35 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.2.3'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+  compileSdkVersion 23
+  buildToolsVersion "23.0.1"
+
+  defaultConfig {
+    minSdkVersion 16
+    targetSdkVersion 22
+    versionCode 1
+    versionName "1.0"
+    lintOptions {
+      abortOnError false
+    }
+  }
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile 'com.facebook.react:react-native:+'
+  compile 'com.github.bumptech.glide:glide:3.7.0'
+  compile 'com.android.support:support-v4:19.1.0'
+}

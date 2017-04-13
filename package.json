@@ -1,0 +1,39 @@
+{
+  "name": "react-native-fast-image",
+  "version": "0.0.1",
+  "description": "🚩 FastImage, performant React Native image component.",
+  "keywords": [
+    "cache",
+    "cached",
+    "fastimage",
+    "image",
+    "priority"
+  ],
+  "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
+  "bugs": {
+    "url": "https://github.com/DylanVann/react-native-fast-image/issues"
+  },
+  "license": "MIT",
+  "author": "Dylan Vann",
+  "main": "FastImage.js",
+  "directories": {
+    "example": "example"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
+  },
+  "scripts": {
+    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "prettier": "^1.1.0",
+    "react": "^15.4.0",
+    "react-native": "^0.40.0"
+  },
+  "peerDependencies": {
+    "react": ">=15.4.0",
+    "react-native": ">=0.40"
+  }
+}

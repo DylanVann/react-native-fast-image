@@ -1,0 +1,3 @@
+[submodule "ios/Libraries/SDWebImage"]
+	path = ios/Libraries/SDWebImage
+	url = https://github.com/rs/SDWebImage
