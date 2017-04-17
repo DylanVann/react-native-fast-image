@@ -3,7 +3,7 @@
 FastImage, performant React Native image component.
 
 [![npm](https://img.shields.io/npm/v/npm.svg)]()
-[![CircleCI](https://img.shields.io/circleci/project/github/RedSparr0w/node-csgo-parser.svg)]()
+[![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg)]()
 [![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg)]()
 
 <p align="center" >
