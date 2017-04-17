@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`FastImage renders correctly. 1`] = `
+<FastImageView
+  onFastImageError={[Function]}
+  onFastImageLoad={[Function]}
+  resizeMode="cover"
+  source={
+    Object {
+      "headers": Object {
+        "token": "someToken",
+      },
+      "priority": "high",
+      "uri": "https://facebook.github.io/react/img/logo_og.png",
+    }
+  }
+/>
+`;
