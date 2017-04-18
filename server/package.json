@@ -1,8 +1,8 @@
 {
   "name": "image-server",
   "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
+  "main": "index.js",
   "scripts": {
     "start": "nodemon ./index"
   },
