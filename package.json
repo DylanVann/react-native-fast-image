@@ -24,7 +24,7 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js",
+    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
     "test": "jest *.js"
   },
   "devDependencies": {
