@@ -44,6 +44,8 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
   ...View.propTypes,
   source: FastImageSourcePropType,
+  onFastImageError: PropTypes.func,
+  onFastImageLoad: PropTypes.func,
 }
 
 FastImage.defaultProps = {
@@ -53,7 +55,7 @@ FastImage.defaultProps = {
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
-  nativeOnly: { onError: true, onLoad: true },
+  nativeOnly: { onFastImageError: true, onFastImageLoad: true },
 })
 
 export default FastImage

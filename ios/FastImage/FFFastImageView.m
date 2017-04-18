@@ -42,12 +42,12 @@
                                    SDImageCacheType cacheType,
                                    NSURL *imageURL) {
                            if (error) {
-                             if (_onError) {
-                               _onError(@{});
+                             if (_onFastImageError) {
+                               _onFastImageError(@{});
                              }
                            } else {
-                             if (_onLoad) {
-                               _onLoad(@{});
+                             if (_onFastImageLoad) {
+                               _onFastImageLoad(@{});
                              }
                            }
                        }];

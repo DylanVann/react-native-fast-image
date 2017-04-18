@@ -9,8 +9,8 @@
 
 @interface FFFastImageView : UIImageView
 
-@property(nonatomic, copy) RCTDirectEventBlock onError;
-@property(nonatomic, copy) RCTDirectEventBlock onLoad;
+@property(nonatomic, copy) RCTDirectEventBlock onFastImageError;
+@property(nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property(nonatomic, assign) RCTResizeMode resizeMode;
 @property(nonatomic, strong) FFFastImageSource *source;
 

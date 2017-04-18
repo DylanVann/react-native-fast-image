@@ -14,7 +14,7 @@ RCT_EXPORT_MODULE(FastImageView)
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource);
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode);
-RCT_EXPORT_VIEW_PROPERTY(onError, RCTDirectEventBlock);
-RCT_EXPORT_VIEW_PROPERTY(onLoad, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock);
 
 @end
