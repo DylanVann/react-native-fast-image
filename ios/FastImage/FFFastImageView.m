@@ -12,9 +12,7 @@
 
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
-        // Cancel any previous image loading in progress.
-        [self sd_cancelCurrentAnimationImagesLoad];
-
+        _source = source;
         // Set headers.
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
@@ -54,12 +52,6 @@
                            }
                        }];
     }
-}
-
-- (void)removeFromSuperview {
-    // Cancel any loading.
-    [self sd_cancelCurrentAnimationImagesLoad];
-    [super removeFromSuperview];
 }
 
 @end
