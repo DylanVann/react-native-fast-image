@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  StatusBar,
 } from 'react-native'
 import Icon from 'react-native-vector-icons/Ionicons'
 import FastImage from 'react-native-fast-image'
@@ -35,6 +36,7 @@ class FastImageExample extends Component {
         style={styles.container}
         key={key}
       >
+        <StatusBar translucent barStyle="dark-content" backgroundColor="transparent" />
         <ScrollView
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContentContainer}

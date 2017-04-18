@@ -5,6 +5,7 @@ import {
   View,
   FlatList,
   Platform,
+  StatusBar,
 } from 'react-native'
 
 const getImageUrl = (id, width, height) => `https://unsplash.it/${width}/${height}?image=${id}`
@@ -78,7 +79,7 @@ class ImageGrid extends Component {
 }
 
 const MARGIN = 2
-const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 20 : 0
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBar.currentHeight
 
 const styles = StyleSheet.create({
   statusBarUnderlay: {
