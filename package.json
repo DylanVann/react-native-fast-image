@@ -42,7 +42,8 @@
   "jest": {
     "preset": "react-native",
     "modulePathIgnorePatterns": [
-      "example"
+      "example",
+      "server"
     ]
   }
 }
