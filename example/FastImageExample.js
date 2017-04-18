@@ -1,12 +1,6 @@
 // @flow
 import React, { Component } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  StatusBar,
-} from 'react-native'
+import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native'
 import Icon from 'react-native-vector-icons/Ionicons'
 import FastImage from 'react-native-fast-image'
 import timeout from 'react-timeout'
@@ -32,17 +26,18 @@ class FastImageExample extends Component {
     // Busting image cache.
     const bust = `?bust=${key}`
     return (
-      <View
-        style={styles.container}
-        key={key}
-      >
-        <StatusBar translucent barStyle="dark-content" backgroundColor="transparent" />
+      <View style={styles.container} key={key}>
+        <StatusBar
+          translucent
+          barStyle="dark-content"
+          backgroundColor="transparent"
+        />
         <ScrollView
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContentContainer}
         >
-          <View style={styles.textContainer} >
-            <Text style={styles.bold} >FastImage</Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.bold}>FastImage</Text>
             <Text>• priority (low, normal, high)</Text>
             <Text>• authentication (token)</Text>
           </View>
@@ -87,8 +82,11 @@ FastImageExample = timeout(FastImageExample)
 FastImageExample.navigationOptions = {
   tabBarLabel: 'FastImage Example',
   tabBarIcon: ({ focused, tintColor }) => {
-    if (focused) return <Icon name="ios-information-circle" size={26} color={tintColor} />
-    return <Icon name="ios-information-circle-outline" size={26} color={tintColor} />
+    if (focused)
+      return <Icon name="ios-information-circle" size={26} color={tintColor} />
+    return (
+      <Icon name="ios-information-circle-outline" size={26} color={tintColor} />
+    )
   },
 }
 

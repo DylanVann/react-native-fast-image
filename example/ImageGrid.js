@@ -1,22 +1,17 @@
 // @flow
 import React, { Component } from 'react'
-import {
-  StyleSheet,
-  View,
-  FlatList,
-  Platform,
-  StatusBar,
-} from 'react-native'
+import { StyleSheet, View, FlatList, Platform, StatusBar } from 'react-native'
 
-const getImageUrl = (id, width, height) => `https://unsplash.it/${width}/${height}?image=${id}`
+const getImageUrl = (id, width, height) =>
+  `https://unsplash.it/${width}/${height}?image=${id}`
 
 class ImageGrid extends Component {
   constructor(props: Object) {
     super(props)
 
     fetch('https://unsplash.it/list')
-    .then(res => res.json())
-    .then(this._onFetchImagesSuccess)
+      .then(res => res.json())
+      .then(this._onFetchImagesSuccess)
   }
 
   state = {
@@ -24,14 +19,14 @@ class ImageGrid extends Component {
     itemHeight: 0,
   }
 
-  _onLayout = (e) => {
+  _onLayout = e => {
     const width = e.nativeEvent.layout.width
     this.setState({
       itemHeight: width / 4,
     })
   }
 
-  _onFetchImagesSuccess = (images) => {
+  _onFetchImagesSuccess = images => {
     this.setState({
       images,
     })
@@ -46,16 +41,13 @@ class ImageGrid extends Component {
     const ImageComponent = this.props.ImageComponent
     const uri = getImageUrl(item.id, 100, 100)
     return (
-      <View style={styles.imageContainer} >
-        <ImageComponent
-          source={{ uri }}
-          style={styles.image}
-        />
+      <View style={styles.imageContainer}>
+        <ImageComponent source={{ uri }} style={styles.image} />
       </View>
     )
   }
 
-  _extractKey = (item) => {
+  _extractKey = item => {
     return item.id
   }
 
@@ -65,7 +57,10 @@ class ImageGrid extends Component {
         <FlatList
           onLayout={this._onLayout}
           style={styles.list}
-          columnWrapperStyle={[styles.columnWrapper, { height: this.state.itemHeight }]}
+          columnWrapperStyle={[
+            styles.columnWrapper,
+            { height: this.state.itemHeight },
+          ]}
           data={this.state.images}
           renderItem={this._renderItem}
           numColumns={4}
@@ -116,7 +111,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     flex: 1,
     alignItems: 'stretch',
-  }
+  },
 })
 
 export default ImageGrid
