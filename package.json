@@ -25,13 +25,16 @@
   },
   "scripts": {
     "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
-    "test": "jest *.js"
+    "test": "yarn run test:lint && yarn run test:jest",
+    "test:jest": "jest *.js",
+    "test:lint": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
   },
   "devDependencies": {
     "babel-jest": "19.0.0",
     "babel-preset-react-native": "1.9.1",
     "jest": "^19.0.2",
     "prettier": "^1.1.0",
+    "prettier-check": "^1.0.0",
     "react": "16.0.0-alpha.6",
     "react-native": "0.43.3",
     "react-test-renderer": "16.0.0-alpha.6"
