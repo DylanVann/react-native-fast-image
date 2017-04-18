@@ -2,9 +2,9 @@
 
 FastImage, performant React Native image component.
 
-[![npm](https://img.shields.io/npm/v/npm.svg)]()
-[![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg)]()
-[![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg)]()
+[![npm](https://img.shields.io/npm/v/react-native-fast-image.svg)](https://www.npmjs.com/package/react-native-fast-image)
+[![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg)](https://circleci.com/gh/DylanVann/react-native-fast-image)
+[![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg)](https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE)
 
 <p align="center" >
   <img src="sample.png" title="SDWebImage logo" float=left>
