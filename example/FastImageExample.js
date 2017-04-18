@@ -6,11 +6,24 @@ import FastImage from 'react-native-fast-image'
 import timeout from 'react-timeout'
 import uuid from 'uuid/v4'
 
-const baseUrl = '192.168.2.11'
-const image1 = `http://${baseUrl}:8080/pictures/ahmed-saffu-235616.jpg`
-const image2 = `http://${baseUrl}:8080/pictures/alex-bertha-236361.jpg`
-const image3 = `http://${baseUrl}:8080/pictures/jaromir-kavan-233699.jpg`
+const getImageUrl = (id, width, height) =>
+  `https://source.unsplash.com/${id}/${width}x${height}`
+let IMAGE_1
+let IMAGE_2
+let IMAGE_3
+const IMAGE_SIZE = 150
+const USE_SERVER = false
 const token = 'someToken'
+if (USE_SERVER) {
+  const baseUrl = '192.168.2.11'
+  IMAGE_1 = `http://${baseUrl}:8080/pictures/ahmed-saffu-235616.jpg`
+  IMAGE_2 = `http://${baseUrl}:8080/pictures/alex-bertha-236361.jpg`
+  IMAGE_3 = `http://${baseUrl}:8080/pictures/jaromir-kavan-233699.jpg`
+} else {
+  IMAGE_1 = getImageUrl('x58soEovG_M', IMAGE_SIZE, IMAGE_SIZE)
+  IMAGE_2 = getImageUrl('yPI7myL5eWY', IMAGE_SIZE, IMAGE_SIZE)
+  IMAGE_3 = getImageUrl('S7VCcp6KCKE', IMAGE_SIZE, IMAGE_SIZE)
+}
 
 class FastImageExample extends Component {
   componentDidMount() {
@@ -44,7 +57,7 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: image1 + bust,
+              uri: IMAGE_1 + bust,
               headers: {
                 token,
               },
@@ -54,7 +67,7 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: image2 + bust,
+              uri: IMAGE_2 + bust,
               headers: {
                 token,
               },
@@ -64,7 +77,7 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: image3 + bust,
+              uri: IMAGE_3 + bust,
               headers: {
                 token,
               },
@@ -89,8 +102,6 @@ FastImageExample.navigationOptions = {
     )
   },
 }
-
-const IMAGE_SIZE = 150
 
 const styles = StyleSheet.create({
   bold: {
