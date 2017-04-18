@@ -1,6 +1,13 @@
 // @flow
 import React, { Component } from 'react'
-import { StyleSheet, View, FlatList, Platform, StatusBar } from 'react-native'
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  Platform,
+  StatusBar,
+  Text,
+} from 'react-native'
 
 const getImageUrl = (id, width, height) =>
   `https://unsplash.it/${width}/${height}?image=${id}`
@@ -12,6 +19,7 @@ class ImageGrid extends Component {
     fetch('https://unsplash.it/list')
       .then(res => res.json())
       .then(this._onFetchImagesSuccess)
+      .catch(this._onFetchImagesError)
   }
 
   state = {
@@ -23,6 +31,12 @@ class ImageGrid extends Component {
     const width = e.nativeEvent.layout.width
     this.setState({
       itemHeight: width / 4,
+    })
+  }
+
+  _onFetchImagesError = () => {
+    this.setState({
+      error: true,
     })
   }
 
@@ -52,6 +66,13 @@ class ImageGrid extends Component {
   }
 
   render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.text}>Error fetching images.</Text>
+        </View>
+      )
+    }
     return (
       <View style={styles.container}>
         <FlatList
@@ -90,6 +111,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'stretch',
     justifyContent: 'center',
+  },
+  text: {
+    textAlign: 'center',
   },
   list: {
     marginTop: STATUS_BAR_HEIGHT,
