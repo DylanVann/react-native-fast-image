@@ -1,25 +1,34 @@
-import React, { PropTypes } from 'react'
+import React, { PropTypes, Component } from 'react'
 import { requireNativeComponent, Image, View } from 'react-native'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
 
-const FastImage = ({ source, onError, onLoad, ...props }) => {
-  // If there's no source or source uri just fallback to Image.
-  if (!source || !source.uri) {
-    return (
-      <Image {...props} source={source} onError={onError} onLoad={onLoad} />
-    )
+class FastImage extends Component {
+  setNativeProps(nativeProps) {
+    this._root.setNativeProps(nativeProps)
   }
 
-  const resolvedSource = resolveAssetSource(source)
-  return (
-    <FastImageView
-      {...props}
-      source={resolvedSource}
-      onFastImageError={onError}
-      onFastImageLoad={onLoad}
-    />
-  )
+  render() {
+    const { source, onError, onLoad, ...props } = this.props
+
+    // If there's no source or source uri just fallback to Image.
+    if (!source || !source.uri) {
+      return (
+        <Image {...props} source={source} onError={onError} onLoad={onLoad} />
+      )
+    }
+
+    const resolvedSource = resolveAssetSource(source)
+    return (
+      <FastImageView
+        ref={e => this._root = e}
+        {...props}
+        source={resolvedSource}
+        onFastImageError={onError}
+        onFastImageLoad={onLoad}
+      />
+    )
+  }
 }
 
 FastImage.resizeMode = {
