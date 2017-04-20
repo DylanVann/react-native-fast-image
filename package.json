@@ -25,9 +25,9 @@
   },
   "scripts": {
     "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
-    "test": "yarn run test:lint && yarn run test:jest",
+    "test": "yarn run test:pretty && yarn run test:jest",
     "test:jest": "jest *.js",
-    "test:lint": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
+    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
   },
   "devDependencies": {
     "babel-jest": "19.0.0",
