@@ -14,7 +14,13 @@ class FastImage extends Component {
     // If there's no source or source uri just fallback to Image.
     if (!source || !source.uri) {
       return (
-        <Image {...props} source={source} onError={onError} onLoad={onLoad} />
+        <Image
+          ref={e => this._root = e}
+          {...props}
+          source={source}
+          onError={onError}
+          onLoad={onLoad}
+        />
       )
     }
 
