@@ -106,3 +106,37 @@ Called on a successful image fetch.
 `onError?: () => void`
 
 Called on an image fetching error.
+
+## Development
+
+```bash
+# Install SDWebImage submodules.
+
+git submodule update --init --recursive
+# Install npm deps.
+yarn
+```
+
+To update the example project modules you will need to run:
+
+```bash
+rm -rf node_modules && npm i
+```
+
+In the example folder. The npm usage is because
+yarn will cache locally installed packages and not update them
+if the version does not change.
+
+## Credits
+
+The idea for this modules came from
+[vovkasm's](https://github.com/vovkasm)
+[react-native-web-image](https://github.com/vovkasm/react-native-web-image)
+package.
+It also uses Glide and SDWebImage, but didn't have some features I needed (priority, headers).
+
+## Licenses
+
+* FastImage [MIT]
+* SDWebImage (included) [MIT]
+* Glide (included via gradle) [Apache 2.0 License]
