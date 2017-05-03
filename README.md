@@ -111,19 +111,19 @@ Called on an image fetching error.
 
 ```bash
 # Install SDWebImage submodules.
-
 git submodule update --init --recursive
-# Install npm deps.
+
+# Install npm dependencies.
 yarn
 ```
 
 To update the example project modules you will need to run:
 
 ```bash
-rm -rf node_modules && npm i
+npm install
 ```
 
-In the example folder. The npm usage is because
+The npm usage is because
 yarn will cache locally installed packages and not update them
 if the version does not change.
 
