@@ -1,6 +1,6 @@
 // @flow
 import React from 'react'
-import { TabNavigator, TabView } from 'react-navigation'
+import { TabNavigator, TabBarBottom } from 'react-navigation'
 import FastImageExample from './FastImageExample'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
@@ -18,7 +18,7 @@ const App = TabNavigator(
     },
   },
   {
-    tabBarComponent: TabView.TabBarBottom,
+    tabBarComponent: TabBarBottom,
     tabBarPosition: 'bottom',
     swipeEnabled: false,
     animationEnabled: false,

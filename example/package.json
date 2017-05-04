@@ -10,7 +10,7 @@
     "react-native": "^0.44.0",
     "react-native-fast-image": "../",
     "react-native-vector-icons": "^4.0.1",
-    "react-navigation": "git+https://github.com/react-community/react-navigation.git",
+    "react-navigation": "^1.0.0-beta.9",
     "react-timeout": "^1.0.0",
     "uuid": "^3.0.1"
   },
