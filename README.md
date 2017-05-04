@@ -2,9 +2,9 @@
 
 🚩 FastImage, performant React Native image component.
 
-[![npm](https://img.shields.io/npm/v/react-native-fast-image.svg)](https://www.npmjs.com/package/react-native-fast-image)
-[![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg)](https://circleci.com/gh/DylanVann/react-native-fast-image)
-[![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg)](https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE)
+[![npm](https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square)](https://www.npmjs.com/package/react-native-fast-image)
+[![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg?style=flat-square)](https://circleci.com/gh/DylanVann/react-native-fast-image)
+[![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square)](https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE)
 
 <p align="center" >
   <img src="http://i.imgur.com/OkYqmCP.gif" title="Grid Demo" float=left>
@@ -36,6 +36,7 @@ and
 - [x] Aggressively cache images.
 - [x] Add authorization headers.
 - [x] Prioritize images.
+- [x] GIF support.
 
 ## Usage
 
