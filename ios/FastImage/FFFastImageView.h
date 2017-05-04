@@ -2,13 +2,14 @@
 
 #import <SDWebImage/UIImageView+WebCache.h>
 #import <SDWebImage/SDWebImageDownloader.h>
+#import "FLAnimatedImageView.h"
 
 #import <React/RCTComponent.h>
 #import <React/RCTResizeMode.h>
 
 #import "FFFastImageSource.h"
 
-@interface FFFastImageView : UIImageView
+@interface FFFastImageView : FLAnimatedImageView
 
 @property(nonatomic, copy) RCTDirectEventBlock onFastImageError;
 @property(nonatomic, copy) RCTDirectEventBlock onFastImageLoad;

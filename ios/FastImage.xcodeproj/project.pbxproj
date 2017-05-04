@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC0BC2421EBAF4C1005A5CDB /* FLAnimatedImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC0BC23C1EBAF431005A5CDB /* FLAnimatedImage.framework */; };
 		FCC6D1391EB3912D0065F944 /* libSDWebImage iOS static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */; };
 		FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB25381EA5562700F59778 /* FFFastImageSource.m */; };
 		FCFB25401EA5562700F59778 /* FFFastImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253A1EA5562700F59778 /* FFFastImageView.m */; };
@@ -15,6 +16,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		FC0BC23B1EBAF431005A5CDB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FC0BC2371EBAF431005A5CDB /* FLAnimatedImage.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 92C9BC0C1B199DC500D79B06;
+			remoteInfo = FLAnimatedImage;
+		};
 		FCC6D0CF1EB38D2F0065F944 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
@@ -80,6 +88,7 @@
 
 /* Begin PBXFileReference section */
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC0BC2371EBAF431005A5CDB /* FLAnimatedImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = FLAnimatedImage.xcodeproj; path = Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage.xcodeproj; sourceTree = "<group>"; };
 		FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDWebImage.xcodeproj; path = Vendor/SDWebImage/SDWebImage.xcodeproj; sourceTree = "<group>"; };
 		FCFB25371EA5562700F59778 /* FFFastImageSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageSource.h; sourceTree = "<group>"; };
 		FCFB25381EA5562700F59778 /* FFFastImageSource.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageSource.m; sourceTree = "<group>"; };
@@ -96,6 +105,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC0BC2421EBAF4C1005A5CDB /* FLAnimatedImage.framework in Frameworks */,
 				FCC6D1391EB3912D0065F944 /* libSDWebImage iOS static.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -123,9 +133,18 @@
 		A28797331DE0CA420081BDFA /* Vendor */ = {
 			isa = PBXGroup;
 			children = (
+				FC0BC2371EBAF431005A5CDB /* FLAnimatedImage.xcodeproj */,
 				FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */,
 			);
 			name = Vendor;
+			sourceTree = "<group>";
+		};
+		FC0BC2381EBAF431005A5CDB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FC0BC23C1EBAF431005A5CDB /* FLAnimatedImage.framework */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 		FCC6D0C71EB38D2F0065F944 /* Products */ = {
@@ -204,6 +223,10 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
+					ProductGroup = FC0BC2381EBAF431005A5CDB /* Products */;
+					ProjectRef = FC0BC2371EBAF431005A5CDB /* FLAnimatedImage.xcodeproj */;
+				},
+				{
 					ProductGroup = FCC6D0C71EB38D2F0065F944 /* Products */;
 					ProjectRef = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
 				},
@@ -216,6 +239,13 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
+		FC0BC23C1EBAF431005A5CDB /* FLAnimatedImage.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = FLAnimatedImage.framework;
+			remoteRef = FC0BC23B1EBAF431005A5CDB /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 		FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */ = {
 			isa = PBXReferenceProxy;
 			fileType = archive.ar;
@@ -370,7 +400,10 @@
 		A28797271DE0C0A60081BDFA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/SDWebImage";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/SDWebImage",
+					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -380,7 +413,10 @@
 		A28797281DE0C0A60081BDFA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/SDWebImage";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/SDWebImage",
+					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

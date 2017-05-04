@@ -1,5 +1,5 @@
 {
-  "name": "react-native-fast-image-example",
+  "name": "FastImage",
   "version": "0.0.1",
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start",
@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "react": "16.0.0-alpha.6",
-    "react-native": "0.43.3",
+    "react-native": "^0.44.0",
     "react-native-fast-image": "../",
     "react-native-vector-icons": "^4.0.1",
     "react-navigation": "git+https://github.com/react-community/react-navigation.git",

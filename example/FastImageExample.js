@@ -22,7 +22,8 @@ if (USE_SERVER) {
 } else {
   IMAGE_1 = getImageUrl('x58soEovG_M', IMAGE_SIZE, IMAGE_SIZE)
   IMAGE_2 = getImageUrl('yPI7myL5eWY', IMAGE_SIZE, IMAGE_SIZE)
-  IMAGE_3 = getImageUrl('S7VCcp6KCKE', IMAGE_SIZE, IMAGE_SIZE)
+  IMAGE_3 =
+    'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
 }
 
 class FastImageExample extends Component {

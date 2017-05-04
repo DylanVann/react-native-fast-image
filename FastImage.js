@@ -15,7 +15,7 @@ class FastImage extends Component {
     if (!source || !source.uri) {
       return (
         <Image
-          ref={e => this._root = e}
+          ref={e => (this._root = e)}
           {...props}
           source={source}
           onError={onError}
@@ -27,7 +27,7 @@ class FastImage extends Component {
     const resolvedSource = resolveAssetSource(source)
     return (
       <FastImageView
-        ref={e => this._root = e}
+        ref={e => (this._root = e)}
         {...props}
         source={resolvedSource}
         onFastImageError={onError}
