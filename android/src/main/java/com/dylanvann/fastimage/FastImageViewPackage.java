@@ -1,5 +1,7 @@
 package com.dylanvann.fastimage;
 
+import com.dylanvann.fastimage.FastImageViewModule;
+
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.JavaScriptModule;
@@ -10,10 +12,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class FastImageViewPackage implements ReactPackage {
-
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        return Collections.emptyList();
+        return Collections.<NativeModule>singletonList(new FastImageViewModule(reactContext));
     }
 
     @Override
