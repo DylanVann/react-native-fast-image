@@ -10,6 +10,7 @@ const getImageUrl = (id, width, height) =>
   `https://source.unsplash.com/${id}/${width}x${height}`
 
 const IMAGE_SIZE = 150
+// The server is used to test that sending headers is working correctly.
 const USE_SERVER = false
 const TOKEN = 'someToken'
 
@@ -44,6 +45,17 @@ class FastImageExample extends Component {
     const key = uuid()
     // Busting image cache.
     const bust = `?bust=${key}`
+    // Preload images.
+    FastImage.preload([
+      {
+        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        headers: { Authorization: 'someAuthToken' },
+      },
+      {
+        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        headers: { Authorization: 'someAuthToken' },
+      },
+    ])
     return (
       <View style={styles.container} key={key}>
         <StatusBar

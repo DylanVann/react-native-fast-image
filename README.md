@@ -36,6 +36,7 @@ and
 - [x] Aggressively cache images.
 - [x] Add authorization headers.
 - [x] Prioritize images.
+- [x] Preload images.
 - [x] GIF support.
 
 ## Usage
@@ -63,13 +64,13 @@ const YourImage = () =>
 
 ## Properties
 
-`source?: object`
+### `source?: object`
 
 Source for the remote image to load.
 
 ---
 
-`source.uri?: string`
+### `source.uri?: string`
 
 Remote url to load the image from. e.g. `'https://facebook.github.io/react/img/logo_og.png'`.
 
@@ -81,7 +82,7 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
-`source.priority?: enum`
+### `source.priority?: enum`
 
 - `FastImage.priority.low` - Low Priority
 - `FastImage.priority.normal` **(Default)** - Normal Priority
@@ -89,7 +90,7 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
-`resizeMode?: enum`
+### `resizeMode?: enum`
 
 - `FastImage.resizeMode.contain` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
@@ -98,15 +99,43 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
-`onLoad?: () => void`
+### `onLoad?: () => void`
 
 Called on a successful image fetch.
 
 ---
 
-`onError?: () => void`
+### `onError?: () => void`
 
 Called on an image fetching error.
+
+---
+
+### `children`
+
+`FastImage` does not currently support children.
+Absolute positioning can be used as an alternative.
+
+(This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.)
+
+## Static Methods
+
+### `FastImage.preload: (source[]) => void`
+
+Preload images to display later. e.g.
+
+```js
+FastImage.preload([
+  {
+    uri: 'https://facebook.github.io/react/img/logo_og.png',
+    headers: { Authorization: 'someAuthToken' },
+  },
+  {
+    uri: 'https://facebook.github.io/react/img/logo_og.png',
+    headers: { Authorization: 'someAuthToken' },
+  },
+])
+```
 
 ## Development
 
