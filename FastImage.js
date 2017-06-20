@@ -1,5 +1,10 @@
 import React, { PropTypes, Component } from 'react'
-import { requireNativeComponent, Image, NativeModules, View } from 'react-native'
+import {
+  requireNativeComponent,
+  Image,
+  NativeModules,
+  View,
+} from 'react-native'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
 
@@ -51,12 +56,12 @@ FastImage.priority = {
 }
 
 FastImage.prefetch = function(source) {
-  let urls = source;
+  let urls = source
   if (typeof source === 'string') {
-    urls = [source];
+    urls = [source]
   }
 
-  NativeModules.FastImageView.prefetch(urls);
+  NativeModules.FastImageView.prefetch(urls)
 }
 
 const FastImageSourcePropType = PropTypes.shape({
