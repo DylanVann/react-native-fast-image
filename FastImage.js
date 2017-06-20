@@ -1,7 +1,14 @@
 import React, { PropTypes, Component } from 'react'
-import { requireNativeComponent, Image, View } from 'react-native'
+import {
+  requireNativeComponent,
+  Image,
+  NativeModules,
+  View,
+} from 'react-native'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
+
+const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
   setNativeProps(nativeProps) {
@@ -48,6 +55,10 @@ FastImage.priority = {
   low: 'low',
   normal: 'normal',
   high: 'high',
+}
+
+FastImage.preload = sources => {
+  FastImageViewNativeModule.preload(sources)
 }
 
 const FastImageSourcePropType = PropTypes.shape({

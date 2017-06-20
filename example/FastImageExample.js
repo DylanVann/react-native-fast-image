@@ -8,23 +8,29 @@ import uuid from 'uuid/v4'
 
 const getImageUrl = (id, width, height) =>
   `https://source.unsplash.com/${id}/${width}x${height}`
-let IMAGE_1
-let IMAGE_2
-let IMAGE_3
+
 const IMAGE_SIZE = 150
+// The server is used to test that sending headers is working correctly.
 const USE_SERVER = false
-const token = 'someToken'
-if (USE_SERVER) {
-  const baseUrl = '192.168.2.11'
-  IMAGE_1 = `http://${baseUrl}:8080/pictures/ahmed-saffu-235616.jpg`
-  IMAGE_2 = `http://${baseUrl}:8080/pictures/alex-bertha-236361.jpg`
-  IMAGE_3 = `http://${baseUrl}:8080/pictures/jaromir-kavan-233699.jpg`
-} else {
-  IMAGE_1 = getImageUrl('x58soEovG_M', IMAGE_SIZE, IMAGE_SIZE)
-  IMAGE_2 = getImageUrl('yPI7myL5eWY', IMAGE_SIZE, IMAGE_SIZE)
-  IMAGE_3 =
-    'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
+const TOKEN = 'someToken'
+
+const getImages = () => {
+  if (USE_SERVER) {
+    const baseUrl = '192.168.2.11'
+    return [
+      `http://${baseUrl}:8080/pictures/ahmed-saffu-235616.jpg`,
+      `http://${baseUrl}:8080/pictures/alex-bertha-236361.jpg`,
+      `http://${baseUrl}:8080/pictures/jaromir-kavan-233699.jpg`,
+    ]
+  }
+  return [
+    getImageUrl('x58soEovG_M', IMAGE_SIZE, IMAGE_SIZE),
+    getImageUrl('yPI7myL5eWY', IMAGE_SIZE, IMAGE_SIZE),
+    'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif',
+  ]
 }
+
+const images = getImages()
 
 class FastImageExample extends Component {
   componentDidMount() {
@@ -39,6 +45,17 @@ class FastImageExample extends Component {
     const key = uuid()
     // Busting image cache.
     const bust = `?bust=${key}`
+    // Preload images.
+    FastImage.preload([
+      {
+        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        headers: { Authorization: 'someAuthToken' },
+      },
+      {
+        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        headers: { Authorization: 'someAuthToken' },
+      },
+    ])
     return (
       <View style={styles.container} key={key}>
         <StatusBar
@@ -58,9 +75,9 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: IMAGE_1 + bust,
+              uri: images[0] + bust,
               headers: {
-                token,
+                token: TOKEN,
               },
               priority: FastImage.priority.low,
             }}
@@ -68,9 +85,9 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: IMAGE_2 + bust,
+              uri: images[1] + bust,
               headers: {
-                token,
+                token: TOKEN,
               },
               priority: FastImage.priority.normal,
             }}
@@ -78,9 +95,9 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: IMAGE_3 + bust,
+              uri: images[2] + bust,
               headers: {
-                token,
+                token: TOKEN,
               },
               priority: FastImage.priority.high,
             }}

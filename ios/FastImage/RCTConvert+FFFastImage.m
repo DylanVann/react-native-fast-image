@@ -40,4 +40,6 @@ RCT_ENUM_CONVERTER(FFFPriority, (@{
     return imageSource;
 }
 
+RCT_ARRAY_CONVERTER(FFFastImageSource);
+
 @end

@@ -4,25 +4,17 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
-import android.widget.ImageView.ScaleType;
 
-import com.bumptech.glide.DrawableRequestBuilder;
-import com.bumptech.glide.DrawableTypeRequest;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
-import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.data.DataFetcher;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.load.model.stream.StreamModelLoader;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
-import com.bumptech.glide.signature.StringSignature;
-import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
@@ -33,9 +25,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -48,21 +38,6 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
     private static final String REACT_ON_ERROR_EVENT = "onFastImageError";
 
     private static Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-
-    private static Map<String, Priority> REACT_PRIORITY_MAP =
-            new HashMap<String, Priority>() {{
-                put("low", Priority.LOW);
-                put("normal", Priority.NORMAL);
-                put("high", Priority.HIGH);
-            }};
-
-    private static Map<String, ImageView.ScaleType> REACT_RESIZE_MODE_MAP =
-            new HashMap<String, ImageView.ScaleType>() {{
-                put("contain", ScaleType.FIT_CENTER);
-                put("cover", ScaleType.CENTER_CROP);
-                put("stretch", ScaleType.FIT_XY);
-                put("center", ScaleType.CENTER);
-            }};
 
     @Override
     public String getName() {
@@ -125,51 +100,27 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
             return;
         }
 
-        final String uriProp = source.getString("uri");
+        // Get the GlideUrl which contains header info.
+        final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
 
-        // Get the headers prop and add to glideUrl.
-        GlideUrl glideUrl;
-        try {
-            final ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator headersIterator = headersMap.keySetIterator();
-            LazyHeaders.Builder headersBuilder = new LazyHeaders.Builder();
-            while (headersIterator.hasNextKey()) {
-                String key = headersIterator.nextKey();
-                String value = headersMap.getString(key);
-                headersBuilder.addHeader(key, value);
-            }
-            LazyHeaders headers = headersBuilder.build();
-            glideUrl = new GlideUrl(uriProp, headers);
-        } catch (NoSuchKeyException e) {
-            // If there is no headers object.
-            glideUrl = new GlideUrl(uriProp);
-        }
-
-        // Get the priority prop.
-        String priorityProp = "normal";
-        try {
-            priorityProp = source.getString("priority");
-        } catch (Exception e) {
-            // Noop.
-        }
-        final Priority priority = REACT_PRIORITY_MAP.get(priorityProp);
+        // Get priority.
+        final Priority priority = FastImageViewConverter.priority(source);
 
         // Cancel existing request.
         Glide.clear(view);
 
         Glide
-                    .with(view.getContext())
-                    .load(glideUrl)
-                    .priority(priority)
-                    .placeholder(TRANSPARENT_DRAWABLE)
-                    .listener(LISTENER)
-                    .into(view);
+                .with(view.getContext())
+                .load(glideUrl)
+                .priority(priority)
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .listener(LISTENER)
+                .into(view);
     }
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(ImageView view, String resizeMode) {
-        if (resizeMode == null) resizeMode = "contain";
-        final ImageView.ScaleType scaleType = REACT_RESIZE_MODE_MAP.get(resizeMode);
+        final ImageView.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
     }
 

@@ -1,6 +1,8 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
 
+#import <SDWebImage/SDWebImagePrefetcher.h>
+
 @implementation FFFastImageViewManager
 
 RCT_EXPORT_MODULE(FastImageView)
@@ -17,4 +19,19 @@ RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode);
 RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock);
 
+RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
+{
+    NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
+
+    [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
+        [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
+            [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
+        }];
+        [urls setObject:source.uri atIndexedSubscript:idx];
+    }];
+
+    [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+}
+
 @end
+
