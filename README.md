@@ -76,7 +76,7 @@ Remote url to load the image from. e.g. `'https://facebook.github.io/react/img/l
 
 ---
 
-`source.headers?: object`
+### `source.headers?: object`
 
 Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
