@@ -11,9 +11,11 @@
 
 @interface FFFastImageView : FLAnimatedImageView
 
-@property(nonatomic, copy) RCTDirectEventBlock onFastImageError;
-@property(nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
-@property(nonatomic, assign) RCTResizeMode resizeMode;
-@property(nonatomic, strong) FFFastImageSource *source;
+@property (nonatomic, copy) RCTBubblingEventBlock onFastImageProgress;
+@property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
+@property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
+@property (nonatomic, assign) RCTResizeMode resizeMode;
+@property (nonatomic, strong) FFFastImageSource *source;
 
 @end
+

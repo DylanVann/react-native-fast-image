@@ -1,6 +1,13 @@
 // @flow
 import React, { Component } from 'react'
-import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native'
+import {
+  PixelRatio,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 import Icon from 'react-native-vector-icons/Ionicons'
 import FastImage from 'react-native-fast-image'
 import timeout from 'react-timeout'
@@ -10,6 +17,8 @@ const getImageUrl = (id, width, height) =>
   `https://source.unsplash.com/${id}/${width}x${height}`
 
 const IMAGE_SIZE = 150
+const IMAGE_SIZE_PX = PixelRatio.getPixelSizeForLayoutSize(IMAGE_SIZE)
+
 // The server is used to test that sending headers is working correctly.
 const USE_SERVER = false
 const TOKEN = 'someToken'
@@ -24,8 +33,8 @@ const getImages = () => {
     ]
   }
   return [
-    getImageUrl('x58soEovG_M', IMAGE_SIZE, IMAGE_SIZE),
-    getImageUrl('yPI7myL5eWY', IMAGE_SIZE, IMAGE_SIZE),
+    getImageUrl('x58soEovG_M', IMAGE_SIZE_PX, IMAGE_SIZE_PX),
+    getImageUrl('yPI7myL5eWY', IMAGE_SIZE_PX, IMAGE_SIZE_PX),
     'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif',
   ]
 }
@@ -81,6 +90,7 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.low,
             }}
+            onProgress={e => console.log('progress', e.nativeEvent.progress)}
           />
           <FastImage
             style={styles.image}

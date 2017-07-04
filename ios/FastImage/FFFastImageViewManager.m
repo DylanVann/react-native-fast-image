@@ -14,10 +14,11 @@ RCT_EXPORT_MODULE(FastImageView)
   return view;
 }
 
-RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource);
-RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode);
-RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock);
-RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
+RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode)
+RCT_EXPORT_VIEW_PROPERTY(onFastImageProgress, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 {

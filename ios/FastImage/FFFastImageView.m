@@ -37,21 +37,28 @@
         [self sd_setImageWithURL:source.uri
                 placeholderImage:nil
                          options:options
-                       completed:^(UIImage *image,
-                                   NSError *error,
-                                   SDImageCacheType cacheType,
-                                   NSURL *imageURL) {
-                           if (error) {
-                             if (_onFastImageError) {
-                               _onFastImageError(@{});
-                             }
-                           } else {
-                             if (_onFastImageLoad) {
-                               _onFastImageLoad(@{});
-                             }
-                           }
-                       }];
+                        progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+                            double progress = MIN(1, MAX(0, (double) receivedSize / (double) expectedSize));
+                            if (_onFastImageProgress) {
+                                _onFastImageProgress(@{ @"progress": @(progress) });
+                            }
+
+                        } completed:^(UIImage * _Nullable image,
+                                      NSError * _Nullable error,
+                                      SDImageCacheType cacheType,
+                                      NSURL * _Nullable imageURL) {
+                            if (error) {
+                                if (_onFastImageError) {
+                                    _onFastImageError(@{});
+                                }
+                            } else {
+                                if (_onFastImageLoad) {
+                                    _onFastImageLoad(@{});
+                                }
+                            }
+                        }];
     }
 }
 
 @end
+
