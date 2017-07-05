@@ -10,26 +10,27 @@ buildscript {
 apply plugin: 'com.android.library'
 
 android {
-  compileSdkVersion 23
-  buildToolsVersion "23.0.1"
+    compileSdkVersion 23
+    buildToolsVersion "23.0.1"
 
-  defaultConfig {
-    minSdkVersion 16
-    targetSdkVersion 22
-    versionCode 1
-    versionName "1.0"
-    lintOptions {
-      abortOnError false
+    defaultConfig {
+        minSdkVersion 16
+        targetSdkVersion 22
+        versionCode 1
+        versionName "1.0"
+        lintOptions {
+            abortOnError false
+        }
     }
-  }
 }
 
 repositories {
-  mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-  compile 'com.facebook.react:react-native:+'
-  compile 'com.github.bumptech.glide:glide:3.7.0'
-  compile 'com.android.support:support-v4:19.1.0'
+    compile 'com.facebook.react:react-native:+'
+    compile group: 'com.github.bumptech.glide', name: 'glide', version: '3.8.0'
+    compile group: 'com.github.bumptech.glide', name: 'okhttp3-integration', version: '1.5.0'
+    compile 'com.android.support:support-v4:19.1.0'
 }

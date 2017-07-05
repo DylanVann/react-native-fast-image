@@ -7,9 +7,7 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
-import com.bumptech.glide.load.data.DataFetcher;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.stream.StreamModelLoader;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
@@ -23,21 +21,25 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
-class FastImageViewManager extends SimpleViewManager<ImageView> {
+class FastImageViewManager extends SimpleViewManager<ImageView> implements UIProgressListener  {
 
     private static final String REACT_CLASS = "FastImageView";
+
+    private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
 
     private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
 
     private static final String REACT_ON_ERROR_EVENT = "onFastImageError";
 
     private static Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
+
+    private ImageView imageView;
+
+    private GlideUrl glideUrl;
 
     @Override
     public String getName() {
@@ -46,7 +48,8 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
 
     @Override
     protected ImageView createViewInstance(ThemedReactContext reactContext) {
-        return new ImageView(reactContext);
+        imageView = new ImageView(reactContext);
+        return imageView;
     }
 
     private static RequestListener<GlideUrl, GlideDrawable> LISTENER = new RequestListener<GlideUrl, GlideDrawable>() {
@@ -57,6 +60,7 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
                 Target<GlideDrawable> target,
                 boolean isFirstResource
         ) {
+            OkHttpProgressGlideModule.forget(uri.toStringUrl());
             if (!(target instanceof ImageViewTarget)) {
                 return false;
             }
@@ -95,13 +99,14 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
         if (source == null) {
             // Cancel existing requests.
             Glide.clear(view);
+            OkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
             // Clear the image.
             view.setImageDrawable(null);
             return;
         }
 
         // Get the GlideUrl which contains header info.
-        final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
+        glideUrl = FastImageViewConverter.glideUrl(source);
 
         // Get priority.
         final Priority priority = FastImageViewConverter.priority(source);
@@ -109,13 +114,16 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
         // Cancel existing request.
         Glide.clear(view);
 
+        String key = glideUrl.toStringUrl();
+        OkHttpProgressGlideModule.expect(key, this);
+
         Glide
                 .with(view.getContext())
                 .load(glideUrl)
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)
-                .into(view);
+                .into(imageView);
     }
 
     @ReactProp(name = "resizeMode")
@@ -128,6 +136,7 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
     public void onDropViewInstance(ImageView view) {
         // This will cancel existing requests.
         Glide.clear(view);
+        OkHttpProgressGlideModule.forget(glideUrl.toString());
         super.onDropViewInstance(view);
     }
 
@@ -135,6 +144,8 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
     @Nullable
     public Map getExportedCustomDirectEventTypeConstants() {
         return MapBuilder.of(
+                REACT_ON_PROGRESS_EVENT,
+                MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT),
                 REACT_ON_LOAD_EVENT,
                 MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT),
                 REACT_ON_ERROR_EVENT,
@@ -142,31 +153,20 @@ class FastImageViewManager extends SimpleViewManager<ImageView> {
         );
     }
 
-    // Used to attempt to load from cache only.
-    private static final StreamModelLoader<GlideUrl> cacheOnlyStreamLoader = new StreamModelLoader<GlideUrl>() {
-        @Override
-        public DataFetcher<InputStream> getResourceFetcher(final GlideUrl model, int width, int height) {
-            return new DataFetcher<InputStream>() {
-                @Override
-                public InputStream loadData(Priority priority) throws Exception {
-                    throw new IOException();
-                }
+    @Override
+    public void onProgress(long bytesRead, long expectedLength) {
+        WritableMap event = new WritableNativeMap();
+        double progress = ((float) bytesRead / (float) expectedLength) * 100;
+        event.putDouble("progress", progress);
+        ThemedReactContext context = (ThemedReactContext) imageView.getContext();
+        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+        int viewId = imageView.getId();
+        eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+    }
 
-                @Override
-                public void cleanup() {
+    @Override
+    public float getGranularityPercentage() {
+        return 0.5f;
+    }
 
-                }
-
-                @Override
-                public String getId() {
-                    return model.getCacheKey();
-                }
-
-                @Override
-                public void cancel() {
-
-                }
-            };
-        }
-    };
 }
