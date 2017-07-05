@@ -1,6 +1,4 @@
-import React, {
-  Component,
-} from 'react'
+import React, { Component } from 'react'
 import {
   requireNativeComponent,
   Image,
@@ -18,13 +16,7 @@ class FastImage extends Component {
   }
 
   render() {
-    const {
-      source,
-      onError,
-      onLoad,
-      onProgress,
-      ...props
-    } = this.props
+    const { source, onError, onLoad, onProgress, ...props } = this.props
 
     // If there's no source or source uri just fallback to Image.
     if (!source || !source.uri) {
@@ -71,20 +63,6 @@ FastImage.preload = sources => {
   FastImageViewNativeModule.preload(sources)
 }
 
-const FastImageSourcePropType = PropTypes.shape({
-  uri: PropTypes.string,
-  headers: PropTypes.objectOf(PropTypes.string),
-  priority: PropTypes.oneOf(Object.keys(FastImage.priority)),
-})
-
-FastImage.propTypes = {
-  ...View.propTypes,
-  source: FastImageSourcePropType,
-  onFastImageProgress: PropTypes.func,
-  onFastImageError: PropTypes.func,
-  onFastImageLoad: PropTypes.func,
-}
-
 FastImage.defaultProps = {
   resizeMode: FastImage.resizeMode.cover,
   onProgress: Function.prototype,
@@ -96,7 +74,7 @@ const FastImageView = requireNativeComponent('FastImageView', FastImage, {
   nativeOnly: {
     onFastImageProgress: true,
     onFastImageError: true,
-    onFastImageLoad: true
+    onFastImageLoad: true,
   },
 })
 
