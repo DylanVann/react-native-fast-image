@@ -45,5 +45,8 @@
       "example",
       "server"
     ]
+  },
+  "dependencies": {
+    "prop-types": "^15.5.10"
   }
 }

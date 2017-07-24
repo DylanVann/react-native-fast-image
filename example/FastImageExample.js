@@ -90,7 +90,6 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.low,
             }}
-            onProgress={e => console.log('progress', e.nativeEvent.progress)}
           />
           <FastImage
             style={styles.image}
@@ -111,6 +110,11 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.high,
             }}
+            onLoadStart={() => console.log('onLoadStart')}
+            onProgress={e => console.log(e.nativeEvent.progress)}
+            onLoad={() => console.log('onLoad')}
+            onError={() => console.log('onError')}
+            onLoadEnd={() => console.log('onLoadEnd')}
           />
         </ScrollView>
       </View>
