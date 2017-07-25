@@ -2,9 +2,11 @@
 
 exports[`FastImage renders correctly. 1`] = `
 <FastImageView
-  onFastImageError={[Function]}
-  onFastImageLoad={[Function]}
-  onFastImageProgress={[Function]}
+  onFastImageError={undefined}
+  onFastImageLoad={undefined}
+  onFastImageLoadEnd={undefined}
+  onFastImageLoadStart={undefined}
+  onFastImageProgress={undefined}
   resizeMode="cover"
   source={
     Object {

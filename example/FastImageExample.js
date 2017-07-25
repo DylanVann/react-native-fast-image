@@ -111,7 +111,8 @@ class FastImageExample extends Component {
               priority: FastImage.priority.high,
             }}
             onLoadStart={() => console.log('onLoadStart')}
-            onProgress={e => console.log(e.nativeEvent.progress)}
+            onProgress={e =>
+              console.log(e.nativeEvent.loaded / e.nativeEvent.total)}
             onLoad={() => console.log('onLoad')}
             onError={() => console.log('onError')}
             onLoadEnd={() => console.log('onLoadEnd')}

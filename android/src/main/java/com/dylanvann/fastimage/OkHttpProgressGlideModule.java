@@ -56,12 +56,12 @@ public class OkHttpProgressGlideModule implements GlideModule {
         };
     }
 
-    public static void forget(String url) {
-        DispatchingProgressListener.forget(url);
+    public static void forget(String key) {
+        DispatchingProgressListener.forget(key);
     }
 
-    public static void expect(String url, UIProgressListener listener) {
-        DispatchingProgressListener.expect(url, listener);
+    public static void expect(String key, ProgressListener listener) {
+        DispatchingProgressListener.expect(key, listener);
     }
 
     private interface ResponseProgressListener {
@@ -69,7 +69,7 @@ public class OkHttpProgressGlideModule implements GlideModule {
     }
 
     private static class DispatchingProgressListener implements ResponseProgressListener {
-        private static final Map<String, UIProgressListener> LISTENERS = new HashMap<>();
+        private static final Map<String, ProgressListener> LISTENERS = new HashMap<>();
         private static final Map<String, Long> PROGRESSES = new HashMap<>();
 
         private final Handler handler;
@@ -78,18 +78,18 @@ public class OkHttpProgressGlideModule implements GlideModule {
             this.handler = new Handler(Looper.getMainLooper());
         }
 
-        static void forget(String url) {
-            LISTENERS.remove(url);
-            PROGRESSES.remove(url);
+        static void forget(String key) {
+            LISTENERS.remove(key);
+            PROGRESSES.remove(key);
         }
 
-        static void expect(String url, UIProgressListener listener) {
-            LISTENERS.put(url, listener);
+        static void expect(String key, ProgressListener listener) {
+            LISTENERS.put(key, listener);
         }
 
         @Override
-        public void update(String key, final long bytesRead, final long contentLength) {
-            final UIProgressListener listener = LISTENERS.get(key);
+        public void update(final String key, final long bytesRead, final long contentLength) {
+            final ProgressListener listener = LISTENERS.get(key);
             if (listener == null) {
                 return;
             }
@@ -100,7 +100,7 @@ public class OkHttpProgressGlideModule implements GlideModule {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        listener.onProgress(bytesRead, contentLength);
+                        listener.onProgress(key, bytesRead, contentLength);
                     }
                 });
             }

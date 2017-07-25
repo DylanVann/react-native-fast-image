@@ -61,9 +61,11 @@
                         progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                             double progress = MIN(1, MAX(0, (double) receivedSize / (double) expectedSize));
                             if (_onFastImageProgress) {
-                                _onFastImageProgress(@{ @"progress": @(progress) });
+                                _onFastImageProgress(@{
+                                    @"loaded": @(receivedSize),
+                                    @"total": @(expectedSize)
+                                });
                             }
-
                         } completed:^(UIImage * _Nullable image,
                                       NSError * _Nullable error,
                                       SDImageCacheType cacheType,

@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import PropTypes from 'prop-types';
+import PropTypes from 'prop-types'
 import {
   Image,
   NativeModules,
@@ -16,7 +16,7 @@ class FastImage extends Component {
     this._root.setNativeProps(nativeProps)
   }
 
-  render () {
+  render() {
     const {
       source,
       onLoadStart,
@@ -24,7 +24,7 @@ class FastImage extends Component {
       onLoad,
       onError,
       onLoadEnd,
-      ...props,
+      ...props
     } = this.props
 
     // If there's no source or source uri just fallback to Image.

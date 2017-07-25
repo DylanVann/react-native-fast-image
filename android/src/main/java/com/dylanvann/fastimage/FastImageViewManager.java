@@ -1,5 +1,6 @@
 package com.dylanvann.fastimage;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -21,25 +22,31 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
 
-class FastImageViewManager extends SimpleViewManager<ImageView> implements UIProgressListener  {
+class ImageViewWithUrl extends ImageView {
+    public GlideUrl glideUrl;
+
+    public ImageViewWithUrl(Context context) {
+        super(context);
+    }
+}
+
+class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implements ProgressListener {
 
     private static final String REACT_CLASS = "FastImageView";
-
+    private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
-
-    private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
-
     private static final String REACT_ON_ERROR_EVENT = "onFastImageError";
-
-    private static Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-
-    private ImageView imageView;
-
-    private GlideUrl glideUrl;
+    private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
+    private static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
+    private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
+    private static final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
 
     @Override
     public String getName() {
@@ -47,9 +54,8 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
     }
 
     @Override
-    protected ImageView createViewInstance(ThemedReactContext reactContext) {
-        imageView = new ImageView(reactContext);
-        return imageView;
+    protected ImageViewWithUrl createViewInstance(ThemedReactContext reactContext) {
+        return new ImageViewWithUrl(reactContext);
     }
 
     private static RequestListener<GlideUrl, GlideDrawable> LISTENER = new RequestListener<GlideUrl, GlideDrawable>() {
@@ -64,12 +70,12 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
             if (!(target instanceof ImageViewTarget)) {
                 return false;
             }
-            ImageView view = (ImageView) ((ImageViewTarget) target).getView();
-            WritableMap event = new WritableNativeMap();
+            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
             ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
             return false;
         }
 
@@ -84,29 +90,32 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
             if (!(target instanceof ImageViewTarget)) {
                 return false;
             }
-            ImageView view = (ImageView) ((ImageViewTarget) target).getView();
-            WritableMap event = new WritableNativeMap();
+            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
             ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, event);
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
             return false;
         }
     };
 
     @ReactProp(name = "source")
-    public void setSrc(ImageView view, @Nullable ReadableMap source) {
+    public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null) {
             // Cancel existing requests.
             Glide.clear(view);
-            OkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
+            if (view.glideUrl != null) {
+                OkHttpProgressGlideModule.forget(view.glideUrl.toStringUrl());
+            }
             // Clear the image.
             view.setImageDrawable(null);
             return;
         }
 
         // Get the GlideUrl which contains header info.
-        glideUrl = FastImageViewConverter.glideUrl(source);
+        GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
+        view.glideUrl = glideUrl;
 
         // Get priority.
         final Priority priority = FastImageViewConverter.priority(source);
@@ -116,6 +125,17 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
 
         String key = glideUrl.toStringUrl();
         OkHttpProgressGlideModule.expect(key, this);
+        List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
+        if (viewsForKey != null && !viewsForKey.contains(view)) {
+            viewsForKey.add(view);
+        } else if (viewsForKey == null) {
+            VIEWS_FOR_URLS.put(key, Collections.singletonList(view));
+        }
+
+        ThemedReactContext context = (ThemedReactContext) view.getContext();
+        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+        int viewId = view.getId();
+        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         Glide
                 .with(view.getContext())
@@ -123,20 +143,26 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)
-                .into(imageView);
+                .into(view);
     }
 
     @ReactProp(name = "resizeMode")
-    public void setResizeMode(ImageView view, String resizeMode) {
-        final ImageView.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
+    public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
+        final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
     }
 
     @Override
-    public void onDropViewInstance(ImageView view) {
+    public void onDropViewInstance(ImageViewWithUrl view) {
         // This will cancel existing requests.
         Glide.clear(view);
-        OkHttpProgressGlideModule.forget(glideUrl.toString());
+        final String key = view.glideUrl.toString();
+        OkHttpProgressGlideModule.forget(key);
+        List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
+        if (viewsForKey != null) {
+            viewsForKey.remove(view);
+            if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
+        }
         super.onDropViewInstance(view);
     }
 
@@ -144,24 +170,33 @@ class FastImageViewManager extends SimpleViewManager<ImageView> implements UIPro
     @Nullable
     public Map getExportedCustomDirectEventTypeConstants() {
         return MapBuilder.of(
+                REACT_ON_LOAD_START_EVENT,
+                MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT),
                 REACT_ON_PROGRESS_EVENT,
                 MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT),
                 REACT_ON_LOAD_EVENT,
                 MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT),
                 REACT_ON_ERROR_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT)
+                MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT),
+                REACT_ON_LOAD_END_EVENT,
+                MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT)
         );
     }
 
     @Override
-    public void onProgress(long bytesRead, long expectedLength) {
-        WritableMap event = new WritableNativeMap();
-        double progress = ((float) bytesRead / (float) expectedLength) * 100;
-        event.putDouble("progress", progress);
-        ThemedReactContext context = (ThemedReactContext) imageView.getContext();
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = imageView.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+    public void onProgress(String key, long bytesRead, long expectedLength) {
+        List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
+        if (viewsForKey != null) {
+            for (ImageViewWithUrl view: viewsForKey) {
+                WritableMap event = new WritableNativeMap();
+                event.putInt("loaded", (int) bytesRead);
+                event.putInt("total", (int) expectedLength);
+                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                int viewId = view.getId();
+                eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+            }
+        }
     }
 
     @Override
