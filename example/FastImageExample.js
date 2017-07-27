@@ -41,7 +41,10 @@ const getImages = () => {
 
 const getTestProgressCallbacks = label => ({
   onLoadStart: () => console.log(`${label} - onLoadStart`),
-  onProgress: e => console.log(`${label} - onProgress - ${e.nativeEvent.loaded / e.nativeEvent.total}`),
+  onProgress: e =>
+    console.log(
+      `${label} - onProgress - ${e.nativeEvent.loaded / e.nativeEvent.total}`,
+    ),
   onLoad: () => console.log(`${label} - onLoad`),
   onError: () => console.log(`${label} - onError`),
   onLoadEnd: () => console.log(`${label} - onLoadEnd`),
