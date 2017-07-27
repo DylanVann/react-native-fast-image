@@ -1,8 +1,9 @@
-import React, { PropTypes, Component } from 'react'
+import React, { Component } from 'react'
+import PropTypes from 'prop-types'
 import {
-  requireNativeComponent,
   Image,
   NativeModules,
+  requireNativeComponent,
   View,
 } from 'react-native'
 
@@ -16,7 +17,15 @@ class FastImage extends Component {
   }
 
   render() {
-    const { source, onError, onLoad, ...props } = this.props
+    const {
+      source,
+      onLoadStart,
+      onProgress,
+      onLoad,
+      onError,
+      onLoadEnd,
+      ...props
+    } = this.props
 
     // If there's no source or source uri just fallback to Image.
     if (!source || !source.uri) {
@@ -25,8 +34,11 @@ class FastImage extends Component {
           ref={e => (this._root = e)}
           {...props}
           source={source}
-          onError={onError}
+          onLoadStart={onLoadStart}
+          onProgress={onProgress}
           onLoad={onLoad}
+          onError={onError}
+          onLoadEnd={onLoadEnd}
         />
       )
     }
@@ -37,8 +49,11 @@ class FastImage extends Component {
         ref={e => (this._root = e)}
         {...props}
         source={resolvedSource}
-        onFastImageError={onError}
+        onFastImageLoadStart={onLoadStart}
+        onFastImageProgress={onProgress}
         onFastImageLoad={onLoad}
+        onFastImageError={onError}
+        onFastImageLoadEnd={onLoadEnd}
       />
     )
   }
@@ -61,6 +76,10 @@ FastImage.preload = sources => {
   FastImageViewNativeModule.preload(sources)
 }
 
+FastImage.defaultProps = {
+  resizeMode: FastImage.resizeMode.cover,
+}
+
 const FastImageSourcePropType = PropTypes.shape({
   uri: PropTypes.string,
   headers: PropTypes.objectOf(PropTypes.string),
@@ -70,18 +89,21 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
   ...View.propTypes,
   source: FastImageSourcePropType,
-  onFastImageError: PropTypes.func,
-  onFastImageLoad: PropTypes.func,
-}
-
-FastImage.defaultProps = {
-  resizeMode: FastImage.resizeMode.cover,
-  onLoad: Function.prototype,
-  onError: Function.prototype,
+  onLoadStart: PropTypes.func,
+  onProgress: PropTypes.func,
+  onLoad: PropTypes.func,
+  onError: PropTypes.func,
+  onLoadEnd: PropTypes.func,
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
-  nativeOnly: { onFastImageError: true, onFastImageLoad: true },
+  nativeOnly: {
+    onFastImageLoadStart: true,
+    onFastImageProgress: true,
+    onFastImageLoad: true,
+    onFastImageError: true,
+    onFastImageLoadEnd: true,
+  },
 })
 
 export default FastImage

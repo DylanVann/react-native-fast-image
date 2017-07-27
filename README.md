@@ -99,6 +99,20 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `onLoadStart?: () => void`
+
+Called when the image starts to load.
+
+---
+
+### `onProgress?: (event) => void`
+
+Called when the image is loading.
+
+e.g. `onProgress={e => console.log(e.nativeEvent.loaded / e.nativeEvent.total)}`
+
+---
+
 ### `onLoad?: () => void`
 
 Called on a successful image fetch.
@@ -108,6 +122,12 @@ Called on a successful image fetch.
 ### `onError?: () => void`
 
 Called on an image fetching error.
+
+---
+
+### `onLoadEnd?: () => void`
+
+Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
