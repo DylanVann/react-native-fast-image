@@ -39,6 +39,14 @@ const getImages = () => {
   ]
 }
 
+const getTestProgressCallbacks = label => ({
+  onLoadStart: () => console.log(`${label} - onLoadStart`),
+  onProgress: e => console.log(`${label} - onProgress - ${e.nativeEvent.loaded / e.nativeEvent.total}`),
+  onLoad: () => console.log(`${label} - onLoad`),
+  onError: () => console.log(`${label} - onError`),
+  onLoadEnd: () => console.log(`${label} - onLoadEnd`),
+})
+
 const images = getImages()
 
 class FastImageExample extends Component {
@@ -90,6 +98,7 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.low,
             }}
+            {...getTestProgressCallbacks('1')}
           />
           <FastImage
             style={styles.image}
@@ -100,6 +109,7 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.normal,
             }}
+            {...getTestProgressCallbacks('2')}
           />
           <FastImage
             style={styles.image}
@@ -110,12 +120,7 @@ class FastImageExample extends Component {
               },
               priority: FastImage.priority.high,
             }}
-            onLoadStart={() => console.log('onLoadStart')}
-            onProgress={e =>
-              console.log(e.nativeEvent.loaded / e.nativeEvent.total)}
-            onLoad={() => console.log('onLoad')}
-            onError={() => console.log('onError')}
-            onLoadEnd={() => console.log('onLoadEnd')}
+            {...getTestProgressCallbacks('3')}
           />
         </ScrollView>
       </View>
