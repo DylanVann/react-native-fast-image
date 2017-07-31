@@ -136,7 +136,7 @@ Called when the image finishes loading, whether it was successful or an error.
 `FastImage` does not currently support children.
 Absolute positioning can be used as an alternative.
 
-(This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.)
+This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.
 
 ## Static Methods
 
@@ -175,7 +175,15 @@ npm install
 
 The npm usage is because
 yarn will cache locally installed packages and not update them
-if the version does not change.
+if the version does not change. yarn also doesn't respect `.npmignore`
+when doing local installs.
+
+To update while developing you can use:
+
+```bash
+cd example
+npm install ../
+```
 
 ## Credits
 
