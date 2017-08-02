@@ -6,6 +6,7 @@ import {
   requireNativeComponent,
   View,
 } from 'react-native'
+import { ViewPropTypes } from './lib'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
 
@@ -87,7 +88,7 @@ const FastImageSourcePropType = PropTypes.shape({
 })
 
 FastImage.propTypes = {
-  ...View.propTypes,
+  ...ViewPropTypes,
   source: FastImageSourcePropType,
   onLoadStart: PropTypes.func,
   onProgress: PropTypes.func,
