@@ -22,7 +22,8 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,7 +130,8 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         if (viewsForKey != null && !viewsForKey.contains(view)) {
             viewsForKey.add(view);
         } else if (viewsForKey == null) {
-            VIEWS_FOR_URLS.put(key, Collections.singletonList(view));
+            List<ImageViewWithUrl> newViewsForKeys = new ArrayList<ImageViewWithUrl>(Arrays.asList(view));
+            VIEWS_FOR_URLS.put(key, newViewsForKeys);
         }
 
         ThemedReactContext context = (ThemedReactContext) view.getContext();
