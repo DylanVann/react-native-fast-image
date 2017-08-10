@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
 
 class ImageViewWithUrl extends ImageView {
     public GlideUrl glideUrl;
+    public Priority priority;
+    public float borderRadius;
 
     public ImageViewWithUrl(Context context) {
         super(context);
@@ -119,7 +121,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         view.glideUrl = glideUrl;
 
         // Get priority.
-        final Priority priority = FastImageViewConverter.priority(source);
+        view.priority = FastImageViewConverter.priority(source);
 
         // Cancel existing request.
         Glide.clear(view);
@@ -138,20 +140,17 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
-
-        Glide
-                .with(view.getContext())
-                .load(glideUrl)
-                .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
-                .into(view);
     }
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
         final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "borderRadius")
+    public void setBorderRadius(ImageViewWithUrl view, float borderRadius) {
+        view.borderRadius = borderRadius;
     }
 
     @Override
@@ -198,6 +197,28 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 int viewId = view.getId();
                 eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
             }
+        }
+    }
+
+    @Override
+    protected void onAfterUpdateTransaction(ImageViewWithUrl view) {
+        if (view.borderRadius > 0) {
+            Glide
+                .with(view.getContext())
+                .load(view.glideUrl)
+                .priority(view.priority)
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .listener(LISTENER)
+                .bitmapTransform(new RoundedCornersTransformation(view.getContext(), view.borderRadius))
+                .into(view);
+        } else {
+            Glide
+                .with(view.getContext())
+                .load(view.glideUrl)
+                .priority(view.priority)
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .listener(LISTENER)
+                .into(view);
         }
     }
 
