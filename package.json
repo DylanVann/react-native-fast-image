@@ -1,6 +1,6 @@
 {
-  "name": "react-native-fast-image",
-  "version": "1.0.0",
+  "name": "react-native-fast-image-nevo",
+  "version": "1.0.2",
   "description": "🚩 FastImage, performant React Native image component.",
   "keywords": [
     "cache",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
+    "url": "git+https://github.com/yiky84119/react-native-fast-image.git"
   },
   "scripts": {
     "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
