@@ -41,7 +41,9 @@ public class BorderRaduisTransformation implements Transformation<Bitmap> {
         int width = source.getWidth();
         int height = source.getHeight();
 
-        float r = mRadius * mDensity;
+        float ratio = (float)width / (float)outWidth;
+
+        float r = mRadius * mDensity * ratio;
 
         Bitmap bitmap = mBitmapPool.get(width, height, Bitmap.Config.ARGB_8888);
         if (bitmap == null) {
