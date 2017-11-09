@@ -8,6 +8,7 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
@@ -250,6 +251,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                         .listener(LISTENER_STRING)
                         //.diskCacheStrategy( DiskCacheStrategy.NONE )
                         //.skipMemoryCache(true)
+                        .centerCrop()
                         .bitmapTransform(new BorderRaduisTransformation(view.getContext(), view.borderRadius))
                         .into(view);
             } else {
@@ -269,6 +271,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                         .priority(view.priority)
                         .placeholder(TRANSPARENT_DRAWABLE)
                         .listener(LISTENER)
+                        .centerCrop()
                         //.diskCacheStrategy( DiskCacheStrategy.NONE )
                         //.skipMemoryCache(true)
                         .bitmapTransform(new BorderRaduisTransformation(view.getContext(), view.borderRadius))
