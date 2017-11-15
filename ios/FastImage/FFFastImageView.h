@@ -1,8 +1,4 @@
-#import <UIKit/UIKit.h>
-
-#import <SDWebImage/FLAnimatedImageView.h>
 #import <SDWebImage/FLAnimatedImageView+WebCache.h>
-#import <SDWebImage/SDWebImageDownloader.h>
 
 #import <React/RCTComponent.h>
 #import <React/RCTResizeMode.h>
@@ -20,4 +16,3 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 
 @end
-
