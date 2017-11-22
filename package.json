@@ -1,14 +1,8 @@
 {
-  "name": "react-native-fast-image",
+  "name": "@bam.tech/react-native-fast-image",
   "version": "1.0.0",
   "description": "🚩 FastImage, performant React Native image component.",
-  "keywords": [
-    "cache",
-    "cached",
-    "fastimage",
-    "image",
-    "priority"
-  ],
+  "keywords": ["cache", "cached", "fastimage", "image", "priority"],
   "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
   "bugs": {
     "url": "https://github.com/DylanVann/react-native-fast-image/issues"
@@ -24,10 +18,12 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
+    "format":
+      "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
     "test": "yarn run test:pretty && yarn run test:jest",
     "test:jest": "jest *.js",
-    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
+    "test:pretty":
+      "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
   },
   "devDependencies": {
     "babel-jest": "^20.0.3",
@@ -41,10 +37,7 @@
   },
   "jest": {
     "preset": "react-native",
-    "modulePathIgnorePatterns": [
-      "example",
-      "server"
-    ]
+    "modulePathIgnorePatterns": ["example", "server"]
   },
   "dependencies": {
     "prop-types": "^15.5.10"
