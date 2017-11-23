@@ -11,5 +11,7 @@ Pod::Spec.new do |s|
   s.platform     = :ios, "7.0"
 
   s.dependency 'React'
+  s.dependency 'SDWebImage'
+  s.dependency 'SDWebImage/GIF'
   s.source_files  = "ios/FastImage/*.{h,m}"
 end
