@@ -6,11 +6,9 @@ import android.os.Looper;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.GlideBuilder;
-import com.bumptech.glide.Registry;
-import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.module.LibraryGlideModule;
+import com.bumptech.glide.module.GlideModule;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,15 +27,18 @@ import okio.ForwardingSource;
 import okio.Okio;
 import okio.Source;
 
-@GlideModule
-public class OkHttpProgressGlideModule extends LibraryGlideModule {
+public class OkHttpProgressGlideModule implements GlideModule {
+
     @Override
-    public void registerComponents(Context context, Glide glide, Registry registry) {
+    public void applyOptions(Context context, GlideBuilder builder) { }
+
+    @Override
+    public void registerComponents(Context context, Glide glide) {
         OkHttpClient client = new OkHttpClient
                 .Builder()
                 .addInterceptor(createInterceptor(new DispatchingProgressListener()))
                 .build();
-        registry.replace(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
+        glide.register(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
