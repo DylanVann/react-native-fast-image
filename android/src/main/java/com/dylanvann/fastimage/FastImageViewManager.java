@@ -26,9 +26,9 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +52,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
     private static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-    private final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
+    private final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
     @Override
     public String getName() {
@@ -64,7 +64,9 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         return new ImageViewWithUrl(reactContext);
     }
 
-    private static RequestListener<GlideUrl, GlideDrawable> LISTENER = new RequestListener<GlideUrl, GlideDrawable>() {
+    private FIRequestListener LISTENER = new FIRequestListener();
+
+    private static class FIRequestListener implements RequestListener<GlideUrl, GlideDrawable> {
         @Override
         public boolean onException(
                 Exception e,
@@ -104,7 +106,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
             return false;
         }
-    };
+    }
 
     @ReactProp(name = "source")
     public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
@@ -144,7 +146,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-        if(view.borderRadius > 0) {
+        if (view.borderRadius > 0) {
             Glide
                     .with(view.getContext())
                     .load(glideUrl)
@@ -212,7 +214,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     public void onProgress(String key, long bytesRead, long expectedLength) {
         List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
-            for (ImageViewWithUrl view: viewsForKey) {
+            for (ImageViewWithUrl view : viewsForKey) {
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);

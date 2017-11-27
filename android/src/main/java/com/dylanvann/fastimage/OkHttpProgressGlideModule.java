@@ -7,6 +7,7 @@ import android.os.Looper;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.GlideBuilder;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
+import com.bumptech.glide.load.engine.cache.InternalCacheDiskCacheFactory;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.module.GlideModule;
 
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
@@ -29,39 +31,49 @@ import okio.Source;
 
 public class OkHttpProgressGlideModule implements GlideModule {
 
+    private static DispatchingProgressListener progressListener = new DispatchingProgressListener();
+
     @Override
-    public void applyOptions(Context context, GlideBuilder builder) { }
+    public void applyOptions(Context context, GlideBuilder builder) {
+        builder.setDiskCache(
+                new InternalCacheDiskCacheFactory(context, 10485760));
+    }
 
     @Override
     public void registerComponents(Context context, Glide glide) {
         OkHttpClient client = new OkHttpClient
                 .Builder()
-                .addInterceptor(createInterceptor(new DispatchingProgressListener()))
+                .addInterceptor(new FIInterceptor(progressListener))
                 .build();
         glide.register(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
     }
 
-    private static Interceptor createInterceptor(final ResponseProgressListener listener) {
-        return new Interceptor() {
-            @Override
-            public Response intercept(Chain chain) throws IOException {
-                Request request = chain.request();
-                Response response = chain.proceed(request);
-                final String key = request.url().toString();
-                return response
-                        .newBuilder()
-                        .body(new OkHttpProgressResponseBody(key, response.body(), listener))
-                        .build();
-            }
-        };
-    }
-
     public static void forget(String key) {
-        DispatchingProgressListener.forget(key);
+        progressListener.forget(key);
     }
 
     public static void expect(String key, ProgressListener listener) {
-        DispatchingProgressListener.expect(key, listener);
+        progressListener.expect(key, listener);
+    }
+
+    private static class FIInterceptor implements Interceptor {
+
+        private ResponseProgressListener listener;
+
+        FIInterceptor(ResponseProgressListener listener) {
+            this.listener = listener;
+        }
+
+        @Override
+        public Response intercept(Interceptor.Chain chain) throws IOException {
+            Request request = chain.request();
+            Response response = chain.proceed(request);
+            final String key = request.url().toString();
+            return response
+                    .newBuilder()
+                    .body(new OkHttpProgressResponseBody(key, response.body(), listener))
+                    .build();
+        }
     }
 
     private interface ResponseProgressListener {
@@ -69,8 +81,8 @@ public class OkHttpProgressGlideModule implements GlideModule {
     }
 
     private static class DispatchingProgressListener implements ResponseProgressListener {
-        private static final Map<String, ProgressListener> LISTENERS = new HashMap<>();
-        private static final Map<String, Long> PROGRESSES = new HashMap<>();
+        private final Map<String, ProgressListener> LISTENERS = new WeakHashMap<>();
+        private final Map<String, Long> PROGRESSES = new HashMap<>();
 
         private final Handler handler;
 
@@ -78,12 +90,12 @@ public class OkHttpProgressGlideModule implements GlideModule {
             this.handler = new Handler(Looper.getMainLooper());
         }
 
-        static void forget(String key) {
+        void forget(String key) {
             LISTENERS.remove(key);
             PROGRESSES.remove(key);
         }
 
-        static void expect(String key, ProgressListener listener) {
+        void expect(String key, ProgressListener listener) {
             LISTENERS.put(key, listener);
         }
 
