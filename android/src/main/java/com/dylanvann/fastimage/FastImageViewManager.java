@@ -4,11 +4,12 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.widget.ImageView;
+import android.support.v7.widget.AppCompatImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
@@ -17,6 +18,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
+import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
@@ -30,8 +32,11 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-class ImageViewWithUrl extends ImageView {
+import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
+
+class ImageViewWithUrl extends AppCompatImageView {
     public GlideUrl glideUrl;
+    public int borderRadius = 0;
 
     public ImageViewWithUrl(Context context) {
         super(context);
@@ -47,7 +52,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
     private static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-    private static final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
+    private final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
 
     @Override
     public String getName() {
@@ -139,19 +144,37 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-        Glide
-                .with(view.getContext())
-                .load(glideUrl)
-                .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
-                .into(view);
+        if(view.borderRadius > 0) {
+            Glide
+                    .with(view.getContext())
+                    .load(glideUrl)
+                    .bitmapTransform(new CenterCrop(view.getContext()), new RoundedCornersTransformation(view.getContext(), view.borderRadius, 0, RoundedCornersTransformation.CornerType.ALL))
+                    .priority(priority)
+                    .placeholder(TRANSPARENT_DRAWABLE)
+                    .listener(LISTENER)
+                    .into(view);
+        } else {
+            Glide
+                    .with(view.getContext())
+                    .load(glideUrl)
+                    .bitmapTransform(new CenterCrop(view.getContext()))
+                    .priority(priority)
+                    .placeholder(TRANSPARENT_DRAWABLE)
+                    .listener(LISTENER)
+                    .into(view);
+        }
     }
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
         final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "borderRadius", defaultFloat = 0f)
+    public void setBorderRadius(ImageViewWithUrl view, float borderRadius) {
+        int borderRadiusPX = (int) PixelUtil.toPixelFromDIP(borderRadius);
+        view.borderRadius = borderRadiusPX;
     }
 
     @Override
