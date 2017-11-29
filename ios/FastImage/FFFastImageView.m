@@ -78,8 +78,14 @@
                                     }
                                 }
                             } else {
+                                SDImageCache *sdImageCache = [SDImageCache sharedImageCache];
+                                NSString *defaultPath = [sdImageCache defaultCachePathForKey:[_source.uri absoluteString]];
+                                
+                                NSLog(@"%@", defaultPath);
                                 if (_onFastImageLoad) {
-                                    _onFastImageLoad(@{});
+                                    _onFastImageLoad(@{
+                                                       @"path": defaultPath
+                                                       });
                                     if (_onFastImageLoadEnd) {
                                         _onFastImageLoadEnd(@{});
                                     }
