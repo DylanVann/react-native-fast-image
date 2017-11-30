@@ -191,6 +191,12 @@ To update while developing you can re-pack and reinstall the tarball.
 
 Hopefully [metro](https://github.com/facebook/metro) will add support for symlinks soon.
 
+## Supported React Native Versions
+
+This project only aims to support the latest version of React Native.
+
+If you require new features or bug fixes for older versions you can fork this project.
+
 ## Credits
 
 The idea for this modules came from

@@ -40,14 +40,14 @@
     "prop-types": "^15.5.10"
   },
   "devDependencies": {
-    "babel-jest": "^20.0.3",
-    "babel-preset-react-native": "^2.0.0",
-    "jest": "^20.0.4",
+    "babel-jest": "^21.2.0",
+    "babel-preset-react-native": "^4.0.0",
+    "jest": "^21.2.1",
     "prettier": "^1.5.2",
-    "prettier-check": "^1.0.0",
-    "react": "16.0.0-alpha.12",
-    "react-native": "^0.45.1",
-    "react-test-renderer": "16.0.0-alpha.12"
+    "prettier-check": "^2.0.0",
+    "react": "16.0.0",
+    "react-native": "^0.50.4",
+    "react-test-renderer": "16.0.0"
   },
   "engines": {
     "node": "9.2.0",
