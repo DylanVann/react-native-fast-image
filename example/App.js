@@ -1,9 +1,9 @@
 // @flow
 import React from 'react'
 import { TabNavigator, TabBarBottom } from 'react-navigation'
-import FastImageExample from './FastImageExample'
-import FastImageGrid from './FastImageGrid'
-import DefaultImageGrid from './DefaultImageGrid'
+import FastImageExample from './fastImage/FastImageExample'
+import FastImageGrid from './fastImage/FastImageGrid'
+import DefaultImageGrid from './fastImage/DefaultImageGrid'
 
 const App = TabNavigator(
   {

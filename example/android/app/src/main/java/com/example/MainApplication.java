@@ -1,4 +1,4 @@
-package com.fastimage;
+package com.example;
 
 import android.app.Application;
 
@@ -28,6 +28,11 @@ public class MainApplication extends Application implements ReactApplication {
             new VectorIconsPackage(),
             new FastImageViewPackage()
       );
+    }
+
+    @Override
+    protected String getJSMainModuleName() {
+      return "index";
     }
   };
 

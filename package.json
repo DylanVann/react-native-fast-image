@@ -15,6 +15,12 @@
   },
   "license": "MIT",
   "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
+  "files": [
+    "ios",
+    "android",
+    "utils",
+    "FastImage.js"
+  ],
   "main": "FastImage.js",
   "directories": {
     "example": "example"
