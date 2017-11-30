@@ -31,10 +31,10 @@
   },
   "scripts": {
     "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
+    "prepare": "git submodule update --init --recursive",
     "test": "yarn run test:pretty && yarn run test:jest",
     "test:jest": "jest *.js",
-    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js",
-    "postinstall": "git clone https://github.com/rs/SDWebImage.git ios/Vendor/SDWebImage && cd ios/Vendor/SDWebImage && git submodule update --init --recursive && cd ../../.."
+    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./server/*.js"
   },
   "dependencies": {
     "prop-types": "^15.5.10"
