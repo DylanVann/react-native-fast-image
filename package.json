@@ -49,10 +49,6 @@
     "react-native": "^0.50.4",
     "react-test-renderer": "16.0.0"
   },
-  "engines": {
-    "node": "9.2.0",
-    "yarn": "1.3.2"
-  },
   "jest": {
     "preset": "react-native",
     "modulePathIgnorePatterns": [
