@@ -193,7 +193,8 @@ Hopefully [metro](https://github.com/facebook/metro) will add support for symlin
 
 ## Supported React Native Versions
 
-This project only aims to support the latest version of React Native.
+This project only aims to support the latest version of React Native.\
+This simplifies the development and the testing of the project.
 
 If you require new features or bug fixes for older versions you can fork this project.
 
