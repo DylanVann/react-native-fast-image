@@ -1,6 +1,7 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -41,6 +42,14 @@ class ImageViewWithUrl extends AppCompatImageView {
     public ImageViewWithUrl(Context context) {
         super(context);
     }
+
+    ThemedReactContext getThemedReactContext() {
+        if(getContext() instanceof ContextWrapper) {
+            return (ThemedReactContext) ((ContextWrapper) getContext()).getBaseContext();
+        }
+        return (ThemedReactContext) getContext();
+    }
+
 }
 
 class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implements ProgressListener {
@@ -65,48 +74,6 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     }
 
     private FIRequestListener LISTENER = new FIRequestListener();
-
-    private static class FIRequestListener implements RequestListener<GlideUrl, GlideDrawable> {
-        @Override
-        public boolean onException(
-                Exception e,
-                GlideUrl uri,
-                Target<GlideDrawable> target,
-                boolean isFirstResource
-        ) {
-            OkHttpProgressGlideModule.forget(uri.toStringUrl());
-            if (!(target instanceof ImageViewTarget)) {
-                return false;
-            }
-            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
-            return false;
-        }
-
-        @Override
-        public boolean onResourceReady(
-                GlideDrawable resource,
-                GlideUrl uri,
-                Target<GlideDrawable> target,
-                boolean isFromMemoryCache,
-                boolean isFirstResource
-        ) {
-            if (!(target instanceof ImageViewTarget)) {
-                return false;
-            }
-            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
-            return false;
-        }
-    }
 
     @ReactProp(name = "source")
     public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
@@ -141,7 +108,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             VIEWS_FOR_URLS.put(key, newViewsForKeys);
         }
 
-        ThemedReactContext context = (ThemedReactContext) view.getContext();
+        ThemedReactContext context = view.getThemedReactContext();
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
@@ -218,7 +185,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                ThemedReactContext context = view.getThemedReactContext();
                 RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
                 int viewId = view.getId();
                 eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
@@ -231,4 +198,45 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         return 0.5f;
     }
 
+    private static class FIRequestListener implements RequestListener<GlideUrl, GlideDrawable> {
+        @Override
+        public boolean onException(
+                Exception e,
+                GlideUrl uri,
+                Target<GlideDrawable> target,
+                boolean isFirstResource
+        ) {
+            OkHttpProgressGlideModule.forget(uri.toStringUrl());
+            if (!(target instanceof ImageViewTarget)) {
+                return false;
+            }
+            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
+            ThemedReactContext context = view.getThemedReactContext();
+            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            int viewId = view.getId();
+            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
+            return false;
+        }
+
+        @Override
+        public boolean onResourceReady(
+                GlideDrawable resource,
+                GlideUrl uri,
+                Target<GlideDrawable> target,
+                boolean isFromMemoryCache,
+                boolean isFirstResource
+        ) {
+            if (!(target instanceof ImageViewTarget)) {
+                return false;
+            }
+            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
+            ThemedReactContext context = view.getThemedReactContext();
+            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            int viewId = view.getId();
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
+            return false;
+        }
+    }
 }
