@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.v7.widget.AppCompatImageView;
+import android.support.v7.widget.TintContextWrapper;
 
 import com.bumptech.glide.DrawableRequestBuilder;
 import com.bumptech.glide.Glide;
@@ -45,7 +46,7 @@ class ImageViewWithUrl extends AppCompatImageView {
     }
 
     ThemedReactContext getThemedReactContext() {
-        if (getContext() instanceof ContextWrapper) {
+        if (getContext() instanceof TintContextWrapper) {
             return (ThemedReactContext) ((ContextWrapper) getContext()).getBaseContext();
         }
         return (ThemedReactContext) getContext();
