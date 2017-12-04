@@ -99,6 +99,12 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `borderRadius?: number`
+
+Set image border radius. Only available on Android. For iOS set borderRadius in style.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.
