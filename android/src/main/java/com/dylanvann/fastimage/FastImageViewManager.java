@@ -117,7 +117,8 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
 
         DrawableRequestBuilder<GlideUrl> builder = Glide
                 .with(view.getContext())
-                .load(glideUrl);
+                .load(glideUrl)
+                .dontTransform();
 
         if (view.borderRadius > 0) {
             builder = builder

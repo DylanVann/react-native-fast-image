@@ -1,3 +1,4 @@
 import { AppRegistry } from 'react-native'
 import App from './App'
-AppRegistry.registerComponent('FastImage', () => App)
+
+AppRegistry.registerComponent('example', () => App)

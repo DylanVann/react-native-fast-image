@@ -2,7 +2,7 @@
 
 #import <SDWebImage/UIImageView+WebCache.h>
 #import <SDWebImage/SDWebImageDownloader.h>
-#import "FLAnimatedImageView.h"
+#import <FLAnimatedImage/FLAnimatedImageView.h>
 
 #import <React/RCTComponent.h>
 #import <React/RCTResizeMode.h>
