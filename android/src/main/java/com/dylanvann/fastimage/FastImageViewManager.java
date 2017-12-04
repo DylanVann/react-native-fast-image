@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.v7.widget.AppCompatImageView;
 
+import com.bumptech.glide.DrawableRequestBuilder;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.model.GlideUrl;
@@ -44,7 +45,7 @@ class ImageViewWithUrl extends AppCompatImageView {
     }
 
     ThemedReactContext getThemedReactContext() {
-        if(getContext() instanceof ContextWrapper) {
+        if (getContext() instanceof ContextWrapper) {
             return (ThemedReactContext) ((ContextWrapper) getContext()).getBaseContext();
         }
         return (ThemedReactContext) getContext();
@@ -113,25 +114,24 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
+        DrawableRequestBuilder<GlideUrl> builder = Glide
+                .with(view.getContext())
+                .load(glideUrl);
+
         if (view.borderRadius > 0) {
-            Glide
-                    .with(view.getContext())
-                    .load(glideUrl)
-                    .bitmapTransform(new CenterCrop(view.getContext()), new RoundedCornersTransformation(view.getContext(), view.borderRadius, 0, RoundedCornersTransformation.CornerType.ALL))
-                    .priority(priority)
-                    .placeholder(TRANSPARENT_DRAWABLE)
-                    .listener(LISTENER)
-                    .into(view);
-        } else {
-            Glide
-                    .with(view.getContext())
-                    .load(glideUrl)
-                    .bitmapTransform(new CenterCrop(view.getContext()))
-                    .priority(priority)
-                    .placeholder(TRANSPARENT_DRAWABLE)
-                    .listener(LISTENER)
-                    .into(view);
+            builder = builder
+                    .bitmapTransform(
+                            new CenterCrop(view.getContext()),
+                            new RoundedCornersTransformation(
+                                    view.getContext(),
+                                    view.borderRadius,
+                                    0,
+                                    RoundedCornersTransformation.CornerType.ALL));
         }
+        builder.priority(priority)
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .listener(LISTENER)
+                .into(view);
     }
 
     @ReactProp(name = "resizeMode")
