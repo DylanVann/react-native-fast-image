@@ -27,22 +27,6 @@ class FastImage extends Component {
       ...props
     } = this.props
 
-    // If there's no source or source uri just fallback to Image.
-    if (!source || !source.uri) {
-      return (
-        <Image
-          ref={e => (this._root = e)}
-          {...props}
-          source={source}
-          onLoadStart={onLoadStart}
-          onProgress={onProgress}
-          onLoad={onLoad}
-          onError={onError}
-          onLoadEnd={onLoadEnd}
-        />
-      )
-    }
-
     const resolvedSource = resolveAssetSource(source)
     return (
       <FastImageView
