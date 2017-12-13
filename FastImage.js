@@ -86,7 +86,7 @@ const FastImageView = requireNativeComponent('FastImageView', FastImage, {
     onFastImageProgress: true,
     onFastImageLoad: true,
     onFastImageError: true,
-    onFastImageLoadEnd: true,
+    onFastImageLoadEnd: true
   },
 })
 
