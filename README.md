@@ -92,8 +92,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `resizeMode?: enum`
 
-- `FastImage.resizeMode.contain` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
 - `FastImage.resizeMode.center` - Do not scale the image, keep centered.
 
