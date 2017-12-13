@@ -13,7 +13,7 @@
 
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadStart;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageProgress;
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
+@property (nonatomic, copy) RCTBubblingEventBlock onFastImageError;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
 @property (nonatomic, assign) RCTResizeMode resizeMode;

@@ -9,7 +9,6 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -41,16 +40,12 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     final ReadableMap source = sources.getMap(i);
                     final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
                     final Priority priority = FastImageViewConverter.priority(source);
-
-                    RequestOptions options = new RequestOptions()
-                            .placeholder(TRANSPARENT_DRAWABLE)
-                            .diskCacheStrategy(DiskCacheStrategy.ALL)
-                            .priority(priority);
-
                     Glide
                             .with(activity.getApplicationContext())
-                            .applyDefaultRequestOptions(options)
                             .load(glideUrl)
+                            .priority(priority)
+                            .placeholder(TRANSPARENT_DRAWABLE)
+                            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
                             .preload();
                 }
             }

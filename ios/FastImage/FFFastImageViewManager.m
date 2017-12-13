@@ -14,6 +14,11 @@ RCT_EXPORT_MODULE(FastImageView)
   return view;
 }
 
+- (dispatch_queue_t)methodQueue
+{
+    return dispatch_get_main_queue();
+}
+
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadStart, RCTDirectEventBlock)

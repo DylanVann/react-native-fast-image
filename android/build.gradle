@@ -33,7 +33,7 @@ repositories {
 
 dependencies {
     compile 'com.facebook.react:react-native:+'
-    compile group: 'com.github.bumptech.glide', name: 'glide', version: '4.3.1'
-    compile group: 'com.github.bumptech.glide', name: 'okhttp3-integration', version: '4.3.1'
-    compile 'com.android.support:support-v4:23.0.1'
+    compile group: 'com.github.bumptech.glide', name: 'glide', version: '3.8.0'
+    compile group: 'com.github.bumptech.glide', name: 'okhttp3-integration', version: '1.5.0'
+    compile 'com.android.support:support-v4:19.1.0'
 }
