@@ -403,6 +403,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Vendor/SDWebImage",
 					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+					"$(BUILT_PRODUCTS_DIR)",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -416,6 +417,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Vendor/SDWebImage",
 					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+					"$(BUILT_PRODUCTS_DIR)",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
