@@ -140,8 +140,9 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         Glide
-                .with(view.getContext())
+                .with(view.getContext().getApplicationContext())
                 .load(glideUrl)
+                .dontTransform()
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)

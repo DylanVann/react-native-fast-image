@@ -167,23 +167,36 @@ git submodule update --init --recursive
 yarn
 ```
 
-To update the example project modules you will need to run:
+Developing modules for React Native is currently a mess because the packager does not support symlinks.
+
+Both major package managers, `npm@5` and `yarn`, do local installations by creating symlinks.
+
+Unfortunately for now the workaround to update the example is to run:
 
 ```bash
-npm install
-```
+# In the repo directory pack the module:
+npm pack
 
-The npm usage is because
-yarn will cache locally installed packages and not update them
-if the version does not change. yarn also doesn't respect `.npmignore`
-when doing local installs.
+# This makes a tarball like:
+# react-native-fast-image-1.0.0.tgz
 
-To update while developing you can use:
-
-```bash
+# Move into the example:
 cd example
-npm install ../
+
+# Install the tarball:
+npm install ../react-native-fast-image-1.0.0.tgz
 ```
+
+To update while developing you can re-pack and reinstall the tarball. 
+
+Hopefully [metro](https://github.com/facebook/metro) will add support for symlinks soon.
+
+## Supported React Native Versions
+
+This project only aims to support the latest version of React Native.\
+This simplifies the development and the testing of the project.
+
+If you require new features or bug fixes for older versions you can fork this project.
 
 ## Credits
 
