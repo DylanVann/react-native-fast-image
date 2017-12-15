@@ -1,3 +1,0 @@
-[submodule "ios/Vendor/SDWebImage"]
-	path = ios/Vendor/SDWebImage
-	url = https://github.com/rs/SDWebImage.git
