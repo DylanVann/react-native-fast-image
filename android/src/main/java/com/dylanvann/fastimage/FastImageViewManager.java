@@ -95,16 +95,20 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
-
-            WritableMap resourceData = new WritableNativeMap();
-            resourceData.putInt("width", resource.getIntrinsicWidth());
-            resourceData.putInt("height", resource.getIntrinsicHeight());
             
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, resourceData);
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, resourceData);
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, mapFromResource(resource));
             return false;
         }
     };
+
+    private static WritableMap mapFromResource(GlideDrawable resource) {
+        WritableMap resourceData = new WritableNativeMap();
+        resourceData.putInt("width", resource.getIntrinsicWidth());
+        resourceData.putInt("height", resource.getIntrinsicHeight());
+
+        return resourceData;
+    }
 
     @ReactProp(name = "source")
     public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
