@@ -14,6 +14,7 @@ Pod::Spec.new do |s|
   s.source_files = 'ios/FastImage/*.{h,m}'
   s.framework    = 'UIKit'
   s.requires_arc = true
-  s.dependency 'SDWebImage', '~> 4.2.2'
-  s.dependency 'FLAnimatedImage', '~> 1.0.12'
+  s.dependency 'SDWebImage'
+  s.dependency 'FLAnimatedImage'
+  s.dependency 'React'
 end
