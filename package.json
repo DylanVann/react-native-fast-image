@@ -19,7 +19,8 @@
     "ios",
     "android",
     "utils",
-    "FastImage.js"
+    "FastImage.js",
+    "react-native-fast-image.podspec"
   ],
   "main": "FastImage.js",
   "directories": {
