@@ -45,8 +45,8 @@
     "jest": "^21.2.1",
     "prettier": "^1.5.2",
     "prettier-check": "^2.0.0",
-    "react": "16.0.0",
-    "react-native": "^0.50.4",
+    "react": "^16.2.0",
+    "react-native": "^0.51.0",
     "react-test-renderer": "16.0.0"
   },
   "engines": {
