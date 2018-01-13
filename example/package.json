@@ -9,7 +9,7 @@
 	"dependencies": {
 		"react": "16.0.0",
 		"react-native": "0.50.4",
-		"react-native-fast-image": "file:../react-native-fast-image-1.0.0.tgz",
+		"react-native-fast-image": "file:../react-native-fast-image-2.0.0.tgz",
 		"react-native-vector-icons": "^4.4.2",
 		"react-navigation": "^1.0.0-beta.21",
 		"react-timeout": "^1.0.1",
