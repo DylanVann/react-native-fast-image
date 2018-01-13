@@ -1,6 +1,7 @@
 // @flow
 import React, { Component } from 'react'
 import {
+  Button,
   PixelRatio,
   ScrollView,
   StatusBar,
@@ -10,7 +11,6 @@ import {
 } from 'react-native'
 import Icon from 'react-native-vector-icons/Ionicons'
 import FastImage from 'react-native-fast-image'
-import timeout from 'react-timeout'
 import uuid from 'uuid/v4'
 
 const getImageUrl = (id, width, height) =>
@@ -52,32 +52,31 @@ const getTestProgressCallbacks = label => ({
 
 const images = getImages()
 
+// Preload images. This can be called anywhere.
+FastImage.preload([
+  {
+    uri: 'https://facebook.github.io/react/img/logo_og.png',
+    headers: { Authorization: 'someAuthToken' },
+  },
+  {
+    uri: 'https://facebook.github.io/react/img/logo_og.png',
+    headers: { Authorization: 'someAuthToken' },
+  },
+])
+
 class FastImageExample extends Component {
-  componentDidMount() {
-    // Forcing an update every 5s to demonstrate loading.
-    this.props.setInterval(() => {
-      this.forceUpdate()
-    }, 5000)
+  state = { bust: `?bust` }
+
+  onPressedReload = () => {
+    // Force complete re-render and bust image cache.
+    const key = uuid()
+    const bust = `?bust=${key}`
+    this.setState({ bust })
   }
 
   render() {
-    // Force complete re-render.
-    const key = uuid()
-    // Busting image cache.
-    const bust = `?bust=${key}`
-    // Preload images.
-    FastImage.preload([
-      {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
-        headers: { Authorization: 'someAuthToken' },
-      },
-      {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
-        headers: { Authorization: 'someAuthToken' },
-      },
-    ])
     return (
-      <View style={styles.container} key={key}>
+      <View style={styles.container} key={this.state.bust}>
         <StatusBar
           translucent
           barStyle="dark-content"
@@ -91,11 +90,12 @@ class FastImageExample extends Component {
             <Text style={styles.bold}>FastImage</Text>
             <Text>• priority (low, normal, high)</Text>
             <Text>• authentication (token)</Text>
+            <Button title="Reload" onPress={this.onPressedReload} />
           </View>
           <FastImage
             style={styles.image}
             source={{
-              uri: images[0] + bust,
+              uri: images[0] + this.state.bust,
               headers: {
                 token: TOKEN,
               },
@@ -106,7 +106,7 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: images[1] + bust,
+              uri: images[1] + this.state.bust,
               headers: {
                 token: TOKEN,
               },
@@ -117,7 +117,7 @@ class FastImageExample extends Component {
           <FastImage
             style={styles.image}
             source={{
-              uri: images[2] + bust,
+              uri: images[2] + this.state.bust,
               headers: {
                 token: TOKEN,
               },
@@ -130,8 +130,6 @@ class FastImageExample extends Component {
     )
   }
 }
-
-FastImageExample = timeout(FastImageExample)
 
 FastImageExample.navigationOptions = {
   tabBarLabel: 'FastImage Example',
