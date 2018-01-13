@@ -1,4 +1,3 @@
-// @flow
 import React, { Component } from 'react'
 import {
   Button,
@@ -65,7 +64,7 @@ FastImage.preload([
 ])
 
 class FastImageExample extends Component {
-  state = { bust: `?bust` }
+  state = { bust: '?bust' }
 
   onPressedReload = () => {
     // Force complete re-render and bust image cache.

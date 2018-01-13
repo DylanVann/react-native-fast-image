@@ -1,4 +1,3 @@
-// @flow
 import React from 'react'
 import { TabNavigator, TabBarBottom } from 'react-navigation'
 import FastImageExample from './fastImage/FastImageExample'
