@@ -38,6 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
+- [x] Border radius property.
 
 ## Usage
 
@@ -131,12 +132,9 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `children`
+### `children`: React.Element
 
-`FastImage` does not currently support children.
-Absolute positioning can be used as an alternative.
-
-This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.
+Children of the image component.
 
 ## Static Methods
 
