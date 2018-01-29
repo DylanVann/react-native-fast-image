@@ -1,13 +1,13 @@
 import React from 'react'
 import { TabNavigator, TabBarBottom } from 'react-navigation'
-import FastImageExample from './fastImage/FastImageExample'
+import FastImageExamples from './fastImage/FastImageExamples'
 import FastImageGrid from './fastImage/FastImageGrid'
 import DefaultImageGrid from './fastImage/DefaultImageGrid'
 
 const App = TabNavigator(
   {
     fastImageExample: {
-      screen: FastImageExample,
+      screen: FastImageExamples,
     },
     image: {
       screen: DefaultImageGrid,
