@@ -10,6 +10,8 @@ import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.module.GlideModule;
 
+import com.facebook.react.modules.network.OkHttpClientProvider;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
