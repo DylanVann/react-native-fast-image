@@ -1,12 +1,10 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.support.v7.widget.AppCompatImageView;
-import android.support.v7.widget.TintContextWrapper;
+import android.widget.ImageView;
 
 import com.bumptech.glide.DrawableRequestBuilder;
 import com.bumptech.glide.Glide;
@@ -37,21 +35,14 @@ import javax.annotation.Nullable;
 
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
 
-class ImageViewWithUrl extends AppCompatImageView {
+class ImageViewWithUrl extends ImageView {
     public GlideUrl glideUrl;
     public int borderRadius = 0;
+    public Priority priority;
 
     public ImageViewWithUrl(Context context) {
         super(context);
     }
-
-    ThemedReactContext getThemedReactContext() {
-        if (getContext() instanceof TintContextWrapper) {
-            return (ThemedReactContext) ((ContextWrapper) getContext()).getBaseContext();
-        }
-        return (ThemedReactContext) getContext();
-    }
-
 }
 
 class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implements ProgressListener {
@@ -64,6 +55,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     private static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
     private final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
+    private FIRequestListener LISTENER = new FIRequestListener();
 
     @Override
     public String getName() {
@@ -74,8 +66,6 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     protected ImageViewWithUrl createViewInstance(ThemedReactContext reactContext) {
         return new ImageViewWithUrl(reactContext);
     }
-
-    private FIRequestListener LISTENER = new FIRequestListener();
 
     @ReactProp(name = "source")
     public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
@@ -93,14 +83,29 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         // Get the GlideUrl which contains header info.
         GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
         view.glideUrl = glideUrl;
-
         // Get priority.
         final Priority priority = FastImageViewConverter.priority(source);
+        view.priority = priority;
+    }
 
+    @ReactProp(name = "resizeMode")
+    public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
+        final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
+        view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "borderRadius")
+    public void setBorderRadius(ImageViewWithUrl view, double borderRadius) {
+        int borderRadiusPX = (int) PixelUtil.toPixelFromDIP(borderRadius);
+        view.borderRadius = borderRadiusPX;
+    }
+
+    @Override
+    protected void onAfterUpdateTransaction(ImageViewWithUrl view) {
         // Cancel existing request.
         Glide.clear(view);
 
-        String key = glideUrl.toStringUrl();
+        String key = view.glideUrl.toStringUrl();
         OkHttpProgressGlideModule.expect(key, this);
         List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null && !viewsForKey.contains(view)) {
@@ -110,14 +115,14 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             VIEWS_FOR_URLS.put(key, newViewsForKeys);
         }
 
-        ThemedReactContext context = view.getThemedReactContext();
+        ThemedReactContext context = (ThemedReactContext) view.getContext();
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         DrawableRequestBuilder<GlideUrl> builder = Glide
                 .with(view.getContext())
-                .load(glideUrl)
+                .load(view.glideUrl)
                 .dontTransform();
 
         if (view.borderRadius > 0) {
@@ -130,22 +135,12 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                                     0,
                                     RoundedCornersTransformation.CornerType.ALL));
         }
-        builder.priority(priority)
+        builder.priority(view.priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)
                 .into(view);
-    }
-
-    @ReactProp(name = "resizeMode")
-    public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
-        final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
-        view.setScaleType(scaleType);
-    }
-
-    @ReactProp(name = "borderRadius", defaultFloat = 0f)
-    public void setBorderRadius(ImageViewWithUrl view, float borderRadius) {
-        int borderRadiusPX = (int) PixelUtil.toPixelFromDIP(borderRadius);
-        view.borderRadius = borderRadiusPX;
+        
+        super.onAfterUpdateTransaction(view);
     }
 
     @Override
@@ -187,7 +182,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = view.getThemedReactContext();
+                ThemedReactContext context = (ThemedReactContext) view.getContext();
                 RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
                 int viewId = view.getId();
                 eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
@@ -213,7 +208,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 return false;
             }
             ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = view.getThemedReactContext();
+            ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
@@ -233,7 +228,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 return false;
             }
             ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = view.getThemedReactContext();
+            ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
