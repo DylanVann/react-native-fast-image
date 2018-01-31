@@ -17,5 +17,6 @@ exports[`FastImage renders correctly. 1`] = `
       "uri": "https://facebook.github.io/react/img/logo_og.png",
     }
   }
+  style={undefined}
 />
 `;
