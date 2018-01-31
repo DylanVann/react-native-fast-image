@@ -64,7 +64,7 @@ class FastImageViewConverter {
             }};
 
     public static ScaleType scaleType(String resizeMode) {
-        if (resizeMode == null) resizeMode = "contain";
+        if (resizeMode == null) resizeMode = "cover";
         final ImageView.ScaleType scaleType = REACT_RESIZE_MODE_MAP.get(resizeMode);
         return scaleType;
     }
