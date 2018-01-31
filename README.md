@@ -38,6 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
+- [x] borderRadius support.
 
 ## Usage
 
@@ -96,12 +97,6 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 - `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
 - `FastImage.resizeMode.center` - Do not scale the image, keep centered.
-
----
-
-### `borderRadius?: number`
-
-Set image border radius. Only available on Android. For iOS set borderRadius in style.
 
 ---
 
