@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/Ionicons'
 import Section from './Section'
 import PriorityExample from './PriorityExample'
 import GifExample from './GifExample'
-import BorderRadiusAndChildrenExample from './BorderRadiusAndChildrenExample'
+import BorderRadiusExample from './BorderRadiusExample'
 import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
@@ -27,7 +27,7 @@ const FastImageExample = () => (
         </Section>
         <PriorityExample />
         <GifExample />
-        <BorderRadiusAndChildrenExample />
+        <BorderRadiusExample />
         <ProgressExample />
         <PreloadExample />
       </View>

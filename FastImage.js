@@ -50,7 +50,13 @@ class FastImage extends Component {
 
     const resolvedSource = resolveAssetSource(source)
 
-    if (!children && !borderRadius) {
+    if (children) {
+      throw new Error(
+        'The <FastImage> component cannot contain children. If you want to render content on top of the image consider using absolute positioning.',
+      )
+    }
+
+    if (!borderRadius) {
       return (
         <FastImageView
           ref={e => (this._root = e)}
@@ -67,21 +73,18 @@ class FastImage extends Component {
     }
 
     return (
-      <View style={style} borderRadius={borderRadius}>
-        <View style={styles.imageContainer} borderRadius={borderRadius}>
-          <FastImageView
-            ref={e => (this._root = e)}
-            {...props}
-            style={StyleSheet.absoluteFill}
-            source={resolvedSource}
-            onFastImageLoadStart={onLoadStart}
-            onFastImageProgress={onProgress}
-            onFastImageLoad={onLoad}
-            onFastImageError={onError}
-            onFastImageLoadEnd={onLoadEnd}
-          />
-        </View>
-        {children}
+      <View style={[style, styles.imageContainer]} borderRadius={borderRadius}>
+        <FastImageView
+          ref={e => (this._root = e)}
+          {...props}
+          style={StyleSheet.absoluteFill}
+          source={resolvedSource}
+          onFastImageLoadStart={onLoadStart}
+          onFastImageProgress={onProgress}
+          onFastImageLoad={onLoad}
+          onFastImageError={onError}
+          onFastImageLoadEnd={onLoadEnd}
+        />
       </View>
     )
   }
@@ -89,7 +92,6 @@ class FastImage extends Component {
 
 const styles = StyleSheet.create({
   imageContainer: {
-    ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
 })

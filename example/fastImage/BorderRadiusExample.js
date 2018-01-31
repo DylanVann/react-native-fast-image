@@ -7,24 +7,20 @@ import Section from './Section'
 import FeatureText from './FeatureText'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
-const PLUS_IMAGE_URL =
-  'https://cdn3.iconfinder.com/data/icons/block/32/add-512.png'
 
-const BorderRadiusAndChildrenExample = ({ onPressReload, bust }) => (
+const BorderRadiusExample = ({ onPressReload, bust }) => (
   <View>
     <Section>
-      <FeatureText text="• Border radius + children." />
+      <FeatureText text="• Border radius." />
     </Section>
     <SectionFlex onPress={onPressReload}>
       <FastImage
         style={styles.image}
-        borderRadius={100}
+        borderRadius={50}
         source={{
           uri: IMAGE_URL + bust,
         }}
-      >
-        <FastImage style={styles.plus} source={{ uri: PLUS_IMAGE_URL }} />
-      </FastImage>
+      />
     </SectionFlex>
   </View>
 )
@@ -46,4 +42,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default withCacheBust(BorderRadiusAndChildrenExample)
+export default withCacheBust(BorderRadiusExample)
