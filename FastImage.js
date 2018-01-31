@@ -44,6 +44,7 @@ class FastImage extends Component {
           onLoad={onLoad}
           onError={onError}
           onLoadEnd={onLoadEnd}
+          style={style}
         />
       )
     }
