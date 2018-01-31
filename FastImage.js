@@ -115,6 +115,7 @@ FastImage.preload = sources => {
 
 FastImage.defaultProps = {
   resizeMode: FastImage.resizeMode.cover,
+  borderRadius: 0
 }
 
 const FastImageSourcePropType = PropTypes.shape({
@@ -126,6 +127,7 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
   ...ViewPropTypes,
   source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
+  borderRadius: PropTypes.number,
   onLoadStart: PropTypes.func,
   onProgress: PropTypes.func,
   onLoad: PropTypes.func,
