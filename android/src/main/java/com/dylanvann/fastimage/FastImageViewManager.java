@@ -8,6 +8,7 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
@@ -142,6 +143,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         Glide
                 .with(view.getContext().getApplicationContext())
                 .load(glideUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontTransform()
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
