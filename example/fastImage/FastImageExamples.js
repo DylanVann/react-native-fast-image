@@ -8,6 +8,7 @@ import BorderRadiusExample from './BorderRadiusExample'
 import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
+import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const FastImageExample = () => (
   <View style={styles.container}>
@@ -32,6 +33,7 @@ const FastImageExample = () => (
         <PreloadExample />
       </View>
     </ScrollView>
+    <StatusBarUnderlay />
   </View>
 )
 
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
     color: '#222',
   },
   contentContainer: {
-    marginTop: 40,
+    marginTop: 20,
     marginBottom: 20,
   },
   image: {
@@ -66,7 +68,9 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     backgroundColor: '#fff',
   },
-  scrollContainer: {},
+  scrollContainer: {
+    marginTop: STATUS_BAR_HEIGHT,
+  },
   scrollContentContainer: {
     alignItems: 'stretch',
     flex: 0,
