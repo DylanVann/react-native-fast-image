@@ -1,6 +1,7 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -9,6 +10,7 @@ import android.widget.ImageView;
 import com.bumptech.glide.DrawableRequestBuilder;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
+import com.bumptech.glide.load.Transformation;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
@@ -19,11 +21,15 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
+import com.facebook.react.uimanager.FloatUtil;
 import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.ViewProps;
 import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.uimanager.annotations.ReactPropGroup;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.yoga.YogaConstants;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,11 +43,31 @@ import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
 
 class ImageViewWithUrl extends ImageView {
     public GlideUrl glideUrl;
-    public int borderRadius = 0;
+    public float borderRadius = YogaConstants.UNDEFINED;
+    public float[] borderCornerRadii;
     public Priority priority;
 
     public ImageViewWithUrl(Context context) {
         super(context);
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
+    }
+
+    public void setBorderRadius(float borderRadius) {
+        this.borderRadius = borderRadius;
+    }
+
+    public void setBorderRadius(float borderRadius, int position) {
+        if (borderCornerRadii == null) {
+            borderCornerRadii = new float[4];
+            Arrays.fill(borderCornerRadii, YogaConstants.UNDEFINED);
+        }
+
+        if (!FloatUtil.floatsEqual(borderCornerRadii[position], borderRadius)) {
+            borderCornerRadii[position] = borderRadius;
+        }
     }
 }
 
@@ -56,6 +82,13 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
     private final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
     private FIRequestListener LISTENER = new FIRequestListener();
+
+    private RoundedCornersTransformation.CornerType[] CORNER_TYPES = {
+            RoundedCornersTransformation.CornerType.TOP_LEFT,
+            RoundedCornersTransformation.CornerType.TOP_RIGHT,
+            RoundedCornersTransformation.CornerType.BOTTOM_RIGHT,
+            RoundedCornersTransformation.CornerType.BOTTOM_LEFT
+    };
 
     @Override
     public String getName() {
@@ -88,16 +121,30 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         view.priority = priority;
     }
 
-    @ReactProp(name = "resizeMode")
+    @ReactProp(name = ViewProps.RESIZE_MODE)
     public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
         final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
     }
 
-    @ReactProp(name = "borderRadius")
-    public void setBorderRadius(ImageViewWithUrl view, double borderRadius) {
-        int borderRadiusPX = (int) PixelUtil.toPixelFromDIP(borderRadius);
-        view.borderRadius = borderRadiusPX;
+
+    @ReactPropGroup(names = {
+            ViewProps.BORDER_RADIUS,
+            ViewProps.BORDER_TOP_LEFT_RADIUS,
+            ViewProps.BORDER_TOP_RIGHT_RADIUS,
+            ViewProps.BORDER_BOTTOM_RIGHT_RADIUS,
+            ViewProps.BORDER_BOTTOM_LEFT_RADIUS
+    }, defaultFloat = YogaConstants.UNDEFINED)
+    public void setBorderRadius(ImageViewWithUrl view, int index, float borderRadius) {
+        float borderRadiusPX = YogaConstants.UNDEFINED;
+        if (!YogaConstants.isUndefined(borderRadius)) {
+            borderRadiusPX = PixelUtil.toPixelFromDIP(borderRadius);
+        }
+        if (index == 0) {
+            view.setBorderRadius(borderRadiusPX);
+        } else {
+            view.setBorderRadius(borderRadiusPX, index - 1);
+        }
     }
 
     @Override
@@ -121,25 +168,43 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         DrawableRequestBuilder<GlideUrl> builder = Glide
-                .with(view.getContext())
+                .with(view.getContext().getApplicationContext())
                 .load(view.glideUrl)
                 .dontTransform();
 
-        if (view.borderRadius > 0) {
-            builder = builder
-                    .bitmapTransform(
-                            new CenterCrop(view.getContext()),
-                            new RoundedCornersTransformation(
-                                    view.getContext(),
-                                    view.borderRadius,
-                                    0,
-                                    RoundedCornersTransformation.CornerType.ALL));
+        if (!YogaConstants.isUndefined(view.borderRadius) || view.borderCornerRadii != null) {
+
+            List<Transformation<Bitmap>> transformations = new ArrayList<>();
+            transformations.add(new CenterCrop(view.getContext().getApplicationContext()));
+
+            if (!YogaConstants.isUndefined(view.borderRadius)) {
+                transformations.add(new RoundedCornersTransformation(
+                        view.getContext().getApplicationContext(),
+                        (int) view.borderRadius,
+                        0,
+                        RoundedCornersTransformation.CornerType.ALL));
+            }
+            if (view.borderCornerRadii != null) {
+                for (int i = 0; i < view.borderCornerRadii.length; i++) {
+                    if (YogaConstants.isUndefined(view.borderCornerRadii[i])) {
+                        continue;
+                    }
+                    RoundedCornersTransformation.CornerType cornerType = CORNER_TYPES[i];
+                    transformations.add(new RoundedCornersTransformation(
+                            view.getContext().getApplicationContext(),
+                            (int) view.borderCornerRadii[i],
+                            0,
+                            cornerType));
+                }
+            }
+            Transformation[] transformationsArr = new Transformation[transformations.size()];
+            builder.bitmapTransform(transformations.toArray(transformationsArr));
         }
         builder.priority(view.priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)
                 .into(view);
-        
+
         super.onAfterUpdateTransaction(view);
     }
 
