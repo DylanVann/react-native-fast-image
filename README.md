@@ -132,9 +132,10 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `children`: React.Element
+### `borderRadius: number`
 
-Children of the image component.
+A border radius for the image.
+Can be used to make a circular cropped version of the image.
 
 ## Static Methods
 
