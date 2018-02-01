@@ -3,25 +3,25 @@ import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyl
 
 declare namespace FastImage {
 
-    export namespace priority {
+    namespace priority {
         type low = 'low'
         type normal = 'normal'
         type high = 'high'
     }
 
-    type priority =
-        FastImage.priority.low |
-        FastImage.priority.normal |
-        FastImage.priority.high
-
-    export namespace resizeMode {
+    namespace resizeMode {
         type contain = 'contain'
         type cover = 'cover'
         type stretch = 'stretch'
         type center = 'center'
     }
 
-    export type resizeMode =
+    export type Priority =
+        FastImage.priority.low |
+        FastImage.priority.normal |
+        FastImage.priority.high
+
+    export type ResizeMode =
         FastImage.resizeMode.contain |
         FastImage.resizeMode.cover |
         FastImage.resizeMode.stretch |
@@ -31,7 +31,7 @@ declare namespace FastImage {
 export type FastImageSource = {
     uri?: string,
     headers?: object
-    priority?: FastImage.priority
+    priority?: FastImage.Priority
 }
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
@@ -45,7 +45,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 
 export interface FastImageProperties {
     source: FastImageSource | number
-    resizeMode?: FastImage.resizeMode
+    resizeMode?: FastImage.ResizeMode
 
     onLoadStart?(): void
 
@@ -79,8 +79,18 @@ export interface FastImageProperties {
 }
 
 interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
-    resizeMode: FastImage.resizeMode
-    priority: FastImage.priority
+    resizeMode: {
+        contain: FastImage.resizeMode.contain
+        cover: FastImage.resizeMode.cover
+        stretch: FastImage.resizeMode.stretch
+        center: FastImage.resizeMode.center
+    }
+
+    priority: {
+        low: FastImage.priority.low
+        normal: FastImage.priority.normal
+        high: FastImage.priority.high
+    }
 
     preload(sources: FastImageSource[]): void
 }
