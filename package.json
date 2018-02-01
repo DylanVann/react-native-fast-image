@@ -47,7 +47,8 @@
     "prettier-check": "^2.0.0",
     "react": "16.0.0",
     "react-native": "^0.50.4",
-    "react-test-renderer": "16.0.0"
+    "react-test-renderer": "16.0.0",
+    "typelevel-ts": "^0.2.2"
   },
   "jest": {
     "preset": "react-native",
