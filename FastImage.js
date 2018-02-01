@@ -38,13 +38,13 @@ class FastImage extends Component {
         <Image
           ref={e => (this._root = e)}
           {...props}
+          style={style}
           source={source}
           onLoadStart={onLoadStart}
           onProgress={onProgress}
           onLoad={onLoad}
           onError={onError}
           onLoadEnd={onLoadEnd}
-          style={style}
         />
       )
     }
