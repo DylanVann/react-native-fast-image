@@ -21,4 +21,9 @@ public class FastImageViewPackage implements ReactPackage {
     public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
         return Collections.<ViewManager>singletonList(new FastImageViewManager());
     }
+    
+    @Override 
+    public List<Class<? extends JavaScriptModule>> createJSModules(){
+        return Collections.emptyList();
+    }
 }
