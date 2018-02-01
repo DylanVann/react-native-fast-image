@@ -19,7 +19,8 @@
     "ios",
     "android",
     "utils",
-    "FastImage.js"
+    "FastImage.js",
+    "index.d.ts"
   ],
   "main": "FastImage.js",
   "directories": {
