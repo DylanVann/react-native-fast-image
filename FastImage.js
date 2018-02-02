@@ -71,7 +71,7 @@ class FastImage extends Component {
           onFastImageLoad={onLoad}
           onFastImageError={onError}
           onFastImageLoadEnd={onLoadEnd}
-          onFastReadDimensions={onReadDimensions}
+          onFastImageReadDimensions={onReadDimensions}
         />
       )
     }
@@ -88,7 +88,7 @@ class FastImage extends Component {
           onFastImageLoad={onLoad}
           onFastImageError={onError}
           onFastImageLoadEnd={onLoadEnd}
-          onFastReadDimensions={onReadDimensions}
+          onFastImageReadDimensions={onReadDimensions}
         />
       </View>
     )
@@ -146,7 +146,7 @@ const FastImageView = requireNativeComponent('FastImageView', FastImage, {
     onFastImageLoad: true,
     onFastImageError: true,
     onFastImageLoadEnd: true,
-    onFastReadDimensions: true,
+    onFastImageReadDimensions: true,
   },
 })
 

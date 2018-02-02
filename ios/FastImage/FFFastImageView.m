@@ -83,6 +83,12 @@
                                     if (_onFastImageLoadEnd) {
                                         _onFastImageLoadEnd(@{});
                                     }
+                                    if (_onFastImageReadDimensions) {
+                                        _onFastImageReadDimensions(@{
+                                          @"width": image.size.width,
+                                          @"height": imageURL.size.height
+                                        });
+                                    }
                                 }
                             }
                         }];
@@ -90,4 +96,3 @@
 }
 
 @end
-
