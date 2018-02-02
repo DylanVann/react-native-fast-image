@@ -100,7 +100,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, event);
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, event);
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
             return false;
         }
     };
