@@ -93,11 +93,14 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 return false;
             }
             ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
+            WritableMap event = new WritableNativeMap();
+            event.putInt("width", resource.getIntrinsicWidth());
+            event.putInt("height", resource.getIntrinsicHeight());
             ThemedReactContext context = (ThemedReactContext) view.getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, event);
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, event);
             return false;
         }
     };
