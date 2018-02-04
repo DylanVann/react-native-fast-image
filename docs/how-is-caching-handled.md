@@ -22,3 +22,7 @@ Next time the app is opened:
 - Display the cached profile picture immediately.
 - Request the user json again (this time it will have the new profile picture url).
 - Display the new profile picture.
+
+## How is the cache cleared?
+
+As the app is used the cache fills up. When the cache reaches its maximum size the least frequently used images will be purged from the cache. You generally do not need to manually manage the cache.
