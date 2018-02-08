@@ -38,6 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
+- [x] Border radius property.
 
 ## Usage
 
@@ -92,8 +93,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `resizeMode?: enum`
 
-- `FastImage.resizeMode.contain` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
 - `FastImage.resizeMode.center` - Do not scale the image, keep centered.
 
@@ -131,12 +132,10 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `children`
+### `borderRadius: number`
 
-`FastImage` does not currently support children.
-Absolute positioning can be used as an alternative.
-
-This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.
+A border radius for the image.
+Can be used to make a circular cropped version of the image.
 
 ## Static Methods
 

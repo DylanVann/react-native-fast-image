@@ -1,12 +1,6 @@
 import React, { Component } from 'react'
-import {
-  StyleSheet,
-  View,
-  FlatList,
-  Platform,
-  StatusBar,
-  Text,
-} from 'react-native'
+import { FlatList, StyleSheet, Text, View } from 'react-native'
+import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const getImageUrl = (id, width, height) =>
   `https://unsplash.it/${width}/${height}?image=${id}`
@@ -87,24 +81,15 @@ class ImageGrid extends Component {
           keyExtractor={this._extractKey}
           getItemLayout={this._getItemLayout}
         />
-        <View style={styles.statusBarUnderlay} />
+        <StatusBarUnderlay />
       </View>
     )
   }
 }
 
 const MARGIN = 2
-const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBar.currentHeight
 
 const styles = StyleSheet.create({
-  statusBarUnderlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: STATUS_BAR_HEIGHT,
-    backgroundColor: 'white',
-  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

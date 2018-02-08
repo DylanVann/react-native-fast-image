@@ -9,6 +9,7 @@ import android.widget.ImageView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.bridge.ReadableMap;
@@ -100,10 +101,12 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
 
         RequestOptions options = new RequestOptions()
                 .priority(priority)
+                .dontTransform()
                 .placeholder(TRANSPARENT_DRAWABLE);
 
         requestManager
                 .load(glideUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .apply(options)
                 .listener(new FastImageRequestListener(key))
                 .into(view);
