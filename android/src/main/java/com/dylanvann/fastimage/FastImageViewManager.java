@@ -13,7 +13,7 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.StreamEncoder;
-import com.bumptech.glide.load.model.stream.StreamUriLoader;
+import com.bumptech.glide.load.model.stream.StreamUrlLoader;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.animation.GlideAnimation;
@@ -160,7 +160,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
 
         Glide
                 .with(context.getApplicationContext())
-                .using(new StreamUriLoader(context.getApplicationContext()), InputStream.class)
+                .using(new StreamUrlLoader(context.getApplicationContext()), InputStream.class)
                 .from(GlideUrl.class)
                 .as(Options.class)
                 .sourceEncoder(new StreamEncoder())
