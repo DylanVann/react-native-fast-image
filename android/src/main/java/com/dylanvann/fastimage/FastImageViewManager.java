@@ -160,7 +160,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
 
         Glide
                 .with(context.getApplicationContext())
-                .using(new StreamUrlLoader(context.getApplicationContext()), InputStream.class)
+                .using(new HttpUrlGlideUrlLoader())
                 .from(GlideUrl.class)
                 .as(Options.class)
                 .sourceEncoder(new StreamEncoder())
