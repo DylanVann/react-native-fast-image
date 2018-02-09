@@ -161,12 +161,12 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         Glide
                 .with(context.getApplicationContext())
                 .using(new StreamUriLoader(context.getApplicationContext()), InputStream.class)
-                .from(Uri.class)
+                .from(GlideUrl.class)
                 .as(Options.class)
                 .sourceEncoder(new StreamEncoder())
                 .cacheDecoder(new FastBitmapSizeDecoder())
                 .diskCacheStrategy(DiskCacheStrategy.SOURCE)
-                .load(Uri.parse(glideUrl.toStringUrl()))
+                .load(glideUrl)
                 .into(new SimpleTarget<Options>() { // Target.SIZE_ORIGINAL is hidden in ctor
                     @Override public void onResourceReady(Options resource, GlideAnimation glideAnimation) {
                         WritableMap event = new WritableNativeMap();
