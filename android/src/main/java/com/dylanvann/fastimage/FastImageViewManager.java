@@ -13,7 +13,7 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.StreamEncoder;
-import com.bumptech.glide.load.model.stream.StreamUrlLoader;
+import com.bumptech.glide.load.model.stream.HttpUrlGlideUrlLoader;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.animation.GlideAnimation;
