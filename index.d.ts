@@ -46,6 +46,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    borderRadius?: number
 
     onLoadStart?(): void
 
