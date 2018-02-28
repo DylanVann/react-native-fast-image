@@ -23,6 +23,13 @@
     }
 }
 
+- (void)setDefaultImage:(UIImage *)defaultImage {
+    if (!self.image) {
+        self.image = defaultImage;
+        _defaultImage = defaultImage;
+    }
+}
+
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
@@ -56,7 +63,7 @@
 
         // Load the new source.
         [self sd_setImageWithURL:_source.uri
-                placeholderImage:nil
+                placeholderImage:_defaultImage
                          options:options
                         progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                             double progress = MIN(1, MAX(0, (double) receivedSize / (double) expectedSize));

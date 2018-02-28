@@ -127,6 +127,16 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
   ...ViewPropTypes,
   source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
+  defaultSource: PropTypes.oneOfType([
+      // TODO: Tooling to support documenting these directly and having them display in the docs.
+      PropTypes.shape({
+        uri: PropTypes.string,
+        width: PropTypes.number,
+        height: PropTypes.number,
+        scale: PropTypes.number,
+      }),
+      PropTypes.number,
+  ]),
   onLoadStart: PropTypes.func,
   onProgress: PropTypes.func,
   onLoad: PropTypes.func,
