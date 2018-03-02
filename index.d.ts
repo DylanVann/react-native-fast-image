@@ -47,6 +47,7 @@ export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
     borderRadius?: number
+    blurRadius?: number
 
     onLoadStart?(): void
 
