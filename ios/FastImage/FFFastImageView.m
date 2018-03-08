@@ -16,7 +16,6 @@
 
 - (void)setOnFastImageLoadEnd:(RCTBubblingEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-
     if (hasCompleted) {
         _onFastImageLoadEnd(@{});
     }
@@ -28,7 +27,6 @@
         _onFastImageLoad(@{});
     }
 }
-
 
 - (void)setOnFastImageError:(RCTDirectEventBlock)onFastImageError {
     _onFastImageError = onFastImageError;
@@ -50,9 +48,6 @@
 
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
-        isComplete = NO;
-        hasError = NO;
-
         _source = source;
         
         // Set headers.
@@ -99,7 +94,6 @@
                                       NSError * _Nullable error,
                                       SDImageCacheType cacheType,
                                       NSURL * _Nullable imageURL) {
-                            isComplete = YES;
                             if (error) {
                                 hasErrored = YES;
                                 if (_onFastImageError) {
