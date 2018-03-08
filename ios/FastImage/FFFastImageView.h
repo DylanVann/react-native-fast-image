@@ -16,8 +16,8 @@
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
+@property (nonatomic, copy) RCTDirectEventBlock onFastImageReadDimensions;
 @property (nonatomic, assign) RCTResizeMode resizeMode;
 @property (nonatomic, strong) FFFastImageSource *source;
 
 @end
-

@@ -132,6 +132,14 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
+### `onReadDimensions?: (event) => void`
+
+Called when the image the image dimensions has been retrieved.
+
+e.g. `onReadDimensions={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}`
+
+---
+
 ### `borderRadius: number`
 
 A border radius for the image.
@@ -186,7 +194,7 @@ cd example
 npm install ../react-native-fast-image-1.0.0.tgz
 ```
 
-To update while developing you can re-pack and reinstall the tarball. 
+To update while developing you can re-pack and reinstall the tarball.
 
 Hopefully [metro](https://github.com/facebook/metro) will add support for symlinks soon.
 

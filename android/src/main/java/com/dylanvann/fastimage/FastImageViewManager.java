@@ -1,18 +1,24 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.graphics.BitmapFactory.Options;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.StreamEncoder;
+import com.bumptech.glide.load.model.stream.HttpUrlGlideUrlLoader;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.animation.GlideAnimation;
 import com.bumptech.glide.request.target.ImageViewTarget;
+import com.bumptech.glide.request.target.SimpleTarget;
 import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -23,6 +29,7 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,6 +54,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     private static final String REACT_ON_ERROR_EVENT = "onFastImageError";
     private static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
     private static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
+    private static final String REACT_ON_READ_DIMENSIONS_EVENT = "onFastImageReadDimensions";
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
     private static final Map<String, List<ImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
 
@@ -103,7 +111,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     };
 
     @ReactProp(name = "source")
-    public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
+    public void setSrc(final ImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null) {
             // Cancel existing requests.
             Glide.clear(view);
@@ -141,7 +149,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         Glide
-                .with(view.getContext().getApplicationContext())
+                .with(context.getApplicationContext())
                 .load(glideUrl)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .dontTransform()
@@ -149,6 +157,27 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 .placeholder(TRANSPARENT_DRAWABLE)
                 .listener(LISTENER)
                 .into(view);
+
+        Glide
+                .with(context.getApplicationContext())
+                .using(new HttpUrlGlideUrlLoader(), InputStream.class)
+                .from(GlideUrl.class)
+                .as(Options.class)
+                .sourceEncoder(new StreamEncoder())
+                .cacheDecoder(new FastBitmapSizeDecoder())
+                .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                .load(glideUrl)
+                .into(new SimpleTarget<Options>() { // Target.SIZE_ORIGINAL is hidden in ctor
+                    @Override public void onResourceReady(Options resource, GlideAnimation glideAnimation) {
+                        WritableMap event = new WritableNativeMap();
+                        event.putInt("width", resource.outWidth);
+                        event.putInt("height", resource.outHeight);
+                        ThemedReactContext context = (ThemedReactContext) view.getContext();
+                        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                        int viewId = view.getId();
+                        eventEmitter.receiveEvent(viewId, REACT_ON_READ_DIMENSIONS_EVENT, event);
+                    }
+                });
     }
 
     @ReactProp(name = "resizeMode")
@@ -184,7 +213,9 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 REACT_ON_ERROR_EVENT,
                 MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT),
                 REACT_ON_LOAD_END_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT)
+                MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT),
+                REACT_ON_READ_DIMENSIONS_EVENT,
+                MapBuilder.of("registrationName", REACT_ON_READ_DIMENSIONS_EVENT)
         );
     }
 

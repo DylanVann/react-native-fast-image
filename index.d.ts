@@ -58,6 +58,8 @@ export interface FastImageProperties {
 
     onLoadEnd?(): void
 
+    onReadDimensions?(event: any): void
+
     /**
      * onLayout function
      *
