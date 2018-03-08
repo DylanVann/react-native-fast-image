@@ -1,13 +1,10 @@
-machine:
-  environment:
-    PATH: "${PATH}:${HOME}/${CIRCLE_PROJECT_REPONAME}/node_modules/.bin"
-
-dependencies:
-  override:
-    - yarn
-  cache_directories:
-    - ~/.cache/yarn
-
-test:
-  override:
-    - yarn test
+version: 2
+jobs:
+  build:
+    docker:
+      - image: node:9.2.0
+    working_directory: ~/app
+    steps:
+      - checkout
+      - run: yarn
+      - run: yarn test

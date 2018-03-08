@@ -2,8 +2,8 @@
 
 @implementation FFFastImageView {
     BOOL hasSentOnLoadStart;
-    BOOL isComplete;
-    BOOL hasError;
+    BOOL hasCompleted;
+    BOOL hasErrored;
 }
 
 - (void)setResizeMode:(RCTResizeMode)resizeMode
@@ -16,15 +16,24 @@
 
 - (void)setOnFastImageLoadEnd:(RCTBubblingEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (isComplete) {
+
+    if (hasCompleted) {
         _onFastImageLoadEnd(@{});
     }
 }
 
 - (void)setOnFastImageLoad:(RCTBubblingEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
-    if (isComplete && hasError == NO) {
+    if (hasCompleted) {
         _onFastImageLoad(@{});
+    }
+}
+
+
+- (void)setOnFastImageError:(RCTDirectEventBlock)onFastImageError {
+    _onFastImageError = onFastImageError;
+    if (hasErrored) {
+        _onFastImageError(@{});
     }
 }
 
@@ -45,12 +54,12 @@
         hasError = NO;
 
         _source = source;
-
+        
         // Set headers.
         [_source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
-
+        
         // Set priority.
         SDWebImageOptions options = 0;
         options |= SDWebImageRetryFailed;
@@ -65,25 +74,26 @@
                 options |= SDWebImageHighPriority;
                 break;
         }
-
+        
         if (_onFastImageLoadStart) {
             _onFastImageLoadStart(@{});
             hasSentOnLoadStart = YES;
         } {
             hasSentOnLoadStart = NO;
         }
-
+        hasCompleted = NO;
+        hasErrored = NO;
+        
         // Load the new source.
         [self sd_setImageWithURL:_source.uri
                 placeholderImage:nil
                          options:options
                         progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
-                            double progress = MIN(1, MAX(0, (double) receivedSize / (double) expectedSize));
                             if (_onFastImageProgress) {
                                 _onFastImageProgress(@{
-                                    @"loaded": @(receivedSize),
-                                    @"total": @(expectedSize)
-                                });
+                                                       @"loaded": @(receivedSize),
+                                                       @"total": @(expectedSize)
+                                                       });
                             }
                         } completed:^(UIImage * _Nullable image,
                                       NSError * _Nullable error,
@@ -91,7 +101,7 @@
                                       NSURL * _Nullable imageURL) {
                             isComplete = YES;
                             if (error) {
-                                hasError = YES;
+                                hasErrored = YES;
                                 if (_onFastImageError) {
                                     _onFastImageError(@{});
                                     if (_onFastImageLoadEnd) {
@@ -99,6 +109,7 @@
                                     }
                                 }
                             } else {
+                                hasCompleted = YES;
                                 if (_onFastImageLoad) {
                                     _onFastImageLoad(@{});
                                     if (_onFastImageLoadEnd) {

@@ -38,6 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
+- [x] Border radius property.
 
 ## Usage
 
@@ -92,8 +93,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `resizeMode?: enum`
 
-- `FastImage.resizeMode.contain` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
 - `FastImage.resizeMode.center` - Do not scale the image, keep centered.
 
@@ -131,12 +132,10 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `children`
+### `borderRadius: number`
 
-`FastImage` does not currently support children.
-Absolute positioning can be used as an alternative.
-
-This is because `FastImage` supplies a `android.widget.imageview` and not a `android.view.viewgroup`.
+A border radius for the image.
+Can be used to make a circular cropped version of the image.
 
 ## Static Methods
 
@@ -167,23 +166,36 @@ git submodule update --init --recursive
 yarn
 ```
 
-To update the example project modules you will need to run:
+Developing modules for React Native is currently a mess because the packager does not support symlinks.
+
+Both major package managers, `npm@5` and `yarn`, do local installations by creating symlinks.
+
+Unfortunately for now the workaround to update the example is to run:
 
 ```bash
-npm install
-```
+# In the repo directory pack the module:
+npm pack
 
-The npm usage is because
-yarn will cache locally installed packages and not update them
-if the version does not change. yarn also doesn't respect `.npmignore`
-when doing local installs.
+# This makes a tarball like:
+# react-native-fast-image-1.0.0.tgz
 
-To update while developing you can use:
-
-```bash
+# Move into the example:
 cd example
-npm install ../
+
+# Install the tarball:
+npm install ../react-native-fast-image-1.0.0.tgz
 ```
+
+To update while developing you can re-pack and reinstall the tarball. 
+
+Hopefully [metro](https://github.com/facebook/metro) will add support for symlinks soon.
+
+## Supported React Native Versions
+
+This project only aims to support the latest version of React Native.\
+This simplifies the development and the testing of the project.
+
+If you require new features or bug fixes for older versions you can fork this project.
 
 ## Credits
 

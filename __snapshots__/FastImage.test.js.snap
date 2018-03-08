@@ -17,5 +17,33 @@ exports[`FastImage renders correctly. 1`] = `
       "uri": "https://facebook.github.io/react/img/logo_og.png",
     }
   }
+  style={
+    Object {
+      "height": 44,
+      "width": 44,
+    }
+  }
+/>
+`;
+
+exports[`Renders a normal Image when not passed a uri. 1`] = `
+<Image
+  onError={undefined}
+  onLoad={undefined}
+  onLoadEnd={undefined}
+  onLoadStart={undefined}
+  onProgress={undefined}
+  resizeMode="cover"
+  source={
+    Object {
+      "testUri": "../../../server/pictures/jellyfish.gif",
+    }
+  }
+  style={
+    Object {
+      "height": 44,
+      "width": 44,
+    }
+  }
 />
 `;
