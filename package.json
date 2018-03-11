@@ -31,11 +31,11 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./example/fastImage/*.js ./server/*.js",
+    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./index.js ./example/*.js ./example/fastImage/*.js ./server/*.js",
     "prepare": "git submodule update --init --recursive",
     "test": "yarn run test:pretty && yarn run test:jest",
     "test:jest": "jest *.js",
-    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./example/fastImage/*.js ./server/*.js"
+    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./index.js ./example/*.js ./example/fastImage/*.js ./server/*.js"
   },
   "dependencies": {
     "prop-types": "^15.5.10"
@@ -46,8 +46,8 @@
     "jest": "^21.2.1",
     "prettier": "^1.5.2",
     "prettier-check": "^2.0.0",
-    "react": "16.0.0",
-    "react-native": "^0.50.4",
+    "react": "^16.3.0-alpha.1",
+    "react-native": "^0.54.1",
     "react-test-renderer": "16.0.0"
   },
   "jest": {

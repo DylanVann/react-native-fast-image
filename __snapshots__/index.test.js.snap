@@ -53,7 +53,7 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
   resizeMode="cover"
   source={
     Object {
-      "testUri": "../../../server/pictures/jellyfish.gif",
+      "testUri": "../../../react-native-fast-image-example-server/pictures/jellyfish.gif",
     }
   }
   style={
