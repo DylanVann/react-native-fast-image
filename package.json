@@ -18,11 +18,10 @@
   "files": [
     "ios",
     "android",
-    "utils",
-    "FastImage.js",
+    "index.js",
     "index.d.ts"
   ],
-  "main": "FastImage.js",
+  "main": "index.js",
   "directories": {
     "example": "example"
   },
