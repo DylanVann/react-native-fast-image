@@ -106,9 +106,14 @@
                                 hasCompleted = YES;
                                 if (_onFastImageLoad) {
                                     _onFastImageLoad(@{});
-                                    if (_onFastImageLoadEnd) {
-                                        _onFastImageLoadEnd(@{});
-                                    }
+                                }
+                                
+                                NSDictionary* params = @{
+                                                         @"width":[NSNumber numberWithDouble:image.size.width],
+                                                         @"height":[NSNumber numberWithDouble:image.size.height]
+                                                         };
+                                if (_onFastImageLoadEnd) {
+                                    _onFastImageLoadEnd(params);
                                 }
                             }
                         }];
