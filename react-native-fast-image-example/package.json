@@ -12,7 +12,7 @@
     "react-native": "0.54.1",
     "react-native-fast-image": "file:../react-native-fast-image-2.2.5.tgz",
     "react-native-image-progress": "^1.1.0",
-    "react-native-vector-icons": "^4.4.2",
+    "react-native-vector-icons": "^4.5.0",
     "react-navigation": "^1.0.0-beta.21",
     "react-timeout": "^1.0.1",
     "uuid": "^3.1.0"
