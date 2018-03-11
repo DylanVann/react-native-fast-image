@@ -16,14 +16,12 @@ const BorderRadiusExample = ({ onPressReload, bust }) => (
     <SectionFlex onPress={onPressReload}>
       <FastImage
         style={styles.imageSquare}
-        borderRadius={50}
         source={{
           uri: IMAGE_URL + bust,
         }}
       />
       <FastImage
         style={styles.imageRectangular}
-        borderRadius={50}
         source={{
           uri: IMAGE_URL + bust,
         }}
@@ -34,6 +32,7 @@ const BorderRadiusExample = ({ onPressReload, bust }) => (
 
 const styles = StyleSheet.create({
   imageSquare: {
+    borderRadius: 50,
     height: 100,
     backgroundColor: '#ddd',
     margin: 20,
@@ -41,6 +40,9 @@ const styles = StyleSheet.create({
     flex: 0,
   },
   imageRectangular: {
+    borderRadius: 50,
+    borderTopLeftRadius: 10,
+    borderBottomRightRadius: 10,
     height: 100,
     backgroundColor: '#ddd',
     margin: 20,

@@ -6,9 +6,12 @@ import Section from './Section'
 import FeatureText from './FeatureText'
 import uuid from 'uuid/v4'
 import Button from './Button'
+import { createImageProgress } from 'react-native-image-progress'
 
 const IMAGE_URL =
   'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
+
+const Image = createImageProgress(FastImage)
 
 class PreloadExample extends Component {
   state = {
@@ -16,13 +19,19 @@ class PreloadExample extends Component {
     url: IMAGE_URL,
   }
 
-  bustAndPreload = () => {
+  bustCache = () => {
     const key = uuid()
     const bust = `?bust=${key}`
     // Preload images. This can be called anywhere.
     const url = IMAGE_URL + bust
-    FastImage.preload([{ uri: url }])
-    this.setState({ url, show: false })
+    this.setState({
+      url,
+      show: false,
+    })
+  }
+
+  preload = () => {
+    FastImage.preload([{ uri: this.state.url }])
   }
 
   showImage = () => {
@@ -34,18 +43,25 @@ class PreloadExample extends Component {
       <View>
         <Section>
           <FeatureText text="• Preloading." />
+          <FeatureText text="• Progress indication using react-native-image-progress." />
         </Section>
         <SectionFlex style={styles.section} onPress={this.props.onPressReload}>
           {this.state.show ? (
-            <FastImage style={styles.image} source={{ uri: this.state.url }} />
+            <Image style={styles.image} source={{ uri: this.state.url }} />
           ) : (
             <View style={styles.image} />
           )}
-          <Button
-            text="Bust cache and preload."
-            onPress={this.bustAndPreload}
-          />
-          <Button text="Render image." onPress={this.showImage} />
+          <View style={{ flexDirection: 'row', marginHorizontal: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Button text="Bust" onPress={this.bustCache} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button text="Preload" onPress={this.preload} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button text="Render" onPress={this.showImage} />
+            </View>
+          </View>
         </SectionFlex>
       </View>
     )

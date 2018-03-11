@@ -1,6 +1,6 @@
 {
   "name": "react-native-fast-image",
-  "version": "2.2.4",
+  "version": "3.0.2",
   "description": "🚩 FastImage, performant React Native image component.",
   "keywords": [
     "cache",
@@ -18,12 +18,11 @@
   "files": [
     "ios",
     "android",
-    "utils",
-    "FastImage.js",
+    "index.js",
     "index.d.ts",
     "react-native-fast-image.podspec"
   ],
-  "main": "FastImage.js",
+  "main": "index.js",
   "directories": {
     "example": "example"
   },

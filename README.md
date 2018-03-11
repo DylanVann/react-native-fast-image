@@ -38,7 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
-- [x] Border radius property.
+- [x] Border radius.
 
 ## Usage
 
@@ -132,10 +132,9 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `borderRadius: number`
+### `style`
 
-A border radius for the image.
-Can be used to make a circular cropped version of the image.
+A React Native style. Supports using `borderRadius`.
 
 ## Static Methods
 
