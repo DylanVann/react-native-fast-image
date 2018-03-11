@@ -19,7 +19,8 @@
     "ios",
     "android",
     "index.js",
-    "index.d.ts"
+    "index.d.ts",
+    "react-native-fast-image.podspec"
   ],
   "main": "index.js",
   "directories": {
