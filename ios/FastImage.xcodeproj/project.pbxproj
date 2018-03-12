@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8F3D06222056E1E900EFE7CB /* FLAnimatedImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC0BC23C1EBAF431005A5CDB /* FLAnimatedImage.framework */; };
+		8F3D06232056E1EE00EFE7CB /* SDWebImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D61EB38D2F0065F944 /* SDWebImage.framework */; };
+		8F3D06282056E20200EFE7CB /* RCTConvert+FFFastImage.m in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D06242056E20200EFE7CB /* RCTConvert+FFFastImage.m */; };
+		8F3D06292056E20200EFE7CB /* FFFastImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D06252056E20200EFE7CB /* FFFastImageView.m */; };
+		8F3D062A2056E20200EFE7CB /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D06262056E20200EFE7CB /* FFFastImageSource.m */; };
+		8F3D062B2056E20200EFE7CB /* FFFastImageViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D06272056E20200EFE7CB /* FFFastImageViewManager.m */; };
 		FC0BC2421EBAF4C1005A5CDB /* FLAnimatedImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC0BC23C1EBAF431005A5CDB /* FLAnimatedImage.framework */; };
 		FCC6D1391EB3912D0065F944 /* libSDWebImage iOS static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */; };
 		FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB25381EA5562700F59778 /* FFFastImageSource.m */; };
@@ -75,6 +81,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		8F3D06102056E1A400EFE7CB /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/$(PRODUCT_NAME)";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A287971B1DE0C0A60081BDFA /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -87,6 +102,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8F3D06122056E1A400EFE7CB /* libFastImage-tvOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libFastImage-tvOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F3D06242056E20200EFE7CB /* RCTConvert+FFFastImage.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = "RCTConvert+FFFastImage.m"; path = "FastImage/RCTConvert+FFFastImage.m"; sourceTree = "<group>"; };
+		8F3D06252056E20200EFE7CB /* FFFastImageView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = FFFastImageView.m; path = FastImage/FFFastImageView.m; sourceTree = "<group>"; };
+		8F3D06262056E20200EFE7CB /* FFFastImageSource.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = FFFastImageSource.m; path = FastImage/FFFastImageSource.m; sourceTree = "<group>"; };
+		8F3D06272056E20200EFE7CB /* FFFastImageViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = FFFastImageViewManager.m; path = FastImage/FFFastImageViewManager.m; sourceTree = "<group>"; };
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC0BC2371EBAF431005A5CDB /* FLAnimatedImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = FLAnimatedImage.xcodeproj; path = Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage.xcodeproj; sourceTree = "<group>"; };
 		FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDWebImage.xcodeproj; path = Vendor/SDWebImage/SDWebImage.xcodeproj; sourceTree = "<group>"; };
@@ -101,6 +121,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		8F3D060F2056E1A400EFE7CB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F3D06232056E1EE00EFE7CB /* SDWebImage.framework in Frameworks */,
+				8F3D06222056E1E900EFE7CB /* FLAnimatedImage.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A287971A1DE0C0A60081BDFA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -113,12 +142,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8F3D06212056E1E900EFE7CB /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A28797141DE0C0A60081BDFA = {
 			isa = PBXGroup;
 			children = (
+				8F3D06262056E20200EFE7CB /* FFFastImageSource.m */,
+				8F3D06252056E20200EFE7CB /* FFFastImageView.m */,
+				8F3D06272056E20200EFE7CB /* FFFastImageViewManager.m */,
+				8F3D06242056E20200EFE7CB /* RCTConvert+FFFastImage.m */,
 				FCFB25361EA5562700F59778 /* FastImage */,
 				A28797331DE0CA420081BDFA /* Vendor */,
 				A287971E1DE0C0A60081BDFA /* Products */,
+				8F3D06212056E1E900EFE7CB /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -126,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				A287971D1DE0C0A60081BDFA /* libFastImage.a */,
+				8F3D06122056E1A400EFE7CB /* libFastImage-tvOS.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -178,6 +220,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		8F3D06112056E1A400EFE7CB /* FastImage-tvOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8F3D06202056E1A400EFE7CB /* Build configuration list for PBXNativeTarget "FastImage-tvOS" */;
+			buildPhases = (
+				8F3D060E2056E1A400EFE7CB /* Sources */,
+				8F3D060F2056E1A400EFE7CB /* Frameworks */,
+				8F3D06102056E1A400EFE7CB /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "FastImage-tvOS";
+			productName = "FastImage-tvOS";
+			productReference = 8F3D06122056E1A400EFE7CB /* libFastImage-tvOS.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 		A287971C1DE0C0A60081BDFA /* FastImage */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A28797261DE0C0A60081BDFA /* Build configuration list for PBXNativeTarget "FastImage" */;
@@ -205,6 +264,10 @@
 				LastUpgradeCheck = 0810;
 				ORGANIZATIONNAME = vovkasm;
 				TargetAttributes = {
+					8F3D06112056E1A400EFE7CB = {
+						CreatedOnToolsVersion = 9.2;
+						ProvisioningStyle = Automatic;
+					};
 					A287971C1DE0C0A60081BDFA = {
 						CreatedOnToolsVersion = 8.1;
 						ProvisioningStyle = Automatic;
@@ -234,6 +297,7 @@
 			projectRoot = "";
 			targets = (
 				A287971C1DE0C0A60081BDFA /* FastImage */,
+				8F3D06112056E1A400EFE7CB /* FastImage-tvOS */,
 			);
 		};
 /* End PBXProject section */
@@ -291,6 +355,17 @@
 /* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
+		8F3D060E2056E1A400EFE7CB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F3D06282056E20200EFE7CB /* RCTConvert+FFFastImage.m in Sources */,
+				8F3D06292056E20200EFE7CB /* FFFastImageView.m in Sources */,
+				8F3D062A2056E20200EFE7CB /* FFFastImageSource.m in Sources */,
+				8F3D062B2056E20200EFE7CB /* FFFastImageViewManager.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A28797191DE0C0A60081BDFA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -313,6 +388,67 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		8F3D06182056E1A400EFE7CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+					"$(SRCROOT)/Vendor/SDWebImage",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 11.2;
+			};
+			name = Debug;
+		};
+		8F3D06192056E1A400EFE7CB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+					"$(SRCROOT)/Vendor/SDWebImage",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 11.2;
+			};
+			name = Release;
+		};
 		A28797241DE0C0A60081BDFA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -426,6 +562,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		8F3D06202056E1A400EFE7CB /* Build configuration list for PBXNativeTarget "FastImage-tvOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8F3D06182056E1A400EFE7CB /* Debug */,
+				8F3D06192056E1A400EFE7CB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		A28797181DE0C0A60081BDFA /* Build configuration list for PBXProject "FastImage" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
