@@ -1,4 +1,4 @@
-# How is caching handled?
+# How is caching handled???
 
 In the readme it says "Aggressively cache images.". What does this mean?
 
