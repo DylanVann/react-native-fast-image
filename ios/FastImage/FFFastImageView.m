@@ -98,9 +98,9 @@
                                 hasErrored = YES;
                                 if (_onFastImageError) {
                                     _onFastImageError(@{});
-                                    if (_onFastImageLoadEnd) {
-                                        _onFastImageLoadEnd(@{});
-                                    }
+                                }
+                                if (_onFastImageLoadEnd) {
+                                    _onFastImageLoadEnd(@{});
                                 }
                             } else {
                                 hasCompleted = YES;
