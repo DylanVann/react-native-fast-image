@@ -401,6 +401,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../react-native/React/**",
+					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
+					"${SYMROOT}",
+					"$(BUILT_PRODUCTS_DIR)",
 					"$(SRCROOT)/Vendor/SDWebImage",
 					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
 				);
@@ -414,6 +418,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../react-native/React/**",
+					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
+					"${SYMROOT}",
+					"$(BUILT_PRODUCTS_DIR)",
 					"$(SRCROOT)/Vendor/SDWebImage",
 					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
 				);
