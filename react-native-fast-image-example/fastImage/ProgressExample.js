@@ -14,7 +14,7 @@ const getTestProgressCallbacks = label => ({
     console.log(
       `${label} - onProgress - ${e.nativeEvent.loaded / e.nativeEvent.total}`,
     ),
-  onLoad: (e) => console.log(`${label} - onLoad`, e.nativeEvent),
+  onLoad: e => console.log(`${label} - onLoad`, e.nativeEvent),
   onError: () => console.log(`${label} - onError`),
   onLoadEnd: () => console.log(`${label} - onLoadEnd`),
 })

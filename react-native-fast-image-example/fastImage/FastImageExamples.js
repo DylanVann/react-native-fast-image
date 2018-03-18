@@ -1,6 +1,6 @@
 import React from 'react'
 import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native'
-import Icon from 'react-native-vector-icons/Ionicons'
+import Icon from './Icons/Icon'
 import Section from './Section'
 import PriorityExample from './PriorityExample'
 import GifExample from './GifExample'
@@ -25,6 +25,7 @@ const FastImageExample = () => (
         <Section>
           <Text style={styles.titleText}>🚩 FastImage</Text>
           <FeatureText text="Tap images to reload examples." />
+            <Icon name='ios-information-circle' size={26} color='#000' />
         </Section>
         <PriorityExample />
         <GifExample />
@@ -39,12 +40,13 @@ const FastImageExample = () => (
 
 FastImageExample.navigationOptions = {
   tabBarLabel: 'FastImage Example',
-  tabBarIcon: ({ focused, tintColor }) => {
-    const name = focused
-      ? 'ios-information-circle'
-      : 'ios-information-circle-outline'
-    return <Icon name={name} size={26} color={tintColor} />
-  },
+  tabBarIcon: props => (
+    <Icon
+      name="ios-information-circle-outline"
+      focusedName="ios-information-circle"
+      {...props}
+    />
+  ),
 }
 
 const styles = StyleSheet.create({

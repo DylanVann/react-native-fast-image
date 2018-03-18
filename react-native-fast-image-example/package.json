@@ -10,7 +10,7 @@
   "dependencies": {
     "react": "^16.3.0-alpha.1",
     "react-native": "0.54.1",
-    "react-native-fast-image": "file:../react-native-fast-image-2.2.5.tgz",
+    "react-native-fast-image": "../react-native-fast-image-3.0.2.tgz",
     "react-native-image-progress": "^1.1.0",
     "react-native-vector-icons": "^4.5.0",
     "react-navigation": "^1.0.0-beta.21",
