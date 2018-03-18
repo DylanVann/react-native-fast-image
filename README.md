@@ -114,9 +114,11 @@ e.g. `onProgress={e => console.log(e.nativeEvent.loaded / e.nativeEvent.total)}`
 
 ---
 
-### `onLoad?: () => void`
+### `onLoad?: (event) => void`
 
-Called on a successful image fetch.
+Called on a successful image fetch. Called with the width and height of the loaded image.
+
+e.g. `onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}`
 
 ---
 

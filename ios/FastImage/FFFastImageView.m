@@ -104,16 +104,15 @@
                                 }
                             } else {
                                 hasCompleted = YES;
-                                if (_onFastImageLoad) {
-                                    _onFastImageLoad(@{});
-                                }
-                                
                                 NSDictionary* params = @{
                                                          @"width":[NSNumber numberWithDouble:image.size.width],
                                                          @"height":[NSNumber numberWithDouble:image.size.height]
                                                          };
+                                if (_onFastImageLoad) {
+                                    _onFastImageLoad(params);
+                                }
                                 if (_onFastImageLoadEnd) {
-                                    _onFastImageLoadEnd(params);
+                                    _onFastImageLoadEnd(@{});
                                 }
                             }
                         }];
