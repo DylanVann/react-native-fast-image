@@ -25,7 +25,6 @@ const FastImageExample = () => (
         <Section>
           <Text style={styles.titleText}>🚩 FastImage</Text>
           <FeatureText text="Tap images to reload examples." />
-            <Icon name='ios-information-circle' size={26} color='#000' />
         </Section>
         <PriorityExample />
         <GifExample />
