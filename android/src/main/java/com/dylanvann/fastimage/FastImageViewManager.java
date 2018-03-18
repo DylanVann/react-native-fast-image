@@ -61,6 +61,14 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         return new ImageViewWithUrl(reactContext);
     }
 
+    private static WritableMap mapFromResource(GlideDrawable resource) {
+        WritableMap resourceData = new WritableNativeMap();
+        resourceData.putInt("width", resource.getIntrinsicWidth());
+        resourceData.putInt("height", resource.getIntrinsicHeight());
+
+        return resourceData;
+    }
+
     @ReactProp(name = "source")
     public void setSrc(ImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null) {

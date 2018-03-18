@@ -1,6 +1,6 @@
 {
   "name": "react-native-fast-image",
-  "version": "2.2.4",
+  "version": "3.0.2",
   "description": "🚩 FastImage, performant React Native image component.",
   "keywords": [
     "cache",
@@ -16,13 +16,15 @@
   "license": "MIT",
   "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
   "files": [
-    "ios",
+    "ios/FastImage",
+    "ios/Vendor",
+    "ios/FastImage.xcodeproj",
     "android",
-    "utils",
-    "FastImage.js",
-    "index.d.ts"
+    "index.js",
+    "index.d.ts",
+    "react-native-fast-image.podspec"
   ],
-  "main": "FastImage.js",
+  "main": "index.js",
   "directories": {
     "example": "example"
   },
@@ -31,11 +33,11 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./example/fastImage/*.js ./server/*.js",
+    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./index.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js",
     "prepare": "git submodule update --init --recursive",
     "test": "yarn run test:pretty && yarn run test:jest",
     "test:jest": "jest *.js",
-    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./FastImage.js ./example/*.js ./example/fastImage/*.js ./server/*.js"
+    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./index.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js"
   },
   "dependencies": {
     "prop-types": "^15.5.10"
@@ -46,15 +48,16 @@
     "jest": "^21.2.1",
     "prettier": "^1.5.2",
     "prettier-check": "^2.0.0",
-    "react": "16.0.0",
-    "react-native": "^0.50.4",
+    "react": "^16.3.0-alpha.1",
+    "react-native": "^0.54.1",
     "react-test-renderer": "16.0.0"
   },
   "jest": {
     "preset": "react-native",
     "modulePathIgnorePatterns": [
-      "example",
-      "server"
+      "ReactNativeFastImageExample",
+      "ReactNativeFastImageCocoaPodsExample",
+      "react-native-fast-image-server"
     ]
   }
 }

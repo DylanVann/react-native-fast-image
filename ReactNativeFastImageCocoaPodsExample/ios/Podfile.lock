@@ -1,0 +1,94 @@
+PODS:
+  - boost-for-react-native (1.63.0)
+  - DoubleConversion (1.1.5)
+  - FLAnimatedImage (1.0.12)
+  - Folly (2016.09.26.00):
+    - boost-for-react-native
+    - DoubleConversion
+    - glog
+  - glog (0.3.4)
+  - React (0.54.2):
+    - React/Core (= 0.54.2)
+  - react-native-fast-image (3.0.2):
+    - FLAnimatedImage
+    - React
+    - SDWebImage/Core
+    - SDWebImage/GIF
+  - React/Core (0.54.2):
+    - yoga (= 0.54.2.React)
+  - React/CxxBridge (0.54.2):
+    - Folly (= 2016.09.26.00)
+    - React/Core
+    - React/cxxreact
+  - React/cxxreact (0.54.2):
+    - boost-for-react-native (= 1.63.0)
+    - Folly (= 2016.09.26.00)
+    - React/jschelpers
+    - React/jsinspector
+  - React/DevSupport (0.54.2):
+    - React/Core
+    - React/RCTWebSocket
+  - React/fishhook (0.54.2)
+  - React/jschelpers (0.54.2):
+    - Folly (= 2016.09.26.00)
+    - React/PrivateDatabase
+  - React/jsinspector (0.54.2)
+  - React/PrivateDatabase (0.54.2)
+  - React/RCTBlob (0.54.2):
+    - React/Core
+  - React/RCTImage (0.54.2):
+    - React/Core
+    - React/RCTNetwork
+  - React/RCTNetwork (0.54.2):
+    - React/Core
+  - React/RCTText (0.54.2):
+    - React/Core
+  - React/RCTWebSocket (0.54.2):
+    - React/Core
+    - React/fishhook
+    - React/RCTBlob
+  - RNVectorIcons (4.5.0):
+    - React
+  - SDWebImage/Core (4.3.3)
+  - SDWebImage/GIF (4.3.3):
+    - FLAnimatedImage (~> 1.0)
+    - SDWebImage/Core
+  - yoga (0.54.2.React)
+
+DEPENDENCIES:
+  - react-native-fast-image (from `../node_modules/react-native-fast-image`)
+  - React/Core (from `../node_modules/react-native`)
+  - React/CxxBridge (from `../node_modules/react-native`)
+  - React/DevSupport (from `../node_modules/react-native`)
+  - React/RCTImage (from `../node_modules/react-native`)
+  - React/RCTNetwork (from `../node_modules/react-native`)
+  - React/RCTText (from `../node_modules/react-native`)
+  - React/RCTWebSocket (from `../node_modules/react-native`)
+  - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
+  - yoga (from `../node_modules/react-native/ReactCommon/yoga`)
+
+EXTERNAL SOURCES:
+  React:
+    :path: ../node_modules/react-native
+  react-native-fast-image:
+    :path: ../node_modules/react-native-fast-image
+  RNVectorIcons:
+    :path: ../node_modules/react-native-vector-icons
+  yoga:
+    :path: ../node_modules/react-native/ReactCommon/yoga
+
+SPEC CHECKSUMS:
+  boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
+  DoubleConversion: e22e0762848812a87afd67ffda3998d9ef29170c
+  FLAnimatedImage: 4a0b56255d9b05f18b6dd7ee06871be5d3b89e31
+  Folly: 211775e49d8da0ca658aebc8eab89d642935755c
+  glog: 1de0bb937dccdc981596d3b5825ebfb765017ded
+  React: c237e42de9c70e5cac6eeb52b4cfd3a0910c1f00
+  react-native-fast-image: cba3d9bf9c2cf8ddb643d887a686c53a5dd90a2c
+  RNVectorIcons: c0dbfbf6068fefa240c37b0f71bd03b45dddac44
+  SDWebImage: de4d90b5bff3571eae7bd16202b1f43135409fa5
+  yoga: 55da126afc384965b96bff46652464373b330add
+
+PODFILE CHECKSUM: ee9eca64053ac06cb269faee8f128dfd0a4c1de4
+
+COCOAPODS: 1.4.0

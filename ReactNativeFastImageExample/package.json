@@ -1,0 +1,28 @@
+{
+  "name": "ReactNativeFastImageExample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node node_modules/react-native/local-cli/cli.js start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "react": "^16.3.0-alpha.1",
+    "react-native": "0.54.2",
+    "react-native-fast-image": "../react-native-fast-image-3.0.2.tgz",
+    "react-native-image-progress": "^1.1.0",
+    "react-native-vector-icons": "^4.5.0",
+    "react-navigation": "^1.5.7",
+    "react-timeout": "^1.1.1",
+    "uuid": "^3.2.1"
+  },
+  "devDependencies": {
+    "babel-jest": "23.0.0-alpha.0",
+    "babel-preset-react-native": "4.0.0",
+    "jest": "22.4.2",
+    "react-test-renderer": "^16.3.0-alpha.1"
+  },
+  "jest": {
+    "preset": "react-native"
+  }
+}

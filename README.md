@@ -38,7 +38,7 @@ and
 - [x] Prioritize images.
 - [x] Preload images.
 - [x] GIF support.
-- [x] Border radius property.
+- [x] Border radius.
 
 ## Usage
 
@@ -114,9 +114,11 @@ e.g. `onProgress={e => console.log(e.nativeEvent.loaded / e.nativeEvent.total)}`
 
 ---
 
-### `onLoad?: () => void`
+### `onLoad?: (event) => void`
 
-Called on a successful image fetch.
+Called on a successful image fetch. Called with the width and height of the loaded image.
+
+e.g. `onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}`
 
 ---
 
@@ -132,10 +134,9 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ---
 
-### `borderRadius: number`
+### `style`
 
-A border radius for the image.
-Can be used to make a circular cropped version of the image.
+A React Native style. Supports using `borderRadius`.
 
 ## Static Methods
 
