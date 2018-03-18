@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.bumptech.glide.load.DecodeFormat;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.GlideBuilder;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
@@ -30,7 +31,7 @@ import okio.Source;
 public class OkHttpProgressGlideModule implements GlideModule {
 
     @Override
-    public void applyOptions(Context context, GlideBuilder builder) { }
+    public void applyOptions(Context context, GlideBuilder builder) {builder.setDecodeFormat(DecodeFormat.PREFER_ARGB_8888); }
 
     @Override
     public void registerComponents(Context context, Glide glide) {
