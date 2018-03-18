@@ -80,6 +80,7 @@ const YourImage = () =>
 
 - [Manual](docs/installation-manual.md) (might be needed if something went wrong with `react-native link`)
 - [CocoaPods (iOS)](docs/installation-cocoapods.md) (you may wish to use this if you are already using CocoaPods)
+- [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
 
 ## Proguard
 

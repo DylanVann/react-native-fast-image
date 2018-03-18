@@ -1,6 +1,6 @@
 package com.dylanvann.fastimage;
 
-public interface ProgressListener {
+public interface FastImageProgressListener {
 
     void onProgress(String key, long bytesRead, long expectedLength);
 
