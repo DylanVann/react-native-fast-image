@@ -98,7 +98,7 @@ android {
     buildToolsVersion "23.0.1"
 
     defaultConfig {
-        applicationId "com.reactnativefastimageexample"
+        applicationId "com.reactnativefastimagecocoapodsexample"
         minSdkVersion 16
         targetSdkVersion 22
         versionCode 1
@@ -137,8 +137,6 @@ android {
 }
 
 dependencies {
-    compile project(':react-native-vector-icons')
-    compile project(':react-native-fast-image')
     compile fileTree(dir: "libs", include: ["*.jar"])
     compile "com.android.support:appcompat-v7:23.0.1"
     compile "com.facebook.react:react-native:+"  // From node_modules
