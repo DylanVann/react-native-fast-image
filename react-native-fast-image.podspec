@@ -10,13 +10,17 @@ Pod::Spec.new do |s|
   s.authors = { "Dylan Vann" => "dylan@dylanvann.com" }
   s.homepage = "https://github.com/DylanVann/react-native-fast-image#readme"
   s.license = "MIT"
+
   s.platform = :ios, "8.0"
+  s.framework    = 'UIKit'
+  s.requires_arc = true
 
   s.source = { :git => "https://github.com/DylanVann/react-native-fast-image.git" }
   s.source_files = "ios/**/*.{h,m}"
   s.exclude_files = "ios/Vendor/**/*.{h,m}"
 
   s.dependency 'React'
-  s.dependency 'SDWebImage'
+  s.dependency 'SDWebImage/Core'
+  s.dependency 'SDWebImage/GIF'
   s.dependency 'FLAnimatedImage'
 end
