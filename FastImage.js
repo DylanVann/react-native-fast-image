@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {
+  Platform,
   View,
   Image,
   NativeModules,
@@ -33,7 +34,7 @@ class FastImage extends Component {
     } = this.props
 
     // If there's no source or source uri just fallback to Image.
-    if (!source || !source.uri) {
+    if (!source || !source.uri || (Platform.OS === 'android' && source.uri.startsWith('file://'))) {
       return (
         <Image
           ref={e => (this._root = e)}
@@ -51,30 +52,8 @@ class FastImage extends Component {
 
     const resolvedSource = resolveAssetSource(source)
 
-    if (children) {
-      throw new Error(
-        'The <FastImage> component cannot contain children. If you want to render content on top of the image consider using absolute positioning.',
-      )
-    }
-
-    if (!borderRadius) {
-      return (
-        <FastImageView
-          ref={e => (this._root = e)}
-          {...props}
-          style={style}
-          source={resolvedSource}
-          onFastImageLoadStart={onLoadStart}
-          onFastImageProgress={onProgress}
-          onFastImageLoad={onLoad}
-          onFastImageError={onError}
-          onFastImageLoadEnd={onLoadEnd}
-        />
-      )
-    }
-
     return (
-      <View style={[style, styles.imageContainer]} borderRadius={borderRadius}>
+      <View style={[style, styles.imageContainer]}>
         <FastImageView
           ref={e => (this._root = e)}
           {...props}
@@ -86,6 +65,7 @@ class FastImage extends Component {
           onFastImageError={onError}
           onFastImageLoadEnd={onLoadEnd}
         />
+        {children && <View style={StyleSheet.absoluteFill}>{children}</View>}
       </View>
     )
   }
