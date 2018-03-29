@@ -14,7 +14,6 @@ RCT_EXPORT_MODULE(FastImageView)
   return view;
 }
 
-RCT_REMAP_VIEW_PROPERTY(defaultSource, defaultImage, UIImage)
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadStart, RCTDirectEventBlock)
