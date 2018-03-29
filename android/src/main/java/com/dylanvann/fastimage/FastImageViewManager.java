@@ -102,28 +102,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 boolean isFromMemoryCache,
                 boolean isFirstResource
         ) {
-<<<<<<< HEAD
-            if (!(target instanceof ImageViewTarget)) {
-                return false;
-            }
-            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, mapFromResource(resource));
-            return false;
-        }
-    };
 
-    private static WritableMap mapFromResource(GlideDrawable resource) {
-        WritableMap resourceData = new WritableNativeMap();
-        resourceData.putInt("width", resource.getIntrinsicWidth());
-        resourceData.putInt("height", resource.getIntrinsicHeight());
-
-        return resourceData;
-=======
             return onListenResourceReady(target);
         }
     };
@@ -153,7 +132,6 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, new WritableNativeMap());
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
         return false;
->>>>>>> pr/2
     }
 
     @ReactProp(name = "source")
@@ -194,17 +172,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-<<<<<<< HEAD
-        Glide
-                .with(view.getContext().getApplicationContext())
-                .load(glideUrl)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .dontTransform()
-                .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
-                .into(view);
-=======
+
         if (glideUrl.toStringUrl().startsWith("http://") || glideUrl.toStringUrl().startsWith("https://")) {
             Glide
                     .with(view.getContext())
@@ -222,7 +190,6 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                     .listener(LISTENER_STRING)
                     .into(view);
         }
->>>>>>> pr/2
     }
 
     @ReactProp(name = "resizeMode")
