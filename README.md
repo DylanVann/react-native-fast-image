@@ -40,13 +40,56 @@ and
 - [x] GIF support.
 - [x] Border radius.
 
-## Usage
+## Installation (automatic linking)
 
 ```bash
 yarn add react-native-fast-image
 react-native link
 ```
 
+## Installation (manual linking)
+
+```bash
+yarn add react-native-fast-image
+```
+
+*MainApplication.java*
+Add `new FastImageViewPackage()` into the _getPackages_ method.
+
+```java
+ @Override
+    protected List<ReactPackage> getPackages() {
+      return Arrays.<ReactPackage>asList(
+        new FastImageViewPackage(),
+```
+
+*build.gradle*
+Add `compile project(':react-native-fast-image')` into the dependencies block.
+
+```
+dependencies {
+  compile project(':react-native-fast-image')
+```
+
+*settings.gradle*
+
+Add the following to the bottom of the document.
+```
+include ':react-native-fast-image'
+project(':react-native-fast-image').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-fast-image/android')
+```
+
+*Podfile*
+
+Add the following under the :subspecs array:
+```
+pod 'react-native-fast-image', :path => '../node_modules/react-native-fast-image'
+```
+
+ 
+
+
+## Usage
 ```js
 
 import FastImage from 'react-native-fast-image'
