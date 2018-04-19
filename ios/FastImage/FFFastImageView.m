@@ -4,7 +4,7 @@
     BOOL hasSentOnLoadStart;
     BOOL hasCompleted;
     BOOL hasErrored;
-    NSDictionary* sizeParams;
+    NSDictionary* onLoadEvent;
 }
 
 - (void)setResizeMode:(RCTResizeMode)resizeMode
@@ -25,7 +25,7 @@
 - (void)setOnFastImageLoad:(RCTBubblingEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
     if (hasCompleted) {
-        _onFastImageLoad(sizeParams);
+        _onFastImageLoad(onLoadEvent);
     }
 }
 
@@ -105,13 +105,12 @@
                                 }
                             } else {
                                 hasCompleted = YES;
-                                NSDictionary* params = @{
-                                                         @"width":[NSNumber numberWithDouble:image.size.width],
-                                                         @"height":[NSNumber numberWithDouble:image.size.height]
-                                                         };
-                                sizeParams = params;
+                                onLoadEvent = @{
+                                                @"width":[NSNumber numberWithDouble:image.size.width],
+                                                @"height":[NSNumber numberWithDouble:image.size.height]
+                                                };
                                 if (_onFastImageLoad) {
-                                    _onFastImageLoad(params);
+                                    _onFastImageLoad(onLoadEvent);
                                 }
                                 if (_onFastImageLoadEnd) {
                                     _onFastImageLoadEnd(@{});
