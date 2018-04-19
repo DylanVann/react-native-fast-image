@@ -29,7 +29,6 @@ class FastImage extends Component {
       onLoadEnd,
       style,
       children,
-      borderRadius,
       ...props
     } = this.props
 
