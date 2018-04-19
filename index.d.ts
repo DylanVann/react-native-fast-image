@@ -36,8 +36,14 @@ export type FastImageSource = {
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     backfaceVisibility?: 'visible' | 'hidden'
-    backgroundColor?: string
-    borderColor?: string
+    borderBottomLeftRadius?: number;
+    borderBottomRightRadius?: number;
+    backgroundColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    borderRadius?: number;
+    borderTopLeftRadius?: number;
+    borderTopRightRadius?: number;
     overlayColor?: string
     tintColor?: string
     opacity?: number
