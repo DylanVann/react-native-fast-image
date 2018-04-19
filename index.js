@@ -34,7 +34,11 @@ class FastImage extends Component {
     } = this.props
 
     // If there's no source or source uri just fallback to Image.
-    if (!source || !source.uri || (Platform.OS === 'android' && source.uri.startsWith('file://'))) {
+    const noSource = !source
+    const noURI = !source.uri
+    const isLocalAndroidImage =
+      source && source.uri && source.uri.startsWith('file://')
+    if (noSource || noURI || isLocalAndroidImage) {
       return (
         <Image
           ref={e => (this._root = e)}
