@@ -408,7 +408,7 @@
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
 					"$(SRCROOT)/Vendor/SDWebImage",
-					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImage",
+					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
