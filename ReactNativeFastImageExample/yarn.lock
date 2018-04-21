@@ -4232,9 +4232,9 @@ react-native-drawer-layout@1.3.2:
   dependencies:
     react-native-dismiss-keyboard "1.0.0"
 
-react-native-fast-image@../react-native-fast-image-3.0.2.tgz:
-  version "3.0.2"
-  resolved "../react-native-fast-image-3.0.2.tgz#a8b40da6e3d196127c86f198994ae705508b35f7"
+"react-native-fast-image@file:../react-native-fast-image-4.0.3.tgz":
+  version "4.0.3"
+  resolved "file:../react-native-fast-image-4.0.3.tgz#c9f5508e2c608a76640333d55edc21cc30a2d54b"
   dependencies:
     prop-types "^15.5.10"
 
@@ -5266,7 +5266,7 @@ uuid@3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.0.1.tgz#6544bba2dfda8c1cf17e629a3a305e2bb1fee6c1"
 
-uuid@^3.0.0, uuid@^3.1.0, uuid@^3.2.1:
+uuid@^3.0.0, uuid@^3.1.0:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.2.1.tgz#12c528bb9d58d0b9265d9a2f6f0fe8be17ff1f14"
 
