@@ -400,6 +400,7 @@
 		A28797271DE0C0A60081BDFA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				HEADER_SEARCH_PATHS = (
 					"${SYMROOT}",
 					"$(BUILT_PRODUCTS_DIR)",
@@ -418,6 +419,7 @@
 		A28797281DE0C0A60081BDFA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				HEADER_SEARCH_PATHS = (
 					"${SYMROOT}",
 					"$(BUILT_PRODUCTS_DIR)",
