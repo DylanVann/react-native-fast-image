@@ -157,6 +157,10 @@ FastImage.preload([
 ])
 ```
 
+## Troubleshooting
+
+If you have any problems using this library try the steps in [troubleshooting](https://github.com/DylanVann/react-native-fast-image/blob/master/docs/troubleshooting.md) and see if they fix it.
+
 ## Development
 
 ```bash
