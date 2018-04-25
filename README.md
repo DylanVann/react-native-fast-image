@@ -3,6 +3,7 @@
 🚩 FastImage, performant React Native image component.
 
 [![npm](https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square)](https://www.npmjs.com/package/react-native-fast-image)
+[![npm](https://img.shields.io/npm/dm/react-native-fast-image.svg?style=flat-square)](https://npmjs.com/package/react-native-fast-image)
 [![CircleCI](https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg?style=flat-square)](https://circleci.com/gh/DylanVann/react-native-fast-image)
 [![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square)](https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE)
 
@@ -44,54 +45,12 @@ and
 
 ```bash
 yarn add react-native-fast-image
+
+# Automatic linking. (other linking methods listed below)
 react-native link
 ```
 
-## Installation (manual linking)
-
-```bash
-yarn add react-native-fast-image
-```
-
-*MainApplication.java*
-Add `new FastImageViewPackage()` into the _getPackages_ method.
-
-```java
- @Override
-    protected List<ReactPackage> getPackages() {
-      return Arrays.<ReactPackage>asList(
-        new FastImageViewPackage(),
-```
-
-*build.gradle*
-Add `compile project(':react-native-fast-image')` into the dependencies block.
-
-```
-dependencies {
-  compile project(':react-native-fast-image')
-```
-
-*settings.gradle*
-
-Add the following to the bottom of the document.
-```
-include ':react-native-fast-image'
-project(':react-native-fast-image').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-fast-image/android')
-```
-
-*Podfile*
-
-Add the following under the :subspecs array:
-```
-pod 'react-native-fast-image', :path => '../node_modules/react-native-fast-image'
-```
-
- 
-
-
-## Usage
-```js
-
+```jsx
 import FastImage from 'react-native-fast-image'
 
 const YourImage = () =>
@@ -105,6 +64,11 @@ const YourImage = () =>
     resizeMode={FastImage.resizeMode.contain}
   />
 ```
+
+## Other Linking Methods
+
+- [Manual](docs/installation-manual.md) (might be needed if something went wrong with `react-native link`)
+- [CocoaPods (iOS)](docs/installation-cocoapods.md) (you may wish to use this if you are already using CocoaPods)
 
 ## Properties
 
@@ -202,7 +166,7 @@ FastImage.preload([
 
 ## Troubleshooting
 
-If you have any problems using this library try the steps in [troubleshooting](https://github.com/DylanVann/react-native-fast-image/blob/master/docs/troubleshooting.md) and see if they fix it.
+If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.
 
 ## Development
 
