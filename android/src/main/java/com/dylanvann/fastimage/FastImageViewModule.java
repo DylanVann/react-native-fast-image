@@ -33,22 +33,23 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void preload(final ReadableArray sources) {
         final Activity activity = getCurrentActivity();
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < sources.size(); i++) {
-                    final ReadableMap source = sources.getMap(i);
-                    final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
-                    final Priority priority = FastImageViewConverter.priority(source);
-                    Glide
-                            .with(activity.getApplicationContext())
-                            .load(glideUrl)
-                            .priority(priority)
-                            .placeholder(TRANSPARENT_DRAWABLE)
-                            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
-                            .preload();
+        if (activity != null)
+            activity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    for (int i = 0; i < sources.size(); i++) {
+                        final ReadableMap source = sources.getMap(i);
+                        final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
+                        final Priority priority = FastImageViewConverter.priority(source);
+                        Glide
+                                .with(activity.getApplicationContext())
+                                .load(glideUrl)
+                                .priority(priority)
+                                .placeholder(TRANSPARENT_DRAWABLE)
+                                .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                                .preload();
+                    }
                 }
-            }
-        });
+            });
     }
 }
