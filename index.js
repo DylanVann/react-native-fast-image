@@ -30,6 +30,8 @@ class FastImage extends Component {
     this._root.setNativeProps(nativeProps)
   }
 
+  captureRef = e => (this._root = e)
+
   render() {
     const {
       source,
@@ -47,7 +49,7 @@ class FastImage extends Component {
     if (useLocalImage(source)) {
       return (
         <Image
-          ref={e => (this._root = e)}
+          ref={this.captureRef}
           {...props}
           style={style}
           source={source}
@@ -63,8 +65,7 @@ class FastImage extends Component {
     const resolvedSource = resolveAssetSource(source)
 
     return (
-      <View style={[style, styles.imageContainer]}
-            ref={e => (this._root = e)}>
+      <View style={[style, styles.imageContainer]} ref={this.captureRef}>
         <FastImageView
           {...props}
           style={StyleSheet.absoluteFill}
