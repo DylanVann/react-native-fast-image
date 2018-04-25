@@ -63,9 +63,9 @@ class FastImage extends Component {
     const resolvedSource = resolveAssetSource(source)
 
     return (
-      <View style={[style, styles.imageContainer]}>
+      <View style={[style, styles.imageContainer]}
+            ref={e => (this._root = e)}>
         <FastImageView
-          ref={e => (this._root = e)}
           {...props}
           style={StyleSheet.absoluteFill}
           source={resolvedSource}
