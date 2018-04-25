@@ -41,9 +41,10 @@ and
 - [x] GIF support.
 - [x] Border radius.
 
-## Installation (automatic linking)
+## Usage
 
 ```bash
+# Install
 yarn add react-native-fast-image
 
 # Automatic linking. (other linking methods listed below)
