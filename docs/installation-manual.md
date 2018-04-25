@@ -2,7 +2,10 @@
 
 ## iOS
 
-Add `FastImage.xcodeproj` to **Libraries** and add `libFastImage.a` to **Link Binary With Libraries** under **Build Phases**. [More info.](http://facebook.github.io/react-native/docs/linking-libraries-ios.html#content).
+- In Xcode:
+    - Add `FastImage.xcodeproj` to **Libraries**.
+    - Add `libFastImage.a` to **Link Binary With Libraries** under **Build Phases**.
+    - [More info and screenshots.](http://facebook.github.io/react-native/docs/linking-libraries-ios.html#content)
 
 ## Android
 
