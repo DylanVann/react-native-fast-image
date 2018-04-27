@@ -66,17 +66,19 @@ const YourImage = () =>
   />
 ```
 
+## Other Linking Methods
+
+- [Manual](docs/installation-manual.md) (might be needed if something went wrong with `react-native link`)
+- [CocoaPods (iOS)](docs/installation-cocoapods.md) (you may wish to use this if you are already using CocoaPods)
+
+## Proguard
+
 If you use Proguard you will need to add these lines to `android/app/proguard-rules.pro`:
 
 ```
 -keep public class com.dylanvann.fastimage.* {*;}
 -keep public class com.dylanvann.fastimage.** {*;}
 ```
-
-## Other Linking Methods
-
-- [Manual](docs/installation-manual.md) (might be needed if something went wrong with `react-native link`)
-- [CocoaPods (iOS)](docs/installation-cocoapods.md) (you may wish to use this if you are already using CocoaPods)
 
 ## Properties
 
