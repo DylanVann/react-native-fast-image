@@ -1,8 +1,8 @@
 import React from 'react'
 import { Platform, StatusBar, StyleSheet, View } from 'react-native'
+import { getStatusBarHeight } from 'react-native-status-bar-height'
 
-export const STATUS_BAR_HEIGHT =
-  Platform.OS === 'ios' ? 20 : StatusBar.currentHeight
+export const STATUS_BAR_HEIGHT = getStatusBarHeight()
 
 export default () => <View style={styles.statusBarUnderlay} />
 
