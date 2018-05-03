@@ -15,7 +15,7 @@
     <img src="docs/assets/priority.gif" title="Priority Demo" float="left">
   </kbd>
   <br>
-  <em>Comparing FastImage to Image in the example app.</em>
+  <em>FastImage example app.</em>
 </p>
 
 React Native's `Image` component handles image caching like browsers
