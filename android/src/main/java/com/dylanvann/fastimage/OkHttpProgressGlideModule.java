@@ -11,6 +11,8 @@ import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.module.GlideModule;
 
+import com.facebook.react.modules.network.OkHttpClientProvider;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -35,8 +37,9 @@ public class OkHttpProgressGlideModule implements GlideModule {
 
     @Override
     public void registerComponents(Context context, Glide glide) {
-        OkHttpClient client = new OkHttpClient
-                .Builder()
+        OkHttpClient client = OkHttpClientProvider
+                .getOkHttpClient()
+                .newBuilder()
                 .addInterceptor(createInterceptor(new DispatchingProgressListener()))
                 .build();
         glide.register(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
