@@ -8,8 +8,8 @@
 [![license](https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square)](https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE)
 
 <p align="center" >
-  <img src="http://i.imgur.com/OkYqmCP.gif" title="Grid Demo" float=left>
-  <img src="http://i.imgur.com/q1rNLxw.gif" title="Priority Demo" float=left>
+  <img src="docs/assets/scroll.gif" title="Scroll Demo" float="left">
+  <img src="docs/assets/priority.gif" title="Priority Demo" float="left">
   <br>
   <em>Comparing FastImage to Image in the example app.</em>
 </p>
