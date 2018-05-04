@@ -9,10 +9,10 @@
 
 <p align="center" >
   <kbd>
-    <img src="https://i.imgur.com/cr6LVNx.gif" title="Scroll Demo" float="left">
+    <img src="docs/assets/scroll.gif" title="Scroll Demo" float="left">
   </kbd>
   <kbd>
-    <img src="https://i.imgur.com/wxao0tq.gif" title="Priority Demo" float="left">
+    <img src="docs/assets/priority.gif" title="Priority Demo" float="left">
   </kbd>
   <br>
   <em>FastImage example app.</em>
