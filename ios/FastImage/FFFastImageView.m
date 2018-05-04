@@ -47,6 +47,25 @@
     }
 }
 
+- (void)setImageColor:(UIColor *)imageColor
+{
+    if (imageColor != nil) {
+        _imageColor = imageColor;
+        self.tintColor = self.imageColor;
+        super.image = [super.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    }
+}
+
+- (void)setImage:(UIImage *)image
+{
+    if (self.imageColor != nil) {
+        self.tintColor = self.imageColor;
+        super.image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    } else {
+        super.image = image;
+    }
+}
+
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;

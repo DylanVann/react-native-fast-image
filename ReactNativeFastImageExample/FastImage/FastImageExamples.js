@@ -9,6 +9,7 @@ import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
+import TintColorExample from './TintColorExample';
 
 const FastImageExample = () => (
   <View style={styles.container}>
@@ -30,6 +31,7 @@ const FastImageExample = () => (
         <GifExample />
         <BorderRadiusExample />
         <ProgressExample />
+        <TintColorExample />
         <PreloadExample />
       </View>
     </ScrollView>
