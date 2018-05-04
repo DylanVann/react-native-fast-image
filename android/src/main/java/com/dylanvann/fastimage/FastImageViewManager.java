@@ -2,6 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
@@ -60,48 +61,52 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         return new ImageViewWithUrl(reactContext);
     }
 
-    private static RequestListener<GlideUrl, GlideDrawable> LISTENER = new RequestListener<GlideUrl, GlideDrawable>() {
-        @Override
-        public boolean onException(
-                Exception e,
-                GlideUrl uri,
-                Target<GlideDrawable> target,
-                boolean isFirstResource
-        ) {
-            OkHttpProgressGlideModule.forget(uri.toStringUrl());
-            if (!(target instanceof ImageViewTarget)) {
-                return false;
-            }
-            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
-            return false;
-        }
+    private RequestListener<GlideUrl, GlideDrawable> getListener() {
+        return new RequestListener<GlideUrl, GlideDrawable>() {
+            @Override
+            public boolean onException(
+                    Exception e,
+                    GlideUrl uri,
+                    Target<GlideDrawable> target,
+                    boolean isFirstResource
+            ) {
+                OkHttpProgressGlideModule.forget(uri.toStringUrl());
+                if (!(target instanceof ImageViewTarget)) {
+                    return false;
+                }
 
-        @Override
-        public boolean onResourceReady(
-                GlideDrawable resource,
-                GlideUrl uri,
-                Target<GlideDrawable> target,
-                boolean isFromMemoryCache,
-                boolean isFirstResource
-        ) {
-            if (!(target instanceof ImageViewTarget)) {
+                ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
+                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                int viewId = view.getId();
+
+                eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
+                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
                 return false;
             }
-            ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
-            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, mapFromResource(resource));
-            return false;
-        }
-    };
+
+            @Override
+            public boolean onResourceReady(
+                    GlideDrawable resource,
+                    GlideUrl uri,
+                    Target<GlideDrawable> target,
+                    boolean isFromMemoryCache,
+                    boolean isFirstResource
+            ) {
+                if (!(target instanceof ImageViewTarget)) {
+                    return false;
+                }
+                ImageViewWithUrl view = (ImageViewWithUrl) ((ImageViewTarget) target).getView();
+                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                int viewId = view.getId();
+
+                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
+                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, mapFromResource(resource));
+                return false;
+            }
+        };
+    }
 
     private static WritableMap mapFromResource(GlideDrawable resource) {
         WritableMap resourceData = new WritableNativeMap();
@@ -156,8 +161,17 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 .dontTransform()
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
+                .listener(getListener())
                 .into(view);
+    }
+
+    @ReactProp(name = "imageColor", customType = "Color")
+    public void setImageColor(ImageViewWithUrl view, @Nullable Integer color) {
+        if (color == null) {
+            view.clearColorFilter();
+        } else {
+            view.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        }
     }
 
     @ReactProp(name = "resizeMode")
