@@ -1,5 +1,5 @@
-import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import React, { Component } from 'react'
+import { StyleSheet, View, Text } from 'react-native'
 import withCacheBust from './withCacheBust'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
@@ -8,33 +8,63 @@ import FeatureText from './FeatureText'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
-const getTestProgressCallbacks = label => ({
-  onLoadStart: () => console.log(`${label} - onLoadStart`),
-  onProgress: e =>
-    console.log(
-      `${label} - onProgress - ${e.nativeEvent.loaded / e.nativeEvent.total}`,
-    ),
-  onLoad: e => console.log(`${label} - onLoad`, e.nativeEvent),
-  onError: () => console.log(`${label} - onError`),
-  onLoadEnd: () => console.log(`${label} - onLoadEnd`),
-})
+class ProgressExample extends Component {
+  state = {
+    mount: new Date(),
+    start: undefined,
+    progress: undefined,
+    end: undefined,
+  }
 
-const ProgressExample = ({ onPressReload, bust }) => (
-  <View>
-    <Section>
-      <FeatureText text="• Progress callbacks." />
-    </Section>
-    <SectionFlex onPress={onPressReload}>
-      <FastImage
-        style={styles.image}
-        source={{
-          uri: IMAGE_URL + bust,
-        }}
-        {...getTestProgressCallbacks('ProgressExample')}
-      />
-    </SectionFlex>
-  </View>
-)
+  render() {
+    const { onPressReload, bust } = this.props
+    const { mount, start, progress, end } = this.state
+    return (
+      <View>
+        <Section>
+          <FeatureText text="• Progress callbacks." />
+        </Section>
+        <SectionFlex
+          onPress={onPressReload}
+          style={{
+            flexDirection: 'column',
+            alignItems: 'center',
+            paddingBottom: 20,
+          }}
+        >
+          <FastImage
+            style={styles.image}
+            source={{
+              uri: IMAGE_URL + bust,
+            }}
+            onLoadStart={() => this.setState({ start: Date.now() })}
+            onProgress={e =>
+              this.setState({
+                progress: Math.round(
+                  100 * (e.nativeEvent.loaded / e.nativeEvent.total),
+                ),
+              })
+            }
+            onLoad={() => this.setState({ end: Date.now() })}
+            onLoadEnd={() => {}}
+          />
+          <Text>
+            onLoadStart
+            {start !== undefined && ` - ${start - mount} ms`}
+          </Text>
+          <Text>
+            onProgress
+            {progress !== undefined && ` - ${progress} %`}
+          </Text>
+          <Text>
+            onLoad
+            {end !== undefined && ` - ${end - mount} ms`}
+          </Text>
+        </SectionFlex>
+      </View>
+    )
+  }
+}
 
 const styles = StyleSheet.create({
   image: {
