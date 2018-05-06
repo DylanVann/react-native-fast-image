@@ -1,3 +1,4 @@
+import { OnProgressEvent } from './index.d';
 import * as React from 'react'
 import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyle } from 'react-native'
 
@@ -36,17 +37,31 @@ export type FastImageSource = {
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     backfaceVisibility?: 'visible' | 'hidden'
-    borderBottomLeftRadius?: number;
-    borderBottomRightRadius?: number;
-    backgroundColor?: string;
-    borderColor?: string;
-    borderWidth?: number;
-    borderRadius?: number;
-    borderTopLeftRadius?: number;
-    borderTopRightRadius?: number;
+    borderBottomLeftRadius?: number
+    borderBottomRightRadius?: number
+    backgroundColor?: string
+    borderColor?: string
+    borderWidth?: number
+    borderRadius?: number
+    borderTopLeftRadius?: number
+    borderTopRightRadius?: number
     overlayColor?: string
     tintColor?: string
     opacity?: number
+}
+
+export interface OnLoadEvent {
+    nativeEvent: {
+        width: number
+        height: number
+    }
+}
+
+export interface OnProgressEvent {
+    nativeEvent: {
+        loaded: number
+        total: number
+    }
 }
 
 export interface FastImageProperties {
@@ -55,9 +70,9 @@ export interface FastImageProperties {
 
     onLoadStart?(): void
 
-    onProgress?(event: any): void
+    onProgress?(event: OnProgressEvent): void
 
-    onLoad?(): void
+    onLoad?(event: OnLoadEvent): void
 
     onError?(): void
 
@@ -70,18 +85,18 @@ export interface FastImageProperties {
      *
      * {nativeEvent: { layout: {x, y, width, height}}}.
      */
-    onLayout?: (event: LayoutChangeEvent) => void;
+    onLayout?: (event: LayoutChangeEvent) => void
 
     /**
      *
      * Style
      */
-    style?: StyleProp<ImageStyle>;
+    style?: StyleProp<ImageStyle>
 
     /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
      */
-    testID?: string;
+    testID?: string
 }
 
 interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
