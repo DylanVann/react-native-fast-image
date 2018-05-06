@@ -21,7 +21,10 @@ const useLocalImage = source => {
   if (!source.uri) return true
   // Is a local Android image.
   if (source.uri.startsWith('file://')) return true
+  // Content URI.
   if (source.uri.startsWith('content://')) return true
+  // Smart album.
+  if (source.uri.startsWith('photos://')) return true
   // We have a remote source.
   return false
 }
