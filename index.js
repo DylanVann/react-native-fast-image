@@ -25,6 +25,8 @@ const useLocalImage = source => {
   if (source.uri.startsWith('content://')) return true
   // Smart album.
   if (source.uri.startsWith('photos://')) return true
+  // From asset library / camera roll.
+  if (source.uri.startsWith('assets-library://')) return true
   // We have a remote source.
   return false
 }
