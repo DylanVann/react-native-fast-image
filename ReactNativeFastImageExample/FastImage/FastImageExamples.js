@@ -11,71 +11,71 @@ import PreloadExample from './PreloadExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const FastImageExample = () => (
-  <View style={styles.container}>
-    <StatusBar
-      translucent
-      barStyle="dark-content"
-      backgroundColor="transparent"
-    />
-    <ScrollView
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.scrollContentContainer}
-    >
-      <View style={styles.contentContainer}>
-        <Section>
-          <Text style={styles.titleText}>🚩 FastImage</Text>
-          <FeatureText text="Tap images to reload examples." />
-        </Section>
-        <PriorityExample />
-        <GifExample />
-        <BorderRadiusExample />
-        <ProgressExample />
-        <PreloadExample />
-      </View>
-    </ScrollView>
-    <StatusBarUnderlay />
-  </View>
+    <View style={styles.container}>
+        <StatusBar
+            translucent
+            barStyle="dark-content"
+            backgroundColor="transparent"
+        />
+        <ScrollView
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContentContainer}
+        >
+            <View style={styles.contentContainer}>
+                <Section>
+                    <Text style={styles.titleText}>🚩 FastImage</Text>
+                    <FeatureText text="Tap images to reload examples." />
+                </Section>
+                <PriorityExample />
+                <GifExample />
+                <BorderRadiusExample />
+                <ProgressExample />
+                <PreloadExample />
+            </View>
+        </ScrollView>
+        <StatusBarUnderlay />
+    </View>
 )
 
 FastImageExample.navigationOptions = {
-  tabBarLabel: 'FastImage Example',
-  tabBarIcon: props => (
-    <Icon
-      name="ios-information-circle-outline"
-      focusedName="ios-information-circle"
-      {...props}
-    />
-  ),
+    tabBarLabel: 'FastImage Example',
+    tabBarIcon: props => (
+        <Icon
+            name="ios-information-circle-outline"
+            focusedName="ios-information-circle"
+            {...props}
+        />
+    ),
 }
 
 const styles = StyleSheet.create({
-  titleText: {
-    fontWeight: '900',
-    marginBottom: 20,
-    color: '#222',
-  },
-  contentContainer: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  image: {
-    flex: 1,
-    height: 100,
-    backgroundColor: '#ddd',
-    margin: 10,
-  },
-  container: {
-    flex: 1,
-    alignItems: 'stretch',
-    backgroundColor: '#fff',
-  },
-  scrollContainer: {
-    marginTop: STATUS_BAR_HEIGHT,
-  },
-  scrollContentContainer: {
-    alignItems: 'stretch',
-    flex: 0,
-  },
+    titleText: {
+        fontWeight: '900',
+        marginBottom: 20,
+        color: '#222',
+    },
+    contentContainer: {
+        marginTop: 20,
+        marginBottom: 20,
+    },
+    image: {
+        flex: 1,
+        height: 100,
+        backgroundColor: '#ddd',
+        margin: 10,
+    },
+    container: {
+        flex: 1,
+        alignItems: 'stretch',
+        backgroundColor: '#fff',
+    },
+    scrollContainer: {
+        marginTop: STATUS_BAR_HEIGHT,
+    },
+    scrollContentContainer: {
+        alignItems: 'stretch',
+        flex: 0,
+    },
 })
 
 export default FastImageExample

@@ -6,10 +6,10 @@ import ImageGrid from './ImageGrid'
 const FastImageGrid = () => <ImageGrid ImageComponent={FastImage} />
 
 FastImageGrid.navigationOptions = {
-  tabBarLabel: 'FastImage Grid',
-  tabBarIcon: props => (
-    <Icon name="ios-photos-outline" focusedName="ios-photos" {...props} />
-  ),
+    tabBarLabel: 'FastImage Grid',
+    tabBarIcon: props => (
+        <Icon name="ios-photos-outline" focusedName="ios-photos" {...props} />
+    ),
 }
 
 export default FastImageGrid

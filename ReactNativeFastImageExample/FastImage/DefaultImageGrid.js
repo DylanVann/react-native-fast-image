@@ -7,10 +7,10 @@ import ImageGrid from './ImageGrid'
 const DefaultImageGrid = () => <ImageGrid ImageComponent={Image} />
 
 DefaultImageGrid.navigationOptions = {
-  tabBarLabel: 'Image Grid',
-  tabBarIcon: props => (
-    <Icon name="ios-image-outline" focusedName="ios-image" {...props} />
-  ),
+    tabBarLabel: 'Image Grid',
+    tabBarIcon: props => (
+        <Icon name="ios-image-outline" focusedName="ios-image" {...props} />
+    ),
 }
 
 export default DefaultImageGrid

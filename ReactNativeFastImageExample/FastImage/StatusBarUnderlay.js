@@ -7,12 +7,12 @@ export const STATUS_BAR_HEIGHT = getStatusBarHeight()
 export default () => <View style={styles.statusBarUnderlay} />
 
 const styles = StyleSheet.create({
-  statusBarUnderlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: STATUS_BAR_HEIGHT,
-    backgroundColor: 'white',
-  },
+    statusBarUnderlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: STATUS_BAR_HEIGHT,
+        backgroundColor: 'white',
+    },
 })
