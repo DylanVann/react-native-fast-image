@@ -184,37 +184,7 @@ If you have any problems using this library try the steps in [troubleshooting](d
 
 ## Development
 
-```bash
-# Install SDWebImage submodules.
-git submodule update --init --recursive
-
-# Install npm dependencies.
-yarn
-```
-
-Developing modules for React Native is currently a mess because the packager does not support symlinks.
-
-Both major package managers, `npm@5` and `yarn`, do local installations by creating symlinks.
-
-Unfortunately for now the workaround to update the example is to run:
-
-```bash
-# In the repo directory pack the module:
-npm pack
-
-# This makes a tarball like:
-# react-native-fast-image-1.0.0.tgz
-
-# Move into the example:
-cd example
-
-# Install the tarball:
-npm install ../react-native-fast-image-1.0.0.tgz
-```
-
-To update while developing you can re-pack and reinstall the tarball. 
-
-Hopefully [metro](https://github.com/facebook/metro) will add support for symlinks soon.
+[Follow these instructions to get the example app running.](docs/development.md)
 
 ## Supported React Native Versions
 

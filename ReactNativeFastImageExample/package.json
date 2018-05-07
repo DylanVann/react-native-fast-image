@@ -3,13 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "node node_modules/react-native/local-cli/cli.js start",
+    "start": "metro-with-symlinks start",
     "test": "jest"
   },
   "dependencies": {
     "react": "16.3.1",
     "react-native": "0.55.3",
-    "react-native-fast-image": "file:../react-native-fast-image-4.0.8.tgz",
+    "react-native-fast-image": "../",
     "react-native-image-progress": "^1.1.0",
     "react-native-status-bar-height": "^2.0.0",
     "react-native-vector-icons": "^4.5.0",
@@ -21,6 +21,7 @@
     "babel-jest": "23.0.0-alpha.0",
     "babel-preset-react-native": "4.0.0",
     "jest": "22.4.2",
+    "metro-with-symlinks": "https://github.com/DylanVann/metro-with-symlinks",
     "react-test-renderer": "^16.3.0-alpha.1"
   },
   "jest": {

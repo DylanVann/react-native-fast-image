@@ -1826,6 +1826,10 @@ decode-uri-component@^0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/decode-uri-component/-/decode-uri-component-0.2.0.tgz#eb3913333458775cb84cd1a1fae062106bb87545"
 
+dedent-js@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/dedent-js/-/dedent-js-1.0.1.tgz#bee5fb7c9e727d85dffa24590d10ec1ab1255305"
+
 deep-extend@~0.4.0:
   version "0.4.2"
   resolved "https://registry.yarnpkg.com/deep-extend/-/deep-extend-0.4.2.tgz#48b699c27e334bf89f10892be432f6e4c7d34a7f"
@@ -3656,6 +3660,12 @@ metro-source-map@0.30.2:
   dependencies:
     source-map "^0.5.6"
 
+"metro-with-symlinks@https://github.com/DylanVann/metro-with-symlinks":
+  version "1.0.5"
+  resolved "https://github.com/DylanVann/metro-with-symlinks#14f9f076df06d8a4065bc1ada900e0d260aa31eb"
+  dependencies:
+    dedent-js "^1.0.1"
+
 metro@^0.30.0:
   version "0.30.2"
   resolved "https://registry.yarnpkg.com/metro/-/metro-0.30.2.tgz#e722e0eb106530f6d5bcf8de1f50353a0732cfb3"
@@ -4401,9 +4411,8 @@ react-native-drawer-layout@1.3.2:
   dependencies:
     react-native-dismiss-keyboard "1.0.0"
 
-"react-native-fast-image@file:../react-native-fast-image-4.0.8.tgz":
-  version "4.0.8"
-  resolved "file:../react-native-fast-image-4.0.8.tgz#ef6bfc6006cfaefa3d507a1b04fe9ccc6d6c68aa"
+react-native-fast-image@../:
+  version "4.0.12"
   dependencies:
     prop-types "^15.5.10"
 
