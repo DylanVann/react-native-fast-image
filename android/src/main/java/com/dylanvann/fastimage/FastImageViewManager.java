@@ -165,8 +165,8 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                 .into(view);
     }
 
-    @ReactProp(name = "imageColor", customType = "Color")
-    public void setImageColor(ImageViewWithUrl view, @Nullable Integer color) {
+    @ReactProp(name = "tintColor", customType = "Color")
+    public void setTintColor(ImageViewWithUrl view, @Nullable Integer color) {
         if (color == null) {
             view.clearColorFilter();
         } else {

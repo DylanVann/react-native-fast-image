@@ -19,12 +19,12 @@ const IMAGE_URLS = [
 const PriorityExample = ({ onPressReload, bust }) => (
   <View>
     <Section>
-      <FeatureText text="Images with image color" />
+      <FeatureText text="Images with tint color" />
     </Section>
     <SectionFlex onPress={onPressReload}>
       <FastImage
         style={styles.image}
-        imageColor={'green'}
+        tintColor={'green'}
         source={{
           uri: IMAGE_URLS[0] + bust,
           priority: FastImage.priority.low,
@@ -32,7 +32,7 @@ const PriorityExample = ({ onPressReload, bust }) => (
       />
       <FastImage
         style={styles.image}
-        imageColor={'#9324c3'}
+        tintColor={'#9324c3'}
         source={{
           uri: IMAGE_URLS[1],
           priority: FastImage.priority.normal,
@@ -40,7 +40,7 @@ const PriorityExample = ({ onPressReload, bust }) => (
       />
       <FastImage
         style={styles.image}
-        imageColor={'rgba(0,0,0,0.5)'}
+        tintColor={'rgba(0,0,0,0.5)'}
         source={{
           uri: IMAGE_URLS[2] + bust,
           priority: FastImage.priority.high,

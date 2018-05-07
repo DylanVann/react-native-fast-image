@@ -36,7 +36,7 @@ class FastImage extends Component {
   render() {
     const {
       source,
-      imageColor,
+      tintColor,
       onLoadStart,
       onProgress,
       onLoad,
@@ -53,7 +53,7 @@ class FastImage extends Component {
         <Image
           ref={this.captureRef}
           {...props}
-          tintColor={imageColor}
+          tintColor={tintColor}
           style={style}
           source={source}
           onLoadStart={onLoadStart}
@@ -72,7 +72,7 @@ class FastImage extends Component {
         <FastImageView
           {...props}
           style={StyleSheet.absoluteFill}
-          imageColor={imageColor}
+          tintColor={tintColor}
           source={resolvedSource}
           onFastImageLoadStart={onLoadStart}
           onFastImageProgress={onProgress}
@@ -121,7 +121,7 @@ const FastImageSourcePropType = PropTypes.shape({
 
 FastImage.propTypes = {
   ...ViewPropTypes,
-  imageColor: PropTypes.any,
+  tintColor: PropTypes.any,
   source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
   onLoadStart: PropTypes.func,
   onProgress: PropTypes.func,
