@@ -73,8 +73,8 @@ import com.android.build.OutputFile
  */
 
 project.ext.react = [
-    entryFile: "index.js"
-    bundleConfig: "./metro.config.js"
+    entryFile: "index.js",
+    bundleConfig: "./metro.config.js",
 ]
 
 apply from: "../../node_modules/react-native/react.gradle"
