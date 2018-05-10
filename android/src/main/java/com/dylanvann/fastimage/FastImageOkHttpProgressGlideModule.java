@@ -3,13 +3,14 @@ package com.dylanvann.fastimage;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 
-import com.bumptech.glide.load.DecodeFormat;
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.GlideBuilder;
+import com.bumptech.glide.Registry;
+import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.module.GlideModule;
+import com.bumptech.glide.module.LibraryGlideModule;
 
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
@@ -30,19 +31,22 @@ import okio.ForwardingSource;
 import okio.Okio;
 import okio.Source;
 
-public class OkHttpProgressGlideModule implements GlideModule {
+@GlideModule
+public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     @Override
-    public void applyOptions(Context context, GlideBuilder builder) {builder.setDecodeFormat(DecodeFormat.PREFER_ARGB_8888); }
-
-    @Override
-    public void registerComponents(Context context, Glide glide) {
+    public void registerComponents(
+            @NonNull Context context,
+            @NonNull Glide glide,
+            @NonNull Registry registry
+    ) {
         OkHttpClient client = OkHttpClientProvider
                 .getOkHttpClient()
                 .newBuilder()
                 .addInterceptor(createInterceptor(new DispatchingProgressListener()))
                 .build();
-        glide.register(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
+        OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
+        registry.replace(GlideUrl.class, InputStream.class, factory);
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
@@ -60,11 +64,11 @@ public class OkHttpProgressGlideModule implements GlideModule {
         };
     }
 
-    public static void forget(String key) {
+    static void forget(String key) {
         DispatchingProgressListener.forget(key);
     }
 
-    public static void expect(String key, ProgressListener listener) {
+    static void expect(String key, FastImageProgressListener listener) {
         DispatchingProgressListener.expect(key, listener);
     }
 
@@ -73,7 +77,7 @@ public class OkHttpProgressGlideModule implements GlideModule {
     }
 
     private static class DispatchingProgressListener implements ResponseProgressListener {
-        private static final Map<String, ProgressListener> LISTENERS = new HashMap<>();
+        private static final Map<String, FastImageProgressListener> LISTENERS = new HashMap<>();
         private static final Map<String, Long> PROGRESSES = new HashMap<>();
 
         private final Handler handler;
@@ -87,13 +91,13 @@ public class OkHttpProgressGlideModule implements GlideModule {
             PROGRESSES.remove(key);
         }
 
-        static void expect(String key, ProgressListener listener) {
+        static void expect(String key, FastImageProgressListener listener) {
             LISTENERS.put(key, listener);
         }
 
         @Override
         public void update(final String key, final long bytesRead, final long contentLength) {
-            final ProgressListener listener = LISTENERS.get(key);
+            final FastImageProgressListener listener = LISTENERS.get(key);
             if (listener == null) {
                 return;
             }
