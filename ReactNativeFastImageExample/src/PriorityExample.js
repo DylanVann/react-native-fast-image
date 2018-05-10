@@ -53,6 +53,7 @@ const styles = StyleSheet.create({
         height: 100,
         backgroundColor: '#ddd',
         margin: 10,
+        marginVertical: 20,
     },
 })
 
