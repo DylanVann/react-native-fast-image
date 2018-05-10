@@ -20,7 +20,7 @@ exports[`FastImage renders correctly. 1`] = `
     onFastImageLoadEnd={undefined}
     onFastImageLoadStart={undefined}
     onFastImageProgress={undefined}
-    resizeMode="contain"
+    resizeMode="cover"
     source={
       Object {
         "headers": Object {
@@ -50,7 +50,7 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
   onLoadEnd={undefined}
   onLoadStart={undefined}
   onProgress={undefined}
-  resizeMode="contain"
+  resizeMode="cover"
   source={
     Object {
       "testUri": "../../../react-native-fast-image-example-server/pictures/jellyfish.gif",
