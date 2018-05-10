@@ -30,10 +30,9 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write ./*.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js",
+    "format": "prettier --write --list-different ./*.js ./ReactNativeFastImageExample/src/*.js ./react-native-fast-image-server/*.js",
     "prepare": "git submodule update --init --recursive",
-    "test": "yarn run test:format && yarn run test:jest",
-    "test:format": "prettier-check ./*.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js",
+    "test": "yarn run format && yarn run test:jest",
     "test:jest": "jest *.js"
   },
   "dependencies": {

@@ -8,10 +8,7 @@
 RCT_EXPORT_MODULE(FastImageView)
 
 - (FFFastImageView*)view {
-  FFFastImageView* view = [[FFFastImageView alloc] init];
-  view.contentMode = (UIViewContentMode) RCTResizeModeStretch;
-  view.clipsToBounds = YES;
-  return view;
+  return [[FFFastImageView alloc] init];
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)

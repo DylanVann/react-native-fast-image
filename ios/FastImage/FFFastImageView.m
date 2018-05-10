@@ -7,6 +7,13 @@
     NSDictionary* onLoadEvent;
 }
 
+- (id) init {
+    self = [super init];
+    self.resizeMode = RCTResizeModeCover;
+    self.clipsToBounds = YES;
+    return self;
+}
+
 - (void)setResizeMode:(RCTResizeMode)resizeMode
 {
     if (_resizeMode != resizeMode) {

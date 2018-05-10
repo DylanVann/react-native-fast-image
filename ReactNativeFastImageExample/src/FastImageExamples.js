@@ -8,6 +8,7 @@ import BorderRadiusExample from './BorderRadiusExample'
 import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
+import ResizeModeExample from './ResizeModeExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const FastImageExample = () => (
@@ -31,6 +32,7 @@ const FastImageExample = () => (
                 <BorderRadiusExample />
                 <ProgressExample />
                 <PreloadExample />
+                <ResizeModeExample />
             </View>
         </ScrollView>
         <StatusBarUnderlay />
