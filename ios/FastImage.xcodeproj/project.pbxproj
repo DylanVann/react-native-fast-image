@@ -372,8 +372,6 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				HEADER_SEARCH_PATHS = (
-					"${SYMROOT}",
-					"$(BUILT_PRODUCTS_DIR)",
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
@@ -391,8 +389,6 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				HEADER_SEARCH_PATHS = (
-					"${SYMROOT}",
-					"$(BUILT_PRODUCTS_DIR)",
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
