@@ -7,10 +7,18 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/react-native-fast-image"><img src="https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square" alt="npm package"></a>
-  <a href="https://www.npmjs.com/package/react-native-fast-image"><img src="https://img.shields.io/npm/dm/react-native-fast-image.svg?style=flat-square" alt="npm downloads"></a>
-  <a href="https://circleci.com/gh/DylanVann/react-native-fast-image"><img src="https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image.svg?style=flat-square" alt="CircleCI build status"></a>
-  <a href="https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE"><img src="https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square" alt="license"></a>
+  <a href="https://www.npmjs.com/package/react-native-fast-image">
+    <img src="https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square" alt="npm package">
+  </a>
+  <a href="https://www.npmjs.com/package/react-native-fast-image">
+    <img src="https://img.shields.io/npm/dm/react-native-fast-image.svg?style=flat-square" alt="npm downloads">
+  </a>
+  <a href="https://circleci.com/gh/DylanVann/react-native-fast-image/tree/master">
+    <img src="https://circleci.com/gh/DylanVann/react-native-fast-image/tree/master.svg?style=svg?style=flat-square" alt="CircleCI build status">
+  </a>
+  <a href="https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square" alt="license">
+  </a>
 </p>
 
 <p align="center" >
