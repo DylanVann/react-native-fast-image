@@ -14,23 +14,6 @@ const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSou
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-const useLocalImage = source => {
-    // No source.
-    if (!source) return true
-    // No uri.
-    if (!source.uri) return true
-    // Is a local Android image.
-    if (source.uri.startsWith('file://')) return true
-    // Content URI.
-    if (source.uri.startsWith('content://')) return true
-    // Smart album.
-    if (source.uri.startsWith('photos://')) return true
-    // From asset library / camera roll.
-    if (source.uri.startsWith('assets-library://')) return true
-    // We have a remote source.
-    return false
-}
-
 class FastImage extends Component {
     setNativeProps(nativeProps) {
         this._root.setNativeProps(nativeProps)
@@ -50,23 +33,6 @@ class FastImage extends Component {
             children,
             ...props
         } = this.props
-
-        // If there's no source or source uri just fallback to Image.
-        if (useLocalImage(source)) {
-            return (
-                <Image
-                    ref={this.captureRef}
-                    {...props}
-                    style={style}
-                    source={source}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
-                />
-            )
-        }
 
         const resolvedSource = resolveAssetSource(source)
 
