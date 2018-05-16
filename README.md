@@ -23,10 +23,10 @@
 
 <p align="center" >
   <kbd>
-    <img src="docs/assets/scroll.gif" title="Scroll Demo" float="left">
+    <img src="https://github.com/DylanVann/react-native-fast-image/raw/master/docs/assets/scroll.gif" title="Scroll Demo" float="left">
   </kbd>
   <kbd>
-    <img src="docs/assets/priority.gif" title="Priority Demo" float="left">
+    <img src="https://github.com/DylanVann/react-native-fast-image/raw/master/docs/assets/priority.gif" title="Priority Demo" float="left">
   </kbd>
   <br>
   <em>FastImage example app.</em>
