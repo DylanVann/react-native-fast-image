@@ -218,6 +218,6 @@ It also uses Glide and SDWebImage, but didn't have some features I needed (prior
 
 ## Licenses
 
-* FastImage [MIT]
-* SDWebImage (included) [MIT]
-* Glide (included via gradle) [Apache 2.0 License]
+* FastImage - `MIT`
+* SDWebImage - `MIT`
+* Glide - `Apache-2.0`

@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/DylanVann/react-native-fast-image/issues"
   },
-  "license": "MIT",
+  "license": "(MIT AND Apache-2.0)",
   "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
   "files": [
     "ios/FastImage",
