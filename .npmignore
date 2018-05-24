@@ -8,7 +8,8 @@ react-native-fast-image-*.tgz
 
 # We need to ignore some things in submodules.
 # This probably isn't everything we'd like to ignore but it's good enough.
-ios/Vendor/SDWebImage/.git*
+.git*
+*.png
 ios/Vendor/SDWebImage/Examples
 ios/Vendor/SDWebImage/Tests
 ios/Vendor/SDWebImage/Docs
