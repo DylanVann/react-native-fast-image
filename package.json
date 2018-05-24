@@ -16,9 +16,7 @@
   "license": "(MIT AND Apache-2.0)",
   "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
   "files": [
-    "ios/FastImage",
-    "ios/Vendor",
-    "ios/FastImage.xcodeproj",
+    "ios",
     "android",
     "index.js",
     "index.d.ts",
