@@ -6,7 +6,7 @@ const getImageUrl = (id, width, height) =>
     `https://unsplash.it/${width}/${height}?image=${id}`
 
 class ImageGrid extends Component {
-    constructor(props: Object) {
+    constructor(props) {
         super(props)
 
         fetch('https://unsplash.it/list')
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         alignItems: 'stretch',
         justifyContent: 'center',
+        backgroundColor: 'blue',
     },
     text: {
         textAlign: 'center',

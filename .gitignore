@@ -35,7 +35,3 @@ node_modules/
 npm-debug.log
 lib/android/src/main/gen
 example/android/app/src/main/gen
-
-# build
-ios/build
-react-native-fast-image-*.tgz
