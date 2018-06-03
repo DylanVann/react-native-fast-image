@@ -22,16 +22,16 @@
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --list-different ./**/*.js",
+    "format": "prettier --write --list-different ./src/*.js",
     "prepare": "git submodule update --init --recursive",
     "test": "yarn run format && yarn run test:jest",
     "test:jest": "jest ./src/*.js"
   },
   "devDependencies": {
-    "babel-jest": "^22.4.4",
+    "babel-jest": "^23.0.1",
     "babel-preset-react-native": "^4.0.0",
-    "jest": "^22.4.4",
-    "prettier": "^1.12.1",
+    "jest": "^23.1.0",
+    "prettier": "^1.13.4",
     "prettier-check": "^2.0.0",
     "prop-types": "^15.6.1",
     "react": "^16.4.0",

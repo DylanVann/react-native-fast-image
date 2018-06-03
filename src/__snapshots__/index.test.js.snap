@@ -15,11 +15,6 @@ exports[`FastImage renders correctly. 1`] = `
   }
 >
   <FastImageView
-    onFastImageError={undefined}
-    onFastImageLoad={undefined}
-    onFastImageLoadEnd={undefined}
-    onFastImageLoadStart={undefined}
-    onFastImageProgress={undefined}
     resizeMode="cover"
     source={
       Object {
@@ -58,11 +53,6 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
   }
 >
   <FastImageView
-    onFastImageError={undefined}
-    onFastImageLoad={undefined}
-    onFastImageLoadEnd={undefined}
-    onFastImageLoadStart={undefined}
-    onFastImageProgress={undefined}
     resizeMode="cover"
     source={
       Object {
