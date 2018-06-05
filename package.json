@@ -16,6 +16,7 @@
   "license": "(MIT AND Apache-2.0)",
   "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
