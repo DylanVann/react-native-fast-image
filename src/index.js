@@ -8,6 +8,7 @@ import {
     requireNativeComponent,
     ViewPropTypes,
     StyleSheet,
+    ImageBackground,
 } from 'react-native'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
@@ -51,21 +52,24 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        // If there's no source or source uri just fallback to Image.
+        // If there's no source or source uri just fallback to Image or ImageBackground.
         if (useLocalImage(source)) {
-            return (
-                <Image
-                    ref={this.captureRef}
-                    {...props}
-                    style={style}
-                    source={source}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
-                />
-            )
+            const imageProps = {
+                ...props,
+                ref: this.captureRef,
+                style,
+                source,
+                onLoadStart,
+                onProgress,
+                onLoad,
+                onError,
+                onLoadEnd,
+            }
+            if (children) {
+                return <ImageBackground {...imageProps}>{children}</ImageBackground>
+            } else {
+                return <Image {...imageProps} />
+            }
         }
 
         const resolvedSource = resolveAssetSource(source)
