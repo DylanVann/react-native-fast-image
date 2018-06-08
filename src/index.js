@@ -14,7 +14,7 @@ const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSou
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-const useLocalImage = source => {
+export const isLocalSource = source => {
     // No source.
     if (!source) return true
     // No uri.
@@ -52,7 +52,7 @@ class FastImage extends Component {
         } = this.props
 
         // If there's no source or source uri just fallback to Image.
-        if (useLocalImage(source)) {
+        if (isLocalSource(source)) {
             return (
                 <Image
                     ref={this.captureRef}
