@@ -10,50 +10,46 @@ import ImagePicker from 'react-native-image-picker'
 
 var options = {
     title: 'Select Avatar',
-    customButtons: [
-        { name: 'fb', title: 'Choose Photo from Facebook' },
-    ],
+    customButtons: [{ name: 'fb', title: 'Choose Photo from Facebook' }],
     storageOptions: {
         skipBackup: true,
-        path: 'images'
-    }
-};
+        path: 'images',
+    },
+}
 
-const Image = ({ source, ...p }) =>
-    <FastImage
-        style={styles.imageSquare}
-        source={source}
-        {...p}
-    />
+const Image = ({ source, ...p }) => (
+    <FastImage style={styles.imageSquare} source={source} {...p} />
+)
 
-const BulletText = ({ text }) =>
+const BulletText = ({ text }) => (
     <FeatureText text={`• ${text} •`} style={{ color: 'white' }} />
+)
 
-const Row = (p) =>
-    <View style={styles.row} {...p} />
+const Row = p => <View style={styles.row} {...p} />
 
 class PhotoExample extends Component {
-    state = {
-    }
+    state = {}
 
     pick = () => {
-        ImagePicker.showImagePicker(options, (response) => {
-            console.log('Response = ', response);
+        ImagePicker.showImagePicker(options, response => {
+            console.log('Response = ', response)
             if (response.didCancel) {
-                console.log('User cancelled image picker');
-            }
-            else if (response.error) {
-                console.log('ImagePicker Error: ', response.error);
-            }
-            else if (response.customButton) {
-                console.log('User tapped custom button: ', response.customButton);
-            }
-            else {
+                console.log('User cancelled image picker')
+            } else if (response.error) {
+                console.log('ImagePicker Error: ', response.error)
+            } else if (response.customButton) {
+                console.log(
+                    'User tapped custom button: ',
+                    response.customButton,
+                )
+            } else {
+                const fileUri = `file://${response.path}`
+                const uri = response.uri
                 this.setState({
-                    image: { uri: response.uri }
-                });
+                    image: { uri: uri },
+                })
             }
-        });
+        })
     }
 
     render() {
@@ -61,11 +57,10 @@ class PhotoExample extends Component {
             <Row>
                 <BulletText text="photo library" />
                 <TouchableOpacity onPress={this.pick}>
-                    <Image
-                        style={styles.imageSquare}
-                        source={this.state.image}
-                    >
-                        <Text style={{ color: 'white', fontWeight: '900' }}>Pick Photo</Text>
+                    <Image style={styles.imageSquare} source={this.state.image}>
+                        <Text style={{ color: 'white', fontWeight: '900' }}>
+                            Pick Photo
+                        </Text>
                     </Image>
                 </TouchableOpacity>
             </Row>
@@ -81,27 +76,19 @@ const LocalImagesExample = ({ onPressReload, bust }) => (
         <View style={styles.container}>
             <Row>
                 <BulletText text="require" />
-                <Image
-                    source={require('./images/fields.jpg')}
-                />
+                <Image source={require('./images/fields.jpg')} />
             </Row>
             <Row>
                 <BulletText text="import" />
-                <Image
-                    source={FieldsImage}
-                />
+                <Image source={FieldsImage} />
             </Row>
             <Row>
                 <BulletText text="gif" />
-                <Image
-                    source={FieldsImage}
-                />
+                <Image source={FieldsImage} />
             </Row>
             <Row>
                 <BulletText text="base64" />
-                <Image
-                    source={{ uri: FieldsBase64 }}
-                />
+                <Image source={{ uri: FieldsBase64 }} />
             </Row>
             <PhotoExample />
         </View>

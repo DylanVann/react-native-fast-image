@@ -8,7 +8,7 @@ import DefaultImageGrid from './DefaultImageGrid'
 YellowBox.ignoreWarnings([
     'Warning: isMounted(...) is deprecated',
     'Module RCTImageLoader',
-]);
+])
 
 const App = createBottomTabNavigator({
     fastImageExample: {
