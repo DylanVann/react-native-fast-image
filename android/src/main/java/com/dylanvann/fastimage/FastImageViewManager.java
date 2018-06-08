@@ -21,7 +21,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.WeakHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +37,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-    private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
+    private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
     private RequestManager requestManager = null;
 
     @Override
