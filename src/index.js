@@ -48,9 +48,7 @@ class FastImage extends Component {
                     onFastImageError={onError}
                     onFastImageLoadEnd={onLoadEnd}
                 />
-                {children && (
-                    <View style={StyleSheet.absoluteFill}>{children}</View>
-                )}
+                {children}
             </View>
         )
     }

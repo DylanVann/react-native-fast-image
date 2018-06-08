@@ -9,7 +9,7 @@ export default ({ children, onPress, style }) => (
 
 const styles = StyleSheet.create({
     sectionFlex: {
-        backgroundColor: '#eee',
+        backgroundColor: '#000',
         flexDirection: 'row',
         justifyContent: 'center',
         marginTop: 10,

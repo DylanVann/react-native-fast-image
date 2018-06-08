@@ -10,6 +10,7 @@
     "react": "16.3.1",
     "react-native": "0.55.3",
     "react-native-fast-image": "../",
+    "react-native-image-picker": "^0.26.10",
     "react-native-image-progress": "^1.1.0",
     "react-native-status-bar-height": "^2.0.0",
     "react-native-vector-icons": "^4.5.0",

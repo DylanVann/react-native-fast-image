@@ -9,6 +9,7 @@ import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
 import ResizeModeExample from './ResizeModeExample'
+import LocalImagesExample from './LocalImagesExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const FastImageExample = () => (
@@ -33,6 +34,7 @@ const FastImageExample = () => (
                 <ProgressExample />
                 <PreloadExample />
                 <ResizeModeExample />
+                <LocalImagesExample />
             </View>
         </ScrollView>
         <StatusBarUnderlay />

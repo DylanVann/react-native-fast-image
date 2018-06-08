@@ -15,4 +15,13 @@
     return self;
 }
 
+- (instancetype)initWithImage:(UIImage *)image
+{
+    self = [super init];
+    if (self) {
+        _image = image;
+    }
+    return self;
+}
+
 @end
