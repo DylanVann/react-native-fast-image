@@ -1,32 +1,25 @@
 import React from 'react'
-import { TabNavigator, TabBarBottom } from 'react-navigation'
+import { YellowBox } from 'react-native'
+import { createBottomTabNavigator } from 'react-navigation'
 import FastImageExamples from './FastImageExamples'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
 
-const App = TabNavigator(
-    {
-        fastImageExample: {
-            screen: FastImageExamples,
-        },
-        image: {
-            screen: DefaultImageGrid,
-        },
-        fastImage: {
-            screen: FastImageGrid,
-        },
+YellowBox.ignoreWarnings([
+    'Warning: isMounted(...) is deprecated',
+    'Module RCTImageLoader',
+]);
+
+const App = createBottomTabNavigator({
+    fastImageExample: {
+        screen: FastImageExamples,
     },
-    {
-        tabBarComponent: TabBarBottom,
-        tabBarPosition: 'bottom',
-        swipeEnabled: false,
-        animationEnabled: false,
-        tabBarOptions: {
-            style: {
-                backgroundColor: 'white',
-            },
-        },
+    image: {
+        screen: DefaultImageGrid,
     },
-)
+    fastImage: {
+        screen: FastImageGrid,
+    },
+})
 
 export default App

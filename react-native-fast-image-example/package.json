@@ -11,10 +11,10 @@
     "react-native": "0.55.3",
     "react-native-fast-image": "../",
     "react-native-image-picker": "^0.26.10",
-    "react-native-image-progress": "^1.1.0",
+    "react-native-image-progress": "^1.1.1",
     "react-native-status-bar-height": "^2.0.0",
-    "react-native-vector-icons": "^4.5.0",
-    "react-navigation": "^1.5.11",
+    "react-native-vector-icons": "^4.6.0",
+    "react-navigation": "^2.2.5",
     "react-timeout": "^1.1.1",
     "uuid": "3.0.1"
   },

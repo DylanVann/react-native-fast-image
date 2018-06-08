@@ -95,8 +95,13 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 .dontTransform()
                 .placeholder(TRANSPARENT_DRAWABLE);
 
+        String stringUrl = glideUrl.toString();
         requestManager
-                .load(glideUrl)
+                // This will make this work for remote and local images. e.g.
+                //    - file:///
+                //    - content://
+                //    - data:image/png;base64
+                .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
                 .apply(options)
                 .listener(new FastImageRequestListener(key))
                 .into(view);
