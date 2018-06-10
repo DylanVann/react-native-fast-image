@@ -6,6 +6,7 @@ import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsImage from './images/fields.jpg'
 import FieldsBase64 from './images/fields.js'
+import JellyfishImage from './images/jellyfish.gif'
 import ImagePicker from 'react-native-image-picker'
 import BulletText from './BulletText'
 
@@ -82,7 +83,7 @@ const Import = () => (
 const GIF = () => (
     <React.Fragment>
         <BulletText>gif</BulletText>
-        <Image source={FieldsImage} />
+        <Image source={JellyfishImage} />
     </React.Fragment>
 )
 
