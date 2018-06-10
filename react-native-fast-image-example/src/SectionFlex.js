@@ -9,11 +9,9 @@ export default ({ children, onPress, style }) => (
 
 const styles = StyleSheet.create({
     sectionFlex: {
-        backgroundColor: '#000',
+        backgroundColor: '#eee',
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: 10,
-        marginBottom: 10,
         marginLeft: -10,
         marginRight: -10,
     },

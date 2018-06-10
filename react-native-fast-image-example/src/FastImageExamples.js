@@ -60,7 +60,6 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         marginTop: 20,
-        marginBottom: 20,
     },
     image: {
         flex: 1,

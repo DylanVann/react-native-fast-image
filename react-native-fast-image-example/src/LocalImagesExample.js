@@ -7,6 +7,7 @@ import FeatureText from './FeatureText'
 import FieldsImage from './images/fields.jpg'
 import FieldsBase64 from './images/fields.js'
 import ImagePicker from 'react-native-image-picker'
+import BulletText from './BulletText'
 
 var options = {
     title: 'Select Avatar',
@@ -19,10 +20,6 @@ var options = {
 
 const Image = ({ source, ...p }) => (
     <FastImage style={styles.imageSquare} source={source} {...p} />
-)
-
-const BulletText = ({ text }) => (
-    <FeatureText text={`• ${text} •`} style={{ color: 'white' }} />
 )
 
 const Row = p => <View style={styles.row} {...p} />
@@ -55,7 +52,7 @@ class PhotoExample extends Component {
     render() {
         return (
             <Row>
-                <BulletText text="photo library" />
+                <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
                     <Image style={styles.imageSquare} source={this.state.image}>
                         <Text style={{ color: 'white', fontWeight: '900' }}>
@@ -70,35 +67,36 @@ class PhotoExample extends Component {
 
 const Require = () => (
     <React.Fragment>
-        <BulletText text="require" />
+        <BulletText>require</BulletText>
         <Image source={require('./images/fields.jpg')} />
     </React.Fragment>
 )
 
 const Import = () => (
     <React.Fragment>
-        <BulletText text="import" />
+        <BulletText>import</BulletText>
         <Image source={FieldsImage} />
     </React.Fragment>
 )
 
 const GIF = () => (
     <React.Fragment>
-        <BulletText text="gif" />
+        <BulletText>gif</BulletText>
         <Image source={FieldsImage} />
     </React.Fragment>
 )
 
-export const Base64 = () =>
+const Base64 = () => (
     <React.Fragment>
-        <BulletText text="base64" />
+        <BulletText>base64</BulletText>
         <Image source={{ uri: FieldsBase64 }} />
     </React.Fragment>
+)
 
 const LocalImagesExample = ({ onPressReload, bust }) => (
     <View>
         <Section>
-            <FeatureText text="• Local images." />
+            <FeatureText>• Local images.</FeatureText>
         </Section>
         <View style={styles.container}>
             <Row>
@@ -125,7 +123,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     container: {
-        backgroundColor: '#000',
+        backgroundColor: '#eee',
         justifyContent: 'center',
         alignItems: 'center',
         paddingTop: 10,
