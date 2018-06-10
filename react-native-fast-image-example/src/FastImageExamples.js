@@ -11,6 +11,7 @@ import PreloadExample from './PreloadExample'
 import ResizeModeExample from './ResizeModeExample'
 import LocalImagesExample from './LocalImagesExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
+import AutoSizeExample from './AutoSizeExample'
 
 const FastImageExample = () => (
     <View style={styles.container}>
@@ -35,6 +36,7 @@ const FastImageExample = () => (
                 <PreloadExample />
                 <ResizeModeExample />
                 <LocalImagesExample />
+                <AutoSizeExample />
             </View>
         </ScrollView>
         <StatusBarUnderlay />
