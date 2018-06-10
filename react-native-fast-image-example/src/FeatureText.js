@@ -1,7 +1,9 @@
 import React from 'react'
 import { StyleSheet, Text } from 'react-native'
 
-export default ({ text }) => <Text style={styles.style}>{text}</Text>
+export default ({ text, style, children }) => (
+    <Text style={[styles.style, style]}>{text || children}</Text>
+)
 
 const styles = StyleSheet.create({
     style: {

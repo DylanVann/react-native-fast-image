@@ -8,7 +8,7 @@
 {
     self = [super init];
     if (self) {
-        _uri = url;
+        _url = url;
         _priority = priority;
         _headers = headers;
     }

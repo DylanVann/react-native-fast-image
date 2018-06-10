@@ -37,6 +37,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We gotta see them pics.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Entypo.ttf</string>
