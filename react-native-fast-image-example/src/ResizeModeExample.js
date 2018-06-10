@@ -1,6 +1,5 @@
 import React from 'react'
 import { StyleSheet, View, Text } from 'react-native'
-import withCacheBust from './withCacheBust'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'
@@ -11,12 +10,12 @@ const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
 const Col = p => <View style={styles.col} {...p} />
 
-const BorderRadiusExample = ({ onPressReload, bust }) => (
+const ResizeModeExample = () => (
     <View>
         <Section>
             <FeatureText text="• resizeMode." />
         </Section>
-        <SectionFlex onPress={onPressReload} style={styles.container}>
+        <SectionFlex style={styles.container}>
             <Col>
                 <FastImage
                     style={styles.image}
@@ -71,4 +70,4 @@ const styles = StyleSheet.create({
     },
 })
 
-export default withCacheBust(BorderRadiusExample)
+export default ResizeModeExample
