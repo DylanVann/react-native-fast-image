@@ -68,6 +68,33 @@ class PhotoExample extends Component {
     }
 }
 
+const Require = () => (
+    <React.Fragment>
+        <BulletText text="require" />
+        <Image source={require('./images/fields.jpg')} />
+    </React.Fragment>
+)
+
+const Import = () => (
+    <React.Fragment>
+        <BulletText text="import" />
+        <Image source={FieldsImage} />
+    </React.Fragment>
+)
+
+const GIF = () => (
+    <React.Fragment>
+        <BulletText text="gif" />
+        <Image source={FieldsImage} />
+    </React.Fragment>
+)
+
+export const Base64 = () =>
+    <React.Fragment>
+        <BulletText text="base64" />
+        <Image source={{ uri: FieldsBase64 }} />
+    </React.Fragment>
+
 const LocalImagesExample = ({ onPressReload, bust }) => (
     <View>
         <Section>
@@ -75,20 +102,16 @@ const LocalImagesExample = ({ onPressReload, bust }) => (
         </Section>
         <View style={styles.container}>
             <Row>
-                <BulletText text="require" />
-                <Image source={require('./images/fields.jpg')} />
+                <Require />
             </Row>
             <Row>
-                <BulletText text="import" />
-                <Image source={FieldsImage} />
+                <Import />
             </Row>
             <Row>
-                <BulletText text="gif" />
-                <Image source={FieldsImage} />
+                <GIF />
             </Row>
             <Row>
-                <BulletText text="base64" />
-                <Image source={{ uri: FieldsBase64 }} />
+                <Base64 />
             </Row>
             <PhotoExample />
         </View>

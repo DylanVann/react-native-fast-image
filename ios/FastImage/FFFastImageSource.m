@@ -8,18 +8,9 @@
 {
     self = [super init];
     if (self) {
-        _uri = url;
+        _url = url;
         _priority = priority;
         _headers = headers;
-    }
-    return self;
-}
-
-- (instancetype)initWithImage:(UIImage *)image
-{
-    self = [super init];
-    if (self) {
-        _image = image;
     }
     return self;
 }
