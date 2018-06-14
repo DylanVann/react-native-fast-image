@@ -114,6 +114,17 @@
                 break;
         }
         
+        switch (_source.cacheControl) {
+            case FFFCacheControlWeb:
+                options |= SDWebImageRefreshCached;
+                break;
+            case FFFCacheControlCacheOnly:
+                options |= SDWebImageCacheMemoryOnly;
+                break;
+            case FFFCacheControlImmutable:
+                break;
+        }
+        
         if (_onFastImageLoadStart) {
             _onFastImageLoadStart(@{});
             hasSentOnLoadStart = YES;

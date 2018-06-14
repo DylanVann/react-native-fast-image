@@ -7,6 +7,12 @@ typedef NS_ENUM(NSInteger, FFFPriority) {
     FFFPriorityHigh
 };
 
+typedef NS_ENUM(NSInteger, FFFCacheControl) {
+    FFFCacheControlImmutable,
+    FFFCacheControlWeb,
+    FFFCacheControlCacheOnly
+};
+
 // Object containing an image uri and metadata.
 @interface FFFastImageSource : NSObject
 
@@ -16,9 +22,12 @@ typedef NS_ENUM(NSInteger, FFFPriority) {
 @property (nonatomic) FFFPriority priority;
 // headers for the image request
 @property (nonatomic) NSDictionary *headers;
+// cache control mode
+@property (nonatomic) FFFCacheControl cacheControl;
 
 - (instancetype)initWithURL:(NSURL *)url
                    priority:(FFFPriority)priority
-                    headers:(NSDictionary *)headers;
+                    headers:(NSDictionary *)headers
+               cacheControl:(FFFCacheControl)cacheControl;
 
 @end

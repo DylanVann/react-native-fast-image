@@ -39,7 +39,10 @@ class FastImage extends Component {
 
         if (fallback) {
             return (
-                <View style={[style, styles.imageContainer]} ref={this.captureRef}>
+                <View
+                    style={[style, styles.imageContainer]}
+                    ref={this.captureRef}
+                >
                     <FastImageView
                         {...props}
                         style={StyleSheet.absoluteFill}
@@ -87,9 +90,21 @@ FastImage.resizeMode = {
 }
 
 FastImage.priority = {
+    // lower than usual.
     low: 'low',
+    // normal, the default.
     normal: 'normal',
+    // higher than usual.
     high: 'high',
+}
+
+FastImage.cacheControl = {
+    // Ignore headers, use uri as cache key, fetch only if not in cache.
+    immutable: 'immutable',
+    // Respect http headers, no aggressive caching.
+    web: 'web',
+    // Only load from cache.
+    cacheOnly: 'cacheOnly',
 }
 
 FastImage.preload = sources => {
@@ -104,6 +119,7 @@ const FastImageSourcePropType = PropTypes.shape({
     uri: PropTypes.string,
     headers: PropTypes.objectOf(PropTypes.string),
     priority: PropTypes.oneOf(Object.keys(FastImage.priority)),
+    cache: PropTypes.oneOf(Object.keys(FastImage.cacheControl)),
 })
 
 FastImage.propTypes = {
