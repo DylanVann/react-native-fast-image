@@ -31,10 +31,29 @@ class FastImage extends Component {
             onLoadEnd,
             style,
             children,
+            fallback,
             ...props
         } = this.props
 
         const resolvedSource = resolveAssetSource(source)
+
+        if (fallback) {
+            return (
+                <View style={[style, styles.imageContainer]} ref={this.captureRef}>
+                    <FastImageView
+                        {...props}
+                        style={StyleSheet.absoluteFill}
+                        source={resolvedSource}
+                        onLoadStart={onLoadStart}
+                        onProgress={onProgress}
+                        onLoad={onLoad}
+                        onError={onError}
+                        onLoadEnd={onLoadEnd}
+                    />
+                    {children}
+                </View>
+            )
+        }
 
         return (
             <View style={[style, styles.imageContainer]} ref={this.captureRef}>
@@ -95,6 +114,7 @@ FastImage.propTypes = {
     onLoad: PropTypes.func,
     onError: PropTypes.func,
     onLoadEnd: PropTypes.func,
+    fallback: PropTypes.bool,
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
