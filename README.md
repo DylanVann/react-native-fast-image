@@ -121,9 +121,17 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.priority?: enum`
 
-- `FastImage.priority.low` - Low Priority
-- `FastImage.priority.normal` **(Default)** - Normal Priority
-- `FastImage.priority.high` - High Priority
+- `FastImage.priority.low` - Low Priority.
+- `FastImage.priority.normal` **(Default)** - Normal Priority.
+- `FastImage.priority.high` - High Priority.
+
+---
+
+### `source.cache?: enum`
+
+- `FastImage.priority.immutable` - **(Default)** - Only updates if url changes.
+- `FastImage.priority.web` - Use headers and follow normal caching procedures.
+- `FastImage.priority.cacheOnly` - Only show images from cache, do not make any network requests.
 
 ---
 
