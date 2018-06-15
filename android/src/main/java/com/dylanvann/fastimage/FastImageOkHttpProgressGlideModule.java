@@ -11,14 +11,13 @@ import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.module.LibraryGlideModule;
-
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.WeakHashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
