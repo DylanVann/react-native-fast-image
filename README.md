@@ -182,6 +182,13 @@ Called when the image finishes loading, whether it was successful or an error.
 
 A React Native style. Supports using `borderRadius`.
 
+---
+
+### `fallback: boolean`
+
+If true will fallback to using `Image`.
+In this case the image will still be styled and laid out the same way as `FastImage`.
+
 ## Static Methods
 
 ### `FastImage.preload: (source[]) => void`
