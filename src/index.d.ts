@@ -30,8 +30,8 @@ declare namespace FastImage {
 }
 
 export type FastImageSource = {
-    uri?: string,
-    headers?: object
+    uri?: string
+    headers?: {[key: string]: string}
     priority?: FastImage.Priority
 }
 
