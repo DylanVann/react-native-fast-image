@@ -129,9 +129,9 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.cache?: enum`
 
-- `FastImage.priority.immutable` - **(Default)** - Only updates if url changes.
-- `FastImage.priority.web` - Use headers and follow normal caching procedures.
-- `FastImage.priority.cacheOnly` - Only show images from cache, do not make any network requests.
+- `FastImage.cache.immutable` - **(Default)** - Only updates if url changes.
+- `FastImage.cache.web` - Use headers and follow normal caching procedures.
+- `FastImage.cache.cacheOnly` - Only show images from cache, do not make any network requests.
 
 ---
 
