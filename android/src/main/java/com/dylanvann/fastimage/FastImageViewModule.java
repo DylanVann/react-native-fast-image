@@ -1,13 +1,8 @@
 package com.dylanvann.fastimage;
 
 import android.app.Activity;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.Priority;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -28,8 +23,6 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return REACT_CLASS;
     }
 
-    private static Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-
     @ReactMethod
     public void preload(final ReadableArray sources) {
         final Activity activity = getCurrentActivity();
@@ -39,14 +32,16 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 for (int i = 0; i < sources.size(); i++) {
                     final ReadableMap source = sources.getMap(i);
-                    final GlideUrl glideUrl = FastImageViewConverter.glideUrl(source);
-                    final Priority priority = FastImageViewConverter.priority(source);
+                    final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(source);
+                    final String stringUrl = glideUrl.toString();
                     Glide
                             .with(activity.getApplicationContext())
-                            .load(glideUrl)
-                            .priority(priority)
-                            .placeholder(TRANSPARENT_DRAWABLE)
-                            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                            // This will make this work for remote and local images. e.g.
+                            //    - file:///
+                            //    - content://
+                            //    - data:image/png;base64
+                            .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
+                            .apply(FastImageViewConverter.getOptions(source))
                             .preload();
                 }
             }

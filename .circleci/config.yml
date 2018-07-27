@@ -1,0 +1,10 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: node:9.2.0
+    working_directory: ~/app
+    steps:
+      - checkout
+      - run: yarn
+      - run: yarn test

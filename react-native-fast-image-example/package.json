@@ -1,0 +1,31 @@
+{
+  "name": "ReactNativeFastImageExample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "metro-with-symlinks start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "react": "16.3.1",
+    "react-native": "0.55.4",
+    "react-native-fast-image": "../",
+    "react-native-image-picker": "^0.26.10",
+    "react-native-image-progress": "^1.1.1",
+    "react-native-status-bar-height": "^2.0.0",
+    "react-native-vector-icons": "^4.6.0",
+    "react-navigation": "^2.2.5",
+    "react-timeout": "^1.1.1",
+    "uuid": "3.0.1"
+  },
+  "devDependencies": {
+    "babel-jest": "23.0.0-alpha.0",
+    "babel-preset-react-native": "4.0.0",
+    "jest": "22.4.2",
+    "metro-with-symlinks": "https://github.com/DylanVann/metro-with-symlinks",
+    "react-test-renderer": "^16.3.0-alpha.1"
+  },
+  "jest": {
+    "preset": "react-native"
+  }
+}

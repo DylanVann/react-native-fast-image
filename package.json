@@ -1,6 +1,6 @@
 {
   "name": "react-native-fast-image",
-  "version": "4.0.8",
+  "version": "4.0.14",
   "description": "🚩 FastImage, performant React Native image component.",
   "keywords": [
     "cache",
@@ -13,51 +13,34 @@
   "bugs": {
     "url": "https://github.com/DylanVann/react-native-fast-image/issues"
   },
-  "license": "MIT",
-  "author": "Dylan Vann <dylanvann@gmail.com> (http://dylanvann.com)",
-  "files": [
-    "ios/FastImage",
-    "ios/Vendor",
-    "ios/FastImage.xcodeproj",
-    "android",
-    "index.js",
-    "index.d.ts",
-    "react-native-fast-image.podspec"
-  ],
-  "main": "index.js",
-  "directories": {
-    "example": "example"
-  },
+  "license": "(MIT AND Apache-2.0)",
+  "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
   },
   "scripts": {
-    "format": "prettier --write --no-semi --single-quote --trailing-comma all ./index.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js",
+    "format": "prettier --write --list-different ./src/*.js",
     "prepare": "git submodule update --init --recursive",
-    "test": "yarn run test:pretty && yarn run test:jest",
-    "test:jest": "jest *.js",
-    "test:pretty": "prettier-check --write --no-semi --single-quote --trailing-comma all ./index.js ./ReactNativeFastImageExample/FastImage/*.js ./react-native-fast-image-server/*.js"
-  },
-  "dependencies": {
-    "prop-types": "^15.5.10"
+    "test": "yarn run format && yarn run test:jest",
+    "test:jest": "jest ./src/*.js"
   },
   "devDependencies": {
-    "babel-jest": "^21.2.0",
+    "babel-jest": "^23.0.1",
     "babel-preset-react-native": "^4.0.0",
-    "jest": "^21.2.1",
-    "prettier": "^1.5.2",
+    "jest": "^23.1.0",
+    "prettier": "^1.13.4",
     "prettier-check": "^2.0.0",
-    "react": "^16.3.0-alpha.1",
-    "react-native": "^0.54.1",
-    "react-test-renderer": "16.0.0"
+    "prop-types": "^15.6.1",
+    "react": "^16.4.0",
+    "react-native": "^0.55.4",
+    "react-test-renderer": "16.4.0"
   },
-  "jest": {
-    "preset": "react-native",
-    "modulePathIgnorePatterns": [
-      "ReactNativeFastImageExample",
-      "ReactNativeFastImageCocoaPodsExample",
-      "react-native-fast-image-server"
-    ]
+  "peerDependencies": {
+    "prop-types": "*",
+    "react": "*",
+    "react-native": "*"
   }
 }

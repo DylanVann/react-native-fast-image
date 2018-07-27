@@ -1,6 +1,35 @@
-ios/FastImage/Libraries/SDWebImage/.git*
-ios/FastImage/Libraries/SDWebImage/Examples
-ios/FastImage/Libraries/SDWebImage/Tests
+# Docs
+docs
+
+# Build
+android/build
 ios/build
-example
-server
+react-native-fast-image-*.tgz
+
+# We need to ignore some things in submodules.
+# This probably isn't everything we'd like to ignore but it's good enough.
+.git*
+*.png
+ios/Vendor/SDWebImage/Examples
+ios/Vendor/SDWebImage/Tests
+ios/Vendor/SDWebImage/Docs
+ios/Vendor/SDWebImage/Vendors/FLAnimatedImage/FLAnimatedImageDemo
+ios/Vendor/SDWebImage/Vendors/FLAnimatedImage/images
+ios/Vendor/SDWebImage/Vendors/libwebp/examples
+
+# Examples
+react-native-fast-image-example
+react-native-fast-image-example-cocoapods
+react-native-fast-image-example-server
+
+# Tests
+.circleci
+__snapshots__
+*.test.js
+
+# Configs
+.babelrc
+.gitignore
+.npmignore
+prettier.config.js
+yarn.lock
