@@ -189,6 +189,12 @@ A React Native style. Supports using `borderRadius`.
 If true will fallback to using `Image`.
 In this case the image will still be styled and laid out the same way as `FastImage`.
 
+---
+
+### `tintColor?: number | string`
+
+If supplied, changes the color of all the non-transparent pixels to the given color.
+
 ## Static Methods
 
 ### `FastImage.preload: (source[]) => void`
