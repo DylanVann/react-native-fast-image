@@ -66,7 +66,7 @@ and
 yarn add react-native-fast-image
 
 # Automatic linking. (other linking methods listed below)
-react-native link
+react-native link react-native-fast-image
 ```
 
 ```jsx
