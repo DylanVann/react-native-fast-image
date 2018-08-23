@@ -13,6 +13,7 @@ def _ext = rootProject.ext
 
 def _reactNativeVersion = _ext.has('reactNative') ? _ext.reactNative : '+'
 def _compileSdkVersion = _ext.has('compileSdkVersion') ? _ext.compileSdkVersion : 23
+def _supportLibVersion = _ext.has('supportLibVersion') ? _ext.supportLibVersion : 23
 def _buildToolsVersion = _ext.has('buildToolsVersion') ? _ext.buildToolsVersion : '23.0.1'
 def _minSdkVersion = _ext.has('minSdkVersion') ? _ext.minSdkVersion : 16
 def _targetSdkVersion = _ext.has('targetSdkVersion') ? _ext.targetSdkVersion : 22
@@ -55,7 +56,7 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     compile "com.facebook.react:react-native:${_reactNativeVersion}"
-    compile "com.android.support:support-v4:${_compileSdkVersion}"
+    compile "com.android.support:support-v4:${_supportLibVersion}"
     compile("com.github.bumptech.glide:glide:${_glideVersion}") {
         exclude group: "com.android.support"
     }
