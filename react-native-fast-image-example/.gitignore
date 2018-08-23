@@ -56,3 +56,4 @@ buck-out/
 *.jsbundle
 
 rn-cli.config.js
+metro.config.js
