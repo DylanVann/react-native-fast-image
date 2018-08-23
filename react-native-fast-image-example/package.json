@@ -22,7 +22,7 @@
     "babel-jest": "23.0.0-alpha.0",
     "babel-preset-react-native": "4.0.0",
     "jest": "22.4.2",
-    "metro-with-symlinks": "https://github.com/DylanVann/metro-with-symlinks",
+    "metro-with-symlinks": "^1.2.0",
     "react-test-renderer": "^16.3.0-alpha.1"
   },
   "jest": {
