@@ -1,5 +1,9 @@
 package com.dylanvann.fastimage;
 
+import android.app.Activity;
+import android.content.Context;
+import android.os.Build;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
@@ -30,6 +34,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
+
+    @Nullable
     private RequestManager requestManager = null;
 
     @Override
@@ -39,7 +45,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @Override
     protected FastImageViewWithUrl createViewInstance(ThemedReactContext reactContext) {
-        requestManager = Glide.with(reactContext);
+        if (isValidContextForGlide(reactContext)) {
+            requestManager = Glide.with(reactContext);
+        }
+
         return new FastImageViewWithUrl(reactContext);
     }
 
@@ -47,7 +56,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null) {
             // Cancel existing requests.
-            requestManager.clear(view);
+            if (requestManager != null) {
+                requestManager.clear(view);
+            }
+
             if (view.glideUrl != null) {
                 FastImageOkHttpProgressGlideModule.forget(view.glideUrl.toStringUrl());
             }
@@ -61,7 +73,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
         // Cancel existing request.
         view.glideUrl = glideUrl;
-        requestManager.clear(view);
+        if (requestManager != null) {
+            requestManager.clear(view);
+        }
 
         String key = glideUrl.toStringUrl();
         FastImageOkHttpProgressGlideModule.expect(key, this);
@@ -80,15 +94,18 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
 
         final String stringUrl = glideUrl.toString();
-        requestManager
-                // This will make this work for remote and local images. e.g.
-                //    - file:///
-                //    - content://
-                //    - data:image/png;base64
-                .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
-                .apply(FastImageViewConverter.getOptions(source))
-                .listener(new FastImageRequestListener(key))
-                .into(view);
+
+        if (requestManager != null) {
+            requestManager
+                    // This will make this work for remote and local images. e.g.
+                    //    - file:///
+                    //    - content://
+                    //    - data:image/png;base64
+                    .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
+                    .apply(FastImageViewConverter.getOptions(source))
+                    .listener(new FastImageRequestListener(key))
+                    .into(view);
+        }
     }
 
     @ReactProp(name = "resizeMode")
@@ -100,7 +117,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     public void onDropViewInstance(FastImageViewWithUrl view) {
         // This will cancel existing requests.
-        requestManager.clear(view);
+        if (requestManager != null) {
+            requestManager.clear(view);
+        }
+
         final String key = view.glideUrl.toString();
         FastImageOkHttpProgressGlideModule.forget(key);
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
@@ -147,6 +167,40 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     public float getGranularityPercentage() {
         return 0.5f;
+    }
+
+
+    private static boolean isValidContextForGlide(final Context context) {
+        if (context == null) {
+            return false;
+        }
+        if (context instanceof Activity) {
+            final Activity activity = (Activity) context;
+            if (isAcitityDestroyed(activity)) {
+                return false;
+            }
+        }
+
+        if (context instanceof ThemedReactContext) {
+            final Context baseContext = ((ThemedReactContext) context).getBaseContext();
+            if (baseContext instanceof Activity) {
+                final Activity baseActivity = (Activity) baseContext;
+                if (baseActivity == null || isAcitityDestroyed(baseActivity)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean isAcitityDestroyed (Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            return activity.isDestroyed() || activity.isFinishing();
+        } else {
+            return activity.isFinishing() || activity.isChangingConfigurations();
+        }
+
     }
 
 }
