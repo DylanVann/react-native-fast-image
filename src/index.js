@@ -1,18 +1,14 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {
-    Platform,
-    View,
-    Image,
-    NativeModules,
     requireNativeComponent,
-    ViewPropTypes,
     StyleSheet,
+    View,
+    ViewPropTypes,
 } from 'react-native'
+import preloaderManager from './preloaderManager'
 
 const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
-
-const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
     setNativeProps(nativeProps) {
@@ -107,8 +103,8 @@ FastImage.cacheControl = {
     cacheOnly: 'cacheOnly',
 }
 
-FastImage.preload = sources => {
-    FastImageViewNativeModule.preload(sources)
+FastImage.preload = (sources, onProgress, onComplete) => {
+    preloaderManager.preload(sources, onProgress, onComplete)
 }
 
 FastImage.defaultProps = {

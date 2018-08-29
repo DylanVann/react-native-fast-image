@@ -191,21 +191,25 @@ In this case the image will still be styled and laid out the same way as `FastIm
 
 ## Static Methods
 
-### `FastImage.preload: (source[]) => void`
+### `FastImage.preload: (source[], onProgress?, onComplete?) => void`
 
 Preload images to display later. e.g.
 
 ```js
-FastImage.preload([
-  {
-    uri: 'https://facebook.github.io/react/img/logo_og.png',
-    headers: { Authorization: 'someAuthToken' },
-  },
-  {
-    uri: 'https://facebook.github.io/react/img/logo_og.png',
-    headers: { Authorization: 'someAuthToken' },
-  },
-])
+FastImage.preload(
+  [
+    {
+      uri: 'https://facebook.github.io/react/img/logo_og.png',
+      headers: { Authorization: 'someAuthToken' },
+    },
+    {
+      uri: 'https://facebook.github.io/react/img/logo_og.png',
+      headers: { Authorization: 'someAuthToken' },
+    },
+  ],
+  (finished, total) => console.log(`Preloaded ${finished}/${total} images`),
+  (finished, skipped) => console.log(`Completed. Failed to load ${skipped}/${finished} images`),
+)
 ```
 
 ## Troubleshooting
