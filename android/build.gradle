@@ -3,30 +3,28 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.2.3'
+        classpath 'com.android.tools.build:gradle:2.3.3'
     }
 }
 
 apply plugin: 'com.android.library'
 
-def _ext = rootProject.ext
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
 
-def _reactNativeVersion = _ext.has('reactNative') ? _ext.reactNative : '+'
-def _compileSdkVersion = _ext.has('compileSdkVersion') ? _ext.compileSdkVersion : 23
-def _buildToolsVersion = _ext.has('buildToolsVersion') ? _ext.buildToolsVersion : '23.0.1'
-def _minSdkVersion = _ext.has('minSdkVersion') ? _ext.minSdkVersion : 16
-def _targetSdkVersion = _ext.has('targetSdkVersion') ? _ext.targetSdkVersion : 22
-def _glideVersion = _ext.has('glideVersion') ? _ext.glideVersion : '4.7.1'
-def _excludeAppGlideModule = _ext.has('excludeAppGlideModule') ? _ext.excludeAppGlideModule : false
+def _reactNativeVersion = safeExtGet('reactNative', '+')
+def _compileSdkVersion = safeExtGet('compileSdkVersion', 26)
+def _glideVersion = safeExtGet('glideVersion', '4.7.1')
 
 android {
     compileSdkVersion _compileSdkVersion
-    buildToolsVersion _buildToolsVersion
+    buildToolsVersion safeExtGet('buildToolsVersion', '26.0.3')
 
     sourceSets {
         main {
             java {
-                if (_excludeAppGlideModule) {
+                if (safeExtGet('excludeAppGlideModule', false)) {
                     srcDir 'src'
                     exclude '**/FastImageGlideModule.java'
                 }
@@ -35,8 +33,8 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion _minSdkVersion
-        targetSdkVersion _targetSdkVersion
+        minSdkVersion safeExtGet('minSdkVersion', 16)
+        targetSdkVersion safeExtGet('targetSdkVersion', 26)
         versionCode 1
         versionName "1.0"
     }
@@ -55,7 +53,7 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     compile "com.facebook.react:react-native:${_reactNativeVersion}"
-    compile "com.android.support:support-v4:${_compileSdkVersion}"
+    compile "com.android.support:support-v4:${safeExtGet('supportLibVersion', '27.1.1')}"
     compile("com.github.bumptech.glide:glide:${_glideVersion}") {
         exclude group: "com.android.support"
     }
