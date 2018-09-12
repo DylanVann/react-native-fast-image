@@ -8,14 +8,12 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        jcenter()
-        maven {
-            // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
-            url "$projectDir/../../react-native/android"
-        }
+repositories {
+    google()
+    jcenter()
+    maven {
+        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+        url "$projectDir/../../react-native/android"
     }
 }
 
@@ -52,11 +50,6 @@ android {
     lintOptions {
         abortOnError false
     }
-}
-
-repositories {
-    google()
-    jcenter()
 }
 
 dependencies {
