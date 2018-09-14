@@ -9,8 +9,6 @@ import {
     StyleSheet,
 } from 'react-native'
 
-const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
-
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
@@ -34,7 +32,7 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const resolvedSource = resolveAssetSource(source)
+        const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
             return (
