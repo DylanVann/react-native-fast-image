@@ -2,7 +2,11 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
+import android.text.TextUtils;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
@@ -11,11 +15,14 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
+import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.views.imagehelper.ImageSource;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +61,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        if (source == null) {
+        if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
                 requestManager.clear(view);
@@ -68,8 +75,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
-        // Get the GlideUrl which contains header info.
-        final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(source);
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        final GlideUrl glideUrl = imageSource.getGlideUrl();
 
         // Cancel existing request.
         view.glideUrl = glideUrl;
@@ -92,16 +100,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-
-        final String stringUrl = glideUrl.toString();
-
         if (requestManager != null) {
             requestManager
                     // This will make this work for remote and local images. e.g.
                     //    - file:///
                     //    - content://
+                    //    - res:/
                     //    - data:image/png;base64
-                    .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
+                    .load(imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl())
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
@@ -121,13 +127,16 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             requestManager.clear(view);
         }
 
-        final String key = view.glideUrl.toString();
-        FastImageOkHttpProgressGlideModule.forget(key);
-        List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
-        if (viewsForKey != null) {
-            viewsForKey.remove(view);
-            if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
+        if (view.glideUrl != null) {
+            final String key = view.glideUrl.toString();
+            FastImageOkHttpProgressGlideModule.forget(key);
+            List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
+            if (viewsForKey != null) {
+                viewsForKey.remove(view);
+                if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
+            }
         }
+
         super.onDropViewInstance(view);
     }
 
@@ -169,6 +178,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return 0.5f;
     }
 
+    private boolean isNullOrEmpty (final String url) {
+        return url == null || url.trim().isEmpty();
+    }
+
 
     private static boolean isValidContextForGlide(final Context context) {
         if (context == null) {
@@ -203,4 +216,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     }
 
+    private void warnImageSource(Context context, String uri) {
+        if (ReactBuildConfig.DEBUG) {
+            Toast.makeText(
+                    context,
+                    "Warning: Image source \"" + uri + "\" doesn't exist",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
 }
