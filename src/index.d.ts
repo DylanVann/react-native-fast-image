@@ -17,6 +17,12 @@ declare namespace FastImage {
         type center = 'center'
     }
 
+    namespace cache {
+        type immutable = 'immutable'
+        type web = 'web'
+        type cacheOnly = 'cacheOnly'
+    }
+
     export type Priority =
         FastImage.priority.low |
         FastImage.priority.normal |
@@ -27,12 +33,18 @@ declare namespace FastImage {
         FastImage.resizeMode.cover |
         FastImage.resizeMode.stretch |
         FastImage.resizeMode.center
+
+    export type Cache =
+        FastImage.cache.immutable |
+        FastImage.cache.web |
+        FastImage.cache.cacheOnly
 }
 
 export type FastImageSource = {
     uri?: string
     headers?: {[key: string]: string}
     priority?: FastImage.Priority
+    cache?: FastImage.Cache
 }
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
@@ -67,6 +79,7 @@ export interface OnProgressEvent {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    fallback?: boolean
 
     onLoadStart?(): void
 
@@ -113,10 +126,17 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         high: FastImage.priority.high
     }
 
+    cache: {
+        immutable: FastImage.cache.immutable
+        web: FastImage.cache.web
+        cacheOnly: FastImage.cache.cacheOnly
+    }
+
     preload(sources: FastImageSource[]): void
 }
 
-declare var FastImage: FastImageStatic
+declare var FastImage: FastImageStatic;
+
 type FastImage = FastImageStatic
 
 export default FastImage
