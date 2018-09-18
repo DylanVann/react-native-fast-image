@@ -1,6 +1,7 @@
 # OSX
 #
 .DS_Store
+docs
 
 # Xcode
 #
@@ -38,3 +39,8 @@ example/android/app/src/main/gen
 
 # build
 react-native-fast-image-*.tgz
+
+#example
+react-native-fast-image-example
+react-native-fast-image-example-server
+react-native-fast-image-example-cocoapods
