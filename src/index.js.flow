@@ -62,11 +62,9 @@ export type FastImageProps = $ReadOnly<{|
     testID?: ?string,
 |}>
 
-declare class FastImage extends React$Component<FastImageProps> {
+declare export default class FastImage extends React$Component<FastImageProps> {
     static resizeMode: ResizeMode;
     static priority: Priority;
     static cacheControl: CacheControl;
     static preload: PreloadFn;
 }
-
-declare export default typeof FastImage
