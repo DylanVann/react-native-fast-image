@@ -45,6 +45,10 @@ public class FastImageSource extends ImageSource {
         }
     }
 
+    public boolean isBase64Resource () {
+        return mUri != null && "data".equals(mUri.getScheme());
+    }
+
     @Override
     public Uri getUri() {
         return mUri;
