@@ -54,25 +54,7 @@ class FastImageViewConverter {
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER);
             }};
-
-//    static GlideUrl getGlideUrl(Context context, ReadableMap source) {
-//        // Resolve helps to resolve the given source uri to a file path that
-//        // android can resolve.
-//        ImageSource imageSource = getImageSource(context, source);
-//        String url = imageSource.getUri().toString();
-//
-//        // ImageSource uses ResourceDrawableIdHelper under the hood
-//        // to resolve Uri's (resource id) from require(), those
-//        // resource id's are prepended with "res:/" so we check the
-//        // scheme and if we encounter "res:/" we convert it to
-//        // android://
-//        if (url.startsWith("res:/")) {
-//            url = url.replace("res:/", "android.resource://" + context.getPackageName() + "/");
-//        }
-//
-//        return new GlideUrl(url, getHeaders(source));
-//    }
-
+    
     // Resolve the source uri to a file path that android understands.
     static FastImageSource getImageSource(Context context, ReadableMap source) {
         return new FastImageSource(context, source.getString("uri"), getHeaders(source));
