@@ -43,7 +43,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                             //    - res:/
                             //    - android.resource://
                             //    - data:image/png;base64
-                            .load(imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl())
+                            .load(
+                                    imageSource.isBase64Resource() ? imageSource.getSource() :
+                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
+                            )
                             .apply(FastImageViewConverter.getOptions(source))
                             .preload();
                 }
