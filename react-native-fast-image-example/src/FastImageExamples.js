@@ -48,7 +48,6 @@ FastImageExample.navigationOptions = {
     tabBarIcon: props => (
         <Icon
             name="ios-information-circle"
-            focusedName="ios-information-circle"
             {...props}
         />
     ),
