@@ -23,12 +23,6 @@ declare namespace FastImage {
         type web = 'web'
     }
 
-    namespace cache {
-        type immutable = 'immutable'
-        type web = 'web'
-        type cacheOnly = 'cacheOnly'
-    }
-
     export type Priority =
         FastImage.priority.low |
         FastImage.priority.normal |
