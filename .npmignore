@@ -33,3 +33,5 @@ __snapshots__
 .npmignore
 prettier.config.js
 yarn.lock
+babel.config.js
+jest.config.js
