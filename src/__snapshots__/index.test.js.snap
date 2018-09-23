@@ -5,11 +5,11 @@ exports[`FastImage renders correctly. 1`] = `
   style={
     Array [
       Object {
-        "height": 44,
-        "width": 44,
+        "overflow": "hidden",
       },
       Object {
-        "overflow": "hidden",
+        "height": 44,
+        "width": 44,
       },
     ]
   }
@@ -43,11 +43,11 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
   style={
     Array [
       Object {
-        "height": 44,
-        "width": 44,
+        "overflow": "hidden",
       },
       Object {
-        "overflow": "hidden",
+        "height": 44,
+        "width": 44,
       },
     ]
   }
