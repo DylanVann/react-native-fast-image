@@ -3,27 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "metro-with-symlinks start",
+    "start": "node node_modules/react-native/local-cli/cli.js start",
     "test": "jest"
   },
   "dependencies": {
-    "react": "16.4.2",
-    "react-native": "^0.56.0",
-    "react-native-fast-image": "../",
-    "react-native-image-picker": "^0.26.10",
-    "react-native-image-progress": "^1.1.1",
-    "react-native-status-bar-height": "^2.0.0",
-    "react-native-vector-icons": "^5.0.0",
-    "react-navigation": "^2.12.0",
-    "react-timeout": "^1.1.1",
-    "uuid": "3.3.2"
+    "react": "16.5.0",
+    "react-native": "0.57.1"
   },
   "devDependencies": {
-    "babel-jest": "23.4.2",
-    "babel-preset-react-native": "^5.0.2",
-    "jest": "23.5.0",
-    "metro-with-symlinks": "^1.2.0",
-    "react-test-renderer": "^16.4.2"
+    "babel-jest": "23.6.0",
+    "jest": "23.6.0",
+    "metro-react-native-babel-preset": "0.45.6",
+    "react-test-renderer": "16.5.0"
   },
   "jest": {
     "preset": "react-native"
