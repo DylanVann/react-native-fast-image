@@ -9,7 +9,7 @@ const DefaultImageGrid = () => <ImageGrid ImageComponent={Image} />
 DefaultImageGrid.navigationOptions = {
     tabBarLabel: 'Image Grid',
     tabBarIcon: props => (
-        <Icon name="ios-image-outline" focusedName="ios-image" {...props} />
+        <Icon name="ios-image" {...props} />
     ),
 }
 

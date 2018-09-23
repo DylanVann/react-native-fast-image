@@ -8,7 +8,7 @@ const FastImageGrid = () => <ImageGrid ImageComponent={FastImage} />
 FastImageGrid.navigationOptions = {
     tabBarLabel: 'FastImage Grid',
     tabBarIcon: props => (
-        <Icon name="ios-photos-outline" focusedName="ios-photos" {...props} />
+        <Icon name="ios-photos" {...props} />
     ),
 }
 

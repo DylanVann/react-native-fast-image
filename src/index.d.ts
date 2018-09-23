@@ -16,6 +16,12 @@ declare namespace FastImage {
         type stretch = 'stretch'
         type center = 'center'
     }
+        
+    namespace cache {
+        type cacheOnly = 'cacheOnly'
+        type immutable = 'immutable'
+        type web = 'web'
+    }
 
     namespace cache {
         type immutable = 'immutable'
@@ -35,9 +41,9 @@ declare namespace FastImage {
         FastImage.resizeMode.center
 
     export type Cache =
+        FastImage.cache.cacheOnly |
         FastImage.cache.immutable |
-        FastImage.cache.web |
-        FastImage.cache.cacheOnly
+        FastImage.cache.web
 }
 
 export type FastImageSource = {
@@ -124,6 +130,12 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         low: FastImage.priority.low
         normal: FastImage.priority.normal
         high: FastImage.priority.high
+    }
+    
+    cache: {
+        cacheOnly: FastImage.cache.cacheOnly
+        immutable: FastImage.cache.immutable
+        web: FastImage.cache.web
     }
 
     cache: {
