@@ -30,7 +30,6 @@
   "devDependencies": {
     "@babel/core": "^7.1.0",
     "babel-jest": "^23.6.0",
-    "babel-preset-react-native": "^5.0.2",
     "jest": "^23.6.0",
     "metro-react-native-babel-preset": "^0.45.6",
     "prettier": "^1.14.3",
