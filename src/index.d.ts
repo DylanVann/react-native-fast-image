@@ -138,12 +138,6 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         web: FastImage.cache.web
     }
 
-    cache: {
-        immutable: FastImage.cache.immutable
-        web: FastImage.cache.web
-        cacheOnly: FastImage.cache.cacheOnly
-    }
-
     preload(sources: FastImageSource[]): void
 }
 
