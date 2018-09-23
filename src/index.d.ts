@@ -33,7 +33,7 @@ declare namespace FastImage {
         FastImage.resizeMode.cover |
         FastImage.resizeMode.stretch |
         FastImage.resizeMode.center
-    
+
     export type Cache =
         FastImage.cache.cacheOnly |
         FastImage.cache.immutable |
@@ -79,6 +79,7 @@ export interface OnProgressEvent {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    fallback?: boolean
 
     onLoadStart?(): void
 
@@ -135,6 +136,7 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
 }
 
 declare var FastImage: FastImageStatic
+
 type FastImage = FastImageStatic
 
 export default FastImage
