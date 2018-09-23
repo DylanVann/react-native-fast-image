@@ -1,4 +1,3 @@
-import { OnProgressEvent } from './index.d';
 import * as React from 'react'
 import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyle } from 'react-native'
 
