@@ -5,6 +5,9 @@
     BOOL hasCompleted;
     BOOL hasErrored;
     NSDictionary* onLoadEvent;
+
+    // Whether the latest change of props requires the image to be reloaded
+    BOOL needsReload;
 }
 
 - (id) init {
@@ -67,7 +70,23 @@
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
-        
+        needsReload = YES;
+    }
+}
+
+- (void)didSetProps:(NSArray<NSString *> *)changedProps
+{
+    if (needsReload) {
+        [self reloadImage];
+    }
+}
+
+- (void)reloadImage
+{
+    needsReload = NO;
+
+    if (_source) {
+
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix:@"data:image"]) {
