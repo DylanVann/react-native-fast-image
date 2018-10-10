@@ -1,27 +1,28 @@
 {
-  "name": "ReactNativeFastImageCocoaPodsExample",
+  "name": "ReactNativeFastImageExampleCocoaPods",
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "react-native start",
-    "postinstall": "cp -r ./../react-native-fast-image-example/src ./src",
+    "start": "node node_modules/react-native/local-cli/cli.js start",
     "test": "jest"
   },
   "dependencies": {
-    "react": "16.3.1",
-    "react-native": "0.55.3",
-    "react-native-fast-image": "../",
-    "react-native-image-progress": "^1.1.0",
-    "react-native-vector-icons": "^4.5.0",
-    "react-navigation": "^1.5.7",
-    "react-timeout": "^1.1.1",
-    "uuid": "3.0.1"
+    "react": "16.5.0",
+    "react-native": "0.57.1",
+    "react-native-fast-image": "^5.0.9",
+    "react-native-image-picker": "^0.26.10",
+    "react-native-image-progress": "^1.1.1",
+    "react-native-status-bar-height": "^2.1.0",
+    "react-native-vector-icons": "^5.0.0",
+    "react-navigation": "^2.16.0",
+    "react-timeout": "^1.1.2",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "babel-jest": "23.0.0-alpha.0",
-    "babel-preset-react-native": "4.0.0",
-    "jest": "22.4.2",
-    "react-test-renderer": "^16.3.0-alpha.1"
+    "babel-jest": "23.6.0",
+    "jest": "23.6.0",
+    "metro-react-native-babel-preset": "0.45.6",
+    "react-test-renderer": "16.5.0"
   },
   "jest": {
     "preset": "react-native"
