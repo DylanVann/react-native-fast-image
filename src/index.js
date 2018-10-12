@@ -1,7 +1,6 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {
-    Platform,
     View,
     Image,
     NativeModules,
@@ -41,7 +40,7 @@ class FastImage extends Component {
         if (fallback) {
             return (
                 <View
-                    style={[style, styles.imageContainer]}
+                    style={[styles.imageContainer, style]}
                     ref={this.captureRef}
                 >
                     <FastImageView
@@ -61,7 +60,7 @@ class FastImage extends Component {
         }
 
         return (
-            <View style={[style, styles.imageContainer]} ref={this.captureRef}>
+            <View style={[styles.imageContainer, style]} ref={this.captureRef}>
                 <FastImageView
                     {...props}
                     tintColor={tintColor}
