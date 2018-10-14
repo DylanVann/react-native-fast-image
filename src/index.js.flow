@@ -1,4 +1,5 @@
 // @flow
+
 import type { ViewProps } from 'react-native/Libraries/Components/View/ViewPropTypes'
 import type { SyntheticEvent } from 'react-native/Libraries/Types/CoreEventTypes'
 
