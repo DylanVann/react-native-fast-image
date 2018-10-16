@@ -5,8 +5,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [5.0.11] - 2018-10-15
+### Added
+- Support for showing local images. (fddee2c583c0978d0e7e91cdf4d6c87629afe015)
+- An example of auto-sizing. (400232767b1b0c5ce1d7fd5f87d9278bb70b0cb9)
+- `fallback` prop. (30a2ff7909df07d5188c4dbeae719d46562ef778)
+- `cacheControl` prop. (cf9a595ee929c1397063b97f44441f0556317f36, 9f422c4a74888ddc062dae20a212949256fc9daa)
+- Flow type definitions. (11c7e9e86508be289c57cacda00d687134458e2b - @retyui)
+
 ### Changed
-- A lot.
+- Upgraded to Glide 4. (f31a44fc07caa7d4635ae83936b8925891a1ab15)
+- Updated license info. (3bd08ef952967a736fb7baca29dd798daafb4376)
+- Decrease package size by ignoring more files. (a6f7b109aac070b487a6bdb54da7a2276f860e94)
+- Specify types file in `package.json`. (e5838165b6f6e56af534cb6f59dca81cd87dfcdf)
+
+### Fixed
+- Memory leaks on Android. (6e0e6f8f2b9c97dc4e31f5b3562944c1c0560870 - @patrickkempff)
+- Make sure headers only accepts key value pairs. (d142379e6f04ac8aa9e6c0e85d5c36949d027b78 - @BenWildeman)
+- Fix enum names in readme. (d2c33a85ce6cb67c8d1b0c6fcaa9bb591e69908a - @richeterre)
+- Make linking command in docs more specific. (22541243d96f6d4f50bf082c1f91a911ed91aba1 - @lfkwtz)
+- Changes to support getting Android compile and support library versions from `ext` in `build.gradle`.
+- Removed unnecessary import. (0f78b13d13ed4d239c6b2c3672f9c8f02aec096c - @retyui)
+- Added breaks in `FastImageViewConverter.java`. (efd02a307dc9aacad731325d39c325f772371d00 - @Yria)
+- Switches to new Gradle synax, using `implementation` instead of `compile`. (5d973a8cec50efdd3c20d05b97dbe59f71677944 - @yeomann)
+- Allow overwriting `imageContainer` styles. (b8c82c7d5ea7c4abe0b74f8976eb31e5999fc710 - @n1ru4l)
+- Add cache enum type to TypeScript definitions. (0c7e323ef0c818ff0e95f62211ad86058d9f3bb8 - @EQuimper)
+- TypeScript types for `fallback`. (c265c7a79a70067a3d1459e4878916fd5a13c2e6 - @retyui)
+- Handle `null` `view.glideUrl`. (75a6ce766c7fc2c1dd98a4e8d8c52c3aeeb3d506 - @ratson)
+- Incorrect cache property name in readme. (0ef723101846792e20ae9ba6420d5271ba6e928a - @vieiralucas)
 
 ## [4.0.14] - 2018-05-09
 ### Changed
@@ -200,7 +227,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.14...HEAD
+[Unreleased]: https://github.com/DylanVann/react-native-fast-image/compare/v5.0.11...HEAD
+[5.0.11]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.14...v5.0.11
 [4.0.14]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.13...v4.0.14
 [4.0.13]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.12...v4.0.13
 [4.0.12]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.11...v4.0.12
