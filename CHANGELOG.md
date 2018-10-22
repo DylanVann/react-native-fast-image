@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Crash where activity was already destroyed before React Native could cleanup view manager. (8f702ed1d9ae69dfea172ebc5da3af7764a73808 - @patrickkempff)
 
 ## [5.0.11] - 2018-10-15
 ### Added
