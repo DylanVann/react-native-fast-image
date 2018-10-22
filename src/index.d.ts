@@ -1,4 +1,3 @@
-import { OnProgressEvent } from './index.d';
 import * as React from 'react'
 import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyle } from 'react-native'
 
@@ -16,6 +15,12 @@ declare namespace FastImage {
         type stretch = 'stretch'
         type center = 'center'
     }
+        
+    namespace cacheControl {
+        type cacheOnly = 'cacheOnly'
+        type immutable = 'immutable'
+        type web = 'web'
+    }
 
     export type Priority =
         FastImage.priority.low |
@@ -27,12 +32,18 @@ declare namespace FastImage {
         FastImage.resizeMode.cover |
         FastImage.resizeMode.stretch |
         FastImage.resizeMode.center
+
+    export type Cache =
+        FastImage.cacheControl.cacheOnly |
+        FastImage.cacheControl.immutable |
+        FastImage.cacheControl.web
 }
 
 export type FastImageSource = {
     uri?: string
     headers?: {[key: string]: string}
     priority?: FastImage.Priority
+    cache?: FastImage.Cache
 }
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
@@ -67,6 +78,7 @@ export interface OnProgressEvent {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    fallback?: boolean
 
     onLoadStart?(): void
 
@@ -112,11 +124,18 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         normal: FastImage.priority.normal
         high: FastImage.priority.high
     }
+    
+    cache: {
+        cacheOnly: FastImage.cache.cacheOnly
+        immutable: FastImage.cache.immutable
+        web: FastImage.cache.web
+    }
 
     preload(sources: FastImageSource[]): void
 }
 
 declare var FastImage: FastImageStatic
+
 type FastImage = FastImageStatic
 
 export default FastImage
