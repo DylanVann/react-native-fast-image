@@ -54,7 +54,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        if (source == null) {
+        if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
                 requestManager.clear(view);
@@ -68,8 +68,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
-        // Get the GlideUrl which contains header info.
-        final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(source);
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        final GlideUrl glideUrl = imageSource.getGlideUrl();
 
         // Cancel existing request.
         view.glideUrl = glideUrl;
@@ -92,16 +93,18 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-
-        final String stringUrl = glideUrl.toString();
-
         if (requestManager != null) {
             requestManager
                     // This will make this work for remote and local images. e.g.
                     //    - file:///
                     //    - content://
+                    //    - res:/
+                    //    - android.resource://
                     //    - data:image/png;base64
-                    .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
+                    .load(
+                            imageSource.isBase64Resource() ? imageSource.getSource() :
+                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
+                    )
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
@@ -120,35 +123,29 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         if (requestManager != null) {
             requestManager.clear(view);
         }
-        if (view.glideUrl == null) {
-            super.onDropViewInstance(view);
-            return;
+
+        if (view.glideUrl != null) {
+            final String key = view.glideUrl.toString();
+            FastImageOkHttpProgressGlideModule.forget(key);
+            List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
+            if (viewsForKey != null) {
+                viewsForKey.remove(view);
+                if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
+            }
         }
-        final String key = view.glideUrl.toString();
-        FastImageOkHttpProgressGlideModule.forget(key);
-        List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
-        if (viewsForKey != null) {
-            viewsForKey.remove(view);
-            if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
-        }
+
         super.onDropViewInstance(view);
     }
 
     @Override
-    @Nullable
-    public Map getExportedCustomDirectEventTypeConstants() {
-        return MapBuilder.of(
-                REACT_ON_LOAD_START_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT),
-                REACT_ON_PROGRESS_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT),
-                REACT_ON_LOAD_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT),
-                REACT_ON_ERROR_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT),
-                REACT_ON_LOAD_END_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT)
-        );
+    public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
+        return MapBuilder.<String, Object>builder()
+                .put(REACT_ON_LOAD_START_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT))
+                .put(REACT_ON_PROGRESS_EVENT, MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT))
+                .put(REACT_ON_LOAD_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT))
+                .put(REACT_ON_ERROR_EVENT, MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT))
+                .put(REACT_ON_LOAD_END_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT))
+                .build();
     }
 
     @Override
@@ -172,6 +169,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return 0.5f;
     }
 
+    private boolean isNullOrEmpty(final String url) {
+        return url == null || url.trim().isEmpty();
+    }
+
 
     private static boolean isValidContextForGlide(final Context context) {
         if (context == null) {
@@ -179,7 +180,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
         if (context instanceof Activity) {
             final Activity activity = (Activity) context;
-            if (isAcitityDestroyed(activity)) {
+            if (isActivityDestroyed(activity)) {
                 return false;
             }
         }
@@ -188,16 +189,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             final Context baseContext = ((ThemedReactContext) context).getBaseContext();
             if (baseContext instanceof Activity) {
                 final Activity baseActivity = (Activity) baseContext;
-                if (baseActivity == null || isAcitityDestroyed(baseActivity)) {
-                    return false;
-                }
+                return !isActivityDestroyed(baseActivity);
             }
         }
 
         return true;
     }
 
-    private static boolean isAcitityDestroyed (Activity activity) {
+    private static boolean isActivityDestroyed(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
@@ -205,5 +204,4 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
 
     }
-
 }

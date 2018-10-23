@@ -1,23 +1,34 @@
 package com.dylanvann.fastimage;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.Image;
+import android.net.Uri;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.views.imagehelper.ImageSource;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
@@ -43,27 +54,31 @@ class FastImageViewConverter {
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER);
             }};
+    
+    // Resolve the source uri to a file path that android understands.
+    static FastImageSource getImageSource(Context context, ReadableMap source) {
+        return new FastImageSource(context, source.getString("uri"), getHeaders(source));
+    }
 
-    static GlideUrl getGlideUrl(ReadableMap source) {
-        final String uriProp = source.getString("uri");
-        // Get the headers prop and add to glideUrl.
-        GlideUrl glideUrl;
-        try {
-            final ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator headersIterator = headersMap.keySetIterator();
-            LazyHeaders.Builder headersBuilder = new LazyHeaders.Builder();
-            while (headersIterator.hasNextKey()) {
-                String key = headersIterator.nextKey();
-                String value = headersMap.getString(key);
-                headersBuilder.addHeader(key, value);
+    static Headers getHeaders(ReadableMap source) {
+        Headers headers = Headers.DEFAULT;
+
+        if (source.hasKey("headers")) {
+            ReadableMap headersMap = source.getMap("headers");
+            ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
+            LazyHeaders.Builder builder = new LazyHeaders.Builder();
+
+            while (iterator.hasNextKey()) {
+                String header = iterator.nextKey();
+                String value = headersMap.getString(header);
+
+                builder.addHeader(header, value);
             }
-            LazyHeaders headers = headersBuilder.build();
-            glideUrl = new GlideUrl(uriProp, headers);
-        } catch (NoSuchKeyException e) {
-            // If there is no headers object.
-            glideUrl = new GlideUrl(uriProp);
+
+            headers = builder.build();
         }
-        return glideUrl;
+
+        return headers;
     }
 
     static RequestOptions getOptions(ReadableMap source) {
