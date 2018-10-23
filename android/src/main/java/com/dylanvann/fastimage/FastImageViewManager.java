@@ -2,11 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
-import android.net.Uri;
 import android.os.Build;
-import android.text.TextUtils;
-import android.util.Log;
-import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
@@ -15,14 +11,11 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
-import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
-import com.facebook.react.views.imagehelper.ImageSource;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -110,7 +103,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - data:image/png;base64
                     .load(
                             imageSource.isBase64Resource() ? imageSource.getSource() :
-                            imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
+                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
                     )
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
@@ -145,20 +138,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     @Override
-    @Nullable
-    public Map getExportedCustomDirectEventTypeConstants() {
-        return MapBuilder.of(
-                REACT_ON_LOAD_START_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT),
-                REACT_ON_PROGRESS_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT),
-                REACT_ON_LOAD_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT),
-                REACT_ON_ERROR_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT),
-                REACT_ON_LOAD_END_EVENT,
-                MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT)
-        );
+    public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
+        return MapBuilder.<String, Object>builder()
+                .put(REACT_ON_LOAD_START_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT))
+                .put(REACT_ON_PROGRESS_EVENT, MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT))
+                .put(REACT_ON_LOAD_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT))
+                .put(REACT_ON_ERROR_EVENT, MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT))
+                .put(REACT_ON_LOAD_END_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT))
+                .build();
     }
 
     @Override
@@ -182,7 +169,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return 0.5f;
     }
 
-    private boolean isNullOrEmpty (final String url) {
+    private boolean isNullOrEmpty(final String url) {
         return url == null || url.trim().isEmpty();
     }
 
@@ -193,7 +180,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
         if (context instanceof Activity) {
             final Activity activity = (Activity) context;
-            if (isAcitityDestroyed(activity)) {
+            if (isActivityDestroyed(activity)) {
                 return false;
             }
         }
@@ -202,30 +189,19 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             final Context baseContext = ((ThemedReactContext) context).getBaseContext();
             if (baseContext instanceof Activity) {
                 final Activity baseActivity = (Activity) baseContext;
-                if (baseActivity == null || isAcitityDestroyed(baseActivity)) {
-                    return false;
-                }
+                return !isActivityDestroyed(baseActivity);
             }
         }
 
         return true;
     }
 
-    private static boolean isAcitityDestroyed (Activity activity) {
+    private static boolean isActivityDestroyed(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
             return activity.isFinishing() || activity.isChangingConfigurations();
         }
 
-    }
-
-    private void warnImageSource(Context context, String uri) {
-        if (ReactBuildConfig.DEBUG) {
-            Toast.makeText(
-                    context,
-                    "Warning: Image source \"" + uri + "\" doesn't exist",
-                    Toast.LENGTH_SHORT).show();
-        }
     }
 }
