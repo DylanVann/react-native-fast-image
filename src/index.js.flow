@@ -51,10 +51,10 @@ export type FastImageSource = {
 export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
     onError?: ?() => void,
-    onLoad?: ?(event?: OnLoadEvent) => void,
+    onLoad?: ?(event: OnLoadEvent) => void,
     onLoadEnd?: ?() => void,
     onLoadStart?: ?() => void,
-    onProgress?: ?(event?: OnProgressEvent) => void,
+    onProgress?: ?(event: OnProgressEvent) => void,
 
     source: FastImageSource | number,
 
