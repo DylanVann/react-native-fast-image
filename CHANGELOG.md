@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
+- Not rendering local images in production builds. (47e36edc24a1990eeb735527ae4ebe6d2dbe61b5 - @patrickkempff)
 - Crash where activity was already destroyed before React Native could cleanup view manager. (8f702ed1d9ae69dfea172ebc5da3af7764a73808 - @patrickkempff)
 - Incorrect Flow types. (ba447531ace686d52178d943e9d5337d2fc74da7 - @retyui)
 
