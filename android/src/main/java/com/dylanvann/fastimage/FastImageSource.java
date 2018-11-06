@@ -3,7 +3,6 @@ package com.dylanvann.fastimage;
 import android.content.Context;
 import android.content.res.Resources;
 import android.net.Uri;
-import android.util.Log;
 import android.text.TextUtils;
 
 import com.bumptech.glide.load.model.GlideUrl;
@@ -13,17 +12,27 @@ import com.facebook.react.views.imagehelper.ImageSource;
 import javax.annotation.Nullable;
 
 public class FastImageSource extends ImageSource {
+    private static final String DATA_SCHEME = "data";
     private static final String LOCAL_RESOURCE_SCHEME = "res";
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
+    private static final String ANDROID_CONTENT_SCHEME = "content";
     private Headers mHeaders;
     private Uri mUri;
 
-    public static boolean isLocalResourceUri (Uri uri) {
+    public static boolean isBase64Uri(Uri uri) {
+        return DATA_SCHEME.equals(uri.getScheme());
+    }
+
+    public static boolean isLocalResourceUri(Uri uri) {
         return LOCAL_RESOURCE_SCHEME.equals(uri.getScheme());
     }
 
-    public static boolean isResourceUri (Uri uri) {
+    public static boolean isResourceUri(Uri uri) {
         return ANDROID_RESOURCE_SCHEME.equals(uri.getScheme());
+    }
+
+    public static boolean isContentUri(Uri uri) {
+        return ANDROID_CONTENT_SCHEME.equals(uri.getScheme());
     }
 
     public FastImageSource(Context context, String source) {
@@ -50,8 +59,30 @@ public class FastImageSource extends ImageSource {
         }
     }
 
-    public boolean isBase64Resource () {
-        return mUri != null && "data".equals(mUri.getScheme());
+
+    public boolean isBase64Resource() {
+        return mUri != null && FastImageSource.isBase64Uri(mUri);
+    }
+
+    public boolean isResource() {
+        return mUri != null && FastImageSource.isResourceUri(mUri);
+    }
+
+    public boolean isContentUri() {
+        return mUri != null && FastImageSource.isContentUri(mUri);
+    }
+
+    public Object getSourceForLoad() {
+        if (isContentUri()) {
+            return getSource();
+        }
+        if (isBase64Resource()) {
+            return getSource();
+        }
+        if (isResource()) {
+            return getUri();
+        }
+        return getGlideUrl();
     }
 
     @Override
