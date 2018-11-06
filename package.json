@@ -1,32 +1,37 @@
 {
-  "name": "react-native-fast-image",
-  "version": "5.0.10",
-  "description": "🚩 FastImage, performant React Native image component.",
-  "keywords": [
-    "cache",
-    "cached",
-    "fastimage",
-    "image",
-    "priority"
+  "_from": "git+https://github.com/shimo-react-native/react-native-fast-image.git#master",
+  "_id": "react-native-fast-image@5.0.10",
+  "_inBundle": false,
+  "_location": "/react-native-fast-image",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "git",
+    "raw": "react-native-fast-image@git+https://github.com/shimo-react-native/react-native-fast-image.git#master",
+    "name": "react-native-fast-image",
+    "escapedName": "react-native-fast-image",
+    "rawSpec": "git+https://github.com/shimo-react-native/react-native-fast-image.git#master",
+    "saveSpec": "git+https://github.com/shimo-react-native/react-native-fast-image.git#master",
+    "fetchSpec": "https://github.com/shimo-react-native/react-native-fast-image.git",
+    "gitCommittish": "master"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
   ],
-  "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
+  "_resolved": "git+https://github.com/shimo-react-native/react-native-fast-image.git#b9632fb45e9ffca659a9a2326401442cf76035d8",
+  "_spec": "react-native-fast-image@git+https://github.com/shimo-react-native/react-native-fast-image.git#master",
+  "_where": "/Users/sohobloo/Documents/Shimo/owl",
+  "author": {
+    "name": "Dylan Vann",
+    "email": "dylan@dylanvann.com",
+    "url": "https://dylanvann.com"
+  },
   "bugs": {
     "url": "https://github.com/DylanVann/react-native-fast-image/issues"
   },
-  "license": "(MIT AND Apache-2.0)",
-  "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
-  },
-  "scripts": {
-    "format": "prettier --write --list-different ./src/*.js",
-    "prepare": "git submodule update --init --recursive",
-    "test": "yarn run format && yarn run test:jest",
-    "test:jest": "jest ./src/*.js"
-  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "🚩 FastImage, performant React Native image component.",
   "devDependencies": {
     "@babel/core": "^7.1.0",
     "babel-jest": "^23.6.0",
@@ -39,9 +44,32 @@
     "react-native": "^0.57.1",
     "react-test-renderer": "16.5.2"
   },
+  "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
+  "keywords": [
+    "cache",
+    "cached",
+    "fastimage",
+    "image",
+    "priority"
+  ],
+  "license": "(MIT AND Apache-2.0)",
+  "main": "src/index.js",
+  "name": "react-native-fast-image",
   "peerDependencies": {
     "prop-types": "*",
     "react": "*",
     "react-native": "*"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DylanVann/react-native-fast-image.git"
+  },
+  "scripts": {
+    "format": "prettier --write --list-different ./src/*.js",
+    "prepare": "git submodule update --init --recursive",
+    "test": "yarn run format && yarn run test:jest",
+    "test:jest": "jest ./src/*.js"
+  },
+  "types": "src/index.d.ts",
+  "version": "5.0.10"
 }
