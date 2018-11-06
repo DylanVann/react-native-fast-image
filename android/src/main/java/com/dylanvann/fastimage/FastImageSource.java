@@ -1,7 +1,9 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.net.Uri;
+import android.text.TextUtils;
 
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
@@ -37,7 +39,6 @@ public class FastImageSource extends ImageSource {
         this(context, source, null);
     }
 
-
     public FastImageSource(Context context, String source, @Nullable Headers headers) {
         this(context, source, 0.0d, 0.0d, headers);
     }
@@ -46,6 +47,10 @@ public class FastImageSource extends ImageSource {
         super(context, source, width, height);
         mHeaders = headers == null ? Headers.DEFAULT : headers;
         mUri = super.getUri();
+
+        if (isResource() && TextUtils.isEmpty(mUri.toString())) {
+            throw new Resources.NotFoundException("Local Resource Not Found. Resource: '" + getSource() + "'.");
+        }
 
         if (isLocalResourceUri(mUri)) {
             // Convert res:/ scheme to android.resource:// so
