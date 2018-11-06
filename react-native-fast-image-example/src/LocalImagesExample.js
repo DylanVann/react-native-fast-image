@@ -41,10 +41,9 @@ class PhotoExample extends Component {
                     response.customButton,
                 )
             } else {
-                const fileUri = `file://${response.path}`
                 const uri = response.uri
                 this.setState({
-                    image: { uri: uri },
+                    image: { uri },
                 })
             }
         })
