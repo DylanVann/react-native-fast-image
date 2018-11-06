@@ -16,7 +16,7 @@ declare namespace FastImage {
         type center = 'center'
     }
         
-    namespace cache {
+    namespace cacheControl {
         type cacheOnly = 'cacheOnly'
         type immutable = 'immutable'
         type web = 'web'
@@ -34,9 +34,9 @@ declare namespace FastImage {
         FastImage.resizeMode.center
 
     export type Cache =
-        FastImage.cache.cacheOnly |
-        FastImage.cache.immutable |
-        FastImage.cache.web
+        FastImage.cacheControl.cacheOnly |
+        FastImage.cacheControl.immutable |
+        FastImage.cacheControl.web
 }
 
 export type FastImageSource = {

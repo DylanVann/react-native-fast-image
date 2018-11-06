@@ -7,9 +7,9 @@
     "start": "nodemon ./index"
   },
   "dependencies": {
-    "body-parser": "^1.17.1",
-    "express": "^4.15.2",
-    "morgan": "^1.8.1",
-    "nodemon": "^1.11.0"
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4",
+    "morgan": "^1.9.1",
+    "nodemon": "^1.18.4"
   }
 }

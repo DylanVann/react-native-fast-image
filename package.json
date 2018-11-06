@@ -33,16 +33,16 @@
   "deprecated": false,
   "description": "🚩 FastImage, performant React Native image component.",
   "devDependencies": {
-    "@babel/core": "^7.1.0",
+    "@babel/core": "^7.1.2",
     "babel-jest": "^23.6.0",
     "jest": "^23.6.0",
-    "metro-react-native-babel-preset": "^0.45.6",
+    "metro-react-native-babel-preset": "0.48.1",
     "prettier": "^1.14.3",
     "prettier-check": "^2.0.0",
     "prop-types": "^15.6.2",
-    "react": "^16.5.2",
-    "react-native": "^0.57.1",
-    "react-test-renderer": "16.5.2"
+    "react": "16.6.0-alpha.8af6728",
+    "react-native": "^0.57.4",
+    "react-test-renderer": "16.6.0-alpha.8af6728"
   },
   "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
   "keywords": [
