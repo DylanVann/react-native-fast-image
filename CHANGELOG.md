@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
 @patrickkempff has done a lot to improve the stability and usefulness of this library in this release 🙏🏻.
 
 ### Changed
