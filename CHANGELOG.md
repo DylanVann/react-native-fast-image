@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+@patrickkempff has done a lot to improve the stability and usefulness of this library in this release 🙏🏻.
+
+### Changed
+- A `Resources.NotFoundException` will now be thrown if a local image cannot be resolved. (7859d5b6d919c6c769bed4901d12b6941b4473bb - @patrickkempff)
+
 ### Fixed
 - Not rendering local images in production builds. (47e36edc24a1990eeb735527ae4ebe6d2dbe61b5 - @patrickkempff)
 - Crash where activity was already destroyed before React Native could cleanup view manager. (8f702ed1d9ae69dfea172ebc5da3af7764a73808 - @patrickkempff)
