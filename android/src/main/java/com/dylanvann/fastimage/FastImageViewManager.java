@@ -101,10 +101,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - res:/
                     //    - android.resource://
                     //    - data:image/png;base64
-                    .load(
-                            imageSource.isBase64Resource() ? imageSource.getSource() :
-                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
-                    )
+                    .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
