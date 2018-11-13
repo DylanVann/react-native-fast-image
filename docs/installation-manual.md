@@ -37,6 +37,32 @@ dependencies {
 }
 ```
 
+If you've defined *[project-wide
+properties](https://developer.android.com/studio/build/gradle-tips.html)*
+(**recommended**) in your root `build.gradle`, this library will detect
+the presence of the following properties:
+
+```groovy
+buildscript {...}
+allprojects {...}
+
+/**
+ + Project-wide Gradle configuration properties
+ */
+ext {
+    compileSdkVersion   = 26
+    targetSdkVersion    = 26
+    minSdkVersion       = 16    
+    buildToolsVersion   = "26.0.3"
+    supportLibVersion   = "27.1.1"  
+
+    // Uncomment the following line to specify your own glide version
+    // glideVersion = "4.7.1"
+}
+```
+
+
+
 * Edit `android/app/src/main/java/.../MainApplication.java`
 
 ```diff
