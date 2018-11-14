@@ -1,6 +1,6 @@
 {
   "name": "react-native-fast-image",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "🚩 FastImage, performant React Native image component.",
   "keywords": [
     "cache",
@@ -28,11 +28,11 @@
     "test:jest": "jest ./src/*.js"
   },
   "devDependencies": {
-    "@babel/core": "^7.1.2",
+    "@babel/core": "^7.1.6",
     "babel-jest": "^23.6.0",
     "jest": "^23.6.0",
     "metro-react-native-babel-preset": "0.48.1",
-    "prettier": "^1.14.3",
+    "prettier": "^1.15.2",
     "prettier-check": "^2.0.0",
     "prop-types": "^15.6.2",
     "react": "16.6.0-alpha.8af6728",

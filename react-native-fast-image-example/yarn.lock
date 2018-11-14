@@ -4977,9 +4977,9 @@ react-native-drawer-layout@1.3.2:
   dependencies:
     react-native-dismiss-keyboard "1.0.0"
 
-react-native-fast-image@../react-native-fast-image-5.0.11.tgz:
-  version "5.0.11"
-  resolved "../react-native-fast-image-5.0.11.tgz#be7123b42e28defa89606400d9264372cd68821c"
+react-native-fast-image@../react-native-fast-image-5.1.0.tgz:
+  version "5.1.0"
+  resolved "../react-native-fast-image-5.1.0.tgz#39ed466915a1e4fdd173f10530a9fdbb979cf937"
 
 react-native-image-picker@^0.27.1:
   version "0.27.1"
