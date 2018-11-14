@@ -6,7 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.1.0]
+## [5.1.1] - 2018-11-13
+
+### Fixed
+
+- URIs using the `file` scheme on Android. (1ea804593b8e3a9bb585ebec36d5484945d31c14 - @tsrkalexandr)
+- `.idea/` being published to npm. (a01f8d596faddb71f5007bb32e2cd5e91a64634c - @retyui)
+- Manual installation docs for Android. (4cdee52a5eb7a9dee69ff770da7b0cf32f571cb4 - @fschindler)
+    - Referencing deprecated `compile` instead of `implementation`.
+    - Using hardcoded `appcompat` version instead of using `rootProject.ext`.
+
+## [5.1.0] - 2018-11-06
 
 @patrickkempff has done a lot to improve the stability and usefulness of this library in this release 🙏🏻.
 
@@ -239,7 +249,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/DylanVann/react-native-fast-image/compare/v5.0.11...HEAD
+[Unreleased]: https://github.com/DylanVann/react-native-fast-image/compare/v5.1.1...HEAD
+[5.1.1]: https://github.com/DylanVann/react-native-fast-image/compare/v5.1.0...v5.1.1
+[5.1.0]: https://github.com/DylanVann/react-native-fast-image/compare/v5.0.11...v5.1.0
 [5.0.11]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.14...v5.0.11
 [4.0.14]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.13...v4.0.14
 [4.0.13]: https://github.com/DylanVann/react-native-fast-image/compare/v4.0.12...v4.0.13
