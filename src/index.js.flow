@@ -1,0 +1,71 @@
+// @flow
+
+import type { ViewProps } from 'react-native/Libraries/Components/View/ViewPropTypes'
+import type { SyntheticEvent } from 'react-native/Libraries/Types/CoreEventTypes'
+
+export type OnLoadEvent = SyntheticEvent<
+    $ReadOnly<{
+        width: number,
+        height: number,
+    }>,
+>
+
+export type OnProgressEvent = SyntheticEvent<
+    $ReadOnly<{|
+        loaded: number,
+        total: number,
+    |}>,
+>
+
+export type ResizeMode = $ReadOnly<{|
+    contain: 'contain',
+    cover: 'cover',
+    stretch: 'stretch',
+    center: 'center',
+|}>
+
+export type Priority = $ReadOnly<{|
+    low: 'low',
+    normal: 'normal',
+    high: 'high',
+|}>
+
+export type CacheControl = $ReadOnly<{|
+    immutable: 'immutable',
+    web: 'web',
+    cacheOnly: 'cacheOnly',
+|}>
+
+export type ResizeModes = $Values<ResizeMode>
+export type Priorities = $Values<Priority>
+export type CacheControls = $Values<CacheControl>
+
+export type PreloadFn = (sources: Array<FastImageSource>) => void
+export type FastImageSource = {
+    uri?: string,
+    headers?: Object,
+    priority?: Priorities,
+    cache?: CacheControls,
+}
+
+export type FastImageProps = $ReadOnly<{|
+    ...ViewProps,
+    onError?: ?() => void,
+    onLoad?: ?(event: OnLoadEvent) => void,
+    onLoadEnd?: ?() => void,
+    onLoadStart?: ?() => void,
+    onProgress?: ?(event: OnProgressEvent) => void,
+
+    source: FastImageSource | number,
+
+    resizeMode?: ?ResizeModes,
+    fallback?: ?boolean,
+    testID?: ?string,
+|}>
+
+declare export default class FastImage extends React$Component<FastImageProps> {
+    static resizeMode: ResizeMode;
+    static priority: Priority;
+    static cacheControl: CacheControl;
+    static preload: PreloadFn;
+}
