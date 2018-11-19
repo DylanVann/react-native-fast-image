@@ -23,7 +23,7 @@
   },
   "scripts": {
     "format": "prettier --write --list-different ./src/*.js",
-    "prepare": "git init && git submodule update --init --recursive",
+    "prepare": "git submodule update --init --recursive",
     "test": "yarn run format && yarn run test:jest",
     "test:jest": "jest ./src/*.js"
   },
