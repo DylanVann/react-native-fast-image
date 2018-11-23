@@ -56,28 +56,6 @@ class FastImageViewConverter {
             }};
 
 
-    static GlideUrl getGlideUrl(ReadableMap source) {
-        final String uriProp = source.getString("uri");
-        // Get the headers prop and add to glideUrl.
-        GlideUrl glideUrl;
-        try {
-            final ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator headersIterator = headersMap.keySetIterator();
-            LazyHeaders.Builder headersBuilder = new LazyHeaders.Builder();
-            while (headersIterator.hasNextKey()) {
-                String key = headersIterator.nextKey();
-                String value = headersMap.getString(key);
-                headersBuilder.addHeader(key, value);
-            }
-            LazyHeaders headers = headersBuilder.build();
-            glideUrl = new GlideUrl(uriProp, headers);
-        } catch (NoSuchKeyException e) {
-            // If there is no headers object.
-            glideUrl = new GlideUrl(uriProp);
-        }
-        return glideUrl;
-    }
-
     // Resolve the source uri to a file path that android understands.
     static FastImageSource getImageSource(Context context, ReadableMap source) {
         return new FastImageSource(context, source.getString("uri"), getHeaders(source));
