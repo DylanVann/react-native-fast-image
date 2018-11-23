@@ -66,7 +66,7 @@ and
 yarn add react-native-fast-image
 
 # Automatic linking. (other linking methods listed below)
-react-native link
+react-native link react-native-fast-image
 ```
 
 ```jsx
@@ -129,9 +129,9 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.cache?: enum`
 
-- `FastImage.priority.immutable` - **(Default)** - Only updates if url changes.
-- `FastImage.priority.web` - Use headers and follow normal caching procedures.
-- `FastImage.priority.cacheOnly` - Only show images from cache, do not make any network requests.
+- `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
+- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures.
+- `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
 
 ---
 

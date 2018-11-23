@@ -1,10 +1,22 @@
 version: 2
 jobs:
-  build:
-    docker:
-      - image: node:9.2.0
-    working_directory: ~/app
-    steps:
-      - checkout
-      - run: yarn
-      - run: yarn test
+    build:
+        docker:
+            - image: 'circleci/node:latest'
+        steps:
+            - checkout
+            - restore_cache:
+                  keys:
+                      - yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+                      - yarn-v1-{{ .Branch }}-
+                      - yarn-v1-
+            - run:
+                  name: install
+                  command: yarn install
+            - run:
+                  name: test
+                  command: yarn run test
+            - save_cache:
+                  paths:
+                      - ~/.cache/yarn
+                  key: yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}

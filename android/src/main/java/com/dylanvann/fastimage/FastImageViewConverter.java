@@ -1,23 +1,34 @@
 package com.dylanvann.fastimage;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.Image;
+import android.net.Uri;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.views.imagehelper.ImageSource;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
@@ -44,6 +55,7 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER);
             }};
 
+
     static GlideUrl getGlideUrl(ReadableMap source) {
         final String uriProp = source.getString("uri");
         // Get the headers prop and add to glideUrl.
@@ -66,6 +78,32 @@ class FastImageViewConverter {
         return glideUrl;
     }
 
+    // Resolve the source uri to a file path that android understands.
+    static FastImageSource getImageSource(Context context, ReadableMap source) {
+        return new FastImageSource(context, source.getString("uri"), getHeaders(source));
+    }
+
+    static Headers getHeaders(ReadableMap source) {
+        Headers headers = Headers.DEFAULT;
+
+        if (source.hasKey("headers")) {
+            ReadableMap headersMap = source.getMap("headers");
+            ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
+            LazyHeaders.Builder builder = new LazyHeaders.Builder();
+
+            while (iterator.hasNextKey()) {
+                String header = iterator.nextKey();
+                String value = headersMap.getString(header);
+
+                builder.addHeader(header, value);
+            }
+
+            headers = builder.build();
+        }
+
+        return headers;
+    }
+
     static RequestOptions getOptions(ReadableMap source) {
         // Get priority.
         final Priority priority = FastImageViewConverter.getPriority(source);
@@ -79,10 +117,13 @@ class FastImageViewConverter {
                 // If using none then OkHttp integration should be used for caching.
                 diskCacheStrategy = DiskCacheStrategy.NONE;
                 skipMemoryCache = true;
+                break;
             case CACHE_ONLY:
                 onlyFromCache = true;
+                break;
             case IMMUTABLE:
                 // Use defaults.
+                break;
         }
         return new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
