@@ -16,6 +16,7 @@ public class FastImageSource extends ImageSource {
     private static final String LOCAL_RESOURCE_SCHEME = "res";
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
     private static final String ANDROID_CONTENT_SCHEME = "content";
+    private static final String LOCAL_FILE_SCHEME = "file";
     private Headers mHeaders;
     private Uri mUri;
 
@@ -33,6 +34,10 @@ public class FastImageSource extends ImageSource {
 
     public static boolean isContentUri(Uri uri) {
         return ANDROID_CONTENT_SCHEME.equals(uri.getScheme());
+    }
+
+    public static boolean isLocalFileUri(Uri uri) {
+        return LOCAL_FILE_SCHEME.equals(uri.getScheme());
     }
 
     public FastImageSource(Context context, String source) {
@@ -68,6 +73,10 @@ public class FastImageSource extends ImageSource {
         return mUri != null && FastImageSource.isResourceUri(mUri);
     }
 
+    public boolean isLocalFile() {
+        return mUri != null && FastImageSource.isLocalFileUri(mUri);
+    }
+
     public boolean isContentUri() {
         return mUri != null && FastImageSource.isContentUri(mUri);
     }
@@ -81,6 +90,9 @@ public class FastImageSource extends ImageSource {
         }
         if (isResource()) {
             return getUri();
+        }
+        if (isLocalFile()) {
+            return getUri().toString();
         }
         return getGlideUrl();
     }
