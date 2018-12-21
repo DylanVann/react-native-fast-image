@@ -116,10 +116,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @Override
     public void onDropViewInstance(FastImageViewWithUrl view) {
-        // This will cancel existing requests.
-        if (requestManager != null) {
-            requestManager.clear(view);
-        }
 
         if (view.glideUrl != null) {
             final String key = view.glideUrl.toString();
