@@ -2,11 +2,16 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -94,7 +99,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         if (requestManager != null) {
-            requestManager
+
+            RequestOptions options = FastImageViewConverter.getOptions(source);
+            if (source.hasKey("placeholderColor")) {
+                String placeholderColor = source.getString("placeholderColor");
+                options.placeholder(new ColorDrawable(Color.parseColor(placeholderColor)));
+            }
+
+            RequestBuilder builder = requestManager
                     // This will make this work for remote and local images. e.g.
                     //    - file:///
                     //    - content://
@@ -102,11 +114,23 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
-                    .apply(FastImageViewConverter.getOptions(source))
-                    .listener(new FastImageRequestListener(key))
-                    .into(view);
+                    .apply(options)
+
+                    .listener(new FastImageRequestListener(key));
+
+            if (source.hasKey("fadeIn")) {
+                boolean fadeIn = source.getBoolean("fadeIn");
+                if (fadeIn) {
+                    builder.transition(DrawableTransitionOptions.withCrossFade());
+
+                }
+            }
+
+            builder.into(view);
+
         }
     }
+
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
