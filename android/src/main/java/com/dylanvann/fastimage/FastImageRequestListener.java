@@ -28,32 +28,32 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         this.key = key;
     }
 
+
+    private static WritableMap mapFromResourceWithPalette(Drawable resource, Palette palette) {
+        WritableNativeMap swatchMap = new WritableNativeMap();
+
+        addHexStringIfSwatchValid(palette.getDominantSwatch(), swatchMap, "dominantSwatch");
+        addHexStringIfSwatchValid(palette.getLightVibrantSwatch(), swatchMap, "lightVibrantSwatch");
+        addHexStringIfSwatchValid(palette.getVibrantSwatch(), swatchMap, "vibrantSwatch");
+        addHexStringIfSwatchValid(palette.getDarkVibrantSwatch(), swatchMap, "darkVibrantSwatch");
+
+        addHexStringIfSwatchValid(palette.getLightMutedSwatch(), swatchMap, "lightMutedSwatch");
+        addHexStringIfSwatchValid(palette.getMutedSwatch(), swatchMap, "mutedSwatch");
+        addHexStringIfSwatchValid(palette.getDarkMutedSwatch(), swatchMap, "darkMutedSwatch");
+
+
+        WritableMap resourceData = mapFromResource(resource);
+
+        resourceData.putMap("swatches", swatchMap);
+
+        return resourceData;
+    }
+
+
     private static WritableMap mapFromResource(Drawable resource) {
         WritableMap resourceData = new WritableNativeMap();
-
         resourceData.putInt("width", resource.getIntrinsicWidth());
         resourceData.putInt("height", resource.getIntrinsicHeight());
-
-        if (resource instanceof BitmapDrawable) {
-            BitmapDrawable bd = (BitmapDrawable) resource;
-            Bitmap bitmap = bd.getBitmap();
-
-            Palette palette = Palette.from(bitmap).generate();
-
-            WritableNativeMap swatchMap = new WritableNativeMap();
-            
-            addHexStringIfSwatchValid(palette.getDominantSwatch(), swatchMap, "dominantSwatch");
-            addHexStringIfSwatchValid(palette.getLightVibrantSwatch(), swatchMap, "lightVibrantSwatch");
-            addHexStringIfSwatchValid(palette.getVibrantSwatch(), swatchMap, "vibrantSwatch");
-            addHexStringIfSwatchValid(palette.getDarkVibrantSwatch(), swatchMap, "darkVibrantSwatch");
-
-            addHexStringIfSwatchValid(palette.getLightMutedSwatch(), swatchMap, "lightMutedSwatch");
-            addHexStringIfSwatchValid(palette.getMutedSwatch(), swatchMap, "mutedSwatch");
-            addHexStringIfSwatchValid(palette.getDarkMutedSwatch(), swatchMap, "darkMutedSwatch");
-
-            resourceData.putMap("swatches", swatchMap);
-        }
-
 
         return resourceData;
     }
@@ -102,15 +102,29 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     }
 
     @Override
-    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+    public boolean onResourceReady(final Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
         if (!(target instanceof ImageViewTarget)) {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         ThemedReactContext context = (ThemedReactContext) view.getContext();
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
+        final RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+        final int viewId = view.getId();
+
+
+        if (resource instanceof BitmapDrawable) {
+            BitmapDrawable bd = (BitmapDrawable) resource;
+            Bitmap bitmap = bd.getBitmap();
+            Palette.from(bitmap).generate(new Palette.PaletteAsyncListener() {
+                public void onGenerated(Palette palette) {
+                    eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResourceWithPalette(resource, palette));
+                }
+            });
+        } else {
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
+        }
+
+
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
         return false;
     }
