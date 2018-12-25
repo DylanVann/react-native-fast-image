@@ -41,7 +41,8 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             Palette palette = Palette.from(bitmap).generate();
 
             WritableNativeMap swatchMap = new WritableNativeMap();
-
+            
+            addHexStringIfSwatchValid(palette.getDominantSwatch(), swatchMap, "dominantSwatch");
             addHexStringIfSwatchValid(palette.getLightVibrantSwatch(), swatchMap, "lightVibrantSwatch");
             addHexStringIfSwatchValid(palette.getVibrantSwatch(), swatchMap, "vibrantSwatch");
             addHexStringIfSwatchValid(palette.getDarkVibrantSwatch(), swatchMap, "darkVibrantSwatch");
