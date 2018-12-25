@@ -1,13 +1,18 @@
 package com.dylanvann.fastimage;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.support.v7.graphics.Palette;
 
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
@@ -25,9 +30,59 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
 
     private static WritableMap mapFromResource(Drawable resource) {
         WritableMap resourceData = new WritableNativeMap();
+
         resourceData.putInt("width", resource.getIntrinsicWidth());
         resourceData.putInt("height", resource.getIntrinsicHeight());
+
+        if (resource instanceof BitmapDrawable) {
+            BitmapDrawable bd = (BitmapDrawable) resource;
+            Bitmap bitmap = bd.getBitmap();
+
+            Palette palette = Palette.from(bitmap).generate();
+
+            WritableNativeMap swatchMap = new WritableNativeMap();
+
+            addHexStringIfSwatchValid(palette.getLightVibrantSwatch(), swatchMap, "lightVibrantSwatch");
+            addHexStringIfSwatchValid(palette.getVibrantSwatch(), swatchMap, "vibrantSwatch");
+            addHexStringIfSwatchValid(palette.getDarkVibrantSwatch(), swatchMap, "darkVibrantSwatch");
+
+            addHexStringIfSwatchValid(palette.getLightMutedSwatch(), swatchMap, "lightMutedSwatch");
+            addHexStringIfSwatchValid(palette.getMutedSwatch(), swatchMap, "mutedSwatch");
+            addHexStringIfSwatchValid(palette.getDarkMutedSwatch(), swatchMap, "darkMutedSwatch");
+
+            resourceData.putMap("swatches", swatchMap);
+        }
+
+
         return resourceData;
+    }
+
+
+    private static void addHexStringIfSwatchValid(Palette.Swatch swatch, WritableMap map, String key) {
+        if (swatch != null) {
+
+
+            WritableMap resourceData = new WritableNativeMap();
+            resourceData.putString("rgba", specialRNColorConverter(swatch.getRgb()));
+            resourceData.putString("titleTextColor", specialRNColorConverter(swatch.getTitleTextColor()));
+            resourceData.putString("bodyTextColor", specialRNColorConverter(swatch.getBodyTextColor()));
+
+            WritableArray hslArray = new WritableNativeArray();
+            for (float hslItem : swatch.getHsl()) {
+                hslArray.pushDouble(hslItem);
+            }
+
+            resourceData.putArray("hsl", hslArray);
+
+            map.putMap(key, resourceData);
+        }
+    }
+
+    private static String specialRNColorConverter(int rgb) {
+        String hexValue = Integer.toHexString(rgb);
+        String rgba = hexValue.substring(2) + hexValue.substring(0, 2);
+
+        return new StringBuilder("#").append(rgba).toString();
     }
 
     @Override
