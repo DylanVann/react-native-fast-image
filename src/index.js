@@ -23,6 +23,7 @@ class FastImage extends Component {
         const {
             source,
             resizeMode,
+            tintColor,
             onLoadStart,
             onProgress,
             onLoad,
