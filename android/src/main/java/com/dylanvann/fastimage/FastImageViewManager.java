@@ -6,6 +6,7 @@ import android.os.Build;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -15,7 +16,8 @@ import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
-
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import android.graphics.PorterDuff;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -94,7 +96,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         if (requestManager != null) {
-            requestManager
+            RequestBuilder builder = requestManager
                     // This will make this work for remote and local images. e.g.
                     //    - file:///
                     //    - content://
@@ -104,7 +106,25 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
-                    .into(view);
+
+            if (source.hasKey("fadeIn")) {
+                boolean fadeIn = source.getBoolean("fadeIn");
+                if (fadeIn) {
+                    builder.transition(DrawableTransitionOptions.withCrossFade());
+
+                }
+            }
+
+            builder.into(view);
+        }
+    }
+
+    @ReactProp(name = "tintColor", customType = "Color")
+    public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
+        if (color == null) {
+            view.clearColorFilter();
+        } else {
+            view.setColorFilter(color, PorterDuff.Mode.SRC_IN);
         }
     }
 

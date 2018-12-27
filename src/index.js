@@ -67,6 +67,7 @@ class FastImage extends Component {
                 >
                     <FastImageView
                         {...props}
+                        tintColor={tintColor}
                         style={StyleSheet.absoluteFill}
                         source={resolvedSource}
                         onLoadStart={onLoadStart}
@@ -84,6 +85,7 @@ class FastImage extends Component {
             <View style={[styles.imageContainer, style]} ref={this.captureRef}>
                 <FastImageView
                     {...props}
+                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
                     onFastImageLoadStart={onLoadStart}
@@ -147,6 +149,7 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
     ...ViewPropTypes,
     source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
+    tintColor: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     onLoadStart: PropTypes.func,
     onProgress: PropTypes.func,
     onLoad: PropTypes.func,
