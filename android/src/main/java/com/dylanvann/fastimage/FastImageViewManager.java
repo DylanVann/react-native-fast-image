@@ -105,7 +105,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(source))
-                    .listener(new FastImageRequestListener(key))
+                    .listener(new FastImageRequestListener(key));
 
             if (source.hasKey("fadeIn")) {
                 boolean fadeIn = source.getBoolean("fadeIn");
