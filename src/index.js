@@ -22,8 +22,6 @@ class FastImage extends Component {
     render() {
         const {
             source,
-            resizeMode,
-            tintColor,
             onLoadStart,
             onProgress,
             onLoad,
@@ -48,7 +46,6 @@ class FastImage extends Component {
                         {...props}
                         style={StyleSheet.absoluteFill}
                         source={resolvedSource}
-                        resizeMode={resizeMode}
                         onLoadStart={onLoadStart}
                         onProgress={onProgress}
                         onLoad={onLoad}
@@ -68,7 +65,6 @@ class FastImage extends Component {
                 >
                     <FastImageView
                         {...props}
-                        tintColor={tintColor}
                         style={StyleSheet.absoluteFill}
                         source={resolvedSource}
                         onLoadStart={onLoadStart}
@@ -86,7 +82,6 @@ class FastImage extends Component {
             <View style={[styles.imageContainer, style]} ref={this.captureRef}>
                 <FastImageView
                     {...props}
-                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
                     onFastImageLoadStart={onLoadStart}
