@@ -44,7 +44,7 @@ class FastImage extends Component {
                 >
                     <Image
                         {...props}
-                        style={StyleSheet.absoluteFill}
+                        style={{ width: "100%", height: "100%" }}
                         source={resolvedSource}
                         onLoadStart={onLoadStart}
                         onProgress={onProgress}
