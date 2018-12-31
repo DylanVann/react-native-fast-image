@@ -24,13 +24,13 @@
     "scripts": {
         "build": "exit 0",
         "commit": "git-cz",
-        "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'",
         "format": "yarn prettier --write",
         "lint": "yarn prettier --list-different",
         "prepare": "git submodule update --init --recursive",
         "semantic-release": "semantic-release",
         "test": "yarn run format && yarn run test:jest",
-        "test:jest": "jest ./src/*.js"
+        "test:jest": "jest ./src/*.js",
+        "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'"
     },
     "config": {
         "commitizen": {
@@ -39,6 +39,11 @@
     },
     "devDependencies": {
         "@babel/core": "^7.1.6",
+        "@semantic-release/changelog": "^3.0.2",
+        "@semantic-release/commit-analyzer": "^6.1.0",
+        "@semantic-release/git": "^7.0.7",
+        "@semantic-release/npm": "^5.1.3",
+        "@semantic-release/release-notes-generator": "^7.1.4",
         "babel-jest": "^23.6.0",
         "commitizen": "^3.0.5",
         "cz-conventional-changelog": "^2.1.0",
@@ -56,5 +61,14 @@
         "prop-types": "*",
         "react": "*",
         "react-native": "*"
+    },
+    "release": {
+        "plugins": [
+            "@semantic-release/commit-analyzer",
+            "@semantic-release/release-notes-generator",
+            "@semantic-release/changelog",
+            "@semantic-release/npm",
+            "@semantic-release/git"
+        ]
     }
 }
