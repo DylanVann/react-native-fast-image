@@ -26,7 +26,7 @@ jobs:
             - persist_to_workspace:
                   root: .
                   paths:
-                      - project
+                      - .
     release:
         docker:
             - image: 'circleci/node:latest'
