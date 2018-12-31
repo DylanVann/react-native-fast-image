@@ -49,7 +49,9 @@
         "react": "*",
         "react-native": "*"
     },
-    "czConfig": {
-        "path": "node_modules/cz-conventional-changelog"
+    "config": {
+        "commitizen": {
+            "path": "node_modules/cz-conventional-changelog"
+        }
     }
 }
