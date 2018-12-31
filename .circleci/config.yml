@@ -1,6 +1,6 @@
 version: 2
 jobs:
-    build:
+    build_and_test:
         docker:
             - image: 'circleci/node:latest'
         steps:
@@ -11,12 +11,40 @@ jobs:
                       - yarn-v1-{{ .Branch }}-
                       - yarn-v1-
             - run:
-                  name: install
+                  name: Install
                   command: yarn install
             - run:
-                  name: test
-                  command: yarn run test
+                  name: Build
+                  command: yarn build
+            - run:
+                  name: Test
+                  command: yarn test
             - save_cache:
                   paths:
                       - ~/.cache/yarn
                   key: yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+            - persist_to_workspace:
+                root: .
+                paths:
+                    - project
+    release:
+        docker:
+            - image: 'circleci/node:latest'
+        steps:
+            - checkout
+            - attach_workspace:
+                at: .
+            - run:
+                name: Release
+                command: yarn semantic-release
+
+workflows:
+    version: 2
+    build_test_publish:
+        jobs:
+            - build_and_test
+            - release
+                branches:
+                    only:
+                        - master
+                requires: build_and_test
