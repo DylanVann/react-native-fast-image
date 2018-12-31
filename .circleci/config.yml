@@ -48,4 +48,4 @@ workflows:
                       only:
                           - master
                   requires:
-                      - build_and_test
+                      - build-and-test
