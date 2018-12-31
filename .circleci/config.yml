@@ -43,7 +43,7 @@ workflows:
     build_test_publish:
         jobs:
             - build_and_test
-            - release
+            - release:
                 branches:
                     only:
                         - master
