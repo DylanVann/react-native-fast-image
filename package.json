@@ -22,12 +22,18 @@
     "main": "src/index.js",
     "types": "src/index.d.ts",
     "scripts": {
+        "build": "exit 0",
         "commit": "git-cz",
         "format": "prettier --write --list-different ./src/*.js",
         "prepare": "git submodule update --init --recursive",
         "semantic-release": "semantic-release",
         "test": "yarn run format && yarn run test:jest",
         "test:jest": "jest ./src/*.js"
+    },
+    "config": {
+        "commitizen": {
+            "path": "node_modules/cz-conventional-changelog"
+        }
     },
     "devDependencies": {
         "@babel/core": "^7.1.6",
@@ -48,10 +54,5 @@
         "prop-types": "*",
         "react": "*",
         "react-native": "*"
-    },
-    "config": {
-        "commitizen": {
-            "path": "node_modules/cz-conventional-changelog"
-        }
     }
 }
