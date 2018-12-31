@@ -31,7 +31,6 @@ jobs:
         docker:
             - image: 'circleci/node:latest'
         steps:
-            - checkout
             - attach_workspace:
                   at: .
             - run:
@@ -44,8 +43,8 @@ workflows:
         jobs:
             - build-and-test
             - release:
-                  branches:
-                      only:
-                          - master
-                  requires:
-                      - build-and-test
+                branches:
+                    only:
+                        - master
+                requires:
+                    - build-and-test
