@@ -103,7 +103,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             RequestOptions options = FastImageViewConverter.getOptions(source);
             if (source.hasKey("placeholderColor")) {
                 String placeholderColor = source.getString("placeholderColor");
-                options.placeholder(new ColorDrawable(Color.parseColor(placeholderColor)));
+                ColorDrawable placeholder = null;
+                if(placeholderColor.startsWith("#")){
+                    placeholder = new ColorDrawable(Color.parseColor(placeholderColor));
+                }else{
+                    placeholder = new ColorDrawable(Color.TRANSPARENT);
+                }
+
+                if(placeholder != null){
+                    options.placeholder(placeholder);
+                }
+
             }
 
             RequestBuilder builder = requestManager
