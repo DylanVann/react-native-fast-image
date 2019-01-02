@@ -45,12 +45,7 @@ const FastImageExample = () => (
 
 FastImageExample.navigationOptions = {
     tabBarLabel: 'FastImage Example',
-    tabBarIcon: props => (
-        <Icon
-            name="ios-information-circle"
-            {...props}
-        />
-    ),
+    tabBarIcon: props => <Icon name="ios-information-circle" {...props} />,
 }
 
 const styles = StyleSheet.create({
