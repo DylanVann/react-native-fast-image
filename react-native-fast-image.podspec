@@ -22,5 +22,6 @@ Pod::Spec.new do |s|
   s.dependency 'React'
   s.dependency 'SDWebImage/Core'
   s.dependency 'SDWebImage/GIF'
+  s.dependency 'SDWebImage/WebP'
   s.dependency 'FLAnimatedImage'
 end
