@@ -132,7 +132,7 @@ FastImage.preload = sources => {
 }
 
 FastImage.defaultProps = {
-    resizeMode: FastImage.resizeMode.cover,
+    resizeMode: FastImage.resizeMode.contain,
 }
 
 const FastImageSourcePropType = PropTypes.shape({
