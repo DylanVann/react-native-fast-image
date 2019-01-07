@@ -54,6 +54,31 @@
     }
 }
 
+- (void)setImageColor:(UIColor *)imageColor {
+    if (imageColor != nil) {
+        _imageColor = imageColor;
+        super.image = [self makeImage:super.image withTint:self.imageColor];
+    }
+}
+
+- (UIImage*)makeImage:(UIImage *)image withTint:(UIColor *)color {
+    UIImage *newImage = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
+    [color set];
+    [newImage drawInRect:CGRectMake(0, 0, image.size.width, newImage.size.height)];
+    newImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return newImage;
+}
+
+- (void)setImage:(UIImage *)image {
+    if (self.imageColor != nil) {
+        super.image = [self makeImage:image withTint:self.imageColor];
+    } else {
+        super.image = image;
+    }
+}
+
 - (void)sendOnLoad:(UIImage *)image {
     onLoadEvent = @{
                     @"width":[NSNumber numberWithDouble:image.size.width],

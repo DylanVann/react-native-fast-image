@@ -7,6 +7,7 @@ import {
     requireNativeComponent,
     ViewPropTypes,
     StyleSheet,
+    PixelRatio
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -32,7 +33,29 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const resolvedSource = Image.resolveAssetSource(source)
+        const borderRadiusObject = style && style.borderRadius ? { borderRadius: Math.round(PixelRatio.getPixelSizeForLayoutSize(style.borderRadius)) } : {}
+        const resolvedSource = Image.resolveAssetSource(source instanceof Object ? Object.assign(source, borderRadiusObject) : source)
+
+        if (!(source instanceof Object)) {
+            return (
+                <View
+                    style={[styles.imageContainer, style]}
+                    ref={this.captureRef}
+                >
+                    <Image
+                        {...props}
+                        style={{ width: "100%", height: "100%" }}
+                        source={resolvedSource}
+                        onLoadStart={onLoadStart}
+                        onProgress={onProgress}
+                        onLoad={onLoad}
+                        onError={onError}
+                        onLoadEnd={onLoadEnd}
+                    />
+                    {children}
+                </View>
+            )
+        }
 
         if (fallback) {
             return (
@@ -122,6 +145,7 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
     ...ViewPropTypes,
     source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
+    tintColor: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     onLoadStart: PropTypes.func,
     onProgress: PropTypes.func,
     onLoad: PropTypes.func,
