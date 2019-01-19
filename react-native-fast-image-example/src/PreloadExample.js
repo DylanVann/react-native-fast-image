@@ -12,7 +12,7 @@ const IMAGE_URLS = [
     'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif',
     'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif',
     'https://image.that.always.fails.com',
-];
+]
 
 const Image = createImageProgress(FastImage)
 
@@ -26,7 +26,7 @@ class PreloadExample extends Component {
 
     bustCache = () => {
         this.setState({
-            urls: IMAGE_URLS.map((url) => `${url}?bust=${uuid()}`),
+            urls: IMAGE_URLS.map(url => `${url}?bust=${uuid()}`),
             show: false,
             progress: [0, 0],
             result: [0, 0],
@@ -43,7 +43,7 @@ class PreloadExample extends Component {
 
     preload = () => {
         FastImage.preload(
-            this.state.urls.map((uri) => ({ uri })),
+            this.state.urls.map(uri => ({ uri })),
             this.onProgress,
             this.onComplete,
         )
@@ -53,27 +53,17 @@ class PreloadExample extends Component {
         this.setState({ show: true })
     }
 
-    renderImage = (uri) => {
+    renderImage = uri => {
         return this.state.show ? (
-            <Image
-              key={uri}
-              style={styles.image}
-              source={{ uri }}
-            />
+            <Image key={uri} style={styles.image} source={{ uri }} />
         ) : (
             <View key={uri} style={styles.image} />
-        );
+        )
     }
 
     renderImages = () => {
-        const { urls, show } = this.state;
-        return (
-            <View style={styles.images}>
-                {
-                    urls.map(this.renderImage)
-                }
-            </View>
-        )
+        const { urls, show } = this.state
+        return <View style={styles.images}>{urls.map(this.renderImage)}</View>
     }
 
     render() {
@@ -89,14 +79,17 @@ class PreloadExample extends Component {
                 >
                     {this.renderImages()}
                     <Text>
-                        {`processed: ${this.state.progress[0]} out of ${this.state.progress[1]}`}
+                        {`processed: ${this.state.progress[0]} out of ${
+                            this.state.progress[1]
+                        }`}
                     </Text>
-                    {
-                        !!this.state.result[1] &&
+                    {!!this.state.result[1] && (
                         <Text>
-                          {`completed: skipped ${this.state.result[0]} out of ${this.state.result[1]}`}
+                            {`completed: skipped ${
+                                this.state.result[0]
+                            } out of ${this.state.result[1]}`}
                         </Text>
-                    }
+                    )}
                     <View style={styles.buttons}>
                         <View style={{ flex: 1 }}>
                             <Button text="Bust" onPress={this.bustCache} />

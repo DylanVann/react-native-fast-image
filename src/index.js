@@ -1,14 +1,13 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {
-    requireNativeComponent,
-    StyleSheet,
     View,
+    Image,
+    requireNativeComponent,
     ViewPropTypes,
+    StyleSheet,
 } from 'react-native'
 import preloaderManager from './preloaderManager'
-
-const resolveAssetSource = require('react-native/Libraries/Image/resolveAssetSource')
 
 class FastImage extends Component {
     setNativeProps(nativeProps) {
@@ -31,12 +30,12 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const resolvedSource = resolveAssetSource(source)
+        const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
             return (
                 <View
-                    style={[style, styles.imageContainer]}
+                    style={[styles.imageContainer, style]}
                     ref={this.captureRef}
                 >
                     <FastImageView
@@ -55,7 +54,7 @@ class FastImage extends Component {
         }
 
         return (
-            <View style={[style, styles.imageContainer]} ref={this.captureRef}>
+            <View style={[styles.imageContainer, style]} ref={this.captureRef}>
                 <FastImageView
                     {...props}
                     style={StyleSheet.absoluteFill}

@@ -1,9 +1,14 @@
-import { OnProgressEvent } from './index.d';
+import { OnProgressEvent } from './index.d'
 import * as React from 'react'
-import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyle } from 'react-native'
+import {
+    FlexStyle,
+    LayoutChangeEvent,
+    ShadowStyleIOS,
+    StyleProp,
+    TransformsStyle,
+} from 'react-native'
 
 declare namespace FastImage {
-
     namespace priority {
         type low = 'low'
         type normal = 'normal'
@@ -17,22 +22,34 @@ declare namespace FastImage {
         type center = 'center'
     }
 
+    namespace cacheControl {
+        type cacheOnly = 'cacheOnly'
+        type immutable = 'immutable'
+        type web = 'web'
+    }
+
     export type Priority =
-        FastImage.priority.low |
-        FastImage.priority.normal |
-        FastImage.priority.high
+        | FastImage.priority.low
+        | FastImage.priority.normal
+        | FastImage.priority.high
 
     export type ResizeMode =
-        FastImage.resizeMode.contain |
-        FastImage.resizeMode.cover |
-        FastImage.resizeMode.stretch |
-        FastImage.resizeMode.center
+        | FastImage.resizeMode.contain
+        | FastImage.resizeMode.cover
+        | FastImage.resizeMode.stretch
+        | FastImage.resizeMode.center
+
+    export type Cache =
+        | FastImage.cacheControl.cacheOnly
+        | FastImage.cacheControl.immutable
+        | FastImage.cacheControl.web
 }
 
 export type FastImageSource = {
     uri?: string
-    headers?: {[key: string]: string}
+    headers?: { [key: string]: string }
     priority?: FastImage.Priority
+    cache?: FastImage.Cache
 }
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
@@ -67,6 +84,7 @@ export interface OnProgressEvent {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    fallback?: boolean
 
     onLoadStart?(): void
 
@@ -100,11 +118,11 @@ export interface FastImageProperties {
 }
 
 export interface PreloadProgressHandler {
-    (loaded: number, total: number): void;
+    (loaded: number, total: number): void
 }
 
 export interface PreloadCompletionHandler {
-    (loaded: number, skipped: number): void;
+    (loaded: number, skipped: number): void
 }
 
 interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
@@ -121,6 +139,12 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         high: FastImage.priority.high
     }
 
+    cacheControl: {
+        cacheOnly: FastImage.cacheControl.cacheOnly
+        immutable: FastImage.cacheControl.immutable
+        web: FastImage.cacheControl.web
+    }
+
     preload(
         sources: FastImageSource[],
         onProgress?: PreloadProgressHandler,
@@ -129,6 +153,7 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
 }
 
 declare var FastImage: FastImageStatic
+
 type FastImage = FastImageStatic
 
 export default FastImage
