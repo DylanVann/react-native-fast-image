@@ -144,6 +144,15 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `resizeImageAndroid?: object` (Android Only)
+
+- `width` (required)
+- `height` (required)
+
+You may sometimes encouter [performance issues](https://github.com/DylanVann/react-native-fast-image/issues/285) on Android with very large images being scaled down to a small container. The best solution is to always try and request images with the appropriate size, however if you know the original image dimensions - you can use this property to set a custom `width` and `height` for the image. This will manually scale the image down before loading it into the view - giving you similar performance benefits to how React Native's [`resizeMethod="resize"`](https://facebook.github.io/react-native/docs/image#resizemethod) would work on the default `<Image />` component.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

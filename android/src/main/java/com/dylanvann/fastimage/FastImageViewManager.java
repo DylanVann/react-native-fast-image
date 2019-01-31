@@ -54,6 +54,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        view.source = source;
+
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
@@ -103,6 +105,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(source))
+                    .apply(FastImageViewConverter.getImageResizeOptions(view.imageSizeOverride))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
         }
@@ -112,6 +115,13 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "resizeImageAndroid")
+    public void setImageResize(FastImageViewWithUrl view, ReadableMap imageSizeOverride) {
+        // Re-run Glide with width and height override values set.
+        view.imageSizeOverride = imageSizeOverride;
+        setSrc(view, view.source);
     }
 
     @Override
