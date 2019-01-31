@@ -110,6 +110,18 @@ class FastImageViewConverter {
                 .placeholder(TRANSPARENT_DRAWABLE);
     }
 
+    static RequestOptions getImageResizeOptions(ReadableMap imageSizeOverride) {
+        if (imageSizeOverride != null) {
+            return new RequestOptions().override(
+                imageSizeOverride.getInt("width"),
+                imageSizeOverride.getInt("height")
+            );
+        }
+
+        // No Image Size Override Required
+        return new RequestOptions();
+    }
+
     private static FastImageCacheControl getCacheControl(ReadableMap source) {
         return getValueFromSource("cache", "immutable", FAST_IMAGE_CACHE_CONTROL_MAP, source);
     }
