@@ -24,7 +24,7 @@ export type ResizeMode = $ReadOnly<{|
     center: 'center',
 |}>
 
-export type ImageResizeAndroid = $ReadOnly<{|
+export type ResizeImageAndroid = $ReadOnly<{|
     width: number,
     height: number,
 |}>
@@ -64,7 +64,7 @@ export type FastImageProps = $ReadOnly<{|
     source: FastImageSource | number,
 
     resizeMode?: ?ResizeModes,
-    imageResizeAndroid?: ?ImageResizeAndroid,
+    resizeImageAndroid?: ?ResizeImageAndroid,
     fallback?: ?boolean,
     testID?: ?string,
 |}>
