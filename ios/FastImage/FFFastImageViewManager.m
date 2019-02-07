@@ -19,17 +19,32 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 
-RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
+RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources cacheControl:(FFFCacheControl)cacheControl)
 {
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
-
+    
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
         [urls setObject:source.url atIndexedSubscript:idx];
     }];
-
+    
+    SDWebImageOptions options = SDWebImageLowPriority;
+    
+    switch (cacheControl) {
+        case FFFCacheControlWeb:
+            options |= SDWebImageRefreshCached;
+            break;
+        case FFFCacheControlCacheOnly:
+            options |= SDWebImageCacheMemoryOnly;
+            break;
+        case FFFCacheControlImmutable:
+            break;
+    }
+    
+    [SDWebImagePrefetcher sharedImagePrefetcher].options = options;
+    
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
 }
 
