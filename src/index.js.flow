@@ -1,4 +1,5 @@
 // @flow
+
 import type { ViewProps } from 'react-native/Libraries/Components/View/ViewPropTypes'
 import type { SyntheticEvent } from 'react-native/Libraries/Types/CoreEventTypes'
 
@@ -50,10 +51,10 @@ export type FastImageSource = {
 export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
     onError?: ?() => void,
-    onLoad?: ?(event?: OnLoadEvent) => void,
+    onLoad?: ?(event: OnLoadEvent) => void,
     onLoadEnd?: ?() => void,
     onLoadStart?: ?() => void,
-    onProgress?: ?(event?: OnProgressEvent) => void,
+    onProgress?: ?(event: OnProgressEvent) => void,
 
     source: FastImageSource | number,
 
