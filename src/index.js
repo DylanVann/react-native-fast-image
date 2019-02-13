@@ -12,6 +12,22 @@ import {
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
+    componentDidUpdate(prevProps, prevState) {
+        if (this.props.source === prevProps.source) {
+            return
+        }
+
+        this.setState({
+            loaded: false,
+            error: null,
+        })
+    }
+
+    state = {
+        loaded: false,
+        error: null,
+    }
+
     setNativeProps(nativeProps) {
         this._root.setNativeProps(nativeProps)
     }
@@ -29,9 +45,11 @@ class FastImage extends Component {
             style,
             children,
             fallback,
+            placeholder,
             ...props
         } = this.props
 
+        const { loaded, error } = this.state
         const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
@@ -40,6 +58,7 @@ class FastImage extends Component {
                     style={[styles.imageContainer, style]}
                     ref={this.captureRef}
                 >
+                    {(!loaded || error) && placeholder}
                     <FastImageView
                         {...props}
                         style={StyleSheet.absoluteFill}
@@ -57,6 +76,7 @@ class FastImage extends Component {
 
         return (
             <View style={[styles.imageContainer, style]} ref={this.captureRef}>
+                {(!loaded || error) && placeholder}
                 <FastImageView
                     {...props}
                     style={StyleSheet.absoluteFill}
@@ -64,8 +84,20 @@ class FastImage extends Component {
                     onFastImageLoadStart={onLoadStart}
                     onFastImageProgress={onProgress}
                     onFastImageLoad={onLoad}
-                    onFastImageError={onError}
-                    onFastImageLoadEnd={onLoadEnd}
+                    onFastImageError={data => {
+                        this.setState({
+                            error: true,
+                        })
+
+                        onError(data)
+                    }}
+                    onFastImageLoadEnd={data => {
+                        this.setState({
+                            loaded: true,
+                        })
+
+                        onLoadEnd(data)
+                    }}
                 />
                 {children}
             </View>
@@ -110,6 +142,11 @@ FastImage.preload = sources => {
 
 FastImage.defaultProps = {
     resizeMode: FastImage.resizeMode.cover,
+    onLoadStart: () => {},
+    onProgress: () => {},
+    onLoad: () => {},
+    onError: () => {},
+    onLoadEnd: () => {},
 }
 
 const FastImageSourcePropType = PropTypes.shape({
@@ -128,6 +165,7 @@ FastImage.propTypes = {
     onError: PropTypes.func,
     onLoadEnd: PropTypes.func,
     fallback: PropTypes.bool,
+    placeholder: PropTypes.node,
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
