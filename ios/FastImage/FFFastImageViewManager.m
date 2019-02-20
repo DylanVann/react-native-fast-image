@@ -8,7 +8,7 @@
 RCT_EXPORT_MODULE(FastImageView)
 
 - (FFFastImageView*)view {
-  return [[FFFastImageView alloc] init];
+    return [[FFFastImageView alloc] init];
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
@@ -22,16 +22,15 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 {
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
-
+    
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
         [urls setObject:source.url atIndexedSubscript:idx];
     }];
-
+    
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
 }
 
 @end
-

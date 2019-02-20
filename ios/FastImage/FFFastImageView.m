@@ -22,14 +22,14 @@
     }
 }
 
-- (void)setOnFastImageLoadEnd:(RCTBubblingEventBlock)onFastImageLoadEnd {
+- (void)setOnFastImageLoadEnd:(RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
     if (hasCompleted) {
         _onFastImageLoadEnd(@{});
     }
 }
 
-- (void)setOnFastImageLoad:(RCTBubblingEventBlock)onFastImageLoad {
+- (void)setOnFastImageLoad:(RCTDirectEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
     if (hasCompleted) {
         _onFastImageLoad(onLoadEvent);
@@ -43,7 +43,7 @@
     }
 }
 
-- (void)setOnFastImageLoadStart:(RCTBubblingEventBlock)onFastImageLoadStart {
+- (void)setOnFastImageLoadStart:(RCTDirectEventBlock)onFastImageLoadStart {
     if (_source && !hasSentOnLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
         onFastImageLoadStart(@{});
