@@ -24,7 +24,7 @@ jobs:
                   command: yarn test --coverage
             - run:
                   name: Upload Test Coverage
-                  command: yarn bash <(curl -s https://codecov.io/bash)
+                  command: bash <(curl -s https://codecov.io/bash)
             - save_cache:
                   paths:
                       - ~/.cache/yarn
