@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.2] - 2018-12-30
+
+### Fixed
+
+-   Fixes cacheControl types. ([#382](https://github.com/DylanVann/react-native-fast-image/issues/382)) ([e13db7d](https://github.com/DylanVann/react-native-fast-image/commit/e13db7d)), closes [#325](https://github.com/DylanVann/react-native-fast-image/issues/325)
+
 ## [5.1.1] - 2018-11-13
 
 ### Fixed
