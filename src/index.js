@@ -33,12 +33,16 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const mergedStyle = Array.isArray(style) ? style.reduce((r, c) => Object.assign(r, c), {}) : style
-        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(mergedStyle.borderRadius || 0))
+        const mergedStyle = Array.isArray(style)
+            ? style.reduce((r, c) => Object.assign(r, c), {})
+            : style
+        const borderRadius = Math.round(
+            PixelRatio.getPixelSizeForLayoutSize(mergedStyle.borderRadius || 0),
+        )
         const resolvedSource = Image.resolveAssetSource(
             source instanceof Object
                 ? Object.assign(source, borderRadius > 0 && { borderRadius })
-                : source
+                : source,
         )
 
         if (fallback) {
