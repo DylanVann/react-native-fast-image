@@ -104,21 +104,19 @@ class FastImageViewConverter {
                 // Use defaults.
                 break;
         }
-        int borderRadius = 0;
-        try {
-            if (source.hasKey("borderRadius")) {
-                borderRadius = source.getInt("borderRadius");
-            }
-        } catch (NoSuchKeyException e) { }
+
         RequestOptions options = new RequestOptions()
-                         .diskCacheStrategy(diskCacheStrategy)
-                         .onlyRetrieveFromCache(onlyFromCache)
-                         .skipMemoryCache(skipMemoryCache)
-                         .priority(priority)
-                         .placeholder(TRANSPARENT_DRAWABLE);
-        if (borderRadius > 0) {
-            options = options.transforms(new CenterCrop(), new RoundedCorners(borderRadius));
+                .diskCacheStrategy(diskCacheStrategy)
+                .onlyRetrieveFromCache(onlyFromCache)
+                .skipMemoryCache(skipMemoryCache)
+                .priority(priority)
+                .placeholder(TRANSPARENT_DRAWABLE);
+
+        if (source.hasKey("borderRadius")) {
+            int borderRadius = source.getInt("borderRadius");
+            options = options.transforms(new CenterCrop(), new RoundedCorners((borderRadius)));
         }
+
         return options;
     }
 

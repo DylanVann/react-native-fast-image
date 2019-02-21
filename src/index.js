@@ -7,7 +7,7 @@ import {
     requireNativeComponent,
     ViewPropTypes,
     StyleSheet,
-    PixelRatio
+    PixelRatio,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -22,7 +22,6 @@ class FastImage extends Component {
     render() {
         const {
             source,
-            resizeMode,
             onLoadStart,
             onProgress,
             onLoad,
@@ -34,30 +33,13 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const borderRadiusObject = style && style.borderRadius ? { borderRadius: Math.round(PixelRatio.getPixelSizeForLayoutSize(style.borderRadius)) } : {}
-        const resolvedSource = Image.resolveAssetSource(source instanceof Object ? Object.assign(source, borderRadiusObject) : source)
-
-        if (!(source instanceof Object)) {
-            return (
-                <View
-                    style={[styles.imageContainer, style]}
-                    ref={this.captureRef}
-                >
-                    <Image
-                        {...props}
-                        style={StyleSheet.absoluteFill}
-                        source={resolvedSource}
-                        resizeMode={resizeMode}
-                        onLoadStart={onLoadStart}
-                        onProgress={onProgress}
-                        onLoad={onLoad}
-                        onError={onError}
-                        onLoadEnd={onLoadEnd}
-                    />
-                    {children}
-                </View>
-            )
-        }
+        const mergedStyle = Array.isArray(style) ? style.reduce((r, c) => Object.assign(r, c), {}) : style
+        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(mergedStyle.borderRadius || 0))
+        const resolvedSource = Image.resolveAssetSource(
+            source instanceof Object
+                ? Object.assign(source, borderRadius > 0 && { borderRadius })
+                : source
+        )
 
         if (fallback) {
             return (
