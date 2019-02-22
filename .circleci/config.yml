@@ -1,6 +1,6 @@
 version: 2
 jobs:
-    build-and-test:
+    build:
         docker:
             - image: 'circleci/node:latest'
         steps:
@@ -14,6 +14,24 @@ jobs:
                   name: Install
                   command: yarn install
             - run:
+                  name: Build
+                  command: npm pack
+            - save_cache:
+                  paths:
+                      - ~/.cache/yarn
+                  key: yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+            - persist_to_workspace:
+                  root: .
+                  paths:
+                      - .
+
+    test-node:
+        docker:
+            - image: 'circleci/node:latest'
+        steps:
+            - attach_workspace:
+                  at: ~/
+            - run:
                   name: Lint
                   command: yarn lint
             - run:
@@ -25,14 +43,28 @@ jobs:
             - run:
                   name: Upload Test Coverage
                   command: bash <(curl -s https://codecov.io/bash) -f coverage/lcov.info
+
+    test-ios:
+        macos:
+            xcode: '10.2.0'
+        working_directory: ~/project
+        steps:
+            - attach_workspace:
+                  at: ~/project
+            - restore_cache:
+                  keys:
+                      - yarn-mac-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+                      - yarn-mac-v1-{{ .Branch }}-
+                      - yarn-mac-v1-
+            - run:
+                  name: Install
+                  command: yarn install
+                  working_directory: react-native-fast-image-example
             - save_cache:
                   paths:
                       - ~/.cache/yarn
-                  key: yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
-            - persist_to_workspace:
-                  root: .
-                  paths:
-                      - .
+                  key: yarn-mac-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+
     release:
         docker:
             - image: 'circleci/node:latest'
@@ -47,11 +79,18 @@ workflows:
     version: 2
     build-test-publish:
         jobs:
-            - build-and-test
+            - build
+            - test-node:
+                  requires:
+                      - build
+            - test-ios:
+                  requires:
+                      - build
             - release:
                   filters:
                       branches:
                           only:
                               - master
                   requires:
-                      - build-and-test
+                      - test-node
+                      - test-ios
