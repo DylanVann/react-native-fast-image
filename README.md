@@ -16,6 +16,9 @@
   <a href="https://circleci.com/gh/DylanVann/react-native-fast-image/tree/master">
     <img src="https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image/master.svg?style=flat-square" alt="CircleCI build status">
   </a>
+  <a href="https://codecov.io/gh/DylanVann/react-native-fast-image">
+    <img src="https://img.shields.io/codecov/c/github/DylanVann/react-native-fast-image.svg?style=flat-square" alt="codecov">
+  </a>
   <a href="https://github.com/DylanVann/react-native-fast-image/blob/master/LICENSE">
     <img src="https://img.shields.io/github/license/DylanVann/react-native-fast-image.svg?style=flat-square" alt="license">
   </a>
