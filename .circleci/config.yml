@@ -21,10 +21,10 @@ jobs:
                   command: yarn build
             - run:
                   name: Test
-                  command: yarn test --coverage
+                  command: yarn test --coverage --coverageReporters lcov
             - run:
                   name: Upload Test Coverage
-                  command: bash <(curl -s https://codecov.io/bash)
+                  command: bash <(curl -s https://codecov.io/bash) -f coverage/lcov.info
             - save_cache:
                   paths:
                       - ~/.cache/yarn

@@ -28,8 +28,7 @@
         "lint": "yarn prettier --list-different",
         "prepare": "git submodule update --init --recursive",
         "semantic-release": "semantic-release",
-        "test": "yarn run format && yarn run test:jest",
-        "test:jest": "jest ./src/*.js",
+        "test": "jest ./src/*.js",
         "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'"
     },
     "config": {
