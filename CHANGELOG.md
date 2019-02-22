@@ -1,3 +1,10 @@
+## [5.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.2...v5.1.3) (2019-02-22)
+
+
+### Bug Fixes
+
+* Fixes WebP rendering on iOS 12. ([#412](https://github.com/DylanVann/react-native-fast-image/issues/412)) ([97630c8](https://github.com/DylanVann/react-native-fast-image/commit/97630c8)), closes [#298](https://github.com/DylanVann/react-native-fast-image/issues/298) [#385](https://github.com/DylanVann/react-native-fast-image/issues/385)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
