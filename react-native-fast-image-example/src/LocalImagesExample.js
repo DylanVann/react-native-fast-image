@@ -6,11 +6,12 @@ import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsImage from './images/fields.jpg'
 import FieldsBase64 from './images/fields.js'
+import FieldsWebP from './images/fields.webp'
 import JellyfishImage from './images/jellyfish.gif'
 import ImagePicker from 'react-native-image-picker'
 import BulletText from './BulletText'
 
-var options = {
+const options = {
     title: 'Select Avatar',
     customButtons: [{ name: 'fb', title: 'Choose Photo from Facebook' }],
     storageOptions: {
@@ -41,9 +42,10 @@ class PhotoExample extends Component {
                     response.customButton,
                 )
             } else {
+                const fileUri = `file://${response.path}`
                 const uri = response.uri
                 this.setState({
-                    image: { uri },
+                    image: { uri: uri },
                 })
             }
         })
@@ -93,6 +95,13 @@ const Base64 = () => (
     </React.Fragment>
 )
 
+const WebP = () => (
+    <React.Fragment>
+        <BulletText>WebP</BulletText>
+        <Image source={FieldsWebP} />
+    </React.Fragment>
+)
+
 const LocalImagesExample = ({ onPressReload, bust }) => (
     <View>
         <Section>
@@ -110,6 +119,9 @@ const LocalImagesExample = ({ onPressReload, bust }) => (
             </Row>
             <Row>
                 <Base64 />
+            </Row>
+            <Row>
+                <WebP />
             </Row>
             <PhotoExample />
         </View>

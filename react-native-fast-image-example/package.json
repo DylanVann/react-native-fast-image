@@ -9,7 +9,7 @@
   "dependencies": {
     "react": "16.6.0-alpha.8af6728",
     "react-native": "0.57.4",
-    "react-native-fast-image": "../react-native-fast-image-5.1.0.tgz",
+    "react-native-fast-image": "../react-native-fast-image-1.0.0-development.tgz",
     "react-native-image-picker": "^0.27.1",
     "react-native-image-progress": "^1.1.1",
     "react-native-status-bar-height": "^2.1.0",
