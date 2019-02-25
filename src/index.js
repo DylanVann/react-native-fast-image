@@ -40,7 +40,7 @@ class FastImage extends Component {
                     style={[styles.imageContainer, style]}
                     ref={this.captureRef}
                 >
-                    <FastImageView
+                    <Image
                         {...props}
                         style={StyleSheet.absoluteFill}
                         source={resolvedSource}

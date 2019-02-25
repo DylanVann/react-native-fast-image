@@ -52,7 +52,7 @@ exports[`Renders Image with fallback prop. 1`] = `
     ]
   }
 >
-  <FastImageView
+  <Image
     resizeMode="cover"
     source={
       Object {
