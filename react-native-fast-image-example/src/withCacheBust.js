@@ -22,7 +22,8 @@ export default BaseComponent => {
         }
     }
 
-    WithCacheBust.displayName = `withCacheBust${BaseComponent.displayName}`
+    WithCacheBust.displayName = `withCacheBust(${BaseComponent.displayName ||
+        BaseComponent.name})`
 
     return WithCacheBust
 }
