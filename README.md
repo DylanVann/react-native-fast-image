@@ -10,7 +10,6 @@ Performant React Native image component.
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
 [![Code Coverage][coverage-badge]][coverage]
-[![MIT License][license-badge]][license]
 
 [![Watch on GitHub][github-watch-badge]][github-watch]
 [![Star on GitHub][github-star-badge]][github-star]
@@ -233,7 +232,7 @@ It also uses Glide and SDWebImage, but didn't have some features I needed (prior
 
 -   FastImage - MIT © [DylanVann](https://github.com/DylanVann)
 -   SDWebImage - `MIT`
--   Glide - `Apache-2.0`
+-   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/license) file for details.
 
 [build-badge]: https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image/master.svg?style=flat-square
 [build]: https://circleci.com/gh/DylanVann/react-native-fast-image/tree/master
@@ -243,8 +242,6 @@ It also uses Glide and SDWebImage, but didn't have some features I needed (prior
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
 [version-badge]: https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square
-[license-badge]: https://img.shields.io/npm/l/react-native-fast-image.svg?style=flat-square
-[license]: https://github.com/dylanvann/react-native-fast-image/blob/master/LICENSE
 [twitter]: https://twitter.com/home?status=Check%20out%20react-native-fast-image%20by%20%40atomarranger%20https%3A//github.com/DylanVann/react-native-fast-image
 [twitter-badge]: https://img.shields.io/twitter/url/https/github.com/DylanVann/react-native-fast-image.svg?style=social
 [github-watch-badge]: https://img.shields.io/github/watchers/dylanvann/react-native-fast-image.svg?style=social
