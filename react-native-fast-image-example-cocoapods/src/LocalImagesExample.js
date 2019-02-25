@@ -7,7 +7,8 @@ import FeatureText from './FeatureText'
 import FieldsImage from './images/fields.jpg'
 import FieldsBase64 from './images/fields.js'
 import FieldsWebP from './images/fields.webp'
-import JellyfishImage from './images/jellyfish.gif'
+import JellyfishGIF from './images/jellyfish.gif'
+import JellyfishWebP from './images/jellyfish.webp'
 import ImagePicker from 'react-native-image-picker'
 import BulletText from './BulletText'
 
@@ -26,6 +27,13 @@ const Image = ({ source, ...p }) => (
 
 const Row = p => <View style={styles.row} {...p} />
 
+const Example = ({ name, source }) => (
+    <Row>
+        <BulletText>{name}</BulletText>
+        <Image source={source} />
+    </Row>
+)
+
 class PhotoExample extends Component {
     state = {}
 
@@ -42,7 +50,6 @@ class PhotoExample extends Component {
                     response.customButton,
                 )
             } else {
-                const fileUri = `file://${response.path}`
                 const uri = response.uri
                 this.setState({
                     image: { uri: uri },
@@ -67,62 +74,18 @@ class PhotoExample extends Component {
     }
 }
 
-const Require = () => (
-    <React.Fragment>
-        <BulletText>require</BulletText>
-        <Image source={require('./images/fields.jpg')} />
-    </React.Fragment>
-)
-
-const Import = () => (
-    <React.Fragment>
-        <BulletText>import</BulletText>
-        <Image source={FieldsImage} />
-    </React.Fragment>
-)
-
-const GIF = () => (
-    <React.Fragment>
-        <BulletText>gif</BulletText>
-        <Image source={JellyfishImage} />
-    </React.Fragment>
-)
-
-const Base64 = () => (
-    <React.Fragment>
-        <BulletText>base64</BulletText>
-        <Image source={{ uri: FieldsBase64 }} />
-    </React.Fragment>
-)
-
-const WebP = () => (
-    <React.Fragment>
-        <BulletText>WebP</BulletText>
-        <Image source={FieldsWebP} />
-    </React.Fragment>
-)
-
-const LocalImagesExample = ({ onPressReload, bust }) => (
+const LocalImagesExample = () => (
     <View>
         <Section>
             <FeatureText>• Local images.</FeatureText>
         </Section>
         <View style={styles.container}>
-            <Row>
-                <Require />
-            </Row>
-            <Row>
-                <Import />
-            </Row>
-            <Row>
-                <GIF />
-            </Row>
-            <Row>
-                <Base64 />
-            </Row>
-            <Row>
-                <WebP />
-            </Row>
+            <Example name="Require" source={require('./images/fields.jpg')} />
+            <Example name="Import" source={FieldsImage} />
+            <Example name="GIF" source={JellyfishGIF} />
+            <Example name="Animated WebP" source={JellyfishWebP} />
+            <Example name="Base64" source={{ uri: FieldsBase64 }} />
+            <Example name="WebP" source={FieldsWebP} />
             <PhotoExample />
         </View>
     </View>
