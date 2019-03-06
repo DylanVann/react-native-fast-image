@@ -24,10 +24,13 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 @property (nonatomic) NSDictionary *headers;
 // cache control mode
 @property (nonatomic) FFFCacheControl cacheControl;
+// omit URL query params for cacheKey
+@property (nonatomic) BOOL cacheOmitURLParams;
 
 - (instancetype)initWithURL:(NSURL *)url
                    priority:(FFFPriority)priority
                     headers:(NSDictionary *)headers
-               cacheControl:(FFFCacheControl)cacheControl;
+               cacheControl:(FFFCacheControl)cacheControl
+		 cacheOmitURLParams:(BOOL)cacheOmitURLParams;
 
 @end

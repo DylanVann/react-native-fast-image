@@ -49,6 +49,7 @@ export type FastImageSource = {
     headers?: { [key: string]: string }
     priority?: FastImage.Priority
     cache?: FastImage.Cache
+    cacheOmitURLParams?: boolean
 }
 
 export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {

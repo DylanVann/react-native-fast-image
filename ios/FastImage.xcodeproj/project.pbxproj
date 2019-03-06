@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FCC6D1391EB3912D0065F944 /* libSDWebImage.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage.a */; };
+		ED0BC9E3222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.m in Sources */ = {isa = PBXBuildFile; fileRef = ED0BC9E2222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.m */; };
 		FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB25381EA5562700F59778 /* FFFastImageSource.m */; };
 		FCFB25401EA5562700F59778 /* FFFastImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253A1EA5562700F59778 /* FFFastImageView.m */; };
 		FCFB25411EA5562700F59778 /* FFFastImageViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */; };
@@ -80,6 +81,8 @@
 
 /* Begin PBXFileReference section */
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED0BC9E1222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FFFastImageCacheNoParamMapper.h; sourceTree = "<group>"; };
+		ED0BC9E2222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FFFastImageCacheNoParamMapper.m; sourceTree = "<group>"; };
 		FCFB25371EA5562700F59778 /* FFFastImageSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageSource.h; sourceTree = "<group>"; };
 		FCFB25381EA5562700F59778 /* FFFastImageSource.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageSource.m; sourceTree = "<group>"; };
 		FCFB25391EA5562700F59778 /* FFFastImageView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageView.h; sourceTree = "<group>"; };
@@ -149,6 +152,8 @@
 				FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */,
 				FCFB253D1EA5562700F59778 /* RCTConvert+FFFastImage.h */,
 				FCFB253E1EA5562700F59778 /* RCTConvert+FFFastImage.m */,
+				ED0BC9E1222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.h */,
+				ED0BC9E2222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.m */,
 			);
 			path = FastImage;
 			sourceTree = "<group>";
@@ -265,6 +270,7 @@
 				FCFB25421EA5562700F59778 /* RCTConvert+FFFastImage.m in Sources */,
 				FCFB25401EA5562700F59778 /* FFFastImageView.m in Sources */,
 				FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */,
+				ED0BC9E3222FBF9600663CC6 /* FFFastImageCacheNoParamMapper.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
