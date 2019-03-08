@@ -203,6 +203,8 @@ interface FastImageStaticProperties {
     priority: typeof priority
     cacheControl: typeof cacheControl
     preload: (sources: Source[]) => void
+    clearMemoryCache: () => Promise<void>
+    clearDiskCache: () => Promise<void>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -216,6 +218,10 @@ FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
     FastImageViewNativeModule.preload(sources)
+
+FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+
+FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
