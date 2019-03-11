@@ -36,3 +36,17 @@ test('Renders a normal Image when not passed a uri.', () => {
 
     expect(tree).toMatchSnapshot()
 })
+
+test('Renders Image with fallback prop.', () => {
+    const tree = renderer
+        .create(
+            <FastImage
+                source={require('../react-native-fast-image-example-server/pictures/jellyfish.gif')}
+                style={style.image}
+                fallback
+            />,
+        )
+        .toJSON()
+
+    expect(tree).toMatchSnapshot()
+})
