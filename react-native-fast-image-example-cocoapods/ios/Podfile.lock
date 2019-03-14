@@ -7,13 +7,38 @@ PODS:
     - DoubleConversion
     - glog
   - glog (0.3.5)
+  - libwebp (0.6.1):
+    - libwebp/core (= 0.6.1)
+    - libwebp/dec (= 0.6.1)
+    - libwebp/demux (= 0.6.1)
+    - libwebp/dsp (= 0.6.1)
+    - libwebp/enc (= 0.6.1)
+    - libwebp/mux (= 0.6.1)
+    - libwebp/utils (= 0.6.1)
+    - libwebp/webp (= 0.6.1)
+  - libwebp/core (0.6.1):
+    - libwebp/webp
+  - libwebp/dec (0.6.1):
+    - libwebp/core
+  - libwebp/demux (0.6.1):
+    - libwebp/core
+  - libwebp/dsp (0.6.1):
+    - libwebp/core
+  - libwebp/enc (0.6.1):
+    - libwebp/core
+  - libwebp/mux (0.6.1):
+    - libwebp/core
+  - libwebp/utils (0.6.1):
+    - libwebp/core
+  - libwebp/webp (0.6.1)
   - React (0.57.3):
     - React/Core (= 0.57.3)
-  - react-native-fast-image (5.0.10):
+  - react-native-fast-image (1.0.0-development):
     - FLAnimatedImage
     - React
     - SDWebImage/Core
     - SDWebImage/GIF
+    - SDWebImage/WebP
   - react-native-image-picker (0.27.1):
     - React
   - React/Core (0.57.3):
@@ -53,9 +78,12 @@ PODS:
     - React/RCTBlob
   - RNVectorIcons (6.0.2):
     - React
-  - SDWebImage/Core (4.4.2)
-  - SDWebImage/GIF (4.4.2):
+  - SDWebImage/Core (4.4.5)
+  - SDWebImage/GIF (4.4.5):
     - FLAnimatedImage (~> 1.0)
+    - SDWebImage/Core
+  - SDWebImage/WebP (4.4.5):
+    - libwebp (~> 0.5)
     - SDWebImage/Core
   - yoga (0.57.3.React)
 
@@ -80,6 +108,7 @@ SPEC REPOS:
   https://github.com/cocoapods/specs.git:
     - boost-for-react-native
     - FLAnimatedImage
+    - libwebp
     - SDWebImage
 
 EXTERNAL SOURCES:
@@ -106,13 +135,14 @@ SPEC CHECKSUMS:
   FLAnimatedImage: 4a0b56255d9b05f18b6dd7ee06871be5d3b89e31
   Folly: c89ac2d5c6ab169cd7397ef27485c44f35f742c7
   glog: e8acf0ebbf99759d3ff18c86c292a5898282dcde
-  React: 1fe0eb13d90b625d94c3b117c274dcfd2e760e11
-  react-native-fast-image: cba3d9bf9c2cf8ddb643d887a686c53a5dd90a2c
-  react-native-image-picker: f42de90075c5b1af53417af927631d909a1a746e
-  RNVectorIcons: 8c52e1e8da1153613fdef44748e865c25556cb9c
-  SDWebImage: 624d6e296c69b244bcede364c72ae0430ac14681
-  yoga: b1ce48b6cf950b98deae82838f5173ea7cf89e85
+  libwebp: 0f01098c6c17175391af621b2f14150f3ca16e16
+  React: a197ec4fee34abff321271f5614cabc517faed71
+  react-native-fast-image: 996f6dc73f4b534ed6587513ad448aae5a48ccbe
+  react-native-image-picker: 3fac3bf5b8ec802785c884c5bde0239ad8433b34
+  RNVectorIcons: d819334932bcda3332deb3d2c8ea4d069e0b98f9
+  SDWebImage: ecc03494e973b93b80213649d32175f8d2d17d4d
+  yoga: c991dffbcb89c7eee1aadf243b72e48d462ee34a
 
 PODFILE CHECKSUM: 9c1b580892a7e8ba16c3ef11342f53e075ff596a
 
-COCOAPODS: 1.5.3
+COCOAPODS: 1.6.1

@@ -1,3 +1,24 @@
+# [5.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.4...v5.2.0) (2019-02-25)
+
+
+### Features
+
+* Use forwardRef to allow access to ref.measure and others. ([#419](https://github.com/DylanVann/react-native-fast-image/issues/419)) ([2b4fba3](https://github.com/DylanVann/react-native-fast-image/commit/2b4fba3)), closes [#69](https://github.com/DylanVann/react-native-fast-image/issues/69)
+
+## [5.1.4](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.3...v5.1.4) (2019-02-25)
+
+
+### Bug Fixes
+
+* Fix fallback prop not working. ([#420](https://github.com/DylanVann/react-native-fast-image/issues/420)) ([487d410](https://github.com/DylanVann/react-native-fast-image/commit/487d410))
+
+## [5.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.2...v5.1.3) (2019-02-22)
+
+
+### Bug Fixes
+
+* Fixes WebP rendering on iOS 12. ([#412](https://github.com/DylanVann/react-native-fast-image/issues/412)) ([97630c8](https://github.com/DylanVann/react-native-fast-image/commit/97630c8)), closes [#298](https://github.com/DylanVann/react-native-fast-image/issues/298) [#385](https://github.com/DylanVann/react-native-fast-image/issues/385)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image",
-    "version": "0.0.0-development",
+    "version": "5.2.0",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
@@ -25,11 +25,10 @@
         "build": "exit 0",
         "commit": "git-cz",
         "format": "yarn prettier --write",
-        "lint": "yarn prettier --list-different",
+        "lint": "eslint src/**/*.js react-native-fast-image-example/src/**/*.js",
         "prepare": "git submodule update --init --recursive",
         "semantic-release": "semantic-release",
-        "test": "yarn run format && yarn run test:jest",
-        "test:jest": "jest ./src/*.js",
+        "test": "jest ./src/*.js",
         "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'"
     },
     "config": {
@@ -38,29 +37,42 @@
         }
     },
     "devDependencies": {
-        "@babel/core": "^7.1.6",
+        "@babel/core": "^7.3.3",
         "@semantic-release/changelog": "^3.0.2",
         "@semantic-release/commit-analyzer": "^6.1.0",
         "@semantic-release/git": "^7.0.7",
         "@semantic-release/npm": "^5.1.3",
         "@semantic-release/release-notes-generator": "^7.1.4",
-        "babel-jest": "^23.6.0",
+        "babel-eslint": "^10.0.1",
+        "babel-jest": "^24.1.0",
         "commitizen": "^3.0.5",
         "cz-conventional-changelog": "^2.1.0",
-        "jest": "^23.6.0",
-        "metro-react-native-babel-preset": "0.48.1",
-        "prettier": "^1.15.3",
+        "eslint": "^5.14.1",
+        "eslint-config-prettier": "^4.0.0",
+        "eslint-plugin-jest": "^22.3.0",
+        "eslint-plugin-prettier": "^3.0.1",
+        "eslint-plugin-react": "^7.12.4",
+        "jest": "^24.1.0",
+        "metro-react-native-babel-preset": "^0.52.0",
+        "prettier": "^1.16.4",
         "prettier-check": "^2.0.0",
         "prop-types": "^15.6.2",
-        "react": "16.6.0-alpha.8af6728",
-        "react-native": "^0.57.4",
-        "react-test-renderer": "16.6.0-alpha.8af6728",
+        "react": "16.8.3",
+        "react-native": "^0.58.5",
+        "react-test-renderer": "16.8.3",
         "semantic-release": "^15.13.2"
     },
     "peerDependencies": {
         "prop-types": "*",
         "react": "*",
         "react-native": "*"
+    },
+    "jest": {
+        "preset": "react-native",
+        "modulePathIgnorePatterns": [
+            "react-native-fast-image-example*",
+            "react-native-fast-image-example-cocoapods*"
+        ]
     },
     "release": {
         "plugins": [
