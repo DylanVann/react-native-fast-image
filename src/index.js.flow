@@ -2,6 +2,7 @@
 
 import type { ViewProps } from 'react-native/Libraries/Components/View/ViewPropTypes'
 import type { SyntheticEvent } from 'react-native/Libraries/Types/CoreEventTypes'
+import type { Node } from 'react';
 
 export type OnLoadEvent = SyntheticEvent<
     $ReadOnly<{
@@ -57,7 +58,8 @@ export type FastImageProps = $ReadOnly<{|
     onProgress?: ?(event: OnProgressEvent) => void,
 
     source: FastImageSource | number,
-
+    placeholder?: Node,
+    
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
     testID?: ?string,

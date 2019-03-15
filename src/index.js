@@ -12,7 +12,7 @@ import {
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
-    componentDidUpdate(prevProps, prevState) {
+    componentDidUpdate(prevProps) {
         if (this.props.source.uri === prevProps.source.uri) {
             return
         }
