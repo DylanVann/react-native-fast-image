@@ -12,20 +12,36 @@ import {
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 class FastImage extends Component {
-    componentDidUpdate(prevProps) {
-        if (this.props.source.uri === prevProps.source.uri) {
-            return
-        }
+    componentDidMount() {
+        this.runTimer()
+    }
 
-        this.setState({
-            loaded: false,
-            error: null,
-        })
+    componentDidUpdate(prevProps) {
+        if (this.props.source.uri !== prevProps.source.uri) {
+            this.setState({
+                loaded: false,
+                error: null,
+                expired: false,
+            })
+
+            this.runTimer()
+        }
+    }
+
+    componentWillUnmount() {
+        clearTimeout(this.timeout)
+    }
+
+    runTimer() {
+        this.timeout = setTimeout(() => {
+            this.setState({ expired: true })
+        }, 1000)
     }
 
     state = {
         loaded: false,
         error: null,
+        expired: false,
     }
 
     setNativeProps(nativeProps) {
@@ -49,7 +65,7 @@ class FastImage extends Component {
             ...props
         } = this.props
 
-        const { loaded, error } = this.state
+        const { expired, loaded, error } = this.state
         const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
@@ -58,7 +74,7 @@ class FastImage extends Component {
                     style={[styles.imageContainer, style]}
                     ref={this.captureRef}
                 >
-                    {(!loaded || error) && placeholder}
+                    {expired && (!loaded || error) && placeholder}
                     <FastImageView
                         {...props}
                         style={StyleSheet.absoluteFill}
@@ -76,7 +92,7 @@ class FastImage extends Component {
 
         return (
             <View style={[styles.imageContainer, style]} ref={this.captureRef}>
-                {(!loaded || error) && placeholder}
+                {expired && (!loaded || error) && placeholder}
                 <FastImageView
                     {...props}
                     style={StyleSheet.absoluteFill}
