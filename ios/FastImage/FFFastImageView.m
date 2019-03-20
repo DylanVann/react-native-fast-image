@@ -14,8 +14,11 @@
     return self;
 }
 
-- (void)setResizeMode:(RCTResizeMode)resizeMode
-{
+- (void)dealloc {
+    [NSNotificationCenter.defaultCenter removeObserver:self];
+}
+
+- (void)setResizeMode:(RCTResizeMode)resizeMode {
     if (_resizeMode != resizeMode) {
         _resizeMode = resizeMode;
         self.contentMode = (UIViewContentMode)resizeMode;
@@ -64,9 +67,19 @@
     }
 }
 
+- (void)imageDidLoadObserver:(NSNotification *)notification {
+    FFFastImageSource *source = notification.object;
+    if (source != nil) {
+        [self sd_setImageWithURL:source.url];
+    }
+}
+
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
+        
+        // Attach a observer to refresh other FFFastImageView instance sharing the same source
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(imageDidLoadObserver:) name:source.url.absoluteString object:nil];
         
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
@@ -165,6 +178,10 @@
                             } else {
                                 hasCompleted = YES;
                                 [self sendOnLoad:image];
+                                
+                                // Alert other FFFastImageView component sharing the same URL
+                                [NSNotificationCenter.defaultCenter postNotificationName:source.url.absoluteString object:source];
+                                
                                 if (_onFastImageLoadEnd) {
                                     _onFastImageLoadEnd(@{});
                                 }
