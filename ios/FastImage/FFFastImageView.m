@@ -68,8 +68,8 @@
                          @"width":[NSNumber numberWithDouble:image.size.width],
                          @"height":[NSNumber numberWithDouble:image.size.height]
                          };
-    if (_onFastImageLoad) {
-        _onFastImageLoad(self.onLoadEvent);
+    if (self.onFastImageLoad) {
+        self.onFastImageLoad(self.onLoadEvent);
     }
 }
 
@@ -186,7 +186,7 @@
                                 NSTimeInterval delayInSeconds = (retry + 1) * 5.0; // will retry after 0.5, 1.0 or 1.5 seconds
                                 dispatch_time_t trigger = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
                                 dispatch_after(trigger, dispatch_get_main_queue(), ^{
-                                    [weakSelf downloadImage:_source options:options retry:retry + 1];
+                                    [weakSelf downloadImage:source options:options retry:retry + 1];
                                 });
                             }
                         } else {
