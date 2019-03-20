@@ -119,8 +119,7 @@
         }];
         
         // Set priority.
-        SDWebImageOptions options = 0;
-        options |= SDWebImageRetryFailed;
+        SDWebImageOptions options = SDWebImageRetryFailed; // Auto-retry to download if failed
         switch (_source.priority) {
             case FFFPriorityLow:
                 options |= SDWebImageLowPriority;
