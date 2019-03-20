@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React, { forwardRef } from 'react'
 import PropTypes from 'prop-types'
 import {
     View,
@@ -11,15 +11,9 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-class FastImage extends Component {
-    setNativeProps(nativeProps) {
-        this._root.setNativeProps(nativeProps)
-    }
-
-    captureRef = e => (this._root = e)
-
-    render() {
-        const {
+const FastImage = forwardRef(
+    (
+        {
             source,
             tintColor,
             onLoadStart,
@@ -31,17 +25,15 @@ class FastImage extends Component {
             children,
             fallback,
             ...props
-        } = this.props
-
+        },
+        ref,
+    ) => {
         const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
             return (
-                <View
-                    style={[styles.imageContainer, style]}
-                    ref={this.captureRef}
-                >
-                    <FastImageView
+                <View style={[styles.imageContainer, style]} ref={ref}>
+                    <Image
                         {...props}
                         tintColor={tintColor}
                         style={StyleSheet.absoluteFill}
@@ -58,7 +50,7 @@ class FastImage extends Component {
         }
 
         return (
-            <View style={[styles.imageContainer, style]} ref={this.captureRef}>
+            <View style={[styles.imageContainer, style]} ref={ref}>
                 <FastImageView
                     {...props}
                     tintColor={tintColor}
@@ -73,8 +65,10 @@ class FastImage extends Component {
                 {children}
             </View>
         )
-    }
-}
+    },
+)
+
+FastImage.displayName = 'FastImage'
 
 const styles = StyleSheet.create({
     imageContainer: {
