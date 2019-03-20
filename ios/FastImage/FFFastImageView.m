@@ -90,25 +90,25 @@
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix:@"data:image"]) {
-            if (_onFastImageLoadStart) {
-                _onFastImageLoadStart(@{});
+            if (self.onFastImageLoadStart) {
+                self.onFastImageLoadStart(@{});
                 self.hasSentOnLoadStart = YES;
             } {
                 self.hasSentOnLoadStart = NO;
             }
             UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url]];
             [self setImage:image];
-            if (_onFastImageProgress) {
-                _onFastImageProgress(@{
-                                       @"loaded": @(1),
-                                       @"total": @(1)
-                                       });
+            if (self.onFastImageProgress) {
+                self.onFastImageProgress(@{
+                                           @"loaded": @(1),
+                                           @"total": @(1)
+                                           });
             }
             self.hasCompleted = YES;
             [self sendOnLoad:image];
             
-            if (_onFastImageLoadEnd) {
-                _onFastImageLoadEnd(@{});
+            if (self.onFastImageLoadEnd) {
+                self.onFastImageLoadEnd(@{});
             }
             return;
         }
@@ -119,7 +119,7 @@
         }];
         
         // Set priority.
-        SDWebImageOptions options = SDWebImageRetryFailed; // Auto-retry to download if failed
+        SDWebImageOptions options = SDWebImageRetryFailed;
         switch (_source.priority) {
             case FFFPriorityLow:
                 options |= SDWebImageLowPriority;
@@ -143,8 +143,8 @@
                 break;
         }
         
-        if (_onFastImageLoadStart) {
-            _onFastImageLoadStart(@{});
+        if (self.onFastImageLoadStart) {
+            self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
         } {
             self.hasSentOnLoadStart = NO;
@@ -152,49 +152,55 @@
         self.hasCompleted = NO;
         self.hasErrored = NO;
         
-        // Load the new source.
-        // This will work for:
-        //   - https://
-        //   - file:///var/containers/Bundle/Application/50953EA3-CDA8-4367-A595-DE863A012336/ReactNativeFastImageExample.app/assets/src/images/fields.jpg
-        //   - file:///var/containers/Bundle/Application/545685CB-777E-4B07-A956-2D25043BC6EE/ReactNativeFastImageExample.app/assets/src/images/plankton.gif
-        //   - file:///Users/dylan/Library/Developer/CoreSimulator/Devices/61DC182B-3E72-4A18-8908-8A947A63A67F/data/Containers/Data/Application/AFC2A0D2-A1E5-48C1-8447-C42DA9E5299D/Documents/images/E1F1D5FC-88DB-492F-AD33-B35A045D626A.jpg"
-        
-        __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
-        [self sd_setImageWithURL:_source.url
-                placeholderImage:nil
-                         options:options
-                        progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
-                            if (_onFastImageProgress) {
-                                _onFastImageProgress(@{
-                                                       @"loaded": @(receivedSize),
-                                                       @"total": @(expectedSize)
-                                                       });
-                            }
-                        } completed:^(UIImage * _Nullable image,
-                                      NSError * _Nullable error,
-                                      SDImageCacheType cacheType,
-                                      NSURL * _Nullable imageURL) {
-                            if (error) {
+        [self downloadImage:_source options:options retry:0];
+    }
+}
+
+- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options retry:(NSInteger) retry {
+    __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    [self sd_setImageWithURL:_source.url
+            placeholderImage:nil
+                     options:options
+                    progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+                        if (weakSelf.onFastImageProgress) {
+                            weakSelf.onFastImageProgress(@{
+                                                           @"loaded": @(receivedSize),
+                                                           @"total": @(expectedSize)
+                                                           });
+                        }
+                    } completed:^(UIImage * _Nullable image,
+                                  NSError * _Nullable error,
+                                  SDImageCacheType cacheType,
+                                  NSURL * _Nullable imageURL) {
+                        if (error) {
+                            if (retry >= 3) {
                                 weakSelf.hasErrored = YES;
-                                if (_onFastImageError) {
-                                    _onFastImageError(@{});
+                                if (weakSelf.onFastImageError) {
+                                    weakSelf.onFastImageError(@{});
                                 }
-                                if (_onFastImageLoadEnd) {
-                                    _onFastImageLoadEnd(@{});
+                                if (weakSelf.onFastImageLoadEnd) {
+                                    weakSelf.onFastImageLoadEnd(@{});
                                 }
                             } else {
-                                weakSelf.hasCompleted = YES;
-                                [weakSelf sendOnLoad:image];
-                                
-                                // Alert other FFFastImageView component sharing the same URL
-                                [NSNotificationCenter.defaultCenter postNotificationName:source.url.absoluteString object:source];
-                                
-                                if (_onFastImageLoadEnd) {
-                                    _onFastImageLoadEnd(@{});
-                                }
+                                // Auto-retry to download if failed
+                                NSTimeInterval delayInSeconds = (retry + 1) * 5.0; // will retry after 0.5, 1.0 or 1.5 seconds
+                                dispatch_time_t trigger = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+                                dispatch_after(trigger, dispatch_get_main_queue(), ^{
+                                    [weakSelf downloadImage:_source options:options retry:retry + 1];
+                                });
                             }
-                        }];
-    }
+                        } else {
+                            weakSelf.hasCompleted = YES;
+                            [weakSelf sendOnLoad:image];
+                            
+                            // Alert other FFFastImageView component sharing the same URL
+                            [NSNotificationCenter.defaultCenter postNotificationName:source.url.absoluteString object:source];
+                            
+                            if (weakSelf.onFastImageLoadEnd) {
+                                weakSelf.onFastImageLoadEnd(@{});
+                            }
+                        }
+                    }];
 }
 
 @end
