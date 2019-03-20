@@ -1,11 +1,17 @@
 #import "FFFastImageView.h"
 
-@implementation FFFastImageView {
-    BOOL hasSentOnLoadStart;
-    BOOL hasCompleted;
-    BOOL hasErrored;
-    NSDictionary* onLoadEvent;
-}
+
+@interface FFFastImageView()
+
+@property (nonatomic, assign) BOOL hasSentOnLoadStart;
+@property (nonatomic, assign) BOOL hasCompleted;
+@property (nonatomic, assign) BOOL hasErrored;
+
+@property (nonatomic, strong) NSDictionary* onLoadEvent;
+
+@end
+
+@implementation FFFastImageView
 
 - (id) init {
     self = [super init];
@@ -27,43 +33,43 @@
 
 - (void)setOnFastImageLoadEnd:(RCTBubblingEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (hasCompleted) {
+    if (self.hasCompleted) {
         _onFastImageLoadEnd(@{});
     }
 }
 
 - (void)setOnFastImageLoad:(RCTBubblingEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
-    if (hasCompleted) {
-        _onFastImageLoad(onLoadEvent);
+    if (self.hasCompleted) {
+        _onFastImageLoad(self.onLoadEvent);
     }
 }
 
 - (void)setOnFastImageError:(RCTDirectEventBlock)onFastImageError {
     _onFastImageError = onFastImageError;
-    if (hasErrored) {
+    if (self.hasErrored) {
         _onFastImageError(@{});
     }
 }
 
 - (void)setOnFastImageLoadStart:(RCTBubblingEventBlock)onFastImageLoadStart {
-    if (_source && !hasSentOnLoadStart) {
+    if (_source && !self.hasSentOnLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
         onFastImageLoadStart(@{});
-        hasSentOnLoadStart = YES;
+        self.hasSentOnLoadStart = YES;
     } else {
         _onFastImageLoadStart = onFastImageLoadStart;
-        hasSentOnLoadStart = NO;
+        self.hasSentOnLoadStart = NO;
     }
 }
 
 - (void)sendOnLoad:(UIImage *)image {
-    onLoadEvent = @{
-                    @"width":[NSNumber numberWithDouble:image.size.width],
-                    @"height":[NSNumber numberWithDouble:image.size.height]
-                    };
+    self.onLoadEvent = @{
+                         @"width":[NSNumber numberWithDouble:image.size.width],
+                         @"height":[NSNumber numberWithDouble:image.size.height]
+                         };
     if (_onFastImageLoad) {
-        _onFastImageLoad(onLoadEvent);
+        _onFastImageLoad(self.onLoadEvent);
     }
 }
 
@@ -86,9 +92,9 @@
         if (url && [url hasPrefix:@"data:image"]) {
             if (_onFastImageLoadStart) {
                 _onFastImageLoadStart(@{});
-                hasSentOnLoadStart = YES;
+                self.hasSentOnLoadStart = YES;
             } {
-                hasSentOnLoadStart = NO;
+                self.hasSentOnLoadStart = NO;
             }
             UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url]];
             [self setImage:image];
@@ -98,7 +104,7 @@
                                        @"total": @(1)
                                        });
             }
-            hasCompleted = YES;
+            self.hasCompleted = YES;
             [self sendOnLoad:image];
             
             if (_onFastImageLoadEnd) {
@@ -140,12 +146,12 @@
         
         if (_onFastImageLoadStart) {
             _onFastImageLoadStart(@{});
-            hasSentOnLoadStart = YES;
+            self.hasSentOnLoadStart = YES;
         } {
-            hasSentOnLoadStart = NO;
+            self.hasSentOnLoadStart = NO;
         }
-        hasCompleted = NO;
-        hasErrored = NO;
+        self.hasCompleted = NO;
+        self.hasErrored = NO;
         
         // Load the new source.
         // This will work for:
@@ -153,6 +159,8 @@
         //   - file:///var/containers/Bundle/Application/50953EA3-CDA8-4367-A595-DE863A012336/ReactNativeFastImageExample.app/assets/src/images/fields.jpg
         //   - file:///var/containers/Bundle/Application/545685CB-777E-4B07-A956-2D25043BC6EE/ReactNativeFastImageExample.app/assets/src/images/plankton.gif
         //   - file:///Users/dylan/Library/Developer/CoreSimulator/Devices/61DC182B-3E72-4A18-8908-8A947A63A67F/data/Containers/Data/Application/AFC2A0D2-A1E5-48C1-8447-C42DA9E5299D/Documents/images/E1F1D5FC-88DB-492F-AD33-B35A045D626A.jpg"
+        
+        __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
         [self sd_setImageWithURL:_source.url
                 placeholderImage:nil
                          options:options
@@ -168,7 +176,7 @@
                                       SDImageCacheType cacheType,
                                       NSURL * _Nullable imageURL) {
                             if (error) {
-                                hasErrored = YES;
+                                weakSelf.hasErrored = YES;
                                 if (_onFastImageError) {
                                     _onFastImageError(@{});
                                 }
@@ -176,8 +184,8 @@
                                     _onFastImageLoadEnd(@{});
                                 }
                             } else {
-                                hasCompleted = YES;
-                                [self sendOnLoad:image];
+                                weakSelf.hasCompleted = YES;
+                                [weakSelf sendOnLoad:image];
                                 
                                 // Alert other FFFastImageView component sharing the same URL
                                 [NSNotificationCenter.defaultCenter postNotificationName:source.url.absoluteString object:source];
