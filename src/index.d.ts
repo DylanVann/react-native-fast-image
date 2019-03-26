@@ -1,3 +1,4 @@
+import { OnProgressEvent } from './index.d'
 import * as React from 'react'
 import {
     FlexStyle,
@@ -116,6 +117,14 @@ export interface FastImageProperties {
     testID?: string
 }
 
+export interface PreloadProgressHandler {
+    (loaded: number, total: number): void
+}
+
+export interface PreloadCompletionHandler {
+    (loaded: number, skipped: number): void
+}
+
 interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
     resizeMode: {
         contain: FastImage.resizeMode.contain
@@ -136,7 +145,11 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         web: FastImage.cacheControl.web
     }
 
-    preload(sources: FastImageSource[]): void
+    preload(
+        sources: FastImageSource[],
+        onProgress?: PreloadProgressHandler,
+        onComplete?: PreloadCompletionHandler,
+    ): void
 }
 
 declare var FastImage: FastImageStatic
