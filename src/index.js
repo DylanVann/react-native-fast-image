@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react'
+import React, { PureComponent } from 'react'
 import PropTypes from 'prop-types'
 import {
     View,
@@ -11,9 +11,9 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-const FastImage = forwardRef(
-    (
-        {
+class FastImage extends PureComponent {
+    render() {
+        const {
             source,
             onLoadStart,
             onProgress,
@@ -23,15 +23,15 @@ const FastImage = forwardRef(
             style,
             children,
             fallback,
+            forwardRef,
             ...props
-        },
-        ref,
-    ) => {
+        } = this.props
+
         const resolvedSource = Image.resolveAssetSource(source)
 
         if (fallback) {
             return (
-                <View style={[styles.imageContainer, style]} ref={ref}>
+                <View style={[styles.imageContainer, style]} ref={forwardRef}>
                     <Image
                         {...props}
                         style={StyleSheet.absoluteFill}
@@ -48,7 +48,7 @@ const FastImage = forwardRef(
         }
 
         return (
-            <View style={[styles.imageContainer, style]} ref={ref}>
+            <View style={[styles.imageContainer, style]} ref={forwardRef}>
                 <FastImageView
                     {...props}
                     style={StyleSheet.absoluteFill}
@@ -62,10 +62,8 @@ const FastImage = forwardRef(
                 {children}
             </View>
         )
-    },
-)
-
-FastImage.displayName = 'FastImage'
+    }
+}
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -134,4 +132,4 @@ const FastImageView = requireNativeComponent('FastImageView', FastImage, {
     },
 })
 
-export default FastImage
+export default React.forwardRef((props, ref) => <FastImage {...props} forwardRef={ref} />)
