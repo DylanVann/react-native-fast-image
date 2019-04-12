@@ -105,7 +105,6 @@ class FastImageViewConverter {
         }
         return new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
-                .override(Target.SIZE_ORIGINAL)
                 .onlyRetrieveFromCache(onlyFromCache)
                 .skipMemoryCache(skipMemoryCache)
                 .priority(priority)

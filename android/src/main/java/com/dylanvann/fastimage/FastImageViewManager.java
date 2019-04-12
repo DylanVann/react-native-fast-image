@@ -120,13 +120,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                         public void onResourceReady(@NonNull Drawable resource, @android.support.annotation.Nullable Transition<? super Drawable> transition) {
                             if (resource instanceof BitmapDrawable) {
                                 Bitmap bitmap = ((BitmapDrawable) resource).getBitmap();
+
                                 ThemedReactContext context = (ThemedReactContext) view.getContext();
                                 RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
                                 WritableMap resourceData = new WritableNativeMap();
                                 resourceData.putInt("width", bitmap.getWidth());
                                 resourceData.putInt("height", bitmap.getHeight());
                                 eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, resourceData);
-                                view.setImageBitmap(bitmap);
+                                view.setImageDrawable(resource);
 
                             } else {
                                 view.setImageDrawable(resource);
