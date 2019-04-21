@@ -1,3 +1,10 @@
+## [5.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.0...v5.2.1) (2019-04-21)
+
+
+### Performance Improvements
+
+* Use React.memo for FastImage. ([#449](https://github.com/DylanVann/react-native-fast-image/issues/449)) ([5c2b4af](https://github.com/DylanVann/react-native-fast-image/commit/5c2b4af))
+
 # [5.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.4...v5.2.0) (2019-02-25)
 
 
