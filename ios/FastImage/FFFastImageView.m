@@ -75,7 +75,7 @@
 
 - (void)imageDidLoadObserver:(NSNotification *)notification {
     FFFastImageSource *source = notification.object;
-    if (source != nil) {
+    if (source != nil && source.url != nil) {
         [self sd_setImageWithURL:source.url];
     }
 }
@@ -152,11 +152,11 @@
         self.hasCompleted = NO;
         self.hasErrored = NO;
         
-        [self downloadImage:_source options:options retry:0];
+        [self downloadImage:_source options:options];
     }
 }
 
-- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options retry:(NSInteger) retry {
+- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
@@ -173,22 +173,13 @@
                                   SDImageCacheType cacheType,
                                   NSURL * _Nullable imageURL) {
                         if (error) {
-                            if (retry >= 3) {
-                                weakSelf.hasErrored = YES;
+                            weakSelf.hasErrored = YES;
                                 if (weakSelf.onFastImageError) {
                                     weakSelf.onFastImageError(@{});
                                 }
                                 if (weakSelf.onFastImageLoadEnd) {
                                     weakSelf.onFastImageLoadEnd(@{});
                                 }
-                            } else {
-                                // Auto-retry to download if failed
-                                NSTimeInterval delayInSeconds = (retry + 1) * 5.0; // will retry after 0.5, 1.0 or 1.5 seconds
-                                dispatch_time_t trigger = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
-                                dispatch_after(trigger, dispatch_get_main_queue(), ^{
-                                    [weakSelf downloadImage:source options:options retry:retry + 1];
-                                });
-                            }
                         } else {
                             weakSelf.hasCompleted = YES;
                             [weakSelf sendOnLoad:image];
