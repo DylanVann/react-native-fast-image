@@ -24,6 +24,11 @@ export type ResizeMode = $ReadOnly<{|
     center: 'center',
 |}>
 
+export type ResizeImageAndroid = $ReadOnly<{|
+    width: number,
+    height: number,
+|}>
+
 export type Priority = $ReadOnly<{|
     low: 'low',
     normal: 'normal',
@@ -59,6 +64,7 @@ export type FastImageProps = $ReadOnly<{|
     source: FastImageSource | number,
 
     resizeMode?: ?ResizeModes,
+    resizeImageAndroid?: ?ResizeImageAndroid,
     fallback?: ?boolean,
     testID?: ?string,
 |}>
