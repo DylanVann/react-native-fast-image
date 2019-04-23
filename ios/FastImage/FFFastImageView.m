@@ -123,7 +123,9 @@
                 options |= SDWebImageRefreshCached;
                 break;
             case FFFCacheControlCacheOnly:
-                options |= SDWebImageCacheMemoryOnly;
+                // old version using `SDWebImageFromCacheOnly`
+                // which control the store cache type but not avoiding network
+                options |= SDWebImageFromCacheOnly;
                 break;
             case FFFCacheControlImmutable:
                 break;

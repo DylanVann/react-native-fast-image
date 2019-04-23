@@ -20,8 +20,5 @@ Pod::Spec.new do |s|
   s.exclude_files = "ios/Vendor/**/*.{h,m}"
 
   s.dependency 'React'
-  s.dependency 'SDWebImage/Core'
-  s.dependency 'SDWebImage/GIF'
-  s.dependency 'SDWebImage/WebP'
-  s.dependency 'FLAnimatedImage'
+  s.dependency 'SDWebImage', '~> 5.0'
 end
