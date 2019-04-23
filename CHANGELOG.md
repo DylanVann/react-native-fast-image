@@ -1,3 +1,20 @@
+# [5.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.1...v5.3.0) (2019-04-23)
+
+
+### Bug Fixes
+
+* Fix memory leak on iOS. ([#433](https://github.com/DylanVann/react-native-fast-image/issues/433)) ([70be744](https://github.com/DylanVann/react-native-fast-image/commit/70be744))
+
+
+### Features
+
+* Upgrade example apps. ([#453](https://github.com/DylanVann/react-native-fast-image/issues/453)) ([25f8f0d](https://github.com/DylanVann/react-native-fast-image/commit/25f8f0d))
+
+
+### Reverts
+
+* Remove functionality for notifying other images on load. ([#452](https://github.com/DylanVann/react-native-fast-image/issues/452)) ([292223d](https://github.com/DylanVann/react-native-fast-image/commit/292223d))
+
 ## [5.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.0...v5.2.1) (2019-04-21)
 
 
