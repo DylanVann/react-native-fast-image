@@ -1,6 +1,5 @@
-import React from 'react'
 import { YellowBox } from 'react-native'
-import { createBottomTabNavigator } from 'react-navigation'
+import { createBottomTabNavigator, createAppContainer } from 'react-navigation'
 import FastImageExamples from './FastImageExamples'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
@@ -22,4 +21,4 @@ const App = createBottomTabNavigator({
     },
 })
 
-export default App
+export default createAppContainer(App)
