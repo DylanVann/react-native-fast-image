@@ -2,11 +2,22 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.support.annotation.NonNull;
+import android.util.Log;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.target.SimpleTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -53,7 +64,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     @ReactProp(name = "source")
-    public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+    public void setSrc(final FastImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
@@ -90,7 +101,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
         ThemedReactContext context = (ThemedReactContext) view.getContext();
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
+        final int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         if (requestManager != null) {
@@ -104,7 +115,26 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
-                    .into(view);
+                    .into(new SimpleTarget<Drawable>() {
+                        @Override
+                        public void onResourceReady(@NonNull Drawable resource, @android.support.annotation.Nullable Transition<? super Drawable> transition) {
+                            if (resource instanceof BitmapDrawable) {
+                                Bitmap bitmap = ((BitmapDrawable) resource).getBitmap();
+
+                                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                                WritableMap resourceData = new WritableNativeMap();
+                                resourceData.putInt("width", bitmap.getWidth());
+                                resourceData.putInt("height", bitmap.getHeight());
+                                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, resourceData);
+                                view.setImageDrawable(resource);
+
+                            } else {
+                                view.setImageDrawable(resource);
+                            }
+
+                        }
+                    });
         }
     }
 
