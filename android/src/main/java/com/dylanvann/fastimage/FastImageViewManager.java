@@ -2,6 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.PorterDuff;
 import android.os.Build;
 
 import com.bumptech.glide.Glide;
@@ -105,6 +106,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .apply(FastImageViewConverter.getOptions(source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
+        }
+    }
+
+    @ReactProp(name = "tintColor", customType = "Color")
+    public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
+        if (color == null) {
+            view.clearColorFilter();
+        } else {
+            view.setColorFilter(color, PorterDuff.Mode.SRC_IN);
         }
     }
 
