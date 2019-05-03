@@ -1,3 +1,10 @@
+## [5.4.2](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.1...v5.4.2) (2019-05-03)
+
+
+### Bug Fixes
+
+* Fix dependency versions not specified in podfile. ([89f3379](https://github.com/DylanVann/react-native-fast-image/commit/89f3379)), closes [#456](https://github.com/DylanVann/react-native-fast-image/issues/456)
+
 ## [5.4.1](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.0...v5.4.1) (2019-05-03)
 
 
