@@ -1,3 +1,10 @@
+# [5.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.3.0...v5.4.0) (2019-05-03)
+
+
+### Features
+
+* Add tint color support. ([03c50f0](https://github.com/DylanVann/react-native-fast-image/commit/03c50f0)), closes [#124](https://github.com/DylanVann/react-native-fast-image/issues/124)
+
 # [5.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.1...v5.3.0) (2019-04-23)
 
 
