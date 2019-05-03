@@ -23,14 +23,14 @@ RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 {
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
-    
+
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
         [urls setObject:source.url atIndexedSubscript:idx];
     }];
-    
+
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
 }
 

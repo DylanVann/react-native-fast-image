@@ -94,11 +94,10 @@
     }
 }
 
-
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
-
+        
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix:@"data:image"]) {
@@ -124,12 +123,12 @@
             }
             return;
         }
-
+        
         // Set headers.
         [_source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
-
+        
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed;
         switch (_source.priority) {
@@ -143,7 +142,7 @@
                 options |= SDWebImageHighPriority;
                 break;
         }
-
+        
         switch (_source.cacheControl) {
             case FFFCacheControlWeb:
                 options |= SDWebImageRefreshCached;
@@ -154,6 +153,7 @@
             case FFFCacheControlImmutable:
                 break;
         }
+        
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
@@ -202,3 +202,4 @@
 }
 
 @end
+
