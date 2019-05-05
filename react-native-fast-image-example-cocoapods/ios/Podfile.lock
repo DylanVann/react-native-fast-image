@@ -33,12 +33,12 @@ PODS:
   - libwebp/webp (0.6.1)
   - React (0.59.5):
     - React/Core (= 0.59.5)
-  - react-native-fast-image (5.2.1):
-    - FLAnimatedImage
+  - react-native-fast-image (5.4.0):
+    - FLAnimatedImage (~> 1)
     - React
-    - SDWebImage/Core
-    - SDWebImage/GIF
-    - SDWebImage/WebP
+    - SDWebImage/Core (~> 4)
+    - SDWebImage/GIF (~> 4)
+    - SDWebImage/WebP (~> 4)
   - react-native-image-picker (0.28.1):
     - React
   - React/Core (0.59.5):
@@ -150,7 +150,7 @@ SPEC CHECKSUMS:
   glog: aefd1eb5dda2ab95ba0938556f34b98e2da3a60d
   libwebp: 0f01098c6c17175391af621b2f14150f3ca16e16
   React: 90adac468c7b72bf1fa6c64bf230650f851a8388
-  react-native-fast-image: df6296b6b5e7e7921ea2f43e0be1cd33ce027081
+  react-native-fast-image: 54f5b9f585a31b2f1c1eadd8377eb5ee16d09d3b
   react-native-image-picker: fd93361c666f397bdf72f9c6c23f13d2685b9173
   RNGestureHandler: b65d391f4f570178d657b99a16ec99d09b8656b0
   RNVectorIcons: 6607bd3a30291d0edb56f9bbe7ae411ee2b928b0

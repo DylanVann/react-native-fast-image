@@ -13,6 +13,7 @@ const FastImageViewNativeModule = NativeModules.FastImageView
 
 function FastImageBase({
     source,
+    tintColor,
     onLoadStart,
     onProgress,
     onLoad,
@@ -31,6 +32,7 @@ function FastImageBase({
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
                     {...props}
+                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
                     onLoadStart={onLoadStart}
@@ -48,6 +50,7 @@ function FastImageBase({
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
             <FastImageView
                 {...props}
+                tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 onFastImageLoadStart={onLoadStart}
@@ -118,6 +121,7 @@ const FastImageSourcePropType = PropTypes.shape({
 FastImage.propTypes = {
     ...ViewPropTypes,
     source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
+    tintColor: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     onLoadStart: PropTypes.func,
     onProgress: PropTypes.func,
     onLoad: PropTypes.func,
