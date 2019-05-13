@@ -118,7 +118,7 @@ class FastImageViewConverter {
             // generated at build time. Although these ids are unique, they are not guaranteed unique
             // across builds. The underlying glide implementation caches these resources. To make
             // sure the cache does not return the wrong image, we should clear the cache when the
-            // application version changes. Adding a cache signature for only these local resouces
+            // application version changes. Adding a cache signature for only these local resources
             // solves this issue: https://github.com/DylanVann/react-native-fast-image/issues/402
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
