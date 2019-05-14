@@ -1,9 +1,10 @@
 buildscript {
     repositories {
         jcenter()
+        google()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:2.3.3"
+        classpath 'com.android.tools.build:gradle:3.4.0'
     }
 }
 
@@ -14,12 +15,11 @@ def safeExtGet(prop, fallback) {
 }
 
 def _reactNativeVersion = safeExtGet("reactNative", "+")
-def _compileSdkVersion = safeExtGet("compileSdkVersion", 26)
+def _compileSdkVersion = safeExtGet("compileSdkVersion", 28)
 def _glideVersion = safeExtGet("glideVersion", "4.7.1")
 
 android {
     compileSdkVersion _compileSdkVersion
-    buildToolsVersion safeExtGet("buildToolsVersion", "26.0.3")
 
     sourceSets {
         main {
