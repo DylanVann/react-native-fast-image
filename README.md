@@ -241,6 +241,8 @@ The idea for this modules came from
 package.
 It also uses Glide and SDWebImage, but didn't have some features I needed (priority, headers).
 
+Thanks to @mobinni for helping with the conceptualization
+
 ## Licenses
 
 -   FastImage - MIT © [DylanVann](https://github.com/DylanVann)
