@@ -231,6 +231,8 @@ This simplifies the development and the testing of the project.
 
 If you require new features or bug fixes for older versions you can fork this project.
 
+Thanks to @mobinni for helping with the conceptualization.
+
 ## Credits
 
 The idea for this modules came from
