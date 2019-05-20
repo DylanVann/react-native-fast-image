@@ -99,6 +99,7 @@ If you use Proguard you will need to add these lines to `android/app/proguard-ru
 -keep public enum com.bumptech.glide.load.ImageHeaderParser$** {
   **[] $VALUES;
   public *;
+}
 ```
 
 ## Properties
