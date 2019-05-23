@@ -26,8 +26,6 @@ function FastImageBase({
     forwardedRef,
     ...props
 }) {
-    const resolvedSource = Image.resolveAssetSource(source)
-
     if (fallback || Platform.OS === "web") {
         return (
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -35,7 +33,7 @@ function FastImageBase({
                     {...props}
                     tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
-                    source={resolvedSource}
+                    source={source}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
                     onLoad={onLoad}
@@ -53,7 +51,7 @@ function FastImageBase({
                 {...props}
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
-                source={resolvedSource}
+                source={Image.resolveAssetSource(source)}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}
