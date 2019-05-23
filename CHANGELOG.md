@@ -1,3 +1,17 @@
+# [6.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.2...v6.0.0) (2019-05-08)
+
+
+### Features
+
+* Upgrade to SDWebImage 5.0. ([#454](https://github.com/DylanVann/react-native-fast-image/issues/454)) ([8a216e2](https://github.com/DylanVann/react-native-fast-image/commit/8a216e2)), closes [#447](https://github.com/DylanVann/react-native-fast-image/issues/447)
+
+
+### BREAKING CHANGES
+
+* Upgrade SDWebImage, may affect some projects and CocoaPods users.
+
+Fix the bug of `cacheOnly` behavior
+
 ## [5.4.2](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.1...v5.4.2) (2019-05-03)
 
 
