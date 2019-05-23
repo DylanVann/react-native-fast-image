@@ -7,6 +7,7 @@ import {
     requireNativeComponent,
     ViewPropTypes,
     StyleSheet,
+    Platform
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -27,7 +28,7 @@ function FastImageBase({
 }) {
     const resolvedSource = Image.resolveAssetSource(source)
 
-    if (fallback) {
+    if (fallback || Platform.OS === "web") {
         return (
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
@@ -104,7 +105,9 @@ FastImage.cacheControl = {
 }
 
 FastImage.preload = sources => {
-    FastImageViewNativeModule.preload(sources)
+    if (Platform.OS !== "web") {
+        FastImageViewNativeModule.preload(sources)
+    }
 }
 
 FastImage.defaultProps = {
@@ -130,14 +133,20 @@ FastImage.propTypes = {
     fallback: PropTypes.bool,
 }
 
-const FastImageView = requireNativeComponent('FastImageView', FastImage, {
-    nativeOnly: {
-        onFastImageLoadStart: true,
-        onFastImageProgress: true,
-        onFastImageLoad: true,
-        onFastImageError: true,
-        onFastImageLoadEnd: true,
-    },
-})
+let FastImageView;
+
+if (Platform.OS === "web") {
+    FastImageView = Image
+} else {
+    FastImageView = requireNativeComponent('FastImageView', FastImage, {
+        nativeOnly: {
+            onFastImageLoadStart: true,
+            onFastImageProgress: true,
+            onFastImageLoad: true,
+            onFastImageError: true,
+            onFastImageLoadEnd: true,
+        },
+    })
+}
 
 export default FastImage
