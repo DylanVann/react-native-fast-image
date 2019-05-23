@@ -1,1 +1,5 @@
-ios/Vendor
+/ios/Vendor/
+/react-native-fast-image-example/
+/react-native-fast-image-example-cocoapods/
+node_modules
+coverage
