@@ -1,3 +1,10 @@
+## [6.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.0...v6.0.1) (2019-05-25)
+
+
+### Bug Fixes
+
+* Fix local resource cache issue on Android. ([#472](https://github.com/DylanVann/react-native-fast-image/issues/472)) ([5f65383](https://github.com/DylanVann/react-native-fast-image/commit/5f65383)), closes [#402](https://github.com/DylanVann/react-native-fast-image/issues/402)
+
 # [6.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.2...v6.0.0) (2019-05-08)
 
 
