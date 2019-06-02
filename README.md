@@ -57,6 +57,8 @@ and
 
 ## Usage
 
+**You may want to install version 5 (`yarn add react-native-fast-image@^5`) until [this issue](https://github.com/DylanVann/react-native-fast-image/issues/468) is resolved.**
+
 ```bash
 # Install
 yarn add react-native-fast-image
