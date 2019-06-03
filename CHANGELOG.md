@@ -1,3 +1,10 @@
+## [6.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.2...v6.0.3) (2019-06-03)
+
+
+### Bug Fixes
+
+* Add tintColor type definition. ([4adf42f](https://github.com/DylanVann/react-native-fast-image/commit/4adf42f))
+
 ## [6.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.1...v6.0.2) (2019-06-03)
 
 
