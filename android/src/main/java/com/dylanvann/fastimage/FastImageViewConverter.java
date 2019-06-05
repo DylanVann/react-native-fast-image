@@ -6,6 +6,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.media.Image;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
@@ -15,6 +16,8 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
@@ -57,7 +60,7 @@ class FastImageViewConverter {
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER);
             }};
-    
+
     // Resolve the source uri to a file path that android understands.
     static FastImageSource getImageSource(Context context, ReadableMap source) {
         return new FastImageSource(context, source.getString("uri"), getHeaders(source));
@@ -106,13 +109,21 @@ class FastImageViewConverter {
                 break;
         }
 
+        int borderRadius = 0;
+        try {
+            if (source.hasKey("borderRadius")) {
+                borderRadius = source.getInt("borderRadius");
+            }
+        } catch (NoSuchKeyException e) { }
         RequestOptions options = new RequestOptions()
             .diskCacheStrategy(diskCacheStrategy)
             .onlyRetrieveFromCache(onlyFromCache)
             .skipMemoryCache(skipMemoryCache)
             .priority(priority)
             .placeholder(TRANSPARENT_DRAWABLE);
-        
+        if (borderRadius > 0 && Build.VERSION.SDK_INT == Build.VERSION_CODES.N) {
+            options = options.transforms(new CenterCrop(), new RoundedCorners(borderRadius));
+        }
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
@@ -123,7 +134,7 @@ class FastImageViewConverter {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
-        return options;                
+        return options;
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {
