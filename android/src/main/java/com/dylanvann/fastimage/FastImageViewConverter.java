@@ -109,21 +109,37 @@ class FastImageViewConverter {
                 break;
         }
 
-        int borderRadius = 0;
-        try {
-            if (source.hasKey("borderRadius")) {
-                borderRadius = source.getInt("borderRadius");
-            }
-        } catch (NoSuchKeyException e) { }
         RequestOptions options = new RequestOptions()
             .diskCacheStrategy(diskCacheStrategy)
             .onlyRetrieveFromCache(onlyFromCache)
             .skipMemoryCache(skipMemoryCache)
             .priority(priority)
             .placeholder(TRANSPARENT_DRAWABLE);
-        if (borderRadius > 0 && Build.VERSION.SDK_INT == Build.VERSION_CODES.N) {
-            options = options.transforms(new CenterCrop(), new RoundedCorners(borderRadius));
+
+        // Workaround for Android 7.0 (Nougat) to allow border radius to work.
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.N) {
+            int borderRadius = 0;
+            int width = 0;
+            int height = 0;
+            try {
+                if (source.hasKey("borderRadius")) {
+                    borderRadius = source.getInt("borderRadius");
+                }
+                if (source.hasKey("width")) {
+                    width = source.getInt("width");
+                }
+                if (source.hasKey("height")) {
+                    height = source.getInt("height");
+                }
+            } catch (NoSuchKeyException e) { }
+            if (borderRadius > 0) {
+                if (width > 0 && height > 0) {
+                    options = options.overrideOf(width, height);
+                }
+                options = options.transforms(new CenterCrop(), new RoundedCorners(borderRadius));
+            }
         }
+
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
