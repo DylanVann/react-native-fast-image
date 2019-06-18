@@ -3,7 +3,6 @@ package com.dylanvann.fastimage;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Registry;
@@ -38,9 +37,9 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     @Override
     public void registerComponents(
-            @NonNull Context context,
-            @NonNull Glide glide,
-            @NonNull Registry registry
+            Context context,
+            Glide glide,
+            Registry registry
     ) {
         OkHttpClient client = OkHttpClientProvider
                 .getOkHttpClient()
