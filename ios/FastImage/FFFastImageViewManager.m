@@ -16,6 +16,7 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageProgress, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
+RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
 @end
 
