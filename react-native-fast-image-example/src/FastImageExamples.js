@@ -9,6 +9,7 @@ import FeatureText from './FeatureText'
 import ProgressExample from './ProgressExample'
 import PreloadExample from './PreloadExample'
 import ResizeModeExample from './ResizeModeExample'
+import TintColorExample from './TintColorExample'
 import LocalImagesExample from './LocalImagesExample'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 import AutoSizeExample from './AutoSizeExample'
@@ -35,6 +36,7 @@ const FastImageExample = () => (
                 <ProgressExample />
                 <PreloadExample />
                 <ResizeModeExample />
+                <TintColorExample />
                 <LocalImagesExample />
                 <AutoSizeExample />
             </View>

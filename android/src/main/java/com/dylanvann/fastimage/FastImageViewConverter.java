@@ -16,6 +16,7 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
@@ -29,6 +30,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
+
+import static com.bumptech.glide.request.RequestOptions.signatureOf;
 
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
@@ -81,7 +84,7 @@ class FastImageViewConverter {
         return headers;
     }
 
-    static RequestOptions getOptions(ReadableMap source) {
+    static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source) {
         // Get priority.
         final Priority priority = FastImageViewConverter.getPriority(source);
         // Get cache control method.
@@ -102,12 +105,25 @@ class FastImageViewConverter {
                 // Use defaults.
                 break;
         }
-        return new RequestOptions()
-                .diskCacheStrategy(diskCacheStrategy)
-                .onlyRetrieveFromCache(onlyFromCache)
-                .skipMemoryCache(skipMemoryCache)
-                .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE);
+
+        RequestOptions options = new RequestOptions()
+            .diskCacheStrategy(diskCacheStrategy)
+            .onlyRetrieveFromCache(onlyFromCache)
+            .skipMemoryCache(skipMemoryCache)
+            .priority(priority)
+            .placeholder(TRANSPARENT_DRAWABLE);
+        
+        if (imageSource.isResource()) {
+            // Every local resource (drawable) in Android has its own unique numeric id, which are
+            // generated at build time. Although these ids are unique, they are not guaranteed unique
+            // across builds. The underlying glide implementation caches these resources. To make
+            // sure the cache does not return the wrong image, we should clear the cache when the
+            // application version changes. Adding a cache signature for only these local resources
+            // solves this issue: https://github.com/DylanVann/react-native-fast-image/issues/402
+            options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
+        }
+
+        return options;                
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {

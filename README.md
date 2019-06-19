@@ -94,6 +94,12 @@ If you use Proguard you will need to add these lines to `android/app/proguard-ru
 ```
 -keep public class com.dylanvann.fastimage.* {*;}
 -keep public class com.dylanvann.fastimage.** {*;}
+-keep public class * implements com.bumptech.glide.module.GlideModule
+-keep public class * extends com.bumptech.glide.module.AppGlideModule
+-keep public enum com.bumptech.glide.load.ImageHeaderParser$** {
+  **[] $VALUES;
+  public *;
+}
 ```
 
 ## Properties
@@ -186,6 +192,12 @@ A React Native style. Supports using `borderRadius`.
 If true will fallback to using `Image`.
 In this case the image will still be styled and laid out the same way as `FastImage`.
 
+---
+
+### `tintColor?: number | string`
+
+If supplied, changes the color of all the non-transparent pixels to the given color.
+
 ## Static Methods
 
 ### `FastImage.preload: (source[]) => void`
@@ -220,6 +232,8 @@ This simplifies the development and the testing of the project.
 
 If you require new features or bug fixes for older versions you can fork this project.
 
+Thanks to @mobinni for helping with the conceptualization.
+
 ## Credits
 
 The idea for this modules came from
@@ -227,6 +241,8 @@ The idea for this modules came from
 [react-native-web-image](https://github.com/vovkasm/react-native-web-image)
 package.
 It also uses Glide and SDWebImage, but didn't have some features I needed (priority, headers).
+
+Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptualization
 
 ## Licenses
 
