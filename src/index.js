@@ -103,9 +103,9 @@ FastImage.cacheControl = {
 
 FastImage.preload = (sources, onProgress, onComplete) => {
     if (sources.length)
-        preloaderManager.preload(sources, onProgress, onComplete)
-    else
-        onComplete();
+        return preloaderManager.preload(sources, onProgress, onComplete)
+
+    return onComplete()
 }
 
 FastImage.defaultProps = {
