@@ -192,6 +192,13 @@
                                     weakSelf.onFastImageLoadEnd(@{});
                                 }
                         } else {
+                            CGFloat scale = [UIScreen mainScreen].scale;
+                            
+                            if (scale > 1.0) {
+                                image = [UIImage imageWithCGImage:[image CGImage] scale: scale orientation:UIImageOrientationUp]
+                                [weakSelf setImage:image]
+                            }
+                            
                             weakSelf.hasCompleted = YES;
                             [weakSelf sendOnLoad:image];
                             if (weakSelf.onFastImageLoadEnd) {
