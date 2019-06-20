@@ -31,10 +31,20 @@ android {
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
+-   implementation "com.android.support:appcompat-v7:$
++   implementation "androidx.annotation:annotation:1.0.0"
+    {rootProject.ext.supportLibVersion}"
     implementation "com.facebook.react:react-native:+"  // From node_modules
 +   implementation project(':react-native-fast-image')
+
 }
+```
+* Edit `android/gradle.properties`
+
+Migrating to AndroidX:
+```gradle.properties
+android.useAndroidX=true
+android.enableJetifier=true
 ```
 
 * Edit `android/app/src/main/java/.../MainApplication.java`
