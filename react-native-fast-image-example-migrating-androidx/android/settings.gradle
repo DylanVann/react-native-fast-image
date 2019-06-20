@@ -1,0 +1,5 @@
+rootProject.name = 'androidx'
+include ':react-native-fast-image'
+project(':react-native-fast-image').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-fast-image/android')
+
+include ':app'
