@@ -68,9 +68,9 @@
 
 - (UIImage*)makeImage:(UIImage *)image withTint:(UIColor *)color {
     UIImage *newImage = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
+    UIGraphicsBeginImageContextWithOptions(image.size, NO, 0.0);
     [color set];
-    [newImage drawInRect:CGRectMake(0, 0, image.size.width, newImage.size.height)];
+    [newImage drawInRect:CGRectMake(0, 0, newImage.size.width, newImage.size.height)];
     newImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     return newImage;
@@ -107,7 +107,7 @@
             } {
                 self.hasSentOnLoadStart = NO;
             }
-            UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url]];
+            UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url] scale:[[UIScreen mainScreen] scale]];
             [self setImage:image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
@@ -192,6 +192,13 @@
                                     weakSelf.onFastImageLoadEnd(@{});
                                 }
                         } else {
+                            CGFloat scale = [UIScreen mainScreen].scale;
+                            
+                            if (scale > 1.0) {
+                                image = [UIImage imageWithCGImage:[image CGImage] scale: scale orientation:UIImageOrientationUp];
+                                [weakSelf setImage:image];
+                            }
+                            
                             weakSelf.hasCompleted = YES;
                             [weakSelf sendOnLoad:image];
                             if (weakSelf.onFastImageLoadEnd) {
