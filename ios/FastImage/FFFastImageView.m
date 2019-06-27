@@ -29,7 +29,7 @@
 
 - (void)setOnFastImageLoadEnd:(RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (self.hasCompleted) {
+    if (self.hasCompleted && _onFastImageLoadEnd != NULL) {
         _onFastImageLoadEnd(@{});
     }
 }
