@@ -1,3 +1,10 @@
+## [6.0.5](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.4...v6.0.5) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix incorrect syntax. ([11f6047](https://github.com/DylanVann/react-native-fast-image/commit/11f6047))
+
 ## [6.0.4](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.3...v6.0.4) (2019-06-28)
 
 
