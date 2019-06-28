@@ -1,3 +1,10 @@
+## [6.0.4](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.3...v6.0.4) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix setting props order issue for iOS. ([#303](https://github.com/DylanVann/react-native-fast-image/issues/303)) ([5597ed0](https://github.com/DylanVann/react-native-fast-image/commit/5597ed0)), closes [#304](https://github.com/DylanVann/react-native-fast-image/issues/304)
+
 ## [6.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.2...v6.0.3) (2019-06-03)
 
 
