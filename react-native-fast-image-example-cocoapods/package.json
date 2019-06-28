@@ -6,25 +6,28 @@
     "start": "node node_modules/react-native/local-cli/cli.js start",
     "test": "jest"
   },
+  "jest": {
+    "preset": "react-native"
+  },
   "dependencies": {
-    "react": "16.6.0-alpha.8af6728",
-    "react-native": "0.57.3",
-    "react-native-fast-image": "^5.0.11",
-    "react-native-image-picker": "^0.27.1",
+    "react": "16.8.3",
+    "react-native": "0.59.5",
+    "react-native-fast-image": "^5.2.1",
+    "react-native-gesture-handler": "^1.1.0",
+    "react-native-image-picker": "^0.28.1",
     "react-native-image-progress": "^1.1.1",
     "react-native-status-bar-height": "^2.1.0",
     "react-native-vector-icons": "^6.0.2",
-    "react-navigation": "^2.18.0",
+    "react-navigation": "^3.8.1",
     "react-timeout": "^1.1.2",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "babel-jest": "23.6.0",
-    "jest": "23.6.0",
-    "metro-react-native-babel-preset": "0.48.1",
-    "react-test-renderer": "16.6.0-alpha.8af6728"
-  },
-  "jest": {
-    "preset": "react-native"
+    "@babel/core": "^7.4.3",
+    "@babel/runtime": "^7.4.3",
+    "babel-jest": "^24.7.1",
+    "jest": "^24.7.1",
+    "metro-react-native-babel-preset": "^0.53.1",
+    "react-test-renderer": "16.8.3"
   }
 }

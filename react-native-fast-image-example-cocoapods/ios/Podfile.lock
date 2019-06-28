@@ -2,62 +2,100 @@ PODS:
   - boost-for-react-native (1.63.0)
   - DoubleConversion (1.1.6)
   - FLAnimatedImage (1.0.12)
-  - Folly (2016.10.31.00):
+  - Folly (2018.10.22.00):
     - boost-for-react-native
     - DoubleConversion
     - glog
   - glog (0.3.5)
-  - React (0.57.3):
-    - React/Core (= 0.57.3)
-  - react-native-fast-image (5.0.10):
-    - FLAnimatedImage
+  - libwebp (0.6.1):
+    - libwebp/core (= 0.6.1)
+    - libwebp/dec (= 0.6.1)
+    - libwebp/demux (= 0.6.1)
+    - libwebp/dsp (= 0.6.1)
+    - libwebp/enc (= 0.6.1)
+    - libwebp/mux (= 0.6.1)
+    - libwebp/utils (= 0.6.1)
+    - libwebp/webp (= 0.6.1)
+  - libwebp/core (0.6.1):
+    - libwebp/webp
+  - libwebp/dec (0.6.1):
+    - libwebp/core
+  - libwebp/demux (0.6.1):
+    - libwebp/core
+  - libwebp/dsp (0.6.1):
+    - libwebp/core
+  - libwebp/enc (0.6.1):
+    - libwebp/core
+  - libwebp/mux (0.6.1):
+    - libwebp/core
+  - libwebp/utils (0.6.1):
+    - libwebp/core
+  - libwebp/webp (0.6.1)
+  - React (0.59.5):
+    - React/Core (= 0.59.5)
+  - react-native-fast-image (5.4.0):
+    - FLAnimatedImage (~> 1)
     - React
-    - SDWebImage/Core
-    - SDWebImage/GIF
-  - react-native-image-picker (0.27.1):
+    - SDWebImage/Core (~> 4)
+    - SDWebImage/GIF (~> 4)
+    - SDWebImage/WebP (~> 4)
+  - react-native-image-picker (0.28.1):
     - React
-  - React/Core (0.57.3):
-    - yoga (= 0.57.3.React)
-  - React/CxxBridge (0.57.3):
-    - Folly (= 2016.10.31.00)
+  - React/Core (0.59.5):
+    - yoga (= 0.59.5.React)
+  - React/CxxBridge (0.59.5):
+    - Folly (= 2018.10.22.00)
     - React/Core
     - React/cxxreact
-  - React/cxxreact (0.57.3):
+    - React/jsiexecutor
+  - React/cxxreact (0.59.5):
     - boost-for-react-native (= 1.63.0)
-    - Folly (= 2016.10.31.00)
-    - React/jschelpers
+    - DoubleConversion
+    - Folly (= 2018.10.22.00)
+    - glog
     - React/jsinspector
-  - React/DevSupport (0.57.3):
+  - React/DevSupport (0.59.5):
     - React/Core
     - React/RCTWebSocket
-  - React/fishhook (0.57.3)
-  - React/jschelpers (0.57.3):
-    - Folly (= 2016.10.31.00)
-    - React/PrivateDatabase
-  - React/jsinspector (0.57.3)
-  - React/PrivateDatabase (0.57.3)
-  - React/RCTAnimation (0.57.3):
+  - React/fishhook (0.59.5)
+  - React/jsi (0.59.5):
+    - DoubleConversion
+    - Folly (= 2018.10.22.00)
+    - glog
+  - React/jsiexecutor (0.59.5):
+    - DoubleConversion
+    - Folly (= 2018.10.22.00)
+    - glog
+    - React/cxxreact
+    - React/jsi
+  - React/jsinspector (0.59.5)
+  - React/RCTAnimation (0.59.5):
     - React/Core
-  - React/RCTBlob (0.57.3):
+  - React/RCTBlob (0.59.5):
     - React/Core
-  - React/RCTImage (0.57.3):
+  - React/RCTImage (0.59.5):
     - React/Core
     - React/RCTNetwork
-  - React/RCTNetwork (0.57.3):
+  - React/RCTNetwork (0.59.5):
     - React/Core
-  - React/RCTText (0.57.3):
+  - React/RCTText (0.59.5):
     - React/Core
-  - React/RCTWebSocket (0.57.3):
+  - React/RCTWebSocket (0.59.5):
     - React/Core
     - React/fishhook
     - React/RCTBlob
-  - RNVectorIcons (6.0.2):
+  - RNGestureHandler (1.1.0):
     - React
-  - SDWebImage/Core (4.4.2)
-  - SDWebImage/GIF (4.4.2):
+  - RNVectorIcons (6.4.2):
+    - React
+  - SDWebImage/Core (4.4.5)
+  - SDWebImage/GIF (4.4.5):
     - FLAnimatedImage (~> 1.0)
     - SDWebImage/Core
-  - yoga (0.57.3.React)
+  - SDWebImage/WebP (4.4.5):
+    - libwebp (~> 0.5)
+    - SDWebImage/Core
+  - yoga (0.59.5.React)
 
 DEPENDENCIES:
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
@@ -73,6 +111,7 @@ DEPENDENCIES:
   - React/RCTNetwork (from `../node_modules/react-native`)
   - React/RCTText (from `../node_modules/react-native`)
   - React/RCTWebSocket (from `../node_modules/react-native`)
+  - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -80,6 +119,7 @@ SPEC REPOS:
   https://github.com/cocoapods/specs.git:
     - boost-for-react-native
     - FLAnimatedImage
+    - libwebp
     - SDWebImage
 
 EXTERNAL SOURCES:
@@ -95,6 +135,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-fast-image"
   react-native-image-picker:
     :path: "../node_modules/react-native-image-picker"
+  RNGestureHandler:
+    :path: "../node_modules/react-native-gesture-handler"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
   yoga:
@@ -104,15 +146,17 @@ SPEC CHECKSUMS:
   boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
   DoubleConversion: bb338842f62ab1d708ceb63ec3d999f0f3d98ecd
   FLAnimatedImage: 4a0b56255d9b05f18b6dd7ee06871be5d3b89e31
-  Folly: c89ac2d5c6ab169cd7397ef27485c44f35f742c7
-  glog: e8acf0ebbf99759d3ff18c86c292a5898282dcde
-  React: 1fe0eb13d90b625d94c3b117c274dcfd2e760e11
-  react-native-fast-image: cba3d9bf9c2cf8ddb643d887a686c53a5dd90a2c
-  react-native-image-picker: f42de90075c5b1af53417af927631d909a1a746e
-  RNVectorIcons: 8c52e1e8da1153613fdef44748e865c25556cb9c
-  SDWebImage: 624d6e296c69b244bcede364c72ae0430ac14681
-  yoga: b1ce48b6cf950b98deae82838f5173ea7cf89e85
+  Folly: de497beb10f102453a1afa9edbf8cf8a251890de
+  glog: aefd1eb5dda2ab95ba0938556f34b98e2da3a60d
+  libwebp: 0f01098c6c17175391af621b2f14150f3ca16e16
+  React: 90adac468c7b72bf1fa6c64bf230650f851a8388
+  react-native-fast-image: 54f5b9f585a31b2f1c1eadd8377eb5ee16d09d3b
+  react-native-image-picker: fd93361c666f397bdf72f9c6c23f13d2685b9173
+  RNGestureHandler: b65d391f4f570178d657b99a16ec99d09b8656b0
+  RNVectorIcons: 6607bd3a30291d0edb56f9bbe7ae411ee2b928b0
+  SDWebImage: ecc03494e973b93b80213649d32175f8d2d17d4d
+  yoga: 2e571f113e8cbeb0eb752aeebc86c1bfe7a8200c
 
-PODFILE CHECKSUM: 9c1b580892a7e8ba16c3ef11342f53e075ff596a
+PODFILE CHECKSUM: c92bb16e8db67c58dd8cc5e5937015074c3dd5a2
 
-COCOAPODS: 1.5.3
+COCOAPODS: 1.6.1
