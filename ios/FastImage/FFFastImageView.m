@@ -98,20 +98,20 @@
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
-        needsReload = YES;
+        _needsReload = YES;
     }
 }
 
 - (void)didSetProps:(NSArray<NSString *> *)changedProps
 {
-    if (needsReload) {
+    if (_needsReload) {
         [self reloadImage];
     }
 }
 
 - (void)reloadImage
 {
-    needsReload = NO;
+    _needsReload = NO;
 
     if (_source) {
 
