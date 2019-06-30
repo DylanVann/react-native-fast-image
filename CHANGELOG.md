@@ -1,3 +1,24 @@
+# [6.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.5...v6.1.0) (2019-06-30)
+
+
+### Features
+
+* Add tvOS target. ([#486](https://github.com/DylanVann/react-native-fast-image/issues/486)) ([6805972](https://github.com/DylanVann/react-native-fast-image/commit/6805972))
+
+## [6.0.5](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.4...v6.0.5) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix incorrect syntax. ([11f6047](https://github.com/DylanVann/react-native-fast-image/commit/11f6047))
+
+## [6.0.4](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.3...v6.0.4) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix setting props order issue for iOS. ([#303](https://github.com/DylanVann/react-native-fast-image/issues/303)) ([5597ed0](https://github.com/DylanVann/react-native-fast-image/commit/5597ed0)), closes [#304](https://github.com/DylanVann/react-native-fast-image/issues/304)
+
 ## [6.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.2...v6.0.3) (2019-06-03)
 
 

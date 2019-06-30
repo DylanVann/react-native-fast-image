@@ -1,11 +1,12 @@
 #import "FFFastImageView.h"
 
-
 @interface FFFastImageView()
 
 @property (nonatomic, assign) BOOL hasSentOnLoadStart;
 @property (nonatomic, assign) BOOL hasCompleted;
 @property (nonatomic, assign) BOOL hasErrored;
+// Whether the latest change of props requires the image to be reloaded
+@property (nonatomic, assign) BOOL needsReload;
 
 @property (nonatomic, strong) NSDictionary* onLoadEvent;
 
@@ -97,7 +98,23 @@
 - (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
-        
+        _needsReload = YES;
+    }
+}
+
+- (void)didSetProps:(NSArray<NSString *> *)changedProps
+{
+    if (_needsReload) {
+        [self reloadImage];
+    }
+}
+
+- (void)reloadImage
+{
+    _needsReload = NO;
+
+    if (_source) {
+
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix:@"data:image"]) {
