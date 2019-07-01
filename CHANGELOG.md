@@ -1,3 +1,10 @@
+# [6.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.5...v6.1.0) (2019-06-30)
+
+
+### Features
+
+* Add tvOS target. ([#486](https://github.com/DylanVann/react-native-fast-image/issues/486)) ([6805972](https://github.com/DylanVann/react-native-fast-image/commit/6805972))
+
 ## [6.0.5](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.4...v6.0.5) (2019-06-28)
 
 
