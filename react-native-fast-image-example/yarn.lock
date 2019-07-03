@@ -4953,10 +4953,10 @@ react-lifecycles-compat@^3.0.4:
   resolved "https://registry.yarnpkg.com/react-lifecycles-compat/-/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
   integrity sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==
 
-react-native-fast-image@^5.2.1:
-  version "5.4.2"
-  resolved "https://registry.yarnpkg.com/react-native-fast-image/-/react-native-fast-image-5.4.2.tgz#d761cb9dddc0473b537544617e511a11c9e18413"
-  integrity sha512-S4E96Lwmx6z6QD3MaAuP7cNcXRLfgEUYU2GB694TbGEoOjk/FO1OnfbxfFp0vUs/klr4HJwACcwihPPxrFTt8w==
+react-native-fast-image@^6.1.1:
+  version "6.1.1"
+  resolved "https://registry.yarnpkg.com/react-native-fast-image/-/react-native-fast-image-6.1.1.tgz#502165beeafdd117e09dfb68ba322fe602534b8e"
+  integrity sha512-9bYUY8GLKpuTF9WOC28VM/ceH0+GyV60g3bcwYeiq0A+oDBVyVlj/ovMaJqRxHII6GQYX0WbTkiT5kWtPCtWkA==
 
 react-native-gesture-handler@^1.1.0:
   version "1.1.0"
