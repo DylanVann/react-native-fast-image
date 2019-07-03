@@ -1,3 +1,10 @@
+## [6.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.0...v6.1.1) (2019-07-03)
+
+
+### Bug Fixes
+
+* Loading images by reverting "bug: Use device scale when loading images.". ([0326c3e](https://github.com/DylanVann/react-native-fast-image/commit/0326c3e)), closes [#509](https://github.com/DylanVann/react-native-fast-image/issues/509)
+
 # [6.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.5...v6.1.0) (2019-06-30)
 
 
