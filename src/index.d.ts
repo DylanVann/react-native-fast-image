@@ -109,12 +109,13 @@ export interface FastImageProperties {
      * Style
      */
     style?: StyleProp<ImageStyle>
- 
+
     /**
      * TintColor
-     * 
+     *
      * If supplied, changes the color of all the non-transparent pixels to the given color.
-     */        
+     */
+
     tintColor?: number | string
 
     /**
