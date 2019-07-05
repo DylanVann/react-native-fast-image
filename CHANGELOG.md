@@ -1,3 +1,10 @@
+## [7.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.1...v7.0.2) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix peer dependency and remove prop-types. ([44a4c8b](https://github.com/DylanVann/react-native-fast-image/commit/44a4c8b))
+
 ## [7.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.0...v7.0.1) (2019-07-05)
 
 
