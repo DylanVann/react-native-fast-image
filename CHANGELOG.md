@@ -1,3 +1,10 @@
+## [7.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.0...v7.0.1) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix IllegalArgumentException crash (Android). ([#511](https://github.com/DylanVann/react-native-fast-image/issues/511)) ([b6c4677](https://github.com/DylanVann/react-native-fast-image/commit/b6c4677))
+
 # [7.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.1...v7.0.0) (2019-07-05)
 
 
