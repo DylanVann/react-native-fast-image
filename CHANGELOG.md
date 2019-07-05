@@ -1,3 +1,15 @@
+# [7.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.1...v7.0.0) (2019-07-05)
+
+
+### Features
+
+* Upgrade to React Native 0.60.0 / CocoaPods / Android X. ([#513](https://github.com/DylanVann/react-native-fast-image/issues/513)) ([5489f9e](https://github.com/DylanVann/react-native-fast-image/commit/5489f9e))
+
+
+### BREAKING CHANGES
+
+* You should upgrade React Native. See https://facebook.github.io/react-native/blog/2019/07/03/version-60
+
 ## [6.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.0...v6.1.1) (2019-07-03)
 
 
