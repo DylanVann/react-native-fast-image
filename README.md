@@ -58,11 +58,7 @@ and
 ## Usage
 
 ```bash
-# Install
 yarn add react-native-fast-image
-
-# Automatic linking. (other linking methods listed below)
-react-native link react-native-fast-image
 ```
 
 ```jsx
@@ -70,7 +66,7 @@ import FastImage from 'react-native-fast-image'
 
 const YourImage = () => (
     <FastImage
-        style={styles.image}
+        style={{ width: 200, height: 200 }}
         source={{
             uri: 'https://unsplash.it/400/400?image=1',
             headers: { Authorization: 'someAuthToken' },
@@ -81,13 +77,11 @@ const YourImage = () => (
 )
 ```
 
-## Other Linking Methods
+## Are you using Glide already using an AppGlideModule?
 
--   [Manual](docs/installation-manual.md) (might be needed if something went wrong with `react-native link`)
--   [CocoaPods (iOS)](docs/installation-cocoapods.md) (you may wish to use this if you are already using CocoaPods)
 -   [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
 
-## Proguard
+## Are you using Proguard?
 
 If you use Proguard you will need to add these lines to `android/app/proguard-rules.pro`:
 
@@ -231,8 +225,6 @@ This project only aims to support the latest version of React Native.\
 This simplifies the development and the testing of the project.
 
 If you require new features or bug fixes for older versions you can fork this project.
-
-Thanks to @mobinni for helping with the conceptualization.
 
 ## Credits
 

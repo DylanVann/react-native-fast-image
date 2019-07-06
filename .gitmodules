@@ -1,9 +1,0 @@
-[submodule "ios/Vendor/SDWebImage"]
-	path = ios/Vendor/SDWebImage
-	url = https://github.com/rs/SDWebImage.git
-[submodule "react-native-fast-image-example/ios/Vendor/SDWebImageWebPCoder"]
-	path = react-native-fast-image-example/ios/Vendor/SDWebImageWebPCoder
-	url = https://github.com/SDWebImage/SDWebImageWebPCoder.git
-[submodule "react-native-fast-image-example/ios/Vendor/libwebp-Xcode"]
-	path = react-native-fast-image-example/ios/Vendor/libwebp-Xcode
-	url = https://github.com/SDWebImage/libwebp-Xcode.git

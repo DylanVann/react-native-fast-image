@@ -80,7 +80,6 @@
 
 /* Begin PBXFileReference section */
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDWebImage.xcodeproj; path = Vendor/SDWebImage/SDWebImage.xcodeproj; sourceTree = "<group>"; };
 		FCFB25371EA5562700F59778 /* FFFastImageSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageSource.h; sourceTree = "<group>"; };
 		FCFB25381EA5562700F59778 /* FFFastImageSource.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageSource.m; sourceTree = "<group>"; };
 		FCFB25391EA5562700F59778 /* FFFastImageView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageView.h; sourceTree = "<group>"; };
@@ -116,7 +115,6 @@
 			isa = PBXGroup;
 			children = (
 				FCFB25361EA5562700F59778 /* FastImage */,
-				A28797331DE0CA420081BDFA /* Vendor */,
 				A287971E1DE0C0A60081BDFA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -128,14 +126,6 @@
 				FD751C4D229EB44C002BE1F4 /* libFastImage-tvOS.a */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		A28797331DE0CA420081BDFA /* Vendor */ = {
-			isa = PBXGroup;
-			children = (
-				FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */,
-			);
-			name = Vendor;
 			sourceTree = "<group>";
 		};
 		FCC6D0C71EB38D2F0065F944 /* Products */ = {
@@ -397,7 +387,6 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -413,7 +402,6 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -429,7 +417,6 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -447,7 +434,6 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";

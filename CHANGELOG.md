@@ -1,3 +1,29 @@
+## [7.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.1...v7.0.2) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix peer dependency and remove prop-types. ([44a4c8b](https://github.com/DylanVann/react-native-fast-image/commit/44a4c8b))
+
+## [7.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.0...v7.0.1) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix IllegalArgumentException crash (Android). ([#511](https://github.com/DylanVann/react-native-fast-image/issues/511)) ([b6c4677](https://github.com/DylanVann/react-native-fast-image/commit/b6c4677))
+
+# [7.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.1...v7.0.0) (2019-07-05)
+
+
+### Features
+
+* Upgrade to React Native 0.60.0 / CocoaPods / Android X. ([#513](https://github.com/DylanVann/react-native-fast-image/issues/513)) ([5489f9e](https://github.com/DylanVann/react-native-fast-image/commit/5489f9e))
+
+
+### BREAKING CHANGES
+
+* You should upgrade React Native. See https://facebook.github.io/react-native/blog/2019/07/03/version-60
+
 ## [6.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.0...v6.1.1) (2019-07-03)
 
 

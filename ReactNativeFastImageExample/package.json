@@ -1,0 +1,38 @@
+{
+  "name": "ReactNativeFastImageExample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "postinstall": "jetify",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "react-native"
+  },
+  "dependencies": {
+    "react": "16.8.6",
+    "react-native": "0.60.0",
+    "react-native-fast-image": "../react-native-fast-image-6.1.1.tgz",
+    "react-native-gesture-handler": "^1.3.0",
+    "react-native-image-picker": "^0.28.1",
+    "react-native-image-progress": "^1.1.1",
+    "react-native-status-bar-height": "^2.1.0",
+    "react-native-vector-icons": "^6.6.0",
+    "react-navigation": "^3.11.0",
+    "react-timeout": "^1.1.2",
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.5.0",
+    "@babel/runtime": "^7.5.0",
+    "@react-native-community/eslint-config": "^0.0.5",
+    "babel-jest": "^24.8.0",
+    "eslint": "^6.0.1",
+    "jest": "^24.8.0",
+    "jetifier": "^1.6.1",
+    "metro-react-native-babel-preset": "^0.55.0",
+    "react-test-renderer": "16.8.6"
+  }
+}
