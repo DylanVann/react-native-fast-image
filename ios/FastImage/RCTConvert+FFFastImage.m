@@ -13,6 +13,7 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
                                        @"immutable": @(FFFCacheControlImmutable),
                                        @"web": @(FFFCacheControlWeb),
                                        @"cacheOnly": @(FFFCacheControlCacheOnly),
+                                       @"diskOnly": @(FFFCacheControlDiskOnly),
                                        }), FFFCacheControlImmutable, integerValue);
 
 + (FFFastImageSource *)FFFastImageSource:(id)json {

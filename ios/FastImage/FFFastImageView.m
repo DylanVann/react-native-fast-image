@@ -169,6 +169,9 @@
                 break;
             case FFFCacheControlImmutable:
                 break;
+            case FFFCacheControlDiskOnly:
+                options |= SDWebImageQueryDiskDataSync | SDWebImageScaleDownLargeImages;
+                break;
         }
         
         if (self.onFastImageLoadStart) {

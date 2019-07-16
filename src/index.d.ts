@@ -25,6 +25,7 @@ declare namespace FastImage {
         type cacheOnly = 'cacheOnly'
         type immutable = 'immutable'
         type web = 'web'
+        type diskOnly = 'diskOnly'
     }
 
     export type Priority =
@@ -42,6 +43,7 @@ declare namespace FastImage {
         | FastImage.cacheControl.cacheOnly
         | FastImage.cacheControl.immutable
         | FastImage.cacheControl.web
+        | FastImage.cacheControl.diskOnly
 }
 
 export type FastImageSource = {
@@ -142,6 +144,7 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         cacheOnly: FastImage.cacheControl.cacheOnly
         immutable: FastImage.cacheControl.immutable
         web: FastImage.cacheControl.web
+        diskOnly: FastImage.cacheControl.diskOnly
     }
 
     preload(sources: FastImageSource[]): void

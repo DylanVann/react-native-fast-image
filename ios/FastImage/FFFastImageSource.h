@@ -10,7 +10,8 @@ typedef NS_ENUM(NSInteger, FFFPriority) {
 typedef NS_ENUM(NSInteger, FFFCacheControl) {
     FFFCacheControlImmutable,
     FFFCacheControlWeb,
-    FFFCacheControlCacheOnly
+    FFFCacheControlCacheOnly,
+    FFFCacheControlDiskOnly
 };
 
 // Object containing an image uri and metadata.

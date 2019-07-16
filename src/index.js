@@ -99,6 +99,7 @@ FastImage.cacheControl = {
     web: 'web',
     // Only load from cache.
     cacheOnly: 'cacheOnly',
+    diskOnly: 'diskOnly',
 }
 
 FastImage.preload = sources => {

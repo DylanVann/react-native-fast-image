@@ -41,6 +41,7 @@ class FastImageViewConverter {
                 put("immutable", FastImageCacheControl.IMMUTABLE);
                 put("web", FastImageCacheControl.WEB);
                 put("cacheOnly", FastImageCacheControl.CACHE_ONLY);
+                put("diskOnly", FastImageCacheControl.DISK_ONLY);
             }};
 
     private static final Map<String, Priority> FAST_IMAGE_PRIORITY_MAP =
@@ -103,6 +104,11 @@ class FastImageViewConverter {
                 break;
             case IMMUTABLE:
                 // Use defaults.
+                break;
+            case DISK_ONLY:
+                diskCacheStrategy = DiskCacheStrategy.ALL;
+                skipMemoryCache = true;
+                onlyFromCache = false;
                 break;
         }
 
