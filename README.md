@@ -55,14 +55,34 @@ and
 -   [x] GIF support.
 -   [x] Border radius.
 
-## Usage
+## Getting Started
 
-**Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
+**1. Installation**
+
+**For React Native 0.60.0 or higher.**
 
 ```bash
+npm install react-native-fast-image
+
+# OR
+
 yarn add react-native-fast-image
 ```
+**For React Native <= 0.59.x use version 6.1.1 or lower**
 
+```bash
+npm install react-native-fast-image@6.1.1
+
+# OR
+
+yarn add react-native-fast-image@6.1.1
+```
+
+```bash
+react-native link react-native-fast-image
+```
+---
+**2. Usage**
 ```jsx
 import FastImage from 'react-native-fast-image'
 
