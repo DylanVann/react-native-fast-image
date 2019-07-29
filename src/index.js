@@ -21,6 +21,7 @@ function FastImageBase({
     children,
     fallback,
     forwardedRef,
+    blurRadius,
     ...props
 }) {
     const resolvedSource = Image.resolveAssetSource(source)
@@ -38,6 +39,7 @@ function FastImageBase({
                     onLoad={onLoad}
                     onError={onError}
                     onLoadEnd={onLoadEnd}
+                    blurRadius={blurRadius}
                 />
                 {children}
             </View>
@@ -56,6 +58,7 @@ function FastImageBase({
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
                 onFastImageLoadEnd={onLoadEnd}
+                blurRadius={blurRadius}
             />
             {children}
         </View>
