@@ -1,3 +1,57 @@
+## [7.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.1...v7.0.2) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix peer dependency and remove prop-types. ([44a4c8b](https://github.com/DylanVann/react-native-fast-image/commit/44a4c8b))
+
+## [7.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.0...v7.0.1) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix IllegalArgumentException crash (Android). ([#511](https://github.com/DylanVann/react-native-fast-image/issues/511)) ([b6c4677](https://github.com/DylanVann/react-native-fast-image/commit/b6c4677))
+
+# [7.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.1...v7.0.0) (2019-07-05)
+
+
+### Features
+
+* Upgrade to React Native 0.60.0 / CocoaPods / Android X. ([#513](https://github.com/DylanVann/react-native-fast-image/issues/513)) ([5489f9e](https://github.com/DylanVann/react-native-fast-image/commit/5489f9e))
+
+
+### BREAKING CHANGES
+
+* You should upgrade React Native. See https://facebook.github.io/react-native/blog/2019/07/03/version-60
+
+## [6.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.0...v6.1.1) (2019-07-03)
+
+
+### Bug Fixes
+
+* Loading images by reverting "bug: Use device scale when loading images.". ([0326c3e](https://github.com/DylanVann/react-native-fast-image/commit/0326c3e)), closes [#509](https://github.com/DylanVann/react-native-fast-image/issues/509)
+
+# [6.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.5...v6.1.0) (2019-06-30)
+
+
+### Features
+
+* Add tvOS target. ([#486](https://github.com/DylanVann/react-native-fast-image/issues/486)) ([6805972](https://github.com/DylanVann/react-native-fast-image/commit/6805972))
+
+## [6.0.5](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.4...v6.0.5) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix incorrect syntax. ([11f6047](https://github.com/DylanVann/react-native-fast-image/commit/11f6047))
+
+## [6.0.4](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.3...v6.0.4) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix setting props order issue for iOS. ([#303](https://github.com/DylanVann/react-native-fast-image/issues/303)) ([5597ed0](https://github.com/DylanVann/react-native-fast-image/commit/5597ed0)), closes [#304](https://github.com/DylanVann/react-native-fast-image/issues/304)
+
 ## [6.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.2...v6.0.3) (2019-06-03)
 
 

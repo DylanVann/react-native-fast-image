@@ -1,9 +1,10 @@
 buildscript {
     repositories {
         jcenter()
+        google()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:2.3.3"
+        classpath "com.android.tools.build:gradle:3.4.0"
     }
 }
 
@@ -14,12 +15,12 @@ def safeExtGet(prop, fallback) {
 }
 
 def _reactNativeVersion = safeExtGet("reactNative", "+")
-def _compileSdkVersion = safeExtGet("compileSdkVersion", 26)
-def _glideVersion = safeExtGet("glideVersion", "4.7.1")
+def _compileSdkVersion = safeExtGet("compileSdkVersion", 28)
+def _glideVersion = safeExtGet("glideVersion", "4.9.0")
 
 android {
     compileSdkVersion _compileSdkVersion
-    buildToolsVersion safeExtGet("buildToolsVersion", "26.0.3")
+    buildToolsVersion safeExtGet("buildToolsVersion", "28.0.3")
 
     sourceSets {
         main {
@@ -34,7 +35,7 @@ android {
 
     defaultConfig {
         minSdkVersion safeExtGet("minSdkVersion", 16)
-        targetSdkVersion safeExtGet("targetSdkVersion", 26)
+        targetSdkVersion safeExtGet("targetSdkVersion", 28)
         versionCode 1
         versionName "1.0"
     }
@@ -45,6 +46,7 @@ android {
 
 repositories {
     mavenCentral()
+    google()
     maven {
         url "https://maven.google.com"
     }
@@ -53,16 +55,12 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation "com.facebook.react:react-native:${_reactNativeVersion}"
-    implementation "com.android.support:support-v4:${safeExtGet("supportLibVersion", "27.1.1")}"
-    implementation("com.github.bumptech.glide:glide:${_glideVersion}") {
-        exclude group: "com.android.support", module: "glide"
-    }
-    implementation("com.github.bumptech.glide:annotations:${_glideVersion}") {
-        exclude group: "com.android.support", module: "annotations"
-    }
+    implementation "androidx.core:core:1.0.0"
+    implementation "androidx.appcompat:appcompat:1.0.0"
+    implementation "androidx.annotation:annotation:1.0.0"
+    implementation("com.github.bumptech.glide:glide:${_glideVersion}")
+    implementation("com.github.bumptech.glide:annotations:${_glideVersion}")
+    annotationProcessor 'com.android.support:support-annotations:28.0.0-alpha3'
     annotationProcessor "com.github.bumptech.glide:compiler:${_glideVersion}"
-    implementation("com.github.bumptech.glide:okhttp3-integration:${_glideVersion}") {
-        exclude group: "com.android.support", module: "okhttp3-integration"
-        exclude group: "com.android.support", module: "glide-parent"
-    }
+    implementation("com.github.bumptech.glide:okhttp3-integration:${_glideVersion}")
 }

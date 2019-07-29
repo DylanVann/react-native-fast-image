@@ -1,5 +1,4 @@
-/ios/Vendor/
-/react-native-fast-image-example/
-/react-native-fast-image-example-cocoapods/
+/ReactNativeFastImageExample/
+/ReactNativeFastImageExampleServer/
 node_modules
 coverage

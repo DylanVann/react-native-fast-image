@@ -28,7 +28,7 @@ test('Renders a normal Image when not passed a uri.', () => {
     const tree = renderer
         .create(
             <FastImage
-                source={require('../react-native-fast-image-example-server/pictures/jellyfish.gif')}
+                source={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
                 style={style.image}
             />,
         )
@@ -41,7 +41,7 @@ test('Renders Image with fallback prop.', () => {
     const tree = renderer
         .create(
             <FastImage
-                source={require('../react-native-fast-image-example-server/pictures/jellyfish.gif')}
+                source={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
                 style={style.image}
                 fallback
             />,
