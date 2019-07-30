@@ -216,7 +216,7 @@
                             }
                         }
                     }];
-        if (_blurRadius) {
+        if (_blurRadius && _blurRadius > 0) {
             UIVisualEffect *blurEffect;
             blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
 
