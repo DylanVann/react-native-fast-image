@@ -1,0 +1,8 @@
+build/
+.idea/
+
+# ignore symbolic links to root project gradle files
+gradle/
+gradle/wrapper/
+gradlew.bat
+gradlew

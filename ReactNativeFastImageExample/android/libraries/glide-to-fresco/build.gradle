@@ -1,0 +1,86 @@
+apply plugin: 'com.android.library'
+
+/* https://github.com/bjoernQ/unmock-plugin */
+//apply plugin: 'de.mobilej.unmock'
+
+ext {
+    moduleName = 'GlideToFresco'
+}
+
+def getExtOrDefault(name) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["${moduleName}_${name}"]
+}
+
+def getExtOrIntegerDefault(name) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["${moduleName}_${name}"]).toInteger()
+}
+
+
+android {
+    compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')
+    buildToolsVersion getExtOrDefault('buildToolsVersion')
+
+    defaultConfig {
+        minSdkVersion 16
+        targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
+        versionCode 1
+        versionName "1.0"
+
+        /* default unit testing runner */
+        testInstrumentationRunner "android.test.InstrumentationTestRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    lintOptions {
+        disable 'GradleCompatible'
+    }
+
+    /* Java 8 */
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    /* https://sites.google.com/a/android.com/tools/tech-docs/unit-testing-support */
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+repositories {
+    google()
+    jcenter()
+}
+
+def support_version = getExtOrDefault('supportLibVersion')
+def kotlin_version = getExtOrDefault('kotlinVersion')
+
+dependencies {
+    implementation "com.android.support:appcompat-v7:$support_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    api "com.squareup.okhttp3:okhttp:3.12.1"
+
+    /* Include Facebook fresco with plugins */
+    implementation 'com.facebook.fresco:fresco:1.10.0'
+    implementation 'com.facebook.fresco:animated-gif:1.10.0'
+    implementation 'com.facebook.fresco:animated-webp:1.10.0'
+    implementation 'com.facebook.fresco:webpsupport:1.10.0'
+    implementation 'com.facebook.fresco:imagepipeline-okhttp3:1.10.0'
+
+    testImplementation 'junit:junit:4.12'
+
+    /* https://mvnrepository.com/artifact/org.mockito */
+    testImplementation 'org.mockito:mockito-core:2.28.2'
+
+    /* https://mvnrepository.com/artifact/org.powermock/powermock-api-mockito2 */
+    testImplementation 'org.powermock:powermock-module-junit4:2.0.2'
+    testImplementation 'org.powermock:powermock-module-junit4-rule:2.0.2'
+    testImplementation 'org.powermock:powermock-api-mockito2:2.0.2'
+    testImplementation 'org.powermock:powermock-classloading-xstream:2.0.2'
+}

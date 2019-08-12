@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Unique ID for storing holder instance in View tags. -->
+    <item name="tag_glide_fresco_holder" type="id" />
+</resources>
