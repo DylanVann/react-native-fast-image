@@ -20,11 +20,22 @@
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
     "files": [
-        "android",
-        "!android/build",
-        "ios",
-        "!ios/build",
-        "src",
+        "/android/src",
+        "/android/build.gradle",
+        "/ios/FastImage",
+        "/ios/FastImage.xcodeproj",
+        "/src",
+        "/docs",
+        "/ReactNativeFastImageExample/android/settings.gradle",
+        "/ReactNativeFastImageExample/android/gradle.properties",
+        "/ReactNativeFastImageExample/android/gradlew",
+        "/ReactNativeFastImageExample/android/gradlew.bat",
+        "/ReactNativeFastImageExample/android/gradle",
+        "/ReactNativeFastImageExample/android/app/src",
+        "/ReactNativeFastImageExample/android/libraries/glide-to-fresco/src",
+        "/ReactNativeFastImageExample/android/libraries/glide-to-fresco/build.gradle",
+        "/ReactNativeFastImageExample/android/libraries/glide-to-fresco/gradle.properties",
+        "/ReactNativeFastImageExampleServer",
         "RNFastImage.podspec"
     ],
     "main": "src/index.js",
@@ -36,7 +47,8 @@
         "lint": "eslint src/**/*.js",
         "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'",
         "semantic-release": "semantic-release",
-        "test": "jest ./src/*.js"
+        "test": "jest ./src/*.js",
+        "test:pack": "rm -rf tmp/test.tgz && yarn pack --filename tmp/test.tgz && tar -tf tmp/test.tgz | ./bin/treeify"
     },
     "config": {
         "commitizen": {
@@ -87,5 +99,8 @@
             "@semantic-release/npm",
             "@semantic-release/git"
         ]
+    },
+    "dependencies": {
+        "react-native-fast-image": "file:../react-native-fast-image-v7.0.2.tgz"
     }
 }

@@ -98,6 +98,18 @@ If you use Proguard you will need to add these lines to `android/app/proguard-ru
 }
 ```
 
+## Fresco Instead of Glide (Experimental)
+
+[How to switch module to Fresco?](docs/glide-to-fresco.md)
+
+Glide costs: 3222 methods / 389Kb
+
+![Glide Library](docs/assets/glide_in_use.png)
+
+Glide To Fresco Adapter costs: 158 methods / 19Kb
+
+![Glide Adapter In Use](docs/assets/glide_to_fresco.png)
+
 ## Properties
 
 ### `source?: object`

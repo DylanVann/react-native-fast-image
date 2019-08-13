@@ -1,0 +1,225 @@
+#!/usr/bin/env perl
+# treeify - display a list of files as a tree
+# (c) 2013-2016 Mantas Mikulėnas <grawity@gmail.com>
+# Released under the MIT License (dist/LICENSE.mit)
+use v5.10;
+use warnings;
+use strict;
+use Getopt::Long qw(:config bundling no_ignore_case);
+use File::Spec;
+
+my %GRAPH = (
+    # tree
+    s_mid => "│ ",
+    i_mid => "├─",
+    i_end => "└─",
+    s_end => "  ",
+    # ghost nodes
+    ghost_pre => "[",
+    ghost_suf => "]",
+    # colors
+    c_tree => "",
+    c_ghost => "",
+    c_reset => "",
+);
+
+my %opt = (
+    color => "auto",
+    fakeroot => undef,
+    maxdepth => 0,
+    noghosts => 0,
+    path => undef,
+    printfull => 0,
+    reverse => 0,
+    sep => "/",
+);
+
+sub canonpath {
+    my $path = shift;
+    if ($opt{sep} ne "/") {
+	return $path;
+    } elsif ($path =~ m|^(\./)|) {
+	return $1 . File::Spec->canonpath($path);
+    } else {
+	return File::Spec->canonpath($path);
+    }
+}
+
+sub split_path {
+    my $path = canonpath(shift);
+    my @path;
+    for (split(/\Q$opt{sep}\E+/, $path)) {
+	if ($_ eq "")		{ push @path, $opt{sep}; }
+	elsif (!@path)		{ push @path, $_; }
+	elsif ($_ eq ".")	{ next; }
+	elsif ($_ eq "..")	{ pop @path; }
+	else			{ push @path, $_; }
+    }
+    if ($opt{reverse}) {
+	@path = reverse @path;
+    }
+    return @path ? @path : $opt{sep};
+}
+
+sub walk {
+    my ($branch, $path) = @_;
+    my @path = split_path($path);
+    for (@path) {
+	$branch = $branch->{$_} //= {};
+    }
+    return $branch;
+}
+
+sub deepcount {
+    my ($branch) = @_;
+    my $count = 0;
+    for (values %$branch) {
+	$count += 1 + deepcount($_);
+    }
+    return $count;
+}
+
+sub show {
+    my ($branch, $seen, $depth, $graph, $root) = @_;
+
+    $depth //= 0;
+    $graph //= [];
+    $root  //= "";
+
+    my @keys = sort keys %$branch;
+    if (eval {require Sort::Naturally}) {
+	@keys = Sort::Naturally::nsort(@keys);
+    }
+    my $shallow = $opt{maxdepth} && $depth >= $opt{maxdepth};
+    my $frdepth = defined($opt{fakeroot}) ? (2 - $opt{printfull}) : 0;
+
+    while (@keys) {
+	my $name = shift @keys;
+	my $node = $branch->{$name};
+
+	my $children = keys %$node;
+	if ($shallow && $children) {
+	    $children = deepcount($node);
+	}
+
+	my $path;
+	if ($root eq $opt{sep}) {
+	    $path = $opt{reverse}
+		? $name.$root
+		: $root.$name;
+	} elsif ($depth > $frdepth) {
+	    $path = $opt{reverse}
+		? $name.$opt{sep}.$root
+		: $root.$opt{sep}.$name;
+	} else {
+	    $path = $name;
+	}
+
+	my $exists = $opt{noghosts} || exists($seen->{$node});
+
+	$graph->[$depth] = $depth ? @keys ? $GRAPH{i_mid} : $GRAPH{i_end} : "";
+	print	$GRAPH{c_tree},
+	    "@$graph",
+	    $exists ? "" : $GRAPH{ghost_pre},
+	    $GRAPH{c_reset},
+	    $exists ? "" : $GRAPH{c_ghost},
+	    $opt{printfull} ? $path : $name,
+	    $GRAPH{c_tree},
+	    $exists ? "" : $GRAPH{ghost_suf},
+	    ($shallow && $children) ? " ($children)" : "",
+	    $GRAPH{c_reset},
+	    "\n";
+	$graph->[$depth] = $depth ? @keys ? $GRAPH{s_mid} : $GRAPH{s_end} : "";
+
+	show($node, $seen, $depth+1, $graph, $path) if !$shallow;
+    }
+
+    pop @$graph;
+}
+
+sub usage {
+    print "$_\n" for
+    "Usage: treeify [-d DEPTH] [-f] [-g] [-r ROOT] [-R] [-s SEP] [PATH]",
+    "",                           #
+    "  -d, --max-depth DEPTH      Limit tree depth",
+    "  -f, --full-names           Show full names of branches and leaves",
+    "  -g, --no-ghosts            Do not highlight 'ghost' branches",
+    "  -r, --fake-root PATH       Add a fake root container",
+    "  -R, --reverse              Process paths in reverse (for DNS domains)",
+    "  -s, --separator SEP        Split paths at SEP instead of '/'",
+    "  PATH                       Only show items under given branch";
+}
+
+GetOptions(
+    "help" => sub { usage(); exit; },
+    "C|color=s" => \$opt{color},
+    "d|max-depth=i" => \$opt{maxdepth},
+    "f|full-names+" => \$opt{printfull},
+    "g|no-ghosts" => \$opt{noghosts},
+    "r|fake-root=s" => \$opt{fakeroot},
+    "R|reverse" => \$opt{reverse},
+    "s|separator=s" => \$opt{sep},
+    map {
+	$_ => sub { $opt{maxdepth} = ($opt{maxdepth} * 10) + int($_[0]) },
+    } 0..9,
+) or exit(2);
+
+for (@ARGV) {
+    if (/^@(.+)$/) {
+	$opt{fakeroot} = $1;
+    } else {
+	$opt{path} = canonpath($_);
+    }
+}
+
+# decide on output features
+
+if ($opt{color} eq "auto") {
+    my $term = (-t 1) ? $ENV{TERM} : undef;
+    if (!$term || $term eq "dumb") {
+	$opt{color} = "off";
+    } elsif ($term =~ /-256color$/ || $term =~ /^(xterm|tmux)/) {
+	$opt{color} = "256";
+    } else {
+	$opt{color} = "16";
+    }
+}
+
+if ($opt{color} eq "256") {
+    $GRAPH{c_tree} = "\e[38;5;59m";
+    $GRAPH{c_ghost} = "\e[38;5;109m";
+    $GRAPH{c_reset} = "\e[m";
+} elsif ($opt{color} !~ /^(no|off)$/) {
+    $GRAPH{c_tree} = "\e[36m";
+    $GRAPH{c_ghost} = "\e[36m";
+    $GRAPH{c_reset} = "\e[m";
+}
+
+# parse input
+
+my $node;
+my $tree = {};
+my $seen = {};
+
+while (<STDIN>) {
+    chomp;
+    $node = walk($tree, $_);
+    $seen->{$node} = 1;
+}
+
+while ($opt{path} && $tree->{"."}) {
+    $tree = $tree->{"."};
+}
+
+if ($opt{path}) {
+    $tree = {$opt{path} => walk($tree, $opt{path})};
+}
+
+if ($opt{fakeroot}) {
+    while ($tree->{"/"}) {
+	$tree = $tree->{"/"}
+    }
+    $tree = {$opt{fakeroot} => $tree};
+}
+
+show($tree, $seen);

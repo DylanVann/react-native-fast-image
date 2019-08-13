@@ -2,13 +2,13 @@
 docs
 
 # Build
-android/build
+android/build/
 ios/build
 react-native-fast-image-*.tgz
 
 # Examples
-ReactNativeFastImageExample
-ReactNativeFastImageExampleServer
+ReactNativeFastImageExample/
+ReactNativeFastImageExampleServer/
 
 # Tests
 .circleci
@@ -26,3 +26,4 @@ jest.config.js
 
 # IDE
 .idea/
+.gradle/
