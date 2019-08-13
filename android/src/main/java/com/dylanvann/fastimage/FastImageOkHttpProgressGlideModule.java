@@ -45,7 +45,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         OkHttpClient client = OkHttpClientProvider
                 .getOkHttpClient()
                 .newBuilder()
-                .callTimeout(30, TimeUnit.SECONDS)
+                .callTimeout(20, TimeUnit.SECONDS)
                 .addInterceptor(createInterceptor(progressListener))
                 .build();
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
