@@ -99,8 +99,5 @@
             "@semantic-release/npm",
             "@semantic-release/git"
         ]
-    },
-    "dependencies": {
-        "react-native-fast-image": "file:../react-native-fast-image-v7.0.2.tgz"
     }
 }
