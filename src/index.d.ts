@@ -1,8 +1,13 @@
 import * as React from 'react'
-import { FlexStyle, LayoutChangeEvent, ShadowStyleIOS, StyleProp, TransformsStyle } from 'react-native'
+import {
+    FlexStyle,
+    LayoutChangeEvent,
+    ShadowStyleIOS,
+    StyleProp,
+    TransformsStyle,
+} from 'react-native'
 
 declare namespace FastImage {
-
     namespace priority {
         type low = 'low'
         type normal = 'normal'
@@ -15,33 +20,33 @@ declare namespace FastImage {
         type stretch = 'stretch'
         type center = 'center'
     }
-        
-    namespace cache {
+
+    namespace cacheControl {
         type cacheOnly = 'cacheOnly'
         type immutable = 'immutable'
         type web = 'web'
     }
 
     export type Priority =
-        FastImage.priority.low |
-        FastImage.priority.normal |
-        FastImage.priority.high
+        | FastImage.priority.low
+        | FastImage.priority.normal
+        | FastImage.priority.high
 
     export type ResizeMode =
-        FastImage.resizeMode.contain |
-        FastImage.resizeMode.cover |
-        FastImage.resizeMode.stretch |
-        FastImage.resizeMode.center
+        | FastImage.resizeMode.contain
+        | FastImage.resizeMode.cover
+        | FastImage.resizeMode.stretch
+        | FastImage.resizeMode.center
 
     export type Cache =
-        FastImage.cache.cacheOnly |
-        FastImage.cache.immutable |
-        FastImage.cache.web
+        | FastImage.cacheControl.cacheOnly
+        | FastImage.cacheControl.immutable
+        | FastImage.cacheControl.web
 }
 
 export type FastImageSource = {
     uri?: string
-    headers?: {[key: string]: string}
+    headers?: { [key: string]: string }
     priority?: FastImage.Priority
     cache?: FastImage.Cache
 }
@@ -106,6 +111,14 @@ export interface FastImageProperties {
     style?: StyleProp<ImageStyle>
 
     /**
+     * TintColor
+     *
+     * If supplied, changes the color of all the non-transparent pixels to the given color.
+     */
+
+    tintColor?: number | string
+
+    /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
      */
     testID?: string
@@ -124,11 +137,11 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
         normal: FastImage.priority.normal
         high: FastImage.priority.high
     }
-    
-    cache: {
-        cacheOnly: FastImage.cache.cacheOnly
-        immutable: FastImage.cache.immutable
-        web: FastImage.cache.web
+
+    cacheControl: {
+        cacheOnly: FastImage.cacheControl.cacheOnly
+        immutable: FastImage.cacheControl.immutable
+        web: FastImage.cacheControl.web
     }
 
     preload(sources: FastImageSource[]): void

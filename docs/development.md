@@ -9,9 +9,6 @@ This is how to start the example app so you can test code with it.
 # Install dependencies.
 yarn
 
-# Install SDWebImage submodules.
-git submodule update --init --recursive
-
 # Link module.
 yarn link
 
