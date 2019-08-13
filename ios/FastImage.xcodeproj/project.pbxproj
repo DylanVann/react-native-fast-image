@@ -7,27 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FCC6D1391EB3912D0065F944 /* libSDWebImage iOS static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */; };
+		FCC6D1391EB3912D0065F944 /* libSDWebImage.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage.a */; };
 		FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB25381EA5562700F59778 /* FFFastImageSource.m */; };
 		FCFB25401EA5562700F59778 /* FFFastImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253A1EA5562700F59778 /* FFFastImageView.m */; };
 		FCFB25411EA5562700F59778 /* FFFastImageViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */; };
 		FCFB25421EA5562700F59778 /* RCTConvert+FFFastImage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253E1EA5562700F59778 /* RCTConvert+FFFastImage.m */; };
+		FD751C43229EB44C002BE1F4 /* FFFastImageViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */; };
+		FD751C44229EB44C002BE1F4 /* RCTConvert+FFFastImage.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253E1EA5562700F59778 /* RCTConvert+FFFastImage.m */; };
+		FD751C45229EB44C002BE1F4 /* FFFastImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB253A1EA5562700F59778 /* FFFastImageView.m */; };
+		FD751C46229EB44C002BE1F4 /* FFFastImageSource.m in Sources */ = {isa = PBXBuildFile; fileRef = FCFB25381EA5562700F59778 /* FFFastImageSource.m */; };
+		FD751C48229EB44C002BE1F4 /* libSDWebImage.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCC6D0D01EB38D2F0065F944 /* libSDWebImage.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3236AC0D226EC00400425AA3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 80B6DFEE2142B71600BCB334;
+			remoteInfo = SDWebImageMapKit;
+		};
 		FCC6D0CF1EB38D2F0065F944 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
 			proxyType = 2;
 			remoteGlobalIDString = 53761325155AD0D5005750A4;
 			remoteInfo = "SDWebImage iOS static";
-		};
-		FCC6D0D11EB38D2F0065F944 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 4314D1991D0E0E3B004B36C9;
-			remoteInfo = "SDWebImage watchOS static";
 		};
 		FCC6D0D31EB38D2F0065F944 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -36,28 +41,14 @@
 			remoteGlobalIDString = 4A2CADFF1AB4BB5300B6BC39;
 			remoteInfo = "SDWebImage iOS";
 		};
-		FCC6D0D51EB38D2F0065F944 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 00733A4C1BC487C000A5A117;
-			remoteInfo = "SDWebImage tvOS";
-		};
-		FCC6D0D71EB38D2F0065F944 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 431BB7031D06D2C1006A3455;
-			remoteInfo = "SDWebImage watchOS";
-		};
-		FCC6D0D91EB38D2F0065F944 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 4397D2F21D0DDD8C00BB2784;
-			remoteInfo = "SDWebImage OSX";
-		};
 		FCC6D1281EB3908E0065F944 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 53761307155AD0D5005750A4;
+			remoteInfo = "SDWebImage iOS static";
+		};
+		FD751C41229EB44C002BE1F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */;
 			proxyType = 1;
@@ -76,11 +67,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FD751C49229EB44C002BE1F4 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/$(PRODUCT_NAME)";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDWebImage.xcodeproj; path = Vendor/SDWebImage/SDWebImage.xcodeproj; sourceTree = "<group>"; };
 		FCFB25371EA5562700F59778 /* FFFastImageSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageSource.h; sourceTree = "<group>"; };
 		FCFB25381EA5562700F59778 /* FFFastImageSource.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageSource.m; sourceTree = "<group>"; };
 		FCFB25391EA5562700F59778 /* FFFastImageView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageView.h; sourceTree = "<group>"; };
@@ -89,6 +88,7 @@
 		FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageViewManager.m; sourceTree = "<group>"; };
 		FCFB253D1EA5562700F59778 /* RCTConvert+FFFastImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "RCTConvert+FFFastImage.h"; sourceTree = "<group>"; };
 		FCFB253E1EA5562700F59778 /* RCTConvert+FFFastImage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "RCTConvert+FFFastImage.m"; sourceTree = "<group>"; };
+		FD751C4D229EB44C002BE1F4 /* libFastImage-tvOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libFastImage-tvOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,7 +96,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FCC6D1391EB3912D0065F944 /* libSDWebImage iOS static.a in Frameworks */,
+				FCC6D1391EB3912D0065F944 /* libSDWebImage.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD751C47229EB44C002BE1F4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD751C48229EB44C002BE1F4 /* libSDWebImage.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,7 +115,6 @@
 			isa = PBXGroup;
 			children = (
 				FCFB25361EA5562700F59778 /* FastImage */,
-				A28797331DE0CA420081BDFA /* Vendor */,
 				A287971E1DE0C0A60081BDFA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -116,27 +123,17 @@
 			isa = PBXGroup;
 			children = (
 				A287971D1DE0C0A60081BDFA /* libFastImage.a */,
+				FD751C4D229EB44C002BE1F4 /* libFastImage-tvOS.a */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		A28797331DE0CA420081BDFA /* Vendor */ = {
-			isa = PBXGroup;
-			children = (
-				FCC6D0C61EB38D2F0065F944 /* SDWebImage.xcodeproj */,
-			);
-			name = Vendor;
 			sourceTree = "<group>";
 		};
 		FCC6D0C71EB38D2F0065F944 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */,
-				FCC6D0D21EB38D2F0065F944 /* libSDWebImage watchOS static.a */,
+				FCC6D0D01EB38D2F0065F944 /* libSDWebImage.a */,
 				FCC6D0D41EB38D2F0065F944 /* SDWebImage.framework */,
-				FCC6D0D61EB38D2F0065F944 /* SDWebImage.framework */,
-				FCC6D0D81EB38D2F0065F944 /* SDWebImage.framework */,
-				FCC6D0DA1EB38D2F0065F944 /* SDWebImage.framework */,
+				3236AC0E226EC00400425AA3 /* SDWebImageMapKit.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -177,6 +174,24 @@
 			productReference = A287971D1DE0C0A60081BDFA /* libFastImage.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+		FD751C3F229EB44C002BE1F4 /* FastImage-tvOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD751C4A229EB44C002BE1F4 /* Build configuration list for PBXNativeTarget "FastImage-tvOS" */;
+			buildPhases = (
+				FD751C42229EB44C002BE1F4 /* Sources */,
+				FD751C47229EB44C002BE1F4 /* Frameworks */,
+				FD751C49229EB44C002BE1F4 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FD751C40229EB44C002BE1F4 /* PBXTargetDependency */,
+			);
+			name = "FastImage-tvOS";
+			productName = FastImage;
+			productReference = FD751C4D229EB44C002BE1F4 /* libFastImage-tvOS.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +212,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = A28797141DE0C0A60081BDFA;
@@ -211,23 +227,24 @@
 			projectRoot = "";
 			targets = (
 				A287971C1DE0C0A60081BDFA /* FastImage */,
+				FD751C3F229EB44C002BE1F4 /* FastImage-tvOS */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		FCC6D0D01EB38D2F0065F944 /* libSDWebImage iOS static.a */ = {
+		3236AC0E226EC00400425AA3 /* SDWebImageMapKit.framework */ = {
 			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = "libSDWebImage iOS static.a";
-			remoteRef = FCC6D0CF1EB38D2F0065F944 /* PBXContainerItemProxy */;
+			fileType = wrapper.framework;
+			path = SDWebImageMapKit.framework;
+			remoteRef = 3236AC0D226EC00400425AA3 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
-		FCC6D0D21EB38D2F0065F944 /* libSDWebImage watchOS static.a */ = {
+		FCC6D0D01EB38D2F0065F944 /* libSDWebImage.a */ = {
 			isa = PBXReferenceProxy;
 			fileType = archive.ar;
-			path = "libSDWebImage watchOS static.a";
-			remoteRef = FCC6D0D11EB38D2F0065F944 /* PBXContainerItemProxy */;
+			path = libSDWebImage.a;
+			remoteRef = FCC6D0CF1EB38D2F0065F944 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		FCC6D0D41EB38D2F0065F944 /* SDWebImage.framework */ = {
@@ -235,27 +252,6 @@
 			fileType = wrapper.framework;
 			path = SDWebImage.framework;
 			remoteRef = FCC6D0D31EB38D2F0065F944 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		FCC6D0D61EB38D2F0065F944 /* SDWebImage.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = SDWebImage.framework;
-			remoteRef = FCC6D0D51EB38D2F0065F944 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		FCC6D0D81EB38D2F0065F944 /* SDWebImage.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = SDWebImage.framework;
-			remoteRef = FCC6D0D71EB38D2F0065F944 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		FCC6D0DA1EB38D2F0065F944 /* SDWebImage.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = SDWebImage.framework;
-			remoteRef = FCC6D0D91EB38D2F0065F944 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
@@ -272,6 +268,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FD751C42229EB44C002BE1F4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD751C43229EB44C002BE1F4 /* FFFastImageViewManager.m in Sources */,
+				FD751C44229EB44C002BE1F4 /* RCTConvert+FFFastImage.m in Sources */,
+				FD751C45229EB44C002BE1F4 /* FFFastImageView.m in Sources */,
+				FD751C46229EB44C002BE1F4 /* FFFastImageSource.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,6 +286,11 @@
 			isa = PBXTargetDependency;
 			name = "SDWebImage iOS static";
 			targetProxy = FCC6D1281EB3908E0065F944 /* PBXContainerItemProxy */;
+		};
+		FD751C40229EB44C002BE1F4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "SDWebImage iOS static";
+			targetProxy = FD751C41229EB44C002BE1F4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -375,8 +387,6 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
-					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -392,12 +402,44 @@
 					"$(SRCROOT)/../../react-native/React/**",
 					"$(SRCROOT)/../../react-native/Libraries/Image",
 					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
-					"$(SRCROOT)/Vendor/SDWebImage",
-					"$(SRCROOT)/Vendor/SDWebImage/Vendors/FLAnimatedImage",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		FD751C4B229EB44C002BE1F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../react-native/React/**",
+					"$(SRCROOT)/../../react-native/Libraries/Image",
+					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
+			};
+			name = Debug;
+		};
+		FD751C4C229EB44C002BE1F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../../react-native/React/**",
+					"$(SRCROOT)/../../react-native/Libraries/Image",
+					"$(SRCROOT)/../../../ios/Pods/Headers/Public/**",
+				);
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "appletvsimulator appletvos";
 			};
 			name = Release;
 		};
@@ -418,6 +460,15 @@
 			buildConfigurations = (
 				A28797271DE0C0A60081BDFA /* Debug */,
 				A28797281DE0C0A60081BDFA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FD751C4A229EB44C002BE1F4 /* Build configuration list for PBXNativeTarget "FastImage-tvOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD751C4B229EB44C002BE1F4 /* Debug */,
+				FD751C4C229EB44C002BE1F4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
