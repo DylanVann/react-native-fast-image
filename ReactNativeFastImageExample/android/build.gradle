@@ -7,6 +7,8 @@ buildscript {
         compileSdkVersion = 28
         targetSdkVersion = 28
         supportLibVersion = "28.0.0"
+
+        useGlideToFresco = Boolean.parseBoolean("${project.USE_GLIDE_TO_FRESCO}")
     }
     repositories {
         google()
@@ -34,5 +36,34 @@ allprojects {
 
         google()
         jcenter()
+    }
+}
+
+/* Override Glide dependency library, use our adapter instead of glide */
+println "INFO: USE_GLIDE_TO_FRESCO = ${useGlideToFresco}\n"
+if (!useGlideToFresco) {
+    println "INFO: Used original Glide library.\n"
+    println "INFO: For trying fresco adapter try command: "
+    println "INFO:   ./gradlew assembleDebug -PUSE_GLIDE_TO_FRESCO=true\n"
+} else{
+    println "INFO: Used Glide-To-Fresco adapter.\n"
+}
+subprojects { prj ->
+    if (useGlideToFresco) {
+        configurations.all {
+            // exclude Glide library
+            exclude group: 'com.github.bumptech.glide', module: 'annotations'
+            exclude group: 'com.github.bumptech.glide', module: 'glide'
+            exclude group: 'com.github.bumptech.glide', module: 'compiler'
+            exclude group: 'com.github.bumptech.glide', module: 'okhttp3-integration'
+        }
+
+        if ("react-native-fast-image" == prj.name) {
+            afterEvaluate {
+                dependencies {
+                    implementation project(':libraries:glide-to-fresco')
+                }
+            }
+        }
     }
 }
