@@ -53,4 +53,25 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             }
         });
     }
+	
+	@ReactMethod
+    public void clearMemoryCache() {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Glide.get(activity.getApplicationContext()).clearMemory();
+            }
+        });
+    }
+
+    @ReactMethod
+    public void clearDiskCache() {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        Glide.get(activity.getApplicationContext()).clearDiskCache();
+    }
 }
