@@ -134,6 +134,13 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `defaultSource?: number`
+
+-   An asset loaded with `require(...)`.
+-   Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
+
+---
+
 ### `resizeMode?: enum`
 
 -   `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).

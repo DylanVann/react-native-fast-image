@@ -7,14 +7,14 @@ export type OnLoadEvent = SyntheticEvent<
     $ReadOnly<{
         width: number,
         height: number,
-    }>,
+    }>
 >
 
 export type OnProgressEvent = SyntheticEvent<
     $ReadOnly<{|
         loaded: number,
         total: number,
-    |}>,
+    |}>
 >
 
 export type ResizeMode = $ReadOnly<{|
@@ -56,7 +56,8 @@ export type FastImageProps = $ReadOnly<{|
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 
-    source: FastImageSource | number,
+    source: ?(FastImageSource | number),
+    defaultSource?: ?number,
 
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
