@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'stretch',
     justifyContent: 'center',
-    backgroundColor: 'white',
   },
   text: {
     textAlign: 'center',

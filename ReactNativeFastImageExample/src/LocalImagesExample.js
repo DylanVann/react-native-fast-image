@@ -61,7 +61,7 @@ class PhotoExample extends Component {
         <BulletText>photo library</BulletText>
         <TouchableOpacity onPress={this.pick}>
           <Image style={styles.imageSquare} source={this.state.image}>
-            <Text style={{color: 'white', fontWeight: '900'}}>Pick Photo</Text>
+            <Text style={styles.imageSquareText}>Pick Photo</Text>
           </Image>
         </TouchableOpacity>
       </Row>
@@ -108,6 +108,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     width: 100,
     flex: 0,
+  },
+  imageSquareText: {
+    color: 'white',
+    fontWeight: '900',
   },
   plus: {
     width: 30,

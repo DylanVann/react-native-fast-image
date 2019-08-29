@@ -52,13 +52,13 @@ class PreloadExample extends Component {
             <View style={styles.image} />
           )}
           <View style={styles.buttons}>
-            <View style={{flex: 1}}>
+            <View style={styles.buttonContainer}>
               <Button text="Bust" onPress={this.bustCache} />
             </View>
-            <View style={{flex: 1}}>
+            <View style={styles.buttonContainer}>
               <Button text="Preload" onPress={this.preload} />
             </View>
-            <View style={{flex: 1}}>
+            <View style={styles.buttonContainer}>
               <Button text="Render" onPress={this.showImage} />
             </View>
           </View>
@@ -77,6 +77,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 20,
     marginBottom: 10,
+  },
+  buttonContainer: {
+    flex: 1,
   },
   image: {
     backgroundColor: '#ddd',
