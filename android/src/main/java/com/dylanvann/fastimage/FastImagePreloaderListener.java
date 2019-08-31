@@ -1,6 +1,6 @@
 package com.dylanvann.fastimage;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.util.Log;
 
 import com.bumptech.glide.load.DataSource;
@@ -36,7 +36,7 @@ class FastImagePreloaderListener implements RequestListener<File> {
         // o is whatever was passed to .load() = GlideURL, String, etc.
         Log.d(LOG, "Preload failed: " + o.toString());
         this.failed++;
-        this.dispatchProgress();
+        this.dispatchProgress(null);
         return false;
     }
 
@@ -45,7 +45,7 @@ class FastImagePreloaderListener implements RequestListener<File> {
         // o is whatever was passed to .load() = GlideURL, String, etc.
         Log.d(LOG, "Preload succeeded: " + o.toString());
         this.succeeded++;
-        this.dispatchProgress();
+        this.dispatchProgress(o.toString());
         return false;
     }
 
@@ -61,8 +61,9 @@ class FastImagePreloaderListener implements RequestListener<File> {
         }
     }
 
-    private void dispatchProgress() {
+    private void dispatchProgress(@Nullable String url) {
         WritableMap params = Arguments.createMap();
+        params.putString("url", url);
         params.putInt("id", this.id);
         params.putInt("finished", this.succeeded + this.failed);
         params.putInt("total", this.total);

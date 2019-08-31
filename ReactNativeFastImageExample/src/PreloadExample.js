@@ -22,6 +22,7 @@ class PreloadExample extends Component {
         urls: [...IMAGE_URLS],
         progress: [0, 0],
         result: [0, 0],
+        preloadedURLs: [],
     }
 
     bustCache = () => {
@@ -30,15 +31,16 @@ class PreloadExample extends Component {
             show: false,
             progress: [0, 0],
             result: [0, 0],
+            preloadedURLs: [],
         })
     }
 
-    onProgress = (loaded, total) => {
-        this.setState({ progress: [loaded, total] })
+    onProgress = (urls, loaded, total) => {
+        this.setState({ progress: [loaded, total], preloadedURLs: urls })
     }
 
-    onComplete = (loaded, skipped) => {
-        this.setState({ result: [skipped, loaded] })
+    onComplete = (urls, loaded, skipped) => {
+        this.setState({ result: [skipped, loaded], preloadedURLs: urls })
     }
 
     preload = () => {
@@ -82,6 +84,9 @@ class PreloadExample extends Component {
                       {`processed: ${this.state.progress[0]} out of ${
                         this.state.progress[1]
                       }`}
+                  </Text>
+                  <Text>
+                      {JSON.stringify(this.state.preloadedURLs)}
                   </Text>
                   {!!this.state.result[1] && (
                     <Text>

@@ -126,11 +126,11 @@ export interface FastImageProperties {
 }
 
 export interface PreloadProgressHandler {
-    (loaded: number, total: number): void
+    (urls: string[], loaded: number, total: number): void
 }
 
 export interface PreloadCompletionHandler {
-    (loaded: number, skipped: number): void
+    (urls: string[], loaded: number, skipped: number): void
 }
 
 interface FastImageStatic extends React.ComponentClass<FastImageProperties> {

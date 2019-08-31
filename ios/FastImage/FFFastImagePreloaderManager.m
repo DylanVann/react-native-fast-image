@@ -49,9 +49,14 @@ RCT_EXPORT_MODULE(FastImagePreloaderManager);
               totalCount:(NSUInteger)totalCount
 {
     NSNumber* id = ((FFFastImagePreloader*) imagePrefetcher).id;
+    BOOL isCached = [self isURLCached:imageURL];
     [self sendEventWithName:@"fffastimage-progress"
-                       body:@{ @"id": id, @"finished": [NSNumber numberWithLong:finishedCount], @"total": [NSNumber numberWithLong:totalCount] }
-    ];
+                       body:@{
+                              @"id": id,
+                              @"finished": [NSNumber numberWithLong:finishedCount],
+                              @"total": [NSNumber numberWithLong:totalCount],
+                              @"url": isCached ? imageURL.absoluteString : [NSNull null]
+                              }];
 }
 
 RCT_EXPORT_METHOD(createPreloader:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
@@ -73,6 +78,13 @@ RCT_EXPORT_METHOD(preload:(nonnull NSNumber*)preloaderId sources:(nonnull NSArra
     
     FFFastImagePreloader* preloader = _preloaders[preloaderId];
     [preloader prefetchURLs:urls];
+}
+
+# pragma mark helpers
+
+- (BOOL) isURLCached:(NSURL *)url {
+    NSString *cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:url];
+    return [[SDImageCache sharedImageCache] diskImageDataExistsWithKey:cacheKey];
 }
 
 @end
