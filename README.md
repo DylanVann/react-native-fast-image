@@ -212,8 +212,8 @@ FastImage.preload(
       headers: { Authorization: 'someAuthToken' },
     },
   ],
-  (finished, total) => console.log(`Preloaded ${finished}/${total} images`),
-  (finished, skipped) => console.log(`Completed. Failed to load ${skipped}/${finished} images`),
+  (urls, finished, total) => console.log(`Preloaded ${finished}/${total} images: ${urls}`),
+  (urls, finished, skipped) => console.log(`Completed. Failed to load ${skipped}/${finished} images: ${urls}`),
 )
 ```
 
