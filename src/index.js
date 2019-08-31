@@ -1,10 +1,5 @@
 import React, { forwardRef, memo } from 'react'
-import {
-    View,
-    Image,
-    requireNativeComponent,
-    StyleSheet,
-} from 'react-native'
+import { View, Image, requireNativeComponent, StyleSheet } from 'react-native'
 import preloaderManager from './preloaderManager'
 
 function FastImageBase({
