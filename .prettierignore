@@ -1,1 +1,4 @@
-ios/Vendor
+/ReactNativeFastImageExample/
+/ReactNativeFastImageExampleServer/
+node_modules
+coverage

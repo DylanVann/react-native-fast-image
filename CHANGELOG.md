@@ -1,19 +1,166 @@
-# Changelog
+## [7.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.1...v7.0.2) (2019-07-05)
 
-All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Bug Fixes
 
-## [Unreleased]
+* Fix peer dependency and remove prop-types. ([44a4c8b](https://github.com/DylanVann/react-native-fast-image/commit/44a4c8b))
 
-## [5.1.2] - 2018-12-30
+## [7.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.0...v7.0.1) (2019-07-05)
+
+
+### Bug Fixes
+
+* Fix IllegalArgumentException crash (Android). ([#511](https://github.com/DylanVann/react-native-fast-image/issues/511)) ([b6c4677](https://github.com/DylanVann/react-native-fast-image/commit/b6c4677))
+
+# [7.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.1...v7.0.0) (2019-07-05)
+
+
+### Features
+
+* Upgrade to React Native 0.60.0 / CocoaPods / Android X. ([#513](https://github.com/DylanVann/react-native-fast-image/issues/513)) ([5489f9e](https://github.com/DylanVann/react-native-fast-image/commit/5489f9e))
+
+
+### BREAKING CHANGES
+
+* You should upgrade React Native. See https://facebook.github.io/react-native/blog/2019/07/03/version-60
+
+## [6.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.1.0...v6.1.1) (2019-07-03)
+
+
+### Bug Fixes
+
+* Loading images by reverting "bug: Use device scale when loading images.". ([0326c3e](https://github.com/DylanVann/react-native-fast-image/commit/0326c3e)), closes [#509](https://github.com/DylanVann/react-native-fast-image/issues/509)
+
+# [6.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.5...v6.1.0) (2019-06-30)
+
+
+### Features
+
+* Add tvOS target. ([#486](https://github.com/DylanVann/react-native-fast-image/issues/486)) ([6805972](https://github.com/DylanVann/react-native-fast-image/commit/6805972))
+
+## [6.0.5](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.4...v6.0.5) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix incorrect syntax. ([11f6047](https://github.com/DylanVann/react-native-fast-image/commit/11f6047))
+
+## [6.0.4](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.3...v6.0.4) (2019-06-28)
+
+
+### Bug Fixes
+
+* Fix setting props order issue for iOS. ([#303](https://github.com/DylanVann/react-native-fast-image/issues/303)) ([5597ed0](https://github.com/DylanVann/react-native-fast-image/commit/5597ed0)), closes [#304](https://github.com/DylanVann/react-native-fast-image/issues/304)
+
+## [6.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.2...v6.0.3) (2019-06-03)
+
+
+### Bug Fixes
+
+* Add tintColor type definition. ([4adf42f](https://github.com/DylanVann/react-native-fast-image/commit/4adf42f))
+
+## [6.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.1...v6.0.2) (2019-06-03)
+
+
+### Bug Fixes
+
+* Upgrade vendored SDWebImage to v5.0.5. ([5016172](https://github.com/DylanVann/react-native-fast-image/commit/5016172)), closes [#489](https://github.com/DylanVann/react-native-fast-image/issues/489)
+
+## [6.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v6.0.0...v6.0.1) (2019-05-25)
+
+
+### Bug Fixes
+
+* Fix local resource cache issue on Android. ([#472](https://github.com/DylanVann/react-native-fast-image/issues/472)) ([5f65383](https://github.com/DylanVann/react-native-fast-image/commit/5f65383)), closes [#402](https://github.com/DylanVann/react-native-fast-image/issues/402)
+
+# [6.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.2...v6.0.0) (2019-05-08)
+
+
+### Features
+
+* Upgrade to SDWebImage 5.0. ([#454](https://github.com/DylanVann/react-native-fast-image/issues/454)) ([8a216e2](https://github.com/DylanVann/react-native-fast-image/commit/8a216e2)), closes [#447](https://github.com/DylanVann/react-native-fast-image/issues/447)
+
+
+### BREAKING CHANGES
+
+* Upgrade SDWebImage, may affect some projects and CocoaPods users.
+
+Fix the bug of `cacheOnly` behavior
+
+## [5.4.2](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.1...v5.4.2) (2019-05-03)
+
+
+### Bug Fixes
+
+* Fix dependency versions not specified in podfile. ([89f3379](https://github.com/DylanVann/react-native-fast-image/commit/89f3379)), closes [#456](https://github.com/DylanVann/react-native-fast-image/issues/456)
+
+## [5.4.1](https://github.com/DylanVann/react-native-fast-image/compare/v5.4.0...v5.4.1) (2019-05-03)
+
+
+### Bug Fixes
+
+* Fix wildcard peer dependencies. ([7149420](https://github.com/DylanVann/react-native-fast-image/commit/7149420)), closes [#440](https://github.com/DylanVann/react-native-fast-image/issues/440)
+
+# [5.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.3.0...v5.4.0) (2019-05-03)
+
+
+### Features
+
+* Add tint color support. ([03c50f0](https://github.com/DylanVann/react-native-fast-image/commit/03c50f0)), closes [#124](https://github.com/DylanVann/react-native-fast-image/issues/124)
+
+# [5.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.1...v5.3.0) (2019-04-23)
+
+
+### Bug Fixes
+
+* Fix memory leak on iOS. ([#433](https://github.com/DylanVann/react-native-fast-image/issues/433)) ([70be744](https://github.com/DylanVann/react-native-fast-image/commit/70be744))
+
+
+### Features
+
+* Upgrade example apps. ([#453](https://github.com/DylanVann/react-native-fast-image/issues/453)) ([25f8f0d](https://github.com/DylanVann/react-native-fast-image/commit/25f8f0d))
+
+
+### Reverts
+
+* Remove functionality for notifying other images on load. ([#452](https://github.com/DylanVann/react-native-fast-image/issues/452)) ([292223d](https://github.com/DylanVann/react-native-fast-image/commit/292223d))
+
+## [5.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v5.2.0...v5.2.1) (2019-04-21)
+
+
+### Performance Improvements
+
+* Use React.memo for FastImage. ([#449](https://github.com/DylanVann/react-native-fast-image/issues/449)) ([5c2b4af](https://github.com/DylanVann/react-native-fast-image/commit/5c2b4af))
+
+## [5.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.4...v5.2.0) (2019-02-25)
+
+
+### Features
+
+* Use forwardRef to allow access to ref.measure and others. ([#419](https://github.com/DylanVann/react-native-fast-image/issues/419)) ([2b4fba3](https://github.com/DylanVann/react-native-fast-image/commit/2b4fba3)), closes [#69](https://github.com/DylanVann/react-native-fast-image/issues/69)
+
+## [5.1.4](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.3...v5.1.4) (2019-02-25)
+
+
+### Bug Fixes
+
+* Fix fallback prop not working. ([#420](https://github.com/DylanVann/react-native-fast-image/issues/420)) ([487d410](https://github.com/DylanVann/react-native-fast-image/commit/487d410))
+
+## [5.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.2...v5.1.3) (2019-02-22)
+
+
+### Bug Fixes
+
+* Fixes WebP rendering on iOS 12. ([#412](https://github.com/DylanVann/react-native-fast-image/issues/412)) ([97630c8](https://github.com/DylanVann/react-native-fast-image/commit/97630c8)), closes [#298](https://github.com/DylanVann/react-native-fast-image/issues/298) [#385](https://github.com/DylanVann/react-native-fast-image/issues/385)
+
+## [5.1.2](https://github.com/DylanVann/react-native-fast-image/compare/v5.1.1...v5.1.2) (2018-12-30)
+
 
 ### Fixed
 
 -   Fixes cacheControl types. ([#382](https://github.com/DylanVann/react-native-fast-image/issues/382)) ([e13db7d](https://github.com/DylanVann/react-native-fast-image/commit/e13db7d)), closes [#325](https://github.com/DylanVann/react-native-fast-image/issues/325)
 
-## [5.1.1] - 2018-11-13
+## [5.1.1] (2018-11-13)
 
 ### Fixed
 
@@ -23,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     -   Referencing deprecated `compile` instead of `implementation`.
     -   Using hardcoded `appcompat` version instead of using `rootProject.ext`.
 
-## [5.1.0] - 2018-11-06
+## [5.1.0] (2018-11-06)
 
 @patrickkempff has done a lot to improve the stability and usefulness of this library in this release 🙏🏻.
 
@@ -37,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Crash where activity was already destroyed before React Native could cleanup view manager. (8f702ed1d9ae69dfea172ebc5da3af7764a73808 - @patrickkempff)
 -   Incorrect Flow types. (ba447531ace686d52178d943e9d5337d2fc74da7 - @retyui)
 
-## [5.0.11] - 2018-10-15
+## [5.0.11] (2018-10-15)
 
 ### Added
 
@@ -70,19 +217,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Handle `null` `view.glideUrl`. (75a6ce766c7fc2c1dd98a4e8d8c52c3aeeb3d506 - @ratson)
 -   Incorrect cache property name in readme. (0ef723101846792e20ae9ba6420d5271ba6e928a - @vieiralucas)
 
-## [4.0.14] - 2018-05-09
+## [4.0.14] (2018-05-09)
 
 ### Changed
 
 -   Add `resizeMode` examples.
 
-## [4.0.13] - 2018-05-09
+## [4.0.13] (2018-05-09)
 
 ### Fixed
 
 -   Fix initial `resizeMode`. This fixes a bug where the `stretch` resizeMode could not be used. (6e5d0d7b89d71b5c05678d1ede7f6c27f809c9e9 - @bluekurk)
 
-## [4.0.12] - 2018-05-06
+## [4.0.12] (2018-05-06)
 
 ### Fixed
 
@@ -90,33 +237,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Probably the correct way to deal with this going forward is to match the defaults to the values currently in React Native.
 -   React Native may also choose to update the template to provide these properties on `ext`, in which case this issue would go away.
 
-## [4.0.12] - 2018-05-06
+## [4.0.12] (2018-05-06)
 
 ### Changed
 
 -   Handle asset library URIs. (466f43f4aef74765ddc6e7740d4455748047acbf)
 -   Improve TypeScript types. (75e3fd7cd832ce5e571b0ce1374a47a4b4c632c4)
 
-## [4.0.10] - 2018-05-05
+## [4.0.10] (2018-05-05)
 
 ### Changed
 
 -   Handle assets from smart albums. (243b33db768b8afe4c58999db005600bda4a07dd)
 
-## [4.0.9] - 2018-05-05
+## [4.0.9] (2018-05-05)
 
 ### Fixed
 
 -   Fix some issues with the examples.
 -   Use OkHttpClientProvider to allow extending preconfigured clients. (eac670b2dcd26414c6c98426a9cda35ba35c5b67 - @btegenbosch)
 
-## [4.0.8] - 2018-05-05
+## [4.0.8] (2018-05-05)
 
 ### Added
 
 -   Handle content and file urls.
 
-## [4.0.7] - 2018-05-05
+## [4.0.7] (2018-05-05)
 
 ### Added
 
@@ -132,7 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Fix bugs when using with `createAnimatedComponent`. (cf83d0f7f384afd262014f3a96feff32356611a2 - @kphungry)
 
-## [4.0.6] - 2018-04-24
+## [4.0.6] (2018-04-24)
 
 ### Fixed
 
@@ -140,7 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Use conditional imports to support linking and CocoaPods. (084a41497d5688c7939f94be7d48d2f2ad74fb74)
 -   Fix other `FLAnimatedImage` header search path. (ac00fdaa6309f03afc3bf052584a99c18726d21e)
 
-## [4.0.4] - 2018-04-21
+## [4.0.4] (2018-04-21)
 
 ### Changed
 
@@ -151,13 +298,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Fix `FLAnimatedImage` header search path. (883dc0664dfd6ca26a1b8bece161abd3b9184cf1)
 
-## [4.0.3] - 2018-04-21
+## [4.0.3] (2018-04-21)
 
 ### Fixed
 
 -   Fixes a bug where an undefined source would cause a crash. (https://github.com/DylanVann/react-native-fast-image/commit/78a28cdb814db39942125ead19742695a35b7223)
 
-## [4.0.2] - 2018-04-19
+## [4.0.2] (2018-04-19)
 
 ### Added
 
@@ -171,7 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Remove `borderRadius` prop that was left in accidentally, including removing it from the TypeScript definitions. `borderRadius` should now be applied using `style`.
 
-## [4.0.0] - 2018-03-18
+## [4.0.0] (2018-03-18)
 
 ### Added
 
@@ -184,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   `HEADER_SEARCH_PATHS`. (@OceanHorn)
 -   Use `DecodeFormat.PREFER_ARGB_8888` to fix image quality issues. (@TilWs)
 
-## [3.0.1] - 2018-03-10
+## [3.0.1] (2018-03-10)
 
 ### Fixed
 
@@ -196,31 +343,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <img width="391" alt="radius" src="https://user-images.githubusercontent.com/1537615/37248293-662f6028-249c-11e8-9923-d9a62a706607.png">
 
-## [2.2.6] - 2018-03-07
+## [2.2.6] (2018-03-07)
 
 ### Fixed
 
 -   Callbacks not being called. https://github.com/DylanVann/react-native-fast-image/commit/d9f729915486665d9aad1f1febff5348ab3ab069
 
-## [2.2.4] - 2018-02-13
+## [2.2.4] (2018-02-13)
 
 ### Changed
 
 -   Update TypeScript definitions to include `borderRadius`.
 
-## [2.2.3] - 2018-01-31
+## [2.2.3] (2018-01-31)
 
 ### Added
 
 -   Typescript type definitions. https://github.com/DylanVann/react-native-fast-image/pull/116/commits/f5422f851d428c8b60ca170a682164a32ffa4bb9
 
-## [2.1.4] - 2018-01-31
+## [2.1.4] (2018-01-31)
 
 ### Fixed
 
 -   Styles not being passed when using a local image. https://github.com/DylanVann/react-native-fast-image/commit/1cf545253c385b42593f4b226029cb4aaa0ed325
 
-## [2.1.3] - 2018-01-30
+## [2.1.3] (2018-01-30)
 
 ### Added
 
@@ -238,13 +385,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Default `resizeMode` on Android. https://github.com/DylanVann/react-native-fast-image/commit/d4210c0ed03d7e0c49389f6abbb3c713e68e5142
 -   Preloading on android. https://github.com/DylanVann/react-native-fast-image/commit/de4f40a3a30a95fb8cdab714735501650e335dd9
 
-## [2.0.1] - 2017-11-30
+## [2.0.1] (2017-11-30)
 
 ### Removed
 
 -   Locking of node version with `engines`.
 
-## [2.0.0] - 2017-11-30
+## [2.0.0] (2017-11-30)
 
 ### Changed
 
@@ -260,7 +407,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Removing backwards compatible `View.propTypes`.
 
-## [1.0.0] - 2017-08-08
+## [1.0.0] (2017-08-08)
 
 ### Added
 
@@ -270,57 +417,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Support for `react-native < 0.47.0` because of a change to how native modules work.
 
-## [0.0.11] - 2017-06-20
+## [0.0.11] (2017-06-20)
 
 ### Added
 
 -   Add support for preloading. ( 4e69ddd09908139feda66b283713d2b0efa04522 ) - @fjcaetano
 -   Improve docs formatting.
 
-## [0.0.10] - 2017-05-04
+## [0.0.10] (2017-05-04)
 
 ### Added
 
 -   Add gif support to iOS. 🎞
 
-## [0.0.9] - 2017-05-03
+## [0.0.9] (2017-05-03)
 
 ### Fixed
 
 -   Re-release of previous version.
 
-## [0.0.8] - 2017-05-03
+## [0.0.8] (2017-05-03)
 
 ### Fixed
 
 -   Fixed submodule installation.
 -   This issue also caused the last version released to be packaged incorrectly (did not include SDWebImage).
 
-## [0.0.7] - 2017-04-28
+## [0.0.7] (2017-04-28)
 
 ### Fixed
 
 -   Fix library header search paths. These being set incorrectly was causing archiving to fail.
 
-## [0.0.6] - 2017-04-20
+## [0.0.6] (2017-04-20)
 
 ### Fixed
 
 -   Fix setNativeProps for plain Image component (no source).
 
-## [0.0.5] - 2017-04-19
+## [0.0.5] (2017-04-19)
 
 ### Fixed
 
 -   Forward `setNativeProps`. Makes this component work with `TouchableOpacity`.
 
-## [0.0.4] - 2017-04-18
+## [0.0.4] (2017-04-18)
 
 ### Fixed
 
 -   Fix `onLoad` and `onError` props on iOS.
 
-## [0.0.3] - 2017-04-18
+## [0.0.3] (2017-04-18)
 
 ### Changed
 
@@ -328,13 +475,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Improve example.
 -   Improve code formatting.
 
-## [0.0.2] - 2017-04-17
+## [0.0.2] (2017-04-17)
 
 ### Added
 
 -   Initial release (for real).
 
-## 0.0.1 - 2017-04-17
+## 0.0.1 (2017-04-17)
 
 ### Added
 

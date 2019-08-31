@@ -57,7 +57,7 @@ class FastImagePreloaderModule extends ReactContextBaseJavaModule {
                                     imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
                             )
                             .listener(preloader)
-                            .apply(FastImageViewConverter.getOptions(source))
+                            .apply(FastImageViewConverter.getOptions(activity, imageSource, source))
                             .preload();
                 }
             }
