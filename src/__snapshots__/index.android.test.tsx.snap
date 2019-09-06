@@ -1,0 +1,106 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Android specific. Renders a non-existing defaultSource. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    defaultSource={12345}
+    resizeMode="cover"
+    source={null}
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`Android specific. Renders a normal defaultSource when fails to load source. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    defaultSource={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    resizeMode="cover"
+    source={
+      Object {
+        "uri": "https://www.google.com/image_does_not_exist.png",
+      }
+    }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`Android specific. Renders a normal defaultSource. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    defaultSource={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    resizeMode="cover"
+    source={null}
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;

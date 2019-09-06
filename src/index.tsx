@@ -156,9 +156,8 @@ function FastImageBase({
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
         // the TS is not up to date. resolveAssetSource returns a nullable.
-        let resolvedSource: ImageResolvedAssetSource | null = Image.resolveAssetSource(
-            cleanedSource,
-        )
+        let resolvedSource: ImageResolvedAssetSource | null =
+            Image.resolveAssetSource(cleanedSource)
 
         if (
             resolvedSource !== null &&
