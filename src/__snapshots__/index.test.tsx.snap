@@ -15,6 +15,7 @@ exports[`FastImage renders correctly. 1`] = `
   }
 >
   <FastImageView
+    defaultSource={null}
     resizeMode="cover"
     source={
       Object {
@@ -87,12 +88,161 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
   }
 >
   <FastImageView
+    defaultSource={null}
     resizeMode="cover"
     source={
       Object {
         "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`Renders a normal Image with tintColor when passed as prop. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      undefined,
+    ]
+  }
+>
+  <FastImageView
+    defaultSource={null}
+    resizeMode="cover"
+    source={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+    tintColor="#f00"
+  />
+</View>
+`;
+
+exports[`Renders a normal Image with tintColor when passed as style. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Array [
+        Object {
+          "height": 44,
+          "width": 44,
+        },
+        Object {
+          "tintColor": "#f00",
+        },
+      ],
+    ]
+  }
+>
+  <FastImageView
+    defaultSource={null}
+    resizeMode="cover"
+    source={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+    tintColor="#f00"
+  />
+</View>
+`;
+
+exports[`Renders a normal defaultSource when fails to load source. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    defaultSource={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    resizeMode="cover"
+    source={
+      Object {
+        "uri": "https://www.google.com/image_does_not_exist.png",
+      }
+    }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`Renders a normal defaultSource. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    defaultSource={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    resizeMode="cover"
+    source={null}
     style={
       Object {
         "bottom": 0,
