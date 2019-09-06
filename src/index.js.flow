@@ -68,6 +68,7 @@ declare export default class FastImage extends React$Component<FastImageProps> {
     static priority: Priority;
     static cacheControl: CacheControl;
     static preload: PreloadFn;
+    static preloadManager: PreloadFn;
 	static clearMemoryCache: () => void;
     static clearDiskCache: () => void;
 }
