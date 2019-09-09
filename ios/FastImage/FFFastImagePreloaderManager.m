@@ -2,6 +2,7 @@
 #import "FFFastImagePreloader.h"
 #import "FFFastImageSource.h"
 
+
 @implementation FFFastImagePreloaderManager
 {
     bool _hasListeners;
@@ -55,7 +56,8 @@ RCT_EXPORT_MODULE(FastImagePreloaderManager);
                               @"id": id,
                               @"finished": [NSNumber numberWithLong:finishedCount],
                               @"total": [NSNumber numberWithLong:totalCount],
-                              @"url": isCached ? imageURL.absoluteString : [NSNull null]
+                              @"url": imageURL.absoluteString,
+                              @"cachePath": isCached ? [self getCachePath:imageURL] : [NSNull null]
                               }];
 }
 
@@ -85,6 +87,11 @@ RCT_EXPORT_METHOD(preloadManager:(nonnull NSNumber*)preloaderId sources:(nonnull
 - (BOOL) isURLCached:(NSURL *)url {
     NSString *cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:url];
     return [[SDImageCache sharedImageCache] diskImageDataExistsWithKey:cacheKey];
+}
+
+- (nullable NSString*) getCachePath:(NSURL *)url {
+    NSString *cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:url];
+    return [[SDImageCache sharedImageCache] cachePathForKey:cacheKey];
 }
 
 @end

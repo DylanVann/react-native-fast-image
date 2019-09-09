@@ -1,5 +1,5 @@
 import { NativeEventEmitter, NativeModules } from 'react-native'
-const nativeManager = NativeModules.FastImageView
+const nativeManager = NativeModules.FastImagePreloaderManager
 const nativeEmitter = new NativeEventEmitter(nativeManager)
 
 class PreloaderManager {
@@ -24,10 +24,10 @@ class PreloaderManager {
         })
     }
 
-    onProgress = ({ id, finished, total }) => {
+    onProgress = ({ id, finished, total , url, cachePath }) => {
         const { onProgress } = this._instances.get(id)
         if (onProgress) {
-            onProgress(finished, total)
+            onProgress(finished, total, url, cachePath)
         }
     }
 

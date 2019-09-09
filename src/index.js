@@ -126,6 +126,10 @@ FastImage.clearDiskCache = () => {
     FastImageViewNativeModule.clearDiskCache()
 }
 
+FastImage.getCachePath = (url) => {
+    return FastImageViewNativeModule.getCachePath(url)
+}
+
 FastImage.defaultProps = {
     resizeMode: FastImage.resizeMode.cover,
 }

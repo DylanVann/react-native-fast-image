@@ -45,5 +45,19 @@ RCT_EXPORT_METHOD(clearDiskCache)
     [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){}];
 }
 
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(getCachePath:(NSURL *)url)
+{
+    NSString *cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:url];
+    BOOL isCached = [[SDImageCache sharedImageCache] diskImageDataExistsWithKey:cacheKey];
+    if( isCached )
+    {
+        return [[SDImageCache sharedImageCache] cachePathForKey:cacheKey];
+    }
+    else
+    {
+        return [NSNull null];
+    }
+}
+
 @end
 

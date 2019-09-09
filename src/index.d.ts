@@ -164,6 +164,8 @@ interface FastImageStatic extends React.ComponentClass<FastImageProperties> {
 	clearMemoryCache(): void
 
     clearDiskCache(): void
+
+    getCachePath(url): String
 }
 
 declare var FastImage: FastImageStatic
