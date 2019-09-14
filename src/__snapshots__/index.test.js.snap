@@ -38,6 +38,40 @@ exports[`FastImage renders correctly. 1`] = `
 </View>
 `;
 
+exports[`Renders Image with fallback prop. 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <Image
+    resizeMode="cover"
+    source={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
 exports[`Renders a normal Image when not passed a uri. 1`] = `
 <View
   style={
@@ -56,7 +90,7 @@ exports[`Renders a normal Image when not passed a uri. 1`] = `
     resizeMode="cover"
     source={
       Object {
-        "testUri": "../../../react-native-fast-image-example-server/pictures/jellyfish.gif",
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
     style={

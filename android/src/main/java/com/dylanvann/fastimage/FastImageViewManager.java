@@ -2,6 +2,8 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.graphics.PorterDuff;
 import android.os.Build;
 
 import com.bumptech.glide.Glide;
@@ -102,9 +104,18 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
-                    .apply(FastImageViewConverter.getOptions(source))
+                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
+        }
+    }
+
+    @ReactProp(name = "tintColor", customType = "Color")
+    public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
+        if (color == null) {
+            view.clearColorFilter();
+        } else {
+            view.setColorFilter(color, PorterDuff.Mode.SRC_IN);
         }
     }
 
@@ -172,32 +183,43 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
 
     private static boolean isValidContextForGlide(final Context context) {
-        if (context == null) {
+        Activity activity = getActivityFromContext(context);
+
+        if (activity == null) {
             return false;
         }
+
+        return !isActivityDestroyed(activity);
+    }
+
+    private static Activity getActivityFromContext(final Context context) {
         if (context instanceof Activity) {
-            final Activity activity = (Activity) context;
-            if (isActivityDestroyed(activity)) {
-                return false;
-            }
+            return (Activity) context;
         }
 
         if (context instanceof ThemedReactContext) {
             final Context baseContext = ((ThemedReactContext) context).getBaseContext();
             if (baseContext instanceof Activity) {
-                final Activity baseActivity = (Activity) baseContext;
-                return !isActivityDestroyed(baseActivity);
+                return (Activity) baseContext;
+            }
+
+            if (baseContext instanceof ContextWrapper) {
+                final ContextWrapper contextWrapper = (ContextWrapper) baseContext;
+                final Context wrapperBaseContext = contextWrapper.getBaseContext();
+                if (wrapperBaseContext instanceof Activity) {
+                    return (Activity) wrapperBaseContext;
+                }
             }
         }
 
-        return true;
+        return null;
     }
 
     private static boolean isActivityDestroyed(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
-            return activity.isFinishing() || activity.isChangingConfigurations();
+            return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
         }
 
     }

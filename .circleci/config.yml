@@ -1,6 +1,6 @@
 version: 2
 jobs:
-    build:
+    build-and-test:
         docker:
             - image: 'circleci/node:latest'
         steps:
@@ -11,12 +11,47 @@ jobs:
                       - yarn-v1-{{ .Branch }}-
                       - yarn-v1-
             - run:
-                  name: install
+                  name: Install
                   command: yarn install
             - run:
-                  name: test
-                  command: yarn run test
+                  name: Lint
+                  command: yarn lint
+            - run:
+                  name: Build
+                  command: yarn build
+            - run:
+                  name: Test
+                  command: yarn test --coverage --coverageReporters lcov
+            - run:
+                  name: Upload Test Coverage
+                  command: bash <(curl -s https://codecov.io/bash) -f coverage/lcov.info
             - save_cache:
                   paths:
                       - ~/.cache/yarn
                   key: yarn-v1-{{ .Branch }}-{{ checksum "yarn.lock" }}
+            - persist_to_workspace:
+                  root: .
+                  paths:
+                      - .
+    release:
+        docker:
+            - image: 'circleci/node:latest'
+        steps:
+            - attach_workspace:
+                  at: .
+            - run:
+                  name: Release
+                  command: yarn semantic-release
+
+workflows:
+    version: 2
+    build-test-publish:
+        jobs:
+            - build-and-test
+            - release:
+                  filters:
+                      branches:
+                          only:
+                              - master
+                  requires:
+                      - build-and-test

@@ -1,77 +1,74 @@
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
+import React, { forwardRef, memo } from 'react'
 import {
     View,
     Image,
     NativeModules,
     requireNativeComponent,
-    ViewPropTypes,
     StyleSheet,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-class FastImage extends Component {
-    setNativeProps(nativeProps) {
-        this._root.setNativeProps(nativeProps)
-    }
+function FastImageBase({
+    source,
+    tintColor,
+    onLoadStart,
+    onProgress,
+    onLoad,
+    onError,
+    onLoadEnd,
+    style,
+    children,
+    fallback,
+    forwardedRef,
+    ...props
+}) {
+    const resolvedSource = Image.resolveAssetSource(source)
 
-    captureRef = e => (this._root = e)
-
-    render() {
-        const {
-            source,
-            onLoadStart,
-            onProgress,
-            onLoad,
-            onError,
-            onLoadEnd,
-            style,
-            children,
-            fallback,
-            ...props
-        } = this.props
-
-        const resolvedSource = Image.resolveAssetSource(source)
-
-        if (fallback) {
-            return (
-                <View
-                    style={[styles.imageContainer, style]}
-                    ref={this.captureRef}
-                >
-                    <FastImageView
-                        {...props}
-                        style={StyleSheet.absoluteFill}
-                        source={resolvedSource}
-                        onLoadStart={onLoadStart}
-                        onProgress={onProgress}
-                        onLoad={onLoad}
-                        onError={onError}
-                        onLoadEnd={onLoadEnd}
-                    />
-                    {children}
-                </View>
-            )
-        }
-
+    if (fallback) {
         return (
-            <View style={[styles.imageContainer, style]} ref={this.captureRef}>
-                <FastImageView
+            <View style={[styles.imageContainer, style]} ref={forwardedRef}>
+                <Image
                     {...props}
+                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
-                    onFastImageLoadStart={onLoadStart}
-                    onFastImageProgress={onProgress}
-                    onFastImageLoad={onLoad}
-                    onFastImageError={onError}
-                    onFastImageLoadEnd={onLoadEnd}
+                    onLoadStart={onLoadStart}
+                    onProgress={onProgress}
+                    onLoad={onLoad}
+                    onError={onError}
+                    onLoadEnd={onLoadEnd}
                 />
                 {children}
             </View>
         )
     }
+
+    return (
+        <View style={[styles.imageContainer, style]} ref={forwardedRef}>
+            <FastImageView
+                {...props}
+                tintColor={tintColor}
+                style={StyleSheet.absoluteFill}
+                source={resolvedSource}
+                onFastImageLoadStart={onLoadStart}
+                onFastImageProgress={onProgress}
+                onFastImageLoad={onLoad}
+                onFastImageError={onError}
+                onFastImageLoadEnd={onLoadEnd}
+            />
+            {children}
+        </View>
+    )
 }
+
+const FastImageMemo = memo(FastImageBase)
+
+const FastImage = forwardRef((props, ref) => (
+    <FastImageMemo forwardedRef={ref} {...props} />
+))
+
+FastImage.displayName = 'FastImage'
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -110,24 +107,6 @@ FastImage.preload = sources => {
 
 FastImage.defaultProps = {
     resizeMode: FastImage.resizeMode.cover,
-}
-
-const FastImageSourcePropType = PropTypes.shape({
-    uri: PropTypes.string,
-    headers: PropTypes.objectOf(PropTypes.string),
-    priority: PropTypes.oneOf(Object.keys(FastImage.priority)),
-    cache: PropTypes.oneOf(Object.keys(FastImage.cacheControl)),
-})
-
-FastImage.propTypes = {
-    ...ViewPropTypes,
-    source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
-    onLoadStart: PropTypes.func,
-    onProgress: PropTypes.func,
-    onLoad: PropTypes.func,
-    onError: PropTypes.func,
-    onLoadEnd: PropTypes.func,
-    fallback: PropTypes.bool,
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
