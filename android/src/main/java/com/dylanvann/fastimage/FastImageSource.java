@@ -9,7 +9,11 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.facebook.react.views.imagehelper.ImageSource;
 
+import java.io.File;
+
 import javax.annotation.Nullable;
+
+import androidx.core.content.FileProvider;
 
 public class FastImageSource extends ImageSource {
     private static final String DATA_SCHEME = "data";
@@ -52,6 +56,13 @@ public class FastImageSource extends ImageSource {
         super(context, source, width, height);
         mHeaders = headers == null ? Headers.DEFAULT : headers;
         mUri = super.getUri();
+
+        if (mUri == null || TextUtils.isEmpty(mUri.toString())) {
+            Uri localUri = FileProvider.getUriForFile(context,
+                    context.getApplicationContext().getPackageName() + ".provider",
+                    new File(source));
+            mUri = localUri;
+        }
 
         if (isResource() && TextUtils.isEmpty(mUri.toString())) {
             throw new Resources.NotFoundException("Local Resource Not Found. Resource: '" + getSource() + "'.");
