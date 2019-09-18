@@ -63,6 +63,10 @@ and
 yarn add react-native-fast-image
 ```
 
+```bash
+react-native link react-native-fast-image
+```
+
 ```jsx
 import FastImage from 'react-native-fast-image'
 
