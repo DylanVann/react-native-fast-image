@@ -8,3 +8,5 @@ If you have problems you can try:
 - Clearing watchman's watches. (`watchman watch-del-all`)
 - Clearing React Native's packager cache. (`react-native start --reset-cache`)
 - Clearing React Native's iOS build folder. (`rm -rf ios/build`)
+- Updating Pod repos. (`cd ios && pod repo update`)
+- Reinstalling Pods. (`cd ios && pod install`)
