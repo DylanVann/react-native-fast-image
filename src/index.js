@@ -23,16 +23,17 @@ function FastImageBase({
     forwardedRef,
     ...props
 }) {
-    const resolvedSource = Image.resolveAssetSource(source)
-
     if (fallback) {
+        const { 'cache': _, ...sourceWithoutCache } = source
+        const resolvedSourceForFallback = Image.resolveAssetSource(sourceWithoutCache)
+
         return (
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
                     {...props}
                     tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
-                    source={resolvedSource}
+                    source={resolvedSourceForFallback}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
                     onLoad={onLoad}
@@ -44,6 +45,8 @@ function FastImageBase({
         )
     }
 
+    const resolvedSource = Image.resolveAssetSource(source)
+    
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
             <FastImageView
