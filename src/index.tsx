@@ -143,9 +143,11 @@ function FastImageBase({
     forwardedRef,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    const resolvedSource = Image.resolveAssetSource(source as any)
-
     if (fallback) {
+        const cleanedSource = { ...(source as any) }
+        delete cleanedSource.cache
+        const resolvedSource = Image.resolveAssetSource(cleanedSource)
+
         return (
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
@@ -163,6 +165,8 @@ function FastImageBase({
             </View>
         )
     }
+
+    const resolvedSource = Image.resolveAssetSource(source as any)
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
