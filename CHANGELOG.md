@@ -1,3 +1,15 @@
+# [8.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.2...v8.0.0) (2019-10-20)
+
+
+### Features
+
+* Add cookie support for iOS. ([#284](https://github.com/DylanVann/react-native-fast-image/issues/284)) ([ae47bff](https://github.com/DylanVann/react-native-fast-image/commit/ae47bff))
+
+
+### BREAKING CHANGES
+
+* This changes how network requests are handled on iOS. Make sure they still work for you.
+
 ## [7.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.1...v7.0.2) (2019-07-05)
 
 
