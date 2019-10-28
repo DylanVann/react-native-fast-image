@@ -4,12 +4,14 @@ module.exports = {
         es6: true,
     },
     plugins: ['jest'],
-    overrides: {
-        files: 'src/**/*.test.js',
-        env: {
-            'jest/globals': true,
+    overrides: [
+        {
+            files: 'src/**/*.test.js',
+            env: {
+                'jest/globals': true,
+            },
         },
-    },
+    ],
     extends: [
         'eslint:recommended',
         'plugin:prettier/recommended',
