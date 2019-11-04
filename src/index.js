@@ -1,10 +1,8 @@
 import React, { forwardRef, memo } from 'react'
-import PropTypes from 'prop-types'
 import {
     View,
     Image,
     requireNativeComponent,
-    ViewPropTypes,
     StyleSheet,
 } from 'react-native'
 import preloaderManager from './preloaderManager'
@@ -110,25 +108,6 @@ FastImage.preload = (sources, onProgress, onComplete) => {
 
 FastImage.defaultProps = {
     resizeMode: FastImage.resizeMode.cover,
-}
-
-const FastImageSourcePropType = PropTypes.shape({
-    uri: PropTypes.string,
-    headers: PropTypes.objectOf(PropTypes.string),
-    priority: PropTypes.oneOf(Object.keys(FastImage.priority)),
-    cache: PropTypes.oneOf(Object.keys(FastImage.cacheControl)),
-})
-
-FastImage.propTypes = {
-    ...ViewPropTypes,
-    source: PropTypes.oneOfType([FastImageSourcePropType, PropTypes.number]),
-    tintColor: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    onLoadStart: PropTypes.func,
-    onProgress: PropTypes.func,
-    onLoad: PropTypes.func,
-    onError: PropTypes.func,
-    onLoadEnd: PropTypes.func,
-    fallback: PropTypes.bool,
 }
 
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
