@@ -1,11 +1,12 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
-import android.widget.ImageView;
+
+import androidx.appcompat.widget.AppCompatImageView;
 
 import com.bumptech.glide.load.model.GlideUrl;
 
-class FastImageViewWithUrl extends ImageView {
+class FastImageViewWithUrl extends AppCompatImageView {
     public GlideUrl glideUrl;
 
     public FastImageViewWithUrl(Context context) {
