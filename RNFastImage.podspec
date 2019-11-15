@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.platforms     = { :ios => "8.0", :tvos => "9.0" }
   s.framework     = 'UIKit'
   s.requires_arc  = true
-  s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git" }
+  s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git", :tag => "v#{s.version}" }
   s.source_files  = "ios/**/*.{h,m}"
 
   s.dependency 'React'
