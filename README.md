@@ -79,6 +79,24 @@ const YourImage = () => (
 )
 ```
 
+## Example whith styled-components 
+
+```jsx
+import styled from 'styled-components/native';
+
+import FastImage from 'react-native-fast-image'
+
+export const ImageUser = styled(FastImage)`
+  width: 96px;
+  height: 96px;
+  border-radius: 40px;
+  position: absolute;
+  margin-top: 8%;
+  margin-left: 8%;
+`;
+
+```
+
 ## Are you using Glide already using an AppGlideModule?
 
 -   [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
