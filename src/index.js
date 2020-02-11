@@ -45,8 +45,9 @@ function FastImageBase({
     }
 
     return (
-        <View style={[styles.imageContainer, style]} ref={forwardedRef}>
+        <View style={[styles.imageContainer, style]}>
             <FastImageView
+                ref={forwardedRef}
                 {...props}
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
