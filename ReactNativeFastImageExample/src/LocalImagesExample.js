@@ -39,7 +39,6 @@ class PhotoExample extends Component {
 
     pick = () => {
         ImagePicker.showImagePicker(options, response => {
-            console.log('Response = ', response)
             if (response.didCancel) {
                 console.log('User cancelled image picker')
             } else if (response.error) {
@@ -64,9 +63,7 @@ class PhotoExample extends Component {
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
                     <Image style={styles.imageSquare} source={this.state.image}>
-                        <Text style={{ color: 'white', fontWeight: '900' }}>
-                            Pick Photo
-                        </Text>
+                        <Text style={styles.pickPhoto}>Pick Photo</Text>
                     </Image>
                 </TouchableOpacity>
             </Row>
@@ -92,6 +89,7 @@ const LocalImagesExample = () => (
 )
 
 const styles = StyleSheet.create({
+    pickPhoto: { color: 'white', fontWeight: '900' },
     row: {
         justifyContent: 'center',
         alignItems: 'center',

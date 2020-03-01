@@ -20,11 +20,15 @@ class AutoSizingImage extends Component {
             nativeEvent: { width, height },
         } = e
         this.setState({ width, height })
-        if (this.props.onLoad) this.props.onLoad(e)
+        if (this.props.onLoad) {
+            this.props.onLoad(e)
+        }
     }
 
     getHeight = () => {
-        if (!this.state.height) return this.props.defaultHeight
+        if (!this.state.height) {
+            return this.props.defaultHeight
+        }
         const ratio = this.state.height / this.state.width
         const height = this.props.width * ratio
         return height

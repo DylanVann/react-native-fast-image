@@ -4,7 +4,7 @@ import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
-import uuid from 'uuid/v4'
+import { v4 as uuid } from 'uuid'
 import Button from './Button'
 import { createImageProgress } from 'react-native-image-progress'
 
@@ -58,13 +58,13 @@ class PreloadExample extends Component {
                         <View style={styles.image} />
                     )}
                     <View style={styles.buttons}>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.buttonView}>
                             <Button text="Bust" onPress={this.bustCache} />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.buttonView}>
                             <Button text="Preload" onPress={this.preload} />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.buttonView}>
                             <Button text="Render" onPress={this.showImage} />
                         </View>
                     </View>
@@ -75,6 +75,7 @@ class PreloadExample extends Component {
 }
 
 const styles = StyleSheet.create({
+    buttonView: { flex: 1 },
     section: {
         flexDirection: 'column',
         alignItems: 'center',

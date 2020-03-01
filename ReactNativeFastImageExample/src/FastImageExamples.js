@@ -1,6 +1,5 @@
 import React from 'react'
 import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native'
-import Icon from './Icons/Icon'
 import Section from './Section'
 import PriorityExample from './PriorityExample'
 import GifExample from './GifExample'
@@ -44,11 +43,6 @@ const FastImageExample = () => (
         <StatusBarUnderlay />
     </View>
 )
-
-FastImageExample.navigationOptions = {
-    tabBarLabel: 'FastImage Example',
-    tabBarIcon: props => <Icon name="ios-information-circle" {...props} />,
-}
 
 const styles = StyleSheet.create({
     titleText: {

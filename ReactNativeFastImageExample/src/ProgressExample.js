@@ -24,14 +24,7 @@ class ProgressExample extends Component {
                 <Section>
                     <FeatureText text="• Progress callbacks." />
                 </Section>
-                <SectionFlex
-                    onPress={onPressReload}
-                    style={{
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        paddingBottom: 20,
-                    }}
-                >
+                <SectionFlex onPress={onPressReload} style={styles.section}>
                     <FastImage
                         style={styles.image}
                         source={{
@@ -69,6 +62,11 @@ class ProgressExample extends Component {
 }
 
 const styles = StyleSheet.create({
+    section: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingBottom: 20,
+    },
     image: {
         height: 100,
         backgroundColor: '#ddd',
