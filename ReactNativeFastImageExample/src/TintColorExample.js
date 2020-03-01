@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, View} from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import withCacheBust from './withCacheBust'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'

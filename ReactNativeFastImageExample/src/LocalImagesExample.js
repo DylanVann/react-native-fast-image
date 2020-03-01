@@ -39,16 +39,12 @@ class PhotoExample extends Component {
 
     pick = () => {
         ImagePicker.showImagePicker(options, response => {
-            console.log('Response = ', response)
             if (response.didCancel) {
-                console.log('User cancelled image picker')
+                console.log('ImagePicker - User cancelled.')
             } else if (response.error) {
-                console.log('ImagePicker Error: ', response.error)
+                console.log(`ImagePicker - Error ${response.error}.`)
             } else if (response.customButton) {
-                console.log(
-                    'User tapped custom button: ',
-                    response.customButton,
-                )
+                console.log(`ImagePicker - Tapped ${response.customButton}`)
             } else {
                 const uri = response.uri
                 this.setState({
@@ -64,9 +60,7 @@ class PhotoExample extends Component {
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
                     <Image style={styles.imageSquare} source={this.state.image}>
-                        <Text style={{ color: 'white', fontWeight: '900' }}>
-                            Pick Photo
-                        </Text>
+                        <Text style={styles.pickPhoto}>Pick Photo</Text>
                     </Image>
                 </TouchableOpacity>
             </Row>
@@ -92,6 +86,7 @@ const LocalImagesExample = () => (
 )
 
 const styles = StyleSheet.create({
+    pickPhoto: { color: 'white', fontWeight: '900' },
     row: {
         justifyContent: 'center',
         alignItems: 'center',

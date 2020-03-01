@@ -92,7 +92,6 @@ const MARGIN = 2
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
         alignItems: 'stretch',
         justifyContent: 'center',
         backgroundColor: 'white',
