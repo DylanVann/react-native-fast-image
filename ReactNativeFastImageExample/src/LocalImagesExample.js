@@ -40,14 +40,11 @@ class PhotoExample extends Component {
     pick = () => {
         ImagePicker.showImagePicker(options, response => {
             if (response.didCancel) {
-                console.log('User cancelled image picker')
+                console.log('ImagePicker - User cancelled.')
             } else if (response.error) {
-                console.log('ImagePicker Error: ', response.error)
+                console.log(`ImagePicker - Error ${response.error}.`)
             } else if (response.customButton) {
-                console.log(
-                    'User tapped custom button: ',
-                    response.customButton,
-                )
+                console.log(`ImagePicker - Tapped ${response.customButton}`)
             } else {
                 const uri = response.uri
                 this.setState({
