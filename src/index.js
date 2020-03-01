@@ -105,6 +105,8 @@ FastImage.preload = sources => {
     FastImageViewNativeModule.preload(sources)
 }
 
+FastImage.getCachePath = uri => FastImageViewNativeModule.getCachePath(uri)
+
 FastImage.defaultProps = {
     resizeMode: FastImage.resizeMode.cover,
 }
