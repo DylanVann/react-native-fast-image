@@ -1,15 +1,23 @@
 package com.dylanvann.fastimage;
 
+import androidx.annotation.Nullable;
 import android.app.Activity;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.views.imagehelper.ImageSource;
+
+import java.io.File;
 
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
@@ -53,4 +61,61 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             }
         });
     }
+
+    @ReactMethod
+    public void clearMemoryCache() {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Glide.get(activity.getApplicationContext()).clearMemory();
+            }
+        });
+    }
+
+    @ReactMethod
+    public void clearDiskCache() {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        Glide.get(activity.getApplicationContext()).clearDiskCache();
+    }
+
+    /*@ReactMethod(isBlockingSynchronousMethod = true)
+    public void getCachePath(final ReadableMap source) {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) return;
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
+
+                RequestOptions options = new RequestOptions()
+                        .onlyRetrieveFromCache(true);
+
+                Glide
+                        .with(activity.getApplicationContext())
+                        .asFile()
+                        .load(
+                                imageSource.isBase64Resource() ? imageSource.getSource() :
+                                        imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
+                        )
+                        .apply(options)
+                        .listener(new RequestListener<File>() {
+                            @Override
+                            public String onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                                return null;
+                            }
+
+                            @Override
+                            public String onResourceReady(File resource, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                                return resource.getAbsolutePath();
+                            }
+                        })
+                        .submit();
+            }
+        });
+    }*/
 }

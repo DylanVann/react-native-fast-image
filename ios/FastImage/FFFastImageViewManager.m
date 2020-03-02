@@ -1,6 +1,7 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
 
+#import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
 @implementation FFFastImageViewManager
@@ -32,6 +33,30 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     }];
 
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+}
+
+RCT_EXPORT_METHOD(clearMemoryCache)
+{
+    [SDImageCache.sharedImageCache clearMemory];
+}
+
+RCT_EXPORT_METHOD(clearDiskCache)
+{
+    [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){}];
+}
+
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(getCachePath:(NSURL *)url)
+{
+    NSString *cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:url];
+    BOOL isCached = [[SDImageCache sharedImageCache] diskImageDataExistsWithKey:cacheKey];
+    if( isCached )
+    {
+        return [[SDImageCache sharedImageCache] cachePathForKey:cacheKey];
+    }
+    else
+    {
+        return [NSNull null];
+    }
 }
 
 @end

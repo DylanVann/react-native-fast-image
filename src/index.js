@@ -7,6 +7,8 @@ import {
     StyleSheet,
 } from 'react-native'
 
+import preloaderManager from './preloaderManager'
+
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 function FastImageBase({
@@ -103,6 +105,29 @@ FastImage.cacheControl = {
 
 FastImage.preload = sources => {
     FastImageViewNativeModule.preload(sources)
+}
+
+FastImage.preloadManager = (sources,onProgress,onComplete) => {
+    if( sources.length )
+    {
+        preloaderManager.preloadManager(sources,onProgress,onComplete)
+    }
+    else
+    {
+        onComplete()
+    }
+}
+
+FastImage.clearMemoryCache = () => {
+    FastImageViewNativeModule.clearMemoryCache()
+}
+
+FastImage.clearDiskCache = () => {
+    FastImageViewNativeModule.clearDiskCache()
+}
+
+FastImage.getCachePath = (url) => {
+    return FastImageViewNativeModule.getCachePath(url)
 }
 
 FastImage.defaultProps = {
