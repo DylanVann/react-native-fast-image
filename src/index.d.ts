@@ -83,6 +83,7 @@ export interface OnProgressEvent {
 export interface FastImageProperties {
     source: FastImageSource | number
     resizeMode?: FastImage.ResizeMode
+    blurRadius?: number
     fallback?: boolean
 
     onLoadStart?(): void
