@@ -134,6 +134,13 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `source.cacheOmitURLParams?: boolean`
+
+If true will be cached under url without query params
+Useful when image url is dynamic and query params contain security information
+
+---
+
 ### `resizeMode?: enum`
 
 -   `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
