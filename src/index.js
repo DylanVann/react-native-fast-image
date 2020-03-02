@@ -2,12 +2,10 @@ import React, { forwardRef, memo } from 'react'
 import {
     View,
     Image,
-    NativeModules,
     requireNativeComponent,
     StyleSheet,
 } from 'react-native'
-
-const FastImageViewNativeModule = NativeModules.FastImageView
+import preloaderManager from './preloaderManager'
 
 function FastImageBase({
     source,
@@ -101,8 +99,11 @@ FastImage.cacheControl = {
     cacheOnly: 'cacheOnly',
 }
 
-FastImage.preload = sources => {
-    FastImageViewNativeModule.preload(sources)
+FastImage.preload = (sources, onProgress, onComplete) => {
+    if (sources.length)
+        return preloaderManager.preload(sources, onProgress, onComplete)
+
+    return onComplete()
 }
 
 FastImage.defaultProps = {

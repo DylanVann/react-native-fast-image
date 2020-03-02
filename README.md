@@ -196,21 +196,25 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 ## Static Methods
 
-### `FastImage.preload: (source[]) => void`
+### `FastImage.preload: (source[], onProgress?, onComplete?) => void`
 
 Preload images to display later. e.g.
 
 ```js
-FastImage.preload([
+FastImage.preload(
+  [
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
-        headers: { Authorization: 'someAuthToken' },
+      uri: 'https://facebook.github.io/react/img/logo_og.png',
+      headers: { Authorization: 'someAuthToken' },
     },
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
-        headers: { Authorization: 'someAuthToken' },
+      uri: 'https://facebook.github.io/react/img/logo_og.png',
+      headers: { Authorization: 'someAuthToken' },
     },
-])
+  ],
+  (finished, total) => console.log(`Preloaded ${finished}/${total} images`),
+  (finished, skipped) => console.log(`Completed. Failed to load ${skipped}/${finished} images`),
+)
 ```
 
 ## Troubleshooting
