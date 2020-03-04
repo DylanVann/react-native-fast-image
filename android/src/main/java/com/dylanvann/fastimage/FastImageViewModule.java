@@ -25,7 +25,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void preload(final ReadableArray sources) {
+    public void preload(final ReadableArray sources, String cacheControl) {
         final Activity activity = getCurrentActivity();
         if (activity == null) return;
         activity.runOnUiThread(new Runnable() {
