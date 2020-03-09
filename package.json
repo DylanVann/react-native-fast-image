@@ -19,29 +19,34 @@
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
-    "main": "src/index.js",
-    "types": "src/index.d.ts",
+    "main": "dist/index.js",
+    "module": "dist/react-native-fast-image.esm.js",
+    "typings": "dist/index.d.ts",
     "files": [
         "android",
         "!android/build",
         "ios",
         "!ios/build",
-        "src",
+        "dist",
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "exit 0",
+        "build": "tsdx build && cp src/index.js.flow dist/index.js.flow",
         "commit": "git-cz",
-        "format": "yarn prettier --write",
-        "lint": "eslint src/**/*.js",
-        "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'",
+        "lint": "tsdx lint src",
         "semantic-release": "semantic-release",
-        "test": "jest ./src/*.js"
+        "test": "jest ./src/*.tsx"
     },
     "config": {
         "commitizen": {
             "path": "node_modules/cz-conventional-changelog"
         }
+    },
+    "prettier": {
+        "semi": false,
+        "singleQuote": true,
+        "tabWidth": 4,
+        "trailingComma": "all"
     },
     "jest": {
         "modulePathIgnorePatterns": [
@@ -59,6 +64,8 @@
         "@semantic-release/git": "^9.0.0",
         "@semantic-release/npm": "^7.0.3",
         "@semantic-release/release-notes-generator": "^9.0.1",
+        "@types/react": "^16.9.23",
+        "@types/react-native": "^0.61.17",
         "babel-jest": "^24.9.0",
         "commitizen": "^4.0.3",
         "cz-conventional-changelog": "^3.1.0",
@@ -75,6 +82,7 @@
         "react-native": "0.61.5",
         "react-test-renderer": "16.9.0",
         "semantic-release": "^17.0.4",
+        "tsdx": "^0.12.3",
         "typescript": "^3.8.3"
     },
     "peerDependencies": {
