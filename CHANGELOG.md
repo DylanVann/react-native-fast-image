@@ -1,3 +1,10 @@
+## [8.1.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.1...v8.1.2) (2020-03-09)
+
+
+### Bug Fixes
+
+* Fixes podspec syntax. ([b627646](https://github.com/DylanVann/react-native-fast-image/commit/b627646001e334ece89c49e0aa6bc403f496f8ce))
+
 ## [8.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.0...v8.1.1) (2020-03-09)
 
 
