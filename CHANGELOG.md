@@ -1,3 +1,10 @@
+# [8.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.0.0...v8.1.0) (2020-03-09)
+
+
+### Features
+
+* converts to TypeScript ([#642](https://github.com/DylanVann/react-native-fast-image/issues/642)) ([ac11706](https://github.com/DylanVann/react-native-fast-image/commit/ac117060ebdd04b2130bfb23c62f203beb077089))
+
 # [8.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.2...v8.0.0) (2019-10-20)
 
 
