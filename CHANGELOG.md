@@ -1,3 +1,10 @@
+## [8.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.0...v8.1.1) (2020-03-09)
+
+
+### Bug Fixes
+
+* Add git tag to CocoaPods source property ([#601](https://github.com/DylanVann/react-native-fast-image/issues/601)) ([2d706ad](https://github.com/DylanVann/react-native-fast-image/commit/2d706ad7da6410a3a2382b70ed90369f0473117e))
+
 # [8.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.0.0...v8.1.0) (2020-03-09)
 
 
