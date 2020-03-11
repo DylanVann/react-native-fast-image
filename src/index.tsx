@@ -199,7 +199,7 @@ interface FastImageStaticProperties {
     preload: (sources: Source[]) => void
 }
 
-const FastImage: React.Component<FastImageProps> &
+const FastImage: React.ComponentType<FastImageProps> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.resizeMode = resizeMode
