@@ -5,9 +5,15 @@ import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import SectionFlex from './SectionFlex'
 import FeatureText from './FeatureText'
+
+// @ts-ignore
 import LogoImage from './images/logo.png'
 
-const TintColorExample = ({ onPressReload }) => (
+interface TintColorExampleProps {
+    onPressReload: () => void
+}
+
+const TintColorExample = ({ onPressReload }: TintColorExampleProps) => (
     <View>
         <Section>
             <FeatureText text="Images with tint color." />

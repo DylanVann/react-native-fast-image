@@ -9,7 +9,12 @@ import FeatureText from './FeatureText'
 const GIF_URL =
     'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
 
-const GifExample = ({ onPressReload, bust }) => (
+interface GifExampleProps {
+    onPressReload: () => void
+    bust: boolean
+}
+
+const GifExample = ({ onPressReload, bust }: GifExampleProps) => (
     <View>
         <Section>
             <FeatureText text="• GIF support." />

@@ -8,7 +8,15 @@ import FeatureText from './FeatureText'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
-const BorderRadiusExample = ({ onPressReload, bust }) => (
+interface BorderRadiusExampleProps {
+    onPressReload: () => void
+    bust: string
+}
+
+const BorderRadiusExample = ({
+    onPressReload,
+    bust,
+}: BorderRadiusExampleProps) => (
     <View>
         <Section>
             <FeatureText text="• Border radius." />

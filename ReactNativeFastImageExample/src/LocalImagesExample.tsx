@@ -1,16 +1,27 @@
 import React, { Component } from 'react'
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native'
+import {
+    StyleSheet,
+    View,
+    Text,
+    TouchableOpacity,
+    ViewProps,
+} from 'react-native'
 import withCacheBust from './withCacheBust'
-import FastImage from 'react-native-fast-image'
+import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
-import FieldsImage from './images/fields.jpg'
-import FieldsBase64 from './images/fields.js'
-import FieldsWebP from './images/fields.webp'
-import JellyfishGIF from './images/jellyfish.gif'
-import JellyfishWebP from './images/jellyfish.webp'
+import FieldsBase64 from './images/fields'
 import ImagePicker from 'react-native-image-picker'
 import BulletText from './BulletText'
+
+// @ts-ignore
+import FieldsImage from './images/fields.jpg'
+// @ts-ignore
+import FieldsWebP from './images/fields.webp'
+// @ts-ignore
+import JellyfishGIF from './images/jellyfish.gif'
+// @ts-ignore
+import JellyfishWebP from './images/jellyfish.webp'
 
 const options = {
     title: 'Select Avatar',
@@ -21,21 +32,32 @@ const options = {
     },
 }
 
-const Image = ({ source, ...p }) => (
+const Image = ({ source, ...p }: FastImageProps) => (
     <FastImage style={styles.imageSquare} source={source} {...p} />
 )
 
-const Row = p => <View style={styles.row} {...p} />
+const Row: React.ComponentType<ViewProps> = (p: ViewProps) => (
+    <View style={styles.row} {...p} />
+)
 
-const Example = ({ name, source }) => (
+interface ExampleProps {
+    name: string
+    source: any
+}
+
+const Example = ({ name, source }: ExampleProps) => (
     <Row>
         <BulletText>{name}</BulletText>
         <Image source={source} />
     </Row>
 )
 
-class PhotoExample extends Component {
-    state = {}
+interface PhotoExampleState {
+    image?: Source
+}
+
+class PhotoExample extends Component<{}, PhotoExampleState> {
+    state: PhotoExampleState = {}
 
     pick = () => {
         ImagePicker.showImagePicker(options, response => {
@@ -59,7 +81,10 @@ class PhotoExample extends Component {
             <Row>
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
-                    <Image style={styles.imageSquare} source={this.state.image}>
+                    <Image
+                        style={styles.imageSquare}
+                        source={this.state.image || 0}
+                    >
                         <Text style={styles.pickPhoto}>Pick Photo</Text>
                     </Image>
                 </TouchableOpacity>
