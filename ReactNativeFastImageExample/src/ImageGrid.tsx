@@ -1,26 +1,45 @@
 import React, { Component } from 'react'
-import { FlatList, StyleSheet, Text, View } from 'react-native'
+import {
+    FlatList,
+    StyleSheet,
+    Text,
+    View,
+    LayoutChangeEvent,
+} from 'react-native'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
-const getImageUrl = (id, width, height) =>
+const getImageUrl = (id: string, width: number, height: number) =>
     `https://unsplash.it/${width}/${height}?image=${id}`
 
-class ImageGrid extends Component {
-    constructor(props) {
-        super(props)
+interface ImageGridProps {
+    ImageComponent: React.ComponentType<any>
+}
 
+interface ImageGridState {
+    images: any[]
+    itemHeight: number
+    error?: any
+}
+
+class ImageGrid extends Component<ImageGridProps, ImageGridState> {
+    constructor(props: ImageGridProps) {
+        super(props)
         fetch('https://unsplash.it/list')
             .then(res => res.json())
             .then(this._onFetchImagesSuccess)
             .catch(this._onFetchImagesError)
     }
 
-    state = {
+    state: {
+        images: any[]
+        itemHeight: number
+        error?: any
+    } = {
         images: [],
         itemHeight: 0,
     }
 
-    _onLayout = e => {
+    _onLayout = (e: LayoutChangeEvent) => {
         const width = e.nativeEvent.layout.width
         this.setState({
             itemHeight: width / 4,
@@ -33,18 +52,18 @@ class ImageGrid extends Component {
         })
     }
 
-    _onFetchImagesSuccess = images => {
+    _onFetchImagesSuccess = (images: any[]) => {
         this.setState({
             images,
         })
     }
 
-    _getItemLayout = (data, index) => {
+    _getItemLayout = (_: any, index: number) => {
         const { itemHeight } = this.state
         return { length: itemHeight, offset: itemHeight * index, index }
     }
 
-    _renderItem = ({ item }) => {
+    _renderItem = ({ item }: { item: any }) => {
         const ImageComponent = this.props.ImageComponent
         const uri = getImageUrl(item.id, 100, 100)
         return (
@@ -54,7 +73,7 @@ class ImageGrid extends Component {
         )
     }
 
-    _extractKey = item => {
+    _extractKey = (item: any) => {
         return item.id
     }
 
@@ -111,8 +130,8 @@ const styles = StyleSheet.create({
     },
     image: {
         flex: 1,
-        width: null,
-        height: null,
+        width: null as any,
+        height: null as any,
         margin: MARGIN,
         backgroundColor: '#eee',
     },

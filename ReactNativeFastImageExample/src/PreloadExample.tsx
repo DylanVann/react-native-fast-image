@@ -4,8 +4,8 @@ import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
-import { v4 as uuid } from 'uuid'
 import Button from './Button'
+// @ts-ignore
 import { createImageProgress } from 'react-native-image-progress'
 
 const IMAGE_URL =
@@ -13,14 +13,16 @@ const IMAGE_URL =
 
 const Image = createImageProgress(FastImage)
 
-class PreloadExample extends Component {
+interface PreloadExampleProps {}
+
+class PreloadExample extends Component<PreloadExampleProps> {
     state = {
         show: false,
         url: IMAGE_URL,
     }
 
     bustCache = () => {
-        const key = uuid()
+        const key = Math.random().toString()
         const bust = `?bust=${key}`
         // Preload images. This can be called anywhere.
         const url = IMAGE_URL + bust
@@ -45,10 +47,7 @@ class PreloadExample extends Component {
                     <FeatureText text="• Preloading." />
                     <FeatureText text="• Progress indication using react-native-image-progress." />
                 </Section>
-                <SectionFlex
-                    style={styles.section}
-                    onPress={this.props.onPressReload}
-                >
+                <SectionFlex style={styles.section}>
                     {this.state.show ? (
                         <Image
                             style={styles.image}

@@ -8,9 +8,24 @@ import FeatureText from './FeatureText'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
-class ProgressExample extends Component {
-    state = {
-        mount: new Date(),
+interface ProgressExampleProps {
+    onPressReload: () => void
+    bust: string
+}
+
+interface ProgressExampleState {
+    mount: number
+    start?: number
+    progress?: number
+    end?: number
+}
+
+class ProgressExample extends Component<
+    ProgressExampleProps,
+    ProgressExampleState
+> {
+    state: ProgressExampleState = {
+        mount: Date.now(),
         start: undefined,
         progress: undefined,
         end: undefined,

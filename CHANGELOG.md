@@ -1,3 +1,10 @@
+## [8.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.2...v8.1.3) (2020-03-12)
+
+
+### Bug Fixes
+
+* Replace 'Component' with 'ComponentType' ([#647](https://github.com/DylanVann/react-native-fast-image/issues/647)) ([6abb273](https://github.com/DylanVann/react-native-fast-image/commit/6abb273ce590ab7a111695a601b603823ac0bf4e))
+
 ## [8.1.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.1...v8.1.2) (2020-03-09)
 
 
