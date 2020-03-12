@@ -1,3 +1,10 @@
+## [8.1.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.3...v8.1.4) (2020-03-12)
+
+
+### Bug Fixes
+
+* Bump Glide version number to v4.11.0. ([#649](https://github.com/DylanVann/react-native-fast-image/issues/649)) ([c4e4306](https://github.com/DylanVann/react-native-fast-image/commit/c4e4306c15bda65d95e97ab9f45ef5e351128253)), closes [#536](https://github.com/DylanVann/react-native-fast-image/issues/536)
+
 ## [8.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.2...v8.1.3) (2020-03-12)
 
 
