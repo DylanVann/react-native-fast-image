@@ -1,7 +1,12 @@
 import React from 'react'
 import FeatureText from './FeatureText'
 
-const BulletText = ({ text, children }) => (
+interface BulletTextProps {
+    text?: string
+    children?: any
+}
+
+const BulletText = ({ text, children }: BulletTextProps) => (
     <FeatureText text={`• ${text || children} •`} />
 )
 

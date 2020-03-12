@@ -1,7 +1,13 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 
-export default ({ children }) => <View style={styles.section}>{children}</View>
+interface SectionProps {
+    children?: any
+}
+
+export default function Section({ children }: SectionProps) {
+    return <View style={styles.section}>{children}</View>
+}
 
 const styles = StyleSheet.create({
     section: {

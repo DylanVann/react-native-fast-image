@@ -1,7 +1,13 @@
 import React from 'react'
 import Base from 'react-native-vector-icons/Ionicons'
 
-export function Icon({ size, name, color }) {
+interface IconProps {
+    size?: number
+    name: string
+    color: string
+}
+
+export function Icon({ size, name, color }: IconProps) {
     return (
         <Base
             name={name}

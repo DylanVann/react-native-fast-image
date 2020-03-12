@@ -6,7 +6,7 @@ import Section from './Section'
 import SectionFlex from './SectionFlex'
 import FeatureText from './FeatureText'
 
-const getImageUrl = (id, width, height) =>
+const getImageUrl = (id: string, width: number, height: number) =>
     `https://source.unsplash.com/${id}/${width}x${height}`
 const IMAGE_SIZE = 1024
 const IMAGE_SIZE_PX = PixelRatio.getPixelSizeForLayoutSize(IMAGE_SIZE)
@@ -16,7 +16,12 @@ const IMAGE_URLS = [
     getImageUrl('S7VCcp6KCKE', IMAGE_SIZE, IMAGE_SIZE),
 ]
 
-const PriorityExample = ({ onPressReload, bust }) => (
+interface PriorityExampleProps {
+    onPressReload: () => void
+    bust: string
+}
+
+const PriorityExample = ({ onPressReload, bust }: PriorityExampleProps) => (
     <View>
         <Section>
             <FeatureText text="• Prioritize images (low, normal, high)." />
