@@ -10,7 +10,7 @@ import {
     ShadowStyleIOS,
     StyleProp,
     TransformsStyle,
-    AccessibilityProps
+    AccessibilityProps,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
