@@ -10,6 +10,7 @@ import {
     ShadowStyleIOS,
     StyleProp,
     TransformsStyle,
+    AccessibilityProps
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -78,7 +79,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     opacity?: number
 }
 
-export interface FastImageProps {
+export interface FastImageProps extends AccessibilityProps {
     source: Source | number
     resizeMode?: ResizeMode
     fallback?: boolean
