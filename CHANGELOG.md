@@ -1,3 +1,45 @@
+## [8.1.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.4...v8.1.5) (2020-03-14)
+
+
+### Bug Fixes
+
+* Updates SDWebImageWebPCoder. ([#628](https://github.com/DylanVann/react-native-fast-image/issues/628)) ([325d77f](https://github.com/DylanVann/react-native-fast-image/commit/325d77f4c2e2e1437c0dda160b6047473d7c8a07))
+
+## [8.1.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.3...v8.1.4) (2020-03-12)
+
+
+### Bug Fixes
+
+* Bump Glide version number to v4.11.0. ([#649](https://github.com/DylanVann/react-native-fast-image/issues/649)) ([c4e4306](https://github.com/DylanVann/react-native-fast-image/commit/c4e4306c15bda65d95e97ab9f45ef5e351128253)), closes [#536](https://github.com/DylanVann/react-native-fast-image/issues/536)
+
+## [8.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.2...v8.1.3) (2020-03-12)
+
+
+### Bug Fixes
+
+* Replace 'Component' with 'ComponentType' ([#647](https://github.com/DylanVann/react-native-fast-image/issues/647)) ([6abb273](https://github.com/DylanVann/react-native-fast-image/commit/6abb273ce590ab7a111695a601b603823ac0bf4e))
+
+## [8.1.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.1...v8.1.2) (2020-03-09)
+
+
+### Bug Fixes
+
+* Fixes podspec syntax. ([b627646](https://github.com/DylanVann/react-native-fast-image/commit/b627646001e334ece89c49e0aa6bc403f496f8ce))
+
+## [8.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.0...v8.1.1) (2020-03-09)
+
+
+### Bug Fixes
+
+* Add git tag to CocoaPods source property ([#601](https://github.com/DylanVann/react-native-fast-image/issues/601)) ([2d706ad](https://github.com/DylanVann/react-native-fast-image/commit/2d706ad7da6410a3a2382b70ed90369f0473117e))
+
+# [8.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.0.0...v8.1.0) (2020-03-09)
+
+
+### Features
+
+* converts to TypeScript ([#642](https://github.com/DylanVann/react-native-fast-image/issues/642)) ([ac11706](https://github.com/DylanVann/react-native-fast-image/commit/ac117060ebdd04b2130bfb23c62f203beb077089))
+
 # [8.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.2...v8.0.0) (2019-10-20)
 
 
