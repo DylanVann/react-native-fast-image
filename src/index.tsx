@@ -23,7 +23,7 @@ const resizeMode = {
     center: 'center',
 } as const
 
-type Priority = 'low' | 'normal' | 'high'
+type Priority = typeof priority[keyof typeof priority]
 
 const priority = {
     low: 'low',
@@ -31,7 +31,7 @@ const priority = {
     high: 'high',
 } as const
 
-type Cache = 'low' | 'normal' | 'high'
+type Cache = typeof cacheControl[keyof typeof cacheControl]
 
 const cacheControl = {
     // Ignore headers, use uri as cache key, fetch only if not in cache.
