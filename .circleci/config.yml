@@ -2,7 +2,7 @@ version: 2
 jobs:
     build-and-test:
         docker:
-            - image: 'circleci/node:latest'
+            - image: 'circleci/node:lts'
         steps:
             - checkout
             - restore_cache:
