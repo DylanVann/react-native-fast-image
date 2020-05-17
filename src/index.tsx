@@ -23,7 +23,7 @@ const resizeMode = {
     center: 'center',
 } as const
 
-type Priority = 'low' | 'normal' | 'high'
+export type Priority = 'low' | 'normal' | 'high'
 
 const priority = {
     low: 'low',
@@ -31,7 +31,7 @@ const priority = {
     high: 'high',
 } as const
 
-type Cache = 'immutable' | 'web' | 'cacheOnly'
+export type Cache = 'immutable' | 'web' | 'cacheOnly'
 
 const cacheControl = {
     // Ignore headers, use uri as cache key, fetch only if not in cache.
