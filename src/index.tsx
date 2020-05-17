@@ -23,15 +23,13 @@ const resizeMode = {
     center: 'center',
 } as const
 
-export type Priority = 'low' | 'normal' | 'high'
-
 const priority = {
     low: 'low',
     normal: 'normal',
     high: 'high',
 } as const
 
-export type Cache = 'immutable' | 'web' | 'cacheOnly'
+export type Priority = typeof priority[keyof typeof priority]
 
 const cacheControl = {
     // Ignore headers, use uri as cache key, fetch only if not in cache.
@@ -41,6 +39,8 @@ const cacheControl = {
     // Only load from cache.
     cacheOnly: 'cacheOnly',
 } as const
+
+export type Cache = typeof cacheControl[keyof typeof cacheControl]
 
 export type Source = {
     uri?: string
