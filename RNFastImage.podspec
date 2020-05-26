@@ -17,5 +17,5 @@ Pod::Spec.new do |s|
 
   s.dependency 'React'
   s.dependency 'SDWebImage', '~> 5.7'
-  s.dependency 'SDWebImageWebPCoder', '~> 0.6.1'
+  s.dependency 'SDWebImageWebPCoder', '~> 0.6'
 end
