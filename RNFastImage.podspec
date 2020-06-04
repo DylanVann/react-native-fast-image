@@ -16,6 +16,6 @@ Pod::Spec.new do |s|
   s.source_files  = "ios/**/*.{h,m}"
 
   s.dependency 'React'
-  s.dependency 'SDWebImage', '~> 5.0'
-  s.dependency 'SDWebImageWebPCoder', '~> 0.4.1'
+  s.dependency 'SDWebImage', '~> 5.8'
+  s.dependency 'SDWebImageWebPCoder', '~> 0.6.1'
 end
