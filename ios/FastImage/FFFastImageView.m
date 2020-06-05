@@ -1,4 +1,5 @@
 #import "FFFastImageView.h"
+#import <SDWebImage/UIImage+MultiFormat.h>
 
 @interface FFFastImageView()
 
@@ -124,7 +125,8 @@
             } {
                 self.hasSentOnLoadStart = NO;
             }
-            UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url]];
+            // Use SDWebImage API to support external format like WebP images
+            UIImage *image = [UIImage sd_imageWithData:[NSData dataWithContentsOfURL:_source.url]];
             [self setImage:image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
