@@ -142,9 +142,8 @@
         }
         
         // Set headers.
-        [_source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-            [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
-        }];
+        SDWebImageDownloaderRequestModifier *requestModifier = [[SDWebImageDownloaderRequestModifier alloc] initWithHeaders:_source.headers];
+        SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
         
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
@@ -180,15 +179,16 @@
         self.hasCompleted = NO;
         self.hasErrored = NO;
         
-        [self downloadImage:_source options:options];
+        [self downloadImage:_source options:options context:context];
     }
 }
 
-- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options {
+- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options context:(SDWebImageContext *)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
                      options:options
+                     context:context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                         if (weakSelf.onFastImageProgress) {
                             weakSelf.onFastImageProgress(@{

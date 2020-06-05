@@ -232,10 +232,10 @@ PODS:
     - ReactCommon/jscallinvoker (= 0.61.5)
   - RNCMaskedView (0.1.7):
     - React
-  - RNFastImage (8.0.0):
+  - RNFastImage (8.1.5):
     - React
-    - SDWebImage (~> 5.0)
-    - SDWebImageWebPCoder (~> 0.2.3)
+    - SDWebImage (~> 5.8)
+    - SDWebImageWebPCoder (~> 0.6)
   - RNGestureHandler (1.6.0):
     - React
   - RNReanimated (1.7.0):
@@ -244,12 +244,12 @@ PODS:
     - React
   - RNVectorIcons (6.6.0):
     - React
-  - SDWebImage (5.5.2):
-    - SDWebImage/Core (= 5.5.2)
-  - SDWebImage/Core (5.5.2)
-  - SDWebImageWebPCoder (0.2.5):
+  - SDWebImage (5.8.0):
+    - SDWebImage/Core (= 5.8.0)
+  - SDWebImage/Core (5.8.0)
+  - SDWebImageWebPCoder (0.6.1):
     - libwebp (~> 1.0)
-    - SDWebImage/Core (~> 5.0)
+    - SDWebImage/Core (~> 5.7)
   - Yoga (1.14.0)
 
 DEPENDENCIES:
@@ -283,7 +283,7 @@ DEPENDENCIES:
   - ReactCommon/jscallinvoker (from `../node_modules/react-native/ReactCommon`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCMaskedView (from `../node_modules/@react-native-community/masked-view`)"
-  - RNFastImage (from `../node_modules/react-native-fast-image`)
+  - RNFastImage (from `../..`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -353,7 +353,7 @@ EXTERNAL SOURCES:
   RNCMaskedView:
     :path: "../node_modules/@react-native-community/masked-view"
   RNFastImage:
-    :path: "../node_modules/react-native-fast-image"
+    :path: "../.."
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNReanimated:
@@ -395,15 +395,15 @@ SPEC CHECKSUMS:
   React-RCTVibration: a49a1f42bf8f5acf1c3e297097517c6b3af377ad
   ReactCommon: 198c7c8d3591f975e5431bec1b0b3b581aa1c5dd
   RNCMaskedView: 76c40a1d41c3e2535df09246a2b5487f04de0814
-  RNFastImage: c104f15f04c4f68bd65c9645cc27900bbacd9cc7
+  RNFastImage: b0805864a001ff2f94e7b487707c0c743ea07e46
   RNGestureHandler: dde546180bf24af0b5f737c8ad04b6f3fa51609a
   RNReanimated: 031fe8d9ea93c2bd689a40f05320ef9d96f74d7f
   RNScreens: 03bf608b92ac0acf323f47d8f5b63a8f829340c8
   RNVectorIcons: 0bb4def82230be1333ddaeee9fcba45f0b288ed4
-  SDWebImage: 4d5c027c935438f341ed33dbac53ff9f479922ca
-  SDWebImageWebPCoder: 947093edd1349d820c40afbd9f42acb6cdecd987
+  SDWebImage: 84000f962cbfa70c07f19d2234cbfcf5d779b5dc
+  SDWebImageWebPCoder: d0dac55073088d24b2ac1b191a71a8f8d0adac21
   Yoga: f2a7cd4280bfe2cca5a7aed98ba0eb3d1310f18b
 
 PODFILE CHECKSUM: ba57d6260401694a7d491d5c4a4cad727c5231af
 
-COCOAPODS: 1.9.0
+COCOAPODS: 1.8.4
