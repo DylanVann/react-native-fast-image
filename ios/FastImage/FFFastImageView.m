@@ -149,6 +149,8 @@
         
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
+        // Bypass invalid SSL certificate, same behavior like React Native
+        options |= SDWebImageAllowInvalidSSLCertificates;
         switch (_source.priority) {
             case FFFPriorityLow:
                 options |= SDWebImageLowPriority;
