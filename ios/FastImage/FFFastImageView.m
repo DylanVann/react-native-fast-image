@@ -144,7 +144,15 @@
         }
         
         // Set headers.
-        SDWebImageDownloaderRequestModifier *requestModifier = [[SDWebImageDownloaderRequestModifier alloc] initWithHeaders:_source.headers];
+        NSDictionary *headers = _source.headers;
+        SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock:^NSURLRequest * _Nullable(NSURLRequest * _Nonnull request) {
+            NSMutableURLRequest *mutableRequest = [request mutableCopy];
+            for (NSString *header in headers) {
+                NSString *value = headers[header];
+                [mutableRequest setValue:value forHTTPHeaderField:header];
+            }
+            return [mutableRequest copy];
+        }];
         SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
         
         // Set priority.
