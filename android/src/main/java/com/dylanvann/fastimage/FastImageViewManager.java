@@ -4,11 +4,18 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
+
+import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.integration.webp.decoder.WebpDrawable;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -55,7 +62,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     @ReactProp(name = "source")
-    public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+    public void setSrc(final FastImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
@@ -73,8 +80,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
+        final boolean isPaused = source.hasKey("isPaused") ? new String("true").equals(source.getString("isPaused")) : false;
 
-        // Cancel existing request.
+      // Cancel existing request.
         view.glideUrl = glideUrl;
         if (requestManager != null) {
             requestManager.clear(view);
@@ -106,7 +114,32 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
-                    .into(view);
+                    .into(new CustomTarget() {
+
+                @Override
+                public void onResourceReady(@NonNull Object resource, @androidx.annotation.Nullable Transition transition) {
+                  if(!(resource instanceof BitmapDrawable)) {
+                    WebpDrawable drawable = ((WebpDrawable) resource);
+                    if(isPaused) {
+                      drawable.stop();
+                    }
+
+                    if(!isPaused) {
+                      drawable.startFromFirstFrame();
+                    }
+
+                    view.setImageDrawable(drawable);
+                    return;
+                  }
+
+                  view.setImageDrawable((BitmapDrawable) resource);
+                }
+
+                @Override
+                public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                }
+              });
         }
     }
 
@@ -123,6 +156,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "isPaused")
+    public void setIsPaused(FastImageViewWithUrl view, @Nullable Boolean isPaused) {
+
     }
 
     @Override
