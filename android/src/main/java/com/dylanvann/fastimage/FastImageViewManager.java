@@ -56,7 +56,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
   }
 
   @ReactProp(name = "source")
-  public void setSrc(final FastImageViewWithUrl view, @Nullable ReadableMap source) {
+  public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
     if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
       // Cancel existing requests.
       if (requestManager != null) {

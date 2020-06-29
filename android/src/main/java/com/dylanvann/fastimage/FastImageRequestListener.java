@@ -58,10 +58,10 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
     ThemedReactContext context = (ThemedReactContext) view.getContext();
 
-    if (target instanceof WebpDrawable) {
-      WebpDrawable drawable = ((WebpDrawable) target);
+    if (resource instanceof WebpDrawable) {
+      WebpDrawable drawable = ((WebpDrawable) resource);
       if (this.isPaused) {
-        drawable.startFromFirstFrame();
+        drawable.stop();
       }
 
       if (!this.isPaused) {
