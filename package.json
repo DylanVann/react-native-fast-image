@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image-webp-fork",
-    "version": "8.1.5",
+    "version": "8.1.5-rc1",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
