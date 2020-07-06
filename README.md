@@ -120,8 +120,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.isPaused?: string`
 
--   `true` - Animated Webp is started.
--   `false` **(Default)** - Animation Webp is stopped.
+-   `false` **(Default)** - Animated Webp is started.
+-   `true` - Animation Webp is stopped.
 
 ---
 
