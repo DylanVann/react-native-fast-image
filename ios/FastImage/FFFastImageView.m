@@ -210,6 +210,15 @@
                                 }
                         } else {
                             weakSelf.hasCompleted = YES;
+                            SDAnimatedImage * sdImage = (SDAnimatedImage *)weakSelf.image;
+                            if ([sdImage isKindOfClass: [SDAnimatedImage class]]) {
+                                [weakSelf stopAnimating];
+                                if (!([source.isPaused isEqualToString:@"true"])) {
+                                   [weakSelf startAnimating];
+                                }
+                                [sdImage preloadAllFrames];
+                            }
+
                             [weakSelf sendOnLoad:image];
                             if (weakSelf.onFastImageLoadEnd) {
                                 weakSelf.onFastImageLoadEnd(@{});

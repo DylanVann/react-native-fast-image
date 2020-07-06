@@ -118,6 +118,13 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `source.isPaused?: string`
+
+-   `false` **(Default)** - Animated WebP is started.
+-   `true` - Animated WebP is stopped.
+
+---
+
 ### `source.priority?: enum`
 
 -   `FastImage.priority.low` - Low Priority.
