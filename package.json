@@ -1,6 +1,6 @@
 {
-    "name": "react-native-fast-image-webp-fork",
-    "version": "8.1.5-rc1",
+    "name": "react-native-fast-image",
+    "version": "8.1.6",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
@@ -9,13 +9,13 @@
         "image",
         "priority"
     ],
-    "homepage": "https://github.com/monterail/react-native-fast-image#readme",
+    "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
     "bugs": {
-        "url": "https://github.com/monterail/react-native-fast-image/issues"
+        "url": "https://github.com/DylanVann/react-native-fast-image/issues"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/monterail/react-native-fast-image.git"
+        "url": "https://github.com/DylanVann/react-native-fast-image.git"
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
