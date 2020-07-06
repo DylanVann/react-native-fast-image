@@ -6,6 +6,7 @@
                    priority:(FFFPriority)priority
                     headers:(NSDictionary *)headers
                cacheControl:(FFFCacheControl)cacheControl
+                   isPaused:(NSString *)isPaused;
 {
     self = [super init];
     if (self) {
@@ -13,6 +14,7 @@
         _priority = priority;
         _headers = headers;
         _cacheControl = cacheControl;
+        _isPaused = isPaused;
     }
     return self;
 }

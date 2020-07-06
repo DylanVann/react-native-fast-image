@@ -22,6 +22,9 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     
     NSString *uriString = json[@"uri"];
     NSURL *uri = [self NSURL:uriString];
+
+    NSString *isPaused  = [self NSString:json[@"isPaused"]];
+    
     
     FFFPriority priority = [self FFFPriority:json[@"priority"]];
     FFFCacheControl cacheControl = [self FFFCacheControl:json[@"cache"]];
@@ -43,7 +46,7 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
         }
     }
     
-    FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl];
+    FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl isPaused:isPaused];
     
     return imageSource;
 }

@@ -20,6 +20,8 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 @property (nonatomic) NSURL* url;
 // priority for image request
 @property (nonatomic) FFFPriority priority;
+// is animation paused
+@property (nonatomic) NSString *isPaused;
 // headers for the image request
 @property (nonatomic) NSDictionary *headers;
 // cache control mode
@@ -28,6 +30,6 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 - (instancetype)initWithURL:(NSURL *)url
                    priority:(FFFPriority)priority
                     headers:(NSDictionary *)headers
-               cacheControl:(FFFCacheControl)cacheControl;
-
+               cacheControl:(FFFCacheControl)cacheControl
+                   isPaused:(NSString *)isPaused;
 @end
