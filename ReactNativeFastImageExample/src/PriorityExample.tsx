@@ -1,7 +1,7 @@
 import React from 'react'
 import { PixelRatio, StyleSheet, View } from 'react-native'
 import withCacheBust from './withCacheBust'
-import FastImage from 'react-native-fast-image'
+import { FastImage } from 'react-native-fast-image'
 import Section from './Section'
 import SectionFlex from './SectionFlex'
 import FeatureText from './FeatureText'
@@ -31,21 +31,21 @@ const PriorityExample = ({ onPressReload, bust }: PriorityExampleProps) => (
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[0] + bust,
-                    priority: FastImage.priority.low,
+                    priority: 'low'
                 }}
             />
             <FastImage
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[1] + bust,
-                    priority: FastImage.priority.normal,
+                    priority: 'normal'
                 }}
             />
             <FastImage
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[2] + bust,
-                    priority: FastImage.priority.high,
+                    priority: 'high'
                 }}
             />
         </SectionFlex>

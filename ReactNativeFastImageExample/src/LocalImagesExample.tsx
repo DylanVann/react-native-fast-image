@@ -7,7 +7,7 @@ import {
     ViewProps,
 } from 'react-native'
 import withCacheBust from './withCacheBust'
-import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
+import { FastImage, FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsBase64 from './images/fields'
