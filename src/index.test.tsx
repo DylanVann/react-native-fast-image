@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
-import { FastImage, priority } from './index'
+import { FastImage } from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -14,7 +14,7 @@ test('renders', () => {
                     headers: {
                         token: 'someToken',
                     },
-                    priority: priority.high,
+                    priority: 'high',
                 }}
                 style={style.image}
             />,
