@@ -1,3 +1,39 @@
+# [8.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.10...v8.2.0) (2020-07-17)
+
+
+### Features
+
+* export ResizeMode and Priority types ([#678](https://github.com/DylanVann/react-native-fast-image/issues/678)) ([e33664f](https://github.com/DylanVann/react-native-fast-image/commit/e33664fbcff4be7b180c3843422f76e9d0b1c4f8))
+
+## [8.1.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.9...v8.1.10) (2020-07-17)
+
+
+### Bug Fixes
+
+* update SDWebImage and SDWebImageWebPCoder ([#689](https://github.com/DylanVann/react-native-fast-image/issues/689)) ([9646456](https://github.com/DylanVann/react-native-fast-image/commit/964645667525dc09f625bc471548b995e01d0061))
+
+## [8.1.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.8...v8.1.9) (2020-07-17)
+
+
+### Bug Fixes
+
+* wrong cache type ([#688](https://github.com/DylanVann/react-native-fast-image/issues/688)) [skip ci] ([94e2256](https://github.com/DylanVann/react-native-fast-image/commit/94e2256da234d535e88172ce325c89e7cb69fc6e))
+
+## [8.1.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.7...v8.1.8) (2020-07-17)
+
+
+### Bug Fixes
+
+* peer dependency warning ([#653](https://github.com/DylanVann/react-native-fast-image/issues/653)) ([cd81b1b](https://github.com/DylanVann/react-native-fast-image/commit/cd81b1b66a8d9938764a66e1f3c1bd5ff20b3565))
+
+## [8.1.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.6...v8.1.7) (2020-07-17)
+
+## [8.1.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.5...v8.1.6) (2020-07-17)
+
+### Changed
+
+* Use [`dv-scripts`](https://github.com/DylanVann/dv-scripts) to simplify tooling (build, lint, test, release).
+
 ## [8.1.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.4...v8.1.5) (2020-03-14)
 
 
