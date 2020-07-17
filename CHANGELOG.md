@@ -1,3 +1,10 @@
+# [8.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.2...v8.3.0) (2020-07-17)
+
+
+### Features
+
+* **ios:** allow for for per-image-request-headers ([#691](https://github.com/DylanVann/react-native-fast-image/issues/691)) ([4a7cd64](https://github.com/DylanVann/react-native-fast-image/commit/4a7cd64f5b0aa40b04d63ccb105ee2b511abe624))
+
 ## [8.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.1...v8.2.2) (2020-07-17)
 
 
