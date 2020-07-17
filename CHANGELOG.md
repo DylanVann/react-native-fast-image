@@ -1,3 +1,10 @@
+## [8.1.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.7...v8.1.8) (2020-07-17)
+
+
+### Bug Fixes
+
+* peer dependency warning ([#653](https://github.com/DylanVann/react-native-fast-image/issues/653)) ([cd81b1b](https://github.com/DylanVann/react-native-fast-image/commit/cd81b1b66a8d9938764a66e1f3c1bd5ff20b3565))
+
 ## [8.1.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.6...v8.1.7) (2020-07-17)
 
 ## [8.1.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.5...v8.1.6) (2020-07-17)
