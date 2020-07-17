@@ -42,3 +42,6 @@ dist/
 
 # coverage reports
 coverage
+
+# TypeScript incremental compilation cache
+*.tsbuildinfo
