@@ -1,3 +1,10 @@
+## [8.1.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.9...v8.1.10) (2020-07-17)
+
+
+### Bug Fixes
+
+* update SDWebImage and SDWebImageWebPCoder ([#689](https://github.com/DylanVann/react-native-fast-image/issues/689)) ([9646456](https://github.com/DylanVann/react-native-fast-image/commit/964645667525dc09f625bc471548b995e01d0061))
+
 ## [8.1.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.8...v8.1.9) (2020-07-17)
 
 
