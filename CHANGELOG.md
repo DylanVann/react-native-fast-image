@@ -1,3 +1,10 @@
+## [8.3.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.0...v8.3.1) (2020-07-17)
+
+
+### Bug Fixes
+
+* **android:** make center ResizeMode work correctly ([d648ef8](https://github.com/DylanVann/react-native-fast-image/commit/d648ef85045fb97d8d1f6a637e915fa912a6c6c9))
+
 # [8.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.2...v8.3.0) (2020-07-17)
 
 
