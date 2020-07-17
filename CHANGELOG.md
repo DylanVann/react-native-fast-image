@@ -1,3 +1,10 @@
+## [8.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.1...v8.2.2) (2020-07-17)
+
+
+### Bug Fixes
+
+* accessibilityIgnoresInvertColors prop not recognised when using TypeScript ([#666](https://github.com/DylanVann/react-native-fast-image/issues/666)) ([22f89e4](https://github.com/DylanVann/react-native-fast-image/commit/22f89e43a422150412924da9fd0f3eca7dd77cfa)), closes [/github.com/DylanVann/react-native-fast-image/blob/master/src/index.tsx#L150-L160](https://github.com//github.com/DylanVann/react-native-fast-image/blob/master/src/index.tsx/issues/L150-L160)
+
 ## [8.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.0...v8.2.1) (2020-07-17)
 
 
