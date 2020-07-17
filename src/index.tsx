@@ -15,33 +15,26 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
-
-const resizeMode = {
-    contain: 'contain',
-    cover: 'cover',
-    stretch: 'stretch',
-    center: 'center',
-} as const
-
 export type Priority = 'low' | 'normal' | 'high'
 
-const priority = {
-    low: 'low',
-    normal: 'normal',
-    high: 'high',
-} as const
+/**
+ * Cache modes for FastImage.
+ */
+export type Cache =
+    /**
+     * Ignore headers, use uri as cache key, fetch only if not in cache.
+     */
+    | 'immutable'
+    /**
+     * Respect http headers, no aggressive caching.
+     */
+    | 'web'
+    /**
+     * Only load from cache.
+     */
+    | 'cacheOnly'
 
-type Cache = 'immutable' | 'web' | 'cacheOnly'
-
-const cacheControl = {
-    // Ignore headers, use uri as cache key, fetch only if not in cache.
-    immutable: 'immutable',
-    // Respect http headers, no aggressive caching.
-    web: 'web',
-    // Only load from cache.
-    cacheOnly: 'cacheOnly',
-} as const
+export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 export type Source = {
     uri?: string
@@ -190,31 +183,15 @@ function FastImageBase({
 
 const FastImageMemo = memo(FastImageBase)
 
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
+export const FastImage: React.ComponentType<FastImageProps> = forwardRef(
     (props: FastImageProps, ref: React.Ref<any>) => (
         <FastImageMemo forwardedRef={ref} {...props} />
     ),
 )
 
-FastImageComponent.displayName = 'FastImage'
+FastImage.displayName = 'FastImage'
 
-interface FastImageStaticProperties {
-    resizeMode: typeof resizeMode
-    priority: typeof priority
-    cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
-}
-
-const FastImage: React.ComponentType<FastImageProps> &
-    FastImageStaticProperties = FastImageComponent as any
-
-FastImage.resizeMode = resizeMode
-
-FastImage.cacheControl = cacheControl
-
-FastImage.priority = priority
-
-FastImage.preload = (sources: Source[]) =>
+export const preload = (sources: Source[]) =>
     FastImageViewNativeModule.preload(sources)
 
 const styles = StyleSheet.create({
@@ -237,5 +214,3 @@ const FastImageView = (requireNativeComponent as any)(
         },
     },
 )
-
-export default FastImage

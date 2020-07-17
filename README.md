@@ -72,9 +72,9 @@ const YourImage = () => (
         source={{
             uri: 'https://unsplash.it/400/400?image=1',
             headers: { Authorization: 'someAuthToken' },
-            priority: FastImage.priority.normal,
+            priority: 'normal',
         }}
-        resizeMode={FastImage.resizeMode.contain}
+        resizeMode={'contain'}
     />
 )
 ```
@@ -118,28 +118,28 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
-### `source.priority?: enum`
+### `source.priority?: Priority`
 
--   `FastImage.priority.low` - Low Priority.
--   `FastImage.priority.normal` **(Default)** - Normal Priority.
--   `FastImage.priority.high` - High Priority.
-
----
-
-### `source.cache?: enum`
-
--   `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
--   `FastImage.cacheControl.web` - Use headers and follow normal caching procedures.
--   `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
+-   `low` - Low Priority.
+-   `normal` **(Default)** - Normal Priority.
+-   `high` - High Priority.
 
 ---
 
-### `resizeMode?: enum`
+### `source.cache?: Cache`
 
--   `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
--   `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
--   `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
--   `FastImage.resizeMode.center` - Do not scale the image, keep centered.
+-   `immutable` - **(Default)** - Only updates if url changes.
+-   `web` - Use headers and follow normal caching procedures.
+-   `cacheOnly` - Only show images from cache, do not make any network requests.
+
+---
+
+### `resizeMode?: ResizeMode`
+
+-   `contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+-   `cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+-   `stretch` - Scale width and height independently, This may change the aspect ratio of the src.
+-   `center` - Do not scale the image, keep centered.
 
 ---
 

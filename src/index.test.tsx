@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
-import FastImage from './index'
+import { FastImage, priority } from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
-test('FastImage renders correctly.', () => {
+test('renders', () => {
     const tree = renderer
         .create(
             <FastImage
@@ -14,17 +14,53 @@ test('FastImage renders correctly.', () => {
                     headers: {
                         token: 'someToken',
                     },
-                    priority: FastImage.priority.high,
+                    priority: priority.high,
                 }}
                 style={style.image}
             />,
         )
         .toJSON()
 
-    expect(tree).toMatchSnapshot()
+    expect(tree).toMatchInlineSnapshot(`
+        <View
+          style={
+            Array [
+              Object {
+                "overflow": "hidden",
+              },
+              Object {
+                "height": 44,
+                "width": 44,
+              },
+            ]
+          }
+        >
+          <FastImageView
+            resizeMode="cover"
+            source={
+              Object {
+                "headers": Object {
+                  "token": "someToken",
+                },
+                "priority": "high",
+                "uri": "https://facebook.github.io/react/img/logo_og.png",
+              }
+            }
+            style={
+              Object {
+                "bottom": 0,
+                "left": 0,
+                "position": "absolute",
+                "right": 0,
+                "top": 0,
+              }
+            }
+          />
+        </View>
+    `)
 })
 
-test('Renders a normal Image when not passed a uri.', () => {
+test('renders a normal Image when not passed a uri', () => {
     const tree = renderer
         .create(
             <FastImage
@@ -34,10 +70,42 @@ test('Renders a normal Image when not passed a uri.', () => {
         )
         .toJSON()
 
-    expect(tree).toMatchSnapshot()
+    expect(tree).toMatchInlineSnapshot(`
+        <View
+          style={
+            Array [
+              Object {
+                "overflow": "hidden",
+              },
+              Object {
+                "height": 44,
+                "width": 44,
+              },
+            ]
+          }
+        >
+          <FastImageView
+            resizeMode="cover"
+            source={
+              Object {
+                "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+              }
+            }
+            style={
+              Object {
+                "bottom": 0,
+                "left": 0,
+                "position": "absolute",
+                "right": 0,
+                "top": 0,
+              }
+            }
+          />
+        </View>
+    `)
 })
 
-test('Renders Image with fallback prop.', () => {
+test('renders Image with fallback prop', () => {
     const tree = renderer
         .create(
             <FastImage
@@ -48,5 +116,37 @@ test('Renders Image with fallback prop.', () => {
         )
         .toJSON()
 
-    expect(tree).toMatchSnapshot()
+    expect(tree).toMatchInlineSnapshot(`
+        <View
+          style={
+            Array [
+              Object {
+                "overflow": "hidden",
+              },
+              Object {
+                "height": 44,
+                "width": 44,
+              },
+            ]
+          }
+        >
+          <Image
+            resizeMode="cover"
+            source={
+              Object {
+                "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+              }
+            }
+            style={
+              Object {
+                "bottom": 0,
+                "left": 0,
+                "position": "absolute",
+                "right": 0,
+                "top": 0,
+              }
+            }
+          />
+        </View>
+    `)
 })
