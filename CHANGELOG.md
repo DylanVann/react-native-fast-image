@@ -1,3 +1,5 @@
+## [8.1.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.5...v8.1.6) (2020-07-17)
+
 ## [8.1.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.4...v8.1.5) (2020-03-14)
 
 
