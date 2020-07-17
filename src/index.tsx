@@ -14,7 +14,7 @@ import {
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
-type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
+export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 const resizeMode = {
     contain: 'contain',
@@ -23,7 +23,7 @@ const resizeMode = {
     center: 'center',
 } as const
 
-type Priority = 'low' | 'normal' | 'high'
+export type Priority = 'low' | 'normal' | 'high'
 
 const priority = {
     low: 'low',
