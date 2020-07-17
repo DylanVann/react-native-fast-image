@@ -1,3 +1,10 @@
+# [8.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.10...v8.2.0) (2020-07-17)
+
+
+### Features
+
+* export ResizeMode and Priority types ([#678](https://github.com/DylanVann/react-native-fast-image/issues/678)) ([e33664f](https://github.com/DylanVann/react-native-fast-image/commit/e33664fbcff4be7b180c3843422f76e9d0b1c4f8))
+
 ## [8.1.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.9...v8.1.10) (2020-07-17)
 
 
