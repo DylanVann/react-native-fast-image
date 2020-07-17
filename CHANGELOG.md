@@ -1,3 +1,10 @@
+## [8.3.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.1...v8.3.2) (2020-07-17)
+
+
+### Bug Fixes
+
+* **android:** remove explicit use of UI thread ([#698](https://github.com/DylanVann/react-native-fast-image/issues/698)) ([5d2894e](https://github.com/DylanVann/react-native-fast-image/commit/5d2894e442dc3d239b4dc9cb25dca455f7d8bc6e))
+
 ## [8.3.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.0...v8.3.1) (2020-07-17)
 
 
