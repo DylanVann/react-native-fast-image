@@ -31,21 +31,21 @@ const PriorityExample = ({ onPressReload, bust }: PriorityExampleProps) => (
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[0] + bust,
-                    priority: 'low'
+                    priority: 'low',
                 }}
             />
             <FastImage
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[1] + bust,
-                    priority: 'normal'
+                    priority: 'normal',
                 }}
             />
             <FastImage
                 style={styles.image}
                 source={{
                     uri: IMAGE_URLS[2] + bust,
-                    priority: 'high'
+                    priority: 'high',
                 }}
             />
         </SectionFlex>
