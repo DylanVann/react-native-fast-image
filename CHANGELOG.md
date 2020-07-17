@@ -1,3 +1,10 @@
+## [8.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.0...v8.2.1) (2020-07-17)
+
+
+### Bug Fixes
+
+* remove cache property if using fallback ([ba0f238](https://github.com/DylanVann/react-native-fast-image/commit/ba0f238821ba23517b8e62e759f685b8cd67c0c6))
+
 # [8.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.10...v8.2.0) (2020-07-17)
 
 
