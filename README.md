@@ -244,14 +244,14 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 -   SDWebImage - `MIT`
 -   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/license) file for details.
 
-[build-badge]: https://img.shields.io/circleci/project/github/DylanVann/react-native-fast-image/master.svg?style=flat-square
-[build]: https://circleci.com/gh/DylanVann/react-native-fast-image/tree/master
-[coverage-badge]: https://img.shields.io/codecov/c/github/dylanvann/react-native-fast-image.svg?style=flat-square
+[build-badge]: https://github.com/dylanvann/react-native-fast-image/workflows/CI/badge.svg
+[build]: https://github.com/DylanVann/react-native-fast-image/actions?query=workflow%3ACI
+[coverage-badge]: https://img.shields.io/codecov/c/github/dylanvann/react-native-fast-image.svg
 [coverage]: https://codecov.io/github/dylanvann/react-native-fast-image
-[downloads-badge]: https://img.shields.io/npm/dm/react-native-fast-image.svg?style=flat-square
+[downloads-badge]: https://img.shields.io/npm/dm/react-native-fast-image.svg
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
-[version-badge]: https://img.shields.io/npm/v/react-native-fast-image.svg?style=flat-square
+[version-badge]: https://img.shields.io/npm/v/react-native-fast-image.svg
 [twitter]: https://twitter.com/home?status=Check%20out%20react-native-fast-image%20by%20%40atomarranger%20https%3A//github.com/DylanVann/react-native-fast-image
 [twitter-badge]: https://img.shields.io/twitter/url/https/github.com/DylanVann/react-native-fast-image.svg?style=social
 [github-watch-badge]: https://img.shields.io/github/watchers/dylanvann/react-native-fast-image.svg?style=social
