@@ -1,3 +1,10 @@
+## [8.1.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.8...v8.1.9) (2020-07-17)
+
+
+### Bug Fixes
+
+* wrong cache type ([#688](https://github.com/DylanVann/react-native-fast-image/issues/688)) [skip ci] ([94e2256](https://github.com/DylanVann/react-native-fast-image/commit/94e2256da234d535e88172ce325c89e7cb69fc6e))
+
 ## [8.1.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.7...v8.1.8) (2020-07-17)
 
 
