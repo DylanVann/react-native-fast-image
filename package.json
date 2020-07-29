@@ -32,6 +32,7 @@
     ],
     "scripts": {
         "build": "tsdx build && cp src/index.js.flow dist/index.js.flow",
+        "postinstall": "tsdx build && cp src/index.js.flow dist/index.js.flow",
         "commit": "git-cz",
         "lint": "tsdx lint src",
         "semantic-release": "semantic-release",
@@ -54,6 +55,9 @@
             "ReactNativeFastImageExampleServer*"
         ],
         "preset": "react-native"
+    },
+    "dependencies": {
+        "tsdx": "^0.12.3"
     },
     "devDependencies": {
         "@babel/core": "^7.6.2",

@@ -9,7 +9,7 @@
     "sourceMap": true,
     "rootDir": "./",
     "strict": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": true,

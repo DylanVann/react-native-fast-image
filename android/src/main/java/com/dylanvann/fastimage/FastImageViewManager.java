@@ -106,7 +106,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
-                    .into(view);
+                    .into(new FastImageViewTarget(view));
         }
     }
 
@@ -123,6 +123,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "loopCount")
+    public void setLoopCount(FastImageViewWithUrl view, int loopCount) {
+        view.setLoopCount(loopCount);
     }
 
     @Override
