@@ -18,7 +18,20 @@
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    [self addObserver:self forKeyPath:@"currentLoopCount" options:NSKeyValueObservingOptionNew context:nil];
     return self;
+}
+
+-(void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
+    if ([keyPath isEqualToString:@"currentLoopCount"]) {
+        if (self.currentLoopCount > 0 && self.onAnimationComplete) {
+            self.onAnimationComplete(@{ currentLoopCount: self.currentLoopCount });
+        }
+    }
 }
 
 - (void)setResizeMode:(RCTResizeMode)resizeMode {
