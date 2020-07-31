@@ -28,8 +28,10 @@
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
     if ([keyPath isEqualToString:@"currentLoopCount"]) {
-        if (self.currentLoopCount > 0 && self.onAnimationComplete) {
-            self.onAnimationComplete(@{ @"currentLoopCount": @(self.currentLoopCount) });
+        if (self.shouldCustomLoopCount &&
+            self.currentLoopCount == self.animationRepeatCount &&
+            self.onAnimationComplete) {
+            self.onAnimationComplete(@{});
         }
     }
 }
