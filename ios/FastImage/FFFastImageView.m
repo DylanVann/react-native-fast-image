@@ -29,7 +29,7 @@
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
     if ([keyPath isEqualToString:@"currentLoopCount"]) {
         if (self.currentLoopCount > 0 && self.onAnimationComplete) {
-            self.onAnimationComplete(@{ currentLoopCount: self.currentLoopCount });
+            self.onAnimationComplete(@{ @"currentLoopCount": @(self.currentLoopCount) });
         }
     }
 }
@@ -42,11 +42,8 @@
 }
 
 - (void)setLoopCount:(int)loopCount {
-    if (_loopCount != loopCount) {
-        _loopCount = loopCount;
-        self.shouldCustomLoopCount = YES;
-        self.animationRepeatCount = loopCount;
-    }
+    self.shouldCustomLoopCount = YES;
+    self.animationRepeatCount = loopCount;
 }
 
 - (void)setOnFastImageLoadEnd:(RCTDirectEventBlock)onFastImageLoadEnd {
