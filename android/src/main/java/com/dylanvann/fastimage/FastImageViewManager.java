@@ -4,7 +4,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
+
+import androidx.vectordrawable.graphics.drawable.Animatable2Compat.AnimationCallback;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
@@ -35,6 +38,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_CLASS = "FastImageView";
     private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
+    private static final String REACT_ON_ANIMATION_COMPLETE_EVENT = "onAnimationComplete";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
     @Nullable
@@ -51,7 +55,21 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             requestManager = Glide.with(reactContext);
         }
 
-        return new FastImageViewWithUrl(reactContext);
+        final FastImageViewWithUrl fastImage = new FastImageViewWithUrl(reactContext);
+        fastImage.registerAnimationCallback(new AnimationCallback() {
+            @Override
+            public void onAnimationEnd(Drawable drawable) {
+                super.onAnimationEnd(drawable);
+
+                WritableMap event = new WritableNativeMap();
+                ThemedReactContext context = (ThemedReactContext) fastImage.getContext();
+                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                int viewId = fastImage.getId();
+                eventEmitter.receiveEvent(viewId, REACT_ON_ANIMATION_COMPLETE_EVENT, event);
+            }
+        });
+
+        return fastImage;
     }
 
     @ReactProp(name = "source")
@@ -137,6 +155,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             requestManager.clear(view);
         }
 
+        // Ensure view resource is clean before destruction
+        view.clearAnimationCallbacks();
+
         if (view.glideUrl != null) {
             final String key = view.glideUrl.toString();
             FastImageOkHttpProgressGlideModule.forget(key);
@@ -158,6 +179,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 .put(REACT_ON_LOAD_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT))
                 .put(REACT_ON_ERROR_EVENT, MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT))
                 .put(REACT_ON_LOAD_END_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT))
+                .put(REACT_ON_ANIMATION_COMPLETE_EVENT, MapBuilder.of("registrationName", REACT_ON_ANIMATION_COMPLETE_EVENT))
                 .build();
     }
 

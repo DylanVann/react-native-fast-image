@@ -16,20 +16,13 @@ public class FastImageViewTarget extends ImageViewTarget<Drawable> {
         super(view);
     }
 
-    public FastImageViewTarget(FastImageViewWithUrl view, boolean waitForLayout) {
-        super(view, waitForLayout);
-    }
-
     @Override
     protected void setResource(@Nullable Drawable resource) {
-        int loopCount = GifDrawable.LOOP_INTRINSIC;
-
-        if (view instanceof FastImageViewWithUrl) {
-            loopCount = ((FastImageViewWithUrl)view).loopCount;
-        }
+        FastImageViewWithUrl fastImage = (FastImageViewWithUrl)view;
 
         if (resource instanceof GifDrawable) {
-            ((GifDrawable) resource).setLoopCount(loopCount);
+            GifDrawable drawable = (GifDrawable)resource;
+            fastImage.onSetResource(drawable);
         }
 
         view.setImageDrawable(resource);
