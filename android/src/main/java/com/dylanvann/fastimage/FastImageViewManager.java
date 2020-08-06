@@ -49,8 +49,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @NonNull
     @Override
     protected FastImageViewWithUrl createViewInstance(@NonNull ThemedReactContext reactContext) {
-        if (isValidContextForGlide(reactContext)) {
-            requestManager = Glide.with(reactContext);
+        if (isValidContextForGlide(reactContext.getCurrentActivity())) {
+            requestManager = Glide.with(reactContext.getCurrentActivity());
         }
 
         return new FastImageViewWithUrl(reactContext);
