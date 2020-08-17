@@ -203,6 +203,7 @@ interface FastImageStaticProperties {
     priority: typeof priority
     cacheControl: typeof cacheControl
     preload: (sources: Source[]) => void
+    loadImage: (source: Source) => Promise<string>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -216,6 +217,9 @@ FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
     FastImageViewNativeModule.preload(sources)
+
+FastImage.loadImage = (source: Source) =>
+    FastImageViewNativeModule.loadImage(source)
 
 const styles = StyleSheet.create({
     imageContainer: {
