@@ -41,11 +41,11 @@ RCT_REMAP_METHOD(
 ) {
   SDWebImageManager *imageManager = [SDWebImageManager sharedManager];
   NSString *cacheKey = [imageManager cacheKeyForURL:source.url];
-  NSString *imagePath = [imageManager.imageCache defaultCachePathForKey:cacheKey];
+  NSString *imagePath = [imageManager.imageCache cachePathForKey:cacheKey];
 
   // set headers
   [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-    [imageManager.imageDownloader setValue:header forHTTPHeaderField:key];
+    [imageManager.imageLoader setValue:header forHTTPHeaderField:key];
   }];
 
   // set options
@@ -68,7 +68,7 @@ RCT_REMAP_METHOD(
       options |= SDWebImageRefreshCached;
       break;
     case FFFCacheControlCacheOnly:
-      options |= SDWebImageCacheMemoryOnly;
+      options |= SDWebImageFromCacheOnly;
       break;
     case FFFCacheControlImmutable:
       break;
