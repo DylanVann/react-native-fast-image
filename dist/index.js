@@ -86,9 +86,9 @@ FastImage.resizeMode = resizeMode;
 FastImage.cacheControl = cacheControl;
 FastImage.priority = priority;
 
-FastImage.preload = sources => FastImageViewNativeModule.preload(sources); // FastImage.loadImage = (source: Source) =>
-//     FastImageViewNativeModule.loadImage(source)
+FastImage.preload = sources => FastImageViewNativeModule.preload(sources);
 
+FastImage.loadImage = source => FastImageViewNativeModule.loadImage(source);
 
 const styles = StyleSheet.create({
   imageContainer: {

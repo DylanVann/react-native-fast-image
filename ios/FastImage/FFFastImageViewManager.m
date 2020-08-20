@@ -35,58 +35,58 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 }
 
 // https://github.com/DylanVann/react-native-fast-image/pull/351/files
-// RCT_REMAP_METHOD(
-//   loadImage,
-//   loadImageWithSource: (nonnull FFFastImageSource *)source resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
-// ) {
-//   SDWebImageManager *imageManager = [SDWebImageManager sharedManager];
-//   NSString *cacheKey = [imageManager cacheKeyForURL:source.url];
-//   NSString *imagePath = [imageManager.imageCache cachePathForKey:cacheKey];
+RCT_REMAP_METHOD(
+  loadImage,
+  loadImageWithSource: (nonnull FFFastImageSource *)source resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
+) {
+  SDWebImageManager *imageManager = [SDWebImageManager sharedManager];
+  NSString *cacheKey = [imageManager cacheKeyForURL:source.url];
+  NSString *imagePath = [imageManager.imageCache cachePathForKey:cacheKey];
 
-//   // set headers
-//   [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-//     [imageManager.imageLoader setValue:header forHTTPHeaderField:key];
-//   }];
+  // set headers
+  [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
+    [imageManager.imageLoader setValue:header forHTTPHeaderField:key];
+  }];
 
-//   // set options
-//   SDWebImageOptions options = 0;
-//   options |= SDWebImageRetryFailed;
-//   switch (source.priority) {
-//     case FFFPriorityLow:
-//       options |= SDWebImageLowPriority;
-//       break;
-//     case FFFPriorityNormal:
-//       // Priority is normal by default.
-//       break;
-//     case FFFPriorityHigh:
-//       options |= SDWebImageHighPriority;
-//       break;
-//   }
+  // set options
+  SDWebImageOptions options = 0;
+  options |= SDWebImageRetryFailed;
+  switch (source.priority) {
+    case FFFPriorityLow:
+      options |= SDWebImageLowPriority;
+      break;
+    case FFFPriorityNormal:
+      // Priority is normal by default.
+      break;
+    case FFFPriorityHigh:
+      options |= SDWebImageHighPriority;
+      break;
+  }
 
-//   switch (source.cacheControl) {
-//     case FFFCacheControlWeb:
-//       options |= SDWebImageRefreshCached;
-//       break;
-//     case FFFCacheControlCacheOnly:
-//       options |= SDWebImageCacheMemoryOnly;
-//       break;
-//     case FFFCacheControlImmutable:
-//       break;
-//   }
+  switch (source.cacheControl) {
+    case FFFCacheControlWeb:
+      options |= SDWebImageRefreshCached;
+      break;
+    case FFFCacheControlCacheOnly:
+      options |= SDWebImageCacheMemoryOnly;
+      break;
+    case FFFCacheControlImmutable:
+      break;
+  }
 
-//   // load image
-//   [imageManager loadImageWithURL:source.url options:options progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
-//     if (error != nil) {
-//       reject(@"FastImage", @"Failed to load image", error);
-//       return;
-//     }
+  // load image
+  [imageManager loadImageWithURL:source.url options:options progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
+    if (error != nil) {
+      reject(@"FastImage", @"Failed to load image", error);
+      return;
+    }
 
-//     // store image manually (since image manager may call the completion block before storing it in the disk cache)
-//     [imageManager.imageCache storeImage:image forKey:cacheKey completion:^{
-//       resolve(imagePath);
-//     }];
-//   }];
-// }
+    // store image manually (since image manager may call the completion block before storing it in the disk cache)
+    [imageManager.imageCache storeImage:image forKey:cacheKey completion:^{
+      resolve(imagePath);
+    }];
+  }];
+}
 
 @end
 
