@@ -93,7 +93,7 @@ FastImage.priority = priority;
 
 FastImage.preload = sources => FastImageViewNativeModule.preload(sources);
 
-FastImage.loadImage = source => FastImageViewNativeModule.loadImage(source);
+FastImage.getCachePath = source => FastImageViewNativeModule.getCachePath(source);
 
 const styles = reactNative.StyleSheet.create({
   imageContainer: {

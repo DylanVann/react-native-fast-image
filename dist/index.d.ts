@@ -95,7 +95,7 @@ interface FastImageStaticProperties {
     priority: typeof priority;
     cacheControl: typeof cacheControl;
     preload: (sources: Source[]) => void;
-    loadImage: (source: Source) => Promise<string>;
+    getCachePath: (source: Source) => Promise<string>;
 }
 declare const FastImage: React.ComponentType<FastImageProps> & FastImageStaticProperties;
 export default FastImage;
