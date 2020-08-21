@@ -78,7 +78,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         .with(activity.getApplicationContext())
                         .asFile()
                         .load(glideUrl)
-                        .apply(FastImageViewConverter.getOptions(activity.getApplicationContext(), imageSource,  source))
+                        .apply(FastImageViewConverter.getOptions(activity, imageSource,  source))
                         .listener(new RequestListener<File>() {
                             @Override
                             public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
