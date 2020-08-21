@@ -219,7 +219,7 @@ FastImage.preload([
 Get image path from cache by `source`
 
 ```js
-FastImage.preload({ uri: 'https://facebook.github.io/react/img/logo_og.png' })
+FastImage.getCachePath({ uri: 'https://facebook.github.io/react/img/logo_og.png' })
 ```
 
 ## Troubleshooting
