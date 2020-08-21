@@ -3,6 +3,7 @@ package com.dylanvann.fastimage;
 import android.app.Activity;
 
 import android.support.annotation.Nullable;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
@@ -73,6 +74,11 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
                 final GlideUrl glideUrl = imageSource.getGlideUrl();
+
+                if (glideUrl == null) {
+                    promise.resolve(null);
+                    return;
+                }
 
                 Glide
                         .with(activity.getApplicationContext())
