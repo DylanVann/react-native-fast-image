@@ -11,6 +11,8 @@ import {
     StyleProp,
     TransformsStyle,
     AccessibilityProps,
+    ImageURISource,
+    Platform
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -81,6 +83,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 
 export interface FastImageProps extends AccessibilityProps {
     source: Source | number
+    defaultSource?: ImageURISource | number
     resizeMode?: ResizeMode
     fallback?: boolean
 
@@ -130,6 +133,7 @@ export interface FastImageProps extends AccessibilityProps {
 
 function FastImageBase({
     source,
+    defaultSource,
     tintColor,
     onLoadStart,
     onProgress,
@@ -155,6 +159,7 @@ function FastImageBase({
                     {...props}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
+                    defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
                     onLoad={onLoad as any}
@@ -168,6 +173,9 @@ function FastImageBase({
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
+    const resolvedDefaultSource = !defaultSource || Platform.OS === 'ios'
+        ? defaultSource
+        : Image.resolveAssetSource(defaultSource)?.uri || null
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -176,6 +184,7 @@ function FastImageBase({
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
+                defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}

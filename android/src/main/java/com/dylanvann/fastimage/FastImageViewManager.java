@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 
 import com.bumptech.glide.Glide;
@@ -17,6 +18,7 @@ import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -104,10 +106,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
+                    .placeholder(view.getPlaceholderDrawable())
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
         }
+    }
+
+    @ReactProp(name = "defaultSource")
+    public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
+        Drawable drawable = ResourceDrawableIdHelper.getInstance().getResourceDrawable(view.getContext(), source);
+        view.setPlaceholderDrawable(drawable);
     }
 
     @ReactProp(name = "tintColor", customType = "Color")
