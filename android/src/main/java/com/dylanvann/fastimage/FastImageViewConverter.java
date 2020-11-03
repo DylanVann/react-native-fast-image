@@ -84,7 +84,7 @@ class FastImageViewConverter {
         return headers;
     }
 
-    static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source) {
+    static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source, Drawable placeholderDrawable) {
         // Get priority.
         final Priority priority = FastImageViewConverter.getPriority(source);
         // Get cache control method.
@@ -111,7 +111,7 @@ class FastImageViewConverter {
             .onlyRetrieveFromCache(onlyFromCache)
             .skipMemoryCache(skipMemoryCache)
             .priority(priority)
-            .placeholder(TRANSPARENT_DRAWABLE);
+            .placeholder(placeholderDrawable != null ? placeholderDrawable : TRANSPARENT_DRAWABLE);
         
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are

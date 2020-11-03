@@ -97,6 +97,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
+        Drawable placeholderDrawable = view.getPlaceholderDrawable();
+
         if (requestManager != null) {
             requestManager
                     // This will make this work for remote and local images. e.g.
@@ -106,8 +108,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
-                    .placeholder(view.getPlaceholderDrawable())
-                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
+                    .apply(FastImageViewConverter.getOptions(context, imageSource, source, placeholderDrawable))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
         }
