@@ -173,9 +173,9 @@ function FastImageBase({
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
-    const resolvedDefaultSource = !defaultSource || Platform.OS === 'ios'
+    const resolvedDefaultSource = Platform.OS === 'ios'
         ? defaultSource
-        : Image.resolveAssetSource(defaultSource)?.uri || null
+        : (defaultSource && Image.resolveAssetSource(defaultSource)?.uri) || null
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
