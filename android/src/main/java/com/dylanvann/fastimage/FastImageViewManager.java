@@ -6,9 +6,12 @@ import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
 import android.os.Build;
 
+import androidx.annotation.NonNull;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -20,6 +23,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -36,6 +40,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
+
+    private static final String FORCE_REFRESH_IMAGE = "forceRefreshImage";
 
     @Nullable
     private RequestManager requestManager = null;
@@ -221,6 +227,30 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         } else {
             return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
         }
+    }
 
+    @androidx.annotation.Nullable
+    @Override
+    public Map<String, Integer> getCommandsMap() {
+        return new HashMap<String, Integer>() {
+            {
+                put(FORCE_REFRESH_IMAGE, 1);
+            }
+        };
+    }
+
+    @Override
+    public void receiveCommand(@NonNull FastImageViewWithUrl view, String commandId, @androidx.annotation.Nullable ReadableArray args) {
+        switch (commandId) {
+            case FORCE_REFRESH_IMAGE: {
+                // TODO: Clear cache and remount
+                return;
+            }
+            default:
+                throw new IllegalArgumentException(String.format(
+                        "Unsupported command %s received by %s.",
+                        commandId,
+                        view.getClass().getSimpleName()));
+        }
     }
 }
