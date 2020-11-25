@@ -1,4 +1,4 @@
-import React, { forwardRef, memo } from 'react'
+import React, { memo } from 'react'
 import {
     View,
     Image,
@@ -11,6 +11,8 @@ import {
     StyleProp,
     TransformsStyle,
     AccessibilityProps,
+    UIManager,
+    findNodeHandle,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -190,32 +192,25 @@ function FastImageBase({
 
 const FastImageMemo = memo(FastImageBase)
 
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
-)
+class FastImage extends React.Component<FastImageProps> {
+    static priority = priority;
+    static resizeMode = resizeMode;
+    static cacheControl = cacheControl;
+    static preload = (sources: Source[]) => FastImageViewNativeModule.preload(sources);
+    static displayName = 'FastImage';
 
-FastImageComponent.displayName = 'FastImage'
+    private ref: React.RefObject<FastImage | undefined>;
 
-interface FastImageStaticProperties {
-    resizeMode: typeof resizeMode
-    priority: typeof priority
-    cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
+    constructor(props: FastImageProps) {
+        super(props);
+        this.ref = React.createRef();
+    }
+
+
+    render() {
+        return <FastImageMemo {...this.props} forwardedRef={this.ref} />
+    }
 }
-
-const FastImage: React.ComponentType<FastImageProps> &
-    FastImageStaticProperties = FastImageComponent as any
-
-FastImage.resizeMode = resizeMode
-
-FastImage.cacheControl = cacheControl
-
-FastImage.priority = priority
-
-FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
 
 const styles = StyleSheet.create({
     imageContainer: {
