@@ -130,7 +130,7 @@ export interface FastImageProps extends ViewProps {
     children?: React.ReactNode
 }
 
-export class FastImage extends React.PureComponent<FastImageProps> {
+export default class FastImage extends React.PureComponent<FastImageProps> {
     static defaultProps = {
         resizeMode: 'cover'
     }
