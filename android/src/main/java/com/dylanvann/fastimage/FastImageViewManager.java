@@ -41,7 +41,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
-    private static final String FORCE_REFRESH_IMAGE = "forceRefreshImage";
+    private static final int FORCE_REFRESH_IMAGE = 1;
+
+    private @Nullable ReadableMap _source;
 
     @Nullable
     private RequestManager requestManager = null;
@@ -62,6 +64,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        this._source = source;
+
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
@@ -76,6 +80,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
+        load(view, source);
+    }
+
+    private void load(FastImageViewWithUrl view, @NonNull ReadableMap source) {
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
@@ -132,7 +140,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     @Override
-    public void onDropViewInstance(FastImageViewWithUrl view) {
+    public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // This will cancel existing requests.
         if (requestManager != null) {
             requestManager.clear(view);
@@ -234,23 +242,25 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public Map<String, Integer> getCommandsMap() {
         return new HashMap<String, Integer>() {
             {
-                put(FORCE_REFRESH_IMAGE, 1);
+                put("forceRefreshImage", FORCE_REFRESH_IMAGE);
             }
         };
     }
 
     @Override
-    public void receiveCommand(@NonNull FastImageViewWithUrl view, String commandId, @androidx.annotation.Nullable ReadableArray args) {
+    public void receiveCommand(FastImageViewWithUrl root, int commandId, @Nullable ReadableArray args) {
         switch (commandId) {
             case FORCE_REFRESH_IMAGE: {
-                // TODO: Clear cache and remount
+                if (this._source != null) {
+                    load(root, this._source);
+                }
                 return;
             }
             default:
                 throw new IllegalArgumentException(String.format(
                         "Unsupported command %s received by %s.",
                         commandId,
-                        view.getClass().getSimpleName()));
+                        root.getClass().getSimpleName()));
         }
     }
 }
