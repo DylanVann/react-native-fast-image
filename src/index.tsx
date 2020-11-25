@@ -206,6 +206,15 @@ class FastImage extends React.Component<FastImageProps> {
         this.ref = React.createRef();
     }
 
+    refresh = () => {
+        if (this.ref.current == null) throw new Error('FastImageView ref was not set!')
+        UIManager.dispatchViewManagerCommand(
+            findNodeHandle(this.ref.current),
+            UIManager.getViewManagerConfig('FastImageView').Commands
+                .forceRefreshImage,
+            []
+        );
+    };
 
     render() {
         return <FastImageMemo {...this.props} forwardedRef={this.ref} />
