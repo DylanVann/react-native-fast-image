@@ -106,11 +106,17 @@
 - (void)didSetProps:(NSArray<NSString *> *)changedProps
 {
     if (_needsReload) {
-        [self reloadImage];
+        [self reloadImage:false];
     }
 }
 
-- (void)reloadImage
+
+- (void)forceRefreshImage
+{
+    [self reloadImage:true];
+}
+
+- (void)reloadImage:(BOOL)force
 {
     _needsReload = NO;
 
@@ -136,13 +142,13 @@
             }
             self.hasCompleted = YES;
             [self sendOnLoad:image];
-            
+
             if (self.onFastImageLoadEnd) {
                 self.onFastImageLoadEnd(@{});
             }
             return;
         }
-        
+
         // Set headers.
         NSDictionary *headers = _source.headers;
         SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock:^NSURLRequest * _Nullable(NSURLRequest * _Nonnull request) {
@@ -154,7 +160,7 @@
             return [mutableRequest copy];
         }];
         SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
-        
+
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
         switch (_source.priority) {
@@ -168,7 +174,7 @@
                 options |= SDWebImageHighPriority;
                 break;
         }
-        
+
         switch (_source.cacheControl) {
             case FFFCacheControlWeb:
                 options |= SDWebImageRefreshCached;
@@ -179,7 +185,7 @@
             case FFFCacheControlImmutable:
                 break;
         }
-        
+
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
@@ -188,7 +194,14 @@
         }
         self.hasCompleted = NO;
         self.hasErrored = NO;
-        
+
+        if (force) {
+            NSString* cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:_source.url context:context];
+            [[[SDWebImageManager sharedManager] imageCache] removeImageForKey:cacheKey cacheType:SDImageCacheTypeAll completion:^{
+                NSLog(@"Cleared cache!");
+            }];
+        }
+
         [self downloadImage:_source options:options context:context];
     }
 }
