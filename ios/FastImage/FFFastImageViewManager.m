@@ -11,7 +11,7 @@
 RCT_EXPORT_MODULE(FastImageView)
 
 - (FFFastImageView*)view {
-    return [[FFFastImageView alloc] init];
+  return [[FFFastImageView alloc] init];
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
@@ -45,7 +45,7 @@ RCT_EXPORT_METHOD(forceRefreshImage:(nonnull NSNumber*) reactTag)
             RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
             return;
         }
-        [(FFFastImageView*)view forceRefreshImage];
+        [(FFFastImageView*)view reloadImage];
     }];
 }
 

@@ -88,9 +88,9 @@
 
 - (void)sendOnLoad:(UIImage *)image {
     self.onLoadEvent = @{
-        @"width":[NSNumber numberWithDouble:image.size.width],
-        @"height":[NSNumber numberWithDouble:image.size.height]
-    };
+                         @"width":[NSNumber numberWithDouble:image.size.width],
+                         @"height":[NSNumber numberWithDouble:image.size.height]
+                         };
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
     }
@@ -106,17 +106,12 @@
 - (void)didSetProps:(NSArray<NSString *> *)changedProps
 {
     if (_needsReload) {
-        [self reloadImage:false];
+        [self reloadImage];
     }
 }
 
 
-- (void)forceRefreshImage
-{
-    [self reloadImage:true];
-}
-
-- (void)reloadImage:(BOOL)force
+- (void)reloadImage
 {
     _needsReload = NO;
 
@@ -136,9 +131,9 @@
             [self setImage:image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
-                    @"loaded": @(1),
-                    @"total": @(1)
-                                         });
+                                           @"loaded": @(1),
+                                           @"total": @(1)
+                                           });
             }
             self.hasCompleted = YES;
             [self sendOnLoad:image];
@@ -195,14 +190,7 @@
         self.hasCompleted = NO;
         self.hasErrored = NO;
 
-        if (force) {
-            NSString* cacheKey = [[SDWebImageManager sharedManager] cacheKeyForURL:_source.url context:context];
-            [[[SDWebImageManager sharedManager] imageCache] removeImageForKey:cacheKey cacheType:SDImageCacheTypeAll completion:^{
-                [self downloadImage:self->_source options:options context:context];
-            }];
-        } else {
-            [self downloadImage:_source options:options context:context];
-        }
+        [self downloadImage:_source options:options context:context];
     }
 }
 
@@ -213,32 +201,32 @@
                      options:options
                      context:context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
-        if (weakSelf.onFastImageProgress) {
-            weakSelf.onFastImageProgress(@{
-                @"loaded": @(receivedSize),
-                @"total": @(expectedSize)
-                                         });
-        }
-    } completed:^(UIImage * _Nullable image,
-                  NSError * _Nullable error,
-                  SDImageCacheType cacheType,
-                  NSURL * _Nullable imageURL) {
-        if (error) {
-            weakSelf.hasErrored = YES;
-            if (weakSelf.onFastImageError) {
-                weakSelf.onFastImageError(@{});
-            }
-            if (weakSelf.onFastImageLoadEnd) {
-                weakSelf.onFastImageLoadEnd(@{});
-            }
-        } else {
-            weakSelf.hasCompleted = YES;
-            [weakSelf sendOnLoad:image];
-            if (weakSelf.onFastImageLoadEnd) {
-                weakSelf.onFastImageLoadEnd(@{});
-            }
-        }
-    }];
+                        if (weakSelf.onFastImageProgress) {
+                            weakSelf.onFastImageProgress(@{
+                                                           @"loaded": @(receivedSize),
+                                                           @"total": @(expectedSize)
+                                                           });
+                        }
+                    } completed:^(UIImage * _Nullable image,
+                                  NSError * _Nullable error,
+                                  SDImageCacheType cacheType,
+                                  NSURL * _Nullable imageURL) {
+                        if (error) {
+                            weakSelf.hasErrored = YES;
+                                if (weakSelf.onFastImageError) {
+                                    weakSelf.onFastImageError(@{});
+                                }
+                                if (weakSelf.onFastImageLoadEnd) {
+                                    weakSelf.onFastImageLoadEnd(@{});
+                                }
+                        } else {
+                            weakSelf.hasCompleted = YES;
+                            [weakSelf sendOnLoad:image];
+                            if (weakSelf.onFastImageLoadEnd) {
+                                weakSelf.onFastImageLoadEnd(@{});
+                            }
+                        }
+                    }];
 }
 
 @end
