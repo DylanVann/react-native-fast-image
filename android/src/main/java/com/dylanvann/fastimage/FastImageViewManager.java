@@ -43,8 +43,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     private static final int FORCE_REFRESH_IMAGE = 1;
 
-    private @Nullable ReadableMap _source;
-
     @Nullable
     private RequestManager requestManager = null;
 
@@ -64,7 +62,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        this._source = source;
+        view.source = source;
 
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
@@ -251,8 +249,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void receiveCommand(FastImageViewWithUrl root, int commandId, @Nullable ReadableArray args) {
         switch (commandId) {
             case FORCE_REFRESH_IMAGE: {
-                if (this._source != null) {
-                    load(root, this._source);
+                if (root.source != null) {
+                    load(root, root.source);
                 }
                 return;
             }
