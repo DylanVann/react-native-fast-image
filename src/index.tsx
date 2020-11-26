@@ -162,14 +162,14 @@ export default class FastImage extends React.PureComponent<FastImageProps> {
     };
 
     render() {
-        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, ...props } = this.props;
+        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props;
         if (fallback) {
             const cleanedSource = { ...(source as any) }
             delete cleanedSource.cache
             const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
             return (
-                <View style={[styles.imageContainer, style]}>
+                <View style={[styles.imageContainer, style]} nativeID={nativeID}>
                     <Image
                         {...props}
                         style={StyleSheet.absoluteFill}
@@ -189,7 +189,7 @@ export default class FastImage extends React.PureComponent<FastImageProps> {
         const resolvedSource = Image.resolveAssetSource(source as any)
 
         return (
-            <View style={[styles.imageContainer, style]}>
+            <View style={[styles.imageContainer, style]} nativeID={nativeID}>
                 <FastImageView
                     {...props}
                     tintColor={tintColor}
