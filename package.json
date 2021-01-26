@@ -1,6 +1,9 @@
 {
-    "name": "react-native-fast-image",
-    "version": "8.3.4",
+    "name": "@sector-labs/react-native-fast-image",
+    "version": "8.3.5",
+    "publishConfig": {
+        "registry": "https://nexus.sector.sh/repository/yarn-empg/"
+    },
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
