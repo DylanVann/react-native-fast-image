@@ -22,16 +22,18 @@ const FastImageViewNativeModule = NativeModules.FastImageView
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 function findBorderRadius(style: unknown): number | undefined {
+    let result: unknown
     if (Array.isArray(style)) {
         const obj = style.find((s) => {
             const borderRadius = findBorderRadius(s)
-            return borderRadius != null && borderRadius > 0
+            return typeof borderRadius === "number" && borderRadius > 0
         })
-        return obj?.borderRadius
+        result = obj?.borderRadius
     } else {
         // @ts-expect-error typings for StyleProp<> are really hard
-        return style?.borderRadius
+        result = style?.borderRadius
     }
+    return typeof result === "number" ? result : undefined;
 }
 
 function areShallowEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
