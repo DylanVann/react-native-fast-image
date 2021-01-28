@@ -34,7 +34,7 @@
     "scripts": {
         "build": "npx dv-scripts build && cp src/index.js.flow dist/index.js.flow",
         "lint": "npx dv-scripts lint",
-        "release": "npx dv-scripts release",
+        "release": "npm publish --access=public",
         "test": "npx dv-scripts test"
     },
     "prettier": {
