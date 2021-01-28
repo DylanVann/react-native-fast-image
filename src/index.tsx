@@ -13,6 +13,8 @@ import {
     UIManager,
     findNodeHandle,
     ViewProps,
+    PixelRatio,
+    ImageResolvedAssetSource,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -130,7 +132,11 @@ export interface FastImageProps extends ViewProps {
     children?: React.ReactNode
 }
 
-export default class FastImage extends React.PureComponent<FastImageProps> {
+interface FastImageState {
+    resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number };
+}
+
+export default class FastImage extends React.PureComponent<FastImageProps, FastImageState> {
     static defaultProps = {
         resizeMode: 'cover'
     }
@@ -146,6 +152,7 @@ export default class FastImage extends React.PureComponent<FastImageProps> {
     constructor(props: FastImageProps) {
         super(props);
         this.fastImageRef = React.createRef();
+        this.state = { }
     }
 
     refresh() {
@@ -160,6 +167,20 @@ export default class FastImage extends React.PureComponent<FastImageProps> {
             []
         );
     };
+
+    static findBorderRadius(style: StyleProp<ImageStyle>): number | undefined {
+        // @ts-expect-error typings for StyleProp<> are really hard
+        return Array.isArray(style) ? style.find((s) => this.findBorderRadius(s)) : style?.borderRadius
+    }
+
+    static getDerivedStateFromProps({ style, source }: FastImageProps, _: FastImageState): FastImageState {
+        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(FastImage.findBorderRadius(style) ?? 0))
+        const mergeStyle: ImageStyle = { borderRadius: borderRadius }
+        const resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
+                 ? Object.assign(source as any, mergeStyle)
+                 : source)
+         return { resolvedSource }
+    }
 
     render() {
         const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props;
@@ -187,15 +208,13 @@ export default class FastImage extends React.PureComponent<FastImageProps> {
             )
         }
 
-        const resolvedSource = Image.resolveAssetSource(source as any)
-
         return (
             <View style={[styles.imageContainer, style]} {...props}>
                 <FastImageView
                     nativeID={nativeID}
                     tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
-                    source={resolvedSource}
+                    source={this.state.resolvedSource}
                     onFastImageLoadStart={onLoadStart}
                     onFastImageProgress={onProgress}
                     onFastImageLoad={onLoad}
