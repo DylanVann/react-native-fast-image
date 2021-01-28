@@ -1,6 +1,6 @@
 {
     "name": "@cuvent/react-native-fast-image",
-    "version": "8.4.3",
+    "version": "8.4.4",
     "description": "🚩 FastImage, performant React Native image component. Cuvent fork.",
     "keywords": [
         "cache",

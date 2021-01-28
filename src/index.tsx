@@ -21,7 +21,7 @@ const FastImageViewNativeModule = NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
-export function findBorderRadius(style: unknown): number | undefined {
+function findBorderRadius(style: unknown): number | undefined {
     if (Array.isArray(style)) {
         const obj = style.find((s) => {
             const borderRadius = findBorderRadius(s)
@@ -33,6 +33,23 @@ export function findBorderRadius(style: unknown): number | undefined {
         return style?.borderRadius
     }
 }
+
+function areShallowEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
+    const keys1 = Object.keys(left);
+    const keys2 = Object.keys(right);
+
+    if (keys1.length !== keys2.length) {
+      return false;
+    }
+
+    for (const key of keys1) {
+      if (left[key] !== right[key]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 
 const resizeMode = {
     contain: 'contain',
@@ -181,19 +198,22 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
         )
     }
 
-    static getDerivedStateFromProps({ style, source, fallback }: FastImageProps, _: FastImageState): FastImageState {
+    static getDerivedStateFromProps({ style, source, fallback }: FastImageProps, previousState: FastImageState): FastImageState | null {
+        let resolvedSource: ImageResolvedAssetSource;
         if (fallback) {
             const cleanedSource = { ...(source as any) }
             delete cleanedSource.cache
-            const resolvedSource = Image.resolveAssetSource(cleanedSource)
-            return { resolvedSource }
+            resolvedSource = Image.resolveAssetSource(cleanedSource)
+        } else {
+            const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(findBorderRadius(style) ?? 0))
+            resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
+                     ? { ...(source as any), borderRadius: borderRadius }
+                     : source)
         }
-
-        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(findBorderRadius(style) ?? 0))
-        const resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
-                 ? { ...(source as any), borderRadius: borderRadius }
-                 : source)
-        return { resolvedSource }
+        if (areShallowEqual(resolvedSource as any, previousState.resolvedSource as any))
+            return null;
+        else
+            return { resolvedSource }
     }
 
     render() {
