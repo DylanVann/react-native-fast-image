@@ -28,7 +28,8 @@
         "ios",
         "!ios/build",
         "dist",
-        "RNFastImage.podspec"
+        "RNFastImage.podspec",
+        "!**/*.test.*"
     ],
     "scripts": {
         "build": "npx dv-scripts build && cp src/index.js.flow dist/index.js.flow",
