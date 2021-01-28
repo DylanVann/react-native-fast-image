@@ -1,5 +1,8 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
+#import <SDWebImage/SDWebImage.h>
+#import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
+#import <SDWebImagePhotosPlugin/NSURL+SDWebImagePhotosPlugin.h>
 
 @interface FFFastImageView()
 
@@ -10,15 +13,17 @@
 @property (nonatomic, assign) BOOL needsReload;
 
 @property (nonatomic, strong) NSDictionary* onLoadEvent;
+@property (nonatomic, strong) SDWebImageManager* manager;
 
 @end
 
 @implementation FFFastImageView
 
-- (id) init {
+- (id) initWithManager:(SDWebImageManager*)manager {
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    self.manager = manager;
     return self;
 }
 
@@ -196,10 +201,12 @@
 
 - (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options context:(SDWebImageContext *)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    BOOL isPhotoAsset = [_source.url.absoluteString.lowercaseString hasPrefix:@"ph://"];
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
-                     options:options
-                     context:context
+                     //the following two properties are loading a photo asset according to the image's view size: https://github.com/SDWebImage/SDWebImagePhotosPlugin#control-query-image-size
+                     options:(isPhotoAsset) ? 0 : options
+                     context:(isPhotoAsset) ? @{SDWebImageContextImageThumbnailPixelSize: @(self.bounds.size), SDWebImageContextCustomManager: self.manager} : context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                         if (weakSelf.onFastImageProgress) {
                             weakSelf.onFastImageProgress(@{

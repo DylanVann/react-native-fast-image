@@ -19,6 +19,7 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 @property (nonatomic, strong) UIColor *imageColor;
 
+- (id)initWithManager:(SDWebImageManager*)manager;
 - (void)reloadImage;
 
 @end

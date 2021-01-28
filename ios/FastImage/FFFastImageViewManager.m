@@ -5,13 +5,27 @@
 #import <React/RCTViewManager.h>
 #import <React/RCTUIManager.h>
 #import <React/RCTLog.h>
+#import <SDWebImage/SDWebImage.h>
+#import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
+
+@interface FFFastImageViewManager()
+
+@property (nonatomic, strong) SDWebImageManager* manager;
+
+@end
 
 @implementation FFFastImageViewManager
 
 RCT_EXPORT_MODULE(FastImageView)
 
+- (instancetype)init {
+    self = [super init];
+    self.manager = [[SDWebImageManager alloc] initWithCache:SDImageCache.sharedImageCache loader:SDImagePhotosLoader.sharedLoader];
+    return self;
+}
+
 - (FFFastImageView*)view {
-  return [[FFFastImageView alloc] init];
+  return [[FFFastImageView alloc] initWithManager:self.manager];
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
@@ -35,6 +49,18 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     }];
 
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+}
+
+RCT_EXPORT_METHOD(forceRefreshImage:(nonnull NSNumber*) reactTag)
+{
+    [self.bridge.uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *,UIView *> *viewRegistry) {
+        UIView* view = viewRegistry[reactTag];
+        if (!view || ![view isKindOfClass:[FFFastImageView class]]) {
+            RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+            return;
+        }
+        [(FFFastImageView*)view reloadImage];
+    }];
 }
 
 RCT_EXPORT_METHOD(forceRefreshImage:(nonnull NSNumber*) reactTag)
