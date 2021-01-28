@@ -180,9 +180,8 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
         }
 
         const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(findBorderRadius(style) ?? 0))
-        const mergeStyle: ImageStyle = { borderRadius: borderRadius }
         const resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
-                 ? Object.assign(source as any, mergeStyle)
+                 ? { ...(source as any), borderRadius: borderRadius }
                  : source)
         return { resolvedSource }
     }
