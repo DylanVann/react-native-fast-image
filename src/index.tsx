@@ -16,6 +16,7 @@ import {
     PixelRatio,
     ImageResolvedAssetSource,
 } from 'react-native'
+import { findBorderRadius } from './utilities'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
@@ -168,11 +169,6 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
         );
     };
 
-    static findBorderRadius(style: StyleProp<ImageStyle>): number | undefined {
-        // @ts-expect-error typings for StyleProp<> are really hard
-        return Array.isArray(style) ? style.find((s) => this.findBorderRadius(s)) : style?.borderRadius
-    }
-
     static getDerivedStateFromProps({ style, source, fallback }: FastImageProps, _: FastImageState): FastImageState {
         if (fallback) {
             const cleanedSource = { ...(source as any) }
@@ -181,7 +177,7 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
             return { resolvedSource }
         }
 
-        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(FastImage.findBorderRadius(style) ?? 0))
+        const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(findBorderRadius(style) ?? 0))
         const mergeStyle: ImageStyle = { borderRadius: borderRadius }
         const resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
                  ? Object.assign(source as any, mergeStyle)
