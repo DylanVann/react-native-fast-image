@@ -16,11 +16,13 @@ import {
     PixelRatio,
     ImageResolvedAssetSource,
 } from 'react-native'
-import { findBorderRadius } from './utilities'
+import * as utilities from './utilities'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
+
+export const findBorderRadius = utilities.findBorderRadius
 
 const resizeMode = {
     contain: 'contain',
