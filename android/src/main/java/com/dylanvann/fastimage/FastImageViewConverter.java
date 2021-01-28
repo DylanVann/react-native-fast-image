@@ -4,15 +4,11 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.media.Image;
-import android.net.Uri;
-import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
@@ -21,15 +17,9 @@ import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
-import com.facebook.react.views.imagehelper.ImageSource;
 
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.annotation.Nullable;
 
 import static com.bumptech.glide.request.RequestOptions.signatureOf;
 
@@ -57,7 +47,7 @@ class FastImageViewConverter {
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER_INSIDE);
             }};
-    
+
     // Resolve the source uri to a file path that android understands.
     static FastImageSource getImageSource(Context context, ReadableMap source) {
         return new FastImageSource(context, source.getString("uri"), getHeaders(source));
@@ -90,17 +80,12 @@ class FastImageViewConverter {
         // Get cache control method.
         final FastImageCacheControl cacheControl = FastImageViewConverter.getCacheControl(source);
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
-        Boolean onlyFromCache = false;
-        Boolean skipMemoryCache = false;
+        boolean onlyFromCache = false;
         switch (cacheControl) {
-            case WEB:
-                // If using none then OkHttp integration should be used for caching.
-                diskCacheStrategy = DiskCacheStrategy.NONE;
-                skipMemoryCache = true;
-                break;
             case CACHE_ONLY:
                 onlyFromCache = true;
                 break;
+            case WEB:
             case IMMUTABLE:
                 // Use defaults.
                 break;
@@ -109,10 +94,9 @@ class FastImageViewConverter {
         RequestOptions options = new RequestOptions()
             .diskCacheStrategy(diskCacheStrategy)
             .onlyRetrieveFromCache(onlyFromCache)
-            .skipMemoryCache(skipMemoryCache)
             .priority(priority)
             .placeholder(TRANSPARENT_DRAWABLE);
-        
+
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
@@ -123,7 +107,7 @@ class FastImageViewConverter {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
-        return options;                
+        return options;
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {

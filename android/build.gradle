@@ -5,10 +5,12 @@ buildscript {
     }
     dependencies {
         classpath "com.android.tools.build:gradle:3.4.0"
+        classpath "io.objectbox:objectbox-gradle-plugin:2.8.1"
     }
 }
 
 apply plugin: "com.android.library"
+apply plugin: 'io.objectbox'
 
 def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
@@ -42,6 +44,11 @@ android {
         targetSdkVersion _targetSdkVersion
         versionCode 1
         versionName "1.0"
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = [ "objectbox.modelPath" : "schemas/objectbox.json".toString() ]
+            }
+        }
     }
     lintOptions {
         abortOnError false
