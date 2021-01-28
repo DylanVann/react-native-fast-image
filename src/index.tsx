@@ -173,21 +173,25 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
         return Array.isArray(style) ? style.find((s) => this.findBorderRadius(s)) : style?.borderRadius
     }
 
-    static getDerivedStateFromProps({ style, source }: FastImageProps, _: FastImageState): FastImageState {
+    static getDerivedStateFromProps({ style, source, fallback }: FastImageProps, _: FastImageState): FastImageState {
+        if (fallback) {
+            const cleanedSource = { ...(source as any) }
+            delete cleanedSource.cache
+            const resolvedSource = Image.resolveAssetSource(cleanedSource)
+            return { resolvedSource }
+        }
+
         const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(FastImage.findBorderRadius(style) ?? 0))
         const mergeStyle: ImageStyle = { borderRadius: borderRadius }
         const resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
                  ? Object.assign(source as any, mergeStyle)
                  : source)
-         return { resolvedSource }
+        return { resolvedSource }
     }
 
     render() {
         const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props;
         if (fallback) {
-            const cleanedSource = { ...(source as any) }
-            delete cleanedSource.cache
-            const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
             return (
                 <View style={[styles.imageContainer, style]} {...props}>
@@ -195,7 +199,7 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
                         // @ts-expect-error Types are incorrect.
                         nativeID={nativeID}
                         style={StyleSheet.absoluteFill}
-                        source={resolvedSource}
+                        source={this.state.resolvedSource as any}
                         onLoadStart={onLoadStart}
                         onProgress={onProgress}
                         onLoad={onLoad as any}
