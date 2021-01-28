@@ -16,13 +16,23 @@ import {
     PixelRatio,
     ImageResolvedAssetSource,
 } from 'react-native'
-import * as utilities from './utilities'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
-export const findBorderRadius = utilities.findBorderRadius
+export function findBorderRadius(style: unknown): number | undefined {
+    if (Array.isArray(style)) {
+        const obj = style.find((s) => {
+            const borderRadius = findBorderRadius(s)
+            return borderRadius != null && borderRadius > 0
+        })
+        return obj?.borderRadius
+    } else {
+        // @ts-expect-error typings for StyleProp<> are really hard
+        return style?.borderRadius
+    }
+}
 
 const resizeMode = {
     contain: 'contain',
@@ -136,7 +146,7 @@ export interface FastImageProps extends ViewProps {
 }
 
 interface FastImageState {
-    resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number };
+    resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number }
 }
 
 export default class FastImage extends React.PureComponent<FastImageProps, FastImageState> {
@@ -144,17 +154,17 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
         resizeMode: 'cover'
     }
 
-    static priority = priority;
-    static resizeMode = resizeMode;
-    static cacheControl = cacheControl;
-    static preload = (sources: Source[]) => FastImageViewNativeModule.preload(sources);
-    static displayName = 'FastImage';
+    static priority = priority
+    static resizeMode = resizeMode
+    static cacheControl = cacheControl
+    static preload = (sources: Source[]) => FastImageViewNativeModule.preload(sources)
+    static displayName = 'FastImage'
 
-    private fastImageRef: React.RefObject<FastImage | undefined>;
+    private fastImageRef: React.RefObject<FastImage | undefined>
 
     constructor(props: FastImageProps) {
-        super(props);
-        this.fastImageRef = React.createRef();
+        super(props)
+        this.fastImageRef = React.createRef()
         this.state = { }
     }
 
@@ -168,8 +178,8 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
             UIManager.getViewManagerConfig('FastImageView').Commands
                 .forceRefreshImage,
             []
-        );
-    };
+        )
+    }
 
     static getDerivedStateFromProps({ style, source, fallback }: FastImageProps, _: FastImageState): FastImageState {
         if (fallback) {
@@ -187,9 +197,9 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
     }
 
     render() {
-        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props;
-        if (fallback) {
+        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props
 
+        if (fallback) {
             return (
                 <View style={[styles.imageContainer, style]} {...props}>
                     <Image
