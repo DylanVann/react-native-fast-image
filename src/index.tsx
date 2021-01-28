@@ -35,6 +35,10 @@ function findBorderRadius(style: unknown): number | undefined {
 }
 
 function areShallowEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
+    if (left == null && right != null) return false;
+    if (left != null && right == null) return false;
+    if (left == null && right == null) return true;
+
     const keys1 = Object.keys(left);
     const keys2 = Object.keys(right);
 
