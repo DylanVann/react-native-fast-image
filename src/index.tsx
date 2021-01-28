@@ -1,4 +1,4 @@
-import React, { forwardRef, memo } from 'react'
+import React from 'react'
 import {
     View,
     Image,
@@ -10,7 +10,9 @@ import {
     ShadowStyleIOS,
     StyleProp,
     TransformsStyle,
-    AccessibilityProps,
+    UIManager,
+    findNodeHandle,
+    ViewProps,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -79,7 +81,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     opacity?: number
 }
 
-export interface FastImageProps extends AccessibilityProps {
+export interface FastImageProps extends ViewProps {
     source: Source | number
     resizeMode?: ResizeMode
     fallback?: boolean
@@ -128,94 +130,87 @@ export interface FastImageProps extends AccessibilityProps {
     children?: React.ReactNode
 }
 
-function FastImageBase({
-    source,
-    tintColor,
-    onLoadStart,
-    onProgress,
-    onLoad,
-    onError,
-    onLoadEnd,
-    style,
-    fallback,
-    children,
-    // eslint-disable-next-line no-shadow
-    resizeMode = 'cover',
-    forwardedRef,
-    ...props
-}: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    if (fallback) {
-        const cleanedSource = { ...(source as any) }
-        delete cleanedSource.cache
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
+export default class FastImage extends React.PureComponent<FastImageProps> {
+    static defaultProps = {
+        resizeMode: 'cover'
+    }
+
+    static priority = priority;
+    static resizeMode = resizeMode;
+    static cacheControl = cacheControl;
+    static preload = (sources: Source[]) => FastImageViewNativeModule.preload(sources);
+    static displayName = 'FastImage';
+
+    private fastImageRef: React.RefObject<FastImage | undefined>;
+
+    constructor(props: FastImageProps) {
+        super(props);
+        this.fastImageRef = React.createRef();
+    }
+
+    refresh() {
+        if (this.fastImageRef.current == null) {
+            if (this.props.fallback) throw new Error('Refreshing only works with `fallback={false}`!')
+            else throw new Error('FastImageView ref was not set!')
+        }
+        UIManager.dispatchViewManagerCommand(
+            findNodeHandle(this.fastImageRef.current),
+            UIManager.getViewManagerConfig('FastImageView').Commands
+                .forceRefreshImage,
+            []
+        );
+    };
+
+    render() {
+        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props;
+        if (fallback) {
+            const cleanedSource = { ...(source as any) }
+            delete cleanedSource.cache
+            const resolvedSource = Image.resolveAssetSource(cleanedSource)
+
+            return (
+                <View style={[styles.imageContainer, style]} {...props}>
+                    <Image
+                        // @ts-expect-error Types are incorrect.
+                        nativeID={nativeID}
+                        style={StyleSheet.absoluteFill}
+                        source={resolvedSource}
+                        onLoadStart={onLoadStart}
+                        onProgress={onProgress}
+                        onLoad={onLoad as any}
+                        onError={onError}
+                        onLoadEnd={onLoadEnd}
+                        resizeMode={resizeMode}
+                    />
+                    {children}
+                </View>
+            )
+        }
+
+        const resolvedSource = Image.resolveAssetSource(source as any)
 
         return (
-            <View style={[styles.imageContainer, style]} ref={forwardedRef}>
-                <Image
-                    {...props}
+            <View style={[styles.imageContainer, style]} {...props}>
+                <FastImageView
+                    nativeID={nativeID}
+                    tintColor={tintColor}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad as any}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
+                    onFastImageLoadStart={onLoadStart}
+                    onFastImageProgress={onProgress}
+                    onFastImageLoad={onLoad}
+                    onFastImageError={onError}
+                    onFastImageLoadEnd={onLoadEnd}
                     resizeMode={resizeMode}
+                    ref={this.fastImageRef}
                 />
                 {children}
             </View>
         )
     }
-
-    const resolvedSource = Image.resolveAssetSource(source as any)
-
-    return (
-        <View style={[styles.imageContainer, style]} ref={forwardedRef}>
-            <FastImageView
-                {...props}
-                tintColor={tintColor}
-                style={StyleSheet.absoluteFill}
-                source={resolvedSource}
-                onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={onProgress}
-                onFastImageLoad={onLoad}
-                onFastImageError={onError}
-                onFastImageLoadEnd={onLoadEnd}
-                resizeMode={resizeMode}
-            />
-            {children}
-        </View>
-    )
 }
 
-const FastImageMemo = memo(FastImageBase)
-
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
-)
-
-FastImageComponent.displayName = 'FastImage'
-
-interface FastImageStaticProperties {
-    resizeMode: typeof resizeMode
-    priority: typeof priority
-    cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
-}
-
-const FastImage: React.ComponentType<FastImageProps> &
-    FastImageStaticProperties = FastImageComponent as any
-
-FastImage.resizeMode = resizeMode
-
-FastImage.cacheControl = cacheControl
-
-FastImage.priority = priority
-
-FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+// export default React.forwardRef<Ref<FastImage>, FastImageProps>((props, ref) => <FastImage {...props} managedRef={ref} />)
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -237,5 +232,3 @@ const FastImageView = (requireNativeComponent as any)(
         },
     },
 )
-
-export default FastImage

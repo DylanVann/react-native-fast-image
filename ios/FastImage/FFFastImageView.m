@@ -110,6 +110,7 @@
     }
 }
 
+
 - (void)reloadImage
 {
     _needsReload = NO;
@@ -136,13 +137,13 @@
             }
             self.hasCompleted = YES;
             [self sendOnLoad:image];
-            
+
             if (self.onFastImageLoadEnd) {
                 self.onFastImageLoadEnd(@{});
             }
             return;
         }
-        
+
         // Set headers.
         NSDictionary *headers = _source.headers;
         SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock:^NSURLRequest * _Nullable(NSURLRequest * _Nonnull request) {
@@ -154,7 +155,7 @@
             return [mutableRequest copy];
         }];
         SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
-        
+
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
         switch (_source.priority) {
@@ -168,7 +169,7 @@
                 options |= SDWebImageHighPriority;
                 break;
         }
-        
+
         switch (_source.cacheControl) {
             case FFFCacheControlWeb:
                 options |= SDWebImageRefreshCached;
@@ -179,7 +180,7 @@
             case FFFCacheControlImmutable:
                 break;
         }
-        
+
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
@@ -188,7 +189,7 @@
         }
         self.hasCompleted = NO;
         self.hasErrored = NO;
-        
+
         [self downloadImage:_source options:options context:context];
     }
 }

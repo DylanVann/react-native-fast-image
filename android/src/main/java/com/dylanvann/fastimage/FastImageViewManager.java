@@ -6,9 +6,12 @@ import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
 import android.os.Build;
 
+import androidx.annotation.NonNull;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -20,6 +23,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -36,6 +40,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     private static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
+
+    private static final int FORCE_REFRESH_IMAGE = 1;
 
     @Nullable
     private RequestManager requestManager = null;
@@ -56,6 +62,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        view.source = source;
+
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             if (requestManager != null) {
@@ -70,6 +78,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
+        load(view, source);
+    }
+
+    private void load(FastImageViewWithUrl view, @NonNull ReadableMap source) {
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
@@ -126,7 +138,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     @Override
-    public void onDropViewInstance(FastImageViewWithUrl view) {
+    public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // This will cancel existing requests.
         if (requestManager != null) {
             requestManager.clear(view);
@@ -221,6 +233,32 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         } else {
             return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
         }
+    }
 
+    @androidx.annotation.Nullable
+    @Override
+    public Map<String, Integer> getCommandsMap() {
+        return new HashMap<String, Integer>() {
+            {
+                put("forceRefreshImage", FORCE_REFRESH_IMAGE);
+            }
+        };
+    }
+
+    @Override
+    public void receiveCommand(FastImageViewWithUrl root, int commandId, @Nullable ReadableArray args) {
+        switch (commandId) {
+            case FORCE_REFRESH_IMAGE: {
+                if (root.source != null) {
+                    load(root, root.source);
+                }
+                return;
+            }
+            default:
+                throw new IllegalArgumentException(String.format(
+                        "Unsupported command %s received by %s.",
+                        commandId,
+                        root.getClass().getSimpleName()));
+        }
     }
 }
