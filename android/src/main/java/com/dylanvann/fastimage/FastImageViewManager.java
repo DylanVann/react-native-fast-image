@@ -49,6 +49,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     private static final int FORCE_REFRESH_IMAGE = 1;
 
+//    private ReactApplicationContext reactContext;
+//
+//    public FastImageViewManager(ReactApplicationContext reactContext) {
+//        this.reactContext = reactContext;
+//    }
+
     @Nullable
     private RequestManager requestManager = null;
 
@@ -87,7 +93,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         load(view, source);
     }
 
-    private void load(FastImageViewWithUrl view, @NonNull ReadableMap source) {
+    private void load(final FastImageViewWithUrl view, @NonNull final ReadableMap source) {
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
@@ -152,22 +158,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     /**
-     * Returns the etag from cache. If there is no cached etag it will request
-     * the server to get it, save it to the cache, and return it.
-     * @param url
-     * @param callback
-     */
-    private void getEtag(String url, EtagCallback callback) {
-        String etag = ObjectBox.getEtagByUrl(url);
-
-        if (etag == null) {
-            EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, callback));
-        } else {
-            callback.onEtag(etag);
-         }
-     }
-
-    /**
      * Refreshes an image. Won't do anything if etag hasn't changed.
      * When there was a new image the new image will be shown + the image
      * and etag cache will be updated.
@@ -207,6 +197,21 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         );
     }
 
+    /**
+     * Returns the etag from cache. If there is no cached etag it will request
+     * the server to get it, save it to the cache, and return it.
+     * @param url
+     * @param callback
+     */
+    private void getEtag(String url, EtagCallback callback) {
+        String etag = ObjectBox.getEtagByUrl(url);
+
+        if (etag == null) {
+            EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, callback));
+        } else {
+            callback.onEtag(etag);
+        }
+    }
 
     @ReactProp(name = "tintColor", customType = "Color")
     public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
@@ -336,7 +341,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         switch (commandId) {
             case FORCE_REFRESH_IMAGE: {
                 if (root.source != null) {
-                    load(root, root.source);
+                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(root.getContext(), root.source);
+                    refresh(root, imageSource.getGlideUrl().toStringUrl());
                 }
                 return;
             }

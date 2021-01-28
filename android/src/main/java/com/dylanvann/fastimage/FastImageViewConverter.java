@@ -47,7 +47,7 @@ class FastImageViewConverter {
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER_INSIDE);
             }};
-
+    
     // Resolve the source uri to a file path that android understands.
     static FastImageSource getImageSource(Context context, ReadableMap source) {
         return new FastImageSource(context, source.getString("uri"), getHeaders(source));
@@ -96,7 +96,7 @@ class FastImageViewConverter {
             .onlyRetrieveFromCache(onlyFromCache)
             .priority(priority)
             .placeholder(TRANSPARENT_DRAWABLE);
-
+        
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
@@ -107,7 +107,7 @@ class FastImageViewConverter {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
-        return options;
+        return options;                
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {

@@ -142,13 +142,13 @@
             }
             self.hasCompleted = YES;
             [self sendOnLoad:image];
-
+            
             if (self.onFastImageLoadEnd) {
                 self.onFastImageLoadEnd(@{});
             }
             return;
         }
-
+        
         // Set headers.
         NSDictionary *headers = _source.headers;
         SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock:^NSURLRequest * _Nullable(NSURLRequest * _Nonnull request) {
@@ -160,7 +160,7 @@
             return [mutableRequest copy];
         }];
         SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
-
+        
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
         switch (_source.priority) {
@@ -174,7 +174,7 @@
                 options |= SDWebImageHighPriority;
                 break;
         }
-
+        
         switch (_source.cacheControl) {
             case FFFCacheControlWeb:
                 options |= SDWebImageRefreshCached;
@@ -185,7 +185,7 @@
             case FFFCacheControlImmutable:
                 break;
         }
-
+        
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
@@ -194,13 +194,14 @@
         }
         self.hasCompleted = NO;
         self.hasErrored = NO;
-
+        
         [self downloadImage:_source options:options context:context];
     }
 }
 
 - (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options context:(SDWebImageContext *)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    NSLog(@"%@", [NSString stringWithFormat:@"REQUEST FOR %@", _source.url.absoluteString]);
     BOOL isPhotoAsset = [_source.url.absoluteString.lowercaseString hasPrefix:@"ph://"];
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
