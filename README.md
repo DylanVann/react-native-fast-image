@@ -60,7 +60,7 @@ and
 **Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
 
 ```bash
-yarn add react-native-fast-image
+npm i @cuvent/react-native-fast-image
 ```
 
 ```jsx
