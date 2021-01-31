@@ -55,6 +55,15 @@ and
 -   [x] GIF support.
 -   [x] Border radius.
 
+### Fork features
+
+This fast-image fork comes with a few more features:
+
+- [x] Image refreshing (via it's ref's `.refresh()` function)
+- [x] ETag support
+- [x] Antialiasing for borderRadius on Android
+- [x] A bit faster re-renders
+
 ## Usage
 
 **Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
@@ -64,7 +73,7 @@ npm i @cuvent/react-native-fast-image
 ```
 
 ```jsx
-import FastImage from 'react-native-fast-image'
+import FastImage from '@cuvent/react-native-fast-image'
 
 const YourImage = () => (
     <FastImage
