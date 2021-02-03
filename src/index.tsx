@@ -145,9 +145,7 @@ function FastImageBase({
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
     if (fallback) {
-        const cleanedSource = { ...(source as any) }
-        delete cleanedSource.cache
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
+    const resolvedSource = Image.resolveAssetSource(source as any)
 
         return (
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
