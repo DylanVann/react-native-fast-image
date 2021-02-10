@@ -16,7 +16,7 @@ def safeExtGet(prop, fallback) {
 
 def _reactNativeVersion = safeExtGet("reactNative", "+")
 def _compileSdkVersion = safeExtGet("compileSdkVersion", 28)
-def _glideVersion = safeExtGet("glideVersion", "4.9.0")
+def _glideVersion = safeExtGet("glideVersion", "4.12.0")
 
 android {
     compileSdkVersion _compileSdkVersion
