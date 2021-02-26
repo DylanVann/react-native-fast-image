@@ -33,24 +33,30 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 for (int i = 0; i < sources.size(); i++) {
                     final ReadableMap source = sources.getMap(i);
-                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
+                    if (source != null && source.hasKey("uri") && !isNullOrEmpty(source.getString("uri"))) {
+                        final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
 
-                    Glide
-                            .with(activity.getApplicationContext())
-                            // This will make this work for remote and local images. e.g.
-                            //    - file:///
-                            //    - content://
-                            //    - res:/
-                            //    - android.resource://
-                            //    - data:image/png;base64
-                            .load(
-                                    imageSource.isBase64Resource() ? imageSource.getSource() :
-                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
-                            )
-                            .apply(FastImageViewConverter.getOptions(activity, imageSource, source))
-                            .preload();
+                        Glide
+                                .with(activity.getApplicationContext())
+                                // This will make this work for remote and local images. e.g.
+                                //    - file:///
+                                //    - content://
+                                //    - res:/
+                                //    - android.resource://
+                                //    - data:image/png;base64
+                                .load(
+                                        imageSource.isBase64Resource() ? imageSource.getSource() :
+                                        imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
+                                )
+                                .apply(FastImageViewConverter.getOptions(activity, imageSource, source))
+                                .preload();
+                    }
                 }
             }
         });
+    }
+    
+    private boolean isNullOrEmpty(final String url) {
+        return url == null || url.trim().isEmpty();
     }
 }
