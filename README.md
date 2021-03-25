@@ -61,6 +61,7 @@ and
 
 ```bash
 yarn add react-native-fast-image
+cd ios && pod install
 ```
 
 ```jsx
