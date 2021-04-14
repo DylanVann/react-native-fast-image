@@ -32,9 +32,9 @@
         "!**/*.test.*"
     ],
     "scripts": {
-        "build": "npx dv-scripts build && cp src/index.js.flow dist/index.js.flow",
         "lint": "npx dv-scripts lint",
-        "release": "npm publish --access=public",
+        "prepare": "npx dv-scripts build && cp src/index.js.flow dist/index.js.flow",
+        "release": "npm version patch && npm publish",
         "test": "npx dv-scripts test"
     },
     "prettier": {
