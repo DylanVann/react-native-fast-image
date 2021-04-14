@@ -15,6 +15,7 @@ import {
     ViewProps,
     PixelRatio,
     ImageResolvedAssetSource,
+    Platform,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -168,6 +169,8 @@ export interface FastImageProps extends ViewProps {
     children?: React.ReactNode
 }
 
+const urlSchemeRegex = /^.+:\/\//.compile();
+
 interface FastImageState {
     resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number }
 }
@@ -216,10 +219,19 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
                      ? { ...(source as any), borderRadius: borderRadius }
                      : source)
         }
-        if (areShallowEqual(resolvedSource as any, previousState.resolvedSource as any))
+        if (areShallowEqual(resolvedSource as any, previousState.resolvedSource as any)) {
             return null;
-        else
+        } else {
+            // Android does not support uris without a scheme prefix.
+            if (Platform.OS === "android") {
+                // check if the uri starts with a URL scheme (http://, file://, https://, ...)
+                if (!urlSchemeRegex.test(resolvedSource.uri)) {
+                    // uri does not start with any URL scheme/protocol. Assume file:// as a default protocol:
+                    resolvedSource.uri = `file://${resolvedSource.uri}`
+                }
+            }
             return { resolvedSource }
+        }
     }
 
     render() {
