@@ -169,7 +169,7 @@ export interface FastImageProps extends ViewProps {
     children?: React.ReactNode
 }
 
-const urlSchemeRegex = /^.+:\/\//.compile();
+const urlSchemeRegex = /^.+:\/\//;
 
 interface FastImageState {
     resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number }
