@@ -15,26 +15,67 @@ import {
     ViewProps,
     PixelRatio,
     ImageResolvedAssetSource,
+    ViewStyle,
+    TextStyle,
+    RegisteredStyle,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
-function findBorderRadius(style: unknown): number | undefined {
-    let result: unknown
+function isRegisteredStyle<T>(
+    style: T | unknown
+): style is RegisteredStyle<T> {
+    if (typeof style === "object" && style != null)
+        return "__registeredStyleBrand" in style;
+    else return false;
+};
+
+
+function findStyle<
+    TStyle extends ViewStyle | TextStyle | ImageStyle,
+    TResult extends TStyle extends (infer U)[] ? U : TStyle,
+    TName extends keyof TResult
+>(
+    style: StyleProp<TStyle>,
+    stylePropertyKey: TName
+): TResult[TName] | undefined {
     if (Array.isArray(style)) {
-        const obj = style.find((s) => {
-            const borderRadius = findBorderRadius(s)
-            return typeof borderRadius === "number" && borderRadius > 0
-        })
-        result = obj?.borderRadius
+        // we're doing a reverse loop because values in elements at the end override values at the beginning
+        for (let i = style.length - 1; i >= 0; i--) {
+            const result = findStyle<TStyle, TResult, TName>(
+                // @ts-expect-error it's complaining because it is `readonly`, but we're not modifying it anyways. StyleProp<T>::RecursiveArray<T> needs to be readonly.
+                style[i],
+                stylePropertyKey
+            );
+            if (result != null) return result;
+        }
+        // style not found in array
+        return undefined;
     } else {
-        // @ts-expect-error typings for StyleProp<> are really hard
-        result = style?.borderRadius
+        if (style == null) {
+            // null, undefined
+            return undefined;
+        } else if (typeof style === "boolean") {
+            // false
+            return undefined;
+        } else if (isRegisteredStyle(style)) {
+            // RegisteredStyle<T> (number) - does not actually exist.
+            // @ts-expect-error typings for StyleProp<> are really hard
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            return style.__registeredStyleBrand[stylePropertyKey];
+        } else if (typeof style === "object") {
+            // { ... }
+            // @ts-expect-error typings for StyleProp<> are really hard
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            return style[stylePropertyKey];
+        } else {
+            // style is unknown type
+            return undefined;
+        }
     }
-    return typeof result === "number" ? result : undefined;
-}
+};
 
 function areShallowEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
     if (left == null && right != null) return false;
@@ -45,17 +86,17 @@ function areShallowEqual(left: Record<string, unknown>, right: Record<string, un
     const keys2 = Object.keys(right);
 
     if (keys1.length !== keys2.length) {
-      return false;
+        return false;
     }
 
     for (const key of keys1) {
-      if (left[key] !== right[key]) {
-        return false;
-      }
+        if (left[key] !== right[key]) {
+            return false;
+        }
     }
 
     return true;
-  }
+}
 
 const resizeMode = {
     contain: 'contain',
@@ -188,7 +229,7 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
     constructor(props: FastImageProps) {
         super(props)
         this.fastImageRef = React.createRef()
-        this.state = { }
+        this.state = {}
     }
 
     refresh() {
@@ -211,10 +252,11 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
             delete cleanedSource.cache
             resolvedSource = Image.resolveAssetSource(cleanedSource)
         } else {
-            const borderRadius = Math.round(PixelRatio.getPixelSizeForLayoutSize(findBorderRadius(style) ?? 0))
+            const foundBorderRadius = findStyle(style, 'borderRadius');
+            const borderRadius = foundBorderRadius != null ? PixelRatio.roundToNearestPixel(foundBorderRadius) : 0;
             resolvedSource = Image.resolveAssetSource(source instanceof Object && borderRadius > 0
-                     ? { ...(source as any), borderRadius: borderRadius }
-                     : source)
+                ? { ...(source as any), borderRadius: borderRadius }
+                : source)
         }
         if (areShallowEqual(resolvedSource as any, previousState.resolvedSource as any)) {
             return null;
@@ -224,7 +266,7 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
     }
 
     render() {
-        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props
+        const { fallback, source, style, onLoad, onProgress, onLoadEnd, onLoadStart, onError, children, tintColor, resizeMode, nativeID, ...props } = this.props
 
         if (fallback) {
             return (
