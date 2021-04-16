@@ -169,8 +169,6 @@ export interface FastImageProps extends ViewProps {
     children?: React.ReactNode
 }
 
-const urlSchemeRegex = /^.+:\/\//;
-
 interface FastImageState {
     resolvedSource?: ImageResolvedAssetSource & { borderRadius?: number }
 }
@@ -225,7 +223,7 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
             // Android does not support uris without a scheme prefix.
             if (Platform.OS === "android") {
                 // check if the uri starts with a URL scheme (http://, file://, https://, ...)
-                if (!urlSchemeRegex.test(resolvedSource.uri)) {
+                if (!resolvedSource.uri.includes("://")) {
                     // uri does not start with any URL scheme/protocol. Assume file:// as a default protocol:
                     resolvedSource.uri = `file://${resolvedSource.uri}`
                 }
