@@ -28,8 +28,8 @@ RCT_EXPORT_MODULE(FastImageView)
   return [[FFFastImageView alloc] initWithManager:self.manager];
 }
 
-- (BOOL)requiresMainQueueSetup {
-    return NO;
++ (BOOL)requiresMainQueueSetup {
+    return YES;
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
