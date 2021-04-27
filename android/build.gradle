@@ -5,7 +5,7 @@ buildscript {
     }
     dependencies {
         classpath "com.android.tools.build:gradle:3.4.0"
-        classpath "io.objectbox:objectbox-gradle-plugin:2.8.1"
+        classpath "io.objectbox:objectbox-gradle-plugin:2.9.1"
     }
 }
 
@@ -19,7 +19,7 @@ def safeExtGet(prop, fallback) {
 def _excludeAppGlideModule = safeExtGet("excludeAppGlideModule", false)
 def _buildToolsVersion = safeExtGet("buildToolsVersion", "28.0.3")
 def _compileSdkVersion = safeExtGet("compileSdkVersion", 28)
-def _glideVersion = safeExtGet("glideVersion", "4.11.0")
+def _glideVersion = safeExtGet("glideVersion", "4.12.0")
 def _minSdkVersion = safeExtGet("minSdkVersion", 16)
 def _reactNativeVersion = safeExtGet("reactNative", "+")
 def _targetSdkVersion = safeExtGet("targetSdkVersion", 28)
@@ -66,12 +66,12 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation "com.facebook.react:react-native:${_reactNativeVersion}"
-    implementation "androidx.core:core:1.0.0"
-    implementation "androidx.appcompat:appcompat:1.0.0"
-    implementation "androidx.annotation:annotation:1.0.0"
+    implementation "androidx.core:core:1.3.2"
+    implementation "androidx.appcompat:appcompat:1.2.0"
+    implementation "androidx.annotation:annotation:1.2.0"
     implementation("com.github.bumptech.glide:glide:${_glideVersion}")
     implementation("com.github.bumptech.glide:annotations:${_glideVersion}")
-    annotationProcessor 'com.android.support:support-annotations:28.0.0-alpha3'
+    annotationProcessor 'com.android.support:support-annotations:28.0.0'
     annotationProcessor "com.github.bumptech.glide:compiler:${_glideVersion}"
     implementation("com.github.bumptech.glide:okhttp3-integration:${_glideVersion}")
 }
