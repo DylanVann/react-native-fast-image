@@ -16,6 +16,11 @@ public class PersistEtagCallbackWrapper implements EtagCallback {
     }
 
     @Override
+    public void onError(String error) {
+        this.callback.onError(error);
+    }
+
+    @Override
     public void onEtag(String etag) {
         String prevEtag = ObjectBox.getEtagByUrl(this.url);
         if (!etag.equals(prevEtag)) {

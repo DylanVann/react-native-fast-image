@@ -18,7 +18,7 @@ public class EtagRequester {
      * @param callback
      */
     public static void requestEtag(final String url, final EtagCallback callback) {
-        String prevEtag = ObjectBox.getEtagByUrl(url);
+        final String prevEtag = ObjectBox.getEtagByUrl(url);
 
         OkHttpClient client = SharedOkHttpClient.getInstance(null).getClient();
         Request.Builder request = new Request.Builder()
@@ -32,6 +32,11 @@ public class EtagRequester {
             @Override
             public void onFailure(Call call, IOException e) {
                 e.printStackTrace();
+                // we only want to report an error when we have no etag
+                // and the etag request failed
+                if (prevEtag == null) {
+                    callback.onError("Failure when requesting etag: " + e.getMessage());
+                }
             }
 
             @Override
@@ -41,6 +46,8 @@ public class EtagRequester {
                     if (etag != null) {
                         callback.onEtag(etag);
                     }
+                } else if (response.code() > 308) {
+                    callback.onError("Unexpected http code: " + response.code());
                 }
             }
         });

@@ -115,8 +115,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
 
         final ThemedReactContext context = (ThemedReactContext) view.getContext();
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
+        final RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+        final int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
         if (requestManager != null) {
@@ -136,8 +136,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 return;
             }
 
+            // TODO: what is your purpose? Why are you being called when you are also
+            //       called in #refresh ?
             getEtag(url, new EtagCallback() {
-                        @Override
+                @Override
+                public void onError(String error) {
+                    WritableNativeMap event = new WritableNativeMap();
+                    event.putString("error", error);
+                    eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+                }
+
+                @Override
                         public void onEtag(final String etag) {
                             getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
                                 @Override
@@ -171,6 +180,21 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
 
         EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, new EtagCallback() {
+                    @Override
+                    public void onError(final String error) {
+                        final ThemedReactContext context = (ThemedReactContext) view.getContext();
+                        final RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                        final int viewId = view.getId();
+                        getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                WritableNativeMap event = new WritableNativeMap();
+                                event.putString("error", error);
+                                eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+                            }
+                        });
+                    }
+
                     @Override
                     public void onEtag(final String etag) {
                         getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
