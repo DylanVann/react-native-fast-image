@@ -36,6 +36,8 @@ public class EtagRequester {
                 // and the etag request failed
                 if (prevEtag == null) {
                     callback.onError("Failure when requesting etag: " + e.getMessage());
+                } else {
+                    callback.onEtag(prevEtag);
                 }
             }
 
@@ -43,11 +45,11 @@ public class EtagRequester {
             public void onResponse(Call call, Response response) {
                 if (response.code() == 200) {
                     String etag = response.header("etag");
-                    if (etag != null) {
-                        callback.onEtag(etag);
-                    }
+                    callback.onEtag(etag);
                 } else if (response.code() > 308) {
                     callback.onError("Unexpected http code: " + response.code());
+                } else {
+                    callback.onEtag(prevEtag);
                 }
             }
         });

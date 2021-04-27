@@ -4,14 +4,18 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ObjectKey;
 import com.dylanvann.fastimage.custom.EtagCallback;
 import com.dylanvann.fastimage.custom.EtagRequester;
@@ -48,12 +52,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
     private static final int FORCE_REFRESH_IMAGE = 1;
-
-//    private ReactApplicationContext reactContext;
-//
-//    public FastImageViewManager(ReactApplicationContext reactContext) {
-//        this.reactContext = reactContext;
-//    }
 
     @Nullable
     private RequestManager requestManager = null;
@@ -136,33 +134,20 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 return;
             }
 
-            // TODO: what is your purpose? Why are you being called when you are also
-            //       called in #refresh ?
+            final RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
+
+            // getEtag handles persistence of etag
             getEtag(url, new EtagCallback() {
                 @Override
                 public void onError(String error) {
-                    WritableNativeMap event = new WritableNativeMap();
-                    event.putString("error", error);
-                    eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+                    loadImage(view, url, null, options, key);
                 }
 
                 @Override
-                        public void onEtag(final String etag) {
-                            getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    requestManager
-                                            .load(url)
-                                            .apply(FastImageViewConverter.getOptions(context, imageSource, source))
-                                            .signature(new ObjectKey(etag))
-                                            .listener(new FastImageRequestListener(key))
-                                            .into(view);
-                                }
-                            });
-                        }
-                    }
-            );
-            refresh(view, url);
+                public void onEtag(@Nullable final String etag) {
+                    loadImage(view, url, etag, options, key);
+                }
+            });
         }
     }
 
@@ -173,52 +158,72 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
      * @param url
      */
     private void refresh(final FastImageViewWithUrl view, final String url) {
-        final String prevEtag = ObjectBox.getEtagByUrl(url);
-        if (prevEtag == null) {
-            //can happen on the very first request. In this case a refresh is useless anyways.
-            return;
-        }
-
         EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, new EtagCallback() {
                     @Override
                     public void onError(final String error) {
-                        final ThemedReactContext context = (ThemedReactContext) view.getContext();
-                        final RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-                        final int viewId = view.getId();
-                        getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                WritableNativeMap event = new WritableNativeMap();
-                                event.putString("error", error);
-                                eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
-                            }
-                        });
+                        loadImage(view, url, null, null, null);
                     }
 
                     @Override
                     public void onEtag(final String etag) {
-                        getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (requestManager == null) {
-                                    Log.e(FastImageViewManager.class.getSimpleName(), "Can't refresh as requestManager was null!");
-                                    return;
-                                }
-
-                                requestManager
-                                        .load(url)
-                                        .thumbnail(
-                                                requestManager.load(url)
-                                                        .signature(new ObjectKey(prevEtag))
-                                        )
-                                        .signature(new ObjectKey(etag))
-                                        .skipMemoryCache(true)
-                                        .into(view);
-                            }
-                        });
+                        loadImage(view, url, etag, null, null);
                     }
                 })
         );
+    }
+
+    /**
+     *
+     * @param view
+     * @param url
+     * @param etag Optional
+     * @param options Optional
+     * @param key Optional, when set it will emit events
+     */
+    private void loadImage(final FastImageViewWithUrl view, final String url, @Nullable final String etag, @Nullable final RequestOptions options, final @Nullable String key) {
+        getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (requestManager == null) {
+                    Log.e(FastImageViewManager.class.getSimpleName(), "Can't refresh as requestManager was null!");
+                    return;
+                }
+
+
+                RequestBuilder<Drawable> thumbnailRequest = requestManager
+                        .load(url);
+
+                // add etag as signature when its set
+                String prevEtag = ObjectBox.getEtagByUrl(url);
+                if (prevEtag != null) {
+                    thumbnailRequest = thumbnailRequest.signature(new ObjectKey(prevEtag));
+                }
+
+                RequestBuilder<Drawable> imageRequest = requestManager
+                        .load(url)
+                        .thumbnail(thumbnailRequest)
+                        .skipMemoryCache(true);
+
+                if (etag != null) {
+                    imageRequest = imageRequest.signature(new ObjectKey(etag));
+                } else if (prevEtag != null) {
+                    // in case we received no etag (e.g. loading error due to no network)
+                    // we still want to consider getting cache with the prev etag.
+                    imageRequest = imageRequest.signature(new ObjectKey(prevEtag));
+                }
+
+                if (options != null) {
+                    imageRequest = imageRequest.apply(options);
+                }
+
+                if (key != null) {
+                    imageRequest = imageRequest.listener(new FastImageRequestListener(key));
+                }
+
+                // finally, load the image
+                imageRequest.into(view);
+            }
+        });
     }
 
     /**
