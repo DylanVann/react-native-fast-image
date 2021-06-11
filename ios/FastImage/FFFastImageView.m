@@ -1,5 +1,6 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
+#import <SDWebImage/UIView+WebCache.h>
 
 @interface FFFastImageView()
 
@@ -31,14 +32,14 @@
 
 - (void)setOnFastImageLoadEnd:(RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (self.hasCompleted) {
+    if (self.hasCompleted && _onFastImageLoadEnd != NULL) {
         _onFastImageLoadEnd(@{});
     }
 }
 
 - (void)setOnFastImageLoad:(RCTDirectEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
-    if (self.hasCompleted) {
+    if (self.hasCompleted && _onFastImageLoad != NULL) {
         _onFastImageLoad(self.onLoadEvent);
     }
 }
@@ -49,7 +50,7 @@
         _onFastImageError(@{});
     }
 }
-
+ 
 - (void)setOnFastImageLoadStart:(RCTDirectEventBlock)onFastImageLoadStart {
     if (_source && !self.hasSentOnLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
@@ -226,6 +227,10 @@
                             }
                         }
                     }];
+}
+
+- (void)dealloc {
+    [self sd_cancelCurrentImageLoad];
 }
 
 @end
