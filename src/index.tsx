@@ -84,6 +84,8 @@ export interface FastImageProps extends AccessibilityProps {
     resizeMode?: ResizeMode
     fallback?: boolean
 
+    loopCount?:number
+
     onLoadStart?(): void
 
     onProgress?(event: OnProgressEvent): void
