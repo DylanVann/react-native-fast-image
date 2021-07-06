@@ -1,3 +1,10 @@
+## [8.3.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.4...v8.3.5) (2021-07-06)
+
+
+### Bug Fixes
+
+* add react@17 as peer dependency ([#790](https://github.com/DylanVann/react-native-fast-image/issues/790)) ([27bd586](https://github.com/DylanVann/react-native-fast-image/commit/27bd58630cff4e10fea0bb835555bb7ad8b62da0))
+
 ## [8.3.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.3...v8.3.4) (2020-11-17)
 
 ## [8.3.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.2...v8.3.3) (2020-11-01)
