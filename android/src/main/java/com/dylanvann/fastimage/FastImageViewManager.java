@@ -219,7 +219,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
-            return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
+            return activity.isFinishing() || activity.isChangingConfigurations();
         }
 
     }
