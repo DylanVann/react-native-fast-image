@@ -2,6 +2,9 @@
 #import "FFFastImageView.h"
 
 #import <SDWebImage/SDWebImagePrefetcher.h>
+#import <React/RCTViewManager.h>
+#import <React/RCTUIManager.h>
+#import <React/RCTLog.h>
 
 @implementation FFFastImageViewManager
 
@@ -32,6 +35,18 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     }];
 
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+}
+
+RCT_EXPORT_METHOD(forceRefreshImage:(nonnull NSNumber*) reactTag)
+{
+    [self.bridge.uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *,UIView *> *viewRegistry) {
+        UIView* view = viewRegistry[reactTag];
+        if (!view || ![view isKindOfClass:[FFFastImageView class]]) {
+            RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+            return;
+        }
+        [(FFFastImageView*)view reloadImage];
+    }];
 }
 
 @end
