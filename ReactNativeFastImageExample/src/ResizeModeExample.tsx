@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import SectionFlex from './SectionFlex'
-import FastImage from 'react-native-fast-image'
+import { FastImage } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import BulletText from './BulletText'
@@ -19,7 +19,7 @@ const ResizeModeExample = () => (
             <Col>
                 <FastImage
                     style={styles.image}
-                    resizeMode={FastImage.resizeMode.contain}
+                    resizeMode="contain"
                     source={{ uri: IMAGE_URL }}
                 />
                 <BulletText>contain</BulletText>
@@ -27,7 +27,7 @@ const ResizeModeExample = () => (
             <Col>
                 <FastImage
                     style={styles.image}
-                    resizeMode={FastImage.resizeMode.center}
+                    resizeMode="center"
                     source={{ uri: IMAGE_URL }}
                 />
                 <BulletText>center</BulletText>
@@ -35,7 +35,7 @@ const ResizeModeExample = () => (
             <Col>
                 <FastImage
                     style={styles.image}
-                    resizeMode={FastImage.resizeMode.stretch}
+                    resizeMode="stretch"
                     source={{ uri: IMAGE_URL }}
                 />
                 <BulletText>stretch</BulletText>
@@ -43,7 +43,7 @@ const ResizeModeExample = () => (
             <Col>
                 <FastImage
                     style={styles.image}
-                    resizeMode={FastImage.resizeMode.cover}
+                    resizeMode="cover"
                     source={{ uri: IMAGE_URL }}
                 />
                 <BulletText>cover</BulletText>
