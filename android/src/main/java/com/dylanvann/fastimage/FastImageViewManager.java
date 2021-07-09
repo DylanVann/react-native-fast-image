@@ -51,7 +51,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             requestManager = Glide.with(reactContext);
         }
 
-        return new FastImageViewWithUrl(reactContext);
+        FastImageViewWithUrl view = new FastImageViewWithUrl(reactContext);
+
+        view.setRequestManager(requestManager);
+
+        return view;
     }
 
     @ReactProp(name = "source")
@@ -74,8 +78,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
 
-        // Cancel existing request.
         view.glideUrl = glideUrl;
+
+        // Cancel existing request.
         if (requestManager != null) {
             requestManager.clear(view);
         }
@@ -94,20 +99,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
-
-        if (requestManager != null) {
-            requestManager
-                    // This will make this work for remote and local images. e.g.
-                    //    - file:///
-                    //    - content://
-                    //    - res:/
-                    //    - android.resource://
-                    //    - data:image/png;base64
-                    .load(imageSource.getSourceForLoad())
-                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
-                    .listener(new FastImageRequestListener(key))
-                    .into(view);
-        }
+        view.setSource(source);
     }
 
     @ReactProp(name = "tintColor", customType = "Color")
@@ -127,11 +119,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @Override
     public void onDropViewInstance(FastImageViewWithUrl view) {
-        // This will cancel existing requests.
-        if (requestManager != null) {
-            requestManager.clear(view);
-        }
-
         if (view.glideUrl != null) {
             final String key = view.glideUrl.toString();
             FastImageOkHttpProgressGlideModule.forget(key);
