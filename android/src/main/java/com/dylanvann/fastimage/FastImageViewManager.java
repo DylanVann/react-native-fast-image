@@ -9,6 +9,7 @@ import android.os.Build;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -104,6 +105,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
+                    .transition(DrawableTransitionOptions.withCrossFade())
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
