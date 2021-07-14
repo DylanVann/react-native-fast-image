@@ -25,7 +25,7 @@ class ImageGrid extends Component<ImageGridProps, ImageGridState> {
     constructor(props: ImageGridProps) {
         super(props)
         fetch('https://unsplash.it/list')
-            .then(res => res.json())
+            .then((res) => res.json())
             .then(this._onFetchImagesSuccess)
             .catch(this._onFetchImagesError)
     }
