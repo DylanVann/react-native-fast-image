@@ -60,7 +60,7 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     state: PhotoExampleState = {}
 
     pick = () => {
-        ImagePicker.showImagePicker(options, response => {
+        ImagePicker.showImagePicker(options, (response) => {
             if (response.didCancel) {
                 console.log('ImagePicker - User cancelled.')
             } else if (response.error) {

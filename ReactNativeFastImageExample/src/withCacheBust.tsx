@@ -4,8 +4,9 @@ export default function withCacheBust(BaseComponent: React.ComponentType<any>) {
     class WithCacheBust extends Component {
         state = { bust: '?bust' }
 
-        static displayName = `withCacheBust(${BaseComponent.displayName ||
-            BaseComponent.name})`
+        static displayName = `withCacheBust(${
+            BaseComponent.displayName || BaseComponent.name
+        })`
 
         onPressReload = () => {
             // Force complete re-render and bust image cache.
