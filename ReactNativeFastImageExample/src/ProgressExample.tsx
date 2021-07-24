@@ -46,7 +46,7 @@ class ProgressExample extends Component<
                             uri: IMAGE_URL + bust,
                         }}
                         onLoadStart={() => this.setState({ start: Date.now() })}
-                        onProgress={e =>
+                        onProgress={(e) =>
                             this.setState({
                                 progress: Math.round(
                                     100 *
