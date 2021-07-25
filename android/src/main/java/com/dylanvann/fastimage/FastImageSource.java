@@ -107,6 +107,12 @@ public class FastImageSource extends ImageSource {
     }
 
     public GlideUrl getGlideUrl() {
+        Uri uriVal = getUri();
+
+        if (Uri.EMPTY.equals(uriVal)) {
+            return null;
+        }
+
         return new GlideUrl(getUri().toString(), getHeaders());
     }
 }
