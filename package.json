@@ -2,13 +2,7 @@
     "name": "react-native-fast-image",
     "version": "8.3.7",
     "description": "🚩 FastImage, performant React Native image component.",
-    "keywords": [
-        "cache",
-        "cached",
-        "fastimage",
-        "image",
-        "priority"
-    ],
+    "keywords": ["cache", "cached", "fastimage", "image", "priority"],
     "homepage": "https://github.com/DylanVann/react-native-fast-image#readme",
     "bugs": {
         "url": "https://github.com/DylanVann/react-native-fast-image/issues"
@@ -53,7 +47,8 @@
         "preset": "react-native"
     },
     "resolutions": {
-        "@jest/create-cache-key-function": "^27"
+        "@jest/create-cache-key-function": "^27",
+        "@babel/preset-env": "^7.10.3"
     },
     "devDependencies": {
         "@babel/core": "^7.14.6",
