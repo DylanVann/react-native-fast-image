@@ -53,4 +53,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             }
         });
     }
+
+    @ReactMethod
+    public void enableDiskCaching() {
+        // does nothing on android
+    }
 }
