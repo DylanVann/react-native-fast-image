@@ -1,6 +1,8 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
-
+  
+#import <SDWebImage/SDImageCache.h>
+#import <SDWebImage/SDWebImageManager.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
 @implementation FFFastImageViewManager
@@ -32,6 +34,24 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     }];
 
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+}
+
+RCT_EXPORT_METHOD(enableDiskCaching)
+{
+    NSUInteger m1 = [NSProcessInfo processInfo].physicalMemory;
+
+    SDImageCache *cache = [SDImageCache sharedImageCache];
+    SDWebImageManager *manager = [SDWebImageManager sharedManager];
+    
+    cache.config.maxMemoryCost = m1 / 4;
+    cache.config.maxDiskAge = 3600 * 24 * 7;
+    cache.config.shouldCacheImagesInMemory = NO; 
+    cache.config.shouldUseWeakMemoryCache = NO; 
+    cache.config.diskCacheReadingOptions = NSDataReadingMappedIfSafe;
+    manager.optionsProcessor = [SDWebImageOptionsProcessor optionsProcessorWithBlock:^SDWebImageOptionsResult * _Nullable(NSURL * _Nullable url, SDWebImageOptions options, SDWebImageContext * _Nullable context) {
+         options |= SDWebImageAvoidDecodeImage;
+         return [[SDWebImageOptionsResult alloc] initWithOptions:options context:context];
+     }];
 }
 
 @end
