@@ -12,7 +12,7 @@ import {
     AccessibilityProps,
 } from 'react-native'
 
-import preloaderManager from './preloaderManager'
+import preloaderManager from './PreloaderManager'
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -227,8 +227,8 @@ FastImage.priority = priority
 
 FastImage.preload = (
     sources: Source[],
-    onProgress: PreloadProgressHandler,
-    onComplete: PreloadCompletionHandler,
+    onProgress?: PreloadProgressHandler,
+    onComplete?: PreloadCompletionHandler,
 ) => preloaderManager.preload(sources, onProgress, onComplete)
 
 const styles = StyleSheet.create({
