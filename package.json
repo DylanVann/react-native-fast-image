@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image",
-    "version": "8.0.0",
+    "version": "8.3.7",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
@@ -19,29 +19,31 @@
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
+    "main": "dist/index.cjs.js",
+    "module": "dist/index.js",
+    "typings": "dist/index.d.ts",
     "files": [
         "android",
         "!android/build",
         "ios",
         "!ios/build",
-        "src",
+        "dist",
         "RNFastImage.podspec"
     ],
-    "main": "src/index.js",
-    "types": "src/index.d.ts",
     "scripts": {
-        "build": "exit 0",
-        "commit": "git-cz",
-        "format": "yarn prettier --write",
-        "lint": "eslint src/**/*.js",
-        "prettier": "prettier './**/*.{js,d.ts,js.flow,yml}'",
-        "semantic-release": "semantic-release",
-        "test": "jest ./src/*.js"
+        "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow",
+        "lint": "dv-scripts lint",
+        "release": "dv-scripts release",
+        "test": "dv-scripts test"
     },
-    "config": {
-        "commitizen": {
-            "path": "node_modules/cz-conventional-changelog"
-        }
+    "prettier": {
+        "semi": false,
+        "singleQuote": true,
+        "tabWidth": 4,
+        "trailingComma": "all"
+    },
+    "eslintConfig": {
+        "extends": "dv-scripts"
     },
     "jest": {
         "modulePathIgnorePatterns": [
@@ -50,42 +52,27 @@
         ],
         "preset": "react-native"
     },
+    "resolutions": {
+        "@jest/create-cache-key-function": "^27"
+    },
     "devDependencies": {
-        "@babel/core": "^7.5.0",
-        "@semantic-release/changelog": "^3.0.4",
-        "@semantic-release/commit-analyzer": "^6.2.0",
-        "@semantic-release/git": "^7.0.16",
-        "@semantic-release/npm": "^5.1.13",
-        "@semantic-release/release-notes-generator": "^7.2.1",
-        "babel-eslint": "^10.0.2",
-        "babel-jest": "^24.8.0",
-        "commitizen": "^3.1.1",
-        "cz-conventional-changelog": "^2.1.0",
-        "eslint": "^6.0.1",
-        "eslint-config-prettier": "^6.0.0",
-        "eslint-plugin-jest": "^22.7.2",
-        "eslint-plugin-prettier": "^3.1.0",
-        "eslint-plugin-react": "^7.14.2",
-        "jest": "^24.8.0",
-        "metro-react-native-babel-preset": "^0.55.0",
-        "prettier": "^1.18.2",
-        "prettier-check": "^2.0.0",
-        "react": "16.8.6",
-        "react-native": "^0.60.0",
-        "react-test-renderer": "16.8.6",
-        "semantic-release": "^15.13.18"
+        "@babel/core": "^7.14.6",
+        "@babel/runtime": "^7.14.6",
+        "@types/jest": "^26.0.24",
+        "@types/react": "^17.0.14",
+        "@types/react-native": "^0.64.12",
+        "@types/react-test-renderer": "^17.0.1",
+        "dv-scripts": "^1.4.2",
+        "eslint-config-dv-scripts": "^1.1.1",
+        "metro-react-native-babel-preset": "^0.66.1",
+        "prettier": "^2.3.2",
+        "react": "17.0.2",
+        "react-native": "0.64.2",
+        "react-test-renderer": "17.0.2",
+        "typescript": "^4.3.5"
     },
     "peerDependencies": {
-        "react": "^16.8.6",
-        "react-native": "^0.60.0"
-    },
-    "release": {
-        "plugins": [
-            "@semantic-release/commit-analyzer",
-            "@semantic-release/release-notes-generator",
-            "@semantic-release/changelog",
-            "@semantic-release/npm",
-            "@semantic-release/git"
-        ]
+        "react": "^16.8.6 || ^17.0.0",
+        "react-native": ">=0.60.0"
     }
 }

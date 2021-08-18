@@ -1,3 +1,136 @@
+## [8.3.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.6...v8.3.7) (2021-07-24)
+
+## [8.3.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.5...v8.3.6) (2021-07-08)
+
+## [8.3.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.4...v8.3.5) (2021-07-06)
+
+
+### Bug Fixes
+
+* add react@17 as peer dependency ([#790](https://github.com/DylanVann/react-native-fast-image/issues/790)) ([27bd586](https://github.com/DylanVann/react-native-fast-image/commit/27bd58630cff4e10fea0bb835555bb7ad8b62da0))
+
+## [8.3.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.3...v8.3.4) (2020-11-17)
+
+## [8.3.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.2...v8.3.3) (2020-11-01)
+
+
+### Bug Fixes
+
+* xcode 12 compatibility ([#732](https://github.com/DylanVann/react-native-fast-image/issues/732)) ([23c3955](https://github.com/DylanVann/react-native-fast-image/commit/23c3955473a94477c52c0ec2b9f4f51e9377be06))
+
+## [8.3.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.1...v8.3.2) (2020-07-17)
+
+
+### Bug Fixes
+
+* **android:** remove explicit use of UI thread ([#698](https://github.com/DylanVann/react-native-fast-image/issues/698)) ([5d2894e](https://github.com/DylanVann/react-native-fast-image/commit/5d2894e442dc3d239b4dc9cb25dca455f7d8bc6e))
+
+## [8.3.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.0...v8.3.1) (2020-07-17)
+
+
+### Bug Fixes
+
+* **android:** make center ResizeMode work correctly ([d648ef8](https://github.com/DylanVann/react-native-fast-image/commit/d648ef85045fb97d8d1f6a637e915fa912a6c6c9))
+
+# [8.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.2...v8.3.0) (2020-07-17)
+
+
+### Features
+
+* **ios:** allow for for per-image-request-headers ([#691](https://github.com/DylanVann/react-native-fast-image/issues/691)) ([4a7cd64](https://github.com/DylanVann/react-native-fast-image/commit/4a7cd64f5b0aa40b04d63ccb105ee2b511abe624))
+
+## [8.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.1...v8.2.2) (2020-07-17)
+
+
+### Bug Fixes
+
+* accessibilityIgnoresInvertColors prop not recognised when using TypeScript ([#666](https://github.com/DylanVann/react-native-fast-image/issues/666)) ([22f89e4](https://github.com/DylanVann/react-native-fast-image/commit/22f89e43a422150412924da9fd0f3eca7dd77cfa)), closes [/github.com/DylanVann/react-native-fast-image/blob/master/src/index.tsx#L150-L160](https://github.com//github.com/DylanVann/react-native-fast-image/blob/master/src/index.tsx/issues/L150-L160)
+
+## [8.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.2.0...v8.2.1) (2020-07-17)
+
+
+### Bug Fixes
+
+* remove cache property if using fallback ([ba0f238](https://github.com/DylanVann/react-native-fast-image/commit/ba0f238821ba23517b8e62e759f685b8cd67c0c6))
+
+# [8.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.10...v8.2.0) (2020-07-17)
+
+
+### Features
+
+* export ResizeMode and Priority types ([#678](https://github.com/DylanVann/react-native-fast-image/issues/678)) ([e33664f](https://github.com/DylanVann/react-native-fast-image/commit/e33664fbcff4be7b180c3843422f76e9d0b1c4f8))
+
+## [8.1.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.9...v8.1.10) (2020-07-17)
+
+
+### Bug Fixes
+
+* update SDWebImage and SDWebImageWebPCoder ([#689](https://github.com/DylanVann/react-native-fast-image/issues/689)) ([9646456](https://github.com/DylanVann/react-native-fast-image/commit/964645667525dc09f625bc471548b995e01d0061))
+
+## [8.1.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.8...v8.1.9) (2020-07-17)
+
+
+### Bug Fixes
+
+* wrong cache type ([#688](https://github.com/DylanVann/react-native-fast-image/issues/688)) [skip ci] ([94e2256](https://github.com/DylanVann/react-native-fast-image/commit/94e2256da234d535e88172ce325c89e7cb69fc6e))
+
+## [8.1.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.7...v8.1.8) (2020-07-17)
+
+
+### Bug Fixes
+
+* peer dependency warning ([#653](https://github.com/DylanVann/react-native-fast-image/issues/653)) ([cd81b1b](https://github.com/DylanVann/react-native-fast-image/commit/cd81b1b66a8d9938764a66e1f3c1bd5ff20b3565))
+
+## [8.1.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.6...v8.1.7) (2020-07-17)
+
+## [8.1.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.5...v8.1.6) (2020-07-17)
+
+### Changed
+
+* Use [`dv-scripts`](https://github.com/DylanVann/dv-scripts) to simplify tooling (build, lint, test, release).
+
+## [8.1.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.4...v8.1.5) (2020-03-14)
+
+
+### Bug Fixes
+
+* Updates SDWebImageWebPCoder. ([#628](https://github.com/DylanVann/react-native-fast-image/issues/628)) ([325d77f](https://github.com/DylanVann/react-native-fast-image/commit/325d77f4c2e2e1437c0dda160b6047473d7c8a07))
+
+## [8.1.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.3...v8.1.4) (2020-03-12)
+
+
+### Bug Fixes
+
+* Bump Glide version number to v4.11.0. ([#649](https://github.com/DylanVann/react-native-fast-image/issues/649)) ([c4e4306](https://github.com/DylanVann/react-native-fast-image/commit/c4e4306c15bda65d95e97ab9f45ef5e351128253)), closes [#536](https://github.com/DylanVann/react-native-fast-image/issues/536)
+
+## [8.1.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.2...v8.1.3) (2020-03-12)
+
+
+### Bug Fixes
+
+* Replace 'Component' with 'ComponentType' ([#647](https://github.com/DylanVann/react-native-fast-image/issues/647)) ([6abb273](https://github.com/DylanVann/react-native-fast-image/commit/6abb273ce590ab7a111695a601b603823ac0bf4e))
+
+## [8.1.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.1...v8.1.2) (2020-03-09)
+
+
+### Bug Fixes
+
+* Fixes podspec syntax. ([b627646](https://github.com/DylanVann/react-native-fast-image/commit/b627646001e334ece89c49e0aa6bc403f496f8ce))
+
+## [8.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.1.0...v8.1.1) (2020-03-09)
+
+
+### Bug Fixes
+
+* Add git tag to CocoaPods source property ([#601](https://github.com/DylanVann/react-native-fast-image/issues/601)) ([2d706ad](https://github.com/DylanVann/react-native-fast-image/commit/2d706ad7da6410a3a2382b70ed90369f0473117e))
+
+# [8.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.0.0...v8.1.0) (2020-03-09)
+
+
+### Features
+
+* converts to TypeScript ([#642](https://github.com/DylanVann/react-native-fast-image/issues/642)) ([ac11706](https://github.com/DylanVann/react-native-fast-image/commit/ac117060ebdd04b2130bfb23c62f203beb077089))
+
 # [8.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v7.0.2...v8.0.0) (2019-10-20)
 
 
