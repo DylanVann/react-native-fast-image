@@ -12,12 +12,12 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.views.imagehelper.ImageSource;
 
-class FastImagePreloaderModule extends ReactContextBaseJavaModule {
+class FastImageViewModule extends ReactContextBaseJavaModule {
 
     private static final String REACT_CLASS = "FastImagePreloaderManager";
     private int preloaders = 0;
 
-    FastImagePreloaderModule(ReactApplicationContext reactContext) {
+    FastImageViewModule(ReactApplicationContext reactContext) {
         super(reactContext);
     }
 
