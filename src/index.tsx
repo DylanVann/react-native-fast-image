@@ -209,7 +209,11 @@ interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
-    preload: (sources: Source[], onProgress?: PreloadProgressHandler, onComplete?: PreloadCompletionHandler) => void
+    preload: (
+        sources: Source[],
+        onProgress?: PreloadProgressHandler,
+        onComplete?: PreloadCompletionHandler,
+    ) => void
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -221,8 +225,11 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[], onProgress: PreloadProgressHandler, onComplete: PreloadCompletionHandler) =>
-    preloaderManager.preload(sources, onProgress, onComplete)
+FastImage.preload = (
+    sources: Source[],
+    onProgress: PreloadProgressHandler,
+    onComplete: PreloadCompletionHandler,
+) => preloaderManager.preload(sources, onProgress, onComplete)
 
 const styles = StyleSheet.create({
     imageContainer: {
