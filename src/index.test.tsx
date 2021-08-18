@@ -1,4 +1,4 @@
-import { NativeEventEmitter, StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
 import FastImage from './index'
