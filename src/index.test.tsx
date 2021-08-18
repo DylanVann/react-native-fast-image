@@ -1,9 +1,11 @@
-import { StyleSheet } from 'react-native'
+import { NativeEventEmitter, StyleSheet } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
 import FastImage from './index'
 
-jest.mock('NativeEventEmitter')
+jest.mock(
+  '../node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter',
+);
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
