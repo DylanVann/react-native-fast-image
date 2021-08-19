@@ -4,8 +4,8 @@ import renderer from 'react-test-renderer'
 import FastImage from './index'
 
 jest.mock(
-  '../node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter',
-);
+    '../node_modules/react-native/Libraries/EventEmitter/NativeEventEmitter',
+)
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
