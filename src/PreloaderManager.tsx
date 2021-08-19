@@ -42,11 +42,11 @@ class PreloaderManager {
             if (this._instances.size === 0) {
                 this._subProgress = nativeEmitter.addListener(
                     'fffastimage-progress',
-                    this.onProgress,
+                    this.onProgress.bind(this),
                 )
                 this._subComplete = nativeEmitter.addListener(
                     'fffastimage-complete',
-                    this.onComplete,
+                    this.onComplete.bind(this),
                 )
             }
 
