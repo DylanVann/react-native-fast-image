@@ -1,6 +1,7 @@
 #import "FFFastImagePreloaderManager.h"
 #import "FFFastImagePreloader.h"
 #import "FFFastImageSource.h"
+#import "SDWebImageDownloader.h"
 
 @implementation FFFastImagePreloaderManager
 {
