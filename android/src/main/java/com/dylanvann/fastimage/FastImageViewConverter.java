@@ -55,7 +55,7 @@ class FastImageViewConverter {
                 put("contain", ScaleType.FIT_CENTER);
                 put("cover", ScaleType.CENTER_CROP);
                 put("stretch", ScaleType.FIT_XY);
-                put("center", ScaleType.CENTER);
+                put("center", ScaleType.CENTER_INSIDE);
             }};
     
     // Resolve the source uri to a file path that android understands.

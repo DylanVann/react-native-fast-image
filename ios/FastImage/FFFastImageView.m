@@ -1,4 +1,5 @@
 #import "FFFastImageView.h"
+#import <SDWebImage/UIImage+MultiFormat.h>
 
 @interface FFFastImageView()
 
@@ -124,7 +125,8 @@
             } {
                 self.hasSentOnLoadStart = NO;
             }
-            UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:_source.url]];
+            // Use SDWebImage API to support external format like WebP images
+            UIImage *image = [UIImage sd_imageWithData:[NSData dataWithContentsOfURL:_source.url]];
             [self setImage:image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
@@ -142,9 +144,16 @@
         }
         
         // Set headers.
-        [_source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-            [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
+        NSDictionary *headers = _source.headers;
+        SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock:^NSURLRequest * _Nullable(NSURLRequest * _Nonnull request) {
+            NSMutableURLRequest *mutableRequest = [request mutableCopy];
+            for (NSString *header in headers) {
+                NSString *value = headers[header];
+                [mutableRequest setValue:value forHTTPHeaderField:header];
+            }
+            return [mutableRequest copy];
         }];
+        SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
         
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
@@ -180,15 +189,16 @@
         self.hasCompleted = NO;
         self.hasErrored = NO;
         
-        [self downloadImage:_source options:options];
+        [self downloadImage:_source options:options context:context];
     }
 }
 
-- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options {
+- (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options context:(SDWebImageContext *)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
                      options:options
+                     context:context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                         if (weakSelf.onFastImageProgress) {
                             weakSelf.onFastImageProgress(@{
