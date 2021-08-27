@@ -40,10 +40,6 @@ npm-debug.log
 lib/android/src/main/gen
 example/android/app/src/main/gen
 
-# build
-react-native-fast-image-*.tgz
-dist/
-
 # coverage reports
 coverage
 
