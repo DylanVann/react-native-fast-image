@@ -11,7 +11,7 @@ import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsBase64 from './images/fields'
-import ImagePicker from 'react-native-image-picker'
+import {launchImageLibrary} from 'react-native-image-picker'
 import BulletText from './BulletText'
 
 // @ts-ignore
@@ -22,15 +22,6 @@ import FieldsWebP from './images/fields.webp'
 import JellyfishGIF from './images/jellyfish.gif'
 // @ts-ignore
 import JellyfishWebP from './images/jellyfish.webp'
-
-const options = {
-    title: 'Select Avatar',
-    customButtons: [{ name: 'fb', title: 'Choose Photo from Facebook' }],
-    storageOptions: {
-        skipBackup: true,
-        path: 'images',
-    },
-}
 
 const Image = ({ source, ...p }: FastImageProps) => (
     <FastImage style={styles.imageSquare} source={source} {...p} />
@@ -60,18 +51,18 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     state: PhotoExampleState = {}
 
     pick = () => {
-        ImagePicker.showImagePicker(options, response => {
+        launchImageLibrary({mediaType: 'photo'}, (response) => {
             if (response.didCancel) {
                 console.log('ImagePicker - User cancelled.')
-            } else if (response.error) {
-                console.log(`ImagePicker - Error ${response.error}.`)
-            } else if (response.customButton) {
-                console.log(`ImagePicker - Tapped ${response.customButton}`)
+            } else if (response.errorCode) {
+                console.log(`ImagePicker - Error ${response.errorMessage}.`)
             } else {
-                const uri = response.uri
-                this.setState({
-                    image: { uri: uri },
-                })
+                const uri = response?.assets?.[0]?.uri
+                if (uri) {
+                    this.setState({
+                        image: { uri: uri },
+                    })
+                }
             }
         })
     }

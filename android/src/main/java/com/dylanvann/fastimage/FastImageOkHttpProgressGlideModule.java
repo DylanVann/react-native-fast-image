@@ -1,8 +1,6 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
@@ -82,12 +80,6 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         private final Map<String, FastImageProgressListener> LISTENERS = new WeakHashMap<>();
         private final Map<String, Long> PROGRESSES = new HashMap<>();
 
-        private final Handler handler;
-
-        DispatchingProgressListener() {
-            this.handler = new Handler(Looper.getMainLooper());
-        }
-
         void forget(String key) {
             LISTENERS.remove(key);
             PROGRESSES.remove(key);
@@ -107,12 +99,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 forget(key);
             }
             if (needsDispatch(key, bytesRead, contentLength, listener.getGranularityPercentage())) {
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        listener.onProgress(key, bytesRead, contentLength);
-                    }
-                });
+                listener.onProgress(key, bytesRead, contentLength);
             }
         }
 

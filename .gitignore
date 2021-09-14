@@ -22,6 +22,10 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 
+# CocoaPods
+Podfile.lock
+Pods
+
 # Android/IJ
 #
 .idea
@@ -42,3 +46,6 @@ dist/
 
 # coverage reports
 coverage
+
+# TypeScript incremental compilation cache
+*.tsbuildinfo
