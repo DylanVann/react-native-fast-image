@@ -198,7 +198,7 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 
 FastImageComponent.displayName = 'FastImage'
 
-interface FastImageStaticProperties {
+export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
