@@ -1,3 +1,10 @@
+## [8.5.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.4...v8.5.5) (2021-09-15)
+
+
+### Bug Fixes
+
+* do not crash when source is invalid ([#782](https://github.com/DylanVann/react-native-fast-image/issues/782)) ([5c5fefa](https://github.com/DylanVann/react-native-fast-image/commit/5c5fefacbdbc4d02c1eb71bca88fa1d012750b87))
+
 ## [8.5.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.3...v8.5.4) (2021-09-15)
 
 
