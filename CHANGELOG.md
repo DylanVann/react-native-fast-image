@@ -1,3 +1,10 @@
+## [8.5.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.3...v8.5.4) (2021-09-15)
+
+
+### Bug Fixes
+
+* **android:** update Glide ([86edd7f](https://github.com/DylanVann/react-native-fast-image/commit/86edd7ffc54a293cd732801fc70c0d4ada03899c))
+
 ## [8.5.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.2...v8.5.3) (2021-09-15)
 
 
