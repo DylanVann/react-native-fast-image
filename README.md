@@ -214,6 +214,14 @@ FastImage.preload([
 ])
 ```
 
+### `FastImage.clearMemoryCache: () => Promise<void>`
+
+Clear all images from memory cache.
+
+### `FastImage.clearDiskCache: () => Promise<void>`
+
+Clear all images from disk cache.
+
 ## Troubleshooting
 
 If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.
