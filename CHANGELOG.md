@@ -1,3 +1,10 @@
+## [8.5.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.1...v8.5.2) (2021-09-15)
+
+
+### Bug Fixes
+
+* **android:** replace jcenter with mavenCentral ([69c9422](https://github.com/DylanVann/react-native-fast-image/commit/69c942276fedbb517eaf0d45f8fb3fdb8a191b2a))
+
 ## [8.5.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.0...v8.5.1) (2021-09-15)
 
 
