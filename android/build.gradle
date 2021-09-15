@@ -9,7 +9,7 @@ buildscript {
     if (project == rootProject) {
         repositories {
             google()
-            jcenter()
+            mavenCentral()
         }
         dependencies {
             classpath 'com.android.tools.build:gradle:3.5.3'
@@ -54,7 +54,7 @@ repositories {
         url "$rootDir/../node_modules/jsc-android/dist"
     }
     google()
-    jcenter()
+    mavenCentral()
 }
 
 def glideVersion = safeExtGet('glideVersion', '4.11.0')
