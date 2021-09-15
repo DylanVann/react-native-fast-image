@@ -1,3 +1,10 @@
+## [8.5.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.0...v8.5.1) (2021-09-15)
+
+
+### Bug Fixes
+
+* improve/update build.gradle ([1f04c55](https://github.com/DylanVann/react-native-fast-image/commit/1f04c5542c6138d58446c58c3f3a5614772f81f1))
+
 # [8.5.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.4.1...v8.5.0) (2021-09-15)
 
 
