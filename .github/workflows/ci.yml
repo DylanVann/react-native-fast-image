@@ -8,10 +8,10 @@ jobs:
       - uses: actions/setup-node@v2
       - run: yarn --frozen-lockfile
       - run: yarn build
-      - if: github.event.repository.fork == false
+      - run: yarn test --coverage
+      - if: github.event.repository.fork == false && github.event_name != 'pull_request'
         run: yarn dv-scripts ci
         env:
-          CI: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: codecov/codecov-action@v2
