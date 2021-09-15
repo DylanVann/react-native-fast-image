@@ -62,7 +62,7 @@
         "@types/react": "^17.0.14",
         "@types/react-native": "^0.64.12",
         "@types/react-test-renderer": "^17.0.1",
-        "dv-scripts": "^1.4.2",
+        "dv-scripts": "^1.5.1",
         "eslint-config-dv-scripts": "^1.1.1",
         "metro-react-native-babel-preset": "^0.66.1",
         "prettier": "^2.3.2",
