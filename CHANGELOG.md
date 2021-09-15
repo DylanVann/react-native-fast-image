@@ -1,3 +1,17 @@
+# [8.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.7...v8.4.0) (2021-09-15)
+
+
+### Bug Fixes
+
+* export FastImageStaticProperties ([#822](https://github.com/DylanVann/react-native-fast-image/issues/822)) ([d69f692](https://github.com/DylanVann/react-native-fast-image/commit/d69f6921590279a5d0f943b6b4b6879047d78d57))
+* update dv-scripts ([61fab12](https://github.com/DylanVann/react-native-fast-image/commit/61fab122ab90b404714035789e42d711ed1f93ab))
+* update dv-scripts ([3c6d0f4](https://github.com/DylanVann/react-native-fast-image/commit/3c6d0f4c7bfce991bcbad02ce5816d93a93121e5))
+
+
+### Features
+
+* add clear image cache from memory and disk ([#425](https://github.com/DylanVann/react-native-fast-image/issues/425)) ([818ed0c](https://github.com/DylanVann/react-native-fast-image/commit/818ed0c3f59f825144609479047190f9bfd6dc76))
+
 ## [8.3.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.6...v8.3.7) (2021-07-24)
 
 ## [8.3.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.5...v8.3.6) (2021-07-08)
