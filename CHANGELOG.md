@@ -1,3 +1,10 @@
+# [8.5.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.4.1...v8.5.0) (2021-09-15)
+
+
+### Features
+
+* **ios:** cancel image load when unmounted ([#787](https://github.com/DylanVann/react-native-fast-image/issues/787)) ([f1588be](https://github.com/DylanVann/react-native-fast-image/commit/f1588beec0e0684d99b10a3a9e8824cfd795f998))
+
 ## [8.4.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.4.0...v8.4.1) (2021-09-15)
 
 # [8.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.3.7...v8.4.0) (2021-09-15)
