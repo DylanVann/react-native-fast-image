@@ -1,3 +1,10 @@
+## [8.5.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.2...v8.5.3) (2021-09-15)
+
+
+### Bug Fixes
+
+* **ios:** update SDWebImage ([#740](https://github.com/DylanVann/react-native-fast-image/issues/740)) ([a1eeb75](https://github.com/DylanVann/react-native-fast-image/commit/a1eeb75b19523e9514d3cb1c79cbe629e209d57e))
+
 ## [8.5.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.1...v8.5.2) (2021-09-15)
 
 
