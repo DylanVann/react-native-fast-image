@@ -1,3 +1,10 @@
+## [8.5.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.5...v8.5.6) (2021-09-16)
+
+
+### Bug Fixes
+
+* make corresponding flow file for .cjs file ([77326e8](https://github.com/DylanVann/react-native-fast-image/commit/77326e8b09954ab8c27785fe84427b1ed3d9290f)), closes [#784](https://github.com/DylanVann/react-native-fast-image/issues/784)
+
 ## [8.5.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.4...v8.5.5) (2021-09-15)
 
 
