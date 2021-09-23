@@ -46,6 +46,10 @@
         "extends": "dv-scripts"
     },
     "jest": {
+        "coveragePathIgnorePatterns": [
+            "ReactNativeFastImageExample*",
+            "ReactNativeFastImageExampleServer*"
+        ],
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
