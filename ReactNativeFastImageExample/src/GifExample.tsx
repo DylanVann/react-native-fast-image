@@ -1,29 +1,27 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
-import withCacheBust from './withCacheBust'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
+import { useCacheBust } from './useCacheBust'
 
 const GIF_URL =
     'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
 
-interface GifExampleProps {
-    onPressReload: () => void
-    bust: boolean
+export const GifExample = () => {
+    const { url, bust } = useCacheBust(GIF_URL)
+    return (
+        <View>
+            <Section>
+                <FeatureText text="• GIF support." />
+            </Section>
+            <SectionFlex onPress={bust}>
+                <FastImage style={styles.image} source={{ uri: url }} />
+            </SectionFlex>
+        </View>
+    )
 }
-
-const GifExample = ({ onPressReload, bust }: GifExampleProps) => (
-    <View>
-        <Section>
-            <FeatureText text="• GIF support." />
-        </Section>
-        <SectionFlex onPress={onPressReload}>
-            <FastImage style={styles.image} source={{ uri: GIF_URL + bust }} />
-        </SectionFlex>
-    </View>
-)
 
 const styles = StyleSheet.create({
     image: {
@@ -34,5 +32,3 @@ const styles = StyleSheet.create({
         flex: 0,
     },
 })
-
-export default withCacheBust(GifExample)
