@@ -137,7 +137,7 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.cache?: enum`
 
--   `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
+-   `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes. **This is the recommended cache control mode. The primary benefit of this library is better/more aggressive caching. If you use `FastImage.cacheControl.web` you may not get this benefit.**
 -   `FastImage.cacheControl.web` - Use headers and follow normal caching procedures.
 -   `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
 
