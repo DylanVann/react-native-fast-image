@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     ViewProps,
 } from 'react-native'
-import withCacheBust from './withCacheBust'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
@@ -84,7 +83,7 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     }
 }
 
-const LocalImagesExample = () => (
+export const LocalImagesExample = () => (
     <View>
         <Section>
             <FeatureText>• Local images.</FeatureText>
@@ -133,5 +132,3 @@ const styles = StyleSheet.create({
         right: 0,
     },
 })
-
-export default withCacheBust(LocalImagesExample)
