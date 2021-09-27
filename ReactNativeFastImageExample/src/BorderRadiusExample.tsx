@@ -1,42 +1,37 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
-import withCacheBust from './withCacheBust'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
+import { useCacheBust } from './useCacheBust'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
-interface BorderRadiusExampleProps {
-    onPressReload: () => void
-    bust: string
+export const BorderRadiusExample = () => {
+    const { query, bust } = useCacheBust('')
+    return (
+        <View>
+            <Section>
+                <FeatureText text="• Border radius." />
+            </Section>
+            <SectionFlex onPress={bust}>
+                <FastImage
+                    style={styles.imageSquare}
+                    source={{
+                        uri: IMAGE_URL + query,
+                    }}
+                />
+                <FastImage
+                    style={styles.imageRectangular}
+                    source={{
+                        uri: IMAGE_URL + query,
+                    }}
+                />
+            </SectionFlex>
+        </View>
+    )
 }
-
-const BorderRadiusExample = ({
-    onPressReload,
-    bust,
-}: BorderRadiusExampleProps) => (
-    <View>
-        <Section>
-            <FeatureText text="• Border radius." />
-        </Section>
-        <SectionFlex onPress={onPressReload}>
-            <FastImage
-                style={styles.imageSquare}
-                source={{
-                    uri: IMAGE_URL + bust,
-                }}
-            />
-            <FastImage
-                style={styles.imageRectangular}
-                source={{
-                    uri: IMAGE_URL + bust,
-                }}
-            />
-        </SectionFlex>
-    </View>
-)
 
 const styles = StyleSheet.create({
     imageSquare: {
@@ -64,5 +59,3 @@ const styles = StyleSheet.create({
         right: 0,
     },
 })
-
-export default withCacheBust(BorderRadiusExample)
