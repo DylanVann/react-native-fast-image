@@ -19,10 +19,18 @@ Performant React Native image component.
 
 <p align="center" >
   <kbd>
-    <img src="https://github.com/DylanVann/react-native-fast-image/raw/master/docs/assets/scroll.gif" title="Scroll Demo" float="left">
+    <img
+      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/scroll.gif?raw=true"
+      title="Scroll Demo"
+      float="left"
+    >
   </kbd>
   <kbd>
-    <img src="https://github.com/DylanVann/react-native-fast-image/raw/master/docs/assets/priority.gif" title="Priority Demo" float="left">
+    <img
+      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/priority.gif?raw=true"
+      title="Priority Demo"
+      float="left"
+    >
   </kbd>
   <br>
   <em>FastImage example app.</em>
@@ -61,6 +69,7 @@ and
 
 ```bash
 yarn add react-native-fast-image
+cd ios && pod install
 ```
 
 ```jsx
@@ -212,6 +221,14 @@ FastImage.preload([
     },
 ])
 ```
+
+### `FastImage.clearMemoryCache: () => Promise<void>`
+
+Clear all images from memory cache.
+
+### `FastImage.clearDiskCache: () => Promise<void>`
+
+Clear all images from disk cache.
 
 ## Troubleshooting
 

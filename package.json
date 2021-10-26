@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image",
-    "version": "8.3.4",
+    "version": "8.5.11",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
@@ -31,7 +31,7 @@
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow",
+        "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
         "lint": "dv-scripts lint",
         "release": "dv-scripts release",
         "test": "dv-scripts test"
@@ -46,32 +46,37 @@
         "extends": "dv-scripts"
     },
     "jest": {
+        "coveragePathIgnorePatterns": [
+            "ReactNativeFastImageExample*",
+            "ReactNativeFastImageExampleServer*"
+        ],
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
         ],
         "preset": "react-native"
     },
+    "resolutions": {
+        "@jest/create-cache-key-function": "^27"
+    },
     "devDependencies": {
-        "@babel/core": "^7.10.5",
-        "@babel/runtime": "^7.10.5",
-        "@types/jest": "^26.0.4",
-        "@types/react": "^16.9.23",
-        "@types/react-native": "^0.61.17",
-        "@types/react-test-renderer": "^16.9.2",
-        "babel-jest": "^24.9.0",
-        "dv-scripts": "^1.4.2",
+        "@babel/core": "^7.14.6",
+        "@babel/runtime": "^7.14.6",
+        "@types/jest": "^26.0.24",
+        "@types/react": "^17.0.14",
+        "@types/react-native": "^0.64.12",
+        "@types/react-test-renderer": "^17.0.1",
+        "dv-scripts": "^1.6.0",
         "eslint-config-dv-scripts": "^1.1.1",
-        "jest": "^24.9.0",
-        "metro-react-native-babel-preset": "^0.56.0",
-        "prettier": "^2.0.5",
-        "react": "16.9.0",
-        "react-native": "0.61.5",
-        "react-test-renderer": "16.9.0",
-        "typescript": "^3.9.7"
+        "metro-react-native-babel-preset": "^0.66.1",
+        "prettier": "^2.3.2",
+        "react": "17.0.2",
+        "react-native": "0.64.2",
+        "react-test-renderer": "17.0.2",
+        "typescript": "^4.3.5"
     },
     "peerDependencies": {
-        "react": "^16.8.6",
+        "react": "^16.8.6 || ^17.0.0",
         "react-native": ">=0.60.0"
     }
 }

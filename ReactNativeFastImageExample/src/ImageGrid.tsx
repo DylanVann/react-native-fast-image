@@ -1,144 +1,137 @@
-import React, { Component } from 'react'
-import {
-    FlatList,
-    StyleSheet,
-    Text,
-    View,
-    LayoutChangeEvent,
-} from 'react-native'
+import React, { memo, useCallback, useEffect, useState } from 'react'
+import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
 
 const getImageUrl = (id: string, width: number, height: number) =>
     `https://unsplash.it/${width}/${height}?image=${id}`
 
-interface ImageGridProps {
+const MARGIN = 2
+
+export interface ImageGridItemProps {
+    id: string
+    ImageComponent: any
+}
+
+export const ImageGridItem = memo(
+    ({ id, ImageComponent }: ImageGridItemProps) => {
+        const uri = getImageUrl(id, 100, 100)
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    alignItems: 'stretch',
+                }}
+            >
+                <ImageComponent
+                    source={{ uri }}
+                    style={{
+                        flex: 1,
+                        width: null as any,
+                        height: null as any,
+                        margin: MARGIN,
+                        backgroundColor: '#eee',
+                    }}
+                />
+            </View>
+        )
+    },
+)
+
+export interface ImageGridProps {
     ImageComponent: React.ComponentType<any>
 }
 
-interface ImageGridState {
-    images: any[]
-    itemHeight: number
-    error?: any
-}
+export const ImageGrid = (props: ImageGridProps) => {
+    const [images, setImages] = useState<any[]>([])
+    const [itemHeight, setItemHeight] = useState(0)
+    const [error, setError] = useState<Error | null>(null)
 
-class ImageGrid extends Component<ImageGridProps, ImageGridState> {
-    constructor(props: ImageGridProps) {
-        super(props)
+    useEffect(() => {
         fetch('https://unsplash.it/list')
-            .then(res => res.json())
-            .then(this._onFetchImagesSuccess)
-            .catch(this._onFetchImagesError)
-    }
+            .then((res) => res.json())
+            .then((d) => setImages(d))
+            .catch((e) => setError(e))
+    }, [])
 
-    state: {
-        images: any[]
-        itemHeight: number
-        error?: any
-    } = {
-        images: [],
-        itemHeight: 0,
-    }
-
-    _onLayout = (e: LayoutChangeEvent) => {
+    const onLayout = useCallback((e: LayoutChangeEvent) => {
         const width = e.nativeEvent.layout.width
-        this.setState({
-            itemHeight: width / 4,
-        })
-    }
+        setItemHeight(width / 4)
+    }, [])
 
-    _onFetchImagesError = () => {
-        this.setState({
-            error: true,
-        })
-    }
+    const getItemLayout = useCallback(
+        (_: any, index: number) => {
+            return { length: itemHeight, offset: itemHeight * index, index }
+        },
+        [itemHeight],
+    )
 
-    _onFetchImagesSuccess = (images: any[]) => {
-        this.setState({
-            images,
-        })
-    }
+    const { ImageComponent } = props
 
-    _getItemLayout = (_: any, index: number) => {
-        const { itemHeight } = this.state
-        return { length: itemHeight, offset: itemHeight * index, index }
-    }
-
-    _renderItem = ({ item }: { item: any }) => {
-        const ImageComponent = this.props.ImageComponent
-        const uri = getImageUrl(item.id, 100, 100)
-        return (
-            <View style={styles.imageContainer}>
-                <ImageComponent source={{ uri }} style={styles.image} />
-            </View>
-        )
-    }
-
-    _extractKey = (item: any) => {
-        return item.id
-    }
-
-    render() {
-        if (this.state.error) {
+    const renderItem = useCallback(
+        ({ item }: { item: any }) => {
             return (
-                <View style={styles.container}>
-                    <Text style={styles.text}>Error fetching images.</Text>
-                </View>
+                <ImageGridItem id={item.id} ImageComponent={ImageComponent} />
             )
-        }
+        },
+        [ImageComponent],
+    )
+
+    const extractKey = useCallback((item: any) => {
+        return item.id
+    }, [])
+
+    if (error) {
         return (
-            <View style={styles.container}>
-                <FlatList
-                    onLayout={this._onLayout}
-                    style={styles.list}
-                    columnWrapperStyle={[
-                        styles.columnWrapper,
-                        { height: this.state.itemHeight },
-                    ]}
-                    data={this.state.images}
-                    renderItem={this._renderItem}
-                    numColumns={4}
-                    keyExtractor={this._extractKey}
-                    getItemLayout={this._getItemLayout}
-                />
-                <StatusBarUnderlay />
+            <View
+                style={{
+                    flex: 1,
+                    alignItems: 'stretch',
+                    justifyContent: 'center',
+                    backgroundColor: 'white',
+                }}
+            >
+                <Text
+                    style={{
+                        textAlign: 'center',
+                    }}
+                >
+                    Error fetching images.
+                </Text>
             </View>
         )
     }
+
+    return (
+        <View
+            style={{
+                flex: 1,
+                alignItems: 'stretch',
+                justifyContent: 'center',
+                backgroundColor: 'white',
+            }}
+        >
+            <FlatList
+                onLayout={onLayout}
+                style={{
+                    marginTop: STATUS_BAR_HEIGHT,
+                    flex: 1,
+                }}
+                columnWrapperStyle={[
+                    {
+                        flex: 1,
+                        flexDirection: 'row',
+                        marginLeft: -MARGIN,
+                        marginRight: -MARGIN,
+                    },
+                    { height: itemHeight },
+                ]}
+                data={images}
+                renderItem={renderItem}
+                numColumns={4}
+                keyExtractor={extractKey}
+                getItemLayout={getItemLayout}
+            />
+            <StatusBarUnderlay />
+        </View>
+    )
 }
-
-const MARGIN = 2
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'stretch',
-        justifyContent: 'center',
-        backgroundColor: 'white',
-    },
-    text: {
-        textAlign: 'center',
-    },
-    list: {
-        marginTop: STATUS_BAR_HEIGHT,
-        flex: 1,
-    },
-    columnWrapper: {
-        flex: 1,
-        flexDirection: 'row',
-        marginLeft: -MARGIN,
-        marginRight: -MARGIN,
-    },
-    image: {
-        flex: 1,
-        width: null as any,
-        height: null as any,
-        margin: MARGIN,
-        backgroundColor: '#eee',
-    },
-    imageContainer: {
-        flex: 1,
-        alignItems: 'stretch',
-    },
-})
-
-export default ImageGrid
