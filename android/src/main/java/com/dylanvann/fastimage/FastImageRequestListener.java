@@ -38,11 +38,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        int viewId = view.getId();
         Context context = view.getContext();
         ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
         if (reactContext == null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
         }
@@ -55,11 +55,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        int viewId = view.getId();
         Context context = view.getContext();
         ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
         if (reactContext == null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
         }

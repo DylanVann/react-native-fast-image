@@ -57,6 +57,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        int viewId = view.getId();
         Context context = view.getContext();
         ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
 
@@ -76,10 +77,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
         if (imageSource.getUri().toString().length() == 0) {
             if (reactContext != null) {
-                RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
-                int viewId = view.getId();
                 WritableMap event = new WritableNativeMap();
                 event.putString("message", "Invalid source prop:" + source);
+                RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
                 eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
             }
 
@@ -114,7 +114,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
         if (reactContext != null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
         }
 
@@ -189,8 +188,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
                 RCTEventEmitter eventEmitter = ((ThemedReactContext) context).getJSModule(RCTEventEmitter.class);
-                int viewId = view.getId();
-                eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+                eventEmitter.receiveEvent(view.getId(), REACT_ON_PROGRESS_EVENT, event);
             }
         }
     }
