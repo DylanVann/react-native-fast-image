@@ -181,12 +181,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void onProgress(String key, long bytesRead, long expectedLength) {
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
-            for (FastImageViewWithUrl view : viewsForKey) {
+            Context context = null;
+            for (FastImageViewWithUrl view: viewsForKey) {
+                context = view.getContext();
+                if (!(context instanceof ThemedReactContext)) continue; // this view is not of react context
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = (ThemedReactContext) view.getContext();
-                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+                RCTEventEmitter eventEmitter = ((ThemedReactContext) context).getJSModule(RCTEventEmitter.class);
                 int viewId = view.getId();
                 eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
             }
