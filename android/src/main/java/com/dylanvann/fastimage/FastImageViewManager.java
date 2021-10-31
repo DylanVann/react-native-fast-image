@@ -57,8 +57,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        ContextWrapper contextWrapper = (ContextWrapper) view.getContext();
-        ThemedReactContext context = contextWrapper instanceof ThemedReactContext ? (ThemedReactContext) contextWrapper : null;
+        Context context = view.getContext();
+        ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
 
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
@@ -72,11 +72,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
-        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(context, source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
         if (imageSource.getUri().toString().length() == 0) {
-            if (context != null) {
-                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            if (reactContext != null) {
+                RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
                 int viewId = view.getId();
                 WritableMap event = new WritableNativeMap();
                 event.putString("message", "Invalid source prop:" + source);
@@ -112,8 +112,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             VIEWS_FOR_URLS.put(key, newViewsForKeys);
         }
 
-        if (context != null) {
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+        if (reactContext != null) {
+            RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
             int viewId = view.getId();
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
         }
@@ -127,7 +127,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
-                    .apply(FastImageViewConverter.getOptions(view.getContext(), imageSource, source))
+                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
         }
