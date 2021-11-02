@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -59,7 +60,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
         int viewId = view.getId();
         Context context = view.getContext();
-        ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
+        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
 
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
@@ -183,11 +184,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             Context context = null;
             for (FastImageViewWithUrl view: viewsForKey) {
                 context = view.getContext();
-                if (!(context instanceof ThemedReactContext)) continue; // this view is not of react context
+                if (!(context instanceof ReactContext)) continue; // this view is not of react context
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                RCTEventEmitter eventEmitter = ((ThemedReactContext) context).getJSModule(RCTEventEmitter.class);
+                RCTEventEmitter eventEmitter = ((ReactContext) context).getJSModule(RCTEventEmitter.class);
                 eventEmitter.receiveEvent(view.getId(), REACT_ON_PROGRESS_EVENT, event);
             }
         }

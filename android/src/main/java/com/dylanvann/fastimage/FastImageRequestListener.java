@@ -8,9 +8,9 @@ import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 public class FastImageRequestListener implements RequestListener<Drawable> {
@@ -40,7 +40,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         int viewId = view.getId();
         Context context = view.getContext();
-        ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
+        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
         if (reactContext != null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
             eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
@@ -57,7 +57,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         int viewId = view.getId();
         Context context = view.getContext();
-        ThemedReactContext reactContext = context instanceof ThemedReactContext ? (ThemedReactContext) context : null;
+        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
         if (reactContext != null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
