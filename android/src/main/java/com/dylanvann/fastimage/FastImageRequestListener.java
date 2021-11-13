@@ -40,7 +40,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         int viewId = view.getId();
         Context context = view.getContext();
-        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
+        ReactContext reactContext = FastImageViewManager.getReactContext(context);
         if (reactContext != null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
             eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
@@ -57,7 +57,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         int viewId = view.getId();
         Context context = view.getContext();
-        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
+        ReactContext reactContext = FastImageViewManager.getReactContext(context);
         if (reactContext != null) {
             RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
             eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));

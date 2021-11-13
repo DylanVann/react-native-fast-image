@@ -210,11 +210,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
      * - could be moved to something like Utils.java in the future
      */
 
-    private static boolean isNullOrEmpty(final String url) {
+    public static boolean isNullOrEmpty(final String url) {
         return url == null || url.trim().isEmpty();
     }
 
-    private static boolean isValidContextForGlide(final Context context) {
+    public static boolean isValidContextForGlide(final Context context) {
         Activity activity = getActivityFromContext(context);
 
         if (activity == null) {
@@ -224,7 +224,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return !isActivityDestroyed(activity);
     }
 
-    private static Activity getActivityFromContext(Context context) {
+    public static Activity getActivityFromContext(Context context) {
         if (context instanceof Activity) {
             return (Activity) context;
         }
@@ -234,7 +234,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return null;
     }
 
-    private static ReactContext getReactContext(Context context) {
+    public static ReactContext getReactContext(Context context) {
         if (context instanceof ReactContext) {
             return (ReactContext) context;
         }
@@ -244,7 +244,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return null;
     }
 
-    private static boolean isActivityDestroyed(Activity activity) {
+    public static boolean isActivityDestroyed(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
