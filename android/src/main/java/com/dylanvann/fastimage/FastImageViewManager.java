@@ -182,7 +182,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
             Context context = null;
-            for (FastImageViewWithUrl view: viewsForKey) {
+            for (FastImageViewWithUrl view : viewsForKey) {
                 context = view.getContext();
                 if (!(context instanceof ReactContext)) continue; // this view is not of react context
                 WritableMap event = new WritableNativeMap();
@@ -199,10 +199,20 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return 0.5f;
     }
 
-    private boolean isNullOrEmpty(final String url) {
-        return url == null || url.trim().isEmpty();
+    private void clearView(FastImageViewWithUrl view) {
+        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
+            requestManager.clear(view);
+        }
     }
 
+    /* Below this line:
+     * - a group of static utility methods
+     * - could be moved to something like Utils.java in the future
+     */
+
+    private static boolean isNullOrEmpty(final String url) {
+        return url == null || url.trim().isEmpty();
+    }
 
     private static boolean isValidContextForGlide(final Context context) {
         Activity activity = getActivityFromContext(context);
@@ -242,13 +252,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return activity.isDestroyed() || activity.isFinishing();
         } else {
             return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
-        }
-
-    }
-
-    private void clearView(FastImageViewWithUrl view) {
-        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
-            requestManager.clear(view);
         }
     }
 }
