@@ -60,7 +60,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
         int viewId = view.getId();
         Context context = view.getContext();
-        ReactContext reactContext = context instanceof ReactContext ? (ReactContext) context : null;
+        ReactContext reactContext = getReactContext(context);
 
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
@@ -224,26 +224,29 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return !isActivityDestroyed(activity);
     }
 
-    private static Activity getActivityFromContext(final Context context) {
+    private static Activity getActivityFromContext(Context context) {
         if (context instanceof Activity) {
             return (Activity) context;
         }
-
-        if (context instanceof ThemedReactContext) {
-            final Context baseContext = ((ThemedReactContext) context).getBaseContext();
-            if (baseContext instanceof Activity) {
-                return (Activity) baseContext;
-            }
-
-            if (baseContext instanceof ContextWrapper) {
-                final ContextWrapper contextWrapper = (ContextWrapper) baseContext;
-                final Context wrapperBaseContext = contextWrapper.getBaseContext();
-                if (wrapperBaseContext instanceof Activity) {
-                    return (Activity) wrapperBaseContext;
-                }
+        while (context instanceof ContextWrapper) {
+            context = ((ContextWrapper) context).getBaseContext();
+            if (context instanceof Activity) {
+                return (Activity) context;
             }
         }
+        return null;
+    }
 
+    private static ReactContext getReactContext(Context context) {
+        if (context instanceof ReactContext) {
+            return (ReactContext) context;
+        }
+        while (context instanceof ContextWrapper) {
+            context = ((ContextWrapper) context).getBaseContext();
+            if (context instanceof ReactContext) {
+                return (ReactContext) context;
+            }
+        }
         return null;
     }
 
