@@ -228,11 +228,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         if (context instanceof Activity) {
             return (Activity) context;
         }
-        while (context instanceof ContextWrapper) {
-            context = ((ContextWrapper) context).getBaseContext();
-            if (context instanceof Activity) {
-                return (Activity) context;
-            }
+        if (context instanceof ContextWrapper) {
+            return getActivityFromContext(((ContextWrapper) context).getBaseContext());
         }
         return null;
     }
@@ -241,11 +238,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         if (context instanceof ReactContext) {
             return (ReactContext) context;
         }
-        while (context instanceof ContextWrapper) {
-            context = ((ContextWrapper) context).getBaseContext();
-            if (context instanceof ReactContext) {
-                return (ReactContext) context;
-            }
+        if (context instanceof ContextWrapper) {
+            return getReactContext(((ContextWrapper) context).getBaseContext());
         }
         return null;
     }
