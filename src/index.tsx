@@ -10,6 +10,7 @@ import {
     StyleProp,
     TransformsStyle,
     AccessibilityProps,
+    ViewProps,
 } from 'react-native'
 
 import preloaderManager from './PreloaderManager'
@@ -78,7 +79,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     opacity?: number
 }
 
-export interface FastImageProps extends AccessibilityProps {
+export interface FastImageProps extends AccessibilityProps, ViewProps {
     source: Source | number
     resizeMode?: ResizeMode
     fallback?: boolean
@@ -205,7 +206,7 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 
 FastImageComponent.displayName = 'FastImage'
 
-interface FastImageStaticProperties {
+export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
@@ -214,6 +215,8 @@ interface FastImageStaticProperties {
         onProgress?: PreloadProgressHandler,
         onComplete?: PreloadCompletionHandler,
     ) => void
+    clearMemoryCache: () => Promise<void>
+    clearDiskCache: () => Promise<void>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -230,6 +233,10 @@ FastImage.preload = (
     onProgress?: PreloadProgressHandler,
     onComplete?: PreloadCompletionHandler,
 ) => preloaderManager.preload(sources, onProgress, onComplete)
+
+FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+
+FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {

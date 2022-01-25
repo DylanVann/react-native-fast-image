@@ -6,12 +6,11 @@ import {
     TouchableOpacity,
     ViewProps,
 } from 'react-native'
-import withCacheBust from './withCacheBust'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsBase64 from './images/fields'
-import {launchImageLibrary} from 'react-native-image-picker'
+import { launchImageLibrary } from 'react-native-image-picker'
 import BulletText from './BulletText'
 
 // @ts-ignore
@@ -51,7 +50,7 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     state: PhotoExampleState = {}
 
     pick = () => {
-        launchImageLibrary({mediaType: 'photo'}, (response) => {
+        launchImageLibrary({ mediaType: 'photo' }, (response) => {
             if (response.didCancel) {
                 console.log('ImagePicker - User cancelled.')
             } else if (response.errorCode) {
@@ -84,7 +83,7 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     }
 }
 
-const LocalImagesExample = () => (
+export const LocalImagesExample = () => (
     <View>
         <Section>
             <FeatureText>• Local images.</FeatureText>
@@ -133,5 +132,3 @@ const styles = StyleSheet.create({
         right: 0,
     },
 })
-
-export default withCacheBust(LocalImagesExample)

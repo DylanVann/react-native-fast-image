@@ -9,6 +9,7 @@ import android.os.Build;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -58,6 +59,27 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
+            clearView(view);
+
+            if (view.glideUrl != null) {
+                FastImageOkHttpProgressGlideModule.forget(view.glideUrl.toStringUrl());
+            }
+            // Clear the image.
+            view.setImageDrawable(null);
+            return;
+        }
+
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        if (imageSource.getUri().toString().length() == 0) {
+            ThemedReactContext context = (ThemedReactContext) view.getContext();
+            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            int viewId = view.getId();
+            WritableMap event = new WritableNativeMap();
+            event.putString("message", "Invalid source prop:" + source);
+            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+
+            // Cancel existing requests.
             if (requestManager != null) {
                 requestManager.clear(view);
             }
@@ -70,15 +92,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
-        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
         final GlideUrl glideUrl = imageSource.getGlideUrl();
 
         // Cancel existing request.
         view.glideUrl = glideUrl;
-        if (requestManager != null) {
-            requestManager.clear(view);
-        }
+        clearView(view);
 
         String key = glideUrl.toStringUrl();
         FastImageOkHttpProgressGlideModule.expect(key, this);
@@ -128,9 +146,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     public void onDropViewInstance(FastImageViewWithUrl view) {
         // This will cancel existing requests.
-        if (requestManager != null) {
-            requestManager.clear(view);
-        }
+        clearView(view);
 
         if (view.glideUrl != null) {
             final String key = view.glideUrl.toString();
@@ -222,5 +238,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
         }
 
+    }
+
+    private void clearView(FastImageViewWithUrl view) {
+        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
+            requestManager.clear(view);
+        }
     }
 }

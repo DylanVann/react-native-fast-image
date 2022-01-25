@@ -10,7 +10,7 @@ const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
 const Col = (p: any) => <View style={styles.col} {...p} />
 
-const ResizeModeExample = () => (
+export const ResizeModeExample = () => (
     <View>
         <Section>
             <FeatureText text="• resizeMode." />
@@ -69,5 +69,3 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 })
-
-export default ResizeModeExample

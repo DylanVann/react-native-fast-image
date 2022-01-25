@@ -17,7 +17,7 @@ LogBox.ignoreLogs([
 export default function App() {
     return (
         <NavigationContainer>
-            <Tab.Navigator>
+            <Tab.Navigator screenOptions={{ headerShown: false }}>
                 <Tab.Screen
                     name="FastImage Example"
                     component={FastImageExamples}
