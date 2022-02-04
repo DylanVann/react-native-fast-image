@@ -2,12 +2,18 @@ package com.reactnativefastimageexample;
 
 import android.app.Application;
 import android.content.Context;
+
+import com.dylanvann.fastimage.FastImageViewPackage;
+import com.dylanvann.fastimage.custom.persistence.ObjectBox;
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
+import com.facebook.react.bridge.JSIModulePackage;
 import com.facebook.soloader.SoLoader;
+import com.swmansion.reanimated.ReanimatedJSIModulePackage;
+
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
@@ -26,6 +32,7 @@ public class MainApplication extends Application implements ReactApplication {
           List<ReactPackage> packages = new PackageList(this).getPackages();
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // packages.add(new MyReactNativePackage());
+            packages.add(new FastImageViewPackage());
           return packages;
         }
 
@@ -33,6 +40,11 @@ public class MainApplication extends Application implements ReactApplication {
         protected String getJSMainModuleName() {
           return "index";
         }
+
+          @Override
+          protected JSIModulePackage getJSIModulePackage() {
+            return new ReanimatedJSIModulePackage();
+          }
       };
 
   @Override
@@ -45,6 +57,7 @@ public class MainApplication extends Application implements ReactApplication {
     super.onCreate();
     SoLoader.init(this, /* native exopackage */ false);
     initializeFlipper(this, getReactNativeHost().getReactInstanceManager());
+    ObjectBox.init(this);
   }
 
   /**

@@ -35,18 +35,6 @@ android {
             }
         }
     }
-
-    defaultConfig {
-        minSdkVersion _minSdkVersion
-        targetSdkVersion _targetSdkVersion
-        versionCode 1
-        versionName "1.0"
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments = [ "objectbox.modelPath" : "schemas/objectbox.json".toString() ]
-            }
-        }
-    }
     lintOptions {
         abortOnError false
     }
@@ -74,6 +62,4 @@ dependencies {
     implementation "com.github.bumptech.glide:glide:${glideVersion}"
     implementation "com.github.bumptech.glide:okhttp3-integration:${glideVersion}"
     annotationProcessor "com.github.bumptech.glide:compiler:${glideVersion}"
-
-    implementation project(':rnfastimage')
 }

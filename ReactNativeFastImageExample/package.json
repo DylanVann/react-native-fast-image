@@ -34,7 +34,7 @@
         "react-native-gesture-handler": "^2.2.0",
         "react-native-image-picker": "^4.7.3",
         "react-native-image-progress": "^1.2.0",
-        "react-native-reanimated": "^2.3.1",
+        "react-native-reanimated": "2.3.0",
         "react-native-safe-area-context": "^3.3.2",
         "react-native-screens": "^3.10.2",
         "react-native-status-bar-height": "^2.6.0",

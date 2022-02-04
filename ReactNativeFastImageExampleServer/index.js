@@ -15,15 +15,6 @@ app.use(morgan('dev'))
 app.get('/', (req, res) => res.send(welcome))
 app.listen(port)
 
-const authentication = (req, res, next) => {
-    const token = req.query.token || req.headers['token']
-    if (token) {
-        next()
-    } else {
-        return res.status(403).send({ success: false })
-    }
-}
-
 const staticPictures = express.static(path.join(__dirname, 'pictures'))
 
-app.use('/pictures', authentication, staticPictures)
+app.use('/pictures', staticPictures)

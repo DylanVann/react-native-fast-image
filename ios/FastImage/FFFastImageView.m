@@ -207,7 +207,7 @@
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
                      //the following two properties are loading a photo asset according to the image's view size: https://github.com/SDWebImage/SDWebImagePhotosPlugin#control-query-image-size
-                     options:(isPhotoAsset) ? 0 : options
+                     options:(isPhotoAsset) ? SDWebImageRefreshCached : options
                      context:(isPhotoAsset) ? @{SDWebImageContextImageThumbnailPixelSize: @(self.bounds.size), SDWebImageContextCustomManager: self.manager} : context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
                         if (weakSelf.onFastImageProgress) {

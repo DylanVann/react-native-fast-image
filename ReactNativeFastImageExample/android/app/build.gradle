@@ -78,7 +78,7 @@ import com.android.build.OutputFile
  */
 
 project.ext.react = [
-    enableHermes: false,  // clean and rebuild if changing
+    enableHermes: true,  // clean and rebuild if changing
 ]
 
 apply from: "../../node_modules/react-native/react.gradle"
@@ -216,6 +216,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation project(':rnfastimage')
 }
 
 // Run this once to be able to run the application with BUCK
