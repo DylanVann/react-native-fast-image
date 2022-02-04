@@ -6,6 +6,7 @@ import { Icon } from './Icon'
 import FastImageExamples from './FastImageExamples'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
+import { ETAGExample } from './ETAGExample'
 
 const Tab = createBottomTabNavigator()
 
@@ -18,6 +19,15 @@ export default function App() {
     return (
         <NavigationContainer>
             <Tab.Navigator screenOptions={{ headerShown: false }}>
+                <Tab.Screen
+                    name="Etag Example"
+                    component={ETAGExample}
+                    options={{
+                        tabBarIcon: (props) => (
+                            <Icon name="ios-information-circle" {...props} />
+                        ),
+                    }}
+                />
                 <Tab.Screen
                     name="FastImage Example"
                     component={FastImageExamples}

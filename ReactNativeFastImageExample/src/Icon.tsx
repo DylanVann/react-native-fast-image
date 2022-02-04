@@ -1,4 +1,5 @@
 import React from 'react'
+// @ts-ignore
 import Base from 'react-native-vector-icons/Ionicons'
 
 interface IconProps {

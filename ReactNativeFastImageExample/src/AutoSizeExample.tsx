@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import SectionFlex from './SectionFlex'
-import FastImage, { FastImageProps } from 'react-native-fast-image'
+import FastImage, { FastImageProps } from '@cuvent/react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import { useCacheBust } from './useCacheBust'
