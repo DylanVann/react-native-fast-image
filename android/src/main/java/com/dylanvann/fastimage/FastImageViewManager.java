@@ -17,9 +17,6 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ObjectKey;
-import com.dylanvann.fastimage.custom.EtagCallback;
-import com.dylanvann.fastimage.custom.EtagRequester;
-import com.dylanvann.fastimage.custom.PersistEtagCallbackWrapper;
 import com.dylanvann.fastimage.custom.persistence.ObjectBox;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
@@ -156,111 +153,54 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             }
 
             final RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
-
-            // getEtag handles persistence of etag
-            getEtag(url, new EtagCallback() {
-                @Override
-                public void onError(String error) {
-                    loadImage(view, url, null, options, key);
-                }
-
-                @Override
-                public void onEtag(@Nullable final String etag) {
-                    loadImage(view, url, etag, options, key);
-                }
-            });
+            loadImage(view, url, options, key);
         }
     }
 
-    /**
-     * Refreshes an image. Won't do anything if etag hasn't changed.
-     * When there was a new image the new image will be shown + the image
-     * and etag cache will be updated.
-     * @param url
-     */
-    private void refresh(final FastImageViewWithUrl view, final String url) {
-        EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, new EtagCallback() {
-                    @Override
-                    public void onError(final String error) {
-                        loadImage(view, url, null, null, null);
-                    }
-
-                    @Override
-                    public void onEtag(final String etag) {
-                        loadImage(view, url, etag, null, null);
-                    }
-                })
-        );
+    private void refresh(final FastImageViewWithUrl view, final ReadableMap source) {
+        load(view, source);
     }
 
     /**
      *
      * @param view
      * @param url
-     * @param etag Optional
      * @param options Optional
      * @param key Optional, when set it will emit events
      */
-    private void loadImage(final FastImageViewWithUrl view, final String url, @Nullable final String etag, @Nullable final RequestOptions options, final @Nullable String key) {
-        getActivityFromContext(view.getContext()).runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (requestManager == null) {
-                    Log.e(FastImageViewManager.class.getSimpleName(), "Can't refresh as requestManager was null!");
-                    return;
-                }
-
-
-                RequestBuilder<Drawable> thumbnailRequest = requestManager
-                        .load(url);
-
-                // add etag as signature when its set
-                String prevEtag = ObjectBox.getEtagByUrl(url);
-                if (prevEtag != null) {
-                    thumbnailRequest = thumbnailRequest.signature(new ObjectKey(prevEtag));
-                }
-
-                RequestBuilder<Drawable> imageRequest = requestManager
-                        .load(url)
-                        .thumbnail(thumbnailRequest)
-                        .skipMemoryCache(true);
-
-                if (etag != null) {
-                    imageRequest = imageRequest.signature(new ObjectKey(etag));
-                } else if (prevEtag != null) {
-                    // in case we received no etag (e.g. loading error due to no network)
-                    // we still want to consider getting cache with the prev etag.
-                    imageRequest = imageRequest.signature(new ObjectKey(prevEtag));
-                }
-
-                if (options != null) {
-                    imageRequest = imageRequest.apply(options);
-                }
-
-                if (key != null) {
-                    imageRequest = imageRequest.listener(new FastImageRequestListener(key));
-                }
-
-                // finally, load the image
-                imageRequest.into(view);
+    private void loadImage(final FastImageViewWithUrl view, final String url, @Nullable final RequestOptions options, final @Nullable String key) {
+        getActivityFromContext(view.getContext()).runOnUiThread(() -> {
+            if (requestManager == null) {
+                Log.e(FastImageViewManager.class.getSimpleName(), "Can't refresh as requestManager was null!");
+                return;
             }
+
+            // Create a "thumbnail" which is literally the cached image while we load the new image
+            RequestBuilder<Drawable> thumbnailRequest = requestManager
+                    .load(url);
+            String prevEtag = ObjectBox.getEtagByUrl(url);
+            if (prevEtag != null) {
+                thumbnailRequest = thumbnailRequest.signature(new ObjectKey(prevEtag));
+            }
+
+            // Request the new image
+            RequestBuilder<Drawable> imageRequest = requestManager
+                    .load(url)
+                    .thumbnail(thumbnailRequest)
+                    .skipMemoryCache(true);
+            if (prevEtag != null) {
+                imageRequest = imageRequest.signature(new ObjectKey(prevEtag));
+            }
+            if (options != null) {
+                imageRequest = imageRequest.apply(options);
+            }
+            if (key != null) {
+                imageRequest = imageRequest.listener(new FastImageRequestListener(key));
+            }
+
+            // finally, load the image
+            imageRequest.into(view);
         });
-    }
-
-    /**
-     * Returns the etag from cache. If there is no cached etag it will request
-     * the server to get it, save it to the cache, and return it.
-     * @param url
-     * @param callback
-     */
-    private void getEtag(String url, EtagCallback callback) {
-        String etag = ObjectBox.getEtagByUrl(url);
-
-        if (etag == null) {
-            EtagRequester.requestEtag(url, new PersistEtagCallbackWrapper(url, callback));
-        } else {
-            callback.onEtag(etag);
-        }
     }
 
     @ReactProp(name = "tintColor", customType = "Color")
@@ -389,8 +329,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         switch (commandId) {
             case FORCE_REFRESH_IMAGE: {
                 if (root.source != null) {
-                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(root.getContext(), root.source);
-                    refresh(root, imageSource.getGlideUrl().toStringUrl());
+                    refresh(root, root.source);
                 }
                 return;
             }
