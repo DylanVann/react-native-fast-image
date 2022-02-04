@@ -18,7 +18,7 @@ import {
     ViewStyle,
     TextStyle,
     RegisteredStyle,
-    AccessibilityProps,
+    AccessibilityProps, ColorValue,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -31,7 +31,7 @@ function isRegisteredStyle<T>(
     if (typeof style === "object" && style != null)
         return "__registeredStyleBrand" in style;
     else return false;
-};
+}
 
 
 function findStyle<
@@ -76,7 +76,7 @@ function findStyle<
             return undefined;
         }
     }
-};
+}
 
 function areShallowEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
     if (left == null && right != null) return false;
@@ -150,14 +150,14 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     backfaceVisibility?: 'visible' | 'hidden'
     borderBottomLeftRadius?: number
     borderBottomRightRadius?: number
-    backgroundColor?: string
-    borderColor?: string
+    backgroundColor?: ColorValue
+    borderColor?: ColorValue
     borderWidth?: number
     borderRadius?: number
     borderTopLeftRadius?: number
     borderTopRightRadius?: number
-    overlayColor?: string
-    tintColor?: string
+    overlayColor?: ColorValue
+    tintColor?: ColorValue
     opacity?: number
 }
 
@@ -197,7 +197,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * If supplied, changes the color of all the non-transparent pixels to the given color.
      */
 
-    tintColor?: number | string
+    tintColor?: ColorValue
 
     /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
