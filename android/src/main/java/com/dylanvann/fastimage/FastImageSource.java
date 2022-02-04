@@ -17,6 +17,7 @@ public class FastImageSource extends ImageSource {
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
     private static final String ANDROID_CONTENT_SCHEME = "content";
     private static final String LOCAL_FILE_SCHEME = "file";
+    private static final String Glide = "Glide";
     private Headers mHeaders;
     private Uri mUri;
 
@@ -98,6 +99,7 @@ public class FastImageSource extends ImageSource {
     }
 
     @Override
+    @Nullable
     public Uri getUri() {
         return mUri;
     }
@@ -107,6 +109,15 @@ public class FastImageSource extends ImageSource {
     }
 
     public GlideUrl getGlideUrl() {
-        return new GlideUrl(getUri().toString(), getHeaders());
+        Uri uri = getUri();
+        try {
+            if (uri != null && !getUri().toString().equals("")) {
+                return new GlideUrl(getUri().toString(), getHeaders());
+            } else {
+                return new GlideUrl(Glide, getHeaders());
+            }
+        } catch (NullPointerException e) {
+            return new GlideUrl(Glide, getHeaders());
+        }
     }
 }
