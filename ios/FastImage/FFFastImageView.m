@@ -1,5 +1,6 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
+#import <SDWebImage/UIView+WebCache.h>
 #import <SDWebImage/SDWebImage.h>
 #import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
 #import <SDWebImagePhotosPlugin/NSURL+SDWebImagePhotosPlugin.h>
@@ -237,5 +238,8 @@
                     }];
 }
 
-@end
+- (void)dealloc {
+    [self sd_cancelCurrentImageLoad];
+}
 
+@end

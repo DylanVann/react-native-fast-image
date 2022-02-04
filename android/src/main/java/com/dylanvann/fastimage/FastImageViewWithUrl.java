@@ -1,12 +1,13 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
-import android.widget.ImageView;
+
+import androidx.appcompat.widget.AppCompatImageView;
 
 import com.bumptech.glide.load.model.GlideUrl;
 import com.facebook.react.bridge.ReadableMap;
 
-class FastImageViewWithUrl extends ImageView {
+class FastImageViewWithUrl extends AppCompatImageView {
     public GlideUrl glideUrl;
     public ReadableMap source;
 
