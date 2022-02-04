@@ -273,7 +273,6 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
             return (
                 <View style={[styles.imageContainer, style]} {...props}>
                     <Image
-                        // @ts-expect-error Types are incorrect.
                         nativeID={nativeID}
                         style={StyleSheet.absoluteFill}
                         source={this.state.resolvedSource as any}
@@ -312,9 +311,9 @@ export default class FastImage extends React.PureComponent<FastImageProps, FastI
 
 // export default React.forwardRef<Ref<FastImage>, FastImageProps>((props, ref) => <FastImage {...props} managedRef={ref} />)
 
-FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+export const clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
 
-FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
+export const  clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
