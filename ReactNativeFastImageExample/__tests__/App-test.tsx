@@ -2,8 +2,13 @@
  * @format
  */
 
-export const _ = 0
+import 'react-native'
+import React from 'react'
+import App from '../src'
 
-it('adds', () => {
-    expect(2 + 2).toBe(4)
+// Note: test renderer must be required after react-native.
+import renderer from 'react-test-renderer'
+
+it('renders correctly', () => {
+    renderer.create(<App />)
 })

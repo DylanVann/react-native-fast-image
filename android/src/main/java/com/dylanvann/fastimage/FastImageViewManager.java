@@ -76,6 +76,27 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
+            clearView(view);
+
+            if (view.glideUrl != null) {
+                FastImageOkHttpProgressGlideModule.forget(view.glideUrl.toStringUrl());
+            }
+            // Clear the image.
+            view.setImageDrawable(null);
+            return;
+        }
+
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        if (imageSource.getUri().toString().length() == 0) {
+            ThemedReactContext context = (ThemedReactContext) view.getContext();
+            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            int viewId = view.getId();
+            WritableMap event = new WritableNativeMap();
+            event.putString("message", "Invalid source prop:" + source);
+            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+
+            // Cancel existing requests.
             if (requestManager != null) {
                 requestManager.clear(view);
             }
@@ -260,9 +281,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // This will cancel existing requests.
-        if (requestManager != null) {
-            requestManager.clear(view);
-        }
+        clearView(view);
 
         if (view.glideUrl != null) {
             final String key = view.glideUrl.toString();
@@ -380,6 +399,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                         "Unsupported command %s received by %s.",
                         commandId,
                         root.getClass().getSimpleName()));
+        }
+    }
+
+    private void clearView(FastImageViewWithUrl view) {
+        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
+            requestManager.clear(view);
         }
     }
 }
