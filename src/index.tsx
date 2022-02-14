@@ -11,9 +11,12 @@ import {
     TransformsStyle,
     AccessibilityProps,
     ViewProps,
+    NativeModules
 } from 'react-native'
 
 import preloaderManager from './PreloaderManager'
+
+const FastImageViewNativeModule = NativeModules.FastImagePreloaderManager
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
