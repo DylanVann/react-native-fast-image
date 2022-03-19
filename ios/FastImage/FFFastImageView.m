@@ -201,8 +201,9 @@
                      options:options
                      context:context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
-                        if (weakSelf.onFastImageProgress) {
-                            weakSelf.onFastImageProgress(@{
+                        typeof(weakSelf) strongSelf = weakSelf;
+                        if (strongSelf.onFastImageProgress) {
+                            strongSelf.onFastImageProgress(@{
                                                            @"loaded": @(receivedSize),
                                                            @"total": @(expectedSize)
                                                            });
