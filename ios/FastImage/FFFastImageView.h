@@ -19,5 +19,7 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 @property (nonatomic, strong) UIColor *imageColor;
 
+- (void)playAnimation;
+
 @end
 

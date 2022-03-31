@@ -2,6 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.graphics.drawable.Drawable;
 
+import com.bumptech.glide.integration.webp.decoder.WebpDrawable;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
@@ -24,9 +25,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     }
 
     private static WritableMap mapFromResource(Drawable resource) {
+        boolean isAnimated = (resource instanceof WebpDrawable) && ((WebpDrawable) resource).getFrameCount() > 1;
         WritableMap resourceData = new WritableNativeMap();
         resourceData.putInt("width", resource.getIntrinsicWidth());
         resourceData.putInt("height", resource.getIntrinsicHeight());
+        resourceData.putBoolean("isAnimated", isAnimated);
         return resourceData;
     }
 

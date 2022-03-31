@@ -1,4 +1,7 @@
-import React, { forwardRef, memo } from 'react'
+import React, { forwardRef, memo, useImperativeHandle } from 'react'
+import { RefObject } from 'react'
+import { useRef } from 'react'
+import { findNodeHandle } from 'react-native'
 import {
     View,
     Image,
@@ -55,6 +58,7 @@ export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
+        isAnimated: boolean
     }
 }
 
@@ -129,6 +133,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: React.ReactNode
 }
 
+interface FastImageRefProps {
+    ref?: RefObject<typeof FastImage>
+}
+
 function FastImageBase({
     source,
     tintColor,
@@ -145,6 +153,16 @@ function FastImageBase({
     forwardedRef,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
+    const innerRef = useRef<typeof FastImageView>(null)
+
+    useImperativeHandle(forwardedRef, () => ({
+        playAnimation: () => {
+            FastImageViewNativeModule.playAnimation(
+                findNodeHandle(innerRef?.current),
+            )
+        },
+    }))
+
     if (fallback) {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
@@ -174,6 +192,7 @@ function FastImageBase({
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
             <FastImageView
                 {...props}
+                ref={innerRef}
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
@@ -206,9 +225,10 @@ export interface FastImageStaticProperties {
     preload: (sources: Source[]) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
+    playAnimation(): void
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
+const FastImage: React.ComponentType<FastImageProps & FastImageRefProps> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.resizeMode = resizeMode

@@ -1,6 +1,7 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
+#import <SDWebImageWebPCoder/SDWebImageWebPCoder.h>
 
 @interface FFFastImageView()
 
@@ -20,7 +21,14 @@
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    self.autoPlayAnimatedImage = NO;
+    self.shouldCustomLoopCount = YES;
+    self.animationRepeatCount = 1;
     return self;
+}
+
+- (void)playAnimation {
+    [self.player startPlaying];
 }
 
 - (void)setResizeMode:(RCTResizeMode)resizeMode {
@@ -88,9 +96,14 @@
 }
 
 - (void)sendOnLoad:(UIImage *)image {
+    bool isAnimated = [image.class conformsToProtocol:@protocol(SDAnimatedImage)]
+        ? [(SDAnimatedImage *)image animatedImageFrameCount] > 1
+        : NO;
+    
     self.onLoadEvent = @{
                          @"width":[NSNumber numberWithDouble:image.size.width],
-                         @"height":[NSNumber numberWithDouble:image.size.height]
+                         @"height":[NSNumber numberWithDouble:image.size.height],
+                         @"isAnimated": [NSNumber numberWithBool: isAnimated]
                          };
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
@@ -196,6 +209,7 @@
 
 - (void)downloadImage:(FFFastImageSource *) source options:(SDWebImageOptions) options context:(SDWebImageContext *)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    
     [self sd_setImageWithURL:_source.url
             placeholderImage:nil
                      options:options

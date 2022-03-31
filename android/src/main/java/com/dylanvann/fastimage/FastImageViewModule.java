@@ -3,14 +3,13 @@ package com.dylanvann.fastimage;
 import android.app.Activity;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.views.imagehelper.ImageSource;
+import com.facebook.react.uimanager.UIManagerModule;
 
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
@@ -23,6 +22,19 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     @Override
     public String getName() {
         return REACT_CLASS;
+    }
+
+    @ReactMethod
+    public void playAnimation(final int reactTag) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        UIManagerModule uiManager = context.getNativeModule(UIManagerModule.class);
+        uiManager.addUIBlock(nvhm -> {
+            FastImageViewWithUrl view = (FastImageViewWithUrl) nvhm.resolveView(reactTag);
+            if (view == null) {
+                return;
+            }
+            view.playAnimation();
+        });
     }
 
     @ReactMethod

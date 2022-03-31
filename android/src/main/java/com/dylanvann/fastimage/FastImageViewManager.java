@@ -4,12 +4,16 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.integration.webp.decoder.WebpDrawable;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.target.DrawableImageViewTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -30,6 +34,8 @@ import javax.annotation.Nullable;
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END_EVENT;
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_EVENT;
+
+import androidx.annotation.NonNull;
 
 class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> implements FastImageProgressListener {
 
@@ -124,7 +130,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     .load(imageSource.getSourceForLoad())
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
-                    .into(view);
+                    .into(new DrawableImageViewTarget(view) {
+                        @Override
+                        public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+                            super.onResourceReady(resource, transition);
+                            if (resource instanceof WebpDrawable) {
+                                WebpDrawable webpDrawable = (WebpDrawable) resource;
+                                webpDrawable.setLoopCount(1);
+                                webpDrawable.stop();
+                            }
+                        }
+                    });
         }
     }
 

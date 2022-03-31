@@ -1,6 +1,9 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
 
+#import <React/RCTUIManager.h>
+#import <React/RCTViewManager.h>
+
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
@@ -20,6 +23,18 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
+
+RCT_EXPORT_METHOD(playAnimation : (nonnull NSNumber *)reactTag)
+{
+    [self.bridge.uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *,UIView *> *viewRegistry) {
+        UIView *view = viewRegistry[reactTag];
+        if (!view || ![view isKindOfClass:[FFFastImageView class]]) {
+          RCTLogError(@"Cannot find NativeView with tag #%@", reactTag);
+          return;
+        }
+        [(FFFastImageView *)view playAnimation];
+    }];
+}
 
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 {

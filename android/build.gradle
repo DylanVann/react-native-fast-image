@@ -64,5 +64,6 @@ dependencies {
     implementation 'com.facebook.react:react-native:+'  // From node_modules
     implementation "com.github.bumptech.glide:glide:${glideVersion}"
     implementation "com.github.bumptech.glide:okhttp3-integration:${glideVersion}"
+    implementation "com.github.zjupure:webpdecoder:2.0.${glideVersion}"
     annotationProcessor "com.github.bumptech.glide:compiler:${glideVersion}"
 }
