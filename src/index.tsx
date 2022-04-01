@@ -2,7 +2,7 @@ import React, {
     forwardRef,
     memo,
     useImperativeHandle,
-    RefObject,
+    Ref,
     useRef,
 } from 'react'
 import {
@@ -142,7 +142,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 }
 
 interface FastImageRefProps {
-    ref?: RefObject<typeof FastImage>
+    ref?: Ref<typeof FastImage>
 }
 
 function FastImageBase({
