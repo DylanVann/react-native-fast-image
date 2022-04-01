@@ -1,9 +1,10 @@
-import React, { forwardRef, memo, useImperativeHandle } from 'react'
-import { RefObject } from 'react'
-import { useRef } from 'react'
-import { Platform } from 'react-native'
-import { ImageRequireSource } from 'react-native'
-import { findNodeHandle } from 'react-native'
+import React, {
+    forwardRef,
+    memo,
+    useImperativeHandle,
+    RefObject,
+    useRef,
+} from 'react'
 import {
     View,
     Image,
@@ -17,6 +18,10 @@ import {
     TransformsStyle,
     AccessibilityProps,
     ViewProps,
+    NativeMethods,
+    Platform,
+    ImageRequireSource,
+    findNodeHandle,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -243,6 +248,7 @@ export interface FastImageStaticProperties {
 }
 
 const FastImage: React.ComponentType<FastImageProps & FastImageRefProps> &
+    NativeMethods &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.resizeMode = resizeMode
