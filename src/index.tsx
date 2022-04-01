@@ -1,6 +1,8 @@
 import React, { forwardRef, memo, useImperativeHandle } from 'react'
 import { RefObject } from 'react'
 import { useRef } from 'react'
+import { Platform } from 'react-native'
+import { ImageRequireSource } from 'react-native'
 import { findNodeHandle } from 'react-native'
 import {
     View,
@@ -85,7 +87,8 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
-    source: Source | number
+    source: Source | ImageRequireSource
+    defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
 
@@ -139,6 +142,7 @@ interface FastImageRefProps {
 
 function FastImageBase({
     source,
+    defaultSource,
     tintColor,
     onLoadStart,
     onProgress,
@@ -187,6 +191,11 @@ function FastImageBase({
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
+    const resolvedDefaultSource =
+        Platform.OS === 'android'
+            ? defaultSource &&
+              (Image.resolveAssetSource(defaultSource)?.uri ?? null)
+            : defaultSource
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -195,6 +204,7 @@ function FastImageBase({
                 ref={innerRef}
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
+                defaultSource={resolvedDefaultSource}
                 source={resolvedSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}

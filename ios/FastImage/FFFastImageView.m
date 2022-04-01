@@ -211,7 +211,7 @@
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     
     [self sd_setImageWithURL:_source.url
-            placeholderImage:nil
+            placeholderImage:_placeholderImage
                      options:options
                      context:context
                     progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {

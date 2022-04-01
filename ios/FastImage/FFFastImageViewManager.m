@@ -23,6 +23,7 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
+RCT_REMAP_VIEW_PROPERTY(defaultSource, placeholderImage, UIImage)
 
 RCT_EXPORT_METHOD(playAnimation : (nonnull NSNumber *)reactTag)
 {
