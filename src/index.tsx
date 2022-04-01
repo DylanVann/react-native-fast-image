@@ -11,17 +11,16 @@ import {
     NativeModules,
     requireNativeComponent,
     StyleSheet,
-    FlexStyle,
     LayoutChangeEvent,
-    ShadowStyleIOS,
     StyleProp,
-    TransformsStyle,
     AccessibilityProps,
     ViewProps,
     NativeMethods,
     Platform,
     ImageRequireSource,
     findNodeHandle,
+    ImageStyle,
+    ColorValue,
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -76,21 +75,6 @@ export interface OnProgressEvent {
     }
 }
 
-export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
-    backfaceVisibility?: 'visible' | 'hidden'
-    borderBottomLeftRadius?: number
-    borderBottomRightRadius?: number
-    backgroundColor?: string
-    borderColor?: string
-    borderWidth?: number
-    borderRadius?: number
-    borderTopLeftRadius?: number
-    borderTopRightRadius?: number
-    overlayColor?: string
-    tintColor?: string
-    opacity?: number
-}
-
 export interface FastImageProps extends AccessibilityProps, ViewProps {
     source: Source | ImageRequireSource
     defaultSource?: ImageRequireSource
@@ -128,7 +112,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * If supplied, changes the color of all the non-transparent pixels to the given color.
      */
 
-    tintColor?: number | string
+    tintColor?: ColorValue
 
     /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
@@ -230,9 +214,9 @@ function FastImageBase({
 const FastImageMemo = memo(FastImageBase)
 
 const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
+    (props: FastImageProps, ref: React.Ref<any>) => {
+        return <FastImageMemo forwardedRef={ref} {...props} />
+    },
 )
 
 FastImageComponent.displayName = 'FastImage'
