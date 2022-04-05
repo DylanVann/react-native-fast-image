@@ -160,17 +160,13 @@ function FastImageBase({
         },
     }))
 
-    if (fallback) {
-        const cleanedSource = { ...(source as any) }
-        delete cleanedSource.cache
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
-
+    if (fallback || Platform.OS === 'web') {
         return (
             <View style={[styles.imageContainer, style]} ref={outerRef}>
                 <Image
                     {...props}
                     style={StyleSheet.absoluteFill}
-                    source={resolvedSource}
+                    source={source as any}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
                     onLoad={onLoad as any}
@@ -246,11 +242,13 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+    Platform.OS !== 'web' && FastImageViewNativeModule.preload(sources)
 
-FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+FastImage.clearMemoryCache = () =>
+    Platform.OS !== 'web' && FastImageViewNativeModule.clearMemoryCache()
 
-FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
+FastImage.clearDiskCache = () =>
+    Platform.OS !== 'web' && FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -259,18 +257,17 @@ const styles = StyleSheet.create({
 })
 
 // Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
-    },
-)
+const FastImageView =
+    Platform.OS === 'web'
+        ? Image
+        : (requireNativeComponent as any)('FastImageView', FastImage, {
+              nativeOnly: {
+                  onFastImageLoadStart: true,
+                  onFastImageProgress: true,
+                  onFastImageLoad: true,
+                  onFastImageError: true,
+                  onFastImageLoadEnd: true,
+              },
+          })
 
 export default FastImage
