@@ -160,12 +160,16 @@ function FastImageBase({
         },
     }))
 
+    if ((tintColor === null || tintColor === undefined) && style) {
+        tintColor = StyleSheet.flatten(style).tintColor
+    }
+
     if (fallback || Platform.OS === 'web') {
         return (
             <View style={[styles.imageContainer, style]} ref={outerRef}>
                 <Image
                     {...props}
-                    style={StyleSheet.absoluteFill}
+                    style={[StyleSheet.absoluteFill, { tintColor }]}
                     source={source as any}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
@@ -185,10 +189,6 @@ function FastImageBase({
             ? defaultSource &&
               (Image.resolveAssetSource(defaultSource)?.uri ?? null)
             : defaultSource
-
-    if ((tintColor === null || tintColor === undefined) && style) {
-        tintColor = StyleSheet.flatten(style).tintColor
-    }
 
     return (
         <View style={[styles.imageContainer, style]} ref={outerRef}>
