@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image",
-    "version": "8.5.11",
+    "version": "8.5.11-picnic.10",
     "description": "🚩 FastImage, performant React Native image component.",
     "keywords": [
         "cache",
@@ -78,5 +78,8 @@
     "peerDependencies": {
         "react": "^16.8.6 || ^17.0.0",
         "react-native": ">=0.60.0"
+    },
+    "publishConfig": {
+        "registry": "https://nexus.global.picnicinternational.com/repository/npm-releases/"
     }
 }
