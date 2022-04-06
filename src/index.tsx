@@ -160,27 +160,25 @@ function FastImageBase({
         },
     }))
 
-    if ((tintColor === null || tintColor === undefined) && style) {
-        tintColor = StyleSheet.flatten(style).tintColor
-    }
-
     if (fallback || Platform.OS === 'web') {
         return (
-            <View style={[styles.imageContainer, style]} ref={outerRef}>
-                <Image
-                    {...props}
-                    style={[StyleSheet.absoluteFill, { tintColor }]}
-                    source={source as any}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad as any}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
-                    resizeMode={resizeMode}
-                />
-                {children}
-            </View>
+            <Image
+                {...props}
+                ref={outerRef as any}
+                style={style}
+                source={source as any}
+                onLoadStart={onLoadStart}
+                onProgress={onProgress}
+                onLoad={onLoad as any}
+                onError={onError}
+                onLoadEnd={onLoadEnd}
+                resizeMode={resizeMode}
+            />
         )
+    }
+
+    if ((tintColor === null || tintColor === undefined) && style) {
+        tintColor = StyleSheet.flatten(style).tintColor
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
