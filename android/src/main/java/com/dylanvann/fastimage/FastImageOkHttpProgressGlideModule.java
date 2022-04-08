@@ -47,6 +47,9 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 .build();
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
         registry.replace(GlideUrl.class, InputStream.class, factory);
+        if(registry !=null){
+            registry.replace(GlideUrl.class, InputStream.class, factory);
+        }
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
