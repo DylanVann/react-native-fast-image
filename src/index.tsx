@@ -160,27 +160,33 @@ function FastImageBase({
         },
     }))
 
-    if (fallback) {
-        const cleanedSource = { ...(source as any) }
-        delete cleanedSource.cache
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
+    if (fallback || Platform.OS === 'web') {
+        if (
+            source &&
+            (typeof source === 'object') &&
+            source.uri === undefined &&
+            onError
+        )
+            onError()
 
         return (
-            <View style={[styles.imageContainer, style]} ref={outerRef}>
-                <Image
-                    {...props}
-                    style={StyleSheet.absoluteFill}
-                    source={resolvedSource}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad as any}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
-                    resizeMode={resizeMode}
-                />
-                {children}
-            </View>
+            <Image
+                {...props}
+                ref={outerRef as any}
+                style={style}
+                source={source as any}
+                onLoadStart={onLoadStart}
+                onProgress={onProgress}
+                onLoad={onLoad as any}
+                onError={onError}
+                onLoadEnd={onLoadEnd}
+                resizeMode={resizeMode}
+            />
         )
+    }
+
+    if ((tintColor === null || tintColor === undefined) && style) {
+        tintColor = StyleSheet.flatten(style).tintColor
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
@@ -189,10 +195,6 @@ function FastImageBase({
             ? defaultSource &&
               (Image.resolveAssetSource(defaultSource)?.uri ?? null)
             : defaultSource
-
-    if ((tintColor === null || tintColor === undefined) && style) {
-        tintColor = StyleSheet.flatten(style).tintColor
-    }
 
     return (
         <View style={[styles.imageContainer, style]} ref={outerRef}>
@@ -246,11 +248,13 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+    Platform.OS !== 'web' && FastImageViewNativeModule.preload(sources)
 
-FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+FastImage.clearMemoryCache = () =>
+    Platform.OS !== 'web' && FastImageViewNativeModule.clearMemoryCache()
 
-FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
+FastImage.clearDiskCache = () =>
+    Platform.OS !== 'web' && FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -259,18 +263,17 @@ const styles = StyleSheet.create({
 })
 
 // Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
-    },
-)
+const FastImageView =
+    Platform.OS === 'web'
+        ? Image
+        : (requireNativeComponent as any)('FastImageView', FastImage, {
+              nativeOnly: {
+                  onFastImageLoadStart: true,
+                  onFastImageProgress: true,
+                  onFastImageLoad: true,
+                  onFastImageError: true,
+                  onFastImageLoadEnd: true,
+              },
+          })
 
 export default FastImage
