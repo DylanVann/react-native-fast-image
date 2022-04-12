@@ -161,6 +161,9 @@ function FastImageBase({
     }))
 
     if (fallback || Platform.OS === 'web') {
+
+        if (source && !(typeof source === "string") && onError) onError();
+
         return (
             <Image
                 {...props}
