@@ -113,6 +113,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
+        Transformation<Bitmap> transformation = new BitmapTransformation() {
+            @Override
+            protected Bitmap transform(@NonNull BitmapPool pool, @NonNull Bitmap toTransform, int outWidth, int outHeight) {
+                return toTransform;
+            }
+
+            @Override
+            public void updateDiskCacheKey(@NonNull MessageDigest messageDigest) {
+
+            }
+        };
         if (requestManager != null) {
             requestManager
                     // This will make this work for remote and local images. e.g.
@@ -122,6 +133,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                     //    - android.resource://
                     //    - data:image/png;base64
                     .load(imageSource.getSourceForLoad())
+                    .optionalTransform(transformation)
+                    .optionalTransform(WebpDrawable.class, new WebpDrawableTransformation(transformation))
                     .apply(FastImageViewConverter.getOptions(context, imageSource, source))
                     .listener(new FastImageRequestListener(key))
                     .into(view);
