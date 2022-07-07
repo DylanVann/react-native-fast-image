@@ -1,5 +1,6 @@
 package com.dylanvann.fastimage;
 
+import java.io.*;
 import android.app.Activity;
 
 import com.bumptech.glide.Glide;
@@ -33,6 +34,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             @Override
             public void run() {
                 for (int i = 0; i < sources.size(); i++) {
+                    System.out.println("preload: " + i);
                     final ReadableMap source = sources.getMap(i);
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
 
