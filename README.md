@@ -152,6 +152,11 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `enableMinificationFilter?: boolean`
+iOS only props, if true will use to `kCAFilterTrilinear` as the minification filter, otherwise will use `kCAFilterLinear`.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.
