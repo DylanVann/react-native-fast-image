@@ -10,7 +10,7 @@
 // Whether the latest change of props requires the image to be reloaded
 @property (nonatomic, assign) BOOL needsReload;
 
-@property (nonatomic, strong) NSDictionary* onLoadEvent;
+@property (nonatomic, strong) NSDictionary *onLoadEvent;
 
 @end
 
@@ -62,6 +62,13 @@
     }
 }
 
+- (void)setBlurRadius:(CGFloat)blurRadius {
+    if (_blurRadius != blurRadius) {
+        _blurRadius = blurRadius;
+        _needsReload = YES;
+    }
+}
+
 - (void)setImageColor:(UIColor *)imageColor {
     if (imageColor != nil) {
         _imageColor = imageColor;
@@ -69,7 +76,7 @@
     }
 }
 
-- (UIImage*)makeImage:(UIImage *)image withTint:(UIColor *)color {
+- (UIImage *)makeImage:(UIImage *)image withTint:(UIColor *)color {
     UIImage *newImage = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
     [color set];
@@ -154,8 +161,12 @@
             }
             return [mutableRequest copy];
         }];
-        SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier : requestModifier};
+        SDWebImageMutableContext *context = [NSMutableDictionary dictionaryWithDictionary:@{SDWebImageContextDownloadRequestModifier : requestModifier}];
         
+        if (_blurRadius > 0) {
+            [context setValue:[SDImageBlurTransformer transformerWithRadius:_blurRadius] forKey:SDWebImageContextImageTransformer];
+        }
+
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
         switch (_source.priority) {
