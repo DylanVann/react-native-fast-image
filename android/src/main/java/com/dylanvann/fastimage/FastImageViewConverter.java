@@ -31,10 +31,14 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import static com.bumptech.glide.request.RequestOptions.bitmapTransform;
 import static com.bumptech.glide.request.RequestOptions.signatureOf;
+
+import jp.wasabeef.glide.transformations.BlurTransformation;
 
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
+    private static final int BLUR_SAMPLING = 4;
 
     private static final Map<String, FastImageCacheControl> FAST_IMAGE_CACHE_CONTROL_MAP =
             new HashMap<String, FastImageCacheControl>() {{
@@ -89,6 +93,9 @@ class FastImageViewConverter {
         final Priority priority = FastImageViewConverter.getPriority(source);
         // Get cache control method.
         final FastImageCacheControl cacheControl = FastImageViewConverter.getCacheControl(source);
+
+        final int blurRadius = (int)FastImageViewConverter.getBlurRadius(source);
+
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
         Boolean onlyFromCache = false;
         Boolean skipMemoryCache = false;
@@ -112,7 +119,11 @@ class FastImageViewConverter {
             .skipMemoryCache(skipMemoryCache)
             .priority(priority)
             .placeholder(TRANSPARENT_DRAWABLE);
-        
+
+        if (blurRadius > 0) {
+            options = options.transform(new BlurTransformation((int)blurRadius, BLUR_SAMPLING));
+        }
+
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
@@ -123,7 +134,15 @@ class FastImageViewConverter {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
-        return options;                
+        return options;
+    }
+
+    private static double getBlurRadius(ReadableMap source) {
+        if (source.hasKey("blurRadius")) {
+            return source.getDouble("blurRadius");
+        }
+
+        return 0;
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {
