@@ -59,6 +59,7 @@ export type FastImageProps = $ReadOnly<{|
     source: FastImageSource | number,
 
     resizeMode?: ?ResizeModes,
+    enableMinificationFilter?: ?boolean,
     fallback?: ?boolean,
     testID?: ?string,
 |}>

@@ -83,6 +83,7 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 export interface FastImageProps extends AccessibilityProps, ViewProps {
     source: Source | number
     resizeMode?: ResizeMode
+    enableMinificationFilter?: boolean
     fallback?: boolean
 
     onLoadStart?(): void
