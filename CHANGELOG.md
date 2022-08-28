@@ -1,3 +1,15 @@
+## [8.5.12](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.11...v8.5.12) (2022-08-28)
+
+
+### chore
+
+* Update React peerDependency to "^17 || ^18" ([6255fc4](https://github.com/DylanVann/react-native-fast-image/commit/6255fc4f9deea0b83476ddb0c5389d0076ab6cfc))
+
+
+### BREAKING CHANGES
+
+* This package will no longer support React 16.
+
 ## [8.5.11](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.10...v8.5.11) (2021-09-27)
 
 
