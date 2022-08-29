@@ -10,7 +10,7 @@
 // Whether the latest change of props requires the image to be reloaded
 @property(nonatomic, assign) BOOL needsReload;
 
-@property(nonatomic, strong) NSDictionary *onLoadEvent;
+@property(nonatomic, strong) NSDictionary* onLoadEvent;
 
 @end
 
@@ -62,7 +62,7 @@
     }
 }
 
-- (void) setImageColor: (UIColor *)imageColor {
+- (void) setImageColor: (UIColor*)imageColor {
     if (imageColor != nil) {
         _imageColor = imageColor;
         if (super.image) {
@@ -71,8 +71,8 @@
     }
 }
 
-- (UIImage *) makeImage: (UIImage *)image withTint: (UIColor *)color {
-    UIImage *newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
+- (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
+    UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
     UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
     [color set];
     [newImage drawInRect: CGRectMake(0, 0, image.size.width, newImage.size.height)];
@@ -81,7 +81,7 @@
     return newImage;
 }
 
-- (void) setImage: (UIImage *)image {
+- (void) setImage: (UIImage*)image {
     if (self.imageColor != nil) {
         super.image = [self makeImage: image withTint: self.imageColor];
     } else {
@@ -89,7 +89,7 @@
     }
 }
 
-- (void) sendOnLoad: (UIImage *)image {
+- (void) sendOnLoad: (UIImage*)image {
     self.onLoadEvent = @{
             @"width": [NSNumber numberWithDouble: image.size.width],
             @"height": [NSNumber numberWithDouble: image.size.height]
@@ -99,21 +99,21 @@
     }
 }
 
-- (void) setSource: (FFFastImageSource *)source {
+- (void) setSource: (FFFastImageSource*)source {
     if (_source != source) {
         _source = source;
         _needsReload = YES;
     }
 }
 
-- (void) setDefaultSource: (UIImage *)defaultSource {
+- (void) setDefaultSource: (UIImage*)defaultSource {
     if (_defaultSource != defaultSource) {
         _defaultSource = defaultSource;
         _needsReload = YES;
     }
 }
 
-- (void) didSetProps: (NSArray<NSString *> *)changedProps {
+- (void) didSetProps: (NSArray<NSString*>*)changedProps {
     if (_needsReload) {
         [self reloadImage];
     }
@@ -124,7 +124,7 @@
 
     if (_source) {
         // Load base64 images.
-        NSString *url = [_source.url absoluteString];
+        NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix: @"data:image"]) {
             if (self.onFastImageLoadStart) {
                 self.onFastImageLoadStart(@{});
@@ -133,7 +133,7 @@
                 self.hasSentOnLoadStart = NO;
             }
             // Use SDWebImage API to support external format like WebP images
-            UIImage *image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
+            UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
             [self setImage: image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
@@ -151,16 +151,16 @@
         }
 
         // Set headers.
-        NSDictionary *headers = _source.headers;
-        SDWebImageDownloaderRequestModifier *requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock: ^NSURLRequest *_Nullable (NSURLRequest *_Nonnull request) {
-            NSMutableURLRequest *mutableRequest = [request mutableCopy];
-            for (NSString *header in headers) {
-                NSString *value = headers[header];
+        NSDictionary* headers = _source.headers;
+        SDWebImageDownloaderRequestModifier* requestModifier = [SDWebImageDownloaderRequestModifier requestModifierWithBlock: ^NSURLRequest* _Nullable (NSURLRequest* _Nonnull request) {
+            NSMutableURLRequest* mutableRequest = [request mutableCopy];
+            for (NSString* header in headers) {
+                NSString* value = headers[header];
                 [mutableRequest setValue: value forHTTPHeaderField: header];
             }
             return [mutableRequest copy];
         }];
-        SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier: requestModifier};
+        SDWebImageContext* context = @{SDWebImageContextDownloadRequestModifier: requestModifier};
 
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
@@ -202,23 +202,23 @@
     }
 }
 
-- (void) downloadImage: (FFFastImageSource *)source options: (SDWebImageOptions)options context: (SDWebImageContext *)context {
+- (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     [self sd_setImageWithURL: _source.url
             placeholderImage: _defaultSource
                      options: options
                      context: context
-                    progress: ^(NSInteger receivedSize, NSInteger expectedSize, NSURL *_Nullable targetURL) {
+                    progress: ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
                         if (weakSelf.onFastImageProgress) {
                             weakSelf.onFastImageProgress(@{
                                     @"loaded": @(receivedSize),
                                     @"total": @(expectedSize)
                             });
                         }
-                    } completed: ^(UIImage *_Nullable image,
-                    NSError *_Nullable error,
+                    } completed: ^(UIImage* _Nullable image,
+                    NSError* _Nullable error,
                     SDImageCacheType cacheType,
-                    NSURL *_Nullable imageURL) {
+                    NSURL* _Nullable imageURL) {
                 if (error) {
                     weakSelf.hasErrored = YES;
                     if (weakSelf.onFastImageError) {
