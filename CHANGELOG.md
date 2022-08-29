@@ -1,3 +1,10 @@
+# [8.6.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.12...v8.6.0) (2022-08-29)
+
+
+### Features
+
+* support defaultSource on iOS and Android ([#921](https://github.com/DylanVann/react-native-fast-image/issues/921)) ([ec7c453](https://github.com/DylanVann/react-native-fast-image/commit/ec7c4535139ae759b5ce5531aadb7612a5a744d0))
+
 ## [8.5.12](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.11...v8.5.12) (2022-08-28)
 
 
