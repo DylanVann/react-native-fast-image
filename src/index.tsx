@@ -2,7 +2,6 @@ import React, { forwardRef, memo } from 'react'
 import {
     View,
     Image,
-    NativeModules,
     requireNativeComponent,
     StyleSheet,
     FlexStyle,
@@ -14,7 +13,7 @@ import {
     ViewProps,
 } from 'react-native'
 
-const FastImageViewNativeModule = NativeModules.FastImageView
+import preloaderManager from './PreloaderManager'
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -129,6 +128,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: React.ReactNode
 }
 
+export interface PreloadProgressHandler {
+    (loaded: number, total: number): void
+}
+
+export interface PreloadCompletionHandler {
+    (loaded: number, skipped: number): void
+}
+
 function FastImageBase({
     source,
     tintColor,
@@ -203,7 +210,11 @@ export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
+    preload: (
+        sources: Source[],
+        onProgress?: PreloadProgressHandler,
+        onComplete?: PreloadCompletionHandler,
+    ) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
 }
@@ -217,8 +228,11 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+FastImage.preload = (
+    sources: Source[],
+    onProgress?: PreloadProgressHandler,
+    onComplete?: PreloadCompletionHandler,
+) => preloaderManager.preload(sources, onProgress, onComplete)
 
 FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
 
