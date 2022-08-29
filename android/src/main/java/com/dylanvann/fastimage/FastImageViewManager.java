@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -57,6 +58,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        int viewId = view.getId();
+        Context context = view.getContext();
+        ReactContext reactContext = getReactContext(context);
+
         if (source == null || !source.hasKey("uri") || isNullOrEmpty(source.getString("uri"))) {
             // Cancel existing requests.
             clearView(view);
@@ -69,15 +74,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return;
         }
 
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), source);
-        final FastImageSource imageSource = FastImageViewConverter.getImageSource(view.getContext(), source);
+        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(context, source);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
         if (imageSource.getUri().toString().length() == 0) {
-            ThemedReactContext context = (ThemedReactContext) view.getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = view.getId();
-            WritableMap event = new WritableNativeMap();
-            event.putString("message", "Invalid source prop:" + source);
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+            if (reactContext != null) {
+                WritableMap event = new WritableNativeMap();
+                event.putString("message", "Invalid source prop:" + source);
+                RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
+                eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+            }
 
             // Cancel existing requests.
             if (requestManager != null) {
@@ -108,10 +113,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             VIEWS_FOR_URLS.put(key, newViewsForKeys);
         }
 
-        ThemedReactContext context = (ThemedReactContext) view.getContext();
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
+        if (reactContext != null) {
+            RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
+            eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
+        }
 
         if (requestManager != null) {
             requestManager
@@ -176,14 +181,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     public void onProgress(String key, long bytesRead, long expectedLength) {
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
+            ReactContext reactContext = null;
             for (FastImageViewWithUrl view : viewsForKey) {
+                reactContext = getReactContext(view.getContext());
+                if (reactContext == null) continue; // cannot extract ReactContext
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = (ThemedReactContext) view.getContext();
-                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-                int viewId = view.getId();
-                eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+                RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
+                eventEmitter.receiveEvent(view.getId(), REACT_ON_PROGRESS_EVENT, event);
             }
         }
     }
@@ -193,12 +199,22 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return 0.5f;
     }
 
-    private boolean isNullOrEmpty(final String url) {
+    private void clearView(FastImageViewWithUrl view) {
+        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
+            requestManager.clear(view);
+        }
+    }
+
+    /* Below this line:
+     * - a group of static utility methods
+     * - could be moved to something like Utils.java in the future
+     */
+
+    public static boolean isNullOrEmpty(final String url) {
         return url == null || url.trim().isEmpty();
     }
 
-
-    private static boolean isValidContextForGlide(final Context context) {
+    public static boolean isValidContextForGlide(final Context context) {
         Activity activity = getActivityFromContext(context);
 
         if (activity == null) {
@@ -208,41 +224,31 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return !isActivityDestroyed(activity);
     }
 
-    private static Activity getActivityFromContext(final Context context) {
+    public static Activity getActivityFromContext(Context context) {
         if (context instanceof Activity) {
             return (Activity) context;
         }
-
-        if (context instanceof ThemedReactContext) {
-            final Context baseContext = ((ThemedReactContext) context).getBaseContext();
-            if (baseContext instanceof Activity) {
-                return (Activity) baseContext;
-            }
-
-            if (baseContext instanceof ContextWrapper) {
-                final ContextWrapper contextWrapper = (ContextWrapper) baseContext;
-                final Context wrapperBaseContext = contextWrapper.getBaseContext();
-                if (wrapperBaseContext instanceof Activity) {
-                    return (Activity) wrapperBaseContext;
-                }
-            }
+        if (context instanceof ContextWrapper) {
+            return getActivityFromContext(((ContextWrapper) context).getBaseContext());
         }
-
         return null;
     }
 
-    private static boolean isActivityDestroyed(Activity activity) {
+    public static ReactContext getReactContext(Context context) {
+        if (context instanceof ReactContext) {
+            return (ReactContext) context;
+        }
+        if (context instanceof ContextWrapper) {
+            return getReactContext(((ContextWrapper) context).getBaseContext());
+        }
+        return null;
+    }
+
+    public static boolean isActivityDestroyed(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return activity.isDestroyed() || activity.isFinishing();
         } else {
             return activity.isDestroyed() || activity.isFinishing() || activity.isChangingConfigurations();
-        }
-
-    }
-
-    private void clearView(FastImageViewWithUrl view) {
-        if (requestManager != null && view != null && view.getTag() != null && view.getTag() instanceof Request) {
-            requestManager.clear(view);
         }
     }
 }
