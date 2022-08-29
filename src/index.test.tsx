@@ -1,4 +1,4 @@
-import { StyleSheet, Platform } from 'react-native'
+import { StyleSheet, Platform, NativeModules } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
 import FastImage from './index'
@@ -8,6 +8,11 @@ const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 describe('FastImage (iOS)', () => {
     beforeAll(() => {
         Platform.OS = 'ios'
+        NativeModules.FastImageView = {
+            preload: Function.prototype,
+            clearMemoryCache: Function.prototype,
+            clearDiskCache: Function.prototype,
+        }
     })
 
     it('renders', () => {
@@ -55,6 +60,33 @@ describe('FastImage (iOS)', () => {
 
         expect(tree).toMatchSnapshot()
     })
+
+    it('renders defaultSource', () => {
+        const tree = renderer
+            .create(
+                <FastImage
+                    defaultSource={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    style={style.image}
+                />,
+            )
+            .toJSON()
+
+        expect(tree).toMatchSnapshot()
+    })
+
+    it('runs static functions', () => {
+        FastImage.preload([
+            {
+                uri: 'https://facebook.github.io/react/img/logo_og.png',
+                headers: {
+                    token: 'someToken',
+                },
+                priority: FastImage.priority.high,
+            },
+        ])
+        FastImage.clearMemoryCache()
+        FastImage.clearDiskCache()
+    })
 })
 
 describe('FastImage (Android)', () => {
@@ -68,7 +100,6 @@ describe('FastImage (Android)', () => {
                 <FastImage
                     defaultSource={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
                     style={style.image}
-                    fallback
                 />,
             )
             .toJSON()
@@ -85,7 +116,6 @@ describe('FastImage (Android)', () => {
                         uri: 'https://www.google.com/image_does_not_exist.png',
                     }}
                     style={style.image}
-                    fallback
                 />,
             )
             .toJSON()
@@ -95,13 +125,7 @@ describe('FastImage (Android)', () => {
 
     it('renders a non-existing defaultSource', () => {
         const tree = renderer
-            .create(
-                <FastImage
-                    defaultSource={12345}
-                    style={style.image}
-                    fallback
-                />,
-            )
+            .create(<FastImage defaultSource={12345} style={style.image} />)
             .toJSON()
 
         expect(tree).toMatchSnapshot()

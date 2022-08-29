@@ -16,10 +16,6 @@ import {
     ViewProps,
 } from 'react-native'
 
-const isAndroid = Platform.OS === 'android'
-
-const FastImageViewNativeModule = NativeModules.FastImageView
-
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 const resizeMode = {
@@ -140,7 +136,7 @@ const resolveDefaultSource = (
     if (!defaultSource) {
         return null
     }
-    if (isAndroid) {
+    if (Platform.OS === 'android') {
         // Android receives a URI string, and resolves into a Drawable using RN's methods.
         const resolved = Image.resolveAssetSource(
             defaultSource as ImageRequireSource,
@@ -250,11 +246,12 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+    NativeModules.FastImageView.preload(sources)
 
-FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+FastImage.clearMemoryCache = () =>
+    NativeModules.FastImageView.clearMemoryCache()
 
-FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
+FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {

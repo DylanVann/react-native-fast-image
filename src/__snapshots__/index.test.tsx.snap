@@ -14,10 +14,10 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
     ]
   }
 >
-  <Image
-    defaultSource={12345}
+  <FastImageView
+    defaultSource={null}
     resizeMode="cover"
-    source={Object {}}
+    source={null}
     style={
       Object {
         "bottom": 0,
@@ -45,14 +45,9 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
     ]
   }
 >
-  <Image
-    defaultSource={
-      Object {
-        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
-      }
-    }
+  <FastImageView
     resizeMode="cover"
-    source={Object {}}
+    source={null}
     style={
       Object {
         "bottom": 0,
@@ -80,12 +75,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
     ]
   }
 >
-  <Image
-    defaultSource={
-      Object {
-        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
-      }
-    }
+  <FastImageView
     resizeMode="cover"
     source={
       Object {
@@ -200,6 +190,41 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
         "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
+    style={
+      Object {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`FastImage (iOS) renders defaultSource 1`] = `
+<View
+  style={
+    Array [
+      Object {
+        "overflow": "hidden",
+      },
+      Object {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <FastImageView
+    defaultSource={
+      Object {
+        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+      }
+    }
+    resizeMode="cover"
+    source={null}
     style={
       Object {
         "bottom": 0,
