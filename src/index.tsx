@@ -10,11 +10,11 @@ import {
     ShadowStyleIOS,
     StyleProp,
     TransformsStyle,
+    ImageRequireSource,
+    Platform,
     AccessibilityProps,
     ViewProps,
 } from 'react-native'
-
-const FastImageViewNativeModule = NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -81,7 +81,8 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
-    source: Source | number
+    source?: Source | ImageRequireSource
+    defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
 
@@ -129,8 +130,32 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: React.ReactNode
 }
 
+const resolveDefaultSource = (
+    defaultSource?: ImageRequireSource,
+): string | number | null => {
+    if (!defaultSource) {
+        return null
+    }
+    if (Platform.OS === 'android') {
+        // Android receives a URI string, and resolves into a Drawable using RN's methods.
+        const resolved = Image.resolveAssetSource(
+            defaultSource as ImageRequireSource,
+        )
+
+        if (resolved) {
+            return resolved.uri
+        }
+
+        return null
+    }
+    // iOS or other number mapped assets
+    // In iOS the number is passed, and bridged automatically into a UIImage
+    return defaultSource
+}
+
 function FastImageBase({
     source,
+    defaultSource,
     tintColor,
     onLoadStart,
     onProgress,
@@ -156,6 +181,7 @@ function FastImageBase({
                     {...props}
                     style={StyleSheet.absoluteFill}
                     source={resolvedSource}
+                    defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
                     onLoad={onLoad as any}
@@ -169,6 +195,7 @@ function FastImageBase({
     }
 
     const resolvedSource = Image.resolveAssetSource(source as any)
+    const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -177,6 +204,7 @@ function FastImageBase({
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
+                defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}
@@ -218,11 +246,12 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    FastImageViewNativeModule.preload(sources)
+    NativeModules.FastImageView.preload(sources)
 
-FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+FastImage.clearMemoryCache = () =>
+    NativeModules.FastImageView.clearMemoryCache()
 
-FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
+FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {

@@ -2,6 +2,8 @@ package com.dylanvann.fastimage;
 
 import android.app.Activity;
 
+import androidx.annotation.NonNull;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.facebook.react.bridge.Promise;
@@ -20,6 +22,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         super(reactContext);
     }
 
+    @NonNull
     @Override
     public String getName() {
         return REACT_CLASS;
