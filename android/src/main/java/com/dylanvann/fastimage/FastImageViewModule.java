@@ -3,6 +3,7 @@ package com.dylanvann.fastimage;
 import android.app.Activity;
 
 import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
@@ -29,6 +30,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         super(reactContext);
     }
 
+    @NonNull
     @Override
     public String getName() {
         return REACT_CLASS;

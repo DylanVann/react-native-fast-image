@@ -17,6 +17,7 @@
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
 @property (nonatomic, assign) RCTResizeMode resizeMode;
 @property (nonatomic, strong) FFFastImageSource *source;
+@property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
 
 @end
