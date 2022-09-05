@@ -1,3 +1,10 @@
+## [8.6.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.0...v8.6.1) (2022-09-05)
+
+
+### Bug Fixes
+
+* Flow syntax error ([#924](https://github.com/DylanVann/react-native-fast-image/issues/924)) ([a10ab3f](https://github.com/DylanVann/react-native-fast-image/commit/a10ab3f87fb2b72d68e3ef1daab71eb8f8cca960))
+
 # [8.6.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.12...v8.6.0) (2022-08-29)
 
 
