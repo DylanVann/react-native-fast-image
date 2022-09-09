@@ -13,6 +13,7 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
+import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
@@ -84,6 +85,8 @@ class FastImageViewConverter {
         final Priority priority = FastImageViewConverter.getPriority(source);
         // Get cache control method.
         final FastImageCacheControl cacheControl = FastImageViewConverter.getCacheControl(source);
+        // Get pixel perfect.
+        final boolean pixelPerfect = FastImageViewConverter.getPixelPerfect(source);
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
         boolean onlyFromCache = false;
         boolean skipMemoryCache = false;
@@ -108,6 +111,13 @@ class FastImageViewConverter {
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 
+        if (pixelPerfect) {
+            options = options
+                    .downsample(DownsampleStrategy.NONE)
+                    .encodeQuality(100)
+                    .dontTransform();
+        }
+
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
@@ -131,6 +141,16 @@ class FastImageViewConverter {
 
     static ScaleType getScaleType(String propValue) {
         return getValue("resizeMode", "cover", FAST_IMAGE_RESIZE_MODE_MAP, propValue);
+    }
+
+    static boolean getPixelPerfect(ReadableMap source) {
+        Boolean propValue;
+        try {
+            propValue = source != null ? source.getBoolean("pixelPerfect") : null;
+        } catch (NoSuchKeyException e) {
+            propValue = null;
+        }
+        return propValue != null && propValue;
     }
 
     private static <T> T getValue(String propName, String defaultPropValue, Map<String, T> map, String propValue) {

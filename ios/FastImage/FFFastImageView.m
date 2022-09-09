@@ -187,6 +187,15 @@
                 break;
         }
 
+        // Set pixel perfect.
+        if (_source.pixelPerfect) {
+            super.layer.minificationFilter = kCAFilterNearest;
+            super.layer.magnificationFilter = kCAFilterNearest;
+        } else {
+            super.layer.minificationFilter = kCAFilterLinear;
+            super.layer.magnificationFilter = kCAFilterLinear;
+        }
+
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;

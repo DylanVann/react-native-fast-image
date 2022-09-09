@@ -156,4 +156,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
             requestManager.clear(this);
         }
     }
+
+    @Override
+    public void setImageDrawable(@Nullable Drawable drawable) {
+        super.setImageDrawable(drawable);
+        if (drawable != null) {
+            drawable.setFilterBitmap(!FastImageViewConverter.getPixelPerfect(mSource));
+        }
+    }
 }

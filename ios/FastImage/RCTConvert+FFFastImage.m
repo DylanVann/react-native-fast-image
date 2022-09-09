@@ -42,8 +42,10 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
             headers = nil;
         }
     }
+
+    BOOL pixelPerfect = [self BOOL:json[@"pixelPerfect"]];
     
-    FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl];
+    FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl pixelPerfect:pixelPerfect];
     
     return imageSource;
 }
