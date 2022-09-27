@@ -4,12 +4,16 @@
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
+#import <React/RCTLog.h>
+#import <React/RCTUIManager.h>
+#import <React/RCTViewManager.h>
+
 @implementation FFFastImageViewManager
 
 RCT_EXPORT_MODULE(FastImageView)
 
 - (FFFastImageView*)view {
-  return [[FFFastImageView alloc] init];
+  return [FFFastImageView new];
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
