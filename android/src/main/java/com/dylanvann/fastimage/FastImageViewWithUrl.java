@@ -30,6 +30,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
+    private Boolean shouldIgnoreUrlParams = false;
 
     public GlideUrl glideUrl;
 
@@ -40,6 +41,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setSource(@Nullable ReadableMap source) {
         mNeedsReload = true;
         mSource = source;
+    }
+
+    public void setShouldIgnoreUrlParams(@Nullable Boolean shouldIgnore) {
+        if (shouldIgnore){
+          this.shouldIgnoreUrlParams = shouldIgnore;
+        }
     }
 
     public void setDefaultSource(@Nullable Drawable source) {
@@ -77,7 +84,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         }
 
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
-        final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource, shouldIgnoreUrlParams);
 
         if (imageSource != null && imageSource.getUri().toString().length() == 0) {
             ThemedReactContext context = (ThemedReactContext) getContext();

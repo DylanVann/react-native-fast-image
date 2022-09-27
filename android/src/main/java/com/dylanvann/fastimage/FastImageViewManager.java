@@ -61,6 +61,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setSource(source);
     }
 
+    @ReactProp(name = "shouldIgnoreParams")
+    public void setShouldIgnoreUrlParams(FastImageViewWithUrl view, @Nullable Boolean shouldIgnoreParams) {
+        view.setShouldIgnoreUrlParams(shouldIgnoreParams);
+    }
+
     @ReactProp(name = "defaultSource")
     public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
         view.setDefaultSource(

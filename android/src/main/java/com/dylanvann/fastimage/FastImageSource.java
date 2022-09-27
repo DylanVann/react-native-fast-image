@@ -17,6 +17,7 @@ public class FastImageSource extends ImageSource {
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
     private static final String ANDROID_CONTENT_SCHEME = "content";
     private static final String LOCAL_FILE_SCHEME = "file";
+    private Boolean shouldIgnoreUrlParams = false;
     private final Headers mHeaders;
     private Uri mUri;
 
@@ -41,17 +42,21 @@ public class FastImageSource extends ImageSource {
     }
 
     public FastImageSource(Context context, String source) {
-        this(context, source, null);
+        this(context, source, null, null);
     }
 
-    public FastImageSource(Context context, String source, @Nullable Headers headers) {
-        this(context, source, 0.0d, 0.0d, headers);
+    public FastImageSource(Context context, String source, @Nullable Headers headers, @Nullable Boolean shouldIgnoreUrlParams) {
+        this(context, source, 0.0d, 0.0d, headers,shouldIgnoreUrlParams);
     }
 
-    public FastImageSource(Context context, String source, double width, double height, @Nullable Headers headers) {
+    public FastImageSource(Context context, String source, double width, double height, @Nullable Headers headers, @Nullable Boolean shouldIgnoreUrlParams) {
         super(context, source, width, height);
         mHeaders = headers == null ? Headers.DEFAULT : headers;
         mUri = super.getUri();
+
+        if (shouldIgnoreUrlParams) {
+            this.shouldIgnoreUrlParams = shouldIgnoreUrlParams;
+        }
 
         if (isResource() && TextUtils.isEmpty(mUri.toString())) {
             throw new Resources.NotFoundException("Local Resource Not Found. Resource: '" + getSource() + "'.");
@@ -107,6 +112,10 @@ public class FastImageSource extends ImageSource {
     }
 
     public GlideUrl getGlideUrl() {
-        return new GlideUrl(getUri().toString(), getHeaders());
+        if (this.shouldIgnoreUrlParams) {
+            return new GlideUrlIgnoreUrlParams(getUri().toString());
+        } else {
+            return new GlideUrl(getUri().toString(), getHeaders());
+        }
     }
 }
