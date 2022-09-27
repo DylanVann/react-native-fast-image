@@ -88,6 +88,17 @@ const YourImage = () => (
 )
 ```
 
+### Ignoring URL parameters in the cache key
+In cases where your image urls are not stable, for example when using CDN token authentication, you may whish to ignore url parameters when generating cache keys.
+
+In order to do so execute the following as early as possible in your apps lifecycle:
+
+```javascript
+import FastImage from 'react-native-fast-image';
+FastImage.setIgnoreUrlParams(true);
+```
+n.b: This setting is global
+
 ## Are you using Glide already using an AppGlideModule?
 
 -   [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
