@@ -253,8 +253,13 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources, shouldIgnoreParams)
+FastImage.preload = (sources: Source[]) => {
+    if (Platform.OS === "android") {
+        return NativeModules.FastImageView.preload(sources, shouldIgnoreParams)
+    } else {
+        return NativeModules.FastImageView.preload(sources)
+    }
+}
 
 FastImage.setIgnoreUrlParams = (shouldIgnore: boolean) => {
     shouldIgnoreParams = shouldIgnore;
