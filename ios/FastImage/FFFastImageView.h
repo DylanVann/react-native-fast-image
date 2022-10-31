@@ -5,8 +5,14 @@
 
 #import <React/RCTComponent.h>
 #import <React/RCTResizeMode.h>
+#import <React/RCTViewComponentView.h>
 
 #import "FFFastImageSource.h"
+
+#import <react/renderer/components/FastImageViewSpecs/ComponentDescriptors.h>
+#import <react/renderer/components/FastImageViewSpecs/EventEmitters.h>
+#import <react/renderer/components/FastImageViewSpecs/Props.h>
+#import <react/renderer/components/FastImageViewSpecs/RCTComponentViewHelpers.h>
 
 @interface FFFastImageView : SDAnimatedImageView
 
