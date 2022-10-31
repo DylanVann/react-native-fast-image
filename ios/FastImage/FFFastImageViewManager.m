@@ -49,4 +49,17 @@ RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTProm
     }];
 }
 
+RCT_EXPORT_METHOD(setIgnoreUrlParams:(BOOL)shouldIgnore)
+{
+  SDWebImageCacheKeyFilter *cacheKeyFilter = [SDWebImageCacheKeyFilter cacheKeyFilterWithBlock:^NSString * _Nullable(NSURL * _Nonnull url) {
+      NSURLComponents *urlComponents = [[NSURLComponents alloc] initWithURL:url resolvingAgainstBaseURL:NO];
+      if(shouldIgnore) {
+        urlComponents.query = nil;
+      }
+      return urlComponents.URL.absoluteString;
+  }];
+
+  SDWebImageManager.sharedManager.cacheKeyFilter = cacheKeyFilter;
+}
+
 @end

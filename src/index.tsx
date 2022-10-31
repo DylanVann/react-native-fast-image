@@ -80,6 +80,10 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     opacity?: number
 }
 
+interface FastImageInternalProps{
+  shouldIgnoreParams?: boolean;
+}
+
 export interface FastImageProps extends AccessibilityProps, ViewProps {
     source?: Source | ImageRequireSource
     defaultSource?: ImageRequireSource
@@ -169,7 +173,7 @@ function FastImageBase({
     resizeMode = 'cover',
     forwardedRef,
     ...props
-}: FastImageProps & { forwardedRef: React.Ref<any> }) {
+}: FastImageProps & FastImageInternalProps & { forwardedRef: React.Ref<any> }) {
     if (fallback) {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
@@ -219,9 +223,12 @@ function FastImageBase({
 
 const FastImageMemo = memo(FastImageBase)
 
+/* global variable to store the state for android */
+let shouldIgnoreParams = false;
+
 const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
     (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
+        <FastImageMemo forwardedRef={ref} {...props} shouldIgnoreParams={shouldIgnoreParams} />
     ),
 )
 
@@ -232,6 +239,7 @@ export interface FastImageStaticProperties {
     priority: typeof priority
     cacheControl: typeof cacheControl
     preload: (sources: Source[]) => void
+    setIgnoreUrlParams: (shouldIgnore: boolean) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
 }
@@ -245,8 +253,20 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources)
+FastImage.preload = (sources: Source[]) => {
+    if (Platform.OS === "android") {
+        return NativeModules.FastImageView.preload(sources, shouldIgnoreParams)
+    } else {
+        return NativeModules.FastImageView.preload(sources)
+    }
+}
+
+FastImage.setIgnoreUrlParams = (shouldIgnore: boolean) => {
+    shouldIgnoreParams = shouldIgnore;
+    if (Platform.OS==="ios") {
+        NativeModules.FastImageView.setIgnoreUrlParams(shouldIgnore);
+    }
+}
 
 FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()

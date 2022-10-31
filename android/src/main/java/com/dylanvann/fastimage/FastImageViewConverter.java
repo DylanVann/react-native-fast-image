@@ -52,10 +52,10 @@ class FastImageViewConverter {
 
     // Resolve the source uri to a file path that android understands.
     static @Nullable
-    FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
+    FastImageSource getImageSource(Context context, @Nullable ReadableMap source, Boolean shouldIgnoreUrlParams) {
         return source == null
                 ? null
-                : new FastImageSource(context, source.getString("uri"), getHeaders(source));
+                : new FastImageSource(context, source.getString("uri"), getHeaders(source), shouldIgnoreUrlParams);
     }
 
     static Headers getHeaders(ReadableMap source) {

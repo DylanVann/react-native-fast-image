@@ -29,7 +29,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void preload(final ReadableArray sources) {
+    public void preload(final ReadableArray sources, Boolean shouldIgnoreUrlParams) {
         final Activity activity = getCurrentActivity();
         if (activity == null) return;
         activity.runOnUiThread(new Runnable() {
@@ -37,7 +37,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 for (int i = 0; i < sources.size(); i++) {
                     final ReadableMap source = sources.getMap(i);
-                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
+                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source, shouldIgnoreUrlParams);
 
                     Glide
                             .with(activity.getApplicationContext())
