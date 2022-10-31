@@ -56,6 +56,7 @@ export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
+        target: number
     }
 }
 
