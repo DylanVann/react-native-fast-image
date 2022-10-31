@@ -1,3 +1,10 @@
+## [8.6.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.1...v8.6.2) (2022-10-31)
+
+
+### Bug Fixes
+
+* Add tintColor to Flow FastImageProps type ([#871](https://github.com/DylanVann/react-native-fast-image/issues/871)) ([37abecd](https://github.com/DylanVann/react-native-fast-image/commit/37abecd3ff5092a136542a24320f7790a6ed8ba0))
+
 ## [8.6.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.0...v8.6.1) (2022-09-05)
 
 
