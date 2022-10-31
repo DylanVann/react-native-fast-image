@@ -50,6 +50,12 @@ export type Source = {
     headers?: { [key: string]: string }
     priority?: Priority
     cache?: Cache
+
+    /**
+     * If true, images will not have any interpolation/filtering applied to them when scaled.
+     */
+    pixelPerfect?: boolean
+
 }
 
 export interface OnLoadEvent {
@@ -173,6 +179,7 @@ function FastImageBase({
     if (fallback) {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
+        delete cleanedSource.pixelPerfect
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
         return (
