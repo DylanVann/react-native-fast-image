@@ -1,3 +1,11 @@
+## [8.6.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.2...v8.6.3) (2022-10-31)
+
+
+### Bug Fixes
+
+* tintColor in fallback Image ([#882](https://github.com/DylanVann/react-native-fast-image/issues/882)) ([fbb6b68](https://github.com/DylanVann/react-native-fast-image/commit/fbb6b68a606f8f1fb9b570243d65bd410f21f63e))
+* use ColorValue type ([#939](https://github.com/DylanVann/react-native-fast-image/issues/939)) ([54376d8](https://github.com/DylanVann/react-native-fast-image/commit/54376d87f7e3826b884374a429c3879635dea246))
+
 ## [8.6.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.1...v8.6.2) (2022-10-31)
 
 
