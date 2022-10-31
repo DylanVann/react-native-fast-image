@@ -76,7 +76,6 @@ export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
     borderTopLeftRadius?: number
     borderTopRightRadius?: number
     overlayColor?: string
-    tintColor?: string
     opacity?: number
 }
 
@@ -179,7 +178,7 @@ function FastImageBase({
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
                     {...props}
-                    style={StyleSheet.absoluteFill}
+                    style={[StyleSheet.absoluteFill, { tintColor: tintColor as any }]}
                     source={resolvedSource}
                     defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
