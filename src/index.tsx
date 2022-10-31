@@ -14,6 +14,7 @@ import {
     Platform,
     AccessibilityProps,
     ViewProps,
+    ColorValue,
 } from 'react-native'
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
@@ -116,7 +117,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * If supplied, changes the color of all the non-transparent pixels to the given color.
      */
 
-    tintColor?: number | string
+    tintColor?: ColorValue
 
     /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
@@ -178,7 +179,7 @@ function FastImageBase({
             <View style={[styles.imageContainer, style]} ref={forwardedRef}>
                 <Image
                     {...props}
-                    style={[StyleSheet.absoluteFill, { tintColor: tintColor as any }]}
+                    style={[StyleSheet.absoluteFill, { tintColor }]}
                     source={resolvedSource}
                     defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
