@@ -87,6 +87,43 @@ const YourImage = () => (
     />
 )
 ```
+OR
+```jsx
+import FastImage from 'react-native-fast-image'
+
+const YourImage = () => (
+    <FastImage
+        style={{ width: 200, height: 200 }}
+        source={{ uri: "/path/to/your/image.png" }}
+        resizeMode={FastImage.resizeMode.contain}
+    />
+)
+```
+-   please add FireProvider by yourself like below
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path name="external_files" path="."/>
+</paths>
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    ...
+    <application
+        ...
+        <provider
+            android:name=".FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths"/>
+        </provider>
+    </application>
+</manifest>
+```
+
+
 
 ## Are you using Glide already using an AppGlideModule?
 
