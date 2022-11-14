@@ -222,7 +222,9 @@
                 if (error) {
                     weakSelf.hasErrored = YES;
                     if (weakSelf.onFastImageError) {
-                        weakSelf.onFastImageError(@{});
+                        weakSelf.onFastImageError(@{
+                            @"error": [NSString stringWithFormat: @"%@", error]
+                        });
                     }
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd(@{});
