@@ -88,6 +88,23 @@ const YourImage = () => (
 )
 ```
 
+## Expo
+Install the packages: 
+```
+expo install react-native-fast-image expo-dev-client
+```
+Build the native app:
+
+In the cloud (expo build does not support custom builds):
+```
+eas build -p all --profile development 
+```
+Or locally with
+```
+expo run:ios and expo run:android
+```
+To be clear, react-native-fast-image will not have been added to the Expo Go app that you download from the App Store or Google Play Store.
+
 ## Are you using Glide already using an AppGlideModule?
 
 -   [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
