@@ -3,7 +3,6 @@ import {
     View,
     Image,
     NativeModules,
-    requireNativeComponent,
     StyleSheet,
     FlexStyle,
     LayoutChangeEvent,
@@ -16,6 +15,7 @@ import {
     ViewProps,
     ColorValue,
 } from 'react-native'
+import FastImageView from './FastImageViewNativeComponent';
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -259,20 +259,5 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
 })
-
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
-    },
-)
 
 export default FastImage

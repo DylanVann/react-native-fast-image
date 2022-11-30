@@ -4,6 +4,7 @@ import type {
   Float,
   WithDefault,
   BubblingEventHandler,
+  Int32,
 } from 'react-native/Libraries/Types/CodegenTypes';
 
 type Headers = Readonly<{}>
@@ -23,8 +24,8 @@ type OnLoadEvent = Readonly<{
       }>
 
 type OnProgressEvent = Readonly<{
-        loaded: Float,
-        total: Float,
+        loaded: Int32,
+        total: Int32,
       }>
 
 interface NativeProps extends ViewProps {
@@ -34,7 +35,7 @@ interface NativeProps extends ViewProps {
   onFastImageLoadStart?: BubblingEventHandler<Readonly<{}>>,
   onFastImageProgress?: BubblingEventHandler<OnProgressEvent>,
   source?: FastImageSource,
-  defaultSource?: string,
+  defaultSource?: string | null,
   resizeMode?:  WithDefault<'contain' | 'cover' | 'stretch' | 'center', 'cover'>,
   tintColor?: ColorValue,
 }
