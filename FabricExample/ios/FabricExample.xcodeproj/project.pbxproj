@@ -86,6 +86,7 @@
 		13B07FAE1A68108700A75B9A /* FabricExample */ = {
 			isa = PBXGroup;
 			children = (
+				236DEBB129377AED000A670D /* Fonts */,
 				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
 				13B07FB01A68108700A75B9A /* AppDelegate.mm */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -94,6 +95,13 @@
 				13B07FB71A68108700A75B9A /* main.m */,
 			);
 			name = FabricExample;
+			sourceTree = "<group>";
+		};
+		236DEBB129377AED000A670D /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
