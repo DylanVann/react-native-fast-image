@@ -196,6 +196,7 @@ function FastImageBase({
 
     const resolvedSource = Image.resolveAssetSource(source as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
+    const resolvedDefaultSourceAsString = resolvedDefaultSource !== null ? String(resolvedDefaultSource) : null;
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -204,7 +205,7 @@ function FastImageBase({
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
-                defaultSource={resolvedDefaultSource}
+                defaultSource={resolvedDefaultSourceAsString}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}
