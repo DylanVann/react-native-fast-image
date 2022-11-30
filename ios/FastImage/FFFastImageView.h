@@ -20,5 +20,16 @@
 @property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
 
+@property(nonatomic, assign) BOOL hasSentOnLoadStart;
+@property(nonatomic, assign) BOOL hasCompleted;
+@property(nonatomic, assign) BOOL hasErrored;
+// Whether the latest change of props requires the image to be reloaded
+@property(nonatomic, assign) BOOL needsReload;
+
+@property(nonatomic, strong) NSDictionary* onLoadEvent;
+
+- (void)reloadImage;
+- (void)didSetProps:(NSArray<NSString*>*)changedProps;
+
 @end
 

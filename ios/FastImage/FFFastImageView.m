@@ -2,18 +2,6 @@
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
 
-@interface FFFastImageView ()
-
-@property(nonatomic, assign) BOOL hasSentOnLoadStart;
-@property(nonatomic, assign) BOOL hasCompleted;
-@property(nonatomic, assign) BOOL hasErrored;
-// Whether the latest change of props requires the image to be reloaded
-@property(nonatomic, assign) BOOL needsReload;
-
-@property(nonatomic, strong) NSDictionary* onLoadEvent;
-
-@end
-
 @implementation FFFastImageView
 
 - (id) init {
