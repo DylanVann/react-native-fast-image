@@ -78,5 +78,13 @@
     "peerDependencies": {
         "react": "^17 || ^18",
         "react-native": ">=0.60.0"
+    },
+    "codegenConfig": {
+      "name": "rnfastimage",
+      "type": "all",
+      "jsSrcsDir": "./src",
+      "android": {
+        "javaPackageName": "com.dylanvann.fastimage"
+      }
     }
 }
