@@ -15,6 +15,7 @@
     "@react-navigation/stack": "^6.3.7",
     "react": "18.1.0",
     "react-native": "0.70.6",
+    "react-native-fast-image": "link:../",
     "react-native-gesture-handler": "^2.8.0",
     "react-native-image-picker": "^4.10.1",
     "react-native-image-progress": "^1.2.0",
