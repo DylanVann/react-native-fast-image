@@ -4,6 +4,8 @@ require_relative '../node_modules/@react-native-community/cli-platform-ios/nativ
 platform :ios, '12.4'
 install! 'cocoapods', :deterministic_uuids => false
 
+ENV['RCT_NEW_ARCH_ENABLED'] = '1'
+
 target 'FabricExample' do
   config = use_native_modules!
 
