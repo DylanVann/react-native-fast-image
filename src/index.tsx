@@ -195,9 +195,12 @@ function FastImageBase({
         )
     }
 
+    // @ts-ignore non-typed property
+    const FABRIC_ENABLED = !!global?.nativeFabricUIManager;
+
     // this type differs based on the `source` prop passed
     const resolvedSource = Image.resolveAssetSource(source as any) as ImageResolvedAssetSource & {headers: any}
-    if (resolvedSource?.headers) {
+    if (resolvedSource?.headers && (FABRIC_ENABLED || Platform.OS === 'android')) {
         // we do it like that to trick codegen
         const headersArray: {name: string, value: string}[] = [];
         Object.keys(resolvedSource.headers).forEach(key => {
