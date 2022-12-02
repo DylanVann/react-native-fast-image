@@ -1,6 +1,7 @@
 #ifdef RCT_NEW_ARCH_ENABLED
 
 #import "FFFastImageViewComponentView.h"
+#import "RCTConvert+FFFastImage.h"
 #import "FFFastImageView.h"
 
 #import <React/RCTConversions.h>
@@ -35,46 +36,47 @@ using namespace facebook::react;
 
     const auto &newViewProps = *std::static_pointer_cast<FastImageViewProps const>(props);
 
-    NSString *sourceStr = [NSString stringWithCString:newViewProps.source.uri.c_str() encoding:[NSString defaultCStringEncoding]];
-     NSURL *imageUrl = [[NSURL alloc] initWithString:sourceStr];
-     FFFastImageSource *imageSource = fastImageView.source;
-     if(imageSource == NULL){
-         imageSource = [[FFFastImageSource alloc] init];
-     }
-    imageSource.url = imageUrl;
+    NSMutableDictionary *imageSourcePropsDict = [NSMutableDictionary new];
+    imageSourcePropsDict[@"uri"] = RCTNSStringFromStringNilIfEmpty(newViewProps.source.uri);
+    NSMutableDictionary* headers = [[NSMutableDictionary alloc] init];
+    for (auto & element : newViewProps.source.headers) {
+        [headers setValue:RCTNSStringFromString(element.value) forKey:RCTNSStringFromString(element.name)];
+    }
+    if (headers.count > 0) {
+        imageSourcePropsDict[@"headers"] = headers;
+    }
 
-    FFFCacheControl cacheControl;
+    NSString *cacheControl;
     switch (newViewProps.source.cache) {
         case FastImageViewCache::Web:
-            cacheControl = FFFCacheControl::FFFCacheControlWeb;
+            cacheControl = @"web";
             break;
         case FastImageViewCache::CacheOnly:
-            cacheControl = FFFCacheControl::FFFCacheControlCacheOnly;
+            cacheControl = @"cacheOnly";
             break;
         case FastImageViewCache::Immutable:
         default:
-            cacheControl = FFFCacheControl::FFFCacheControlImmutable;
+            cacheControl = @"immutable";
             break;
     }
-    imageSource.cacheControl = cacheControl;
+    imageSourcePropsDict[@"cache"] = cacheControl;
 
-    FFFPriority priority;
+    NSString *priority;
     switch (newViewProps.source.priority) {
         case FastImageViewPriority::Low:
-            priority = FFFPriority::FFFPriorityLow;
+            priority = @"low";
             break;
         case FastImageViewPriority::Normal:
-            priority = FFFPriority::FFFPriorityNormal;
+            priority = @"normal";
             break;
         case FastImageViewPriority::High:
         default:
-            priority = FFFPriority::FFFPriorityHigh;
+            priority = @"high";
             break;
     }
+    imageSourcePropsDict[@"priority"] = priority;
+    FFFastImageSource *imageSource = [RCTConvert FFFastImageSource:imageSourcePropsDict];
 
-   
-    imageSource.priority = priority;
-   
     [fastImageView setSource: imageSource];
 
 
@@ -99,6 +101,8 @@ using namespace facebook::react;
     fastImageView.imageColor = RCTUIColorFromSharedColor(newViewProps.tintColor);
 
     [super updateProps:props oldProps:oldProps];
+    // this method decides whether to reload the image so we call it after updating the props
+    // It does not care about the changed props, but 
     [fastImageView didSetProps:nil];
 }
 

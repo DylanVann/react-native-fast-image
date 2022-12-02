@@ -1,5 +1,8 @@
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
-import type { ViewProps, ColorValue } from 'react-native';
+import type { 
+    ViewProps, 
+    ColorValue,
+} from 'react-native';
 import type {
   Float,
   WithDefault,
@@ -7,7 +10,7 @@ import type {
   Int32,
 } from 'react-native/Libraries/Types/CodegenTypes';
 
-type Headers = Readonly<{}>
+type Headers = ReadonlyArray<Readonly<{name: string, value: string}>>;
 type Priority = WithDefault< 'low' | 'normal' | 'high', 'normal'>
 type CacheControl = WithDefault< 'immutable' | 'web' | 'cacheOnly', 'web'>
 
