@@ -22,19 +22,10 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 @property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
-
-@property(nonatomic, assign) BOOL hasSentOnLoadStart;
-@property(nonatomic, assign) BOOL hasCompleted;
-@property(nonatomic, assign) BOOL hasErrored;
-// Whether the latest change of props requires the image to be reloaded
-@property(nonatomic, assign) BOOL needsReload;
-
-@property(nonatomic, strong) NSDictionary* onLoadEvent;
 #ifdef RCT_NEW_ARCH_ENABLED
 @property(nonatomic) facebook::react::SharedViewEventEmitter eventEmitter;
 #endif
 
-- (void)reloadImage;
 - (void)didSetProps:(NSArray<NSString*>*)changedProps;
 
 @end
