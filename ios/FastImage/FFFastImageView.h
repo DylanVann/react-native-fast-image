@@ -7,6 +7,9 @@
 #import <React/RCTResizeMode.h>
 
 #import "FFFastImageSource.h"
+#ifdef RCT_NEW_ARCH_ENABLED
+#import <react/renderer/components/rnfastimage/EventEmitters.h>
+#endif
 
 @interface FFFastImageView : SDAnimatedImageView
 
@@ -27,6 +30,9 @@
 @property(nonatomic, assign) BOOL needsReload;
 
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
+#ifdef RCT_NEW_ARCH_ENABLED
+@property(nonatomic) facebook::react::SharedViewEventEmitter eventEmitter;
+#endif
 
 - (void)reloadImage;
 - (void)didSetProps:(NSArray<NSString*>*)changedProps;

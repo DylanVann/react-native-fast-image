@@ -34,6 +34,8 @@ using namespace facebook::react;
 
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps{
 
+    // TODO: not sure if it is the right place to do it.
+    [fastImageView setEventEmitter:_eventEmitter];
     const auto &newViewProps = *std::static_pointer_cast<FastImageViewProps const>(props);
 
     NSMutableDictionary *imageSourcePropsDict = [NSMutableDictionary new];
@@ -110,6 +112,7 @@ using namespace facebook::react;
 {
     [super prepareForRecycle];
     fastImageView = [[FFFastImageView alloc] initWithFrame:self.bounds];
+    self.contentView = fastImageView;
 }
 
 @end
