@@ -8,12 +8,14 @@
 #import <React/RCTFabricComponentsPlugins.h>
 #import <react/renderer/components/rnfastimage/ComponentDescriptors.h>
 #import <react/renderer/components/rnfastimage/Props.h>
+#import <react/renderer/components/rnfastimage/EventEmitters.h>
 
 using namespace facebook::react;
 
 @implementation FFFastImageViewComponentView
 {
     FFFastImageView *fastImageView;
+    BOOL _shouldPostponeUpdate;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -32,10 +34,8 @@ using namespace facebook::react;
     return self;
 }
 
-- (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps{
-
-    // TODO: not sure if it is the right place to do it.
-    [fastImageView setEventEmitter:_eventEmitter];
+- (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps
+{
     const auto &newViewProps = *std::static_pointer_cast<FastImageViewProps const>(props);
 
     NSMutableDictionary *imageSourcePropsDict = [NSMutableDictionary new];
@@ -103,9 +103,27 @@ using namespace facebook::react;
     fastImageView.imageColor = RCTUIColorFromSharedColor(newViewProps.tintColor);
 
     [super updateProps:props oldProps:oldProps];
-    // this method decides whether to reload the image so we call it after updating the props
-    // It does not care about the changed props, but 
-    [fastImageView didSetProps:nil];
+    // this method decides whether to reload the image based on changed props
+    // so we call it after updating the props. If the _eventEmitter is not present yet,
+    // we postpone the update till it is set in `updateEventEmitter` since we want to send
+    // events to JS.
+    if (!_eventEmitter) {
+        _shouldPostponeUpdate = YES;
+    } else {
+        _shouldPostponeUpdate = NO;
+        [fastImageView didSetProps:nil];
+    }
+}
+
+- (void)updateEventEmitter:(const facebook::react::EventEmitter::Shared &)eventEmitter
+{
+    [super updateEventEmitter:eventEmitter];
+    assert(std::dynamic_pointer_cast<FastImageViewEventEmitter const>(eventEmitter));
+    [fastImageView setEventEmitter:std::static_pointer_cast<FastImageViewEventEmitter const>(eventEmitter)];
+    if (_shouldPostponeUpdate) {
+        // we do the update here since it is the moment we can send events to JS
+        [fastImageView didSetProps:nil];
+    }
 }
 
 - (void)prepareForRecycle
