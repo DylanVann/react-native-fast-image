@@ -47,6 +47,7 @@ const AutoSizingImage = (props: AutoSizingImageProps) => {
         <FastImage
             {...props}
             onLoad={onLoad}
+            resizeMode={FastImage.resizeMode.contain}
             style={[{ width: props.width, height }, props.style]}
         />
     )

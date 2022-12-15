@@ -6,6 +6,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 
@@ -13,6 +14,8 @@ import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.target.SimpleTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -148,6 +151,25 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 builder.listener(new FastImageRequestListener(key));
 
             builder.into(this);
+
+            // Used specifically to handle the `onLoad` event for the image
+            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
+            int viewId = this.getId();
+            requestManager
+                .as(Size.class)
+                .load(imageSource == null ? null : imageSource.getSourceForLoad())
+                .into(new SimpleTarget<Size>() {
+                    @Override
+                    public void onResourceReady(@NonNull Size resource, @Nullable Transition<? super Size> transition) {
+                        WritableMap resourceData = new WritableNativeMap();
+                        resourceData.putInt("width", resource.width);
+                        resourceData.putInt("height", resource.height);
+                        eventEmitter.receiveEvent(viewId,
+                            "onFastImageLoad",
+                            resourceData
+                        );
+                    }
+                });
         }
     }
 

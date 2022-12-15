@@ -1,6 +1,8 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.graphics.BitmapFactory;
+
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
@@ -47,6 +49,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 .build();
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
         registry.replace(GlideUrl.class, InputStream.class, factory);
+
+        // Decoder + Transcoder pair for InputStream -> Size
+        registry.prepend(InputStream.class, BitmapFactory.Options.class, new BitmapSizeDecoder());
+        registry.register(BitmapFactory.Options.class, Size.class, new BitmapSizeTranscoder());
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
