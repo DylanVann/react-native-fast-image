@@ -17,6 +17,29 @@ import {
     ColorValue,
 } from 'react-native'
 
+export type EnterTransition =
+    | 'fadeIn'
+    | 'curlDown'
+    | 'curlUp'
+    | 'flipBottom'
+    | 'flipLeft'
+    | 'flipRight'
+    | 'flipTop'
+    | 'none'
+
+const enterTransition = {
+    fadeIn: 'fadeIn',
+    /** iOS only */
+    curlDown: 'curlDown',
+    /** iOS only */
+    curlUp: 'curlUp',
+    flipBottom: 'flipBottom',
+    flipLeft: 'flipLeft',
+    flipRight: 'flipRight',
+    flipTop: 'flipTop',
+    none: 'none',
+} as const
+
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 const resizeMode = {
@@ -85,6 +108,18 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
+
+    /**
+     * Transition durations.
+     * @default none
+     */
+    enterTransition?: EnterTransition
+
+    /**
+     * Enter transition duration in ms.
+     * @default 500ms
+     */
+    transitionDuration?: number
 
     onLoadStart?(): void
 
@@ -228,6 +263,7 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 FastImageComponent.displayName = 'FastImage'
 
 export interface FastImageStaticProperties {
+    enterTransition: typeof enterTransition
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
@@ -244,6 +280,8 @@ FastImage.resizeMode = resizeMode
 FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
+
+FastImage.enterTransition = enterTransition
 
 FastImage.preload = (sources: Source[]) =>
     NativeModules.FastImageView.preload(sources)
