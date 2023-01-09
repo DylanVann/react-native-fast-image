@@ -12,6 +12,7 @@ import { ResizeModeExample } from './ResizeModeExample'
 import { TintColorExample } from './TintColorExample'
 import { LocalImagesExample } from './LocalImagesExample'
 import { AutoSizeExample } from './AutoSizeExample'
+import { EnterTransitionExample } from './EnterTransitionExample'
 
 const FastImageExample = () => (
     <View style={styles.container}>
@@ -32,6 +33,7 @@ const FastImageExample = () => (
                 <PriorityExample />
                 <GifExample />
                 <BorderRadiusExample />
+                <EnterTransitionExample />
                 <ProgressExample />
                 <PreloadExample />
                 <ResizeModeExample />
