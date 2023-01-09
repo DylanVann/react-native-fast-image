@@ -50,6 +50,18 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
+    private static final Map<String, FastImageEnterTransition> FAST_IMAGE_ENTER_TRANSITION_MAP =
+            new HashMap<String, FastImageEnterTransition>() {{
+                put("none", FastImageEnterTransition.TRANSITION_NONE);
+                put("curlDown", FastImageEnterTransition.TRANSITION_NONE);
+                put("curlUp", FastImageEnterTransition.TRANSITION_NONE);
+                put("fadeIn", FastImageEnterTransition.FADE_IN);
+                put("flipBottom", FastImageEnterTransition.FLIP_BOTTOM);
+                put("flipLeft", FastImageEnterTransition.FLIP_LEFT);
+                put("flipRight", FastImageEnterTransition.FLIP_RIGHT);
+                put("flipTop", FastImageEnterTransition.FLIP_TOP);
+            }};
+
     // Resolve the source uri to a file path that android understands.
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
@@ -123,6 +135,10 @@ class FastImageViewConverter {
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {
         return getValueFromSource("cache", "immutable", FAST_IMAGE_CACHE_CONTROL_MAP, source);
+    }
+
+    static FastImageEnterTransition getEnterTransition(String propValue) {
+        return getValue("enterTransition", "none", FAST_IMAGE_ENTER_TRANSITION_MAP, propValue);
     }
 
     private static Priority getPriority(ReadableMap source) {

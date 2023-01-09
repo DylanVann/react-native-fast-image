@@ -1,5 +1,6 @@
 #import "RCTConvert+FFFastImage.h"
 #import "FFFastImageSource.h"
+#import "FFFastImageViewManager.h"
 
 @implementation RCTConvert (FFFastImage)
 
@@ -14,6 +15,17 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
                                        @"web": @(FFFCacheControlWeb),
                                        @"cacheOnly": @(FFFCacheControlCacheOnly),
                                        }), FFFCacheControlImmutable, integerValue);
+
+RCT_ENUM_CONVERTER(FFFEnterTransition, (@{
+                                          @"none": @(FFFTransitionNone),
+                                          @"fadeIn": @(FFFFadeIn),
+                                          @"curlDown": @(FFFCurlDown),
+                                          @"curlUp": @(FFFCurlUp),
+                                          @"flipBottom": @(FFFFlipBottom),
+                                          @"flipLeft": @(FFFFlipLeft),
+                                          @"flipRight": @(FFFFlipRight),
+                                          @"flipTop": @(FFFFlipTop), 
+                                          }), FFFTransitionNone, integerValue);
 
 + (FFFastImageSource *)FFFastImageSource:(id)json {
     if (!json) {

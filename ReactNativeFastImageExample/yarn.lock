@@ -5488,9 +5488,9 @@ react-native-codegen@^0.0.7:
     nullthrows "^1.1.1"
 
 react-native-fast-image@^8.1.3:
-  version "8.5.6"
-  resolved "https://registry.yarnpkg.com/react-native-fast-image/-/react-native-fast-image-8.5.6.tgz#3a4062b88bdaa9cf4fc7f7d8e1cd2ee9745d556f"
-  integrity sha512-fkgxxnuvhrrnJQGYDp7H6tk3B9+/V0MK6p6QSGRxlbuQrWqVKPCbikjCgbwmzLDptV0DFlGPtnTkSiRoSqMn0A==
+  version "8.6.3"
+  resolved "https://registry.yarnpkg.com/react-native-fast-image/-/react-native-fast-image-8.6.3.tgz#6edc3f9190092a909d636d93eecbcc54a8822255"
+  integrity sha512-Sdw4ESidXCXOmQ9EcYguNY2swyoWmx53kym2zRsvi+VeFCHEdkO+WG1DK+6W81juot40bbfLNhkc63QnWtesNg==
 
 react-native-gesture-handler@^1.6.0:
   version "1.10.3"
@@ -5556,10 +5556,10 @@ react-native-vector-icons@^8.1.0:
     prop-types "^15.7.2"
     yargs "^16.1.1"
 
-react-native@0.65.1:
-  version "0.65.1"
-  resolved "https://registry.yarnpkg.com/react-native/-/react-native-0.65.1.tgz#bd8cd313e0eb8ddcf08e61e3f8b54b7fc31a418c"
-  integrity sha512-0UOVSnlssweQZjuaUtzViCifE/4tXm8oRbxwakopc8GavPu9vLulde145GOw6QVYiOy4iL50f+2XXRdX9NmMeQ==
+react-native@0.65.3:
+  version "0.65.3"
+  resolved "https://registry.yarnpkg.com/react-native/-/react-native-0.65.3.tgz#c7bc211c04935b9cc049a280d69b1a401e198f02"
+  integrity sha512-5N93fQ5EJkp9Ys5r2NDCp1x9pmrxPpyQSwLQ3uVwu01XxVSnzCuu4/OzFKr/kgqf0UOxadKl9IWU78XqDIxARA==
   dependencies:
     "@jest/create-cache-key-function" "^27.0.1"
     "@react-native-community/cli" "^6.0.0"

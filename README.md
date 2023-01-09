@@ -62,6 +62,7 @@ and
 -   [x] Preload images.
 -   [x] GIF support.
 -   [x] Border radius.
+-   [x] Image enter transition.
 
 ## Usage
 
@@ -158,6 +159,24 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 -   `FastImage.resizeMode.center` - Do not scale the image, keep centered.
 
 ---
+
+### `enterTransition?: enum`
+
+-   `FastImage.enterTransition.none` **(Default)** - Transition animation is not used.
+-   `FastImage.enterTransition.fadeIn` - Opacity transition where image goes from transparancy to full opacity.
+-   `FastImage.enterTransition.curlDown` _(iOS only)_ - Page curl transition from left to right.
+-   `FastImage.enterTransition.curlUp` _(iOS only)_ - Page curl transition from top to bottom.
+-   `FastImage.enterTransition.flipTop` - Rotation transition on Y axis from -90° to 0°.
+-   `FastImage.enterTransition.flipBottom` - Rotation transition on Y axis from 90° to 0°.
+-   `FastImage.enterTransition.flipLeft` - Rotation transition on X axis from -90° to 0°.
+-   `FastImage.enterTransition.flipRight` - Rotation transition on X axis from 90° to 0°.
+
+---
+
+### `transitionDuration?: number`
+
+An `enterTransition` duratin in ms.
+Default duration **500ms**
 
 ### `onLoadStart?: () => void`
 
