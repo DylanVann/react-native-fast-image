@@ -129,6 +129,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ### `source.priority?: enum`
 
+Indicates the load order priority of an image. Images with `FastImage.priority.high` will load before images in a similar context with low or normal priority.
+
 -   `FastImage.priority.low` - Low Priority.
 -   `FastImage.priority.normal` **(Default)** - Normal Priority.
 -   `FastImage.priority.high` - High Priority.
