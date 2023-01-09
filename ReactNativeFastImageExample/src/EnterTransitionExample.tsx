@@ -9,7 +9,11 @@ export const EnterTransitionExample = () => {
     return (
         <View>
             <Section>
-                <FeatureText text="• Image enter transitions (curlDown, curlUp, fadeIn, flipBottom, flipLeft, flipRight, flipTop)." />
+                <FeatureText
+                    text={`• Image enter transitions (${
+                        Platform.OS === 'ios' ? 'curlDown, curlUp, ' : ''
+                    }fadeIn, flipBottom, flipLeft, flipRight, flipTop).`}
+                />
             </Section>
             {Platform.OS === 'ios' ? (
                 <SectionFlex style={styles.row}>
