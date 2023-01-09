@@ -71,6 +71,42 @@
     }
 }
 
+- (void) setTransitionDuration: (NSTimeInterval)transitionDuration {
+   self.sd_imageTransition.duration = transitionDuration;
+}
+
+- (void) setEnterTransition: (FFFEnterTransition)enterTransition {
+    switch (enterTransition) {
+        case FFFFadeIn:
+            self.sd_imageTransition = SDWebImageTransition.fadeTransition;
+            break;
+            
+        case FFFCurlUp:
+            self.sd_imageTransition = SDWebImageTransition.curlUpTransition;
+            break;
+        
+        case FFFCurlDown:
+            self.sd_imageTransition = SDWebImageTransition.curlDownTransition;
+            break;
+            
+        case FFFFlipBottom:
+            self.sd_imageTransition = SDWebImageTransition.flipFromBottomTransition;
+            break;
+            
+        case FFFFlipLeft:
+            self.sd_imageTransition = SDWebImageTransition.flipFromLeftTransition;
+            break;
+            
+        case FFFFlipRight:
+            self.sd_imageTransition = SDWebImageTransition.flipFromRightTransition;
+            break;
+            
+        case FFFFlipTop:
+            self.sd_imageTransition = SDWebImageTransition.flipFromTopTransition;
+            break;
+    }
+}
+
 - (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
     UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
     UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);

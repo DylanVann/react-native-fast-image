@@ -13,6 +13,8 @@ RCT_EXPORT_MODULE(FastImageView)
 }
 
 RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
+RCT_EXPORT_VIEW_PROPERTY(enterTransition, FFFEnterTransition)
+RCT_EXPORT_VIEW_PROPERTY(transitionDuration, NSTimeInterval)
 RCT_EXPORT_VIEW_PROPERTY(defaultSource, UIImage)
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadStart, RCTDirectEventBlock)
