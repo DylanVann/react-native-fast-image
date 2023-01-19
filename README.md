@@ -62,6 +62,7 @@ and
 -   [x] Preload images.
 -   [x] GIF support.
 -   [x] Border radius.
+-   [x] Get image path from cache.
 
 ## Usage
 
@@ -236,6 +237,14 @@ Clear all images from memory cache.
 ### `FastImage.clearDiskCache: () => Promise<void>`
 
 Clear all images from disk cache.
+
+### `FastImage.getCachePath: (source) => void`
+
+Get image path from cache by `source`
+
+```js
+FastImage.getCachePath({ uri: 'https://facebook.github.io/react/img/logo_og.png' })
+```
 
 ## Troubleshooting
 
