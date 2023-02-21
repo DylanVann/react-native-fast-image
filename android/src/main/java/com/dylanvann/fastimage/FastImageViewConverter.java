@@ -108,7 +108,7 @@ class FastImageViewConverter {
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 
-        if (imageSource.isResource()) {
+        if (imageSource != null && imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
             // across builds. The underlying glide implementation caches these resources. To make
