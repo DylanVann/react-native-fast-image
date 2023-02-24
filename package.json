@@ -34,7 +34,8 @@
         "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
         "lint": "dv-scripts lint",
         "release": "dv-scripts release",
-        "test": "dv-scripts test"
+        "test": "dv-scripts test",
+        "prepare": "yarn build"
     },
     "prettier": {
         "semi": false,
