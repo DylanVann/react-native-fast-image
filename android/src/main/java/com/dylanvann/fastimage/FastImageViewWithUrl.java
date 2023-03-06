@@ -12,6 +12,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -30,6 +31,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
+    private FastImageAnimation mAnimation = FastImageAnimation.NONE;
 
     public GlideUrl glideUrl;
 
@@ -45,6 +47,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setDefaultSource(@Nullable Drawable source) {
         mNeedsReload = true;
         mDefaultSource = source;
+    }
+
+    public void setAnimation(FastImageAnimation animation) {
+        mAnimation = animation;
     }
 
     private boolean isNullOrEmpty(final String url) {
@@ -143,6 +149,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
                                     .getOptions(context, imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
                                     .fallback(mDefaultSource)); // null will not be treated as error
+
+            if(mAnimation == FastImageAnimation.FADE) {
+                builder = builder.transition(DrawableTransitionOptions.withCrossFade());
+            }
 
             if (key != null)
                 builder.listener(new FastImageRequestListener(key));
