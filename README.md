@@ -159,6 +159,13 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
+### `animation?: enum`
+
+-   `FastImage.animation.none` **(Default)** - No animation in image loading.
+-   `FastImage.animation.fade` - Fade in animation in image loading.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.
