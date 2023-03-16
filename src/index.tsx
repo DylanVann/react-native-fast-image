@@ -116,8 +116,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * If supplied, changes the color of all the non-transparent pixels to the given color.
      */
-
     tintColor?: ColorValue
+
+    /**
+     * If supplied, the original size of the resource without any transformations will be displayed.
+     * 
+     * @platform android
+     */
+    disableTransformation?: boolean
 
     /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
