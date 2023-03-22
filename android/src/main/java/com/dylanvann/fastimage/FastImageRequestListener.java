@@ -22,13 +22,6 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         this.key = key;
     }
 
-    private static WritableMap mapFromResource(Drawable resource) {
-        WritableMap resourceData = new WritableNativeMap();
-        resourceData.putInt("width", resource.getIntrinsicWidth());
-        resourceData.putInt("height", resource.getIntrinsicHeight());
-        return resourceData;
-    }
-
     @Override
     public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
         FastImageOkHttpProgressGlideModule.forget(key);
@@ -53,7 +46,6 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         ThemedReactContext context = (ThemedReactContext) view.getContext();
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
         return false;
     }
