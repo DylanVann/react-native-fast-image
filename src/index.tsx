@@ -17,6 +17,8 @@ import {
     ColorValue,
 } from 'react-native'
 
+import preloaderManager from './PreloaderManager'
+
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 const resizeMode = {
@@ -130,6 +132,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: React.ReactNode
 }
 
+export interface PreloadProgressHandler {
+    (loaded: number, total: number): void
+}
+
+export interface PreloadCompletionHandler {
+    (loaded: number, skipped: number): void
+}
+
 const resolveDefaultSource = (
     defaultSource?: ImageRequireSource,
 ): string | number | null => {
@@ -231,7 +241,11 @@ export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
+    preload: (
+        sources: Source[],
+        onProgress?: PreloadProgressHandler,
+        onComplete?: PreloadCompletionHandler,
+    ) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
 }
@@ -244,6 +258,12 @@ FastImage.resizeMode = resizeMode
 FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
+
+FastImage.preload = (
+    sources: Source[],
+    onProgress?: PreloadProgressHandler,
+    onComplete?: PreloadCompletionHandler,
+) => preloaderManager.preload(sources, onProgress, onComplete)
 
 FastImage.preload = (sources: Source[]) =>
     NativeModules.FastImageView.preload(sources)
