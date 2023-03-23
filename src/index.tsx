@@ -265,9 +265,6 @@ FastImage.preload = (
     onComplete?: PreloadCompletionHandler,
 ) => preloaderManager.preload(sources, onProgress, onComplete)
 
-FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources)
-
 FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()
 
