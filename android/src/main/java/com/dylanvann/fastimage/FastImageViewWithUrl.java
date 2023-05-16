@@ -39,7 +39,6 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
-    private boolean mDisableTransformation = false;
 
     public GlideUrl glideUrl;
 
@@ -50,11 +49,6 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setSource(@Nullable ReadableMap source) {
         mNeedsReload = true;
         mSource = source;
-    }
-
-    public void disableTransformation(@Nullable boolean disableTransform) {
-        mNeedsReload = true;
-        mDisableTransformation = disableTransform;
     }
 
     public void setDefaultSource(@Nullable Drawable source) {
@@ -182,11 +176,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             .apply(FastImageViewConverter
                                     .getOptions(context, imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)); // null will not be treated as error
-
-            if (mDisableTransformation) {
-                builder = builder.dontTransform();
-            }
+                                    .fallback(mDefaultSource))
+                            .transform(new ResizeTransformation());
 
             if (key != null)
                 builder.listener(new FastImageRequestListener(key));

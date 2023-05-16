@@ -61,11 +61,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setSource(source);
     }
 
-    @ReactProp(name = "disableTransformation")
-    public void setDisableTransformation(FastImageViewWithUrl view, @Nullable Boolean disableTransformation) {
-        view.disableTransformation(disableTransformation);
-    }
-
     @ReactProp(name = "defaultSource")
     public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
         view.setDefaultSource(
