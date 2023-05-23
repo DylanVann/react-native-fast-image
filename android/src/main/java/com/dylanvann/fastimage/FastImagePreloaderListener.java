@@ -1,6 +1,5 @@
 package com.dylanvann.fastimage;
 
-import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.bumptech.glide.load.DataSource;
@@ -32,7 +31,7 @@ class FastImagePreloaderListener implements RequestListener<File> {
     }
 
     @Override
-    public boolean onLoadFailed(@Nullable GlideException e, Object o, Target<File> target, boolean b) {
+    public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object o, Target<File> target, boolean b) {
         // o is whatever was passed to .load() = GlideURL, String, etc.
         Log.d(LOG, "Preload failed: " + o.toString());
         this.failed++;
