@@ -25,8 +25,11 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import jp.wasabeef.glide.transformations.BlurTransformation;
+
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
+    private static final int BLUR_SAMPLING = 5;
 
     private static final Map<String, FastImageCacheControl> FAST_IMAGE_CACHE_CONTROL_MAP =
             new HashMap<String, FastImageCacheControl>() {{
@@ -100,6 +103,8 @@ class FastImageViewConverter {
                 // Use defaults.
                 break;
         }
+        // Get blur.
+        final int blurRadius = (int)FastImageViewConverter.getBlurRadius(source);
 
         RequestOptions options = new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
@@ -107,6 +112,10 @@ class FastImageViewConverter {
                 .skipMemoryCache(skipMemoryCache)
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
+
+        if (blurRadius > 0) {
+            options = options.transform(new BlurTransformation((int)blurRadius, BLUR_SAMPLING));
+        }
 
         if (imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
@@ -119,6 +128,14 @@ class FastImageViewConverter {
         }
 
         return options;
+    }
+
+    private static double getBlurRadius(ReadableMap source) {
+        if (source.hasKey("blurRadius")) {
+            return source.getDouble("blurRadius");
+        }
+
+        return 0;
     }
 
     private static FastImageCacheControl getCacheControl(ReadableMap source) {
