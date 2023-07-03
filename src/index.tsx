@@ -50,6 +50,7 @@ export type Source = {
     headers?: { [key: string]: string }
     priority?: Priority
     cache?: Cache
+    blurRadius?: number
 }
 
 export interface OnLoadEvent {
@@ -120,6 +121,13 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     tintColor?: ColorValue
 
     /**
+     * BlurRadius
+     *
+     * The blur radius of the blur filter added to the image.
+     */
+    blurRadius?: number
+
+    /**
      * A unique identifier for this element to be used in UI Automation testing scripts.
      */
     testID?: string
@@ -132,7 +140,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
 const resolveDefaultSource = (
     defaultSource?: ImageRequireSource,
-): string | number | null => {
+): string | number | null | undefined => {
     if (!defaultSource) {
         return null
     }
@@ -143,7 +151,7 @@ const resolveDefaultSource = (
         )
 
         if (resolved) {
-            return resolved.uri
+            return resolved?.uri
         }
 
         return null
@@ -157,6 +165,7 @@ function FastImageBase({
     source,
     defaultSource,
     tintColor,
+    blurRadius,
     onLoadStart,
     onProgress,
     onLoad,
@@ -188,6 +197,7 @@ function FastImageBase({
                     onError={onError}
                     onLoadEnd={onLoadEnd}
                     resizeMode={resizeMode}
+                    blurRadius={blurRadius}
                 />
                 {children}
             </View>
@@ -197,13 +207,18 @@ function FastImageBase({
     const resolvedSource = Image.resolveAssetSource(source as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
+    const resultSource = Platform.OS === 'android'
+        ? Object.assign({}, resolvedSource, { blurRadius: blurRadius })
+        : resolvedSource
+
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
             <FastImageView
                 {...props}
                 tintColor={tintColor}
+                blurRadius={blurRadius}
                 style={StyleSheet.absoluteFill}
-                source={resolvedSource}
+                source={resultSource}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
@@ -228,6 +243,7 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 FastImageComponent.displayName = 'FastImage'
 
 export interface FastImageStaticProperties {
+    blurRadius: number,
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
