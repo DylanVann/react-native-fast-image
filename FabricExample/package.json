@@ -1,0 +1,49 @@
+{
+  "name": "fabricexample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@react-navigation/bottom-tabs": "^6.4.3",
+    "@react-navigation/native": "^6.0.16",
+    "@react-navigation/stack": "^6.3.7",
+    "react": "18.2.0",
+    "react-native": "0.72.0",
+    "react-native-fast-image": "link:../",
+    "react-native-gesture-handler": "^2.8.0",
+    "react-native-image-picker": "^4.10.1",
+    "react-native-image-progress": "^1.2.0",
+    "react-native-reanimated": "^3.0.0-rc.7",
+    "react-native-safe-area-context": "^4.4.1",
+    "react-native-screens": "^3.18.2",
+    "react-native-status-bar-height": "^2.6.0",
+    "react-native-vector-icons": "^9.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@babel/runtime": "^7.20.0",
+    "@react-native/eslint-config": "^0.72.2",
+    "@react-native/metro-config": "^0.72.6",
+    "@tsconfig/react-native": "^3.0.0",
+    "@types/metro-config": "^0.76.3",
+    "@types/react": "^18.0.24",
+    "@types/react-test-renderer": "^18.0.0",
+    "babel-jest": "^29.2.1",
+    "eslint": "^8.19.0",
+    "jest": "^29.2.1",
+    "metro-react-native-babel-preset": "0.76.5",
+    "prettier": "^2.4.1",
+    "react-test-renderer": "18.2.0",
+    "typescript": "4.8.4"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
