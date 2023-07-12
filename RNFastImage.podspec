@@ -26,13 +26,7 @@ Pod::Spec.new do |s|
     s.compiler_flags  = folly_compiler_flags + ' -DRCT_NEW_ARCH_ENABLED'
     s.source_files    = 'ios/**/*.{h,m,mm,cpp}'
 
-    s.dependency "React"
-    s.dependency "React-RCTFabric"
-    s.dependency "React-Codegen"
-    s.dependency "RCT-Folly"
-    s.dependency "RCTRequired"
-    s.dependency "RCTTypeSafety"
-    s.dependency "ReactCommon/turbomodule/core"
+    install_modules_dependencies(s)
   else
     s.platforms     = { :ios => "8.0", :tvos => "9.0" }
     s.source_files  = "ios/**/*.{h,mm}"
