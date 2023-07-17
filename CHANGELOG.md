@@ -1,3 +1,44 @@
+## [8.6.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.2...v8.6.3) (2022-10-31)
+
+
+### Bug Fixes
+
+* tintColor in fallback Image ([#882](https://github.com/DylanVann/react-native-fast-image/issues/882)) ([fbb6b68](https://github.com/DylanVann/react-native-fast-image/commit/fbb6b68a606f8f1fb9b570243d65bd410f21f63e))
+* use ColorValue type ([#939](https://github.com/DylanVann/react-native-fast-image/issues/939)) ([54376d8](https://github.com/DylanVann/react-native-fast-image/commit/54376d87f7e3826b884374a429c3879635dea246))
+
+## [8.6.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.1...v8.6.2) (2022-10-31)
+
+
+### Bug Fixes
+
+* Add tintColor to Flow FastImageProps type ([#871](https://github.com/DylanVann/react-native-fast-image/issues/871)) ([37abecd](https://github.com/DylanVann/react-native-fast-image/commit/37abecd3ff5092a136542a24320f7790a6ed8ba0))
+
+## [8.6.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.0...v8.6.1) (2022-09-05)
+
+
+### Bug Fixes
+
+* Flow syntax error ([#924](https://github.com/DylanVann/react-native-fast-image/issues/924)) ([a10ab3f](https://github.com/DylanVann/react-native-fast-image/commit/a10ab3f87fb2b72d68e3ef1daab71eb8f8cca960))
+
+# [8.6.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.12...v8.6.0) (2022-08-29)
+
+
+### Features
+
+* support defaultSource on iOS and Android ([#921](https://github.com/DylanVann/react-native-fast-image/issues/921)) ([ec7c453](https://github.com/DylanVann/react-native-fast-image/commit/ec7c4535139ae759b5ce5531aadb7612a5a744d0))
+
+## [8.5.12](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.11...v8.5.12) (2022-08-28)
+
+
+### chore
+
+* Update React peerDependency to "^17 || ^18" ([6255fc4](https://github.com/DylanVann/react-native-fast-image/commit/6255fc4f9deea0b83476ddb0c5389d0076ab6cfc))
+
+
+### BREAKING CHANGES
+
+* This package will no longer support React 16.
+
 ## [8.5.11](https://github.com/DylanVann/react-native-fast-image/compare/v8.5.10...v8.5.11) (2021-09-27)
 
 
