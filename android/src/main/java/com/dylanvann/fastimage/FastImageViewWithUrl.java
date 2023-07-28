@@ -12,6 +12,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -147,9 +148,21 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (key != null)
                 builder.listener(new FastImageRequestListener(key));
 
+            // patch for Applicaster custom properties
+            if (mSource.hasKey("maxWidth") && mSource.hasKey("maxHeight")) {
+                int maxWidth = mSource.getInt("maxWidth");
+                int maxHeight = mSource.getInt("maxHeight");
+                if (maxWidth > 0 && maxHeight > 0) {
+                    // todo: maybe adjust values since it will pick size between 1/2 max and max,
+                    // that can be visible on border cases
+                    builder.downsample(DownsampleStrategy.AT_MOST).override(maxWidth, maxHeight);
+                }
+            }
+
             builder.into(this);
         }
     }
+
 
     public void clearView(@Nullable RequestManager requestManager) {
         if (requestManager != null && getTag() != null && getTag() instanceof Request) {
