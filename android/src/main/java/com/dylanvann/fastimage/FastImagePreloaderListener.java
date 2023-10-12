@@ -1,6 +1,6 @@
 package com.dylanvann.fastimage;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.util.Log;
 
 import com.bumptech.glide.load.DataSource;
