@@ -203,9 +203,24 @@
 }
 
 - (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
+    UIImage *placeholderImage;
+    if(_source.cacheControl == FFFCacheControlCacheOnly){
+        if (isCached) {
+            placeholderImage = nil;
+        }
+        else{
+            placeholderImage = [UIImage imageNamed:@"defaultArticleImage"]; (*Add a placeholder image named "defaultArticleImage.png" in 1x and 2x size in ImageAssests from xcode where splash and icons are added *)
+        }
+    }
+    else{
+        placeholderImage = nil;
+    }
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
-    [self sd_setImageWithURL: _source.url
-            placeholderImage: _defaultSource
+   
+    [self sd_setImageWithURL:_source.url
+        placeholderImage: placeholderImage
+(*     [self sd_setImageWithURL: _source.url
+            placeholderImage: _defaultSource *)
                      options: options
                      context: context
                     progress: ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
