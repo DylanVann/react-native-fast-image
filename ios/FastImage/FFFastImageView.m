@@ -32,21 +32,21 @@
 
 - (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (self.hasCompleted) {
+    if (self.hasCompleted && _onFastImageLoadEnd) {
         _onFastImageLoadEnd(@{});
     }
 }
 
 - (void) setOnFastImageLoad: (RCTDirectEventBlock)onFastImageLoad {
     _onFastImageLoad = onFastImageLoad;
-    if (self.hasCompleted) {
+    if (self.hasCompleted && _onFastImageLoad) {
         _onFastImageLoad(self.onLoadEvent);
     }
 }
 
 - (void) setOnFastImageError: (RCTDirectEventBlock)onFastImageError {
     _onFastImageError = onFastImageError;
-    if (self.hasErrored) {
+    if (self.hasErrored && _onFastImageError) {
         _onFastImageError(@{});
     }
 }
@@ -54,7 +54,9 @@
 - (void) setOnFastImageLoadStart: (RCTDirectEventBlock)onFastImageLoadStart {
     if (_source && !self.hasSentOnLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
-        onFastImageLoadStart(@{});
+        if (onFastImageLoadStart) {
++            onFastImageLoadStart(@{});
++        }
         self.hasSentOnLoadStart = YES;
     } else {
         _onFastImageLoadStart = onFastImageLoadStart;
