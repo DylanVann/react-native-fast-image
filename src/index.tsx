@@ -116,6 +116,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * If supplied, changes the color of all the non-transparent pixels to the given color.
      */
+
     tintColor?: ColorValue
 
     /**
