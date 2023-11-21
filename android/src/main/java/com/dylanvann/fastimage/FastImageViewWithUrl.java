@@ -133,34 +133,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = this.getId();
 
-            // Request the URL from cache to see if it exists there and if so pass the cache
-            // path as an argument in the onLoadStart event
-            requestManager
-                    .asFile()
-                    .load(glideUrl)
-                    .onlyRetrieveFromCache(true)
-                    .listener(new RequestListener<File>() {
-                        @Override
-                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
-                            WritableNativeMap result = new WritableNativeMap();
-                            result.putNull("cachePath");
-                            eventEmitter.receiveEvent(viewId,
-                                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                                    result);
-                            return false;
-                        }
-
-                        @Override
-                        public boolean onResourceReady(File resource, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
-                            WritableNativeMap result = new WritableNativeMap();
-                            result.putString("cachePath", resource.getAbsolutePath());
-                            eventEmitter.receiveEvent(viewId,
-                                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                                    result);
-                            return false;
-                        }
-                    })
-                    .submit();
+            eventEmitter.receiveEvent(viewId,
+                     FastImageViewManager.REACT_ON_LOAD_START_EVENT,
+                     new WritableNativeMap());
         }
 
         if (requestManager != null) {
@@ -183,25 +158,6 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 builder.listener(new FastImageRequestListener(key));
 
             builder.into(this);
-
-            // Used specifically to handle the `onLoad` event for the image
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = this.getId();
-            requestManager
-                .as(Size.class)
-                .load(imageSource == null ? null : imageSource.getSourceForLoad())
-                .into(new SimpleTarget<Size>() {
-                    @Override
-                    public void onResourceReady(@NonNull Size resource, @Nullable Transition<? super Size> transition) {
-                        WritableMap resourceData = new WritableNativeMap();
-                        resourceData.putInt("width", resource.width);
-                        resourceData.putInt("height", resource.height);
-                        eventEmitter.receiveEvent(viewId,
-                            "onFastImageLoad",
-                            resourceData
-                        );
-                    }
-                });
         }
     }
 

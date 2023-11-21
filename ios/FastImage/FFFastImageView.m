@@ -187,18 +187,7 @@
         }
 
         if (self.onFastImageLoadStart) {
-          NSString* cachePath = [[SDImageCache sharedImageCache] cachePathForKey:url];
-          BOOL isCached = [[SDImageCache sharedImageCache] diskImageDataExistsWithKey:url];
-          if (isCached) {
-            self.onFastImageLoadStart(@{
-              @"cachePath": cachePath
-            });
-          }
-          else {
-            self.onFastImageLoadStart(@{
-              @"cachePath": [NSNull null]
-            });
-          }
+            self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
         } else {
             self.hasSentOnLoadStart = NO;
