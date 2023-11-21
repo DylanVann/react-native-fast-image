@@ -2,7 +2,6 @@ package com.dylanvann.fastimage;
 
 import android.content.Context;
 import androidx.annotation.NonNull;
-import android.graphics.BitmapFactory;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Registry;
