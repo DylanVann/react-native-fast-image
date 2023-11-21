@@ -126,8 +126,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
             int viewId = this.getId();
 
             eventEmitter.receiveEvent(viewId,
-                     FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                     new WritableNativeMap());
+                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
+                    new WritableNativeMap());
         }
 
         if (requestManager != null) {
