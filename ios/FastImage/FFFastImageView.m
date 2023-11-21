@@ -54,6 +54,7 @@
 - (void) setOnFastImageLoadStart: (RCTDirectEventBlock)onFastImageLoadStart {
     if (_source && !self.hasSentOnLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
+        self.onFastImageLoadStart(@{});
         self.hasSentOnLoadStart = YES;
     } else {
         _onFastImageLoadStart = onFastImageLoadStart;
@@ -187,7 +188,6 @@
         }
 
         if (self.onFastImageLoadStart) {
-            self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
         } else {
             self.hasSentOnLoadStart = NO;
