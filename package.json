@@ -19,14 +19,15 @@
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
-    "main": "src/index.tsx",
+    "main": "dist/index.cjs.js",
+    "module": "dist/index.js",
     "typings": "dist/index.d.ts",
     "files": [
         "android",
         "!android/build",
         "ios",
         "!ios/build",
-        "src/index.tsx",
+        "dist",
         "RNFastImage.podspec"
     ],
     "scripts": {
