@@ -266,7 +266,7 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 -   FastImage - MIT © [DylanVann](https://github.com/DylanVann)
 -   SDWebImage - `MIT`
--   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/license) file for details.
+-   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
 
 [build-badge]: https://github.com/dylanvann/react-native-fast-image/workflows/CI/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions?query=workflow%3ACI
