@@ -1,6 +1,6 @@
 {
     "name": "@team-alocados/react-native-fast-image",
-    "version": "8.6.3",
+    "version": "0.1.0",
     "description": "React Native FastImage Component.",
     "keywords": [
         "cache",
