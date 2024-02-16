@@ -1,0 +1,18 @@
+name: Feature Report
+description: 'feature 브랜치를 열기 위해 필요한 이슈 템플릿입니다.'
+labels: ['Feat']
+body:
+    - type: textarea
+      id: description
+      attributes:
+          label: 기능 설명
+          description: 새로운 또는 변경된 기능에 대해서 추가적으로 설명해주세요.
+          placeholder: 설명 작성
+      validations:
+          required: true
+    - type: textarea
+      id: restrictions
+      attributes:
+          label: 유의/제약사항
+          description: 해당 기능 구현에 있어서 유의할 점 또는 제약사항에 대해서 작성해주세요.
+          placeholder: 유의/제약사항 작성 (Optional)
