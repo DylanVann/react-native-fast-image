@@ -1,5 +1,5 @@
 {
-    "name": "react-native-fast-image",
+    "name": "@team-alocados/react-native-fast-image",
     "version": "8.6.3",
     "description": "React Native FastImage Component.",
     "keywords": [
@@ -10,6 +10,11 @@
         "priority"
     ],
     "license": "(MIT AND Apache-2.0)",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/team-alocados/nepto-design-system-monorepo.git"
+    },
+    "author": "Alocados Nepto Team <develop@alocados.io>",
     "main": "dist/index.cjs.js",
     "module": "dist/index.js",
     "typings": "dist/index.d.ts",
