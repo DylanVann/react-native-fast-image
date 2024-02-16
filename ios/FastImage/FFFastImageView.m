@@ -73,12 +73,17 @@
 
 - (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
     UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
-    UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
-    [color set];
-    [newImage drawInRect: CGRectMake(0, 0, image.size.width, newImage.size.height)];
-    newImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    return newImage;
+
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format];
+
+    UIImage *resultImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
+        [color set];
+        [newImage drawInRect:rect];
+    }];
+
+    return resultImage;
 }
 
 - (void) setImage: (UIImage*)image {
