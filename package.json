@@ -24,9 +24,7 @@
     "typings": "dist/index.d.ts",
     "files": [
         "android",
-        "!android/build",
         "ios",
-        "!ios/build",
         "dist",
         "RNFastImage.podspec"
     ],
