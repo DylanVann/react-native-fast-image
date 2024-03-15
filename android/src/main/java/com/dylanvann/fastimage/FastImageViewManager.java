@@ -14,14 +14,19 @@ import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.dylanvann.fastimage.events.FastImageProgressEvent;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.UIManagerHelper;
 import com.facebook.react.uimanager.annotations.ReactProp;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.uimanager.common.ViewUtil;
+import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.List;
@@ -117,13 +122,17 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
             for (FastImageViewWithUrl view : viewsForKey) {
-                WritableMap event = new WritableNativeMap();
-                event.putInt("loaded", (int) bytesRead);
-                event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = (ThemedReactContext) view.getContext();
-                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-                int viewId = view.getId();
-                eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
+                ReactContext context = getReactApplicationContext();
+                EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, view.getId());
+                FastImageProgressEvent event = new FastImageProgressEvent(
+                        ViewUtil.NO_SURFACE_ID,
+                        view.getId(),
+                        (int) bytesRead,
+                        (int) expectedLength);
+
+                if (dispatcher != null) {
+                    dispatcher.dispatchEvent(event);
+                }
             }
         }
     }

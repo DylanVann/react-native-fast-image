@@ -13,11 +13,12 @@ import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.dylanvann.fastimage.events.FastImageErrorEvent;
+import com.dylanvann.fastimage.events.FastImageLoadStartEvent;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.uimanager.UIManagerHelper;
+import com.facebook.react.uimanager.events.EventDispatcher;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,11 +82,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         if (imageSource != null && imageSource.getUri().toString().length() == 0) {
             ThemedReactContext context = (ThemedReactContext) getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = getId();
-            WritableMap event = new WritableNativeMap();
-            event.putString("message", "Invalid source prop:" + mSource);
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+
+            EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, getId());
+            int surfaceId = UIManagerHelper.getSurfaceId(this);
+            FastImageErrorEvent event = new FastImageErrorEvent(surfaceId, getId(), mSource);
+
+            if (dispatcher != null) {
+                dispatcher.dispatchEvent(event);
+            }
 
             // Cancel existing requests.
             clearView(requestManager);
@@ -120,13 +124,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         ThemedReactContext context = (ThemedReactContext) getContext();
         if (imageSource != null) {
-            // This is an orphan even without a load/loadend when only loading a placeholder
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-            int viewId = this.getId();
+            // This is an orphan event without a load/loadend when only loading a placeholder
+            EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, getId());
+            int surfaceId = UIManagerHelper.getSurfaceId(this);
+            FastImageLoadStartEvent event = new FastImageLoadStartEvent(surfaceId, getId());
 
-            eventEmitter.receiveEvent(viewId,
-                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                    new WritableNativeMap());
+            if (dispatcher != null) {
+                dispatcher.dispatchEvent(event);
+            }
         }
 
         if (requestManager != null) {
