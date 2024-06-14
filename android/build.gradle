@@ -65,4 +65,6 @@ dependencies {
     implementation "com.github.bumptech.glide:glide:${glideVersion}"
     implementation "com.github.bumptech.glide:okhttp3-integration:${glideVersion}"
     annotationProcessor "com.github.bumptech.glide:compiler:${glideVersion}"
+
+    implementation 'jp.wasabeef:glide-transformations:4.3.0'
 }

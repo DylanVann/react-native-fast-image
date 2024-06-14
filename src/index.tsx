@@ -50,6 +50,7 @@ export type Source = {
     headers?: { [key: string]: string }
     priority?: Priority
     cache?: Cache
+    blurRadius?: number,
 }
 
 export interface OnLoadEvent {
@@ -128,6 +129,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * Render children within the image.
      */
     children?: React.ReactNode
+
+    /**
+     * The blur radius of the blur filter added to the image.
+     */
+    blurRadius?: number
 }
 
 const resolveDefaultSource = (
@@ -157,6 +163,7 @@ function FastImageBase({
     source,
     defaultSource,
     tintColor,
+    blurRadius,
     onLoadStart,
     onProgress,
     onLoad,
@@ -188,14 +195,21 @@ function FastImageBase({
                     onError={onError}
                     onLoadEnd={onLoadEnd}
                     resizeMode={resizeMode}
+                    blurRadius={blurRadius}
                 />
                 {children}
             </View>
         )
     }
 
-    const resolvedSource = Image.resolveAssetSource(source as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
+    const adjustedRadius = blurRadius ? blurRadius * (Platform.OS === 'ios' ? 3 : 0.75) : 0
+
+    let resolvedSource = Image.resolveAssetSource(source as any)
+    if (Platform.OS === 'android') {
+        resolvedSource = Object.assign({}, resolvedSource, { blurRadius: adjustedRadius });
+    }
+
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -211,6 +225,7 @@ function FastImageBase({
                 onFastImageError={onError}
                 onFastImageLoadEnd={onLoadEnd}
                 resizeMode={resizeMode}
+                blurRadius={adjustedRadius}
             />
             {children}
         </View>
@@ -231,6 +246,7 @@ export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
+    blurRadius: number,
     preload: (sources: Source[]) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>

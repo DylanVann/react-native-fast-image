@@ -63,6 +63,7 @@ export type FastImageProps = $ReadOnly<{|
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
     testID?: ?string,
+    blurRadius?: number,
 |}>
 
 declare export default class FastImage extends React$Component<FastImageProps> {

@@ -9,7 +9,6 @@
 @property(nonatomic, assign) BOOL hasErrored;
 // Whether the latest change of props requires the image to be reloaded
 @property(nonatomic, assign) BOOL needsReload;
-
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
 
 @end
@@ -59,6 +58,13 @@
     } else {
         _onFastImageLoadStart = onFastImageLoadStart;
         self.hasSentOnLoadStart = NO;
+    }
+}
+
+- (void) setBlurRadius: (CGFloat)blurRadius {
+    if (_blurRadius != blurRadius) {
+        _blurRadius = blurRadius;
+        _needsReload = YES;
     }
 }
 
@@ -160,7 +166,12 @@
             }
             return [mutableRequest copy];
         }];
-        SDWebImageContext* context = @{SDWebImageContextDownloadRequestModifier: requestModifier};
+
+        SDWebImageMutableContext* context = [NSMutableDictionary dictionaryWithDictionary:@{SDWebImageContextDownloadRequestModifier : requestModifier}];
+        
+        if (_blurRadius > 0) {
+            [context setValue:[SDImageBlurTransformer transformerWithRadius:_blurRadius] forKey:SDWebImageContextImageTransformer];
+        }
 
         // Set priority.
         SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
