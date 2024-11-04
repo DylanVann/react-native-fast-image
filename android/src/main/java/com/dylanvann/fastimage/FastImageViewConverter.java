@@ -50,6 +50,12 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
+    private static final Map<String, FastImageAnimation> FAST_IMAGE_ANIMATION_MAP =
+            new HashMap<String, FastImageAnimation>() {{
+                put("fade", FastImageAnimation.FADE);
+                put("none", FastImageAnimation.NONE);
+            }};
+
     // Resolve the source uri to a file path that android understands.
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
@@ -131,6 +137,10 @@ class FastImageViewConverter {
 
     static ScaleType getScaleType(String propValue) {
         return getValue("resizeMode", "cover", FAST_IMAGE_RESIZE_MODE_MAP, propValue);
+    }
+
+    static FastImageAnimation getAnimation(String propValue) {
+        return getValue("animation", "none", FAST_IMAGE_ANIMATION_MAP, propValue);
     }
 
     private static <T> T getValue(String propName, String defaultPropValue, Map<String, T> map, String propValue) {

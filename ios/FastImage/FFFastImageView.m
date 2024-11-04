@@ -30,6 +30,14 @@
     }
 }
 
+- (void)setAnimation:(NSString*)animation {
+    if(_animation != animation) {
+        _animation = animation;
+        if([_animation isEqual: @"fade"])
+            self.sd_imageTransition = SDWebImageTransition.fadeTransition;
+    }
+}
+
 - (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
     if (self.hasCompleted) {

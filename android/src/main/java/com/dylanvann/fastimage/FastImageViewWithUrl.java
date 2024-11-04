@@ -12,6 +12,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -23,13 +24,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
 class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
+    private ReadableMap mPreviousSource = null;
     private Drawable mDefaultSource = null;
+    private FastImageAnimation mAnimation = FastImageAnimation.NONE;
 
     public GlideUrl glideUrl;
 
@@ -45,6 +49,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setDefaultSource(@Nullable Drawable source) {
         mNeedsReload = true;
         mDefaultSource = source;
+    }
+
+    public void setAnimation(FastImageAnimation animation) {
+        mAnimation = animation;
     }
 
     private boolean isNullOrEmpty(final String url) {
@@ -73,6 +81,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
             // Clear the image.
             setImageDrawable(null);
+
+            mPreviousSource = null;
             return;
         }
 
@@ -95,6 +105,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
             }
             // Clear the image.
             setImageDrawable(null);
+
+            mPreviousSource = null;
             return;
         }
 
@@ -144,11 +156,16 @@ class FastImageViewWithUrl extends AppCompatImageView {
                                     .placeholder(mDefaultSource) // show until loaded
                                     .fallback(mDefaultSource)); // null will not be treated as error
 
+            if(mAnimation == FastImageAnimation.FADE && (mPreviousSource == null || !Objects.equals(mSource.getString("uri"), mPreviousSource.getString("uri")))) {
+                builder = builder.transition(DrawableTransitionOptions.withCrossFade());
+            }
+
             if (key != null)
                 builder.listener(new FastImageRequestListener(key));
 
             builder.into(this);
         }
+        mPreviousSource = mSource;
     }
 
     public void clearView(@Nullable RequestManager requestManager) {

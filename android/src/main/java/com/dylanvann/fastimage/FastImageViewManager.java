@@ -83,6 +83,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setScaleType(scaleType);
     }
 
+    @ReactProp(name = "animation")
+    public void setAnimation(FastImageViewWithUrl view, String animation) {
+        final FastImageAnimation animationType = FastImageViewConverter.getAnimation(animation);
+        view.setAnimation(animationType);
+    }
+
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // This will cancel existing requests.

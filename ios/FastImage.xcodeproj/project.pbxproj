@@ -79,6 +79,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7547098A212F3BE70040708C /* FFFastImagePreloaderManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FFFastImagePreloaderManager.h; sourceTree = "<group>"; };
+		75470990212F3C590040708C /* FFFastImagePreloaderManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FFFastImagePreloaderManager.m; sourceTree = "<group>"; };
+		75470992212F3F9A0040708C /* FFFastImagePreloader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FFFastImagePreloader.h; sourceTree = "<group>"; };
+		75470993212F409B0040708C /* FFFastImagePreloader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FFFastImagePreloader.m; sourceTree = "<group>"; };
 		A287971D1DE0C0A60081BDFA /* libFastImage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libFastImage.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCFB25371EA5562700F59778 /* FFFastImageSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FFFastImageSource.h; sourceTree = "<group>"; };
 		FCFB25381EA5562700F59778 /* FFFastImageSource.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FFFastImageSource.m; sourceTree = "<group>"; };
@@ -149,6 +153,10 @@
 				FCFB253C1EA5562700F59778 /* FFFastImageViewManager.m */,
 				FCFB253D1EA5562700F59778 /* RCTConvert+FFFastImage.h */,
 				FCFB253E1EA5562700F59778 /* RCTConvert+FFFastImage.m */,
+				7547098A212F3BE70040708C /* FFFastImagePreloaderManager.h */,
+				75470990212F3C590040708C /* FFFastImagePreloaderManager.m */,
+				75470992212F3F9A0040708C /* FFFastImagePreloader.h */,
+				75470993212F409B0040708C /* FFFastImagePreloader.m */,
 			);
 			path = FastImage;
 			sourceTree = "<group>";
@@ -261,10 +269,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				75470994212F409B0040708C /* FFFastImagePreloader.m in Sources */,
 				FCFB25411EA5562700F59778 /* FFFastImageViewManager.m in Sources */,
 				FCFB25421EA5562700F59778 /* RCTConvert+FFFastImage.m in Sources */,
 				FCFB25401EA5562700F59778 /* FFFastImageView.m in Sources */,
 				FCFB253F1EA5562700F59778 /* FFFastImageSource.m in Sources */,
+				75470991212F3C590040708C /* FFFastImagePreloaderManager.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

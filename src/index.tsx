@@ -2,7 +2,6 @@ import React, { forwardRef, memo } from 'react'
 import {
     View,
     Image,
-    NativeModules,
     requireNativeComponent,
     StyleSheet,
     FlexStyle,
@@ -15,7 +14,12 @@ import {
     AccessibilityProps,
     ViewProps,
     ColorValue,
+    NativeModules,
 } from 'react-native'
+
+import preloaderManager from './PreloaderManager'
+
+const FastImageViewNativeModule = Platform.OS === 'android' ? NativeModules.FastImagePreloaderManager : NativeModules.FastImageView
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -24,6 +28,13 @@ const resizeMode = {
     cover: 'cover',
     stretch: 'stretch',
     center: 'center',
+} as const
+
+export type Animation = 'none' | 'fade'
+
+const animation = {
+    none: 'none',
+    fade: 'fade'
 } as const
 
 export type Priority = 'low' | 'normal' | 'high'
@@ -84,6 +95,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     source?: Source | ImageRequireSource
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
+    animation?: Animation
     fallback?: boolean
 
     onLoadStart?(): void
@@ -153,6 +165,14 @@ const resolveDefaultSource = (
     return defaultSource
 }
 
+export interface PreloadProgressHandler {
+    (loaded: number, total: number): void
+}
+
+export interface PreloadCompletionHandler {
+    (loaded: number, skipped: number): void
+}
+
 function FastImageBase({
     source,
     defaultSource,
@@ -167,6 +187,7 @@ function FastImageBase({
     children,
     // eslint-disable-next-line no-shadow
     resizeMode = 'cover',
+    animation = 'none',
     forwardedRef,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
@@ -211,6 +232,7 @@ function FastImageBase({
                 onFastImageError={onError}
                 onFastImageLoadEnd={onLoadEnd}
                 resizeMode={resizeMode}
+                animation={animation}
             />
             {children}
         </View>
@@ -229,9 +251,14 @@ FastImageComponent.displayName = 'FastImage'
 
 export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
+    animation: typeof animation
     priority: typeof priority
     cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
+    preload: (
+        sources: Source[],
+        onProgress?: PreloadProgressHandler,
+        onComplete?: PreloadCompletionHandler,
+    ) => void
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
 }
@@ -245,13 +272,17 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources)
+FastImage.animation = animation
 
-FastImage.clearMemoryCache = () =>
-    NativeModules.FastImageView.clearMemoryCache()
+FastImage.preload = (
+    sources: Source[],
+    onProgress?: PreloadProgressHandler,
+    onComplete?: PreloadCompletionHandler,
+) => preloaderManager.preload(sources, onProgress, onComplete)
 
-FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+FastImage.clearMemoryCache = () => FastImageViewNativeModule.clearMemoryCache()
+
+FastImage.clearDiskCache = () => FastImageViewNativeModule.clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
