@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
@@ -155,7 +156,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
                                     .placeholder(mDefaultSource) // show until loaded
                                     .fallback(mDefaultSource)); // null will not be treated as error
 
-            if(mAnimation == FastImageAnimation.FADE && (mPreviousSource == null || !mSource.getString("uri").equals(mPreviousSource.getString("uri")))) {
+            if(mAnimation == FastImageAnimation.FADE && (mPreviousSource == null || !Objects.equals(mSource.getString("uri"), mPreviousSource.getString("uri")))) {
                 builder = builder.transition(DrawableTransitionOptions.withCrossFade());
             }
 
