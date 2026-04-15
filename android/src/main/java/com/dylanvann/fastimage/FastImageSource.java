@@ -17,7 +17,7 @@ public class FastImageSource extends ImageSource {
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
     private static final String ANDROID_CONTENT_SCHEME = "content";
     private static final String LOCAL_FILE_SCHEME = "file";
-    private Headers mHeaders;
+    private final Headers mHeaders;
     private Uri mUri;
 
     public static boolean isBase64Uri(Uri uri) {

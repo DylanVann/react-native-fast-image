@@ -22,6 +22,10 @@ DerivedData
 *.xcuserstate
 project.xcworkspace
 
+# CocoaPods
+Podfile.lock
+Pods
+
 # Android/IJ
 #
 .idea
@@ -38,6 +42,10 @@ example/android/app/src/main/gen
 
 # build
 react-native-fast-image-*.tgz
+dist/
 
 # coverage reports
 coverage
+
+# TypeScript incremental compilation cache
+*.tsbuildinfo

@@ -12,10 +12,10 @@ Pod::Spec.new do |s|
   s.platforms     = { :ios => "8.0", :tvos => "9.0" }
   s.framework     = 'UIKit'
   s.requires_arc  = true
-  s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git" }
+  s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git", :tag => "v#{s.version}" }
   s.source_files  = "ios/**/*.{h,m}"
 
-  s.dependency 'React'
-  s.dependency 'SDWebImage', '~> 5.0'
-  s.dependency 'SDWebImageWebPCoder', '~> 0.2.3'
+  s.dependency 'React-Core'
+  s.dependency 'SDWebImage', '~> 5.11.1'
+  s.dependency 'SDWebImageWebPCoder', '~> 0.8.4'
 end
