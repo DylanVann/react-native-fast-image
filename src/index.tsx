@@ -165,7 +165,6 @@ function FastImageBase({
     style,
     fallback,
     children,
-    // eslint-disable-next-line no-shadow
     resizeMode = 'cover',
     forwardedRef,
     ...props

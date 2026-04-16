@@ -1,2 +1,3 @@
-<manifest package="com.dylanvann.fastimage">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.dylanvann.fastimage">
 </manifest>
