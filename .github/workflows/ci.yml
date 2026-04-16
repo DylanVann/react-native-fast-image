@@ -4,14 +4,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-      - run: yarn --frozen-lockfile
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: yarn
+      - run: yarn install --frozen-lockfile
       - run: yarn build
+      - run: yarn lint
       - run: yarn test --coverage
       - if: github.event.repository.fork == false && github.event_name != 'pull_request'
-        run: yarn dv-scripts ci
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v5

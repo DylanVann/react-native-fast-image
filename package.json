@@ -19,6 +19,9 @@
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
+    "engines": {
+        "node": ">=20.19.0"
+    },
     "main": "dist/index.cjs.js",
     "module": "dist/index.js",
     "typings": "dist/index.d.ts",
@@ -31,10 +34,10 @@
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
-        "lint": "dv-scripts lint",
-        "release": "dv-scripts release",
-        "test": "dv-scripts test"
+        "build": "tsc --build && rollup -c rollup.config.mjs && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
+        "lint": "eslint src",
+        "release": "semantic-release",
+        "test": "jest"
     },
     "prettier": {
         "semi": false,
@@ -42,10 +45,8 @@
         "tabWidth": 4,
         "trailingComma": "all"
     },
-    "eslintConfig": {
-        "extends": "dv-scripts"
-    },
     "jest": {
+        "preset": "@react-native/jest-preset",
         "coveragePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
@@ -53,30 +54,42 @@
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
-        ],
-        "preset": "react-native"
-    },
-    "resolutions": {
-        "@jest/create-cache-key-function": "^27"
-    },
-    "devDependencies": {
-        "@babel/core": "^7.14.6",
-        "@babel/runtime": "^7.14.6",
-        "@types/jest": "^26.0.24",
-        "@types/react": "^17.0.14",
-        "@types/react-native": "^0.69.5",
-        "@types/react-test-renderer": "^17.0.1",
-        "dv-scripts": "^1.6.0",
-        "eslint-config-dv-scripts": "^1.1.1",
-        "metro-react-native-babel-preset": "^0.66.1",
-        "prettier": "^2.3.2",
-        "react": "17.0.2",
-        "react-native": "0.64.2",
-        "react-test-renderer": "17.0.2",
-        "typescript": "^4.3.5"
+        ]
     },
     "peerDependencies": {
-        "react": "^17 || ^18",
-        "react-native": ">=0.60.0"
+        "react": "^17.0.0 || ^18.0.0 || ^19.0.0",
+        "react-native": ">=0.64.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.28.5",
+        "@babel/preset-env": "^7.28.5",
+        "@babel/preset-react": "^7.28.5",
+        "@babel/preset-typescript": "^7.28.5",
+        "@eslint/js": "^9.39.2",
+        "@react-native/babel-preset": "0.85.1",
+        "@react-native/jest-preset": "0.85.1",
+        "@rollup/plugin-babel": "^6.1.0",
+        "@rollup/plugin-commonjs": "^29.0.0",
+        "@rollup/plugin-node-resolve": "^16.0.3",
+        "@testing-library/react-native": "^13.3.3",
+        "@semantic-release/changelog": "^6.0.3",
+        "@semantic-release/github": "^12.0.2",
+        "@semantic-release/npm": "^13.1.3",
+        "@types/jest": "^30.0.0",
+        "@types/react": "^19.2.7",
+        "babel-jest": "^30.2.0",
+        "eslint": "^9.39.2",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "globals": "^16.5.0",
+        "jest": "^30.2.0",
+        "prettier": "^3.7.4",
+        "react": "19.2.5",
+        "react-native": "0.85.1",
+        "react-test-renderer": "19.2.5",
+        "rollup": "^4.55.1",
+        "semantic-release": "^25.0.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.50.0"
     }
 }
