@@ -1,7 +1,5 @@
 package com.dylanvann.fastimage;
 
-import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -13,16 +11,12 @@ import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.dylanvann.fastimage.events.FastImageErrorEvent;
+import com.dylanvann.fastimage.events.FastImageLoadStartEvent;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.facebook.react.uimanager.UIManagerHelper;
+import com.facebook.react.uimanager.events.EventDispatcher;
 
 import javax.annotation.Nonnull;
 
@@ -54,8 +48,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
-            @Nullable RequestManager requestManager,
-            @Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
+            @Nullable RequestManager requestManager) {
         if (!mNeedsReload)
             return;
 
@@ -76,16 +69,16 @@ class FastImageViewWithUrl extends AppCompatImageView {
             return;
         }
 
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
         if (imageSource != null && imageSource.getUri().toString().length() == 0) {
             ThemedReactContext context = (ThemedReactContext) getContext();
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = getId();
-            WritableMap event = new WritableNativeMap();
-            event.putString("message", "Invalid source prop:" + mSource);
-            eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+            EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, viewId);
+            int surfaceId = UIManagerHelper.getSurfaceId(this);
+            if (dispatcher != null) {
+                dispatcher.dispatchEvent(new FastImageErrorEvent(surfaceId, viewId));
+            }
 
             // Cancel existing requests.
             clearView(requestManager);
@@ -109,24 +102,18 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         if (glideUrl != null) {
             FastImageOkHttpProgressGlideModule.expect(key, manager);
-            List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
-            if (viewsForKey != null && !viewsForKey.contains(this)) {
-                viewsForKey.add(this);
-            } else if (viewsForKey == null) {
-                List<FastImageViewWithUrl> newViewsForKeys = new ArrayList<>(Collections.singletonList(this));
-                viewsForUrlsMap.put(key, newViewsForKeys);
-            }
+            FastImageViewManagerHelpers.registerViewForUrl(key, this);
         }
 
         ThemedReactContext context = (ThemedReactContext) getContext();
         if (imageSource != null) {
             // This is an orphan even without a load/loadend when only loading a placeholder
-            RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = this.getId();
-
-            eventEmitter.receiveEvent(viewId,
-                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                    new WritableNativeMap());
+            EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, viewId);
+            int surfaceId = UIManagerHelper.getSurfaceId(this);
+            if (dispatcher != null) {
+                dispatcher.dispatchEvent(new FastImageLoadStartEvent(surfaceId, viewId));
+            }
         }
 
         if (requestManager != null) {

@@ -13,9 +13,8 @@ import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
@@ -77,8 +76,12 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     }
 
     private static class DispatchingProgressListener implements ResponseProgressListener {
-        private final Map<String, FastImageProgressListener> LISTENERS = new WeakHashMap<>();
-        private final Map<String, Long> PROGRESSES = new HashMap<>();
+        // expect()/forget() run on the UI thread; update() runs on OkHttp's
+        // background dispatcher thread (called from the response body's
+        // read()) - both maps are accessed concurrently from those two
+        // threads, so a plain HashMap/WeakHashMap here is a real data race.
+        private final Map<String, FastImageProgressListener> LISTENERS = new ConcurrentHashMap<>();
+        private final Map<String, Long> PROGRESSES = new ConcurrentHashMap<>();
 
         void forget(String key) {
             LISTENERS.remove(key);
