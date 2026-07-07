@@ -3,11 +3,11 @@
 exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -17,9 +17,8 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
   <FastImageView
     defaultSource={null}
     resizeMode="cover"
-    source={null}
     style={
-      Object {
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",
@@ -34,11 +33,11 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -47,9 +46,8 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 >
   <FastImageView
     resizeMode="cover"
-    source={null}
     style={
-      Object {
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",
@@ -64,11 +62,11 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 exports[`FastImage (Android) renders a normal defaultSource when fails to load source 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -78,12 +76,12 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
   <FastImageView
     resizeMode="cover"
     source={
-      Object {
+      {
         "uri": "https://www.google.com/image_does_not_exist.png",
       }
     }
     style={
-      Object {
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",
@@ -98,11 +96,11 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
 exports[`FastImage (iOS) renders 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -113,16 +111,19 @@ exports[`FastImage (iOS) renders 1`] = `
     defaultSource={null}
     resizeMode="cover"
     source={
-      Object {
-        "headers": Object {
-          "token": "someToken",
-        },
+      {
+        "headers": [
+          {
+            "name": "token",
+            "value": "someToken",
+          },
+        ],
         "priority": "high",
         "uri": "https://facebook.github.io/react/img/logo_og.png",
       }
     }
     style={
-      Object {
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",
@@ -137,11 +138,11 @@ exports[`FastImage (iOS) renders 1`] = `
 exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -151,20 +152,20 @@ exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
   <Image
     resizeMode="cover"
     source={
-      Object {
+      {
         "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
     style={
-      Array [
-        Object {
+      [
+        {
           "bottom": 0,
           "left": 0,
           "position": "absolute",
           "right": 0,
           "top": 0,
         },
-        Object {
+        {
           "tintColor": undefined,
         },
       ]
@@ -176,11 +177,11 @@ exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
 exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -191,12 +192,12 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
     defaultSource={null}
     resizeMode="cover"
     source={
-      Object {
+      {
         "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
     style={
-      Object {
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",
@@ -211,11 +212,11 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 exports[`FastImage (iOS) renders defaultSource 1`] = `
 <View
   style={
-    Array [
-      Object {
+    [
+      {
         "overflow": "hidden",
       },
-      Object {
+      {
         "height": 44,
         "width": 44,
       },
@@ -224,14 +225,51 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
 >
   <FastImageView
     defaultSource={
-      Object {
+      {
         "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
       }
     }
     resizeMode="cover"
-    source={null}
     style={
-      Object {
+      {
+        "bottom": 0,
+        "left": 0,
+        "position": "absolute",
+        "right": 0,
+        "top": 0,
+      }
+    }
+  />
+</View>
+`;
+
+exports[`FastImage (old architecture / bridge) keeps source.headers as an object instead of a Fabric {name,value}[] array 1`] = `
+<View
+  style={
+    [
+      {
+        "overflow": "hidden",
+      },
+      {
+        "height": 44,
+        "width": 44,
+      },
+    ]
+  }
+>
+  <FastImageView
+    defaultSource={null}
+    resizeMode="cover"
+    source={
+      {
+        "headers": {
+          "token": "someToken",
+        },
+        "uri": "https://facebook.github.io/react/img/logo_og.png",
+      }
+    }
+    style={
+      {
         "bottom": 0,
         "left": 0,
         "position": "absolute",

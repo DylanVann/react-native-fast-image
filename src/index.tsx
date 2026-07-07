@@ -16,6 +16,25 @@ import {
     ViewProps,
     ColorValue,
 } from 'react-native'
+import FastImageViewComponent from './FastImageViewNativeComponent'
+import NativeFastImageViewModule from './NativeFastImageView'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const isFabricEnabled = (global as any)?.nativeFabricUIManager != null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const isTurboModuleEnabled = (global as any).__turboModuleProxy != null
+
+// Resolved lazily (not captured at import time) so that mocking
+// `NativeModules.FastImageView` in tests after this module has already
+// been imported still takes effect.
+const getFastImageViewModule = () =>
+    isTurboModuleEnabled
+        ? NativeFastImageViewModule
+        : NativeModules.FastImageView
+
+const FastImageView = isFabricEnabled
+    ? FastImageViewComponent
+    : requireNativeComponent('FastImageView')
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -194,8 +213,26 @@ function FastImageBase({
         )
     }
 
-    const resolvedSource = Image.resolveAssetSource(source as any)
+    const resolvedSource: any = Image.resolveAssetSource(source as any)
+    if (
+        resolvedSource?.headers &&
+        (isFabricEnabled || Platform.OS === 'android')
+    ) {
+        // Fabric's codegen requires headers as an array of { name, value }
+        // rather than an arbitrary string-keyed object.
+        const headersArray: { name: string; value: string }[] = []
+        Object.keys(resolvedSource.headers).forEach((key) => {
+            headersArray.push({ name: key, value: resolvedSource.headers[key] })
+        })
+        resolvedSource.headers = headersArray
+    }
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
+    // Typed `any`: under Fabric this must be a string (Codegen's NativeProps),
+    // but the legacy bridge component accepts the raw numeric asset id as-is.
+    const resolvedDefaultSourceAsString: any =
+        isFabricEnabled && typeof resolvedDefaultSource === 'number'
+            ? String(resolvedDefaultSource)
+            : resolvedDefaultSource
 
     return (
         <View style={[styles.imageContainer, style]} ref={forwardedRef}>
@@ -204,7 +241,7 @@ function FastImageBase({
                 tintColor={tintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
-                defaultSource={resolvedDefaultSource}
+                defaultSource={resolvedDefaultSourceAsString}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}
@@ -236,7 +273,9 @@ export interface FastImageStaticProperties {
     clearDiskCache: () => Promise<void>
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
+const FastImage: React.ForwardRefExoticComponent<
+    FastImageProps & React.RefAttributes<any>
+> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.resizeMode = resizeMode
@@ -246,32 +285,16 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources)
+    getFastImageViewModule().preload(sources)
 
-FastImage.clearMemoryCache = () =>
-    NativeModules.FastImageView.clearMemoryCache()
+FastImage.clearMemoryCache = () => getFastImageViewModule().clearMemoryCache()
 
-FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+FastImage.clearDiskCache = () => getFastImageViewModule().clearDiskCache()
 
 const styles = StyleSheet.create({
     imageContainer: {
         overflow: 'hidden',
     },
 })
-
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
-    },
-)
 
 export default FastImage
