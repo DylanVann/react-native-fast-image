@@ -26,6 +26,8 @@ DerivedData
 build/
 .idea
 .gradle
+.kotlin/
+.cxx/
 local.properties
 *.iml
 *.hprof
@@ -35,6 +37,10 @@ local.properties
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# bun
+bun.lock
+bun.lockb
 
 # BUCK
 buck-out/
@@ -58,3 +64,7 @@ buck-out/
 
 # CocoaPods
 /ios/Pods/
+
+# local env files
+.env*.local
+.env
