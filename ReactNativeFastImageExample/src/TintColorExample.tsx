@@ -1,21 +1,22 @@
 import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import FastImage from 'react-native-fast-image'
-import Section from './Section'
 import SectionFlex from './SectionFlex'
-import FeatureText from './FeatureText'
+import { ExampleCard } from './ExampleCard'
+import { FEATURE_COLORS } from './theme'
 
 // @ts-ignore
 import LogoImage from './images/logo.png'
 
 export const TintColorExample = () => {
     return (
-        <View>
-            <Section>
-                <FeatureText text="Images with tint color." />
-                <FeatureText text="All non-transparent pixels are changed to the color." />
-            </Section>
-            <SectionFlex>
+        <ExampleCard
+            icon="color-palette-outline"
+            color={FEATURE_COLORS.tintColor}
+            title="Tint Color"
+            subtitle="All non-transparent pixels are changed to the color."
+        >
+            <SectionFlex style={styles.row}>
                 <FastImage
                     style={styles.image}
                     tintColor={'green'}
@@ -32,11 +33,14 @@ export const TintColorExample = () => {
                     source={LogoImage}
                 />
             </SectionFlex>
-        </View>
+        </ExampleCard>
     )
 }
 
 const styles = StyleSheet.create({
+    row: {
+        paddingBottom: 16,
+    },
     image: {
         flex: 1,
         height: 100,

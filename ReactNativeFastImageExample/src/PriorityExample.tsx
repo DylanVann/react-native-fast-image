@@ -1,9 +1,10 @@
 import React from 'react'
 import { PixelRatio, StyleSheet, View } from 'react-native'
 import FastImage from 'react-native-fast-image'
-import Section from './Section'
 import SectionFlex from './SectionFlex'
+import { ExampleCard } from './ExampleCard'
 import FeatureText from './FeatureText'
+import { FEATURE_COLORS, useTheme } from './theme'
 import { useCacheBust } from './useCacheBust'
 
 const getImageUrl = (id: string, width: number, height: number) =>
@@ -18,44 +19,79 @@ const IMAGE_URLS = [
 
 export const PriorityExample = () => {
     const { query, bust } = useCacheBust('')
+    const theme = useTheme()
     return (
-        <View>
-            <Section>
-                <FeatureText text="• Prioritize images (low, normal, high)." />
-            </Section>
-            <SectionFlex onPress={bust}>
-                <FastImage
-                    style={styles.image}
-                    source={{
-                        uri: IMAGE_URLS[0] + query,
-                        priority: FastImage.priority.low,
-                    }}
-                />
-                <FastImage
-                    style={styles.image}
-                    source={{
-                        uri: IMAGE_URLS[1] + query,
-                        priority: FastImage.priority.normal,
-                    }}
-                />
-                <FastImage
-                    style={styles.image}
-                    source={{
-                        uri: IMAGE_URLS[2] + query,
-                        priority: FastImage.priority.high,
-                    }}
-                />
+        <ExampleCard
+            icon="swap-vertical-outline"
+            color={FEATURE_COLORS.priority}
+            title="Priority"
+            subtitle="Set image loading priority."
+            featured
+        >
+            <SectionFlex onPress={bust} style={styles.row}>
+                <View style={styles.col}>
+                    <FastImage
+                        style={[
+                            styles.image,
+                            { backgroundColor: theme.placeholder },
+                        ]}
+                        source={{
+                            uri: IMAGE_URLS[0] + query,
+                            priority: FastImage.priority.low,
+                        }}
+                    />
+                    <FeatureText text="Low Priority" style={styles.caption} />
+                </View>
+                <View style={styles.col}>
+                    <FastImage
+                        style={[
+                            styles.image,
+                            { backgroundColor: theme.placeholder },
+                        ]}
+                        source={{
+                            uri: IMAGE_URLS[1] + query,
+                            priority: FastImage.priority.normal,
+                        }}
+                    />
+                    <FeatureText text="Normal Priority" style={styles.caption} />
+                </View>
+                <View style={styles.col}>
+                    <FastImage
+                        style={[
+                            styles.image,
+                            { backgroundColor: theme.placeholder },
+                        ]}
+                        source={{
+                            uri: IMAGE_URLS[2] + query,
+                            priority: FastImage.priority.high,
+                        }}
+                    />
+                    <FeatureText text="High Priority" style={styles.caption} />
+                </View>
             </SectionFlex>
-        </View>
+        </ExampleCard>
     )
 }
 
 const styles = StyleSheet.create({
-    image: {
+    row: {
+        paddingHorizontal: 8,
+        paddingBottom: 16,
+    },
+    col: {
         flex: 1,
-        height: 100,
-        backgroundColor: '#ddd',
-        margin: 10,
-        marginVertical: 20,
+        alignItems: 'center',
+    },
+    image: {
+        width: '100%',
+        height: 90,
+        borderRadius: 12,
+        marginHorizontal: 4,
+    },
+    caption: {
+        fontSize: 12,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginTop: 6,
     },
 })

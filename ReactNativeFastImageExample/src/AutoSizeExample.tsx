@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import SectionFlex from './SectionFlex'
 import FastImage, { FastImageProps } from 'react-native-fast-image'
-import Section from './Section'
-import FeatureText from './FeatureText'
+import { ExampleCard } from './ExampleCard'
+import { FEATURE_COLORS } from './theme'
 import { useCacheBust } from './useCacheBust'
 
 const GIF_URL =
@@ -55,24 +55,29 @@ const AutoSizingImage = (props: AutoSizingImageProps) => {
 export const AutoSizeExample = () => {
     const { bust, url } = useCacheBust(GIF_URL)
     return (
-        <View>
-            <Section>
-                <FeatureText text="• AutoSize." />
-            </Section>
-            <SectionFlex onPress={bust}>
+        <ExampleCard
+            icon="aperture-outline"
+            color={FEATURE_COLORS.autoSize}
+            title="Auto Size"
+            subtitle="Resizes to fit the source image's aspect ratio."
+        >
+            <SectionFlex onPress={bust} style={styles.row}>
                 <AutoSizingImage
                     style={styles.image}
                     width={200}
                     source={{ uri: url }}
                 />
             </SectionFlex>
-        </View>
+        </ExampleCard>
     )
 }
 
 const styles = StyleSheet.create({
+    row: {
+        paddingBottom: 16,
+    },
     image: {
-        backgroundColor: '#ddd',
+        borderRadius: 12,
         margin: 20,
         flex: 0,
     },
