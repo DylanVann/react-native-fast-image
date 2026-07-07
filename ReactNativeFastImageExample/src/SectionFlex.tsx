@@ -7,6 +7,8 @@ interface SectionFlexProps {
     children?: any
 }
 
+// Row-content wrapper used inside an ExampleCard - transparent, since the
+// card itself owns the themed background now.
 export default function SectionFlex({
     children,
     onPress,
@@ -23,10 +25,7 @@ export default function SectionFlex({
 
 const styles = StyleSheet.create({
     sectionFlex: {
-        backgroundColor: '#eee',
         flexDirection: 'row',
         justifyContent: 'center',
-        marginLeft: -10,
-        marginRight: -10,
     },
 })

@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
-import Section from './Section'
-import FeatureText from './FeatureText'
+import { ExampleCard } from './ExampleCard'
+import { FEATURE_COLORS, useTheme } from './theme'
 import Button from './Button'
 // @ts-ignore
 import { createImageProgress } from 'react-native-image-progress'
@@ -17,22 +17,29 @@ const Image = createImageProgress(FastImage)
 export const PreloadExample = () => {
     const [show, setShow] = useState(false)
     const { url, bust } = useCacheBust(IMAGE_URL)
+    const theme = useTheme()
 
     const preload = () => {
         FastImage.preload([{ uri: url }])
     }
 
     return (
-        <View>
-            <Section>
-                <FeatureText text="• Preloading." />
-                <FeatureText text="• Progress indication using react-native-image-progress." />
-            </Section>
+        <ExampleCard
+            icon="cloud-download-outline"
+            color={FEATURE_COLORS.preload}
+            title="Preloading"
+            subtitle="Progress indication using react-native-image-progress."
+        >
             <SectionFlex style={styles.section}>
                 {show ? (
-                    <Image style={styles.image} source={{ uri: url }} />
+                    <Image
+                        style={[styles.image, { backgroundColor: theme.placeholder }]}
+                        source={{ uri: url }}
+                    />
                 ) : (
-                    <View style={styles.image} />
+                    <View
+                        style={[styles.image, { backgroundColor: theme.placeholder }]}
+                    />
                 )}
                 <View style={styles.buttons}>
                     <View style={styles.buttonView}>
@@ -49,7 +56,7 @@ export const PreloadExample = () => {
                     </View>
                 </View>
             </SectionFlex>
-        </View>
+        </ExampleCard>
     )
 }
 
@@ -58,16 +65,16 @@ const styles = StyleSheet.create({
     section: {
         flexDirection: 'column',
         alignItems: 'center',
+        paddingBottom: 8,
     },
     buttons: {
         flexDirection: 'row',
-        marginHorizontal: 20,
+        marginHorizontal: 12,
         marginBottom: 10,
     },
     image: {
-        backgroundColor: '#ddd',
-        margin: 20,
-        marginBottom: 10,
+        borderRadius: 12,
+        marginBottom: 12,
         height: 100,
         width: 100,
     },

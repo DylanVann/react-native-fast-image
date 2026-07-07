@@ -17,8 +17,10 @@ import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,7 +63,12 @@ class FastImageViewConverter {
     static Headers getHeaders(ReadableMap source) {
         Headers headers = Headers.DEFAULT;
 
-        if (source.hasKey("headers")) {
+        if (!source.hasKey("headers")) {
+            return headers;
+        }
+
+        // Plain map shape: { [key: string]: string } (JS-side old architecture / non-Fabric).
+        if (source.getType("headers") == ReadableType.Map) {
             ReadableMap headersMap = source.getMap("headers");
             ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
             LazyHeaders.Builder builder = new LazyHeaders.Builder();
@@ -69,14 +76,36 @@ class FastImageViewConverter {
             while (iterator.hasNextKey()) {
                 String header = iterator.nextKey();
                 String value = headersMap.getString(header);
-
-                builder.addHeader(header, value);
+                if (value != null) {
+                    builder.addHeader(header, value);
+                }
             }
 
-            headers = builder.build();
+            return builder.build();
         }
 
-        return headers;
+        // Array-of-{name,value} shape: Codegen's Fabric prop type can't express an
+        // arbitrary string-keyed map, so the JS layer converts headers to this shape
+        // whenever Fabric is enabled.
+        ReadableArray headersArray = source.getArray("headers");
+        if (headersArray == null || headersArray.size() == 0) {
+            return headers;
+        }
+
+        LazyHeaders.Builder builder = new LazyHeaders.Builder();
+        for (int i = 0; i < headersArray.size(); i++) {
+            if (headersArray.getType(i) != ReadableType.Map) {
+                continue;
+            }
+            ReadableMap headerEntry = headersArray.getMap(i);
+            String header = headerEntry.hasKey("name") ? headerEntry.getString("name") : null;
+            String value = headerEntry.hasKey("value") ? headerEntry.getString("value") : null;
+            if (header != null && value != null) {
+                builder.addHeader(header, value);
+            }
+        }
+
+        return builder.build();
     }
 
     static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source) {

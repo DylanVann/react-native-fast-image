@@ -1,44 +1,55 @@
 import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import SectionFlex from './SectionFlex'
 import FastImage from 'react-native-fast-image'
-import Section from './Section'
-import FeatureText from './FeatureText'
+import { ExampleCard } from './ExampleCard'
+import { FEATURE_COLORS, useTheme } from './theme'
 import { useCacheBust } from './useCacheBust'
 
 const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
 
 export const BorderRadiusExample = () => {
     const { query, bust } = useCacheBust('')
+    const theme = useTheme()
     return (
-        <View>
-            <Section>
-                <FeatureText text="• Border radius." />
-            </Section>
-            <SectionFlex onPress={bust}>
+        <ExampleCard
+            icon="scan-outline"
+            color={FEATURE_COLORS.borderRadius}
+            title="Border Radius"
+            subtitle="Apply beautiful border radius."
+        >
+            <SectionFlex onPress={bust} style={styles.row}>
                 <FastImage
-                    style={styles.imageSquare}
+                    style={[
+                        styles.imageSquare,
+                        { backgroundColor: theme.placeholder },
+                    ]}
                     source={{
                         uri: IMAGE_URL + query,
                     }}
                 />
                 <FastImage
-                    style={styles.imageRectangular}
+                    style={[
+                        styles.imageRectangular,
+                        { backgroundColor: theme.placeholder },
+                    ]}
                     source={{
                         uri: IMAGE_URL + query,
                     }}
                 />
             </SectionFlex>
-        </View>
+        </ExampleCard>
     )
 }
 
 const styles = StyleSheet.create({
+    row: {
+        paddingBottom: 16,
+    },
     imageSquare: {
         borderRadius: 50,
         height: 100,
-        backgroundColor: '#ddd',
-        margin: 20,
+        margin: 8,
         width: 100,
         flex: 0,
     },
@@ -47,15 +58,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 10,
         borderBottomRightRadius: 10,
         height: 100,
-        backgroundColor: '#ddd',
-        margin: 20,
+        margin: 8,
         flex: 1,
-    },
-    plus: {
-        width: 30,
-        height: 30,
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
     },
 })

@@ -40,6 +40,10 @@ npm-debug.log
 lib/android/src/main/gen
 example/android/app/src/main/gen
 
+# bun
+bun.lock
+bun.lockb
+
 # build
 react-native-fast-image-*.tgz
 dist/

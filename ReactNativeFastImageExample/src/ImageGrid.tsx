@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useState } from 'react'
 import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
 import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
+import { useTheme } from './theme'
 
 const getImageUrl = (id: string, width: number, height: number) =>
     `https://unsplash.it/${width}/${height}?image=${id}`
@@ -14,6 +15,7 @@ export interface ImageGridItemProps {
 
 export const ImageGridItem = memo(
     ({ id, ImageComponent }: ImageGridItemProps) => {
+        const theme = useTheme()
         const uri = getImageUrl(id, 100, 100)
         return (
             <View
@@ -29,7 +31,7 @@ export const ImageGridItem = memo(
                         width: null as any,
                         height: null as any,
                         margin: MARGIN,
-                        backgroundColor: '#eee',
+                        backgroundColor: theme.placeholder,
                     }}
                 />
             </View>
@@ -42,6 +44,7 @@ export interface ImageGridProps {
 }
 
 export const ImageGrid = (props: ImageGridProps) => {
+    const theme = useTheme()
     const [images, setImages] = useState<any[]>([])
     const [itemHeight, setItemHeight] = useState(0)
     const [error, setError] = useState<Error | null>(null)
@@ -87,12 +90,13 @@ export const ImageGrid = (props: ImageGridProps) => {
                     flex: 1,
                     alignItems: 'stretch',
                     justifyContent: 'center',
-                    backgroundColor: 'white',
+                    backgroundColor: theme.background,
                 }}
             >
                 <Text
                     style={{
                         textAlign: 'center',
+                        color: theme.textPrimary,
                     }}
                 >
                     Error fetching images.
@@ -107,7 +111,7 @@ export const ImageGrid = (props: ImageGridProps) => {
                 flex: 1,
                 alignItems: 'stretch',
                 justifyContent: 'center',
-                backgroundColor: 'white',
+                backgroundColor: theme.background,
             }}
         >
             <FlatList

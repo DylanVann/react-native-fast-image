@@ -7,8 +7,8 @@ import {
     ViewProps,
 } from 'react-native'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
-import Section from './Section'
-import FeatureText from './FeatureText'
+import { ExampleCard } from './ExampleCard'
+import { FEATURE_COLORS, useTheme } from './theme'
 import FieldsBase64 from './images/fields'
 import { launchImageLibrary } from 'react-native-image-picker'
 import BulletText from './BulletText'
@@ -22,12 +22,19 @@ import JellyfishGIF from './images/jellyfish.gif'
 // @ts-ignore
 import JellyfishWebP from './images/jellyfish.webp'
 
-const Image = ({ source, ...p }: FastImageProps) => (
-    <FastImage style={styles.imageSquare} source={source} {...p} />
-)
+const LocalPreviewImage = ({ source, ...rest }: FastImageProps) => {
+    const theme = useTheme()
+    return (
+        <FastImage
+            style={[styles.imageSquare, { backgroundColor: theme.placeholder }]}
+            source={source}
+            {...rest}
+        />
+    )
+}
 
-const Row: React.ComponentType<ViewProps> = (p: ViewProps) => (
-    <View style={styles.row} {...p} />
+const LocalImageRow: React.ComponentType<ViewProps> = (props: ViewProps) => (
+    <View style={styles.row} {...props} />
 )
 
 interface ExampleProps {
@@ -36,10 +43,10 @@ interface ExampleProps {
 }
 
 const Example = ({ name, source }: ExampleProps) => (
-    <Row>
+    <LocalImageRow>
         <BulletText>{name}</BulletText>
-        <Image source={source} />
-    </Row>
+        <LocalPreviewImage source={source} />
+    </LocalImageRow>
 )
 
 interface PhotoExampleState {
@@ -68,67 +75,65 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
 
     render() {
         return (
-            <Row>
+            <LocalImageRow>
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
-                    <Image
-                        style={styles.imageSquare}
-                        source={this.state.image || 0}
-                    >
+                    <LocalPreviewImage source={this.state.image || 0}>
                         <Text style={styles.pickPhoto}>Pick Photo</Text>
-                    </Image>
+                    </LocalPreviewImage>
                 </TouchableOpacity>
-            </Row>
+            </LocalImageRow>
         )
     }
 }
 
-export const LocalImagesExample = () => (
-    <View>
-        <Section>
-            <FeatureText>• Local images.</FeatureText>
-        </Section>
-        <View style={styles.container}>
-            <Example name="Require" source={require('./images/fields.jpg')} />
-            <Example name="Import" source={FieldsImage} />
-            <Example name="GIF" source={JellyfishGIF} />
-            <Example name="Animated WebP" source={JellyfishWebP} />
-            <Example name="Base64" source={{ uri: FieldsBase64 }} />
-            <Example name="WebP" source={FieldsWebP} />
-            <PhotoExample />
-        </View>
-    </View>
-)
+export const LocalImagesExample = () => {
+    const theme = useTheme()
+    return (
+        <ExampleCard
+            icon="folder-outline"
+            color={FEATURE_COLORS.localImages}
+            title="Local Images"
+            subtitle="require(), import, GIF, WebP, base64, and photo library."
+        >
+            <View
+                style={[styles.container, { backgroundColor: theme.background }]}
+            >
+                <Example
+                    name="Require"
+                    source={require('./images/fields.jpg')}
+                />
+                <Example name="Import" source={FieldsImage} />
+                <Example name="GIF" source={JellyfishGIF} />
+                <Example name="Animated WebP" source={JellyfishWebP} />
+                <Example name="Base64" source={{ uri: FieldsBase64 }} />
+                <Example name="WebP" source={FieldsWebP} />
+                <PhotoExample />
+            </View>
+        </ExampleCard>
+    )
+}
 
 const styles = StyleSheet.create({
     pickPhoto: { color: 'white', fontWeight: '900' },
     row: {
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 12,
     },
     container: {
-        backgroundColor: '#eee',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingTop: 10,
-        paddingBottom: 10,
+        paddingBottom: 4,
     },
     imageSquare: {
         alignItems: 'center',
         justifyContent: 'center',
         height: 100,
-        backgroundColor: '#ddd',
+        borderRadius: 12,
         margin: 20,
         marginTop: 10,
         width: 100,
         flex: 0,
-    },
-    plus: {
-        width: 30,
-        height: 30,
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
     },
 })

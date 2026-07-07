@@ -1,22 +1,25 @@
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useTheme } from './theme'
 
 interface ButtonProps {
     text: string
     onPress: () => void
 }
 
-const Button = ({ text, onPress }: ButtonProps) => (
-    <TouchableOpacity onPress={onPress}>
-        <View style={styles.button}>
-            <Text style={styles.text}>{text}</Text>
-        </View>
-    </TouchableOpacity>
-)
+const Button = ({ text, onPress }: ButtonProps) => {
+    const theme = useTheme()
+    return (
+        <TouchableOpacity onPress={onPress}>
+            <View style={[styles.button, { backgroundColor: theme.accent }]}>
+                <Text style={styles.text}>{text}</Text>
+            </View>
+        </TouchableOpacity>
+    )
+}
 
 const styles = StyleSheet.create({
     button: {
-        backgroundColor: 'black',
         margin: 10,
         height: 44,
         paddingLeft: 10,
@@ -27,6 +30,7 @@ const styles = StyleSheet.create({
     },
     text: {
         color: 'white',
+        fontWeight: '600',
     },
 })
 

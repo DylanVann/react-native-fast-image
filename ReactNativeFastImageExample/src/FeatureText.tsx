@@ -1,5 +1,6 @@
 import React from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { Text } from 'react-native'
+import { useTheme } from './theme'
 
 interface FeatureTextProps {
     text?: string
@@ -12,11 +13,10 @@ export default function FeatureText({
     style,
     children,
 }: FeatureTextProps) {
-    return <Text style={[styles.style, style]}>{text || children}</Text>
+    const theme = useTheme()
+    return (
+        <Text style={[{ color: theme.textSecondary }, style]}>
+            {text || children}
+        </Text>
+    )
 }
-
-const styles = StyleSheet.create({
-    style: {
-        color: '#222',
-    },
-})
