@@ -9,7 +9,6 @@ Performant React Native image component.
 [![Version][version-badge]][package]
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
-[![Code Coverage][coverage-badge]][coverage]
 
 [![Watch on GitHub][github-watch-badge]][github-watch]
 [![Star on GitHub][github-star-badge]][github-star]
@@ -272,8 +271,6 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 [build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml
-[coverage-badge]: https://img.shields.io/codecov/c/github/dylanvann/react-native-fast-image.svg
-[coverage]: https://codecov.io/github/dylanvann/react-native-fast-image
 [downloads-badge]: https://img.shields.io/npm/dm/react-native-fast-image.svg
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
