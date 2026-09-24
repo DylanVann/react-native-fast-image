@@ -1,7 +1,7 @@
 # Walks through every example screen, checks that images load and events fire,
-# and saves screenshots for review. (Preloading is checked in regression.yaml.)
+# and saves screenshots for review. Preloading is checked in regression.yaml.
 #
-#   maestro test -e APP_ID=<app id> maestro/walkthrough.yaml
+#   npx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/walkthrough.yaml
 #
 # App IDs:
 #   ReactNativeFastImageExample        iOS: org.reactjs.native.example.ReactNativeFastImageExample
@@ -9,6 +9,8 @@
 #   ReactNativeFastImageExampleLegacy  iOS: org.reactjs.native.example.ReactNativeFastImageExampleLegacy
 #                                      Android: com.reactnativefastimageexamplelegacy
 appId: ${APP_ID}
+# maestro-runner saves each screenshot in the run's report and also here,
+# relative to this file (ignored).
 env:
     OUT: maestro-screenshots
 ---

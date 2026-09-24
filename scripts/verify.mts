@@ -18,9 +18,8 @@ const HELP = `Checks the library and runs both example apps on iOS and Android.
 Steps:
   1. JS: build, tests, and the typechecks.
   2. For each example app: build for iOS and Android in parallel, start the
-     packager, and run the Maestro flows in maestro/ on both platforms at once
-     (one at a time with the Maestro CLI). A flow failure or a crash fails
-     the run.
+     packager, and run the Maestro flows in maestro/ with maestro-runner on
+     both platforms at once. A flow failure or a crash fails the run.
 
 Options:
   --app main|legacy   Only this example app (default: both).
@@ -39,20 +38,17 @@ Environment:
                   first AVD). Use a plain AOSP image ("default", no Google
                   apps) with 4 GB+ RAM; it's started with -gpu host and no
                   window.
-  VERIFY_WALKTHROUGH_TIMEOUT, VERIFY_REGRESSION_TIMEOUT, VERIFY_BUILD_TIMEOUT
-                  Per-step time limits in seconds (default 300, 120, 900).
-  VERIFY_RUNNER   Runner for the Maestro flows: maestro-runner (default;
-                  https://github.com/devicelab-dev/maestro-runner, installed as
-                  a dev dependency) or maestro (the Maestro CLI). Both run the
-                  same YAML. MAESTRO_RUNNER_BIN overrides the maestro-runner
-                  binary; MAESTRO_RUNNER_ANDROID_DRIVER picks its Android
-                  driver (default devicelab).
-  VERIFY_PARALLEL=0
-                  Run the flows one platform at a time with maestro-runner too.
+  VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
+                  Time limits in seconds for each app and platform's flows
+                  (default 240) and builds (default 900).
+  MAESTRO_RUNNER_BIN
+                  maestro-runner binary (default: the dev dependency).
+  MAESTRO_RUNNER_ANDROID_DRIVER
+                  maestro-runner's Android driver (default devicelab).
 
 Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
-emulator (plus the Maestro CLI for VERIFY_RUNNER=maestro). Output (logs,
-screenshots, crash reports) goes to verify-output/<timestamp>/.`
+emulator. Output (logs, screenshots, crash reports) goes to
+verify-output/<timestamp>/.`
 
 type App = 'main' | 'legacy'
 type Platform = 'ios' | 'android'
@@ -108,23 +104,13 @@ const REF = options.ref
 const env = process.env
 const seconds = (name: string, fallback: number) =>
     Number(env[name]) || fallback
-// Time limits so a hung build or flow fails the run instead of blocking it.
-// They're about twice a typical run; raise them if one is hit.
-const WALKTHROUGH_TIMEOUT = seconds('VERIFY_WALKTHROUGH_TIMEOUT', 300)
-const REGRESSION_TIMEOUT = seconds('VERIFY_REGRESSION_TIMEOUT', 120)
+// Time limits so a hung build or flow fails the run instead of blocking it;
+// raise them if one is hit. An app and platform's flows take up to about 90
+// seconds, plus a minute or two the first time maestro-runner builds
+// WebDriverAgent for iOS.
+const FLOWS_TIMEOUT = seconds('VERIFY_FLOWS_TIMEOUT', 240)
 // Enough for a clean iOS build (~10 minutes); incremental builds take seconds.
 const BUILD_TIMEOUT = seconds('VERIFY_BUILD_TIMEOUT', 900)
-
-const RUNNER = env.VERIFY_RUNNER ?? 'maestro-runner'
-if (RUNNER !== 'maestro-runner' && RUNNER !== 'maestro') {
-    console.error(
-        `Unknown VERIFY_RUNNER: ${RUNNER} (use maestro-runner or maestro)`,
-    )
-    process.exit(2)
-}
-// The Maestro CLI can't run two sessions at once.
-const PARALLEL_FLOWS =
-    RUNNER === 'maestro-runner' && env.VERIFY_PARALLEL !== '0'
 
 const ANDROID_HOME =
     env.ANDROID_HOME ?? path.join(os.homedir(), 'Library/Android/sdk')
@@ -138,11 +124,9 @@ env.PATH = [
     env.PATH,
 ].join(':')
 
-const MAESTRO =
-    RUNNER === 'maestro-runner'
-        ? env.MAESTRO_RUNNER_BIN ??
-          path.join(ROOT, 'node_modules/.bin/maestro-runner')
-        : which('maestro') || path.join(os.homedir(), '.maestro/bin/maestro')
+const MAESTRO_RUNNER =
+    env.MAESTRO_RUNNER_BIN ??
+    path.join(ROOT, 'node_modules/.bin/maestro-runner')
 
 const now = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -185,10 +169,6 @@ function capture(
     } catch {
         return undefined
     }
-}
-
-function which(cmd: string) {
-    return capture('/usr/bin/which', [cmd]) ?? ''
 }
 
 // Every long-running child runs in its own process group, so it can be stopped
@@ -280,11 +260,9 @@ if (RUN_APPS && portInUse(8081)) {
     )
     process.exit(1)
 }
-if (RUN_APPS && !fs.existsSync(MAESTRO)) {
+if (RUN_APPS && !fs.existsSync(MAESTRO_RUNNER)) {
     console.error(
-        RUNNER === 'maestro-runner'
-            ? 'maestro-runner not found; run `yarn` in the repo root (or set MAESTRO_RUNNER_BIN).'
-            : 'The Maestro CLI is required for VERIFY_RUNNER=maestro: https://maestro.dev',
+        'maestro-runner not found; run `yarn` in the repo root (or set MAESTRO_RUNNER_BIN).',
     )
     process.exit(1)
 }
@@ -408,6 +386,9 @@ async function stopMetro() {
 
 // --- Flows ---------------------------------------------------------------
 
+// Runs every flow in maestro/ in one maestro-runner call (one driver session),
+// then reads each flow's result from the report. Screenshots go to the
+// report's assets folder.
 async function runFlows(
     app: App,
     platform: Platform,
@@ -416,48 +397,7 @@ async function runFlows(
 ) {
     const dir = path.join(OUT, `${app}-${platform}`)
     fs.mkdirSync(dir, { recursive: true })
-    if (RUNNER === 'maestro-runner')
-        return runFlowsMaestroRunner(app, platform, device, appId, dir)
-    for (const flow of ['walkthrough', 'regression']) {
-        const timeout =
-            flow === 'regression' ? REGRESSION_TIMEOUT : WALKTHROUGH_TIMEOUT
-        const log = path.join(dir, `${flow}.log`)
-        // Flows save screenshots relative to the working directory.
-        const result = await run(
-            MAESTRO,
-            [
-                '--device',
-                device,
-                'test',
-                '-e',
-                `APP_ID=${appId}`,
-                path.join(ROOT, 'maestro', `${flow}.yaml`),
-            ],
-            { cwd: dir, log, timeout },
-        )
-        if (result.ok) record('PASS', `${app} ${platform} ${flow}`)
-        else
-            record(
-                'FAIL',
-                `${app} ${platform} ${flow}`,
-                `${
-                    result.timedOut ? `timed out after ${timeout}s; ` : ''
-                }see ${rel(log)}`,
-            )
-    }
-}
-
-// Runs every flow in maestro/ in one maestro-runner call (one driver session),
-// then reads each flow's result from the report. Screenshots go to the
-// report's assets folder.
-async function runFlowsMaestroRunner(
-    app: App,
-    platform: Platform,
-    device: string,
-    appId: string,
-    dir: string,
-) {
-    const timeout = WALKTHROUGH_TIMEOUT + REGRESSION_TIMEOUT
+    const timeout = FLOWS_TIMEOUT
     const log = path.join(dir, 'flows.log')
     // The Android driver usually starts in seconds, but can take longer right
     // after an app install while Android compiles it.
@@ -471,7 +411,7 @@ async function runFlowsMaestroRunner(
               ]
             : []
     const result = await run(
-        MAESTRO,
+        MAESTRO_RUNNER,
         [
             '--platform',
             platform,
@@ -905,9 +845,7 @@ async function main() {
                 continue
             }
             say(`Running flows for ${app} (${toRun.join(' ')})`)
-            if (PARALLEL_FLOWS)
-                await Promise.all(toRun.map((p) => flows[p](app)))
-            else for (const p of toRun) await flows[p](app)
+            await Promise.all(toRun.map((p) => flows[p](app)))
             await stopMetro()
         }
     }
@@ -919,7 +857,7 @@ async function main() {
             }`,
     )
     fs.writeFileSync(path.join(OUT, 'results.txt'), lines.join('\n') + '\n')
-    console.log(`\nSummary (${RUNNER}${REF ? `, library from ${REF}` : ''}):`)
+    console.log(`\nSummary${REF ? ` (library from ${REF})` : ''}:`)
     for (const line of lines) console.log(`  ${line}`)
     console.log(`Output: ${rel(OUT)}`)
     if (

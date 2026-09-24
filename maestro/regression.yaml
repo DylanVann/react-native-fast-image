@@ -1,11 +1,13 @@
 # Opens the Regression tab and waits for every case to report OK. A crash or a
 # missing event fails the flow. The screen fits without scrolling, so this
-# behaves the same with either runner and architecture.
+# behaves the same on both architectures.
 #
-#   maestro test -e APP_ID=<app id> maestro/regression.yaml
+#   npx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/regression.yaml
 #
 # App IDs are listed in walkthrough.yaml.
 appId: ${APP_ID}
+# maestro-runner saves each screenshot in the run's report and also here,
+# relative to this file (ignored).
 env:
     OUT: maestro-screenshots
 ---
