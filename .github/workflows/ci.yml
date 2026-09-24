@@ -33,6 +33,18 @@ jobs:
           cache: yarn
       - run: yarn --frozen-lockfile
       - run: yarn build
+      - id: version
+        run: echo "before=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
       - run: npx --yes -p semantic-release@25 -p @semantic-release/changelog@7 -p @semantic-release/git@11 semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # semantic-release only bumps the version (npmPublish: false). Stage the
+      # release so it goes live only after a maintainer approves it with 2FA.
+      - name: Stage npm release
+        run: |
+          after=$(node -p 'require("./package.json").version')
+          if [ "$after" != "${{ steps.version.outputs.before }}" ]; then
+            npx --yes npm@11 stage publish
+          else
+            echo "No new version; nothing to stage."
+          fi

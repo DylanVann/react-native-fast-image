@@ -1,5 +1,7 @@
 // Carried over from dv-scripts' semantic-release config so releases behave the
-// same; publishing now uses npm trusted publishing (OIDC) instead of NPM_TOKEN.
+// same, except semantic-release no longer publishes to npm: CI stages the
+// release with `npm stage publish` (trusted publishing, OIDC) and a maintainer
+// approves it with 2FA on npmjs.com.
 module.exports = {
     branches: ['main'],
     plugins: [
@@ -19,7 +21,8 @@ module.exports = {
         ],
         '@semantic-release/release-notes-generator',
         '@semantic-release/changelog',
-        '@semantic-release/npm',
+        // Only bumps the package.json version; see the workflow for staging.
+        ['@semantic-release/npm', { npmPublish: false }],
         [
             '@semantic-release/git',
             {
