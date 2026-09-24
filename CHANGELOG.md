@@ -1,3 +1,10 @@
+## [8.6.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.7...v8.6.8) (2026-09-24)
+
+
+### Bug Fixes
+
+* don't crash on a defaultSource without a source, or a preload without a uri ([#1091](https://github.com/DylanVann/react-native-fast-image/issues/1091)) ([a1f247f](https://github.com/DylanVann/react-native-fast-image/commit/a1f247fd5150d3deaf50e13a4ed553023365a27d))
+
 ## [8.6.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.6...v8.6.7) (2026-09-24)
 
 
