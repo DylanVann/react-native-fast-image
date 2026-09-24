@@ -1,3 +1,10 @@
+## [8.6.21](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.20...v8.6.21) (2026-09-24)
+
+
+### Bug Fixes
+
+* use tintColor from style ([#1106](https://github.com/DylanVann/react-native-fast-image/issues/1106)) ([4e35e49](https://github.com/DylanVann/react-native-fast-image/commit/4e35e499aa608ee47dc4be46af3ce36fb538d592))
+
 ## [8.6.20](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.19...v8.6.20) (2026-09-24)
 
 
