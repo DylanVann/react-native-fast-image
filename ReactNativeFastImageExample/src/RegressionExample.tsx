@@ -114,6 +114,44 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
     )
 }
 
+// Loads a green-tinted image, then removes tintColor. The second image should
+// match the untinted first one; this is checked by screenshot, since the flow
+// can't read colors. It stayed tinted on iOS.
+function ClearTintCase() {
+    const [tinted, setTinted] = useState(true)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (tinted) return
+        const timer = setTimeout(() => setDone(true), 500)
+        return () => clearTimeout(timer)
+    }, [tinted])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                resizeMode="contain"
+                source={{ uri: LOGO }}
+            />
+            <FastImage
+                style={[styles.image, { marginLeft: 4 }]}
+                resizeMode="contain"
+                source={{ uri: LOGO }}
+                tintColor={tinted ? 'green' : undefined}
+                onLoad={() => setTinted(false)}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-clear-tint" style={styles.status}>
+                    clear-tint: {done ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #586: tintColor removed after load (should match the left
+                    image)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -209,6 +247,7 @@ export default function RegressionExample() {
                     ])
                 }
             />
+            <ClearTintCase />
             <LayoutCase id="layout" />
             <LayoutCase id="layout-fallback" fallback />
             <PreloadCase />

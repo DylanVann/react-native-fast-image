@@ -37,6 +37,9 @@ env:
       visible: 'preload-no-uri: OK'
       timeout: 30000
 - extendedWaitUntil:
+      visible: 'clear-tint: OK'
+      timeout: 30000
+- extendedWaitUntil:
       visible: 'layout: OK'
       timeout: 30000
 - extendedWaitUntil:
