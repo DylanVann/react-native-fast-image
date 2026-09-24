@@ -11,6 +11,9 @@
 @property(nonatomic, assign) BOOL needsReload;
 
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
+// The image before tinting, kept while a tint is applied so the tint can be
+// changed or removed. nil when there's no tint (super.image is untinted).
+@property(nonatomic, strong) UIImage* untintedImage;
 
 @end
 
@@ -63,11 +66,11 @@
 }
 
 - (void) setImageColor: (UIColor*)imageColor {
-    if (imageColor != nil) {
-        _imageColor = imageColor;
-        if (super.image) {
-            super.image = [self makeImage: super.image withTint: self.imageColor];
-        }
+    _imageColor = imageColor;
+    // Re-apply to the untinted image, so the tint can change or be removed.
+    UIImage* image = self.untintedImage ?: super.image;
+    if (image) {
+        [self setImage: image];
     }
 }
 
@@ -110,8 +113,10 @@
 
 - (void) setImage: (UIImage*)image {
     if (self.imageColor != nil) {
+        self.untintedImage = image;
         super.image = [self makeImage: image withTint: self.imageColor];
     } else {
+        self.untintedImage = nil;
         super.image = image;
     }
 }
