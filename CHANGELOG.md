@@ -1,3 +1,10 @@
+## [8.6.16](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.15...v8.6.16) (2026-09-24)
+
+
+### Bug Fixes
+
+* don't crash as a Touchable's direct child on iOS ([#1100](https://github.com/DylanVann/react-native-fast-image/issues/1100)) ([57c1068](https://github.com/DylanVann/react-native-fast-image/commit/57c1068a81f478211a281414afa4f2c8f41950d2))
+
 ## [8.6.15](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.14...v8.6.15) (2026-09-24)
 
 
