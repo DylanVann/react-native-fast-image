@@ -1,3 +1,10 @@
+## [8.6.12](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.11...v8.6.12) (2026-09-24)
+
+
+### Bug Fixes
+
+* report onLayout from the wrapper view ([#1095](https://github.com/DylanVann/react-native-fast-image/issues/1095)) ([77d6c2d](https://github.com/DylanVann/react-native-fast-image/commit/77d6c2d12d493470582dd8f6f8277aedc7c166bf))
+
 ## [8.6.11](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.10...v8.6.11) (2026-09-24)
 
 
