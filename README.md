@@ -9,7 +9,6 @@ Performant React Native image component.
 [![Version][version-badge]][package]
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
-[![Code Coverage][coverage-badge]][coverage]
 
 [![Watch on GitHub][github-watch-badge]][github-watch]
 [![Star on GitHub][github-star-badge]][github-star]
@@ -128,6 +127,8 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 ---
 
 ### `source.priority?: enum`
+
+Indicates the load order priority of an image. Images with `FastImage.priority.high` will load before images in a similar context with low or normal priority.
 
 -   `FastImage.priority.low` - Low Priority.
 -   `FastImage.priority.normal` **(Default)** - Normal Priority.
@@ -266,12 +267,10 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 -   FastImage - MIT © [DylanVann](https://github.com/DylanVann)
 -   SDWebImage - `MIT`
--   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/license) file for details.
+-   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
 
-[build-badge]: https://github.com/dylanvann/react-native-fast-image/workflows/CI/badge.svg
-[build]: https://github.com/DylanVann/react-native-fast-image/actions?query=workflow%3ACI
-[coverage-badge]: https://img.shields.io/codecov/c/github/dylanvann/react-native-fast-image.svg
-[coverage]: https://codecov.io/github/dylanvann/react-native-fast-image
+[build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
+[build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml
 [downloads-badge]: https://img.shields.io/npm/dm/react-native-fast-image.svg
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
