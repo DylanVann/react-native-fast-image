@@ -1,4 +1,5 @@
-# Walks through every example screen and saves screenshots for review.
+# Walks through every example screen, checks that images load and events fire,
+# and saves screenshots for review.
 #
 #   maestro test -e APP_ID=<app id> maestro/walkthrough.yaml
 #
@@ -17,6 +18,24 @@ env:
       visible: '.*Prioritize images.*'
       timeout: 30000
 - takeScreenshot: ${OUT}/01-top
+
+# Progress callbacks fire (onLoadStart, onProgress, onLoad). iOS exposes the
+# three lines as one element, so match within a longer text.
+- scrollUntilVisible:
+      element: '.*onLoad - [0-9]+ ms.*'
+      direction: DOWN
+      timeout: 60000
+      speed: 30
+      visibilityPercentage: 50
+      centerElement: true
+- assertVisible: '.*onLoadStart - [0-9]+ ms.*'
+- assertVisible: '.*onProgress - 100 %.*'
+
+- launchApp:
+      stopApp: true
+- extendedWaitUntil:
+      visible: '.*Prioritize images.*'
+      timeout: 30000
 - scroll
 - takeScreenshot: ${OUT}/02
 - scroll
@@ -45,9 +64,8 @@ env:
       timeout: 8000
 - takeScreenshot: ${OUT}/08-preload
 
-# Tab labels include extra accessibility text, so tap by position.
 - tapOn:
-      point: '50%,93%'
+      id: 'tab-image-grid'
 - extendedWaitUntil:
       notVisible: '.*Error fetching images.*'
       timeout: 5000
@@ -55,7 +73,10 @@ env:
       timeout: 15000
 - takeScreenshot: ${OUT}/09-image-grid
 - tapOn:
-      point: '83%,93%'
+      id: 'tab-fastimage-grid'
+- extendedWaitUntil:
+      notVisible: '.*Error fetching images.*'
+      timeout: 5000
 - waitForAnimationToEnd:
       timeout: 15000
 - takeScreenshot: ${OUT}/10-fastimage-grid

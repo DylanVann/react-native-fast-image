@@ -1,0 +1,34 @@
+# Opens the Regression tab and waits for every case to report OK. A crash or a
+# missing event fails the flow.
+#
+#   maestro test -e APP_ID=<app id> maestro/regression.yaml
+#
+# App IDs are listed in walkthrough.yaml.
+appId: ${APP_ID}
+env:
+    OUT: maestro-screenshots
+---
+- launchApp:
+      stopApp: true
+- tapOn:
+      id: 'tab-regression'
+- extendedWaitUntil:
+      visible: 'tint-remote: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'tint-404: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'remove-onLoad: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'remove-onLoadEnd: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'remove-onError: OK'
+      timeout: 30000
+# Give any delayed crash (e.g. from a prop update after an event) time to happen.
+- waitForAnimationToEnd:
+      timeout: 3000
+- assertVisible: 'Regression checks'
+- takeScreenshot: ${OUT}/regression
