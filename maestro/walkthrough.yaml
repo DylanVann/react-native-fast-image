@@ -1,5 +1,5 @@
 # Walks through every example screen, checks that images load and events fire,
-# and saves screenshots for review.
+# and saves screenshots for review. (Preloading is checked in regression.yaml.)
 #
 #   maestro test -e APP_ID=<app id> maestro/walkthrough.yaml
 #
@@ -19,17 +19,21 @@ env:
       timeout: 30000
 - takeScreenshot: ${OUT}/01-top
 
-# Progress callbacks fire (onLoadStart, onProgress, onLoad). iOS exposes the
-# three lines as one element, so match within a longer text.
+# Progress callbacks fire (onLoadStart, onProgress, onLoad). Scroll to the
+# section's heading (always there), then wait for the events: they only appear
+# once the image loads, which can take a while on the emulator. iOS exposes the
+# three lines as one element, so match within a longer text ((?s): any line breaks).
 - scrollUntilVisible:
-      element: '.*onLoad - [0-9]+ ms.*'
+      element: '.*Progress callbacks.*'
       direction: DOWN
       timeout: 60000
       speed: 30
-      visibilityPercentage: 50
       centerElement: true
-- assertVisible: '.*onLoadStart - [0-9]+ ms.*'
-- assertVisible: '.*onProgress - 100 %.*'
+- extendedWaitUntil:
+      visible: '(?s).*onLoad - [0-9]+ ms.*'
+      timeout: 30000
+- assertVisible: '(?s).*onLoadStart - [0-9]+ ms.*'
+- assertVisible: '(?s).*onProgress - 100 %.*'
 
 - launchApp:
       stopApp: true
@@ -48,25 +52,6 @@ env:
 - takeScreenshot: ${OUT}/06
 - scroll
 - takeScreenshot: ${OUT}/07-bottom
-
-# Preload an image, then show it.
-- launchApp:
-      stopApp: true
-- extendedWaitUntil:
-      visible: '.*Prioritize images.*'
-      timeout: 30000
-- scrollUntilVisible:
-      element: 'Preload'
-      direction: DOWN
-- tapOn: 'Preload'
-- tapOn: 'Show'
-- extendedWaitUntil:
-      visible: 'Hide'
-      timeout: 10000
-# The preloaded GIF keeps animating, so this always waits the full timeout.
-- waitForAnimationToEnd:
-      timeout: 2000
-- takeScreenshot: ${OUT}/08-preload
 
 - tapOn:
       id: 'tab-image-grid'

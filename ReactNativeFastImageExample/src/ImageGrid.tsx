@@ -20,13 +20,15 @@ export const ImageGridItem = memo(
         const [loaded, setLoaded] = useState(false)
         return (
             <View
+                // On the wrapper View rather than the image component: native
+                // image views don't reliably expose test ID changes.
+                testID={`${testIDPrefix}-${id}${loaded ? '-loaded' : ''}`}
                 style={{
                     flex: 1,
                     alignItems: 'stretch',
                 }}
             >
                 <ImageComponent
-                    testID={`${testIDPrefix}-${id}${loaded ? '-loaded' : ''}`}
                     onLoad={() => setLoaded(true)}
                     source={{ uri }}
                     style={{

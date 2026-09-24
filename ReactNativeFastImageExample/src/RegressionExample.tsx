@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import FastImage, { FastImageProps } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
@@ -10,6 +10,7 @@ import { useStatusBarHeight } from './StatusBarUnderlay'
 const LOGO =
     'https://raw.githubusercontent.com/DylanVann/react-native-fast-image/main/ReactNativeFastImageExample/src/images/logo.png'
 const MISSING = 'https://picsum.photos/does-not-exist.png'
+const PRELOAD = 'https://picsum.photos/id/1025/200/200'
 
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
@@ -43,6 +44,40 @@ function EventCase({
                     {id}: {fired ? 'OK' : 'waiting'}
                 </Text>
                 <Text style={styles.description}>{description}</Text>
+            </View>
+        </View>
+    )
+}
+
+// Preloads an image, shows it a moment later, and passes when it loads. Not a
+// fixed bug; it's here because this screen needs no scrolling, which makes it
+// reliable across runners and architectures.
+function PreloadCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    useEffect(() => {
+        FastImage.preload([{ uri: PRELOAD }])
+        const timer = setTimeout(() => setShown(true), 1000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: PRELOAD }}
+                    onLoad={() => setLoaded(true)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <View style={styles.text}>
+                <Text testID="regression-preload" style={styles.status}>
+                    preload: {loaded ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    FastImage.preload, then show the image
+                </Text>
             </View>
         </View>
     )
@@ -91,6 +126,7 @@ export default function RegressionExample() {
                 removeAfter
                 source={{ uri: MISSING }}
             />
+            <PreloadCase />
         </ScrollView>
     )
 }
