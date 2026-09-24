@@ -117,6 +117,21 @@ describe('FastImage (iOS)', () => {
         }
     })
 
+    it('puts pointerEvents on the wrapper, and none on the image for box-none', () => {
+        const tree: any = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/image.png' }}
+                    pointerEvents="box-none"
+                    style={style.image}
+                />,
+            )
+            .toJSON()
+
+        expect(tree.props.pointerEvents).toBe('box-none')
+        expect(tree.children[0].props.pointerEvents).toBe('none')
+    })
+
     it('renders a normal Image when not passed a uri', () => {
         const tree = renderer
             .create(

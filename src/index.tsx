@@ -202,6 +202,9 @@ function FastImageBase({
     // On the wrapper, so the layout is relative to the parent (the image view
     // inside always has x and y of 0).
     onLayout,
+    // On the wrapper, which would otherwise still take touches. With
+    // 'box-none' the image is part of the box, so it ignores touches too.
+    pointerEvents,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
     // Touchables pass onClick to their child (React Native 0.73+, for
@@ -211,7 +214,12 @@ function FastImageBase({
     const { onClick, ...props } = viewProps as typeof viewProps & {
         onClick?: (event: any) => void
     }
-    const wrapperProps = { onLayout, onClick }
+    const wrapperProps = { onLayout, onClick, pointerEvents }
+    const imageProps = {
+        ...props,
+        pointerEvents:
+            pointerEvents === 'box-none' ? ('none' as const) : undefined,
+    }
     // tintColor can also be set in style, as with React Native's Image. The
     // prop wins.
     const resolvedTintColor =
@@ -231,7 +239,7 @@ function FastImageBase({
                 ref={forwardedRef}
             >
                 <Image
-                    {...props}
+                    {...imageProps}
                     style={[
                         styles.fallbackImage,
                         { tintColor: resolvedTintColor },
@@ -260,7 +268,7 @@ function FastImageBase({
             ref={forwardedRef}
         >
             <FastImageView
-                {...props}
+                {...imageProps}
                 tintColor={resolvedTintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}

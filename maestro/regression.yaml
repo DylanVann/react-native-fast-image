@@ -104,6 +104,14 @@ env:
       visible: 'tint-style: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'pointer-events: .*'
+      timeout: 10000
+- tapOn:
+      id: 'regression-pointer-events-target'
+- extendedWaitUntil:
+      visible: 'pointer-events: OK'
+      timeout: 10000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:
