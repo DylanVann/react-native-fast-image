@@ -1,6 +1,7 @@
 import React from 'react'
 import { LogBox } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Icon } from './Icon'
 import FastImageExamples from './FastImageExamples'
@@ -16,36 +17,38 @@ LogBox.ignoreLogs([
 
 export default function App() {
     return (
-        <NavigationContainer>
-            <Tab.Navigator screenOptions={{ headerShown: false }}>
-                <Tab.Screen
-                    name="FastImage Example"
-                    component={FastImageExamples}
-                    options={{
-                        tabBarIcon: (props) => (
-                            <Icon name="ios-information-circle" {...props} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Image Grid"
-                    component={DefaultImageGrid}
-                    options={{
-                        tabBarIcon: (props) => (
-                            <Icon name="image-outline" {...props} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="FastImage Grid"
-                    component={FastImageGrid}
-                    options={{
-                        tabBarIcon: (props) => (
-                            <Icon name="images-outline" {...props} />
-                        ),
-                    }}
-                />
-            </Tab.Navigator>
-        </NavigationContainer>
+        <SafeAreaProvider>
+            <NavigationContainer>
+                <Tab.Navigator screenOptions={{ headerShown: false }}>
+                    <Tab.Screen
+                        name="FastImage Example"
+                        component={FastImageExamples}
+                        options={{
+                            tabBarIcon: (props) => (
+                                <Icon name="information-circle" {...props} />
+                            ),
+                        }}
+                    />
+                    <Tab.Screen
+                        name="Image Grid"
+                        component={DefaultImageGrid}
+                        options={{
+                            tabBarIcon: (props) => (
+                                <Icon name="image-outline" {...props} />
+                            ),
+                        }}
+                    />
+                    <Tab.Screen
+                        name="FastImage Grid"
+                        component={FastImageGrid}
+                        options={{
+                            tabBarIcon: (props) => (
+                                <Icon name="images-outline" {...props} />
+                            ),
+                        }}
+                    />
+                </Tab.Navigator>
+            </NavigationContainer>
+        </SafeAreaProvider>
     )
 }
