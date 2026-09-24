@@ -47,6 +47,11 @@ describe('FastImage (iOS)', () => {
 
             expect(resolveAssetSource).toHaveBeenCalledWith(1)
             expect(image.props.source).toEqual({ uri: 'asset-1' })
+            // Fills FastImage's box instead of taking the asset's size.
+            expect(StyleSheet.flatten(image.props.style)).toMatchObject({
+                width: '100%',
+                height: '100%',
+            })
         } finally {
             resolveAssetSource.mockRestore()
         }

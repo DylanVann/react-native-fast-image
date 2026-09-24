@@ -233,7 +233,7 @@ function FastImageBase({
                 <Image
                     {...props}
                     style={[
-                        StyleSheet.absoluteFill,
+                        styles.fallbackImage,
                         { tintColor: resolvedTintColor },
                     ]}
                     source={resolvedSource}
@@ -314,6 +314,15 @@ FastImage.clearMemoryCache = () =>
 FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
 
 const styles = StyleSheet.create({
+    // React Native's Image sizes itself from a require()d source's width and
+    // height unless the style sets them, which would override absoluteFill.
+    fallbackImage: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+    },
     imageContainer: {
         overflow: 'hidden',
     },

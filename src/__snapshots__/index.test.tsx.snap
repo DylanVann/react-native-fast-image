@@ -158,11 +158,11 @@ exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
     style={
       Array [
         Object {
-          "bottom": 0,
+          "height": "100%",
           "left": 0,
           "position": "absolute",
-          "right": 0,
           "top": 0,
+          "width": "100%",
         },
         Object {
           "tintColor": undefined,
