@@ -19,7 +19,15 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// Newer versions of the Android Gradle plugin (7.3+) take the namespace from
+// build.gradle and warn about the package attribute in AndroidManifest.xml;
+// older versions need that attribute.
+def supportsNamespace = project.android.hasProperty("namespace")
+
 android {
+    if (supportsNamespace) {
+        namespace "com.dylanvann.fastimage"
+    }
     compileSdkVersion safeExtGet('compileSdkVersion', 28)
     buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
     defaultConfig {
@@ -30,6 +38,9 @@ android {
     }
     sourceSets {
         main {
+            if (supportsNamespace) {
+                manifest.srcFile "src/main/AndroidManifestNew.xml"
+            }
             java {
                 if (safeExtGet('excludeAppGlideModule', false)) {
                     srcDir "src"
