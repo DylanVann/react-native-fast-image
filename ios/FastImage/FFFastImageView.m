@@ -241,12 +241,19 @@
                      options: options
                      context: context
                     progress: ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
-                        if (weakSelf.onFastImageProgress) {
-                            weakSelf.onFastImageProgress(@{
-                                    @"loaded": @(receivedSize),
-                                    @"total": @(expectedSize)
-                            });
-                        }
+                        // SDWebImage calls this on its download queue, while React
+                        // Native sets onFastImageProgress on the main queue. Read
+                        // and call it there, so it can't change or be released in
+                        // between (EXC_BAD_ACCESS).
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
+                            if (onProgress) {
+                                onProgress(@{
+                                        @"loaded": @(receivedSize),
+                                        @"total": @(expectedSize)
+                                });
+                            }
+                        });
                     } completed: ^(UIImage* _Nullable image,
                     NSError* _Nullable error,
                     SDImageCacheType cacheType,
