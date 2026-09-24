@@ -1,3 +1,10 @@
+## [8.6.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.4...v8.6.5) (2026-09-24)
+
+
+### Bug Fixes
+
+* **types:** base ImageStyle on ViewStyle ([#1086](https://github.com/DylanVann/react-native-fast-image/issues/1086)) ([5a074ec](https://github.com/DylanVann/react-native-fast-image/commit/5a074ecc53df6619fd83c412553cf17340ff7288))
+
 ## [8.6.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.3...v8.6.4) (2026-09-24)
 
 
