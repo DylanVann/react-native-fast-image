@@ -337,6 +337,19 @@ export default function RegressionExample() {
                 style={[styles.image, { tintColor: 'green' }]}
             />
             <PointerEventsCase />
+            <EventCase
+                id="error-empty-uri"
+                description="#1028: an empty uri fires onError (Android didn't)"
+                event="onError"
+                source={{ uri: '' }}
+            />
+            <EventCase
+                id="error-null-uri-default"
+                description="#945: a null uri fires onError and shows defaultSource (Android showed nothing)"
+                event="onError"
+                source={{ uri: null as unknown as string }}
+                defaultSource={DEFAULT}
+            />
             <PreloadCase />
         </ScrollView>
     )
