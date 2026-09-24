@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
@@ -184,6 +185,37 @@ function TouchableCase() {
     )
 }
 
+// A FastImage with pointerEvents="none" over a Pressable. The flow taps the
+// Pressable's position; passes when it gets the press. pointerEvents went to
+// the image inside FastImage's wrapper, which still took the touch.
+function PointerEventsCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <View>
+                <Pressable
+                    testID="regression-pointer-events-target"
+                    style={styles.image}
+                    onPress={() => setPressed(true)}
+                />
+                <FastImage
+                    pointerEvents="none"
+                    style={[styles.image, StyleSheet.absoluteFill]}
+                    source={{ uri: LOGO }}
+                />
+            </View>
+            <View style={styles.text}>
+                <Text testID="regression-pointer-events" style={styles.status}>
+                    pointer-events: {pressed ? 'OK' : 'tap the image'}
+                </Text>
+                <Text style={styles.description}>
+                    #393: pointerEvents="none" lets touches through
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -304,6 +336,7 @@ export default function RegressionExample() {
                 source={{ uri: LOGO }}
                 style={[styles.image, { tintColor: 'green' }]}
             />
+            <PointerEventsCase />
             <PreloadCase />
         </ScrollView>
     )
