@@ -1,3 +1,10 @@
+## [8.6.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.9...v8.6.10) (2026-09-24)
+
+
+### Bug Fixes
+
+* **types:** export the Cache type ([#1093](https://github.com/DylanVann/react-native-fast-image/issues/1093)) ([2d257c0](https://github.com/DylanVann/react-native-fast-image/commit/2d257c0ba65fff93eb6a6cdc35d3c41d0f3fcf55))
+
 ## [8.6.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.8...v8.6.9) (2026-09-24)
 
 
