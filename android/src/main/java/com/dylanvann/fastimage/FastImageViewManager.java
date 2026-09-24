@@ -19,6 +19,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.SimpleViewManager;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
@@ -120,7 +121,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
-                ThemedReactContext context = (ThemedReactContext) view.getContext();
+                ReactContext context = getReactContext(view.getContext());
+                if (context == null) continue;
                 RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
                 int viewId = view.getId();
                 eventEmitter.receiveEvent(viewId, REACT_ON_PROGRESS_EVENT, event);
@@ -141,6 +143,20 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
 
         return !isActivityDestroyed(activity);
+    }
+
+    // A view's context is the ThemedReactContext it was created with, but below
+    // Android 5 (API 21) AppCompatImageView wraps it in a TintContextWrapper, so
+    // it can't be cast directly (#840). Unwrap until the ReactContext.
+    @Nullable
+    static ReactContext getReactContext(Context context) {
+        while (context instanceof ContextWrapper) {
+            if (context instanceof ReactContext) {
+                return (ReactContext) context;
+            }
+            context = ((ContextWrapper) context).getBaseContext();
+        }
+        return null;
     }
 
     private static Activity getActivityFromContext(final Context context) {
