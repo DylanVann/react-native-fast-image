@@ -54,6 +54,9 @@ export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
+        // The view's React tag. Missing on Android with the legacy architecture.
+        // TODO: make it required once the New Architecture is the minimum.
+        target?: number
     }
 }
 
