@@ -1,3 +1,10 @@
+## [8.6.22](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.21...v8.6.22) (2026-09-24)
+
+
+### Bug Fixes
+
+* size fallback images to fill FastImage ([#1107](https://github.com/DylanVann/react-native-fast-image/issues/1107)) ([9651f22](https://github.com/DylanVann/react-native-fast-image/commit/9651f2294012b55cce41f0722fb642a4e94c5583))
+
 ## [8.6.21](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.20...v8.6.21) (2026-09-24)
 
 
