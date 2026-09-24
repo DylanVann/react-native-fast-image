@@ -98,6 +98,7 @@
             [templateImage drawInRect: rect];
         }];
     } else {
+        // iOS/tvOS 9. Remove this branch once the minimum is iOS 10+.
         UIGraphicsBeginImageContextWithOptions(image.size, NO, image.scale);
         [color set];
         [templateImage drawInRect: rect];
