@@ -1,3 +1,10 @@
+## [8.6.19](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.18...v8.6.19) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ios:** read the progress handler on the main queue ([#1102](https://github.com/DylanVann/react-native-fast-image/issues/1102)) ([c2d50ae](https://github.com/DylanVann/react-native-fast-image/commit/c2d50ae2936aa0e598828c3c598b3624304d1b27))
+
 ## [8.6.18](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.17...v8.6.18) (2026-09-24)
 
 
