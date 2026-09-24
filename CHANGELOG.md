@@ -1,3 +1,10 @@
+## [8.6.11](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.10...v8.6.11) (2026-09-24)
+
+
+### Bug Fixes
+
+* **types:** add target to the onLoad event ([#1094](https://github.com/DylanVann/react-native-fast-image/issues/1094)) ([820770b](https://github.com/DylanVann/react-native-fast-image/commit/820770b53dbe67e89fc3ad145e177f5302335137))
+
 ## [8.6.10](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.9...v8.6.10) (2026-09-24)
 
 
