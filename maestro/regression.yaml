@@ -84,6 +84,12 @@ env:
       visible: 'layout-fallback: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'fallback-require: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'fallback-require: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'touchable: .*'
       timeout: 10000
 - tapOn:

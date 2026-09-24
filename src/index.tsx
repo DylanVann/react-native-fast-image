@@ -185,8 +185,11 @@ function FastImageBase({
     }
     const wrapperProps = { onLayout, onClick }
     if (fallback) {
-        const cleanedSource = { ...(source as any) }
-        delete cleanedSource.cache
+        // Remove `cache`, which React Native's Image doesn't support. A
+        // require()d source is a number: pass it through (spreading it gave {}).
+        const cleanedSource =
+            typeof source === 'number' ? source : { ...(source as any) }
+        if (typeof cleanedSource === 'object') delete cleanedSource.cache
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
         return (

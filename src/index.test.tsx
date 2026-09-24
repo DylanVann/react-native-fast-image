@@ -1,4 +1,4 @@
-import { StyleSheet, Platform, NativeModules } from 'react-native'
+import { Image, StyleSheet, Platform, NativeModules } from 'react-native'
 import React from 'react'
 import renderer from 'react-test-renderer'
 import FastImage from './index'
@@ -32,6 +32,24 @@ describe('FastImage (iOS)', () => {
             .toJSON()
 
         expect(tree).toMatchSnapshot()
+    })
+
+    it('passes a required (numeric) source to Image when using fallback', () => {
+        const resolveAssetSource = jest
+            .spyOn(Image, 'resolveAssetSource')
+            .mockImplementation(
+                (asset: any) => ({ uri: `asset-${asset}` } as any),
+            )
+        try {
+            const image = renderer
+                .create(<FastImage source={1} fallback style={style.image} />)
+                .root.findByType(Image)
+
+            expect(resolveAssetSource).toHaveBeenCalledWith(1)
+            expect(image.props.source).toEqual({ uri: 'asset-1' })
+        } finally {
+            resolveAssetSource.mockRestore()
+        }
     })
 
     it('renders a normal Image when not passed a uri', () => {
