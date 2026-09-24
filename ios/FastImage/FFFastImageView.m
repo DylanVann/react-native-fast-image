@@ -72,6 +72,11 @@
 }
 
 - (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
+    // FIX: Prevent crash on zero/invalid image dimensions
+    if (!image || image.size.width <= 0 || image.size.height <= 0) {
+        return image;
+    }
+
     UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
     UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
     [color set];
