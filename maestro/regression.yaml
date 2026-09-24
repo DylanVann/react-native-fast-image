@@ -31,6 +31,12 @@ env:
       visible: 'remove-onError: OK'
       timeout: 30000
 - extendedWaitUntil:
+      visible: 'default-no-source: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'preload-no-uri: OK'
+      timeout: 30000
+- extendedWaitUntil:
       visible: 'preload: OK'
       timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.

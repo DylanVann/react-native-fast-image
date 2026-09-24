@@ -27,10 +27,14 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
 
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
+        // Skip sources without a uri; adding a nil url throws.
+        if (!source.url) {
+            return;
+        }
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
             [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
         }];
-        [urls setObject:source.url atIndexedSubscript:idx];
+        [urls addObject:source.url];
     }];
 
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];

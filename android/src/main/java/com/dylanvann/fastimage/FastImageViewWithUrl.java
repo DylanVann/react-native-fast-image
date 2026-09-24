@@ -47,10 +47,6 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mDefaultSource = source;
     }
 
-    private boolean isNullOrEmpty(final String url) {
-        return url == null || url.trim().isEmpty();
-    }
-
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
@@ -59,10 +55,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         if (!mNeedsReload)
             return;
 
-        if ((mSource == null ||
-                !mSource.hasKey("uri") ||
-                isNullOrEmpty(mSource.getString("uri"))) &&
-                mDefaultSource == null) {
+        if (!FastImageViewConverter.hasUri(mSource) && mDefaultSource == null) {
 
             // Cancel existing requests.
             clearView(requestManager);

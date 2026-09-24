@@ -37,6 +37,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 for (int i = 0; i < sources.size(); i++) {
                     final ReadableMap source = sources.getMap(i);
+                    // Skip sources without a uri (Glide throws on an empty url).
+                    if (!FastImageViewConverter.hasUri(source)) continue;
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
 
                     Glide
