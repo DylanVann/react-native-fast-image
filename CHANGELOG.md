@@ -1,3 +1,10 @@
+## [8.6.23](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.22...v8.6.23) (2026-09-24)
+
+
+### Bug Fixes
+
+* apply pointerEvents to FastImage's wrapper view ([#1105](https://github.com/DylanVann/react-native-fast-image/issues/1105)) ([548cabe](https://github.com/DylanVann/react-native-fast-image/commit/548cabec4e5cc38a3bb00b730136394198637707))
+
 ## [8.6.22](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.21...v8.6.22) (2026-09-24)
 
 
