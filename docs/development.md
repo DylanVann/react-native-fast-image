@@ -56,7 +56,7 @@ Its `metro.config.js` resolves every import from the shared screens and the libr
 `scripts/verify.sh` checks the library and runs both example apps on iOS and Android:
 
 1. Builds the library, runs its tests, and type-checks the example.
-2. For each app and platform, builds and installs the app, starts its packager, and runs the [Maestro](https://maestro.dev) flows. A failed flow or a crash fails the run.
+2. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the [Maestro](https://maestro.dev) flows on each platform. A failed flow or a crash fails the run.
 
 ```bash
 scripts/verify.sh                      # everything
@@ -64,7 +64,7 @@ scripts/verify.sh --app legacy --ios   # one app and platform
 scripts/verify.sh --ref main           # the library code from main, for a "before" run
 ```
 
-Run `scripts/verify.sh --help` for all options. If Android flows fail on screens that look fine, restart the emulator (`adb emu kill`); long-running emulators can stop reporting their UI to Maestro. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, Maestro, an iOS simulator, and an Android emulator (it starts one if none is running).
+Run `scripts/verify.sh --help` for all options. Give the Android emulator at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`; the script starts emulators with `-gpu host`). With less memory or software rendering, the example's animated images make the emulator too slow and Maestro can't read the screen. Each step has a time limit of about twice a typical run; raise it with `VERIFY_WALKTHROUGH_TIMEOUT`, `VERIFY_REGRESSION_TIMEOUT` or `VERIFY_BUILD_TIMEOUT` (seconds) if one is hit. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, Maestro, an iOS simulator, and an Android emulator (it starts one if none is running).
 
 ### Maestro flows
 
