@@ -7,6 +7,7 @@ import { Icon } from './Icon'
 import FastImageExamples from './FastImageExamples'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
+import RegressionExample from './RegressionExample'
 
 const Tab = createBottomTabNavigator()
 
@@ -24,6 +25,7 @@ export default function App() {
                         name="FastImage Example"
                         component={FastImageExamples}
                         options={{
+                            tabBarButtonTestID: 'tab-examples',
                             tabBarIcon: (props) => (
                                 <Icon name="information-circle" {...props} />
                             ),
@@ -33,6 +35,7 @@ export default function App() {
                         name="Image Grid"
                         component={DefaultImageGrid}
                         options={{
+                            tabBarButtonTestID: 'tab-image-grid',
                             tabBarIcon: (props) => (
                                 <Icon name="image-outline" {...props} />
                             ),
@@ -42,8 +45,22 @@ export default function App() {
                         name="FastImage Grid"
                         component={FastImageGrid}
                         options={{
+                            tabBarButtonTestID: 'tab-fastimage-grid',
                             tabBarIcon: (props) => (
                                 <Icon name="images-outline" {...props} />
+                            ),
+                        }}
+                    />
+                    <Tab.Screen
+                        name="Regression"
+                        component={RegressionExample}
+                        options={{
+                            tabBarButtonTestID: 'tab-regression',
+                            tabBarIcon: (props) => (
+                                <Icon
+                                    name="checkmark-circle-outline"
+                                    {...props}
+                                />
                             ),
                         }}
                     />

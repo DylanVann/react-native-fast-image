@@ -1079,6 +1079,26 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
+"@devicelab/maestro-runner-darwin-arm64@1.1.27":
+  version "1.1.27"
+  resolved "https://registry.yarnpkg.com/@devicelab/maestro-runner-darwin-arm64/-/maestro-runner-darwin-arm64-1.1.27.tgz#3fcd2bb2f2ac1243f0cee5002cba2ab5719c4a88"
+  integrity sha512-7OcgXTUEhkB2YtTLkmqyHgy6FfcaHfwHFLML3lejs1f4kDjp4pVngvhTVvT3NQGmrakDsJJt+WLjJdbSf3mscQ==
+
+"@devicelab/maestro-runner-darwin-x64@1.1.27":
+  version "1.1.27"
+  resolved "https://registry.yarnpkg.com/@devicelab/maestro-runner-darwin-x64/-/maestro-runner-darwin-x64-1.1.27.tgz#ec62bea500cbf3ea04e2bb2090a519e394c98abb"
+  integrity sha512-0fbDFCpAezLt31b+YDZOF5bStA7wSbeNQT4EfsFcUk4XQCp0mjOE8dUKTD1ZJ2EONm9qUjqXNLtCZwyodSlYeA==
+
+"@devicelab/maestro-runner-linux-arm64@1.1.27":
+  version "1.1.27"
+  resolved "https://registry.yarnpkg.com/@devicelab/maestro-runner-linux-arm64/-/maestro-runner-linux-arm64-1.1.27.tgz#757e5920561b50f8a3682058ebb334a25c30dbcc"
+  integrity sha512-axD8O9MyfwTR+gEYVzRr9a+j+/6zoW24mk7jNSnTKsligYRPzJWjdrIoUjVRKb0o0qRcmHtRXocwgmYzkVWKig==
+
+"@devicelab/maestro-runner-linux-x64@1.1.27":
+  version "1.1.27"
+  resolved "https://registry.yarnpkg.com/@devicelab/maestro-runner-linux-x64/-/maestro-runner-linux-x64-1.1.27.tgz#8e01671a84d6d4598e9fb3e4e8a46ff667e2fac9"
+  integrity sha512-BVYlsz5hrBrX5wkMO3Ep+yLwStHDgQc3AnhVgqBHODJERwCnDHW8MnkqF8CSspJDqAr6HRrKlh3BuwaT8H7wbw==
+
 "@dylanvann/multi-semantic-release@^3.2.0":
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/@dylanvann/multi-semantic-release/-/multi-semantic-release-3.2.0.tgz#713f60134453ccd9b1db708e8f21ff119e724cd1"
@@ -6778,6 +6798,16 @@ lru-cache@^6.0.0:
   integrity sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==
   dependencies:
     yallist "^4.0.0"
+
+maestro-runner@1.1.27:
+  version "1.1.27"
+  resolved "https://registry.yarnpkg.com/maestro-runner/-/maestro-runner-1.1.27.tgz#9d65df1b7d1271bfd5b8e6bbc0be1b7e6e820bed"
+  integrity sha512-OyziMQkf5hHlFsYOwud5meKbKFAmYRVreX30gkhpjNAPGgdA/r1Ud5mxfppCvF3AmGBa8CQoFXVUay6ioy2I2A==
+  optionalDependencies:
+    "@devicelab/maestro-runner-darwin-arm64" "1.1.27"
+    "@devicelab/maestro-runner-darwin-x64" "1.1.27"
+    "@devicelab/maestro-runner-linux-arm64" "1.1.27"
+    "@devicelab/maestro-runner-linux-x64" "1.1.27"
 
 magic-string@^0.25.2:
   version "0.25.7"
