@@ -1,3 +1,10 @@
+## [8.6.20](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.19...v8.6.20) (2026-09-24)
+
+
+### Bug Fixes
+
+* **types:** use ColorValue for colors in ImageStyle ([#1104](https://github.com/DylanVann/react-native-fast-image/issues/1104)) ([59ed002](https://github.com/DylanVann/react-native-fast-image/commit/59ed0023f16a04a418c7483adce6a96639448dbb))
+
 ## [8.6.19](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.18...v8.6.19) (2026-09-24)
 
 
