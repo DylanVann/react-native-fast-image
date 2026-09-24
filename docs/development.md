@@ -51,15 +51,33 @@ yarn android
 
 Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
 
-## Walking through the examples
+## Verifying changes
 
-`maestro/walkthrough.yaml` is a [Maestro](https://maestro.dev) flow that scrolls through every example, preloads an image, opens both grids, and saves screenshots to `maestro-screenshots/`. Run it against either app on a booted simulator or emulator:
+`scripts/verify.sh` checks the library and runs both example apps on iOS and Android:
+
+1. Builds the library, runs its tests, and type-checks the example.
+2. For each app and platform, builds and installs the app, starts its packager, and runs the [Maestro](https://maestro.dev) flows. A failed flow or a crash fails the run.
 
 ```bash
-maestro test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/walkthrough.yaml
+scripts/verify.sh                      # everything
+scripts/verify.sh --app legacy --ios   # one app and platform
+scripts/verify.sh --ref main           # the library code from main, for a "before" run
 ```
 
-The app IDs for each app and platform are listed at the top of the flow.
+Run `scripts/verify.sh --help` for all options. If Android flows fail on screens that look fine, restart the emulator (`adb emu kill`); long-running emulators can stop reporting their UI to Maestro. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, Maestro, an iOS simulator, and an Android emulator (it starts one if none is running).
+
+### Maestro flows
+
+-   `maestro/walkthrough.yaml` scrolls through every example, checks that the progress events fire, preloads an image, opens both grids, and saves screenshots.
+-   `maestro/regression.yaml` opens the **Regression** tab and waits for every case to report `OK`. Each case covers a fixed bug (for example, removing an event handler after it fires). Add a case there when fixing a bug that can be reproduced in the app.
+
+To run a flow by hand against a running app:
+
+```bash
+maestro test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/regression.yaml
+```
+
+The app IDs for each app and platform are listed at the top of `maestro/walkthrough.yaml`.
 
 ## How the example uses the library
 
