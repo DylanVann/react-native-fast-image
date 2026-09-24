@@ -33,6 +33,24 @@ yarn ios
 yarn android
 ```
 
+## Testing on older React Native (legacy architecture)
+
+`ReactNativeFastImageExampleLegacy` runs the same screens (`ReactNativeFastImageExample/src`) on React Native 0.73 with the legacy architecture (Paper and the bridge). Use it to check that fixes still work for apps on older React Native versions.
+
+```bash
+cd ReactNativeFastImageExampleLegacy
+yarn
+bundle install
+bundle exec pod install --project-directory=ios
+
+# Stop the main example's packager first; both use port 8081.
+yarn start
+yarn ios
+yarn android
+```
+
+Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
+
 ## How the example uses the library
 
 -   `react-native.config.js` autolinks the library's native code from the repo root.
