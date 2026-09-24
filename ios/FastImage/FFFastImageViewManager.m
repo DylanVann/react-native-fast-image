@@ -1,5 +1,6 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
+#import <React/RCTLog.h>
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
@@ -30,6 +31,8 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
         // Skip sources without a url (an empty, missing or null uri). NSArray can't
         // hold nil, so adding one throws and crashes the app.
         if (!source.url) {
+            // preload has no way to report errors, so log it.
+            RCTLogWarn(@"FastImage.preload: skipping a source without a valid uri");
             return;
         }
         [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
