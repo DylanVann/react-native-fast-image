@@ -50,6 +50,13 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
+    // Whether the source has a uri to load (not null, missing or blank).
+    static boolean hasUri(@Nullable ReadableMap source) {
+        if (source == null || !source.hasKey("uri") || source.isNull("uri")) return false;
+        String uri = source.getString("uri");
+        return uri != null && !uri.trim().isEmpty();
+    }
+
     // Resolve the source uri to a file path that android understands.
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
@@ -79,7 +86,7 @@ class FastImageViewConverter {
         return headers;
     }
 
-    static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source) {
+    static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, @Nullable ReadableMap source) {
         // Get priority.
         final Priority priority = FastImageViewConverter.getPriority(source);
         // Get cache control method.
@@ -108,7 +115,8 @@ class FastImageViewConverter {
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 
-        if (imageSource.isResource()) {
+        // imageSource is null when only a defaultSource is shown.
+        if (imageSource != null && imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
             // across builds. The underlying glide implementation caches these resources. To make

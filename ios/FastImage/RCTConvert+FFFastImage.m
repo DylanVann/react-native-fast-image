@@ -16,7 +16,8 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
                                        }), FFFCacheControlImmutable, integerValue);
 
 + (FFFastImageSource *)FFFastImageSource:(id)json {
-    if (!json) {
+    // A null source (e.g. a null entry passed to preload).
+    if (!json || json == (id)kCFNull) {
         return nil;
     }
     

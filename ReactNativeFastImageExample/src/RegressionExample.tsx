@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import FastImage, { FastImageProps } from 'react-native-fast-image'
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native'
+import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives; maestro/regression.yaml waits for every OK. A crash fails the
 // run because the app is gone.
 
+// In debug builds, Android only resolves a defaultSource that's bundled as a
+// drawable (require() images come from Metro instead), so use one the app
+// bundles, as require() images are in release builds.
+const DEFAULT = Platform.select({
+    android: { uri: 'rn_edit_text_material' } as unknown as number,
+    default: require('./images/fields.jpg'),
+})
 const LOGO =
     'https://raw.githubusercontent.com/DylanVann/react-native-fast-image/main/ReactNativeFastImageExample/src/images/logo.png'
 const MISSING = 'https://picsum.photos/does-not-exist.png'
@@ -42,6 +49,38 @@ function EventCase({
             <View style={styles.text}>
                 <Text testID={`regression-${id}`} style={styles.status}>
                     {id}: {fired ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>{description}</Text>
+            </View>
+        </View>
+    )
+}
+
+// Passes if the app is still running a moment after this mounts (and runs
+// `onMount`). For bugs that crashed the app instead of failing an event.
+function NoCrashCase({
+    id,
+    description,
+    onMount,
+    children,
+}: {
+    id: string
+    description: string
+    onMount?: () => void
+    children?: React.ReactNode
+}) {
+    const [ok, setOk] = useState(false)
+    useEffect(() => {
+        onMount?.()
+        const timer = setTimeout(() => setOk(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            {children ?? <View style={styles.image} />}
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}: {ok ? 'OK' : 'waiting'}
                 </Text>
                 <Text style={styles.description}>{description}</Text>
             </View>
@@ -125,6 +164,24 @@ export default function RegressionExample() {
                 event="onError"
                 removeAfter
                 source={{ uri: MISSING }}
+            />
+            <NoCrashCase
+                id="default-no-source"
+                description="#973: defaultSource with no source (Android crashed)"
+            >
+                <FastImage style={styles.image} defaultSource={DEFAULT} />
+            </NoCrashCase>
+            <NoCrashCase
+                id="preload-no-uri"
+                description="#774: preload with an empty, missing or null uri, or a null source (crashed)"
+                onMount={() =>
+                    FastImage.preload([
+                        { uri: '' },
+                        {},
+                        { uri: null as unknown as string },
+                        null as unknown as Source,
+                    ])
+                }
             />
             <PreloadCase />
         </ScrollView>
