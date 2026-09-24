@@ -98,6 +98,12 @@ env:
       visible: 'touchable: OK'
       timeout: 10000
 - scrollUntilVisible:
+      element: 'tint-style: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'tint-style: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:
