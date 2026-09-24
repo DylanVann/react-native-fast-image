@@ -73,13 +73,13 @@ export interface ImageStyle extends ViewStyle {
     backfaceVisibility?: 'visible' | 'hidden'
     borderBottomLeftRadius?: number
     borderBottomRightRadius?: number
-    backgroundColor?: string
-    borderColor?: string
+    backgroundColor?: ColorValue
+    borderColor?: ColorValue
     borderWidth?: number
     borderRadius?: number
     borderTopLeftRadius?: number
     borderTopRightRadius?: number
-    overlayColor?: string
+    overlayColor?: ColorValue
     opacity?: number
 }
 
