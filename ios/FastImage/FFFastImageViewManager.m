@@ -27,7 +27,8 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
 
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
-        // Skip sources without a uri; adding a nil url throws.
+        // Skip sources without a url (an empty, missing or null uri). NSArray can't
+        // hold nil, so adding one throws and crashes the app.
         if (!source.url) {
             return;
         }
