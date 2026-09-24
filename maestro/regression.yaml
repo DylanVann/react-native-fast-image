@@ -1,6 +1,7 @@
 # Opens the Regression tab and waits for every case to report OK. A crash or a
-# missing event fails the flow. The screen fits without scrolling, so this
-# behaves the same on both architectures.
+# missing event fails the flow. Each case is scrolled into view first (a no-op
+# when it's already visible; on the legacy architecture, iOS reports off-screen
+# rows as visible, so the waits pass without scrolling there).
 #
 #   npx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/regression.yaml
 #
@@ -15,41 +16,81 @@ env:
       stopApp: true
 - tapOn:
       id: 'tab-regression'
+- scrollUntilVisible:
+      element: 'tint-remote: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'tint-remote: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'tint-404: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'tint-404: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'remove-onLoad: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'remove-onLoad: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'remove-onLoadEnd: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'remove-onLoadEnd: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'remove-onError: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'remove-onError: OK'
       timeout: 30000
+- takeScreenshot: ${OUT}/regression-top
+- scrollUntilVisible:
+      element: 'default-no-source: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'default-no-source: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'preload-no-uri: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'preload-no-uri: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'preload-unresolved: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'preload-unresolved: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'clear-tint: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'clear-tint: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'layout: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'layout: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'layout-fallback: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'layout-fallback: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'preload: .*'
+      timeout: 10000
 - extendedWaitUntil:
       visible: 'preload: OK'
       timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000
-- assertVisible: 'Regression checks'
+- assertVisible: 'preload: OK'
 - takeScreenshot: ${OUT}/regression

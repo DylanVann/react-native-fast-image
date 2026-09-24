@@ -40,6 +40,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     // Skip sources without a uri (Glide throws on an empty url).
                     if (!FastImageViewConverter.hasUri(source)) continue;
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
+                    // Also skip a uri that can't be resolved (e.g. a relative path),
+                    // which resolves to an empty one. The view reports it as an error.
+                    if (imageSource.getUri().toString().isEmpty()) continue;
 
                     Glide
                             .with(activity.getApplicationContext())

@@ -247,6 +247,13 @@ export default function RegressionExample() {
                     ])
                 }
             />
+            <NoCrashCase
+                id="preload-unresolved"
+                description="#849: preload with a uri that can't be resolved (Android crashed)"
+                onMount={() =>
+                    FastImage.preload([{ uri: 'not-a-real-image.jpg' }])
+                }
+            />
             <ClearTintCase />
             <LayoutCase id="layout" />
             <LayoutCase id="layout-fallback" fallback />
