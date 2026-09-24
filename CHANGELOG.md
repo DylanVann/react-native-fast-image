@@ -1,3 +1,10 @@
+## [8.6.15](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.14...v8.6.15) (2026-09-24)
+
+
+### Bug Fixes
+
+* **android:** don't crash preloading a uri that can't be resolved ([#1099](https://github.com/DylanVann/react-native-fast-image/issues/1099)) ([53c5bc7](https://github.com/DylanVann/react-native-fast-image/commit/53c5bc7a34ae332cfbca36915c579d517310c336))
+
 ## [8.6.14](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.13...v8.6.14) (2026-09-24)
 
 
