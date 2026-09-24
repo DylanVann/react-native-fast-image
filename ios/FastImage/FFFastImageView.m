@@ -77,12 +77,33 @@
         return image;
     }
 
-    UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
-    UIGraphicsBeginImageContextWithOptions(image.size, NO, newImage.scale);
-    [color set];
-    [newImage drawInRect: CGRectMake(0, 0, image.size.width, newImage.size.height)];
-    newImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    UIImage* templateImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
+    CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
+    UIImage* newImage;
+    if (@available(iOS 10.0, tvOS 10.0, *)) {
+        // UIGraphicsBeginImageContextWithOptions is deprecated since iOS 17.
+        // Keep the source image's scale and a standard-range (8-bit) bitmap,
+        // matching what it produced.
+        UIGraphicsImageRendererFormat* format = [[UIGraphicsImageRendererFormat alloc] init];
+        format.scale = image.scale;
+        format.opaque = NO;
+        if (@available(iOS 12.0, tvOS 12.0, *)) {
+            format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
+        } else {
+            format.prefersExtendedRange = NO;
+        }
+        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: image.size format: format];
+        newImage = [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+            [color set];
+            [templateImage drawInRect: rect];
+        }];
+    } else {
+        UIGraphicsBeginImageContextWithOptions(image.size, NO, image.scale);
+        [color set];
+        [templateImage drawInRect: rect];
+        newImage = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    }
     return newImage;
 }
 
