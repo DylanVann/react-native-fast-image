@@ -1,6 +1,7 @@
 package com.dylanvann.fastimage;
 
 import android.app.Activity;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -17,6 +18,7 @@ import com.facebook.react.views.imagehelper.ImageSource;
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
     private static final String REACT_CLASS = "FastImageView";
+    private static final String TAG = "FastImage";
 
     FastImageViewModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -38,8 +40,18 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 for (int i = 0; i < sources.size(); i++) {
                     final ReadableMap source = sources.getMap(i);
                     // Skip sources without a uri (Glide throws on an empty url).
-                    if (!FastImageViewConverter.hasUri(source)) continue;
+                    // preload has no way to report errors, so log them.
+                    if (!FastImageViewConverter.hasUri(source)) {
+                        Log.w(TAG, "preload: skipping a source without a uri");
+                        continue;
+                    }
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(activity, source);
+                    // Also skip a uri that can't be resolved (e.g. a relative path),
+                    // which resolves to an empty one. The view reports it as an error.
+                    if (imageSource.getUri().toString().isEmpty()) {
+                        Log.w(TAG, "preload: skipping a uri that can't be resolved: " + source.getString("uri"));
+                        continue;
+                    }
 
                     Glide
                             .with(activity.getApplicationContext())
