@@ -1,3 +1,10 @@
+## [8.6.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.5...v8.6.6) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ios:** draw tinted images with UIGraphicsImageRenderer ([#1087](https://github.com/DylanVann/react-native-fast-image/issues/1087)) ([068fcb7](https://github.com/DylanVann/react-native-fast-image/commit/068fcb71ad4d02c35db472676587114b838a7315)), closes [#1007](https://github.com/DylanVann/react-native-fast-image/issues/1007) [#1010](https://github.com/DylanVann/react-native-fast-image/issues/1010) [#1002](https://github.com/DylanVann/react-native-fast-image/issues/1002)
+
 ## [8.6.5](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.4...v8.6.5) (2026-09-24)
 
 
