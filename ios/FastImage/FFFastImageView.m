@@ -236,25 +236,33 @@
 
 - (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    // Most images have no onProgress, so only ask SDWebImage for progress when
+    // there's a handler as the load starts. A handler added while loading is
+    // used from the next load.
+    SDImageLoaderProgressBlock progress = nil;
+    if (self.onFastImageProgress) {
+        progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
+            // SDWebImage calls this on its download queue, while React Native
+            // sets onFastImageProgress (and deallocates the view) on the main
+            // queue. Read and call it there, so it can't change or be released
+            // in between (EXC_BAD_ACCESS).
+            dispatch_async(dispatch_get_main_queue(), ^{
+                RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
+                if (onProgress) {
+                    onProgress(@{
+                            @"loaded": @(receivedSize),
+                            @"total": @(expectedSize)
+                    });
+                }
+            });
+        };
+    }
     [self sd_setImageWithURL: _source.url
             placeholderImage: _defaultSource
                      options: options
                      context: context
-                    progress: ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
-                        // SDWebImage calls this on its download queue, while React
-                        // Native sets onFastImageProgress on the main queue. Read
-                        // and call it there, so it can't change or be released in
-                        // between (EXC_BAD_ACCESS).
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
-                            if (onProgress) {
-                                onProgress(@{
-                                        @"loaded": @(receivedSize),
-                                        @"total": @(expectedSize)
-                                });
-                            }
-                        });
-                    } completed: ^(UIImage* _Nullable image,
+                    progress: progress
+                   completed: ^(UIImage* _Nullable image,
                     NSError* _Nullable error,
                     SDImageCacheType cacheType,
                     NSURL* _Nullable imageURL) {
