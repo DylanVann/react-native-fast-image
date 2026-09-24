@@ -1,9 +1,9 @@
 import React, { memo, useCallback, useEffect, useState } from 'react'
 import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
-import StatusBarUnderlay, { STATUS_BAR_HEIGHT } from './StatusBarUnderlay'
+import StatusBarUnderlay, { useStatusBarHeight } from './StatusBarUnderlay'
 
 const getImageUrl = (id: string, width: number, height: number) =>
-    `https://unsplash.it/${width}/${height}?image=${id}`
+    `https://picsum.photos/id/${id}/${width}/${height}`
 
 const MARGIN = 2
 
@@ -42,12 +42,13 @@ export interface ImageGridProps {
 }
 
 export const ImageGrid = (props: ImageGridProps) => {
+    const statusBarHeight = useStatusBarHeight()
     const [images, setImages] = useState<any[]>([])
     const [itemHeight, setItemHeight] = useState(0)
     const [error, setError] = useState<Error | null>(null)
 
     useEffect(() => {
-        fetch('https://unsplash.it/list')
+        fetch('https://picsum.photos/list')
             .then((res) => res.json())
             .then((d) => setImages(d))
             .catch((e) => setError(e))
@@ -113,7 +114,7 @@ export const ImageGrid = (props: ImageGridProps) => {
             <FlatList
                 onLayout={onLayout}
                 style={{
-                    marginTop: STATUS_BAR_HEIGHT,
+                    marginTop: statusBarHeight,
                     flex: 1,
                 }}
                 columnWrapperStyle={[

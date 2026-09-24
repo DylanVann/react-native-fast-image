@@ -1,10 +1,13 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
-import { getStatusBarHeight } from 'react-native-status-bar-height'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-export const STATUS_BAR_HEIGHT = getStatusBarHeight()
+export const useStatusBarHeight = () => useSafeAreaInsets().top
 
-export default () => <View style={styles.statusBarUnderlay} />
+export default () => {
+    const height = useStatusBarHeight()
+    return <View style={[styles.statusBarUnderlay, { height }]} />
+}
 
 const styles = StyleSheet.create({
     statusBarUnderlay: {
@@ -12,7 +15,6 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: STATUS_BAR_HEIGHT,
         backgroundColor: 'white',
     },
 })
