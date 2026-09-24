@@ -1,3 +1,10 @@
+## [8.6.17](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.16...v8.6.17) (2026-09-24)
+
+
+### Bug Fixes
+
+* load require()d images with fallback ([#1101](https://github.com/DylanVann/react-native-fast-image/issues/1101)) ([eadb9aa](https://github.com/DylanVann/react-native-fast-image/commit/eadb9aaaea14746a9ffa9cd545521e3db463dab0)), closes [#746](https://github.com/DylanVann/react-native-fast-image/issues/746)
+
 ## [8.6.16](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.15...v8.6.16) (2026-09-24)
 
 
