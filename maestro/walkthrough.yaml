@@ -1,0 +1,61 @@
+# Walks through every example screen and saves screenshots for review.
+#
+#   maestro test -e APP_ID=<app id> maestro/walkthrough.yaml
+#
+# App IDs:
+#   ReactNativeFastImageExample        iOS: org.reactjs.native.example.ReactNativeFastImageExample
+#                                      Android: com.reactnativefastimageexample
+#   ReactNativeFastImageExampleLegacy  iOS: org.reactjs.native.example.ReactNativeFastImageExampleLegacy
+#                                      Android: com.reactnativefastimageexamplelegacy
+appId: ${APP_ID}
+env:
+    OUT: maestro-screenshots
+---
+- launchApp:
+      stopApp: true
+- extendedWaitUntil:
+      visible: '.*Prioritize images.*'
+      timeout: 30000
+- takeScreenshot: ${OUT}/01-top
+- scroll
+- takeScreenshot: ${OUT}/02
+- scroll
+- takeScreenshot: ${OUT}/03
+- scroll
+- takeScreenshot: ${OUT}/04
+- scroll
+- takeScreenshot: ${OUT}/05
+- scroll
+- takeScreenshot: ${OUT}/06
+- scroll
+- takeScreenshot: ${OUT}/07-bottom
+
+# Preload an image, then show it.
+- launchApp:
+      stopApp: true
+- extendedWaitUntil:
+      visible: '.*Prioritize images.*'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'Preload'
+      direction: DOWN
+- tapOn: 'Preload'
+- tapOn: 'Show'
+- waitForAnimationToEnd:
+      timeout: 8000
+- takeScreenshot: ${OUT}/08-preload
+
+# Tab labels include extra accessibility text, so tap by position.
+- tapOn:
+      point: '50%,93%'
+- extendedWaitUntil:
+      notVisible: '.*Error fetching images.*'
+      timeout: 5000
+- waitForAnimationToEnd:
+      timeout: 15000
+- takeScreenshot: ${OUT}/09-image-grid
+- tapOn:
+      point: '83%,93%'
+- waitForAnimationToEnd:
+      timeout: 15000
+- takeScreenshot: ${OUT}/10-fastimage-grid

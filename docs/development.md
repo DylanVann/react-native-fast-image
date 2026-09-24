@@ -51,6 +51,16 @@ yarn android
 
 Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
 
+## Walking through the examples
+
+`maestro/walkthrough.yaml` is a [Maestro](https://maestro.dev) flow that scrolls through every example, preloads an image, opens both grids, and saves screenshots to `maestro-screenshots/`. Run it against either app on a booted simulator or emulator:
+
+```bash
+maestro test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/walkthrough.yaml
+```
+
+The app IDs for each app and platform are listed at the top of the flow.
+
 ## How the example uses the library
 
 -   `react-native.config.js` autolinks the library's native code from the repo root.

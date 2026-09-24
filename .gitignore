@@ -49,3 +49,6 @@ coverage
 
 # TypeScript incremental compilation cache
 *.tsbuildinfo
+
+# Maestro walkthrough output
+maestro-screenshots/
