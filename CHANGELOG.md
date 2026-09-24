@@ -1,3 +1,10 @@
+## [8.6.7](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.6...v8.6.7) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ios:** don't crash when an event handler is removed after loading ([#1088](https://github.com/DylanVann/react-native-fast-image/issues/1088)) ([8a1a7d7](https://github.com/DylanVann/react-native-fast-image/commit/8a1a7d7124fdca8baa5976216d6e56374174ed79)), closes [#504](https://github.com/DylanVann/react-native-fast-image/issues/504)
+
 ## [8.6.6](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.5...v8.6.6) (2026-09-24)
 
 
