@@ -1,3 +1,10 @@
+## [8.6.9](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.8...v8.6.9) (2026-09-24)
+
+
+### Bug Fixes
+
+* allow React 19 as a peer dependency ([#1092](https://github.com/DylanVann/react-native-fast-image/issues/1092)) ([bc195e8](https://github.com/DylanVann/react-native-fast-image/commit/bc195e827d5a8b797c80cce5690fe3488d297796))
+
 ## [8.6.8](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.7...v8.6.8) (2026-09-24)
 
 
