@@ -1,3 +1,10 @@
+## [8.6.18](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.17...v8.6.18) (2026-09-24)
+
+
+### Bug Fixes
+
+* **android:** unwrap the view's context to the ReactContext ([#1103](https://github.com/DylanVann/react-native-fast-image/issues/1103)) ([65d4724](https://github.com/DylanVann/react-native-fast-image/commit/65d4724dfbc6f954055b8a607ac0cbc65ae74070))
+
 ## [8.6.17](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.16...v8.6.17) (2026-09-24)
 
 
