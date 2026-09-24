@@ -291,7 +291,7 @@ export default function RegressionExample() {
             <LayoutCase id="layout-fallback" fallback />
             <EventCase
                 id="fallback-require"
-                description="#1044: fallback with a require()d image (didn't load)"
+                description="#1044: fallback with a require()d image (should show the logo)"
                 event="onLoad"
                 source={require('./images/logo.png')}
                 fallback
