@@ -1,3 +1,10 @@
+## [8.6.13](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.12...v8.6.13) (2026-09-24)
+
+
+### Bug Fixes
+
+* **android:** set the namespace in build.gradle ([#1097](https://github.com/DylanVann/react-native-fast-image/issues/1097)) ([9284b54](https://github.com/DylanVann/react-native-fast-image/commit/9284b5463b682c9a9ee0c731effc3d6e5c4844d1))
+
 ## [8.6.12](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.11...v8.6.12) (2026-09-24)
 
 
