@@ -1,3 +1,10 @@
+## [8.6.14](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.13...v8.6.14) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ios:** remove the tint when tintColor is cleared ([#1098](https://github.com/DylanVann/react-native-fast-image/issues/1098)) ([92d6a5c](https://github.com/DylanVann/react-native-fast-image/commit/92d6a5c1acd1802a760c31f8a98c2abe2cf267cc))
+
 ## [8.6.13](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.12...v8.6.13) (2026-09-24)
 
 
