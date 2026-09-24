@@ -1,3 +1,10 @@
+## [8.6.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.3...v8.6.4) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ios:** prevent tintColor crash on zero-size images ([#1082](https://github.com/DylanVann/react-native-fast-image/issues/1082)) ([57f6a2b](https://github.com/DylanVann/react-native-fast-image/commit/57f6a2b613dd00d6a6f7d80337d6010235cd0e8c))
+
 ## [8.6.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.2...v8.6.3) (2022-10-31)
 
 
