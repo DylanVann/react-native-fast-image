@@ -6,9 +6,8 @@
 # Steps:
 #   1. JS: build, tests, and the example's typecheck.
 #   2. For each example app: build for iOS and Android in parallel, start the
-#      packager, and run the Maestro flows (maestro/walkthrough.yaml and
-#      maestro/regression.yaml) on each platform. A flow failure or a crash
-#      fails the run.
+#      packager, and run the Maestro flows in maestro/ on each platform. A flow
+#      failure or a crash fails the run.
 #
 # Options:
 #   --app main|legacy   Only this example app (default: both).
@@ -24,13 +23,20 @@
 #   IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
 #                   first available iPhone).
 #   ANDROID_AVD     Emulator to start if no device is connected (default: the
-#                   first AVD). Give it 4 GB+ RAM; it's started with -gpu host.
+#                   first AVD). Use a plain AOSP image ("default", no Google
+#                   apps) with 4 GB+ RAM; it's started with -gpu host.
 #   VERIFY_WALKTHROUGH_TIMEOUT, VERIFY_REGRESSION_TIMEOUT, VERIFY_BUILD_TIMEOUT
 #                   Per-step time limits in seconds (default 300, 120, 900).
+#   VERIFY_RUNNER   Runner for the Maestro flows: maestro-runner (default;
+#                   https://github.com/devicelab-dev/maestro-runner, installed as
+#                   a dev dependency) or maestro (the Maestro CLI). Both run the
+#                   same YAML. MAESTRO_RUNNER_BIN overrides the maestro-runner
+#                   binary; MAESTRO_RUNNER_ANDROID_DRIVER picks its Android
+#                   driver (default devicelab).
 #
-# Needs Node 22+, Xcode with CocoaPods via Bundler, JDK 17+, the Android SDK
-# with an emulator, and Maestro (https://maestro.dev). Output (logs,
-# screenshots, crash reports) goes to verify-output/<timestamp>/.
+# Needs Node 22+, Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK
+# with an emulator (plus the Maestro CLI for VERIFY_RUNNER=maestro). Output
+# (logs, screenshots, crash reports) goes to verify-output/<timestamp>/.
 
 set -uo pipefail
 
@@ -51,7 +57,7 @@ while [ $# -gt 0 ]; do
         --no-js) RUN_JS=0 ;;
         --pods) FORCE_PODS=1 ;;
         --ref) REF="$2"; shift ;;
-        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,39p' "$0"; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
     shift
@@ -94,13 +100,22 @@ if [ "$NODE_MAJOR" -lt 22 ]; then
     exit 1
 fi
 
-MAESTRO=$(command -v maestro || echo "$HOME/.maestro/bin/maestro")
+RUNNER=${VERIFY_RUNNER:-maestro-runner}
+case $RUNNER in
+    maestro-runner) MAESTRO=${MAESTRO_RUNNER_BIN:-$ROOT/node_modules/.bin/maestro-runner} ;;
+    maestro) MAESTRO=$(command -v maestro || echo "$HOME/.maestro/bin/maestro") ;;
+    *) echo "Unknown VERIFY_RUNNER: $RUNNER (use maestro-runner or maestro)" >&2; exit 2 ;;
+esac
 if [ "$RUN_APPS" = 1 ] && lsof -ti tcp:8081 -sTCP:LISTEN > /dev/null 2>&1; then
     echo "Port 8081 is in use. Stop your packager before running this script." >&2
     exit 1
 fi
 if [ "$RUN_APPS" = 1 ] && [ ! -x "$MAESTRO" ]; then
-    echo "Maestro is required: https://maestro.dev" >&2
+    if [ "$RUNNER" = maestro-runner ]; then
+        echo "maestro-runner not found; run \`yarn\` in the repo root (or set MAESTRO_RUNNER_BIN)." >&2
+    else
+        echo "The Maestro CLI is required for VERIFY_RUNNER=maestro: https://maestro.dev" >&2
+    fi
     exit 1
 fi
 
@@ -174,10 +189,14 @@ start_metro() { # app
 }
 
 run_flows() { # app, platform, device, app id
-    local flow dir="$OUT/$1-$2"
+    if [ "$RUNNER" = maestro-runner ]; then
+        run_flows_maestro_runner "$@"
+        return
+    fi
+    local flow seconds dir="$OUT/$1-$2"
     mkdir -p "$dir"
     for flow in walkthrough regression; do
-        local seconds=$WALKTHROUGH_TIMEOUT
+        seconds=$WALKTHROUGH_TIMEOUT
         [ "$flow" = regression ] && seconds=$REGRESSION_TIMEOUT
         # Flows save screenshots relative to the working directory.
         (cd "$dir" && limit "$seconds" "$MAESTRO" --device "$3" test -e APP_ID="$4" "$ROOT/maestro/$flow.yaml") > "$dir/$flow.log" 2>&1
@@ -187,6 +206,40 @@ run_flows() { # app, platform, device, app id
             *) record FAIL "$1 $2 $flow" "see ${dir#"$ROOT"/}/$flow.log" ;;
         esac
     done
+}
+
+# Runs every flow in maestro/ in one maestro-runner call (one driver session),
+# then reads each flow's result from the report. Screenshots go to the
+# report's assets folder.
+run_flows_maestro_runner() { # app, platform, device, app id
+    local dir="$OUT/$1-$2" driver=() code seconds=$((WALKTHROUGH_TIMEOUT + REGRESSION_TIMEOUT))
+    mkdir -p "$dir"
+    # The driver usually starts in seconds, but can take longer right after an
+    # app install while Android compiles it.
+    [ "$2" = android ] && driver=(--driver "${MAESTRO_RUNNER_ANDROID_DRIVER:-devicelab}" --driver-start-timeout 90)
+    (cd "$dir" && XCODE_XCCONFIG_FILE=${XCODE_XCCONFIG_FILE:-$ROOT/scripts/maestro-runner-wda.xcconfig} \
+        limit "$seconds" "$MAESTRO" --platform "$2" --device "$3" ${driver[@]+"${driver[@]}"} test \
+        -e APP_ID="$4" --output "$dir/report" --flatten "$ROOT/maestro") > "$dir/flows.log" 2>&1
+    code=$?
+    local results
+    results=$(node -e '
+        try {
+            const report = require(process.argv[1])
+            for (const f of report.flows) console.log(`${f.name} ${f.status}`)
+        } catch {}' "$dir/report/report.json")
+    if [ -z "$results" ]; then
+        [ "$code" = 124 ] && record FAIL "$1 $2 flows" "timed out after ${seconds}s; see ${dir#"$ROOT"/}/flows.log" \
+            || record FAIL "$1 $2 flows" "no report; see ${dir#"$ROOT"/}/flows.log"
+        return
+    fi
+    local name status
+    while read -r name status; do
+        if [ "$status" = passed ]; then
+            record PASS "$1 $2 $name"
+        else
+            record FAIL "$1 $2 $name" "$status$([ "$code" = 124 ] && echo ", timed out"); see ${dir#"$ROOT"/}/report/report.html"
+        fi
+    done <<< "$results"
 }
 
 # --- JS ------------------------------------------------------------------
@@ -259,6 +312,8 @@ flows_ios() { # app
 
 ANDROID_HOME=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 ADB="$ANDROID_HOME/platform-tools/adb"
+# Tools like maestro-runner look for adb on the PATH.
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
 ANDROID_SERIAL=""
 
 ensure_java() {
@@ -287,7 +342,12 @@ android_device() {
         until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 2; done
         ANDROID_SERIAL=$("$ADB" devices | awk 'NR > 1 && $2 == "device" {print $1; exit}')
     fi
-    [ -n "$ANDROID_SERIAL" ]
+    [ -n "$ANDROID_SERIAL" ] || return 1
+    # On emulators, don't let "isn't responding" dialogs from background apps
+    # cover the app under test (Maestro can't see through them).
+    case $ANDROID_SERIAL in
+        emulator-*) "$ADB" -s "$ANDROID_SERIAL" shell settings put global hide_error_dialogs 1 ;;
+    esac
 }
 
 build_android() { # app
@@ -297,7 +357,14 @@ build_android() { # app
         record FAIL "$1 android build" "see verify-output log"
         return 1
     fi
-    "$ADB" -s "$ANDROID_SERIAL" install -r "$dir/android/app/build/outputs/apk/debug/app-debug.apk" > /dev/null
+    # Only reinstall a changed APK: installing makes Android compile the app in
+    # the background, which slows the emulator for a while afterwards.
+    local apk="$dir/android/app/build/outputs/apk/debug/app-debug.apk" marker hash
+    marker="$dir/android/app/build/outputs/apk/debug/.installed-$ANDROID_SERIAL"
+    hash=$(shasum "$apk" | cut -d' ' -f1)
+    if [ "$(cat "$marker" 2>/dev/null)" != "$hash" ] || ! "$ADB" -s "$ANDROID_SERIAL" shell pm path "$(android_package "$1")" > /dev/null 2>&1; then
+        "$ADB" -s "$ANDROID_SERIAL" install -r "$apk" > /dev/null && echo "$hash" > "$marker"
+    fi
     "$ADB" -s "$ANDROID_SERIAL" reverse tcp:8081 tcp:8081 > /dev/null
     record PASS "$1 android build"
 }
@@ -311,6 +378,9 @@ flows_android() { # app
         "$ADB" -s "$ANDROID_SERIAL" logcat -b crash -d > "$OUT/android-crash-$1.log"
         record FAIL "$1 android crash" "see verify-output log"
     fi
+    # The example's animated images keep the emulator busy while the app stays
+    # in the foreground, which slows everything after it. Stop it.
+    "$ADB" -s "$ANDROID_SERIAL" shell am force-stop "$pkg"
 }
 
 # --- Run -----------------------------------------------------------------
@@ -343,8 +413,9 @@ if [ "$RUN_APPS" = 1 ]; then
         [ ${#BUILT[@]} -gt 0 ] || continue
 
         start_metro "$app" || { record FAIL "$app metro" "see verify-output log"; continue; }
-        # Maestro can't run two sessions at once on one machine, so the flows
-        # run one platform at a time.
+        # One platform at a time: the Maestro CLI can't run two sessions at
+        # once, and with maestro-runner the iOS simulator and the Android
+        # emulator starve each other of CPU, so Android flows fail.
         for platform in "${BUILT[@]}"; do
             say "Running flows for $app on $platform"
             "flows_$platform" "$app"
@@ -354,10 +425,10 @@ if [ "$RUN_APPS" = 1 ]; then
 fi
 
 echo
-echo "Summary${REF:+ (library from $REF)}:"
+echo "Summary (${RUNNER}${REF:+, library from $REF}):"
 sed 's/^/  /' "$RESULTS"
 echo "Output: ${OUT#"$ROOT"/}"
 if grep -qE '^FAIL.*android (walkthrough|regression)' "$RESULTS"; then
-    echo "If Android flows fail on screens that look fine, the emulator is probably too slow: give it 4 GB+ RAM and hardware graphics (hw.ramSize, hw.gpu.mode = host in the AVD's config.ini) and restart it (adb emu kill)."
+    echo "If Android flows fail on screens that look fine, the emulator is probably overloaded: use a plain AOSP image (not Google APIs) with 4 GB+ RAM and hardware graphics (hw.ramSize, hw.gpu.mode = host in the AVD's config.ini)."
 fi
 ! grep -q '^FAIL' "$RESULTS"

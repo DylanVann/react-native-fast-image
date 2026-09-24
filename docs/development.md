@@ -56,15 +56,18 @@ Its `metro.config.js` resolves every import from the shared screens and the libr
 `scripts/verify.sh` checks the library and runs both example apps on iOS and Android:
 
 1. Builds the library, runs its tests, and type-checks the example.
-2. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the [Maestro](https://maestro.dev) flows on each platform. A failed flow or a crash fails the run.
+2. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the Maestro flows on each platform. A failed flow or a crash fails the run.
 
 ```bash
 scripts/verify.sh                      # everything
 scripts/verify.sh --app legacy --ios   # one app and platform
 scripts/verify.sh --ref main           # the library code from main, for a "before" run
+VERIFY_RUNNER=maestro scripts/verify.sh  # use the Maestro CLI instead of maestro-runner
 ```
 
-Run `scripts/verify.sh --help` for all options. Give the Android emulator at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`; the script starts emulators with `-gpu host`). With less memory or software rendering, the example's animated images make the emulator too slow and Maestro can't read the screen. Each step has a time limit of about twice a typical run; raise it with `VERIFY_WALKTHROUGH_TIMEOUT`, `VERIFY_REGRESSION_TIMEOUT` or `VERIFY_BUILD_TIMEOUT` (seconds) if one is hit. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, Maestro, an iOS simulator, and an Android emulator (it starts one if none is running).
+The flows are [Maestro](https://maestro.dev) YAML. By default they run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which runs the same YAML faster (about 40% less time than the Maestro CLI here, most of it on Android) and is installed by `yarn` as a dev dependency. `VERIFY_RUNNER=maestro` uses the [Maestro CLI](https://maestro.dev) instead, which needs a separate install. With maestro-runner, screenshots are saved in each flow's report (`verify-output/…/<app>-<platform>/report-<flow>/assets/`); with the Maestro CLI, in `maestro-screenshots/`.
+
+Run `scripts/verify.sh --help` for all options. Use an Android emulator with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`, not Google APIs), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`; the script starts emulators with `-gpu host`), and pick it with `ANDROID_AVD`. Google APIs images run Play services and other apps in the background; combined with the example's animated images they overload the emulator until system dialogs ("… isn't responding") cover the app and flows fail. ATD images are lighter still, but render a black screen, so screenshots are empty. The script also sets `hide_error_dialogs` on emulators. Each step has a time limit of about twice a typical run; raise it with `VERIFY_WALKTHROUGH_TIMEOUT`, `VERIFY_REGRESSION_TIMEOUT` or `VERIFY_BUILD_TIMEOUT` (seconds) if one is hit. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, an iOS simulator, and an Android emulator (it starts one if none is running).
 
 ### Maestro flows
 
@@ -74,8 +77,12 @@ Run `scripts/verify.sh --help` for all options. Give the Android emulator at lea
 To run a flow by hand against a running app:
 
 ```bash
+npx maestro-runner --platform ios test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/regression.yaml
+# or, with the Maestro CLI:
 maestro test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/regression.yaml
 ```
+
+With Xcode 27, maestro-runner 1.1.27 needs `XCODE_XCCONFIG_FILE=scripts/maestro-runner-wda.xcconfig` for iOS (its bundled WebDriverAgent targets iOS 12); `verify.sh` sets this.
 
 The app IDs for each app and platform are listed at the top of `maestro/walkthrough.yaml`.
 

@@ -68,6 +68,7 @@
         "@types/react-test-renderer": "^17.0.1",
         "dv-scripts": "^1.6.0",
         "eslint-config-dv-scripts": "^1.1.1",
+        "maestro-runner": "1.1.27",
         "metro-react-native-babel-preset": "^0.66.1",
         "prettier": "^2.3.2",
         "react": "17.0.2",

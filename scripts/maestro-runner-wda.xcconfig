@@ -1,0 +1,4 @@
+// Applied to maestro-runner's WebDriverAgent build by scripts/verify.sh.
+// maestro-runner 1.1.27 bundles WebDriverAgent with an iOS 12 deployment
+// target, which Xcode 27 rejects (it supports 15.0+).
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
