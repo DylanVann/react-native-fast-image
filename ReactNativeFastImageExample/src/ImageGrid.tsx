@@ -10,11 +10,14 @@ const MARGIN = 2
 export interface ImageGridItemProps {
     id: string
     ImageComponent: any
+    testIDPrefix: string
 }
 
 export const ImageGridItem = memo(
-    ({ id, ImageComponent }: ImageGridItemProps) => {
+    ({ id, ImageComponent, testIDPrefix }: ImageGridItemProps) => {
         const uri = getImageUrl(id, 100, 100)
+        // Lets maestro/walkthrough.yaml wait until the grid has loaded.
+        const [loaded, setLoaded] = useState(false)
         return (
             <View
                 style={{
@@ -23,6 +26,8 @@ export const ImageGridItem = memo(
                 }}
             >
                 <ImageComponent
+                    testID={`${testIDPrefix}-${id}${loaded ? '-loaded' : ''}`}
+                    onLoad={() => setLoaded(true)}
                     source={{ uri }}
                     style={{
                         flex: 1,
@@ -39,6 +44,7 @@ export const ImageGridItem = memo(
 
 export interface ImageGridProps {
     ImageComponent: React.ComponentType<any>
+    testIDPrefix: string
 }
 
 export const ImageGrid = (props: ImageGridProps) => {
@@ -66,15 +72,19 @@ export const ImageGrid = (props: ImageGridProps) => {
         [itemHeight],
     )
 
-    const { ImageComponent } = props
+    const { ImageComponent, testIDPrefix } = props
 
     const renderItem = useCallback(
         ({ item }: { item: any }) => {
             return (
-                <ImageGridItem id={item.id} ImageComponent={ImageComponent} />
+                <ImageGridItem
+                    id={item.id}
+                    ImageComponent={ImageComponent}
+                    testIDPrefix={testIDPrefix}
+                />
             )
         },
-        [ImageComponent],
+        [ImageComponent, testIDPrefix],
     )
 
     const extractKey = useCallback((item: any) => {

@@ -60,23 +60,27 @@ env:
       direction: DOWN
 - tapOn: 'Preload'
 - tapOn: 'Show'
+- extendedWaitUntil:
+      visible: 'Hide'
+      timeout: 10000
+# The preloaded GIF keeps animating, so this always waits the full timeout.
 - waitForAnimationToEnd:
-      timeout: 8000
+      timeout: 2000
 - takeScreenshot: ${OUT}/08-preload
 
 - tapOn:
       id: 'tab-image-grid'
+# The first image's test ID changes once it loads (see ImageGrid.tsx).
 - extendedWaitUntil:
-      notVisible: '.*Error fetching images.*'
-      timeout: 5000
-- waitForAnimationToEnd:
-      timeout: 15000
+      visible:
+          id: 'image-grid-0-loaded'
+      timeout: 30000
 - takeScreenshot: ${OUT}/09-image-grid
 - tapOn:
       id: 'tab-fastimage-grid'
+# The first image's test ID changes once it loads (see ImageGrid.tsx).
 - extendedWaitUntil:
-      notVisible: '.*Error fetching images.*'
-      timeout: 5000
-- waitForAnimationToEnd:
-      timeout: 15000
+      visible:
+          id: 'fastimage-grid-0-loaded'
+      timeout: 30000
 - takeScreenshot: ${OUT}/10-fastimage-grid
