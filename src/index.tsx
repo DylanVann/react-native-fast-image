@@ -5,11 +5,9 @@ import {
     NativeModules,
     requireNativeComponent,
     StyleSheet,
-    FlexStyle,
     LayoutChangeEvent,
-    ShadowStyleIOS,
     StyleProp,
-    TransformsStyle,
+    ViewStyle,
     ImageRequireSource,
     Platform,
     AccessibilityProps,
@@ -66,7 +64,9 @@ export interface OnProgressEvent {
     }
 }
 
-export interface ImageStyle extends FlexStyle, TransformsStyle, ShadowStyleIOS {
+// Extends ViewStyle rather than FlexStyle/TransformsStyle/ShadowStyleIOS, which
+// React Native 0.80+'s default types no longer export.
+export interface ImageStyle extends ViewStyle {
     backfaceVisibility?: 'visible' | 'hidden'
     borderBottomLeftRadius?: number
     borderBottomRightRadius?: number
