@@ -303,6 +303,47 @@ function NoReloadCase() {
     )
 }
 
+// Cycles one FastImage through three urls, then passes when the last one
+// loads. On Android the view stayed in the progress map under every url it had
+// loaded, which kept it (and its Activity) alive.
+const SWAP = [1020, 1021, 1022].map((id) => ({
+    uri: `https://picsum.photos/id/${id}/120/120`,
+}))
+function SourceSwapCase() {
+    const [index, setIndex] = useState(0)
+    const [done, setDone] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    useEffect(() => {
+        const interval = setInterval(() => setIndex((i) => i + 1), 400)
+        const timer = setTimeout(() => {
+            clearInterval(interval)
+            setDone(true)
+        }, 3000)
+        return () => {
+            clearInterval(interval)
+            clearTimeout(timer)
+        }
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={SWAP[index % SWAP.length]}
+                onLoadStart={() => setLoaded(false)}
+                onLoad={() => setLoaded(true)}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-source-swap" style={styles.status}>
+                    source-swap: {done && loaded ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #384: changing source keeps loading (Android leaked the view)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -439,6 +480,7 @@ export default function RegressionExample() {
             />
             <ResizeModeChangeCase />
             <NoReloadCase />
+            <SourceSwapCase />
             <PreloadCase />
         </ScrollView>
     )
