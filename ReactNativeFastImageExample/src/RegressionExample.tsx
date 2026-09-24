@@ -289,6 +289,13 @@ export default function RegressionExample() {
             <ClearTintCase />
             <LayoutCase id="layout" />
             <LayoutCase id="layout-fallback" fallback />
+            <EventCase
+                id="fallback-require"
+                description="#1044: fallback with a require()d image (didn't load)"
+                event="onLoad"
+                source={require('./images/logo.png')}
+                fallback
+            />
             <TouchableCase />
             <PreloadCase />
         </ScrollView>
