@@ -12,8 +12,12 @@ import {
     Platform,
     AccessibilityProps,
     ViewProps,
-    ColorValue,
 } from 'react-native'
+
+// React Native's ColorValue, which its types only export since 0.63. Taken
+// from ViewStyle so the types also work with older React Native types, where
+// it's string.
+type ColorValue = NonNullable<ViewStyle['backgroundColor']>
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -73,13 +77,13 @@ export interface ImageStyle extends ViewStyle {
     backfaceVisibility?: 'visible' | 'hidden'
     borderBottomLeftRadius?: number
     borderBottomRightRadius?: number
-    backgroundColor?: string
-    borderColor?: string
+    backgroundColor?: ColorValue
+    borderColor?: ColorValue
     borderWidth?: number
     borderRadius?: number
     borderTopLeftRadius?: number
     borderTopRightRadius?: number
-    overlayColor?: string
+    overlayColor?: ColorValue
     opacity?: number
 }
 
