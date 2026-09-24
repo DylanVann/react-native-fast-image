@@ -18,6 +18,11 @@ jobs:
     needs: build
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # One release at a time: a second run waits instead of racing the first to
+    # push its release commit.
+    concurrency:
+      group: release
+      cancel-in-progress: false
     permissions:
       contents: write # push the release commit and tag
       issues: write # comment on released issues
@@ -26,6 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The branch's latest commit, not the one that triggered this run: a
+          # run that waited for another release would otherwise be behind that
+          # release's commit, and semantic-release skips publishing when the
+          # local branch is behind.
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
