@@ -84,6 +84,14 @@ env:
       visible: 'layout-fallback: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'touchable: .*'
+      timeout: 10000
+- tapOn:
+      id: 'regression-touchable-image'
+- extendedWaitUntil:
+      visible: 'touchable: OK'
+      timeout: 10000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:

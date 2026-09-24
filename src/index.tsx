@@ -174,8 +174,16 @@ function FastImageBase({
     // On the wrapper, so the layout is relative to the parent (the image view
     // inside always has x and y of 0).
     onLayout,
-    ...props
+    ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
+    // Touchables pass onClick to their child (React Native 0.73+, for
+    // accessibility clicks). It goes on the wrapper: the image view doesn't
+    // support it on iOS, which crashed (#1020). Older React Native types don't
+    // include it.
+    const { onClick, ...props } = viewProps as typeof viewProps & {
+        onClick?: (event: any) => void
+    }
+    const wrapperProps = { onLayout, onClick }
     if (fallback) {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
@@ -184,7 +192,7 @@ function FastImageBase({
         return (
             <View
                 style={[styles.imageContainer, style]}
-                onLayout={onLayout}
+                {...wrapperProps}
                 ref={forwardedRef}
             >
                 <Image
@@ -210,7 +218,7 @@ function FastImageBase({
     return (
         <View
             style={[styles.imageContainer, style]}
-            onLayout={onLayout}
+            {...wrapperProps}
             ref={forwardedRef}
         >
             <FastImageView

@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 
@@ -152,6 +159,31 @@ function ClearTintCase() {
     )
 }
 
+// FastImage as a Touchable's direct child. The flow taps it; passes when
+// onPress fires. The Touchable passes onClick to its child, which crashed on
+// iOS ("unrecognized selector ... setOnClick:").
+function TouchableCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <TouchableWithoutFeedback
+                testID="regression-touchable-image"
+                onPress={() => setPressed(true)}
+            >
+                <FastImage style={styles.image} source={{ uri: LOGO }} />
+            </TouchableWithoutFeedback>
+            <View style={styles.text}>
+                <Text testID="regression-touchable" style={styles.status}>
+                    touchable: {pressed ? 'OK' : 'tap the image'}
+                </Text>
+                <Text style={styles.description}>
+                    #1020: FastImage as a Touchable's direct child (iOS crashed)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -257,6 +289,7 @@ export default function RegressionExample() {
             <ClearTintCase />
             <LayoutCase id="layout" />
             <LayoutCase id="layout-fallback" fallback />
+            <TouchableCase />
             <PreloadCase />
         </ScrollView>
     )
