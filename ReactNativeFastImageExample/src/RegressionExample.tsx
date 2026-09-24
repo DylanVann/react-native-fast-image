@@ -88,6 +88,32 @@ function NoCrashCase({
     )
 }
 
+// Passes when onLayout reports the image's position in its parent (x = 10
+// from its margin). It reported 0 when it came from the inner native view.
+function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
+    const [x, setX] = useState<number>()
+    const ok = x !== undefined && Math.abs(x - 10) < 1
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[styles.image, { marginLeft: 10 }]}
+                source={{ uri: LOGO }}
+                fallback={fallback}
+                onLayout={(e) => setX(e.nativeEvent.layout.x)}
+            />
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}: {ok ? 'OK' : x === undefined ? 'waiting' : `x=${x}`}
+                </Text>
+                <Text style={styles.description}>
+                    #992: onLayout reports the position in the parent
+                    {fallback ? ' (fallback)' : ''}
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -183,6 +209,8 @@ export default function RegressionExample() {
                     ])
                 }
             />
+            <LayoutCase id="layout" />
+            <LayoutCase id="layout-fallback" fallback />
             <PreloadCase />
         </ScrollView>
     )
