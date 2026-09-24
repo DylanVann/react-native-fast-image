@@ -297,6 +297,13 @@ export default function RegressionExample() {
                 fallback
             />
             <TouchableCase />
+            <EventCase
+                id="tint-style"
+                description="#946: tintColor in style (should be green)"
+                event="onLoad"
+                source={{ uri: LOGO }}
+                style={[styles.image, { tintColor: 'green' }]}
+            />
             <PreloadCase />
         </ScrollView>
     )

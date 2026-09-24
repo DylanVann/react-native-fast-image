@@ -84,6 +84,7 @@ export interface ImageStyle extends ViewStyle {
     borderTopLeftRadius?: number
     borderTopRightRadius?: number
     overlayColor?: ColorValue
+    tintColor?: ColorValue
     opacity?: number
 }
 
@@ -160,6 +161,29 @@ const resolveDefaultSource = (
     return defaultSource
 }
 
+// Finds tintColor in a style prop, where the last style that sets it wins, as
+// with StyleSheet.flatten, but without flattening (which allocates a merged
+// object for an array style on every render).
+function tintColorFromStyle(style: unknown): ColorValue | undefined {
+    if (Array.isArray(style)) {
+        for (let i = style.length - 1; i >= 0; i--) {
+            const found = tintColorFromStyle(style[i])
+            if (found !== undefined) return found
+        }
+        return undefined
+    }
+    if (typeof style === 'number') {
+        // A registered style from StyleSheet.create on older React Native.
+        const flattened = StyleSheet.flatten(style as any) as
+            | ImageStyle
+            | undefined
+        return flattened ? flattened.tintColor : undefined
+    }
+    return style && typeof style === 'object'
+        ? (style as ImageStyle).tintColor
+        : undefined
+}
+
 function FastImageBase({
     source,
     defaultSource,
@@ -188,6 +212,10 @@ function FastImageBase({
         onClick?: (event: any) => void
     }
     const wrapperProps = { onLayout, onClick }
+    // tintColor can also be set in style, as with React Native's Image. The
+    // prop wins.
+    const resolvedTintColor =
+        tintColor != null ? tintColor : tintColorFromStyle(style)
     if (fallback) {
         // Remove `cache`, which React Native's Image doesn't support. A
         // require()d source is a number: pass it through (spreading it gave {}).
@@ -204,7 +232,10 @@ function FastImageBase({
             >
                 <Image
                     {...props}
-                    style={[StyleSheet.absoluteFill, { tintColor }]}
+                    style={[
+                        StyleSheet.absoluteFill,
+                        { tintColor: resolvedTintColor },
+                    ]}
                     source={resolvedSource}
                     defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
@@ -230,7 +261,7 @@ function FastImageBase({
         >
             <FastImageView
                 {...props}
-                tintColor={tintColor}
+                tintColor={resolvedTintColor}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}

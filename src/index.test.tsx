@@ -52,6 +52,66 @@ describe('FastImage (iOS)', () => {
         }
     })
 
+    it('uses tintColor from style, with the prop taking precedence', () => {
+        const source = { uri: 'https://example.com/image.png' }
+        const fromStyle: any = renderer
+            .create(
+                <FastImage source={source} style={{ tintColor: 'green' }} />,
+            )
+            .toJSON()
+        const fromProp: any = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    tintColor="red"
+                    style={{ tintColor: 'green' }}
+                />,
+            )
+            .toJSON()
+
+        expect(fromStyle.children[0].props.tintColor).toBe('green')
+        expect(fromProp.children[0].props.tintColor).toBe('red')
+    })
+
+    it('uses the last tintColor in a style array', () => {
+        const tree: any = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/image.png' }}
+                    style={[
+                        { tintColor: 'green' },
+                        [false, { width: 10, tintColor: 'blue' }],
+                        { height: 10 },
+                    ]}
+                />,
+            )
+            .toJSON()
+
+        expect(tree.children[0].props.tintColor).toBe('blue')
+    })
+
+    it('reads tintColor from a registered (numeric) style', () => {
+        const flatten = jest
+            .spyOn(StyleSheet, 'flatten')
+            .mockImplementation((s: any) =>
+                s === 7 ? ({ tintColor: 'purple' } as any) : s,
+            )
+        try {
+            const tree: any = renderer
+                .create(
+                    <FastImage
+                        source={{ uri: 'https://example.com/image.png' }}
+                        style={7 as any}
+                    />,
+                )
+                .toJSON()
+
+            expect(tree.children[0].props.tintColor).toBe('purple')
+        } finally {
+            flatten.mockRestore()
+        }
+    })
+
     it('renders a normal Image when not passed a uri', () => {
         const tree = renderer
             .create(
