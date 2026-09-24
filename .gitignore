@@ -53,5 +53,5 @@ coverage
 # Maestro walkthrough output
 maestro-screenshots/
 
-# scripts/verify.sh output
+# scripts/verify.mts output
 verify-output/
