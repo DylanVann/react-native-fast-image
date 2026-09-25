@@ -531,10 +531,21 @@ function iosDevice() {
     return true
 }
 
+// Pods need reinstalling after node_modules is: on React Native 0.73,
+// `pod install` also generates files inside node_modules/react-native.
+function podsCurrent(dir: string) {
+    try {
+        const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
+        const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
+        return pods >= rn.mtimeMs
+    } catch {
+        return false
+    }
+}
+
 async function iosPods(app: App) {
     const dir = appDir(app)
-    if (!options['pods'] && fs.existsSync(path.join(dir, 'ios/Pods')))
-        return true
+    if (!options['pods'] && podsCurrent(dir)) return true
     say(`pod install (${app})`)
     const log = path.join(OUT, `pods-${app}.log`)
     const ok =
@@ -548,6 +559,10 @@ async function iosPods(app: App) {
             })
         ).ok
     if (!ok) record('FAIL', `${app} ios pod install`, `see ${rel(log)}`)
+    else {
+        const now = new Date()
+        fs.utimesSync(path.join(dir, 'ios/Pods'), now, now)
+    }
     return ok
 }
 
