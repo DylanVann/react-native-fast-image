@@ -1,3 +1,10 @@
+## [8.6.33](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.32...v8.6.33) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** report the image's own size in onLoad ([#1124](https://github.com/DylanVann/react-native-fast-image/issues/1124)) ([53b936a](https://github.com/DylanVann/react-native-fast-image/commit/53b936ac2f2588894904cced8b3f067a6a90aae2)), closes [#608](https://github.com/DylanVann/react-native-fast-image/issues/608)
+
 ## [8.6.32](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.31...v8.6.32) (2026-09-25)
 
 
