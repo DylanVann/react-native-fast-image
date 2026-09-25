@@ -46,12 +46,14 @@ Options:
                       after the current branch (or the --ref).
 
 Environment:
-  IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
-                  first available iPhone).
+  IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
+                  of the script's own so screenshots and recordings don't
+                  show other apps; created on first use with the device type
+                  and runtime of the newest iPhone simulator).
   ANDROID_AVD     Emulator to start if no device is connected (default: the
-                  first AVD). Use a plain AOSP image ("default", no Google
-                  apps) with 4 GB+ RAM; it's started with -gpu host and no
-                  window.
+                  first AVD named rnfi*, else the first AVD). Use a plain
+                  AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
+                  started with -gpu host and no window.
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 120 with --background) and builds
@@ -708,6 +710,11 @@ async function runFlows(
 
 let iosUdid = ''
 
+// The flows run on a simulator of their own by default, so screenshots and
+// recordings don't show other apps installed on a shared simulator. It's
+// created on first use, like the emulator is started when none is running.
+const IOS_SIMULATOR = env.IOS_SIMULATOR ?? 'RNFI iPhone'
+
 function iosDevice() {
     const list = capture('xcrun', [
         'simctl',
@@ -720,18 +727,39 @@ function iosDevice() {
     type Device = {
         udid: string
         name: string
-        state: string
         isAvailable: boolean
+        deviceTypeIdentifier: string
     }
+    const version = (runtime: string) =>
+        (runtime.match(/iOS-(\d+)-(\d+)/) ?? []).slice(1).map(Number)
     const devices = Object.entries(
         JSON.parse(list).devices as Record<string, Device[]>,
     )
         .filter(([runtime]) => runtime.includes('iOS'))
-        .flatMap(([, list]) => list)
-        .filter((d) => d.isAvailable && d.name.startsWith('iPhone'))
-    const pick = env.IOS_SIMULATOR
-        ? devices.find((d) => d.name === env.IOS_SIMULATOR)
-        : (devices.find((d) => d.state === 'Booted') ?? devices[0])
+        // Newest iOS first.
+        .sort(([a], [b]) => {
+            const [am = 0, an = 0] = version(a)
+            const [bm = 0, bn = 0] = version(b)
+            return bm - am || bn - an
+        })
+        .flatMap(([runtime, list]) => list.map((d) => ({ ...d, runtime })))
+        .filter((d) => d.isAvailable)
+    let pick = devices.find((d) => d.name === IOS_SIMULATOR)
+    if (!pick && !env.IOS_SIMULATOR) {
+        // Create it with the newest iPhone's device type and runtime.
+        const template = devices.find((d) => d.name.startsWith('iPhone'))
+        if (!template) return false
+        say(`Creating simulator "${IOS_SIMULATOR}" (${template.name})`)
+        const udid = capture('xcrun', [
+            'simctl',
+            'create',
+            IOS_SIMULATOR,
+            template.deviceTypeIdentifier,
+            template.runtime,
+        ])
+        if (!udid) return false
+        pick = { ...template, udid, name: IOS_SIMULATOR }
+    }
     if (!pick) return false
     iosUdid = pick.udid
     capture('xcrun', ['simctl', 'boot', iosUdid])
@@ -884,8 +912,13 @@ async function androidDevice() {
     androidSerial = connectedDevice()
     if (!androidSerial) {
         const emulator = path.join(ANDROID_HOME, 'emulator/emulator')
+        // An AVD of the script's own (see the iOS simulator above) when
+        // there is one; the docs say how to create it.
+        const avds = capture(emulator, ['-list-avds'])?.split('\n') ?? []
         const avd =
-            env.ANDROID_AVD ?? capture(emulator, ['-list-avds'])?.split('\n')[0]
+            env.ANDROID_AVD ??
+            avds.find((name) => name.toLowerCase().startsWith('rnfi')) ??
+            avds[0]
         if (!avd) return false
         say(`Starting emulator ${avd}`)
         // Detached, so it keeps running after this script exits.
