@@ -39,10 +39,6 @@
         "format:check": "oxfmt --check"
     },
     "jest": {
-        "coveragePathIgnorePatterns": [
-            "ReactNativeFastImageExample*",
-            "ReactNativeFastImageExampleServer*"
-        ],
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
