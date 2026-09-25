@@ -1,3 +1,10 @@
+## [8.6.27](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.26...v8.6.27) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** stop tracking a view's previous url when its source changes ([#1111](https://github.com/DylanVann/react-native-fast-image/issues/1111)) ([98db0b4](https://github.com/DylanVann/react-native-fast-image/commit/98db0b4d92da9e5024c8855fa1813a69591b44c0))
+
 ## [8.6.26](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.25...v8.6.26) (2026-09-25)
 
 
