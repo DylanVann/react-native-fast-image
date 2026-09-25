@@ -1,3 +1,10 @@
+## [8.6.31](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.30...v8.6.31) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** declare the Glide annotations dependency ([#1120](https://github.com/DylanVann/react-native-fast-image/issues/1120)) ([f584f7c](https://github.com/DylanVann/react-native-fast-image/commit/f584f7c4576e3870cf9232a09fdf2064b5a7ffa5))
+
 ## [8.6.30](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.29...v8.6.30) (2026-09-25)
 
 
