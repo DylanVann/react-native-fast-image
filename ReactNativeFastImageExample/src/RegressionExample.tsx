@@ -558,6 +558,19 @@ export default function RegressionExample() {
             <NoReloadCase />
             <SourceSwapCase />
             <LoadStartOnceCase />
+            {Platform.OS === 'android' ? (
+                <EventCase
+                    id="asset-uri"
+                    description="#1068: an asset:/ uri (a file in the app's Android assets) loads"
+                    event="onLoad"
+                    source={{ uri: 'asset:/fastimage-logo.png' }}
+                />
+            ) : (
+                <NoCrashCase
+                    id="asset-uri"
+                    description="#1068: asset:/ uris are Android only"
+                />
+            )}
             <PreloadCase />
             <PreloadHeadersCase />
         </ScrollView>
