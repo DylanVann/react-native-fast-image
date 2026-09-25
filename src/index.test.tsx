@@ -1,9 +1,20 @@
 import { Image, StyleSheet, Platform, NativeModules } from 'react-native'
 import React from 'react'
+import { beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import renderer from 'react-test-renderer'
 import FastImage from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
+
+// Bun has no custom snapshot serializers, so rendered trees are compared as
+// the JSX text Jest prints.
+const prettyFormat = require('pretty-format') as typeof import('pretty-format')
+function jsx(tree: unknown) {
+    return prettyFormat.format(tree, {
+        plugins: [prettyFormat.plugins.ReactTestComponent],
+        printBasicPrototype: false,
+    })
+}
 
 describe('FastImage (iOS)', () => {
     beforeAll(() => {
@@ -31,15 +42,14 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('passes a required (numeric) source to Image when using fallback', () => {
-        const resolveAssetSource = jest
-            .spyOn(Image, 'resolveAssetSource')
-            .mockImplementation(
-                (asset: any) => ({ uri: `asset-${asset}` }) as any,
-            )
+        const resolveAssetSource = spyOn(
+            Image,
+            'resolveAssetSource',
+        ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
         try {
             const image = renderer
                 .create(<FastImage source={1} fallback style={style.image} />)
@@ -96,11 +106,9 @@ describe('FastImage (iOS)', () => {
     })
 
     it('reads tintColor from a registered (numeric) style', () => {
-        const flatten = jest
-            .spyOn(StyleSheet, 'flatten')
-            .mockImplementation((s: any) =>
-                s === 7 ? ({ tintColor: 'purple' } as any) : s,
-            )
+        const flatten = spyOn(StyleSheet, 'flatten').mockImplementation(
+            (s: any) => (s === 7 ? ({ tintColor: 'purple' } as any) : s),
+        )
         try {
             const tree: any = renderer
                 .create(
@@ -142,7 +150,7 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('renders Image with fallback prop', () => {
@@ -156,7 +164,7 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('renders defaultSource', () => {
@@ -169,7 +177,7 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('runs static functions', () => {
@@ -202,7 +210,7 @@ describe('FastImage (Android)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('renders a normal defaultSource when fails to load source', () => {
@@ -218,7 +226,7 @@ describe('FastImage (Android)', () => {
             )
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 
     it('renders a non-existing defaultSource', () => {
@@ -226,6 +234,6 @@ describe('FastImage (Android)', () => {
             .create(<FastImage defaultSource={12345} style={style.image} />)
             .toJSON()
 
-        expect(tree).toMatchSnapshot()
+        expect(jsx(tree)).toMatchSnapshot()
     })
 })
