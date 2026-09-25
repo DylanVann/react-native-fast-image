@@ -13,6 +13,12 @@ export type OnLoadEvent = SyntheticEvent<
     }>,
 >
 
+export type OnErrorEvent = SyntheticEvent<
+    $ReadOnly<{|
+        error: string,
+    |}>,
+>
+
 export type OnProgressEvent = SyntheticEvent<
     $ReadOnly<{|
         loaded: number,
@@ -70,7 +76,7 @@ export type FastImageSource = {
 
 export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
-    onError?: ?() => void,
+    onError?: ?(event: OnErrorEvent) => void,
     onLoad?: ?(event: OnLoadEvent) => void,
     onLoadEnd?: ?() => void,
     onLoadStart?: ?() => void,

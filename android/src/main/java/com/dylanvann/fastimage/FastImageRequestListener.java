@@ -41,9 +41,24 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         view.onImageFailed(thumbnail);
-        FastImageEvents.send(view, REACT_ON_ERROR_EVENT);
+        WritableMap event = new WritableNativeMap();
+        event.putString("error", errorMessage(e));
+        FastImageEvents.send(view, REACT_ON_ERROR_EVENT, event);
         FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
         return false;
+    }
+
+    // The first root cause's message, e.g. "Not Found, status code: 404".
+    // The first root cause's message, e.g. "Not Found, status code: 404" (also
+    // for preload results).
+    static String errorMessage(@androidx.annotation.Nullable GlideException e) {
+        if (e != null) {
+            for (Throwable cause : e.getRootCauses()) {
+                if (cause.getMessage() != null) return cause.getMessage();
+            }
+            if (e.getMessage() != null) return e.getMessage();
+        }
+        return "Failed to load the image";
     }
 
     @Override

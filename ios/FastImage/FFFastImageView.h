@@ -28,3 +28,7 @@
 
 @end
 
+// An error's description, with the HTTP status code when there is one.
+FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
+
+

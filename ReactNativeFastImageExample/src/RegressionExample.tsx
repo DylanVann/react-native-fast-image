@@ -1202,6 +1202,32 @@ function GifLoopChangeCase() {
     )
 }
 
+// Loads an image that 404s and passes when onError's message has the status
+// code. onError had no details (#200).
+function ErrorMessageCase() {
+    const [error, setError] = useState<string>()
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: MISSING }}
+                onError={(e) => setError(e.nativeEvent.error)}
+            />
+            <CaseStatus
+                id="error-message"
+                status={
+                    error === undefined
+                        ? 'waiting'
+                        : error.includes('404')
+                          ? 'OK'
+                          : error
+                }
+                description="#200: onError says what went wrong (here a 404)"
+            />
+        </View>
+    )
+}
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1270,6 +1296,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: null as unknown as string }}
                 defaultSource={DEFAULT}
             />,
+            <ErrorMessageCase key="error-message" />,
         ],
     },
     {

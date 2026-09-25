@@ -26,13 +26,6 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
-// The error's description, with the HTTP status code when there is one.
-static NSString *FFFErrorMessage(NSError *error)
-{
-    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
-    if (statusCode) {
-        return [NSString stringWithFormat:@"%@, status code: %@", error.localizedDescription, statusCode];
-    }
     return error.localizedDescription ?: @"Failed to load the image";
 }
 
