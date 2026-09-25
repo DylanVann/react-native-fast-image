@@ -1,3 +1,10 @@
+## [8.6.26](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.25...v8.6.26) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** avoid excessive reloading on prop updates ([#1108](https://github.com/DylanVann/react-native-fast-image/issues/1108)) ([adedfac](https://github.com/DylanVann/react-native-fast-image/commit/adedfac7e55e3d358edbe18bd5f83fcec15166d3)), closes [#762](https://github.com/DylanVann/react-native-fast-image/issues/762)
+
 ## [8.6.25](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.24...v8.6.25) (2026-09-25)
 
 
