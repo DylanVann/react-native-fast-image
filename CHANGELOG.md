@@ -1,3 +1,10 @@
+## [8.6.35](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.34...v8.6.35) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** keep each view's own Glide request manager ([#1125](https://github.com/DylanVann/react-native-fast-image/issues/1125)) ([3a09bfb](https://github.com/DylanVann/react-native-fast-image/commit/3a09bfb0af262450fe0a79885e4533d7fcb09b5f))
+
 ## [8.6.34](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.33...v8.6.34) (2026-09-25)
 
 
