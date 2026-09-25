@@ -53,6 +53,8 @@ type App = 'main' | 'legacy'
 type Platform = 'ios' | 'android'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
+const IMAGE_SERVER = path.join(ROOT, 'ReactNativeFastImageExampleServer')
+const IMAGE_SERVER_PORT = 8090
 
 // --- Options -------------------------------------------------------------
 
@@ -277,6 +279,12 @@ if (RUN_APPS && portInUse(8081)) {
     )
     process.exit(1)
 }
+if (RUN_APPS && portInUse(IMAGE_SERVER_PORT)) {
+    console.error(
+        `Port ${IMAGE_SERVER_PORT} is in use. Stop the example image server before running this script.`,
+    )
+    process.exit(1)
+}
 if (RUN_APPS && !fs.existsSync(MAESTRO_RUNNER)) {
     console.error(
         'maestro-runner not found; run `bun install` in the repo root (or set MAESTRO_RUNNER_BIN).',
@@ -397,6 +405,28 @@ async function startMetro(app: App) {
         }
         await sleep(1000)
     }
+    return false
+}
+
+// The example app loads its remote images from this server
+// (ReactNativeFastImageExampleServer). It runs for the whole run and is stopped
+// with everything else on exit.
+async function startImageServer() {
+    const log = path.join(OUT, 'image-server.log')
+    const pid = start('bun', [path.join(IMAGE_SERVER, 'server.ts')], {
+        log,
+    }).pid
+    if (pid !== undefined) groups.add(pid)
+    for (let i = 0; i < 20; i++) {
+        try {
+            const url = `http://localhost:${IMAGE_SERVER_PORT}/logo.png`
+            if ((await fetch(url)).ok) return true
+        } catch {
+            // Not up yet.
+        }
+        await sleep(500)
+    }
+    record('FAIL', 'image server', `see ${rel(log)}`)
     return false
 }
 
@@ -857,6 +887,12 @@ async function main() {
                 ['-p', 'scripts'],
                 ROOT,
             )
+            await jsCheck(
+                'image server typecheck',
+                path.join(example, 'node_modules/.bin/tsc'),
+                ['-p', path.relative(ROOT, IMAGE_SERVER)],
+                ROOT,
+            )
             await jsCheck('lint', 'bun', ['run', '--silent', 'lint'], ROOT)
             await jsCheck(
                 'format',
@@ -881,6 +917,7 @@ async function main() {
             }
         }
 
+        if (ready.length > 0 && !(await startImageServer())) ready.length = 0
         for (const app of APPS) {
             if (ready.length === 0) break
             if (!(await ensureNodeModules(appDir(app)))) continue
@@ -934,3 +971,6 @@ async function main() {
 }
 
 await main()
+// Exit rather than wait for the event loop to empty: the image server is still
+// running, so it wouldn't. Exiting runs cleanup, which stops it.
+process.exit()

@@ -7,9 +7,9 @@ import FeatureText from './FeatureText'
 
 // @ts-ignore
 import LogoImage from './images/logo.png'
+import { imageUrl } from './imageServer'
 
-const REMOTE_LOGO =
-    'https://raw.githubusercontent.com/DylanVann/react-native-fast-image/main/ReactNativeFastImageExample/src/images/logo.png'
+const REMOTE_LOGO = imageUrl('logo.png')
 
 export const TintColorExample = () => {
     return (

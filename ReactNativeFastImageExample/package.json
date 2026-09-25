@@ -6,6 +6,7 @@
         "android": "react-native run-android",
         "ios": "react-native run-ios",
         "start": "react-native start",
+        "images": "bun ../ReactNativeFastImageExampleServer/server.ts",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
@@ -29,6 +30,7 @@
         "@react-native/babel-preset": "0.87.1",
         "@react-native/metro-config": "0.87.1",
         "@react-native/typescript-config": "0.87.1",
+        "@types/bun": "1.4.2",
         "@types/react": "^19.2.0",
         "typescript": "^6.0.3"
     },

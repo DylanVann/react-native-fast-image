@@ -5,8 +5,9 @@ import FastImage from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import BulletText from './BulletText'
+import { imageUrl } from './imageServer'
 
-const IMAGE_URL = 'https://media.giphy.com/media/GEsoqZDGVoisw/giphy.gif'
+const IMAGE_URL = imageUrl('jellyfish.gif')
 
 const Col = (p: any) => <View style={styles.col} {...p} />
 

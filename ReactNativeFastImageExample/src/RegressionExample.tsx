@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
+import { imageUrl } from './imageServer'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives; maestro/regression.yaml waits for every OK. A crash fails the
@@ -22,10 +23,9 @@ const DEFAULT = Platform.select({
     android: { uri: 'rn_edit_text_material' } as unknown as number,
     default: require('./images/fields.jpg'),
 })
-const LOGO =
-    'https://raw.githubusercontent.com/DylanVann/react-native-fast-image/main/ReactNativeFastImageExample/src/images/logo.png'
-const MISSING = 'https://picsum.photos/does-not-exist.png'
-const PRELOAD = 'https://picsum.photos/id/1025/200/200'
+const LOGO = imageUrl('logo.png')
+const MISSING = imageUrl('does-not-exist.png')
+const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
@@ -223,7 +223,7 @@ function PointerEventsCase() {
 // screenshot). Android kept showing the cover crop.
 // A stable source object: a new one on each render re-sends the source prop,
 // which reloaded the image and hid the bug.
-const WIDE = { uri: 'https://picsum.photos/id/1018/600/300' }
+const WIDE = { uri: imageUrl('picsum/1018-600x300.jpg') }
 function ResizeModeChangeCase() {
     const [resizeMode, setResizeMode] = useState<'cover' | 'contain'>('cover')
     const [done, setDone] = useState(false)
@@ -309,7 +309,7 @@ function NoReloadCase() {
 // loads. On Android the view stayed in the progress map under every url it had
 // loaded, which kept it (and its Activity) alive.
 const SWAP = [1020, 1021, 1022].map((id) => ({
-    uri: `https://picsum.photos/id/${id}/120/120`,
+    uri: imageUrl(`picsum/${id}-120x120.jpg`),
 }))
 function SourceSwapCase() {
     const [index, setIndex] = useState(0)

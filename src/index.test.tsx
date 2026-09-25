@@ -136,7 +136,7 @@ describe('FastImage (iOS)', () => {
         const tree = renderer
             .create(
                 <FastImage
-                    source={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     style={style.image}
                 />,
             )
@@ -149,7 +149,7 @@ describe('FastImage (iOS)', () => {
         const tree = renderer
             .create(
                 <FastImage
-                    source={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     style={style.image}
                     fallback
                 />,
@@ -163,7 +163,7 @@ describe('FastImage (iOS)', () => {
         const tree = renderer
             .create(
                 <FastImage
-                    defaultSource={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     style={style.image}
                 />,
             )
@@ -196,7 +196,7 @@ describe('FastImage (Android)', () => {
         const tree = renderer
             .create(
                 <FastImage
-                    defaultSource={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     style={style.image}
                 />,
             )
@@ -209,7 +209,7 @@ describe('FastImage (Android)', () => {
         const tree = renderer
             .create(
                 <FastImage
-                    defaultSource={require('../ReactNativeFastImageExampleServer/pictures/jellyfish.gif')}
+                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     source={{
                         uri: 'https://www.google.com/image_does_not_exist.png',
                     }}
