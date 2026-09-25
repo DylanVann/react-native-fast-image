@@ -23,7 +23,29 @@
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    _loopCount = -1;
     return self;
+}
+
+- (void) setLoopCount: (NSInteger)loopCount {
+    if (_loopCount == loopCount) {
+        return;
+    }
+    _loopCount = loopCount;
+    // SDAnimatedImageView uses animationRepeatCount (0 is forever) instead of
+    // the file's loop count when shouldCustomLoopCount is set, for the next
+    // image it shows.
+    self.shouldCustomLoopCount = loopCount >= 0;
+    if (loopCount >= 0) {
+        self.animationRepeatCount = loopCount;
+    } else if (self.player && [self.image conformsToProtocol: @protocol(SDAnimatedImage)]) {
+        self.player.totalLoopCount = [(id<SDAnimatedImage>) self.image animatedImageLoopCount];
+    }
+    // Apply it to the image that's showing, and play it again.
+    if (self.player) {
+        [self.player seekToFrameAtIndex: 0 loopCount: 0];
+        [self startAnimating];
+    }
 }
 
 - (void) setResizeMode: (RCTResizeMode)resizeMode {

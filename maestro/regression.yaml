@@ -213,6 +213,18 @@ env:
 - extendedWaitUntil:
       visible: 'gif-loop-once: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'gif-loop-false: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'gif-loop-true: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'gif-loop-false: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'gif-loop-change: OK'
+      timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000

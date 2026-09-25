@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -57,6 +58,27 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // size and loads it (#865).
     void onZeroLayout() {
         if (!ViewCompat.isLaidOut(this)) layout(0, 0, 0, 0);
+    }
+
+    // How many times GIFs play: -1 for the file's own loop count (the `loop`
+    // prop not set), 0 for forever, or a number of times.
+    private int mLoopCount = -1;
+
+    public void setLoopCount(int loopCount) {
+        if (loopCount == mLoopCount) return;
+        mLoopCount = loopCount;
+        // Apply it to the GIF that's showing, and play it again.
+        Drawable drawable = getDrawable();
+        if (drawable instanceof GifDrawable) {
+            applyLoopCount((GifDrawable) drawable);
+            ((GifDrawable) drawable).startFromFirstFrame();
+        }
+    }
+
+    void applyLoopCount(GifDrawable gif) {
+        gif.setLoopCount(mLoopCount == -1 ? GifDrawable.LOOP_INTRINSIC
+                : mLoopCount == 0 ? GifDrawable.LOOP_FOREVER
+                : mLoopCount);
     }
 
     // Glide crops or fits the bitmap for the scale type when it loads, so a

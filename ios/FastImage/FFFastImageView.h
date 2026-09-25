@@ -19,6 +19,9 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 @property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
+// How many times animated images play: -1 for the file's own loop count (the
+// `loop` prop not set), 0 for forever, or a number of times.
+@property (nonatomic, assign) NSInteger loopCount;
 
 @end
 

@@ -160,6 +160,19 @@ Indicates the load order priority of an image. Images with `FastImage.priority.h
 
 ---
 
+### `loop?: boolean | number`
+
+How many times an animated image (GIF, animated WebP) plays:
+
+- Not set **(Default)** - As many times as the file says (like a browser).
+- `true` - Loop forever.
+- `false` - Play once.
+- A number - Play that many times.
+
+Changing it restarts the animation.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

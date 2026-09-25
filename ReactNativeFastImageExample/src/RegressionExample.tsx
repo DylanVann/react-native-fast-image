@@ -547,6 +547,34 @@ function SourceSizeCachedCase() {
     )
 }
 
+// Plays a GIF once (loop={false}), then switches to loop={true} after 3 s: it
+// should start playing again and keep looping (orange and purple).
+function GifLoopChangeCase() {
+    const [loop, setLoop] = useState(false)
+    useEffect(() => {
+        const timer = setTimeout(() => setLoop(true), 3000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                loop={loop}
+                source={{ uri: imageUrl('loop-forever-2.gif') }}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-gif-loop-change" style={styles.status}>
+                    gif-loop-change: {loop ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    Changing loop from false to true plays the GIF again and
+                    keeps looping (orange and purple)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -708,6 +736,27 @@ export default function RegressionExample() {
                 <FastImage
                     style={styles.image}
                     source={{ uri: imageUrl('loop-once.gif') }}
+                />
+            </NoCrashCase>
+            <NoCrashCase
+                id="gif-loop-true"
+                description="loop={true}: a GIF that plays once by itself keeps looping (yellow and green)"
+            >
+                <FastImage
+                    style={styles.image}
+                    loop
+                    source={{ uri: imageUrl('loop-once-2.gif') }}
+                />
+            </NoCrashCase>
+            <GifLoopChangeCase />
+            <NoCrashCase
+                id="gif-loop-false"
+                description="loop={false}: a GIF that loops forever by itself plays once and stops on blue"
+            >
+                <FastImage
+                    style={styles.image}
+                    loop={false}
+                    source={{ uri: imageUrl('loop-forever.gif') }}
                 />
             </NoCrashCase>
         </ScrollView>
