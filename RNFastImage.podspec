@@ -16,6 +16,9 @@ Pod::Spec.new do |s|
   s.source_files  = "ios/**/*.{h,m}"
 
   s.dependency 'React-Core'
-  s.dependency 'SDWebImage', '~> 5.11.1'
-  s.dependency 'SDWebImageWebPCoder', '~> 0.8.4'
+  # Any 5.x from 5.11.1, so apps can use newer versions (and share them with
+  # other libraries) without having to update. 5.18.7+ has the privacy
+  # manifest Apple requires.
+  s.dependency 'SDWebImage', '>= 5.11.1', '< 6.0'
+  s.dependency 'SDWebImageWebPCoder', '>= 0.8.4', '< 1.0'
 end
