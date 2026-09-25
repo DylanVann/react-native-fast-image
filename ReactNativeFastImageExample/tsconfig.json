@@ -9,6 +9,7 @@
             "react-native": ["./node_modules/react-native/types_generated"]
         }
     },
-    "include": ["**/*.ts", "**/*.tsx"],
+    // The library's types for its Codegen imports (see the file).
+    "include": ["**/*.ts", "**/*.tsx", "../src/codegen-modules.d.ts"],
     "exclude": ["**/node_modules", "**/Pods"]
 }

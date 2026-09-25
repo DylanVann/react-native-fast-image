@@ -21,7 +21,7 @@ Steps:
      both platforms at once. A flow failure or a crash fails the run.
 
 Options:
-  --app main|legacy   Only this example app (default: both).
+  --app main          Only this example app (the only one on 9.x).
   --ios, --android    Only this platform (default: both).
   --js-only           Only the JS checks.
   --no-js             Skip the JS checks.
@@ -91,15 +91,13 @@ if (options.help) {
     console.log(HELP)
     process.exit(0)
 }
-if (
-    options.app !== undefined &&
-    options.app !== 'main' &&
-    options.app !== 'legacy'
-) {
-    console.error(`Unknown app: ${options.app} (use main or legacy)`)
+// The legacy-architecture example (React Native 0.73) is on the 8.x branch
+// only: 9.x needs the New Architecture.
+if (options.app !== undefined && options.app !== 'main') {
+    console.error(`Unknown app: ${options.app} (use main)`)
     process.exit(2)
 }
-const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
+const APPS: App[] = ['main']
 const PLATFORMS: Platform[] = options.ios
     ? ['ios']
     : options.android

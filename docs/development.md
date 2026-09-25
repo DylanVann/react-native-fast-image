@@ -37,35 +37,25 @@ bun run android
 
 The examples load their remote images from a local server (`ReactNativeFastImageExampleServer`, run with Bun) instead of the internet, so they work offline and the flows don't depend on other servers. It serves `ReactNativeFastImageExampleServer/images` on port 8090; the app reaches it at `localhost` on iOS and `10.0.2.2` (the host machine) on the Android emulator. A path that doesn't exist returns 404, and query strings are ignored. The images were downloaded from their original URLs by `ReactNativeFastImageExampleServer/download.ts`, which lists each source; run it again to add one.
 
-## Testing on older React Native (legacy architecture)
+## Native code (New Architecture)
 
-`ReactNativeFastImageExampleLegacy` runs the same screens (`ReactNativeFastImageExample/src`) on React Native 0.73 with the legacy architecture (Paper and the bridge). Use it to check that fixes still work for apps on older React Native versions.
+9.x is a native Fabric component and TurboModule, defined by the Codegen specs in `src/FastImageViewNativeComponent.ts` and `src/NativeFastImageModule.ts`. Codegen runs during `pod install` and the Android build. After changing a spec, run `pod install` again and rebuild.
 
-```bash
-cd ReactNativeFastImageExampleLegacy
-bun install
-bundle install
-bundle exec pod install --project-directory=ios
+- iOS: `FFFastImageViewComponentView` (the Fabric component) shows an `FFFastImageView` (SDWebImage) as its content; `FFFastImageModule` is the TurboModule.
+- Android: `FastImageViewManager` sets the props on `FastImageViewWithUrl` (Glide); `FastImageModule` is the TurboModule.
 
-# Stop the main example's packager first; both use port 8081.
-bun run start
-bun run images
-bun run ios
-bun run android
-```
-
-Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
+The legacy architecture (React Native 0.60 and newer) is supported by 8.x, which has its own legacy example app on that branch.
 
 ## Verifying changes
 
-`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
+`scripts/verify.mts` checks the library and runs the example app on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
 2. Starts the image server. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
 
 ```bash
 node scripts/verify.mts                      # everything
-node scripts/verify.mts --app legacy --ios   # one app and platform
+node scripts/verify.mts --ios                # one platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
 node scripts/verify.mts --package            # the package as published (see below)
 ```

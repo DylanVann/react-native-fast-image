@@ -18,7 +18,14 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
-import com.facebook.react.uimanager.LayoutShadowNode;
+import com.facebook.react.uimanager.BackgroundStyleApplicator;
+import com.facebook.react.uimanager.LengthPercentage;
+import com.facebook.react.uimanager.LengthPercentageType;
+import com.facebook.react.uimanager.PointerEvents;
+import com.facebook.react.uimanager.ViewProps;
+import com.facebook.react.uimanager.annotations.ReactPropGroup;
+import com.facebook.react.uimanager.style.BorderRadiusProp;
+import com.facebook.react.uimanager.style.LogicalEdge;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -68,11 +75,51 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setSource(source);
     }
 
+    // A require()d image, as Image.resolveAssetSource returns it. Android
+    // loads it by name from the app's drawables.
     @ReactProp(name = "defaultSource")
-    public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
+    public void setDefaultSource(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        String uri = source != null && source.hasKey("uri") && !source.isNull("uri")
+                ? source.getString("uri") : null;
         view.setDefaultSource(
                 ResourceDrawableIdHelper.getInstance()
-                        .getResourceDrawable(view.getContext(), source));
+                        .getResourceDrawable(view.getContext(), uri));
+    }
+
+    @ReactProp(name = ViewProps.POINTER_EVENTS)
+    public void setPointerEvents(FastImageViewWithUrl view, @Nullable String pointerEvents) {
+        view.setPointerEvents(PointerEvents.parsePointerEvents(pointerEvents));
+    }
+
+    @ReactProp(name = "progressEnabled")
+    public void setProgressEnabled(FastImageViewWithUrl view, boolean progressEnabled) {
+        view.setProgressEnabled(progressEnabled);
+    }
+
+    @ReactProp(name = "borderColor", customType = "Color")
+    public void setBorderColor(FastImageViewWithUrl view, @Nullable Integer borderColor) {
+        BackgroundStyleApplicator.setBorderColor(view, LogicalEdge.ALL, borderColor);
+    }
+
+    @ReactProp(name = "borderWidth", defaultFloat = Float.NaN)
+    public void setBorderWidth(FastImageViewWithUrl view, float borderWidth) {
+        BackgroundStyleApplicator.setBorderWidth(
+                view, LogicalEdge.ALL, Float.isNaN(borderWidth) ? null : borderWidth);
+    }
+
+    @ReactPropGroup(
+            names = {
+                    ViewProps.BORDER_RADIUS,
+                    ViewProps.BORDER_TOP_LEFT_RADIUS,
+                    ViewProps.BORDER_TOP_RIGHT_RADIUS,
+                    ViewProps.BORDER_BOTTOM_RIGHT_RADIUS,
+                    ViewProps.BORDER_BOTTOM_LEFT_RADIUS,
+            },
+            defaultFloat = Float.NaN)
+    public void setBorderRadius(FastImageViewWithUrl view, int index, float borderRadius) {
+        LengthPercentage radius = Float.isNaN(borderRadius)
+                ? null : new LengthPercentage(borderRadius, LengthPercentageType.POINT);
+        BackgroundStyleApplicator.setBorderRadius(view, BorderRadiusProp.values()[index], radius);
     }
 
     @ReactProp(name = "tintColor", customType = "Color")
@@ -190,18 +237,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return activity.isFinishing() || activity.isChangingConfigurations();
         }
 
-    }
-
-    // Legacy architecture only; the New Architecture doesn't use shadow nodes.
-    @NonNull
-    @Override
-    public LayoutShadowNode createShadowNodeInstance() {
-        return new FastImageShadowNode();
-    }
-
-    @Override
-    public void updateExtraData(@NonNull FastImageViewWithUrl view, Object extraData) {
-        if (extraData == FastImageShadowNode.ZERO_LAYOUT) view.onZeroLayout();
     }
 
     @Override

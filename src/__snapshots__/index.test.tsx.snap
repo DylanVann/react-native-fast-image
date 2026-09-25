@@ -1,47 +1,24 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`FastImage (iOS) renders 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <FastImageView
-    defaultSource={null}
-    loopCount={-1}
-    resizeMode="cover"
-    source={
-      {
-        "headers": {
-          "token": "someToken",
+exports[`FastImage renders the native view directly 1`] = `
+"<FastImageView
+  loopCount={-1}
+  progressEnabled={false}
+  resizeMode="cover"
+  source={
+    {
+      "cache": undefined,
+      "headers": [
+        {
+          "name": "token",
+          "value": "someToken",
         },
-        "priority": "high",
-        "uri": "https://facebook.github.io/react/img/logo_og.png",
-      }
+      ],
+      "priority": "high",
+      "provided": true,
+      "uri": "https://facebook.github.io/react/img/logo_og.png",
     }
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-</View>"
-`;
-
-exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
-"<View
+  }
   style={
     [
       {
@@ -52,198 +29,72 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
         "width": 44,
       },
     ]
+  }
+/>"
+`;
+
+exports[`FastImage renders FastImageBackground as a view with the image and children 1`] = `
+"<View
+  style={
+    {
+      "height": 44,
+      "width": 44,
+    }
   }
 >
   <FastImageView
-    defaultSource={null}
     loopCount={-1}
+    progressEnabled={false}
     resizeMode="cover"
     source={
       {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-      }
-    }
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-</View>"
-`;
-
-exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <Image
-    resizeMode="cover"
-    source={
-      {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
+        "cache": undefined,
+        "headers": undefined,
+        "priority": undefined,
+        "provided": true,
+        "uri": "https://example.com/a.png",
       }
     }
     style={
       [
         {
-          "height": "100%",
-          "left": 0,
-          "position": "absolute",
-          "top": 0,
-          "width": "100%",
+          "overflow": "hidden",
         },
-        {
-          "tintColor": undefined,
-        },
+        [
+          {
+            "bottom": 0,
+            "left": 0,
+            "position": "absolute",
+            "right": 0,
+            "top": 0,
+          },
+          {
+            "borderRadius": 4,
+          },
+        ],
       ]
     }
   />
-</View>"
-`;
-
-exports[`FastImage (iOS) renders defaultSource 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <FastImageView
-    defaultSource={
-      {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-      }
-    }
-    loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-</View>"
-`;
-
-exports[`FastImage (Android) renders a normal defaultSource 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
   <FastImageView
     loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-</View>"
-`;
-
-exports[`FastImage (Android) renders a normal defaultSource when fails to load source 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <FastImageView
-    loopCount={-1}
+    progressEnabled={false}
     resizeMode="cover"
     source={
       {
-        "uri": "https://www.google.com/image_does_not_exist.png",
+        "cache": undefined,
+        "headers": undefined,
+        "priority": undefined,
+        "provided": true,
+        "uri": "https://example.com/b.png",
       }
     }
     style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-  />
-</View>"
-`;
-
-exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <FastImageView
-    defaultSource={null}
-    loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
+      [
+        {
+          "overflow": "hidden",
+        },
+        undefined,
+      ]
     }
   />
 </View>"

@@ -64,7 +64,7 @@ and
 
 ## Usage
 
-**Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
+**Note: 9.x needs React Native 0.76 or newer with the New Architecture. For the legacy architecture (React Native 0.60 and newer), use 8.x.** See [upgrading from 8.x](#upgrading-from-8x).
 
 ```bash
 yarn add react-native-fast-image
@@ -175,7 +175,7 @@ Changing it restarts the animation.
 
 ### `enableMinificationFilter?: boolean`
 
-iOS only. Smooths large images drawn much smaller than their size, which can otherwise look aliased (uses trilinear filtering, which takes a little more GPU memory).
+iOS only. Smooths large images drawn much smaller than their size, which can otherwise look aliased (trilinear filtering, as React Native's `Image` uses). On by default; set it to `false` to save the extra GPU memory it takes.
 
 ---
 
@@ -217,20 +217,31 @@ Called when the image finishes loading, whether it was successful or an error.
 
 ### `style`
 
-A React Native style. Supports using `borderRadius`.
-
----
-
-### `fallback: boolean`
-
-If true will fallback to using `Image`.
-In this case the image will still be styled and laid out the same way as `FastImage`.
+A React Native style: layout, `backgroundColor`, borders (`borderRadius`, `borderWidth`, `borderColor`), `opacity`, transforms and shadows, as for a `View`. `tintColor` can be set here too.
 
 ---
 
 ### `tintColor?: number | string`
 
 If supplied, changes the color of all the non-transparent pixels to the given color.
+
+## `FastImageBackground`
+
+An image with content on top, like React Native's `ImageBackground`. It takes the same props as `FastImage`, plus `children`; `style` is for the container, and `imageStyle` for the image.
+
+```jsx
+import { FastImageBackground } from 'react-native-fast-image'
+
+const Card = () => (
+    <FastImageBackground
+        style={{ width: 200, height: 200 }}
+        imageStyle={{ borderRadius: 8 }}
+        source={{ uri: 'https://unsplash.it/400/400?image=1' }}
+    >
+        <Text>On top</Text>
+    </FastImageBackground>
+)
+```
 
 ## Static Methods
 
@@ -276,10 +287,18 @@ If you have any problems using this library try the steps in [troubleshooting](d
 
 ## Supported React Native Versions
 
-This project only aims to support the latest version of React Native.\
-This simplifies the development and the testing of the project.
+- 9.x: React Native 0.76 and newer, New Architecture only (a native Fabric component and TurboModule).
+- 8.x: React Native 0.60 and newer, legacy architecture (and the New Architecture through React Native's interop layer). It still gets bug fixes.
 
-If you require new features or bug fixes for older versions you can fork this project.
+## Upgrading from 8.x
+
+- Needs React Native 0.76+ with the New Architecture enabled. Apps on the legacy architecture can stay on 8.x.
+- `FastImage` is a single native view instead of a `View` wrapping the image, like React Native's `Image`. Styles, `onLayout`, touch props and refs now apply to the image view itself. A ref is the native view (as for a `View`).
+- `children` is no longer supported. Use `FastImageBackground`, or put the image in a `View` with your content (`StyleSheet.absoluteFill` on the image).
+- `fallback` is removed. Every image loads natively (remote, `require()`, `file://`, `content://`, `data:`); for anything else, use React Native's `Image` directly.
+- `enableMinificationFilter` is on by default on iOS.
+- Flow types are no longer included.
+- `onLoad`'s `nativeEvent.target` is always set.
 
 ## Credits
 

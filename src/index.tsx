@@ -1,23 +1,19 @@
 import React, { forwardRef, memo } from 'react'
 import {
-    View,
     Image,
-    NativeModules,
-    requireNativeComponent,
     StyleSheet,
-    LayoutChangeEvent,
-    StyleProp,
-    ViewStyle,
-    ImageRequireSource,
-    Platform,
-    AccessibilityProps,
-    ViewProps,
+    View,
+    type ColorValue,
+    type ImageRequireSource,
+    type StyleProp,
+    type ViewProps,
+    type ViewStyle,
 } from 'react-native'
-
-// React Native's ColorValue, which its types only export since 0.63. Taken
-// from ViewStyle so the types also work with older React Native types, where
-// it's string.
-type ColorValue = NonNullable<ViewStyle['backgroundColor']>
+import FastImageView, {
+    type NativeDefaultSource,
+    type NativeSource,
+} from './FastImageViewNativeComponent'
+import NativeFastImageModule from './NativeFastImageModule'
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
@@ -58,9 +54,8 @@ export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
-        // The view's React tag. Missing on Android with the legacy architecture.
-        // TODO: make it required once the New Architecture is the minimum.
-        target?: number
+        // The view's React tag.
+        target: number
     }
 }
 
@@ -79,28 +74,14 @@ export interface OnProgressEvent {
     }
 }
 
-// Extends ViewStyle rather than FlexStyle/TransformsStyle/ShadowStyleIOS, which
-// React Native 0.80+'s default types no longer export.
 export interface ImageStyle extends ViewStyle {
-    backfaceVisibility?: 'visible' | 'hidden'
-    borderBottomLeftRadius?: number
-    borderBottomRightRadius?: number
-    backgroundColor?: ColorValue
-    borderColor?: ColorValue
-    borderWidth?: number
-    borderRadius?: number
-    borderTopLeftRadius?: number
-    borderTopRightRadius?: number
-    overlayColor?: ColorValue
     tintColor?: ColorValue
-    opacity?: number
 }
 
-export interface FastImageProps extends AccessibilityProps, ViewProps {
+export interface FastImageProps extends ViewProps {
     source?: Source | ImageRequireSource
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
-    fallback?: boolean
     /**
      * How many times an animated image (GIF, animated WebP) plays: the file's
      * own loop count by default, `true` to loop forever, `false` to play once,
@@ -108,9 +89,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     loop?: boolean | number
     /**
-     * iOS only: smooth large images drawn much smaller than their size, which
-     * can look aliased otherwise (trilinear filtering; uses a little more GPU
-     * memory).
+     * iOS only: smooth large images drawn much smaller than their size
+     * (trilinear filtering). On by default; turn it off to save the extra GPU
+     * memory it takes.
      */
     enableMinificationFilter?: boolean
 
@@ -124,88 +105,17 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     onLoadEnd?(): void
 
-    /**
-     * onLayout function
-     *
-     * Invoked on mount and layout changes with
-     *
-     * {nativeEvent: { layout: {x, y, width, height}}}.
-     */
-    onLayout?: (event: LayoutChangeEvent) => void
-
-    /**
-     *
-     * Style
-     */
     style?: StyleProp<ImageStyle>
 
     /**
-     * TintColor
-     *
-     * If supplied, changes the color of all the non-transparent pixels to the given color.
+     * If supplied, changes the color of all the non-transparent pixels to the
+     * given color. Can also be set in `style`.
      */
-
     tintColor?: ColorValue
-
-    /**
-     * A unique identifier for this element to be used in UI Automation testing scripts.
-     */
-    testID?: string
-
-    /**
-     * Render children within the image.
-     */
-    children?: React.ReactNode
-}
-
-const resolveDefaultSource = (
-    defaultSource?: ImageRequireSource,
-): string | number | null => {
-    if (!defaultSource) {
-        return null
-    }
-    if (Platform.OS === 'android') {
-        // Android receives a URI string, and resolves into a Drawable using RN's methods.
-        const resolved = Image.resolveAssetSource(
-            defaultSource as ImageRequireSource,
-        )
-
-        if (resolved) {
-            return resolved.uri
-        }
-
-        return null
-    }
-    // iOS or other number mapped assets
-    // In iOS the number is passed, and bridged automatically into a UIImage
-    return defaultSource
-}
-
-// Finds tintColor in a style prop, where the last style that sets it wins, as
-// with StyleSheet.flatten, but without flattening (which allocates a merged
-// object for an array style on every render).
-function tintColorFromStyle(style: unknown): ColorValue | undefined {
-    if (Array.isArray(style)) {
-        for (let i = style.length - 1; i >= 0; i--) {
-            const found = tintColorFromStyle(style[i])
-            if (found !== undefined) return found
-        }
-        return undefined
-    }
-    if (typeof style === 'number') {
-        // A registered style from StyleSheet.create on older React Native.
-        const flattened = StyleSheet.flatten(style as any) as
-            | ImageStyle
-            | undefined
-        return flattened ? flattened.tintColor : undefined
-    }
-    return style && typeof style === 'object'
-        ? (style as ImageStyle).tintColor
-        : undefined
 }
 
 // The native loopCount: -1 for the file's own, 0 for forever, or a number of
-// plays. Always sent, since native would reset a removed prop to 0 (forever).
+// plays.
 function loopCount(loop: boolean | number | undefined) {
     if (loop === undefined) return -1
     if (loop === true) return 0
@@ -213,120 +123,102 @@ function loopCount(loop: boolean | number | undefined) {
     return Number.isFinite(loop) ? Math.max(1, Math.floor(loop)) : 0
 }
 
-// A copy of the source without `cache`.
-function withoutCache(source: Source | undefined) {
-    const { cache: _cache, ...rest } = source || {}
-    return rest
+// Headers as a list, which Codegen needs (object keys have to be known).
+function nativeHeaders(headers: Source['headers']) {
+    if (!headers) return undefined
+    return Object.keys(headers).map((name) => ({
+        name,
+        value: String(headers[name]),
+    }))
 }
 
-function FastImageBase({
-    source,
-    defaultSource,
-    tintColor,
-    onLoadStart,
-    onProgress,
-    onLoad,
-    onError,
-    onLoadEnd,
-    style,
-    fallback,
-    children,
-    resizeMode = 'cover',
-    loop,
-    forwardedRef,
-    // On the wrapper, so the layout is relative to the parent (the image view
-    // inside always has x and y of 0).
-    onLayout,
-    // On the wrapper, which would otherwise still take touches. With
-    // 'box-none' the image is part of the box, so it ignores touches too.
-    pointerEvents,
-    ...viewProps
-}: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    // Touchables pass onClick to their child (React Native 0.73+, for
-    // accessibility clicks). It goes on the wrapper: the image view doesn't
-    // support it on iOS, which crashed (#1020). Older React Native types don't
-    // include it.
-    const { onClick, ...props } = viewProps as typeof viewProps & {
-        onClick?: (event: any) => void
+function nativeSource(
+    source: FastImageProps['source'],
+): NativeSource | undefined {
+    if (source == null) return undefined
+    if (typeof source === 'number') {
+        const resolved = Image.resolveAssetSource(source)
+        return resolved ? { provided: true, uri: resolved.uri } : undefined
     }
-    const wrapperProps = { onLayout, onClick, pointerEvents }
-    const imageProps = {
-        ...props,
-        pointerEvents:
-            pointerEvents === 'box-none' ? ('none' as const) : undefined,
+    return {
+        provided: true,
+        // Codegen can't read null as a string (the whole source would be lost).
+        uri: source.uri == null ? '' : source.uri,
+        headers: nativeHeaders(source.headers),
+        priority: source.priority,
+        cache: source.cache,
     }
-    // tintColor can also be set in style, as with React Native's Image. The
-    // prop wins.
-    const resolvedTintColor =
-        tintColor != null ? tintColor : tintColorFromStyle(style)
-    if (fallback) {
-        // Remove `cache`, which React Native's Image doesn't support. A
-        // require()d source is a number: pass it through (spreading it gave {}).
-        const cleanedSource =
-            typeof source === 'number' ? source : withoutCache(source)
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
+}
 
+function nativeDefaultSource(
+    defaultSource: ImageRequireSource | undefined,
+): NativeDefaultSource | undefined {
+    if (defaultSource == null) return undefined
+    const resolved = Image.resolveAssetSource(defaultSource) as
+        | (ReturnType<typeof Image.resolveAssetSource> & {
+              __packager_asset?: boolean
+          })
+        | null
+    if (!resolved) return undefined
+    return {
+        uri: resolved.uri,
+        width: resolved.width,
+        height: resolved.height,
+        scale: resolved.scale,
+        packagerAsset: resolved.__packager_asset === true,
+    }
+}
+
+// What a ref to FastImage (or FastImageBackground) gets: the native view, as
+// with React Native's View.
+export type FastImageRef = React.ComponentRef<typeof View>
+
+const FastImageBase = forwardRef<FastImageRef, FastImageProps>(
+    function FastImage(
+        {
+            source,
+            defaultSource,
+            resizeMode = 'cover',
+            loop,
+            onLoadStart,
+            onProgress,
+            onLoad,
+            onError,
+            onLoadEnd,
+            style,
+            ...props
+        },
+        ref,
+    ) {
+        if (props.children != null) {
+            // As with React Native's Image (Android can't add views to it).
+            throw new Error(
+                'FastImage cannot contain children. Use FastImageBackground to render content on top of an image.',
+            )
+        }
         return (
-            <View
-                style={[styles.imageContainer, style]}
-                {...wrapperProps}
-                ref={forwardedRef}
-            >
-                <Image
-                    {...imageProps}
-                    style={[
-                        styles.fallbackImage,
-                        { tintColor: resolvedTintColor },
-                    ]}
-                    source={resolvedSource}
-                    defaultSource={defaultSource}
-                    onLoadStart={onLoadStart}
-                    onProgress={onProgress}
-                    onLoad={onLoad as any}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
-                    resizeMode={resizeMode}
-                />
-                {children}
-            </View>
-        )
-    }
-
-    const resolvedSource = Image.resolveAssetSource(source as any)
-    const resolvedDefaultSource = resolveDefaultSource(defaultSource)
-
-    return (
-        <View
-            style={[styles.imageContainer, style]}
-            {...wrapperProps}
-            ref={forwardedRef}
-        >
             <FastImageView
-                {...imageProps}
-                tintColor={resolvedTintColor}
-                loopCount={loopCount(loop)}
-                style={StyleSheet.absoluteFill}
-                source={resolvedSource}
-                defaultSource={resolvedDefaultSource}
-                onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={onProgress}
-                onFastImageLoad={onLoad}
-                onFastImageError={onError}
-                onFastImageLoadEnd={onLoadEnd}
+                {...props}
+                ref={ref as any}
+                style={[styles.image, style]}
+                source={nativeSource(source)}
+                defaultSource={nativeDefaultSource(defaultSource)}
                 resizeMode={resizeMode}
+                loopCount={loopCount(loop)}
+                progressEnabled={onProgress != null}
+                onFastImageLoadStart={onLoadStart}
+                onFastImageProgress={onProgress as any}
+                onFastImageLoad={onLoad as any}
+                onFastImageError={onError as any}
+                onFastImageLoadEnd={onLoadEnd}
             />
-            {children}
-        </View>
-    )
-}
-
-const FastImageMemo = memo(FastImageBase)
-
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
+        )
+    },
 )
+
+const FastImageComponent: React.NamedExoticComponent<
+    FastImageProps & React.RefAttributes<FastImageRef>
+> = memo(FastImageBase)
 
 FastImageComponent.displayName = 'FastImage'
 
@@ -351,8 +243,8 @@ export interface FastImageStaticProperties {
     clearDiskCache: () => Promise<void>
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
-    FastImageStaticProperties = FastImageComponent as any
+const FastImage = FastImageComponent as typeof FastImageComponent &
+    FastImageStaticProperties
 
 FastImage.resizeMode = resizeMode
 
@@ -361,49 +253,55 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    // Null sources are sent as {} so native results line up with the sources
-    // (iOS drops null entries).
-    Promise.resolve(
-        NativeModules.FastImageView.preload(sources.map((s) => s || {})),
-    ).then((results?: Omit<PreloadResult, 'uri'>[]) =>
+    // Null sources are sent as {} so native results line up with the sources.
+    NativeFastImageModule.preload(sources.map((s) => s || {})).then((results) =>
         sources.map((source, i) => ({
             uri: source ? source.uri : undefined,
-            ...(results?.[i] ?? { ok: false, error: 'No result' }),
+            ...((results[i] as Omit<PreloadResult, 'uri'> | undefined) ?? {
+                ok: false,
+                error: 'No result',
+            }),
         })),
     )
 
-FastImage.clearMemoryCache = () =>
-    NativeModules.FastImageView.clearMemoryCache()
+FastImage.clearMemoryCache = () => NativeFastImageModule.clearMemoryCache()
 
-FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+FastImage.clearDiskCache = () => NativeFastImageModule.clearDiskCache()
 
 const styles = StyleSheet.create({
-    // React Native's Image sizes itself from a require()d source's width and
-    // height unless the style sets them, which would override absoluteFill.
-    fallbackImage: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-    },
-    imageContainer: {
+    // Clip the image to the view's rounded corners (iOS only clips with
+    // overflow hidden), as React Native's Image does.
+    image: {
         overflow: 'hidden',
     },
 })
 
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
+export interface FastImageBackgroundProps extends FastImageProps {
+    children?: React.ReactNode
+    // Style for the image; `style` is for the container.
+    imageStyle?: StyleProp<ImageStyle>
+}
+
+/**
+ * An image with content on top, like React Native's ImageBackground: a View
+ * (with `style` and `children`) and a FastImage filling it (`imageStyle`).
+ */
+export const FastImageBackground: React.ForwardRefExoticComponent<
+    FastImageBackgroundProps & React.RefAttributes<FastImageRef>
+> = forwardRef<FastImageRef, FastImageBackgroundProps>(
+    function FastImageBackground(
+        { children, style, imageStyle, testID, ...props },
+        ref,
+    ) {
+        return (
+            <View ref={ref} style={style} testID={testID}>
+                <FastImage
+                    {...props}
+                    style={[StyleSheet.absoluteFill, imageStyle]}
+                />
+                {children}
+            </View>
+        )
     },
 )
 

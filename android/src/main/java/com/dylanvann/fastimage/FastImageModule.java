@@ -14,31 +14,30 @@ import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
-class FastImageViewModule extends ReactContextBaseJavaModule {
+// FastImage's native module (a TurboModule): preload and the caches.
+public class FastImageModule extends NativeFastImageModuleSpec {
 
-    private static final String REACT_CLASS = "FastImageView";
+    static final String NAME = "FastImageModule";
 
-    FastImageViewModule(ReactApplicationContext reactContext) {
+    FastImageModule(ReactApplicationContext reactContext) {
         super(reactContext);
     }
 
     @NonNull
     @Override
     public String getName() {
-        return REACT_CLASS;
+        return NAME;
     }
 
     // Resolves with a result per source, in order, once all have loaded or
     // failed: { ok, width, height } or { ok: false, error }. Never rejects.
-    @ReactMethod
+    @Override
     public void preload(final ReadableArray sources, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         UiThreadUtil.runOnUiThread(new Runnable() {
@@ -126,7 +125,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return "Failed to load the image";
     }
 
-    @ReactMethod
+    @Override
     public void clearMemoryCache(final Promise promise) {
         final Activity activity = getCurrentActivity();
         if (activity == null) {
@@ -143,7 +142,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
-    @ReactMethod
+    @Override
     public void clearDiskCache(Promise promise) {
         final Activity activity = getCurrentActivity();
         if (activity == null) {

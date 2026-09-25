@@ -5,11 +5,11 @@ import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
@@ -17,6 +17,9 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.uimanager.BackgroundStyleApplicator;
+import com.facebook.react.uimanager.PointerEvents;
+import com.facebook.react.uimanager.ReactPointerEventsView;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
@@ -27,7 +30,7 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-class FastImageViewWithUrl extends AppCompatImageView {
+class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
@@ -52,12 +55,39 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mDefaultSource = source;
     }
 
-    // Legacy architecture only (see FastImageShadowNode): the view's layout is
-    // 0×0 at its parent's origin, which React Native never applies. Lay it out
-    // at that size, as the New Architecture does, so Glide stops waiting for a
-    // size and loads it (#865).
-    void onZeroLayout() {
-        if (!ViewCompat.isLaidOut(this)) layout(0, 0, 0, 0);
+    // For React Native's touch handling (pointerEvents="none" lets touches
+    // through to views below).
+    private PointerEvents mPointerEvents = PointerEvents.AUTO;
+
+    void setPointerEvents(PointerEvents pointerEvents) {
+        mPointerEvents = pointerEvents;
+    }
+
+    @Override
+    public PointerEvents getPointerEvents() {
+        return mPointerEvents;
+    }
+
+    // Whether onProgress has a handler: progress is only tracked then.
+    private boolean mProgressEnabled = false;
+
+    void setProgressEnabled(boolean progressEnabled) {
+        mProgressEnabled = progressEnabled;
+    }
+
+    // Background and borders are drawn by React Native's background drawable,
+    // as for its own Image, which also clips the image to the rounded corners.
+    @Override
+    public void setBackgroundColor(int color) {
+        BackgroundStyleApplicator.setBackgroundColor(this, color);
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        int saveCount = canvas.save();
+        BackgroundStyleApplicator.clipToPaddingBox(this, canvas);
+        super.onDraw(canvas);
+        canvas.restoreToCount(saveCount);
     }
 
     // How many times GIFs play: -1 for the file's own loop count (the `loop`
@@ -148,7 +178,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         this.glideUrl = glideUrl;
         clearView(requestManager);
 
-        if (glideUrl != null) {
+        if (glideUrl != null && mProgressEnabled) {
             FastImageOkHttpProgressGlideModule.expect(key, manager);
             List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
             if (viewsForKey != null && !viewsForKey.contains(this)) {

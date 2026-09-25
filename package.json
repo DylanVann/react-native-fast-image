@@ -22,17 +22,19 @@
     "main": "dist/index.cjs.js",
     "module": "dist/index.js",
     "typings": "dist/index.d.ts",
+    "react-native": "src/index.tsx",
     "files": [
         "android/build.gradle",
         "android/src/main",
         "ios/FastImage",
-        "ios/FastImage.xcodeproj/project.pbxproj",
-        "ios/FastImage.xcodeproj/xcshareddata",
         "dist",
+        "src",
+        "!src/**/*.test.*",
+        "!src/__snapshots__",
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
+        "build": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c",
         "lint": "oxlint",
         "release": "semantic-release",
         "test": "bun test",
@@ -42,27 +44,43 @@
     },
     "packageManager": "bun@1.4.2",
     "resolutions": {
-        "@types/react": "^17.0.14"
+        "@types/react": "^19.2.0"
     },
     "devDependencies": {
         "@semantic-release/changelog": "7.0.0",
         "@semantic-release/git": "11.0.1",
         "@types/bun": "^1.4.2",
-        "@types/react": "^17.0.14",
-        "@types/react-native": "^0.69.5",
+        "@types/react": "^19.2.0",
         "@types/react-test-renderer": "^17.0.1",
         "maestro-runner": "1.1.27",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
         "pretty-format": "^30.5.1",
         "react": "17.0.2",
+        "react-native": "0.87.1",
         "react-test-renderer": "17.0.2",
         "rolldown": "1.2.11",
         "semantic-release": "25.0.9",
         "typescript": "7.0.2"
     },
     "peerDependencies": {
-        "react": "^17 || ^18 || ^19",
-        "react-native": ">=0.60.0"
+        "react": "*",
+        "react-native": ">=0.76.0"
+    },
+    "codegenConfig": {
+        "name": "RNFastImageSpec",
+        "type": "all",
+        "jsSrcsDir": "src",
+        "android": {
+            "javaPackageName": "com.dylanvann.fastimage"
+        },
+        "ios": {
+            "componentProvider": {
+                "FastImageView": "FFFastImageViewComponentView"
+            },
+            "modulesProvider": {
+                "FastImageModule": "FFFastImageModule"
+            }
+        }
     }
 }
