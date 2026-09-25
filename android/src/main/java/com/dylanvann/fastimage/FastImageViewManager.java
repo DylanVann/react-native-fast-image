@@ -38,9 +38,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
-    @Nullable
-    private RequestManager requestManager = null;
-
     @NonNull
     @Override
     public String getName() {
@@ -50,6 +47,10 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @NonNull
     @Override
     protected FastImageViewWithUrl createViewInstance(@NonNull ThemedReactContext reactContext) {
+        // Each view keeps the RequestManager for its own Activity. A single one
+        // shared by all views kept the last view's Activity alive after it was
+        // destroyed, and gave views another Activity's manager (#492).
+        RequestManager requestManager = null;
         if (isValidContextForGlide(reactContext)) {
             requestManager = Glide.with(reactContext);
         } else if (getActivityFromContext(reactContext) == null) {
@@ -59,7 +60,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             requestManager = Glide.with(reactContext.getApplicationContext());
         }
 
-        return new FastImageViewWithUrl(reactContext);
+        return new FastImageViewWithUrl(reactContext, requestManager);
     }
 
     @ReactProp(name = "source")
@@ -92,7 +93,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // This will cancel existing requests.
-        view.clearView(requestManager);
+        view.clearView(view.requestManager);
 
         // Same key as when the view was tracked (toStringUrl, not toString,
         // which differ for urls that need escaping).
@@ -201,6 +202,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @Override
     protected void onAfterUpdateTransaction(@NonNull FastImageViewWithUrl view) {
         super.onAfterUpdateTransaction(view);
-        view.onAfterUpdate(this, requestManager, VIEWS_FOR_URLS);
+        view.onAfterUpdate(this, view.requestManager, VIEWS_FOR_URLS);
     }
 }
