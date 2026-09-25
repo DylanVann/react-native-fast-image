@@ -174,7 +174,7 @@ function capture(
 }
 
 // Every long-running child runs in its own process group, so it can be stopped
-// with everything it started: npx, the maestro-runner wrapper and xcodebuild
+// with everything it started: bunx, the maestro-runner wrapper and xcodebuild
 // all start children that outlive them otherwise. Groups are tracked by id
 // rather than by child, because a group can outlive the process that started
 // it (the maestro-runner wrapper exits on SIGTERM; its binary doesn't).
@@ -279,7 +279,7 @@ if (RUN_APPS && portInUse(8081)) {
 }
 if (RUN_APPS && !fs.existsSync(MAESTRO_RUNNER)) {
     console.error(
-        'maestro-runner not found; run `yarn` in the repo root (or set MAESTRO_RUNNER_BIN).',
+        'maestro-runner not found; run `bun install` in the repo root (or set MAESTRO_RUNNER_BIN).',
     )
     process.exit(1)
 }
@@ -370,20 +370,20 @@ const androidPackage = (app: App) =>
 async function ensureNodeModules(dir: string) {
     if (fs.existsSync(path.join(dir, 'node_modules'))) return true
     say(`Installing dependencies in ${rel(dir) || '.'}`)
-    const log = path.join(OUT, `yarn-${path.basename(dir)}.log`)
-    const result = await run('yarn', ['install', '--frozen-lockfile'], {
+    const log = path.join(OUT, `install-${path.basename(dir)}.log`)
+    const result = await run('bun', ['install', '--frozen-lockfile'], {
         cwd: dir,
         log,
         timeout: 600,
     })
     if (!result.ok)
-        record('FAIL', `yarn install (${rel(dir) || '.'})`, `see ${rel(log)}`)
+        record('FAIL', `bun install (${rel(dir) || '.'})`, `see ${rel(log)}`)
     return result.ok
 }
 
 async function startMetro(app: App) {
     say(`Starting Metro for ${app}`)
-    metro = start('npx', ['react-native', 'start', '--port', '8081'], {
+    metro = start('bunx', ['react-native', 'start', '--port', '8081'], {
         cwd: appDir(app),
         log: path.join(OUT, `metro-${app}.log`),
     }).pid
@@ -531,10 +531,21 @@ function iosDevice() {
     return true
 }
 
+// Pods need reinstalling after node_modules is: on React Native 0.73,
+// `pod install` also generates files inside node_modules/react-native.
+function podsCurrent(dir: string) {
+    try {
+        const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
+        const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
+        return pods >= rn.mtimeMs
+    } catch {
+        return false
+    }
+}
+
 async function iosPods(app: App) {
     const dir = appDir(app)
-    if (!options['pods'] && fs.existsSync(path.join(dir, 'ios/Pods')))
-        return true
+    if (!options['pods'] && podsCurrent(dir)) return true
     say(`pod install (${app})`)
     const log = path.join(OUT, `pods-${app}.log`)
     const ok =
@@ -548,6 +559,10 @@ async function iosPods(app: App) {
             })
         ).ok
     if (!ok) record('FAIL', `${app} ios pod install`, `see ${rel(log)}`)
+    else {
+        const now = new Date()
+        fs.utimesSync(path.join(dir, 'ios/Pods'), now, now)
+    }
     return ok
 }
 
@@ -815,14 +830,25 @@ async function main() {
             (await ensureNodeModules(ROOT)) &&
             (await ensureNodeModules(example))
         ) {
-            await jsCheck('library build', 'yarn', ['-s', 'build'], ROOT)
-            await jsCheck('library tests', 'yarn', ['-s', 'test'], ROOT, {
-                CI: 'true',
-            })
+            await jsCheck(
+                'library build',
+                'bun',
+                ['run', '--silent', 'build'],
+                ROOT,
+            )
+            await jsCheck(
+                'library tests',
+                'bun',
+                ['run', '--silent', 'test'],
+                ROOT,
+                {
+                    CI: 'true',
+                },
+            )
             await jsCheck(
                 'example typecheck',
-                'yarn',
-                ['-s', 'typecheck'],
+                'bun',
+                ['run', '--silent', 'typecheck'],
                 example,
             )
             await jsCheck(
@@ -831,8 +857,13 @@ async function main() {
                 ['-p', 'scripts'],
                 ROOT,
             )
-            await jsCheck('lint', 'yarn', ['-s', 'lint'], ROOT)
-            await jsCheck('format', 'yarn', ['-s', 'format:check'], ROOT)
+            await jsCheck('lint', 'bun', ['run', '--silent', 'lint'], ROOT)
+            await jsCheck(
+                'format',
+                'bun',
+                ['run', '--silent', 'format:check'],
+                ROOT,
+            )
         }
     }
 

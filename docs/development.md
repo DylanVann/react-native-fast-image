@@ -8,6 +8,7 @@ The example app in `ReactNativeFastImageExample` runs against the library source
 ## Requirements
 
 - Node 22.11 or later
+- [Bun](https://bun.sh), which installs dependencies and runs package scripts (Node still runs the tools)
 - Xcode, CocoaPods (via Bundler), and an iOS simulator
 - JDK 17, the Android SDK, and an Android emulator
 
@@ -15,22 +16,22 @@ The example app in `ReactNativeFastImageExample` runs against the library source
 
 ```bash
 # In the repo root folder.
-yarn
+bun install
 
 # Move to the example folder and install its dependencies.
 cd ReactNativeFastImageExample
-yarn
+bun install
 
 # Install pods (repeat after changing the podspec or native dependencies).
 bundle install
 bundle exec pod install --project-directory=ios
 
 # Start the packager.
-yarn start
+bun run start
 
 # In another terminal, build and run the app.
-yarn ios
-yarn android
+bun run ios
+bun run android
 ```
 
 ## Testing on older React Native (legacy architecture)
@@ -39,14 +40,14 @@ yarn android
 
 ```bash
 cd ReactNativeFastImageExampleLegacy
-yarn
+bun install
 bundle install
 bundle exec pod install --project-directory=ios
 
 # Stop the main example's packager first; both use port 8081.
-yarn start
-yarn ios
-yarn android
+bun run start
+bun run ios
+bun run android
 ```
 
 Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
@@ -64,7 +65,7 @@ node scripts/verify.mts --app legacy --ios   # one app and platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
 ```
 
-The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which is faster than the Maestro CLI (about 40% less time here), can drive iOS and Android at the same time, and is installed by `yarn` as a dev dependency. Screenshots are saved in each run's report (`verify-output/…/<app>-<platform>/report/assets/`).
+The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which is faster than the Maestro CLI (about 40% less time here), can drive iOS and Android at the same time, and is installed by `bun install` as a dev dependency. Screenshots are saved in each run's report (`verify-output/…/<app>-<platform>/report/assets/`).
 
 Run `node scripts/verify.mts --help` for all options. Use an Android emulator with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`, not Google APIs), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`; the script starts emulators with `-gpu host` and no window: macOS throttles the emulator while its window is hidden or behind the iOS Simulator, and the app stalls until the window is brought forward), and pick it with `ANDROID_AVD`. Google APIs images run Play services and other apps in the background; combined with the example's animated images they overload the emulator until system dialogs ("… isn't responding") cover the app and flows fail. ATD images are lighter still, but render a black screen, so screenshots are empty. The script also sets `hide_error_dialogs` on emulators. Builds and each app and platform's flows have time limits; raise them with `VERIFY_BUILD_TIMEOUT` or `VERIFY_FLOWS_TIMEOUT` (seconds) if one is hit. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, an iOS simulator, and an Android emulator (it starts one if none is running).
 
@@ -76,7 +77,7 @@ Run `node scripts/verify.mts --help` for all options. Use an Android emulator wi
 To run a flow by hand against a running app:
 
 ```bash
-npx maestro-runner --platform ios test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/regression.yaml
+bunx maestro-runner --platform ios test -e APP_ID=org.reactjs.native.example.ReactNativeFastImageExample maestro/regression.yaml
 ```
 
 With Xcode 27, maestro-runner 1.1.27 needs `XCODE_XCCONFIG_FILE=scripts/maestro-runner-wda.xcconfig` for iOS (its bundled WebDriverAgent targets iOS 12); `verify.mts` sets this.
