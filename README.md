@@ -173,6 +173,12 @@ Changing it restarts the animation.
 
 ---
 
+### `enableMinificationFilter?: boolean`
+
+iOS only. Smooths large images drawn much smaller than their size, which can otherwise look aliased (uses trilinear filtering, which takes a little more GPU memory).
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

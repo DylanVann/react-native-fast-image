@@ -736,6 +736,44 @@ function ProgressUnknownSizeCase() {
     )
 }
 
+// 1px stripes drawn at a fraction of their size: with the minification
+// filter (iOS) the right image is an even gray; without it, the left one shows
+// uneven stripes. Check the screenshot. Android ignores the prop.
+const STRIPES = { uri: imageUrl('stripes.png') }
+function MinificationFilterCase() {
+    const [loaded, setLoaded] = useState(0)
+    const onLoad = () => setLoaded((count) => count + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                testID="minification-filter-off"
+                style={styles.image}
+                source={STRIPES}
+                onLoad={onLoad}
+            />
+            <FastImage
+                testID="minification-filter-on"
+                style={[styles.image, styles.gap]}
+                source={STRIPES}
+                enableMinificationFilter
+                onLoad={onLoad}
+            />
+            <View style={styles.text}>
+                <Text
+                    testID="regression-minification-filter"
+                    style={styles.status}
+                >
+                    minification-filter: {loaded === 2 ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #445: enableMinificationFilter smooths a large image drawn
+                    small (iOS only: right is even gray, left is striped)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -924,6 +962,7 @@ export default function RegressionExample() {
                 />
             </NoCrashCase>
             <WebCacheCase />
+            <MinificationFilterCase />
         </ScrollView>
     )
 }

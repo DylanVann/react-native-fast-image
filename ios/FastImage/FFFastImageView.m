@@ -182,6 +182,13 @@
     }
 }
 
+- (void) setEnableMinificationFilter: (BOOL)enableMinificationFilter {
+    _enableMinificationFilter = enableMinificationFilter;
+    // Trilinear filtering (with mipmaps) smooths large images drawn much
+    // smaller than their size, which the default linear filter leaves aliased.
+    self.layer.minificationFilter = enableMinificationFilter ? kCAFilterTrilinear : kCAFilterLinear;
+}
+
 - (void) setDefaultSource: (UIImage*)defaultSource {
     if (_defaultSource != defaultSource) {
         _defaultSource = defaultSource;

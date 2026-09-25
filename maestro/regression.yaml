@@ -255,6 +255,12 @@ env:
 - extendedWaitUntil:
       visible: 'preload-results: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'minification-filter: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'minification-filter: OK'
+      timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000
