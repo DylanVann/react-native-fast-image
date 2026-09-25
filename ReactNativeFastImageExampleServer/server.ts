@@ -12,6 +12,8 @@
 //               one request must not be sent with others).
 //   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
 //   /chunked/   Streamed without a Content-Length (the size is unknown).
+//   /slow/      Streamed in 8 parts, one a second (about 7 s in all), so a
+//               test can do something while it loads.
 //   /cookie/    403 unless the request has both cookies from /set-cookie with
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
@@ -56,6 +58,7 @@ const server = Bun.serve({
         let { pathname } = url
         let cacheControl: string | undefined
         let chunked = false
+        let slow = false
         let setCookie: string | undefined
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
@@ -76,6 +79,9 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/chunked/')) {
             chunked = true
             pathname = pathname.slice('/chunked'.length)
+        } else if (pathname.startsWith('/slow/')) {
+            slow = true
+            pathname = pathname.slice('/slow'.length)
         } else if (pathname.startsWith('/cookie/')) {
             const cookie = request.headers.get('cookie') ?? ''
             const cookies = cookie.split(/;\s*/)
@@ -97,6 +103,25 @@ const server = Bun.serve({
         const image = Bun.file(file)
         if (!(await image.exists())) {
             return new Response('Not found', { status: 404 })
+        }
+        if (slow) {
+            const bytes = new Uint8Array(await image.arrayBuffer())
+            const parts = 8
+            const size = Math.ceil(bytes.length / parts)
+            let part = 0
+            const stream = new ReadableStream({
+                async pull(controller) {
+                    if (part > 0) await Bun.sleep(1000)
+                    controller.enqueue(
+                        bytes.subarray(part * size, (part + 1) * size),
+                    )
+                    part++
+                    if (part === parts) controller.close()
+                },
+            })
+            return new Response(stream, {
+                headers: { 'Content-Type': image.type },
+            })
         }
         if (chunked) {
             // A stream of unknown length is sent without a Content-Length.

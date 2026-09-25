@@ -1,0 +1,47 @@
+# Sends the app to the background while an image is loading, and brings it
+# back 20 s later: images that loaded mustn't load again (#1022), and the one
+# still loading must finish (#758). Slow, so scripts/verify.mts only runs it
+# with --background (it skips the `background` tag otherwise).
+#
+#   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/background.yaml
+#
+# App IDs are listed in walkthrough.yaml. Each example app registers its app ID
+# as a URL scheme, which brings it back (maestro-runner's launchApp would
+# restart it).
+appId: ${APP_ID}
+tags:
+    - background
+# maestro-runner saves each screenshot in the run's report and also here,
+# relative to this file (ignored).
+env:
+    OUT: maestro-screenshots
+---
+- launchApp:
+      stopApp: true
+- extendedWaitUntil:
+      visible:
+          id: 'tab-regression'
+      timeout: 60000
+- tapOn:
+      id: 'tab-regression'
+- tapOn:
+      id: 'regression-background-start'
+# The slow image takes about 7 s. The 20 s away is past SDWebImage's 15 s
+# download timeout. The wait is one that never matches (it takes longer than
+# its timeout on iOS).
+- extendedWaitUntil:
+      visible: 'background-loading: .*'
+      timeout: 30000
+- pressKey: Home
+- extendedWaitUntil:
+      visible: 'only here to wait 20 s'
+      timeout: 20000
+      optional: true
+- openLink: ${APP_ID}://
+- extendedWaitUntil:
+      visible: 'background-loaded: OK'
+      timeout: 30000
+- extendedWaitUntil:
+      visible: 'background-loading: OK'
+      timeout: 30000
+- takeScreenshot: ${OUT}/background

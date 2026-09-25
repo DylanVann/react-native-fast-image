@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
+    AppState,
     Platform,
     Pressable,
     ScrollView,
@@ -685,6 +686,97 @@ function CookiesCase() {
     )
 }
 
+// Counts an image's load events while the app goes to the background and
+// comes back (maestro/background.yaml does that). With `slow`, the image is still loading
+// when the app leaves (the server takes about 7 s), and has to finish after it
+// returns (#758). Otherwise it has loaded, and mustn't load again (#1022).
+// Passes 2 s after the app is back, if the image loaded exactly once.
+function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
+    const [counts, setCounts] = useState({ start: 0, load: 0, error: 0 })
+    const [returned, setReturned] = useState(false)
+    const [settled, setSettled] = useState(false)
+    const wentAway = useRef(false)
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (state) => {
+            if (state === 'background') wentAway.current = true
+            if (state === 'active' && wentAway.current) setReturned(true)
+        })
+        return () => subscription.remove()
+    }, [])
+    useEffect(() => {
+        if (!returned) return
+        const timer = setTimeout(() => setSettled(true), 2000)
+        return () => clearTimeout(timer)
+    }, [returned])
+    const count = (key: keyof typeof counts) => () =>
+        setCounts((c) => ({ ...c, [key]: c[key] + 1 }))
+    const summary = `start=${counts.start} load=${counts.load} error=${counts.error}`
+    const ok = counts.start === 1 && counts.load === 1 && counts.error === 0
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `${slow ? 'slow/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}`,
+                    ),
+                }}
+                onLoadStart={count('start')}
+                onLoad={count('load')}
+                onError={count('error')}
+            />
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}:{' '}
+                    {!returned
+                        ? `waiting for the app to come back (${summary})`
+                        : !settled
+                          ? `back (${summary})`
+                          : ok
+                            ? 'OK'
+                            : summary}
+                </Text>
+                <Text style={styles.description}>
+                    {slow
+                        ? '#758: an image still loading when the app goes to the background finishes after it comes back'
+                        : "#1022: a loaded image doesn't load again when the app comes back from the background"}
+                </Text>
+            </View>
+        </View>
+    )
+}
+
+// The background cases load only once started, so the rest of the tab's
+// cases aren't loading while the app goes to the background.
+function BackgroundCases() {
+    const [started, setStarted] = useState(false)
+    if (started) {
+        return (
+            <>
+                <BackgroundCase id="background-loaded" />
+                <BackgroundCase id="background-loading" slow />
+            </>
+        )
+    }
+    return (
+        <View style={styles.row}>
+            <Pressable
+                testID="regression-background-start"
+                style={styles.image}
+                onPress={() => setStarted(true)}
+            />
+            <View style={styles.text}>
+                <Text style={styles.status}>background: tap the box</Text>
+                <Text style={styles.description}>
+                    Starts the background cases (#758, #1022), which
+                    maestro/background.yaml runs: the app goes to the background
+                    and comes back 20 s later
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -693,6 +785,7 @@ export default function RegressionExample() {
             contentContainerStyle={styles.container}
         >
             <Text style={styles.title}>Regression checks</Text>
+            <BackgroundCases />
             <EventCase
                 id="tint-remote"
                 description="#1082: tintColor on a remote image with no defaultSource"
