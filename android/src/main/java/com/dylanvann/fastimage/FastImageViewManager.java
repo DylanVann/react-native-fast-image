@@ -89,6 +89,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setRecyclingKey(recyclingKey);
     }
 
+    @ReactProp(name = "loopCount", defaultInt = -1)
+    public void setLoopCount(FastImageViewWithUrl view, int loopCount) {
+        view.setLoopCount(loopCount);
+    }
+
     @ReactProp(name = "resizeMode")
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);

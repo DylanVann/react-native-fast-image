@@ -13,7 +13,7 @@ import {
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
-import { SnapshotContext, useReport } from './RunnerContext'
+import { Masked, SnapshotContext, useReport } from './RunnerContext'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives. The cases that need no touch are in REGRESSION_GROUPS, which
@@ -1116,6 +1116,92 @@ export const styles = StyleSheet.create({
 // time (each fits on a screen, so its screenshot shows every case). Cases in
 // a group load at the same time; timed ones (a second or two) are grouped so
 // they overlap. Keys are the case ids, which must be unique across groups.
+
+// The loop prop. The test GIFs have two 400 ms frames, so a play takes 0.8 s;
+// a case turns OK that long after onLoad (times its plays), plus a margin for
+// the animation to start. A GIF that stops ends on its last frame, which the
+// screenshot compares; one that keeps looping could be on either frame, so
+// it's masked (those cases only check nothing crashes).
+const GIF_PLAY = 800
+const GIF_MARGIN = 600
+function GifLoopCase({
+    id,
+    description,
+    loop,
+    plays,
+    source,
+    animates,
+}: {
+    id: string
+    description: string
+    loop?: boolean | number
+    // How many plays to wait for before the screenshot.
+    plays: number
+    source: string
+    // Still animating at the screenshot: masked.
+    animates?: boolean
+}) {
+    const [ok, setOk] = useState(false)
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const image = (
+        <FastImage
+            style={styles.image}
+            loop={loop}
+            source={{ uri: imageUrl(source) }}
+            onLoad={() => {
+                clearTimeout(timer.current)
+                timer.current = setTimeout(
+                    () => setOk(true),
+                    plays * GIF_PLAY + GIF_MARGIN,
+                )
+            }}
+        />
+    )
+    return (
+        <View style={styles.row}>
+            {animates ? <Masked>{image}</Masked> : image}
+            <CaseStatus
+                id={id}
+                status={ok ? 'OK' : 'waiting'}
+                description={description}
+            />
+        </View>
+    )
+}
+
+// loop={false}, then loop={true} once the GIF has played once: it starts
+// again and keeps looping (orange and purple). Masked: it's animating.
+function GifLoopChangeCase() {
+    const [loop, setLoop] = useState(false)
+    const [ok, setOk] = useState(false)
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <FastImage
+                    style={styles.image}
+                    loop={loop}
+                    source={{ uri: imageUrl('loop-forever-2.gif') }}
+                    onLoad={() => {
+                        clearTimeout(timer.current)
+                        timer.current = setTimeout(() => {
+                            setLoop(true)
+                            timer.current = setTimeout(() => setOk(true), 400)
+                        }, GIF_PLAY + GIF_MARGIN)
+                    }}
+                />
+            </Masked>
+            <CaseStatus
+                id="gif-loop-change"
+                status={ok ? 'OK' : 'waiting'}
+                description="Changing loop from false to true plays the GIF again and keeps looping (orange and purple)"
+            />
+        </View>
+    )
+}
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1308,6 +1394,37 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 />
             </NoCrashCase>,
             <SizeChangeCase key="size-change" />,
+        ],
+    },
+    {
+        name: 'gif-loop',
+        cases: [
+            <GifLoopCase
+                key="gif-loop-false"
+                id="gif-loop-false"
+                description="loop={false}: a GIF that loops forever by itself plays once and stops on blue"
+                loop={false}
+                plays={1}
+                source="loop-forever.gif"
+            />,
+            <GifLoopCase
+                key="gif-loop-count"
+                id="gif-loop-count"
+                description="loop={2}: a GIF that loops forever by itself plays twice and stops on purple"
+                loop={2}
+                plays={2}
+                source="loop-forever-2.gif"
+            />,
+            <GifLoopCase
+                key="gif-loop-true"
+                id="gif-loop-true"
+                description="loop: a GIF that plays once by itself keeps looping (yellow and green; masked)"
+                loop
+                plays={1}
+                source="loop-once-2.gif"
+                animates
+            />,
+            <GifLoopChangeCase key="gif-loop-change" />,
         ],
     },
     {

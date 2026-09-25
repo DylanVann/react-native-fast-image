@@ -102,6 +102,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * image. Unlike changing `key`, the view is kept.
      */
     recyclingKey?: string | null
+    /**
+     * How many times an animated image (GIF, animated WebP) plays: the file's
+     * own loop count by default, `true` to loop forever, `false` to play once,
+     * or a number of times. Changing it restarts the animation.
+     */
+    loop?: boolean | number
 
     onLoadStart?(): void
 
@@ -193,6 +199,15 @@ function tintColorFromStyle(style: unknown): ColorValue | undefined {
         : undefined
 }
 
+// The native loopCount: -1 for the file's own, 0 for forever, or a number of
+// plays. Always sent, since native would reset a removed prop to 0 (forever).
+function loopCount(loop: boolean | number | undefined) {
+    if (loop === undefined) return -1
+    if (loop === true) return 0
+    if (loop === false) return 1
+    return Number.isFinite(loop) ? Math.max(1, Math.floor(loop)) : 0
+}
+
 // A copy of the source without `cache`.
 function withoutCache(source: Source | undefined) {
     const { cache: _cache, ...rest } = source || {}
@@ -212,6 +227,7 @@ function FastImageBase({
     fallback,
     children,
     resizeMode = 'cover',
+    loop,
     forwardedRef,
     // On the wrapper, so the layout is relative to the parent (the image view
     // inside always has x and y of 0).
@@ -283,6 +299,7 @@ function FastImageBase({
             <FastImageView
                 {...imageProps}
                 tintColor={resolvedTintColor}
+                loopCount={loopCount(loop)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}
