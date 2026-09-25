@@ -633,6 +633,58 @@ function ProgressUnknownSizeCase() {
     )
 }
 
+// Gets two cookies with fetch, then loads an image the server only sends with
+// both (and which sets a cookie of its own), then checks the image's cookie
+// was kept for later requests. Android sent no cookies with images (iOS did).
+// The cookie values are this run's, so cookies kept from earlier runs don't
+// count.
+const COOKIE_IMAGE = imageUrl(`cookie/logo.png?run=${RUN}`)
+function CookiesCase() {
+    const [cookiesSet, setCookiesSet] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        fetch(imageUrl(`set-cookie?run=${RUN}`), { credentials: 'include' })
+            .then(() => setCookiesSet(true))
+            .catch((e) => setStatus(`fetch failed: ${e}`))
+    }, [])
+    const checkImageCookie = () =>
+        fetch(imageUrl('cookies'), { credentials: 'include' })
+            .then((response) => response.json())
+            .then((json) =>
+                setStatus(
+                    json.cookie
+                        .split(/;\s*/)
+                        .includes(`fast-image-image=${RUN}`)
+                        ? 'OK'
+                        : `image cookie not kept (${json.cookie})`,
+                ),
+            )
+            .catch((e) => setStatus(`fetch failed: ${e}`))
+    return (
+        <View style={styles.row}>
+            {cookiesSet ? (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: COOKIE_IMAGE }}
+                    onLoad={checkImageCookie}
+                    onError={() => setStatus('image failed (no cookies sent)')}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <View style={styles.text}>
+                <Text testID="regression-cookies" style={styles.status}>
+                    cookies: {status}
+                </Text>
+                <Text style={styles.description}>
+                    Images are sent the cookies other requests got, and keep the
+                    ones they get (Android sent none)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -798,6 +850,7 @@ export default function RegressionExample() {
                 />
             </NoCrashCase>
             <WebCacheCase />
+            <CookiesCase />
         </ScrollView>
     )
 }

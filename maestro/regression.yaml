@@ -225,6 +225,12 @@ env:
 - extendedWaitUntil:
       visible: 'web-cache: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'cookies: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'cookies: OK'
+      timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000
