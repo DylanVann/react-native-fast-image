@@ -39,6 +39,11 @@ Options:
                       default; run them for changes to loading or lifecycle.
   --no-wait           Fail if another run is using the devices, instead of
                       waiting for it (see "Device lock" below).
+  --record            Record the screen while the flows run. Each flow's
+                      recording is saved in its report, and a copy sized for
+                      a GitHub comment (needs ffmpeg) is written to
+                      recordings/<branch>/<app>-<platform>-<flow>.mp4, named
+                      after the current branch (or the --ref).
 
 Environment:
   IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
@@ -64,7 +69,7 @@ Device lock:
   node scripts/device-lock.mts <command>
 
 Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
-emulator. Output (logs, screenshots, crash reports) goes to
+emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
 type App = 'main' | 'legacy'
@@ -93,6 +98,7 @@ function parseOptions() {
                 ref: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 'no-wait': { type: 'boolean', default: false },
+                record: { type: 'boolean', default: false },
                 help: { type: 'boolean', short: 'h', default: false },
             },
         }).values
@@ -126,6 +132,7 @@ const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
 const FROM_PACKAGE = options.package
+const RECORD = options.record
 
 const env = process.env
 // The example apps' metro.config.js and react-native.config.js use the
@@ -170,6 +177,21 @@ const OUT = path.join(
     stamp + (REF ? `-${REF.replace(/\//g, '-')}` : ''),
 )
 fs.mkdirSync(OUT, { recursive: true })
+// Recordings go under recordings/<branch>/ (ignored by git), so the ones for a
+// branch are easy to find when writing up its PR, and a "before" run with
+// --ref main lands next to them under recordings/main/.
+function currentBranch() {
+    const git = (...args: string[]) =>
+        execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim()
+    const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
+    // A detached HEAD has no branch name; use the commit.
+    return branch === 'HEAD' ? git('rev-parse', '--short', 'HEAD') : branch
+}
+const RECORDINGS = path.join(
+    ROOT,
+    'recordings',
+    (REF ?? currentBranch()).replace(/\//g, '-'),
+)
 
 // --- Helpers -------------------------------------------------------------
 
@@ -538,9 +560,64 @@ async function stopMetro() {
 
 // --- Flows ---------------------------------------------------------------
 
+// Saves a copy of a flow's screen recording sized for a GitHub comment (under
+// 10 MB): 1080p at most, 30 fps, real time. A GitHub-hosted mp4 plays inline
+// in a PR; the original stays in the report.
+function saveRecording(
+    app: App,
+    platform: Platform,
+    flow: { name: string; assetsDir?: string },
+    report: string,
+) {
+    const name = `${app} ${platform} ${flow.name} recording`
+    const source = path.join(report, flow.assetsDir ?? '', 'recording.mp4')
+    if (!flow.assetsDir || !fs.existsSync(source)) {
+        record('FAIL', name, 'no recording in the report')
+        return
+    }
+    fs.mkdirSync(RECORDINGS, { recursive: true })
+    const target = path.join(RECORDINGS, `${app}-${platform}-${flow.name}.mp4`)
+    const ffmpeg = spawnSync(
+        'ffmpeg',
+        [
+            '-v',
+            'error',
+            '-y',
+            '-i',
+            source,
+            '-an',
+            '-vf',
+            'scale=-2:2*trunc(min(1080\\,ih)/2),fps=30',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '28',
+            '-pix_fmt',
+            'yuv420p',
+            '-movflags',
+            '+faststart',
+            target,
+        ],
+        { encoding: 'utf8', timeout: 300_000 },
+    )
+    if (ffmpeg.status !== 0) {
+        record(
+            'FAIL',
+            name,
+            ffmpeg.error
+                ? `ffmpeg not found (install it, or use ${rel(source)})`
+                : `ffmpeg failed: ${ffmpeg.stderr.trim().split('\n').at(-1)}`,
+        )
+        return
+    }
+    record('PASS', name, rel(target))
+}
+
 // Runs every flow in maestro/ in one maestro-runner call (one driver session),
-// then reads each flow's result from the report. Screenshots go to the
-// report's assets folder.
+// then reads each flow's result from the report. Screenshots (and recordings
+// with --record) go to the report's assets folder.
 async function runFlows(
     app: App,
     platform: Platform,
@@ -579,6 +656,7 @@ async function runFlows(
             path.join(dir, 'report'),
             '--flatten',
             ...(options.background ? [] : ['--exclude-tags', 'background']),
+            ...(RECORD ? ['--video', 'always'] : []),
             path.join(ROOT, 'maestro'),
         ],
         {
@@ -593,7 +671,7 @@ async function runFlows(
             },
         },
     )
-    let flows: { name: string; status: string }[] = []
+    let flows: { name: string; status: string; assetsDir?: string }[] = []
     try {
         flows = JSON.parse(
             fs.readFileSync(path.join(dir, 'report/report.json'), 'utf8'),
@@ -622,6 +700,7 @@ async function runFlows(
                     result.timedOut ? ', timed out' : ''
                 }; see ${rel(path.join(dir, 'report/report.html'))}`,
             )
+        if (RECORD) saveRecording(app, platform, flow, path.join(dir, 'report'))
     }
 }
 
