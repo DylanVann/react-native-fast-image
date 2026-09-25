@@ -10,16 +10,30 @@
 //   /private/   403 unless the request has `x-token: fast-image`.
 //   /no-token/  400 if the request has an `x-token` header (headers meant for
 //               one request must not be sent with others).
+//   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
+//
+// GET /requests?path=<path and query> returns how many times it was requested,
+// so a test can check what was loaded from the network: `{ "count": 1 }`.
 
 import path from 'node:path'
 
 const IMAGES = path.join(import.meta.dir, 'images')
 const PORT = Number(process.env.PORT ?? 8090)
+const requests = new Map<string, number>()
 
 const server = Bun.serve({
     port: PORT,
     async fetch(request) {
-        let { pathname } = new URL(request.url)
+        const url = new URL(request.url)
+        if (url.pathname === '/requests') {
+            const key = url.searchParams.get('path') ?? ''
+            return Response.json({ count: requests.get(key) ?? 0 })
+        }
+        const key = url.pathname + url.search
+        requests.set(key, (requests.get(key) ?? 0) + 1)
+
+        let { pathname } = url
+        let cacheControl: string | undefined
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
             if (token !== 'fast-image') {
@@ -33,6 +47,9 @@ const server = Bun.serve({
                 })
             }
             pathname = pathname.slice('/no-token'.length)
+        } else if (pathname.startsWith('/max-age/')) {
+            cacheControl = 'max-age=3600'
+            pathname = pathname.slice('/max-age'.length)
         }
         const file = path.join(IMAGES, decodeURIComponent(pathname))
         if (!file.startsWith(IMAGES + path.sep)) {
@@ -42,7 +59,10 @@ const server = Bun.serve({
         if (!(await image.exists())) {
             return new Response('Not found', { status: 404 })
         }
-        return new Response(image)
+        return new Response(
+            image,
+            cacheControl ? { headers: { 'Cache-Control': cacheControl } } : {},
+        )
     },
 })
 

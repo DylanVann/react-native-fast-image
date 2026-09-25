@@ -575,6 +575,54 @@ function GifLoopChangeCase() {
     )
 }
 
+// Loads an image with `cache: 'web'` from a url the server marks as cacheable
+// for an hour, loads it again, then asks the server how many times it was
+// requested: once, if the second load came from the HTTP cache. Android sent
+// every request to the network (#280).
+const WEB_PATH = `/max-age/picsum/1025-200x200.jpg?web=${RUN}`
+function WebCacheCase() {
+    const [loads, setLoads] = useState(0)
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loads !== 2) return
+        fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_PATH)}`))
+            .then((response) => response.json())
+            .then((json) => setRequests(json.count))
+            .catch(() => setRequests(-1))
+    }, [loads])
+    return (
+        <View style={styles.row}>
+            {loads < 2 ? (
+                <FastImage
+                    key={loads}
+                    style={styles.image}
+                    source={{
+                        uri: imageUrl(WEB_PATH.slice(1)),
+                        cache: FastImage.cacheControl.web,
+                    }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <View style={styles.text}>
+                <Text testID="regression-web-cache" style={styles.status}>
+                    web-cache:{' '}
+                    {requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`}
+                </Text>
+                <Text style={styles.description}>
+                    #280: cache web follows the server's caching headers
+                    (Android requested it again)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -759,6 +807,7 @@ export default function RegressionExample() {
                     source={{ uri: imageUrl('loop-forever.gif') }}
                 />
             </NoCrashCase>
+            <WebCacheCase />
         </ScrollView>
     )
 }
