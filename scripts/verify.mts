@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { acquireDeviceLock } from './device-lock.mts'
 
 const HELP = `Checks the library and runs both example apps on iOS and Android.
 
@@ -36,6 +37,8 @@ Options:
                       (maestro/background.yaml), which send the app to the
                       background for 20 s. Slow, so they're skipped by
                       default; run them for changes to loading or lifecycle.
+  --no-wait           Fail if another run is using the devices, instead of
+                      waiting for it (see "Device lock" below).
 
 Environment:
   IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
@@ -52,6 +55,13 @@ Environment:
                   maestro-runner binary (default: the dev dependency).
   MAESTRO_RUNNER_ANDROID_DRIVER
                   maestro-runner's Android driver (default devicelab).
+
+Device lock:
+  Runs use the booted simulator, the emulator and fixed ports (8081, 8090,
+  8091), so only one runs at a time, across checkouts (worktrees, Rifts): a
+  run waits for another to finish. --js-only doesn't need it. Other scripts
+  can use the devices under the same lock:
+  node scripts/device-lock.mts <command>
 
 Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
 emulator. Output (logs, screenshots, crash reports) goes to
@@ -82,6 +92,7 @@ function parseOptions() {
                 package: { type: 'boolean', default: false },
                 ref: { type: 'string' },
                 background: { type: 'boolean', default: false },
+                'no-wait': { type: 'boolean', default: false },
                 help: { type: 'boolean', short: 'h', default: false },
             },
         }).values
@@ -291,6 +302,17 @@ function portInUse(port: number) {
 }
 
 // --- Setup ---------------------------------------------------------------
+
+// One run at a time uses the simulator, emulator and ports (see --help). Wait
+// for it before checking the ports, which another run would be using.
+if (RUN_APPS) {
+    try {
+        await acquireDeviceLock({ wait: !options['no-wait'] })
+    } catch (error) {
+        console.error((error as Error).message)
+        process.exit(2)
+    }
+}
 
 if (RUN_APPS && portInUse(8081)) {
     console.error(

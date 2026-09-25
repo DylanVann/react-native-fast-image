@@ -1,5 +1,5 @@
 {
-    // Type-checks scripts/verify.mts with the main example's TypeScript and
+    // Type-checks the scripts with the main example's TypeScript and
     // Node types (the repo root's are too old). Node runs the file directly.
     "compilerOptions": {
         "target": "ES2024",
@@ -13,5 +13,5 @@
         "typeRoots": ["../ReactNativeFastImageExample/node_modules/@types"],
         "types": ["node"]
     },
-    "files": ["verify.mts"]
+    "files": ["verify.mts", "device-lock.mts"]
 }
