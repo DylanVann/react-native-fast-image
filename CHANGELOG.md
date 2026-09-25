@@ -1,3 +1,10 @@
+## [8.6.36](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.35...v8.6.36) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ios:** fire onError for a data: uri that isn't an image ([#1126](https://github.com/DylanVann/react-native-fast-image/issues/1126)) ([2af0619](https://github.com/DylanVann/react-native-fast-image/commit/2af0619a35085f1cf4dd54c44457d7ce78e1d73a))
+
 ## [8.6.35](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.34...v8.6.35) (2026-09-25)
 
 
