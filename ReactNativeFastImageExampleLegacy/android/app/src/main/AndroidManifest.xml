@@ -20,6 +20,14 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- <app id>:// brings the app back (Maestro openLink), e.g. after
+             the Regression flow sends it to the background. -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="com.reactnativefastimageexamplelegacy" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>

@@ -1,6 +1,7 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
+#import <React/RCTUtils.h>
 
 @interface FFFastImageView ()
 
@@ -14,10 +15,30 @@
 // The image before tinting, kept while a tint is applied so the tint can be
 // changed or removed. nil when there's no tint (super.image is untinted).
 @property(nonatomic, strong) UIImage* untintedImage;
+// Whether the current load was already restarted after the app came back
+// from the background (see downloadImage:).
+@property(nonatomic, assign) BOOL retriedAfterBackground;
+// Waits for the app to be active again, to restart a load.
+@property(nonatomic, strong) id activeObserver;
 
 @end
 
+// When the app last went to the background (CACurrentMediaTime), or 0.
+static CFTimeInterval FFFEnteredBackgroundAt = 0;
+
 @implementation FFFastImageView
+
++ (void) initialize {
+    if (self != [FFFastImageView class]) {
+        return;
+    }
+    [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidEnterBackgroundNotification
+                                                      object: nil
+                                                       queue: [NSOperationQueue mainQueue]
+                                                  usingBlock: ^(NSNotification* notification) {
+        FFFEnteredBackgroundAt = CACurrentMediaTime();
+    }];
+}
 
 - (id) init {
     self = [super init];
@@ -232,6 +253,8 @@
         }
         self.hasCompleted = NO;
         self.hasErrored = NO;
+        self.retriedAfterBackground = NO;
+        [self stopWaitingForActive];
 
         [self downloadImage: _source options: options context: context];
     } else if (_defaultSource) {
@@ -267,6 +290,7 @@
             });
         };
     }
+    CFTimeInterval startedAt = CACurrentMediaTime();
     [self sd_setImageWithURL: _source.url
             placeholderImage: _defaultSource
                      options: options
@@ -276,6 +300,18 @@
                     NSError* _Nullable error,
                     SDImageCacheType cacheType,
                     NSURL* _Nullable imageURL) {
+                // The download was running when the app went to the
+                // background, and failed: iOS suspends it there, and its
+                // timeout keeps counting, so it times out as the app comes
+                // back (NSURLErrorTimedOut), or loses its connection. Load it
+                // again once the app is active, as Android does (#758).
+                if (error && [error.domain isEqualToString: NSURLErrorDomain] &&
+                    FFFEnteredBackgroundAt > startedAt && !weakSelf.retriedAfterBackground &&
+                    weakSelf.source == source) {
+                    weakSelf.retriedAfterBackground = YES;
+                    [weakSelf downloadWhenActive: source options: options context: context];
+                    return;
+                }
                 if (error) {
                     weakSelf.hasErrored = YES;
                     if (weakSelf.onFastImageError) {
@@ -294,7 +330,37 @@
             }];
 }
 
+// Downloads the source now if the app is active, or once it is (unless
+// another load started meanwhile).
+- (void) downloadWhenActive: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
+    // nil in app extensions, which don't get these notifications.
+    UIApplication* application = RCTSharedApplication();
+    if (!application || application.applicationState == UIApplicationStateActive) {
+        [self downloadImage: source options: options context: context];
+        return;
+    }
+    [self stopWaitingForActive];
+    __weak typeof(self) weakSelf = self;
+    self.activeObserver = [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidBecomeActiveNotification
+                                                                            object: nil
+                                                                             queue: [NSOperationQueue mainQueue]
+                                                                        usingBlock: ^(NSNotification* notification) {
+        [weakSelf stopWaitingForActive];
+        if (weakSelf.source == source) {
+            [weakSelf downloadImage: source options: options context: context];
+        }
+    }];
+}
+
+- (void) stopWaitingForActive {
+    if (self.activeObserver) {
+        [[NSNotificationCenter defaultCenter] removeObserver: self.activeObserver];
+        self.activeObserver = nil;
+    }
+}
+
 - (void) dealloc {
+    [self stopWaitingForActive];
     [self sd_cancelCurrentImageLoad];
 }
 

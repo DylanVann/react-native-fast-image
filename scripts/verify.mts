@@ -32,6 +32,10 @@ Options:
   --ref <git-ref>     Test the library code (src/, ios/, android/) from this ref
                       instead of the working tree, e.g. \`--ref main\` for a
                       "before" run. The working tree is restored afterwards.
+  --background        Also run the flows tagged \`background\`
+                      (maestro/background.yaml), which send the app to the
+                      background for 20 s. Slow, so they're skipped by
+                      default; run them for changes to loading or lifecycle.
 
 Environment:
   IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
@@ -42,7 +46,8 @@ Environment:
                   window.
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
                   Time limits in seconds for each app and platform's flows
-                  (default 240) and builds (default 900).
+                  (default 240, plus 120 with --background) and builds
+                  (default 900).
   MAESTRO_RUNNER_BIN
                   maestro-runner binary (default: the dev dependency).
   MAESTRO_RUNNER_ANDROID_DRIVER
@@ -76,6 +81,7 @@ function parseOptions() {
                 pods: { type: 'boolean', default: false },
                 package: { type: 'boolean', default: false },
                 ref: { type: 'string' },
+                background: { type: 'boolean', default: false },
                 help: { type: 'boolean', short: 'h', default: false },
             },
         }).values
@@ -521,7 +527,9 @@ async function runFlows(
 ) {
     const dir = path.join(OUT, `${app}-${platform}`)
     fs.mkdirSync(dir, { recursive: true })
-    const timeout = FLOWS_TIMEOUT
+    // The background flow waits 20 s with the app away, which takes about a
+    // minute on iOS (maestro-runner polls slowly on the home screen).
+    const timeout = FLOWS_TIMEOUT + (options.background ? 120 : 0)
     const log = path.join(dir, 'flows.log')
     // The Android driver usually starts in seconds, but can take longer right
     // after an app install while Android compiles it.
@@ -548,6 +556,7 @@ async function runFlows(
             '--output',
             path.join(dir, 'report'),
             '--flatten',
+            ...(options.background ? [] : ['--exclude-tags', 'background']),
             path.join(ROOT, 'maestro'),
         ],
         {
