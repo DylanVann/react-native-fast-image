@@ -454,6 +454,99 @@ function PreloadHeadersCase() {
     )
 }
 
+// Loads an image into a 60×60 view and checks onLoad reports the image's own
+// size, as iOS does. Android reported the size of the bitmap it decoded to fit
+// the view.
+function SourceSizeCase({
+    id,
+    description,
+    uri,
+    width,
+    height,
+}: {
+    id: string
+    description: string
+    uri: string
+    width: number
+    height: number
+}) {
+    const [size, setSize] = useState<string>()
+    const expected = `${width}x${height}`
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                resizeMode="contain"
+                source={{ uri }}
+                onLoad={(e) =>
+                    setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
+                }
+            />
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}:{' '}
+                    {size === undefined
+                        ? 'waiting'
+                        : size === expected
+                          ? 'OK'
+                          : `${size}, expected ${expected}`}
+                </Text>
+                <Text style={styles.description}>{description}</Text>
+            </View>
+        </View>
+    )
+}
+
+// Loads the same image three times: decoded, from the memory cache, and after
+// clearing the memory cache (on Android, from the disk cache of resized
+// images, which Glide only uses for local images like this asset). Each
+// onLoad should report the image's own size.
+const CACHED_SOURCE = Platform.select({
+    android: 'asset:/fastimage-logo.png',
+    default: imageUrl('logo.png'),
+})
+function SourceSizeCachedCase() {
+    const [step, setStep] = useState(0)
+    const [sizes, setSizes] = useState<string[]>([])
+    const done = sizes.length === 3
+    const ok = done && sizes.every((s) => s === '1000x1000')
+    return (
+        <View style={styles.row}>
+            {done ? (
+                <View style={styles.image} />
+            ) : (
+                <FastImage
+                    key={step}
+                    style={styles.image}
+                    resizeMode="contain"
+                    source={{ uri: CACHED_SOURCE }}
+                    onLoad={(e) => {
+                        const size = `${e.nativeEvent.width}x${e.nativeEvent.height}`
+                        setSizes((s) => [...s, size])
+                        if (step === 0) setStep(1)
+                        else if (step === 1) {
+                            FastImage.clearMemoryCache().then(() => setStep(2))
+                        }
+                    }}
+                />
+            )}
+            <View style={styles.text}>
+                <Text
+                    testID="regression-source-size-cached"
+                    style={styles.status}
+                >
+                    source-size-cached:{' '}
+                    {!done ? 'waiting' : ok ? 'OK' : sizes.join(', ')}
+                </Text>
+                <Text style={styles.description}>
+                    onLoad reports the image's size when it comes from a cache
+                    (expected 1000x1000 three times)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -585,6 +678,21 @@ export default function RegressionExample() {
                     description="#1068: asset:/ uris are Android only"
                 />
             )}
+            <SourceSizeCase
+                id="source-size"
+                description="#608: onLoad reports the image's size, not the size decoded for the view (600x300)"
+                uri={imageUrl('picsum/1018-600x300.jpg')}
+                width={600}
+                height={300}
+            />
+            <SourceSizeCase
+                id="source-size-gif"
+                description="#608: the same for a GIF (500x281)"
+                uri={imageUrl('jellyfish.gif')}
+                width={500}
+                height={281}
+            />
+            <SourceSizeCachedCase />
             <PreloadCase />
             <PreloadHeadersCase />
         </ScrollView>

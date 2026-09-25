@@ -172,6 +172,24 @@ env:
       visible: 'asset-uri: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'source-size: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'source-size: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'source-size-gif: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'source-size-gif: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'source-size-cached: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'source-size-cached: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:

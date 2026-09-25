@@ -4,6 +4,8 @@ import android.graphics.drawable.Drawable;
 
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
@@ -17,16 +19,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
     static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private final String key;
+    private final FastImageSource source;
 
-    FastImageRequestListener(String key) {
+    FastImageRequestListener(String key, FastImageSource source) {
         this.key = key;
-    }
-
-    private static WritableMap mapFromResource(Drawable resource) {
-        WritableMap resourceData = new WritableNativeMap();
-        resourceData.putInt("width", resource.getIntrinsicWidth());
-        resourceData.putInt("height", resource.getIntrinsicHeight());
-        return resourceData;
+        this.source = source;
     }
 
     @Override
@@ -48,19 +45,41 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     }
 
     @Override
-    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+    public boolean onResourceReady(Drawable resource, Object model, final Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
         if (!(target instanceof ImageViewTarget)) {
             return false;
         }
-        FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        final FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        boolean local = !(model instanceof GlideUrl);
+        int[] size = FastImageSourceSize.get(resource, model, local,
+                dataSource == DataSource.RESOURCE_DISK_CACHE);
+        if (size != null) {
+            sendLoad(view, size);
+            return false;
+        }
+        // A local image whose size isn't known: read it from the image first,
+        // unless the view starts another load meanwhile.
+        final Request request = target.getRequest();
+        FastImageSourceSize.readLocal(view.getContext(), source, resource, model, new FastImageSourceSize.Callback() {
+            @Override
+            public void onSize(int[] size) {
+                if (target.getRequest() == request) sendLoad(view, size);
+            }
+        });
+        return false;
+    }
+
+    private static void sendLoad(FastImageViewWithUrl view, int[] size) {
         ReactContext context = FastImageViewManager.getReactContext(view.getContext());
         if (context == null) {
-            return false;
+            return;
         }
         RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
         int viewId = view.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, mapFromResource(resource));
+        WritableMap event = new WritableNativeMap();
+        event.putInt("width", size[0]);
+        event.putInt("height", size[1]);
+        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, event);
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
-        return false;
     }
 }

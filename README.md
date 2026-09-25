@@ -176,7 +176,7 @@ e.g. `onProgress={e => console.log(e.nativeEvent.loaded / e.nativeEvent.total)}`
 
 ### `onLoad?: (event) => void`
 
-Called on a successful image fetch. Called with the width and height of the loaded image.
+Called on a successful image fetch. Called with the width and height of the image itself, not of the view (on iOS, in points: an `@2x` asset reports half its pixel size).
 
 e.g. `onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}`
 
