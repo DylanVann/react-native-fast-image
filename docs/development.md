@@ -67,7 +67,10 @@ Its `metro.config.js` resolves every import from the shared screens and the libr
 node scripts/verify.mts                      # everything
 node scripts/verify.mts --app legacy --ios   # one app and platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
+node scripts/verify.mts --package            # the package as published (see below)
 ```
+
+With `--package`, the script builds the library, packs it with `npm pack`, and installs the tarball into each app's `node_modules`. The apps then load `dist/` through the package's `main` field and autolink the native code from the installed package, so a file missing from `files` in `package.json`, or a broken build, fails the run. Switching between this and the usual mode reinstalls pods and regenerates Android autolinking, so the next run takes longer. Use it for changes to the build or to what gets published.
 
 The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which is faster than the Maestro CLI (about 40% less time here), can drive iOS and Android at the same time, and is installed by `bun install` as a dev dependency. Screenshots are saved in each run's report (`verify-output/…/<app>-<platform>/report/assets/`).
 
@@ -92,4 +95,15 @@ The app IDs for each app and platform are listed at the top of `maestro/walkthro
 
 - `react-native.config.js` autolinks the library's native code from the repo root.
 - `metro.config.js` resolves `react-native-fast-image` to `../src/index.tsx` and makes the library source use the example's `react` and `react-native`, not the repo root's dev copies.
+- With `FAST_IMAGE_FROM_PACKAGE=1` (set by `verify.mts --package`), both use the package installed in the app's `node_modules` instead.
 - `tsconfig.json` does the same for TypeScript.
+
+## Releasing
+
+Releases are automatic from `main`, with an approval step:
+
+1. A merge to `main` runs CI (`.github/workflows/ci.yml`). Commits with `[skip ci]` in the message don't run it, so they don't release on their own.
+2. The `release` job waits for a maintainer to approve it (it runs in the `release` GitHub environment, which has a required reviewer). Approve it from the workflow run's page: **Review deployments**. Only one release job runs at a time; merges while one is waiting release together.
+3. [semantic-release](https://semantic-release.gitbook.io) (`release.config.js`) works out the version from the commit messages since the last release, updates `CHANGELOG.md` and `package.json`, publishes to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers) (no npm token; provenance is attached), pushes the release commit and tag, and comments on the released issues and pull requests.
+
+npm only accepts trusted publishing for this package from `ci.yml` in the `release` environment. Don't edit `CHANGELOG.md` or the version in `package.json` by hand.

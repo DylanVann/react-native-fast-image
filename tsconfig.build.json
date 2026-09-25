@@ -1,0 +1,12 @@
+{
+    // Writes the type declarations (dist/index.d.ts) for the published package,
+    // without the tests. tsconfig.json type-checks everything.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": false,
+        "emitDeclarationOnly": true,
+        "declaration": true,
+        "declarationDir": "./dist"
+    },
+    "exclude": ["src/**/*.test.tsx"]
+}

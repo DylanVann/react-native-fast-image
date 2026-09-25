@@ -26,6 +26,9 @@ Options:
   --js-only           Only the JS checks.
   --no-js             Skip the JS checks.
   --pods              Run \`pod install\` even if Pods are already installed.
+  --package           Test the package as published: build it, \`npm pack\` it,
+                      and install the tarball into each app's node_modules
+                      (instead of using src/, ios/ and android/ directly).
   --ref <git-ref>     Test the library code (src/, ios/, android/) from this ref
                       instead of the working tree, e.g. \`--ref main\` for a
                       "before" run. The working tree is restored afterwards.
@@ -55,6 +58,9 @@ type Platform = 'ios' | 'android'
 const ROOT = path.resolve(import.meta.dirname, '..')
 const IMAGE_SERVER = path.join(ROOT, 'ReactNativeFastImageExampleServer')
 const IMAGE_SERVER_PORT = 8090
+const PACKAGE_NAME = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
+).name as string
 
 // --- Options -------------------------------------------------------------
 
@@ -68,6 +74,7 @@ function parseOptions() {
                 'js-only': { type: 'boolean', default: false },
                 'no-js': { type: 'boolean', default: false },
                 pods: { type: 'boolean', default: false },
+                package: { type: 'boolean', default: false },
                 ref: { type: 'string' },
                 help: { type: 'boolean', short: 'h', default: false },
             },
@@ -101,8 +108,14 @@ const PLATFORMS: Platform[] = options.ios
 const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
+const FROM_PACKAGE = options.package
 
 const env = process.env
+// The example apps' metro.config.js and react-native.config.js use the
+// installed package instead of the repo's source when this is set.
+if (FROM_PACKAGE) env.FAST_IMAGE_FROM_PACKAGE = '1'
+else delete env.FAST_IMAGE_FROM_PACKAGE
+const SOURCE = FROM_PACKAGE ? 'package' : 'source'
 const seconds = (name: string, fallback: number) =>
     Number(env[name]) || fallback
 // Time limits so a hung build or flow fails the run instead of blocking it;
@@ -321,6 +334,15 @@ function cleanup() {
         if (groupAlive(pgid)) killGroup(pgid, 'SIGKILL')
     }
     restoreLibrary()
+    // Remove the installed package, so a later run from source can't pick it up.
+    if (FROM_PACKAGE) {
+        for (const app of APPS) {
+            fs.rmSync(path.join(appDir(app), 'node_modules', PACKAGE_NAME), {
+                recursive: true,
+                force: true,
+            })
+        }
+    }
 }
 process.on('exit', cleanup)
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
@@ -428,6 +450,52 @@ async function startImageServer() {
     }
     record('FAIL', 'image server', `see ${rel(log)}`)
     return false
+}
+
+// Builds and packs the library as npm would publish it, and installs the
+// tarball into each app's node_modules (the package has no dependencies, only
+// peers, so extracting it is installing it).
+async function installPackage() {
+    say('Packing the library')
+    const log = path.join(OUT, 'package.log')
+    if (!(await run('bun', ['run', 'build'], { log, timeout: 120 })).ok) {
+        record('FAIL', 'package', `build failed; see ${rel(log)}`)
+        return false
+    }
+    const packed = capture(
+        'npm',
+        ['pack', '--json', '--pack-destination', OUT],
+        { timeout: 120 },
+    )
+    const tarball = packed && JSON.parse(packed)[0]?.filename
+    if (!tarball) {
+        record('FAIL', 'package', 'npm pack failed')
+        return false
+    }
+    for (const app of APPS) {
+        // Install the app's own dependencies first, so that can't remove it.
+        if (!(await ensureNodeModules(appDir(app)))) return false
+        const dest = path.join(appDir(app), 'node_modules', PACKAGE_NAME)
+        fs.rmSync(dest, { recursive: true, force: true })
+        fs.mkdirSync(dest, { recursive: true })
+        const extracted = await run(
+            'tar',
+            [
+                '-xzf',
+                path.join(OUT, tarball),
+                '-C',
+                dest,
+                '--strip-components=1',
+            ],
+            { log, timeout: 60 },
+        )
+        if (!extracted.ok) {
+            record('FAIL', 'package', `installing into ${app} failed`)
+            return false
+        }
+    }
+    say(`Installed ${tarball} into ${APPS.join(' and ')}`)
+    return true
 }
 
 async function stopMetro() {
@@ -561,13 +629,28 @@ function iosDevice() {
     return true
 }
 
+// Which library code (the repo's source or the installed package) native
+// builds were last set up for. Switching needs a new pod install and new
+// Gradle autolinking, since both point at the library's directory.
+const sourceMarker = (dir: string) => path.join(dir, '.fastimage-source')
+const builtFrom = (dir: string) => {
+    try {
+        return fs.readFileSync(sourceMarker(dir), 'utf8').trim()
+    } catch {
+        return undefined
+    }
+}
+
 // Pods need reinstalling after node_modules is: on React Native 0.73,
 // `pod install` also generates files inside node_modules/react-native.
 function podsCurrent(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
         const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
-        return pods >= rn.mtimeMs
+        return (
+            pods >= rn.mtimeMs &&
+            builtFrom(path.join(dir, 'ios/Pods')) === SOURCE
+        )
     } catch {
         return false
     }
@@ -592,6 +675,7 @@ async function iosPods(app: App) {
     else {
         const now = new Date()
         fs.utimesSync(path.join(dir, 'ios/Pods'), now, now)
+        fs.writeFileSync(sourceMarker(path.join(dir, 'ios/Pods')), SOURCE)
     }
     return ok
 }
@@ -759,6 +843,17 @@ async function androidDevice() {
 async function buildAndroid(app: App) {
     const dir = appDir(app)
     const log = path.join(OUT, `android-build-${app}.log`)
+    // React Native 0.87 caches autolinking (the library's directory) here;
+    // 0.73 works it out on every build.
+    const androidBuild = path.join(dir, 'android/build')
+    if (builtFrom(androidBuild) !== SOURCE) {
+        fs.rmSync(path.join(androidBuild, 'generated/autolinking'), {
+            recursive: true,
+            force: true,
+        })
+        fs.mkdirSync(androidBuild, { recursive: true })
+        fs.writeFileSync(sourceMarker(androidBuild), SOURCE)
+    }
     const result = await run(
         './gradlew',
         ['app:assembleDebug', '--console=plain', '-q'],
@@ -918,6 +1013,8 @@ async function main() {
         }
 
         if (ready.length > 0 && !(await startImageServer())) ready.length = 0
+        if (ready.length > 0 && FROM_PACKAGE && !(await installPackage()))
+            ready.length = 0
         for (const app of APPS) {
             if (ready.length === 0) break
             if (!(await ensureNodeModules(appDir(app)))) continue
