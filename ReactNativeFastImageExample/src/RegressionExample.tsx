@@ -701,6 +701,15 @@ export default function RegressionExample() {
             <SourceSizeCachedCase />
             <PreloadCase />
             <PreloadHeadersCase />
+            <NoCrashCase
+                id="gif-loop-once"
+                description="#651: a GIF without a loop count plays once and stops on cyan (Android looped every GIF forever)"
+            >
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl('loop-once.gif') }}
+                />
+            </NoCrashCase>
         </ScrollView>
     )
 }
