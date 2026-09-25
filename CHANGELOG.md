@@ -1,3 +1,10 @@
+## [8.6.32](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.31...v8.6.32) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** load 0×0 images on the legacy architecture ([#1122](https://github.com/DylanVann/react-native-fast-image/issues/1122)) ([38ea8e8](https://github.com/DylanVann/react-native-fast-image/commit/38ea8e86f9c6dc3b02364e6e02b7ca53e71da911))
+
 ## [8.6.31](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.30...v8.6.31) (2026-09-25)
 
 
