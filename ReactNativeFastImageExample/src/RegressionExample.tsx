@@ -986,6 +986,9 @@ const styles = StyleSheet.create({
         height: 48,
         backgroundColor: '#eee',
     },
+    gap: {
+        marginLeft: 8,
+    },
     text: {
         flex: 1,
         marginLeft: 12,
