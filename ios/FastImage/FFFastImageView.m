@@ -220,10 +220,7 @@
             if (!image) {
                 // Not decodable: fail like a remote image, showing defaultSource.
                 [self setImage: _defaultSource];
-                self.hasErrored = YES;
-                if (self.onFastImageError) {
-                    self.onFastImageError(@{});
-                }
+                [self sendOnError: @"The data URI couldn't be decoded as an image"];
                 if (self.onFastImageLoadEnd) {
                     self.onFastImageLoadEnd(@{});
                 }
