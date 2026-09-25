@@ -64,6 +64,14 @@ export interface OnLoadEvent {
     }
 }
 
+export interface OnErrorEvent {
+    nativeEvent: {
+        // What went wrong, e.g. an HTTP status code or an image that can't be
+        // decoded.
+        error: string
+    }
+}
+
 export interface OnProgressEvent {
     nativeEvent: {
         loaded: number
@@ -106,7 +114,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     onLoad?(event: OnLoadEvent): void
 
-    onError?(): void
+    onError?(event: OnErrorEvent): void
 
     onLoadEnd?(): void
 

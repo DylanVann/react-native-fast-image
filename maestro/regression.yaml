@@ -118,6 +118,12 @@ env:
       visible: 'pointer-events: OK'
       timeout: 10000
 - scrollUntilVisible:
+      element: 'error-message: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'error-message: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'error-invalid-data-uri: .*'
       timeout: 10000
 - extendedWaitUntil:

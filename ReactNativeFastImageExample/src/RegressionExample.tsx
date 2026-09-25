@@ -623,6 +623,34 @@ function WebCacheCase() {
     )
 }
 
+// Loads an image that 404s and passes when onError's message has the status
+// code. onError had no details (#200).
+function ErrorMessageCase() {
+    const [error, setError] = useState<string>()
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: MISSING }}
+                onError={(e) => setError(e.nativeEvent.error)}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-error-message" style={styles.status}>
+                    error-message:{' '}
+                    {error === undefined
+                        ? 'waiting'
+                        : error.includes('404')
+                          ? 'OK'
+                          : error}
+                </Text>
+                <Text style={styles.description}>
+                    #200: onError says what went wrong (here a 404)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -710,6 +738,7 @@ export default function RegressionExample() {
                 style={[styles.image, { tintColor: 'green' }]}
             />
             <PointerEventsCase />
+            <ErrorMessageCase />
             <EventCase
                 id="error-invalid-data-uri"
                 description="A data: uri that isn't an image fires onError (iOS fired onLoad with 0x0)"

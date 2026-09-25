@@ -122,7 +122,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
             WritableMap event = new WritableNativeMap();
-            event.putString("message", "Invalid source prop:" + mSource);
+            event.putString("error", "Invalid source: " + mSource);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
             FastImageEvents.send(this, REACT_ON_LOAD_END_EVENT);
 

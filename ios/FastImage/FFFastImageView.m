@@ -1,6 +1,7 @@
 #import "FFFastImageView.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
+#import <SDWebImage/SDWebImageError.h>
 
 @interface FFFastImageView ()
 
@@ -11,6 +12,7 @@
 @property(nonatomic, assign) BOOL needsReload;
 
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
+@property(nonatomic, strong) NSDictionary* onErrorEvent;
 // The image before tinting, kept while a tint is applied so the tint can be
 // changed or removed. nil when there's no tint (super.image is untinted).
 @property(nonatomic, strong) UIImage* untintedImage;
@@ -72,7 +74,7 @@
 - (void) setOnFastImageError: (RCTDirectEventBlock)onFastImageError {
     _onFastImageError = onFastImageError;
     if (self.hasErrored && _onFastImageError) {
-        _onFastImageError(@{});
+        _onFastImageError(self.onErrorEvent);
     }
 }
 
@@ -142,6 +144,24 @@
     } else {
         self.untintedImage = nil;
         super.image = image;
+    }
+}
+
+// The error's description, with the HTTP status code when there is one (as on
+// Android): SDWebImage keeps the code out of the description.
++ (NSString*) messageForError: (NSError*)error {
+    NSNumber* statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
+    if (statusCode) {
+        return [NSString stringWithFormat: @"%@, status code: %@", error.localizedDescription, statusCode];
+    }
+    return error.localizedDescription;
+}
+
+- (void) sendOnError: (nullable NSString*)message {
+    self.hasErrored = YES;
+    self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
+    if (self.onFastImageError) {
+        self.onFastImageError(self.onErrorEvent);
     }
 }
 
@@ -294,10 +314,7 @@
                     SDImageCacheType cacheType,
                     NSURL* _Nullable imageURL) {
                 if (error) {
-                    weakSelf.hasErrored = YES;
-                    if (weakSelf.onFastImageError) {
-                        weakSelf.onFastImageError(@{});
-                    }
+                    [weakSelf sendOnError: [FFFastImageView messageForError: error]];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd(@{});
                     }
