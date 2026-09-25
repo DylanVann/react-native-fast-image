@@ -28,7 +28,6 @@ module.exports = {
             {
                 assets: ['package.json', 'CHANGELOG.md'],
                 // This is not a JS template string, it is processed by semantic-release.
-                // eslint-disable-next-line no-template-curly-in-string
                 message:
                     'release(version): Release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
             },

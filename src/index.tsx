@@ -202,7 +202,6 @@ function FastImageBase({
     style,
     fallback,
     children,
-    // eslint-disable-next-line no-shadow
     resizeMode = 'cover',
     forwardedRef,
     // On the wrapper, so the layout is relative to the parent (the image view
