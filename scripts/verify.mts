@@ -15,7 +15,7 @@ const HELP = `Checks the library and runs both example apps on iOS and Android.
   node scripts/verify.mts [options]
 
 Steps:
-  1. JS: build, tests, and the typechecks.
+  1. JS: build, tests, typechecks, lint (oxlint) and formatting (oxfmt).
   2. For each example app: build for iOS and Android in parallel, start the
      packager, and run the Maestro flows in maestro/ with maestro-runner on
      both platforms at once. A flow failure or a crash fails the run.
@@ -94,8 +94,8 @@ const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
 const PLATFORMS: Platform[] = options.ios
     ? ['ios']
     : options.android
-    ? ['android']
-    : ['ios', 'android']
+      ? ['android']
+      : ['ios', 'android']
 const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
@@ -523,7 +523,7 @@ function iosDevice() {
         .filter((d) => d.isAvailable && d.name.startsWith('iPhone'))
     const pick = env.IOS_SIMULATOR
         ? devices.find((d) => d.name === env.IOS_SIMULATOR)
-        : devices.find((d) => d.state === 'Booted') ?? devices[0]
+        : (devices.find((d) => d.state === 'Booted') ?? devices[0])
     if (!pick) return false
     iosUdid = pick.udid
     capture('xcrun', ['simctl', 'boot', iosUdid])
@@ -583,7 +583,7 @@ async function buildIos(app: App) {
             `${app} ios build`,
             result.timedOut
                 ? `timed out after ${BUILD_TIMEOUT}s`
-                : error?.slice(0, 160) ?? `see ${rel(log)}`,
+                : (error?.slice(0, 160) ?? `see ${rel(log)}`),
         )
         return false
     }
@@ -831,6 +831,8 @@ async function main() {
                 ['-p', 'scripts'],
                 ROOT,
             )
+            await jsCheck('lint', 'yarn', ['-s', 'lint'], ROOT)
+            await jsCheck('format', 'yarn', ['-s', 'format:check'], ROOT)
         }
     }
 

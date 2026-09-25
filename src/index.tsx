@@ -184,6 +184,12 @@ function tintColorFromStyle(style: unknown): ColorValue | undefined {
         : undefined
 }
 
+// A copy of the source without `cache`.
+function withoutCache(source: Source | undefined) {
+    const { cache: _cache, ...rest } = source || {}
+    return rest
+}
+
 function FastImageBase({
     source,
     defaultSource,
@@ -196,7 +202,6 @@ function FastImageBase({
     style,
     fallback,
     children,
-    // eslint-disable-next-line no-shadow
     resizeMode = 'cover',
     forwardedRef,
     // On the wrapper, so the layout is relative to the parent (the image view
@@ -228,8 +233,7 @@ function FastImageBase({
         // Remove `cache`, which React Native's Image doesn't support. A
         // require()d source is a number: pass it through (spreading it gave {}).
         const cleanedSource =
-            typeof source === 'number' ? source : { ...(source as any) }
-        if (typeof cleanedSource === 'object') delete cleanedSource.cache
+            typeof source === 'number' ? source : withoutCache(source)
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
         return (

@@ -42,10 +42,10 @@ headers for images you'll generally get the sort of built in
 caching behavior you'd have in a browser.
 Even so many people have noticed:
 
--   Flickering.
--   Cache misses.
--   Low performance loading from cache.
--   Low performance in general.
+- Flickering.
+- Cache misses.
+- Low performance loading from cache.
+- Low performance in general.
 
 `FastImage` is an `Image` replacement that solves these issues.
 `FastImage` is a wrapper around
@@ -55,12 +55,12 @@ and
 
 ## Features
 
--   [x] Aggressively cache images.
--   [x] Add authorization headers.
--   [x] Prioritize images.
--   [x] Preload images.
--   [x] GIF support.
--   [x] Border radius.
+- [x] Aggressively cache images.
+- [x] Add authorization headers.
+- [x] Prioritize images.
+- [x] Preload images.
+- [x] GIF support.
+- [x] Border radius.
 
 ## Usage
 
@@ -89,7 +89,7 @@ const YourImage = () => (
 
 ## Are you using Glide already using an AppGlideModule?
 
--   [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
+- [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
 
 ## Are you using Proguard?
 
@@ -130,33 +130,33 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 Indicates the load order priority of an image. Images with `FastImage.priority.high` will load before images in a similar context with low or normal priority.
 
--   `FastImage.priority.low` - Low Priority.
--   `FastImage.priority.normal` **(Default)** - Normal Priority.
--   `FastImage.priority.high` - High Priority.
+- `FastImage.priority.low` - Low Priority.
+- `FastImage.priority.normal` **(Default)** - Normal Priority.
+- `FastImage.priority.high` - High Priority.
 
 ---
 
 ### `source.cache?: enum`
 
--   `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
--   `FastImage.cacheControl.web` - Use headers and follow normal caching procedures.
--   `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
+- `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
+- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures.
+- `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
 
 ---
 
 ### `defaultSource?: number`
 
--   An asset loaded with `require(...)`.
--   Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
+- An asset loaded with `require(...)`.
+- Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
 
 ---
 
 ### `resizeMode?: enum`
 
--   `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
--   `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
--   `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
--   `FastImage.resizeMode.center` - Do not scale the image, keep centered.
+- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+- `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
+- `FastImage.resizeMode.center` - Do not scale the image, keep centered.
 
 ---
 
@@ -265,9 +265,9 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 ## Licenses
 
--   FastImage - MIT © [DylanVann](https://github.com/DylanVann)
--   SDWebImage - `MIT`
--   Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
+- FastImage - MIT © [DylanVann](https://github.com/DylanVann)
+- SDWebImage - `MIT`
+- Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
 
 [build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml

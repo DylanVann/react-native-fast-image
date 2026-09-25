@@ -12,8 +12,10 @@ jobs:
           node-version-file: .node-version
           cache: yarn
       - run: yarn --frozen-lockfile
+      - run: yarn lint
+      - run: yarn format:check
       - run: yarn build
-      - run: yarn test --coverage
+      - run: yarn test
   release:
     needs: build
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'

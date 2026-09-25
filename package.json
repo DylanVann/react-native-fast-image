@@ -32,24 +32,13 @@
     ],
     "scripts": {
         "build": "dv-scripts build && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
-        "lint": "dv-scripts lint",
+        "lint": "oxlint",
         "release": "dv-scripts release",
-        "test": "dv-scripts test"
-    },
-    "prettier": {
-        "semi": false,
-        "singleQuote": true,
-        "tabWidth": 4,
-        "trailingComma": "all"
-    },
-    "eslintConfig": {
-        "extends": "dv-scripts"
+        "test": "dv-scripts test",
+        "format": "oxfmt",
+        "format:check": "oxfmt --check"
     },
     "jest": {
-        "coveragePathIgnorePatterns": [
-            "ReactNativeFastImageExample*",
-            "ReactNativeFastImageExampleServer*"
-        ],
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",
             "ReactNativeFastImageExampleServer*"
@@ -67,10 +56,10 @@
         "@types/react-native": "^0.69.5",
         "@types/react-test-renderer": "^17.0.1",
         "dv-scripts": "^1.6.0",
-        "eslint-config-dv-scripts": "^1.1.1",
         "maestro-runner": "1.1.27",
         "metro-react-native-babel-preset": "^0.66.1",
-        "prettier": "^2.3.2",
+        "oxfmt": "0.70.0",
+        "oxlint": "1.85.0",
         "react": "17.0.2",
         "react-native": "0.64.2",
         "react-test-renderer": "17.0.2",

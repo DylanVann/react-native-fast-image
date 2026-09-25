@@ -1,0 +1,26 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 4,
+    "trailingComma": "all",
+    "printWidth": 80,
+    "sortPackageJson": false,
+    "ignorePatterns": [
+        ".yarn",
+        "CHANGELOG.md",
+        "ReactNativeFastImageExample/ios",
+        "ReactNativeFastImageExample/android",
+        "ReactNativeFastImageExampleLegacy/ios",
+        "ReactNativeFastImageExampleLegacy/android",
+        ".local"
+    ],
+    "overrides": [
+        {
+            "files": [".github/**/*.yml", ".github/**/*.yaml"],
+            "options": {
+                "tabWidth": 2
+            }
+        }
+    ]
+}
