@@ -850,6 +850,63 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     )
 }
 
+// Shows a magenta image, then changes the source to a cyan one that takes
+// about 7 s (the slow server). While it loads, the view should keep showing
+// magenta (it flashed blank, #747); with `recycle`, recyclingKey changes too,
+// and it should be blank instead (for views reused for other content). The
+// flow takes a screenshot then. Passes when the cyan one has loaded. Started
+// from the box, so the flow can time the screenshot.
+function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
+    const [step, setStep] = useState<'start' | 'first' | 'second' | 'done'>(
+        'start',
+    )
+    const status = {
+        start: 'tap the box',
+        first: 'loading the first image',
+        second: 'loading the second image',
+        done: 'OK',
+    }[step]
+    return (
+        <View style={styles.row}>
+            {step === 'start' ? (
+                <Pressable
+                    testID={`regression-${id}-start`}
+                    style={styles.image}
+                    onPress={() => setStep('first')}
+                />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={
+                        step === 'first'
+                            ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+                            : {
+                                  uri: slowImageUrl(`cyan.png?${id}=${RUN}`),
+                                  headers: BACKGROUND_SLOW_HEADERS,
+                              }
+                    }
+                    recyclingKey={
+                        recycle ? (step === 'first' ? 'first' : 'second') : null
+                    }
+                    onLoad={() =>
+                        setStep((s) => (s === 'first' ? 'second' : 'done'))
+                    }
+                />
+            )}
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}: {status}
+                </Text>
+                <Text style={styles.description}>
+                    {recycle
+                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads'
+                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (it flashed blank)'}
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // The background cases load only once started, so the rest of the tab's
 // cases aren't loading while the app goes to the background.
 function BackgroundCases() {
@@ -1181,6 +1238,8 @@ export default function RegressionExample() {
             <WebCacheCase />
             <CookiesCase />
             <CenterCase />
+            <KeepPreviousCase id="keep-previous" />
+            <KeepPreviousCase id="recycling-key" recycle />
         </ScrollView>
     )
 }

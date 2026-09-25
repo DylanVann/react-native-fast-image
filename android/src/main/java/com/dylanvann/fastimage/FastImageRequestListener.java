@@ -19,10 +19,13 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private final String key;
     private final FastImageSource source;
+    // Whether the request shows the previous image as a thumbnail meanwhile.
+    private final boolean thumbnail;
 
-    FastImageRequestListener(String key, FastImageSource source) {
+    FastImageRequestListener(String key, FastImageSource source, boolean thumbnail) {
         this.key = key;
         this.source = source;
+        this.thumbnail = thumbnail;
     }
 
     @Override
@@ -32,6 +35,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageFailed(thumbnail);
         FastImageEvents.send(view, REACT_ON_ERROR_EVENT);
         FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
         return false;
@@ -43,6 +47,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         final FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageLoaded();
         if (resource instanceof GifDrawable) {
             // Play the GIF as many times as the file says, as iOS does. Glide
             // loops every GIF forever by default (#651).

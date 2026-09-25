@@ -227,6 +227,20 @@ describe('FastImage (iOS)', () => {
     })
 })
 
+describe('recyclingKey', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.png' }}
+                    recyclingKey="row-1"
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.recyclingKey).toBe('row-1')
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'
