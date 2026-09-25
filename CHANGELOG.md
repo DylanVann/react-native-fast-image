@@ -1,3 +1,10 @@
+## [8.6.25](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.24...v8.6.25) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** load images when the view isn't in an Activity ([#1110](https://github.com/DylanVann/react-native-fast-image/issues/1110)) ([12c0d80](https://github.com/DylanVann/react-native-fast-image/commit/12c0d80f2f3346ef37720b61009413e614a02c7c))
+
 ## [8.6.24](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.23...v8.6.24) (2026-09-25)
 
 
