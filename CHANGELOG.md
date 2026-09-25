@@ -1,3 +1,10 @@
+## [8.6.42](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.41...v8.6.42) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ios:** finish images that were loading when the app went to the background ([#1139](https://github.com/DylanVann/react-native-fast-image/issues/1139)) ([9d3e408](https://github.com/DylanVann/react-native-fast-image/commit/9d3e4083075d90457510e65a1ad7b66f6f5f0614)), closes [#758](https://github.com/DylanVann/react-native-fast-image/issues/758)
+
 ## [8.6.41](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.40...v8.6.41) (2026-09-25)
 
 
