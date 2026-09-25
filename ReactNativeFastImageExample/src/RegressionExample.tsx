@@ -982,6 +982,18 @@ export default function RegressionExample() {
                     source={{ uri: imageUrl('loop-once.gif') }}
                 />
             </NoCrashCase>
+            <EventCase
+                id="gif-single-frame"
+                description="#656: a GIF with a single frame loads (orange; onError fired)"
+                event="onLoad"
+                source={{ uri: imageUrl('single-frame.gif') }}
+            />
+            <EventCase
+                id="gif-single-frame-loop"
+                description="#656: the same with a loop count and frame delay, as animated-GIF encoders write them (purple)"
+                event="onLoad"
+                source={{ uri: imageUrl('single-frame-loop.gif') }}
+            />
             <WebCacheCase />
             <CookiesCase />
         </ScrollView>

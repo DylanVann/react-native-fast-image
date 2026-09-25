@@ -220,6 +220,18 @@ env:
       visible: 'gif-loop-once: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'gif-single-frame: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'gif-single-frame: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'gif-single-frame-loop: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'gif-single-frame-loop: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'web-cache: .*'
       timeout: 10000
 - extendedWaitUntil:
