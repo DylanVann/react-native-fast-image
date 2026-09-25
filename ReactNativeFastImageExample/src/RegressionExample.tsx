@@ -558,6 +558,20 @@ export default function RegressionExample() {
             <NoReloadCase />
             <SourceSwapCase />
             <LoadStartOnceCase />
+            <EventCase
+                id="zero-size"
+                description="#865: a 0×0 image still loads (Android never did)"
+                event="onLoad"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{ width: 0, height: 0 }}
+            />
+            <EventCase
+                id="zero-height"
+                description="#865: an image with a width but no height still loads"
+                event="onLoad"
+                source={{ uri: imageUrl('picsum/1021-120x120.jpg') }}
+                style={{ width: 60, height: 0 }}
+            />
             {Platform.OS === 'android' ? (
                 <EventCase
                     id="asset-uri"

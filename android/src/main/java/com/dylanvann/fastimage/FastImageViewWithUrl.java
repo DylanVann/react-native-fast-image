@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
@@ -46,6 +47,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setDefaultSource(@Nullable Drawable source) {
         mNeedsReload = true;
         mDefaultSource = source;
+    }
+
+    // Legacy architecture only (see FastImageShadowNode): the view's layout is
+    // 0×0 at its parent's origin, which React Native never applies. Lay it out
+    // at that size, as the New Architecture does, so Glide stops waiting for a
+    // size and loads it (#865).
+    void onZeroLayout() {
+        if (!ViewCompat.isLaidOut(this)) layout(0, 0, 0, 0);
     }
 
     // Glide crops or fits the bitmap for the scale type when it loads, so a

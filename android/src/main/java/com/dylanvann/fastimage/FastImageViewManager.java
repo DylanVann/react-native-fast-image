@@ -18,6 +18,7 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
+import com.facebook.react.uimanager.LayoutShadowNode;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -188,6 +189,18 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return activity.isFinishing() || activity.isChangingConfigurations();
         }
 
+    }
+
+    // Legacy architecture only; the New Architecture doesn't use shadow nodes.
+    @NonNull
+    @Override
+    public LayoutShadowNode createShadowNodeInstance() {
+        return new FastImageShadowNode();
+    }
+
+    @Override
+    public void updateExtraData(@NonNull FastImageViewWithUrl view, Object extraData) {
+        if (extraData == FastImageShadowNode.ZERO_LAYOUT) view.onZeroLayout();
     }
 
     @Override
