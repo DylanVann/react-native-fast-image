@@ -13,5 +13,5 @@
         "typeRoots": ["../ReactNativeFastImageExample/node_modules/@types"],
         "types": ["node"]
     },
-    "files": ["verify.mts", "device-lock.mts"]
+    "files": ["verify.mts", "device-lock.mts", "device-lock-status.mts"]
 }
