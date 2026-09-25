@@ -117,7 +117,16 @@ public class FastImageSource extends ImageSource {
         return mHeaders;
     }
 
+    // Set for `cache: 'web'`.
+    private boolean mWebCache = false;
+
+    void setWebCache(boolean webCache) {
+        mWebCache = webCache;
+    }
+
     public GlideUrl getGlideUrl() {
-        return new GlideUrl(getUri().toString(), getHeaders());
+        return mWebCache
+                ? new FastImageWebGlideUrl(getUri().toString(), getHeaders())
+                : new GlideUrl(getUri().toString(), getHeaders());
     }
 }
