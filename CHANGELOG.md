@@ -1,3 +1,10 @@
+## [8.6.28](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.27...v8.6.28) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ios:** send onLoadStart once when source and onLoadStart are set together ([#1114](https://github.com/DylanVann/react-native-fast-image/issues/1114)) ([094c75e](https://github.com/DylanVann/react-native-fast-image/commit/094c75e72e650dae88657706b985b0163658e786))
+
 ## [8.6.27](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.26...v8.6.27) (2026-09-25)
 
 
