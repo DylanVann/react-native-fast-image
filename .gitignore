@@ -57,3 +57,6 @@ maestro-screenshots/
 
 # scripts/verify.mts output
 verify-output/
+
+# scripts/verify.mts --record output
+recordings/

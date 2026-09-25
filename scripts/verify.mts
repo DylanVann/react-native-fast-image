@@ -39,14 +39,21 @@ Options:
                       default; run them for changes to loading or lifecycle.
   --no-wait           Fail if another run is using the devices, instead of
                       waiting for it (see "Device lock" below).
+  --record            Record the screen while the flows run. Each flow's
+                      recording is saved in its report, and a copy sized for
+                      a GitHub comment (needs ffmpeg) is written to
+                      recordings/<branch>/<app>-<platform>-<flow>.mp4, named
+                      after the current branch (or the --ref).
 
 Environment:
-  IOS_SIMULATOR   Simulator name to use (default: a booted iPhone, else the
-                  first available iPhone).
+  IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
+                  of the script's own so screenshots and recordings don't
+                  show other apps; created on first use with the device type
+                  and runtime of the newest iPhone simulator).
   ANDROID_AVD     Emulator to start if no device is connected (default: the
-                  first AVD). Use a plain AOSP image ("default", no Google
-                  apps) with 4 GB+ RAM; it's started with -gpu host and no
-                  window.
+                  first AVD named rnfi*, else the first AVD). Use a plain
+                  AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
+                  started with -gpu host and no window.
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 120 with --background) and builds
@@ -64,7 +71,7 @@ Device lock:
   node scripts/device-lock.mts <command>
 
 Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
-emulator. Output (logs, screenshots, crash reports) goes to
+emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
 type App = 'main' | 'legacy'
@@ -93,6 +100,7 @@ function parseOptions() {
                 ref: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 'no-wait': { type: 'boolean', default: false },
+                record: { type: 'boolean', default: false },
                 help: { type: 'boolean', short: 'h', default: false },
             },
         }).values
@@ -126,6 +134,7 @@ const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
 const FROM_PACKAGE = options.package
+const RECORD = options.record
 
 const env = process.env
 // The example apps' metro.config.js and react-native.config.js use the
@@ -170,6 +179,21 @@ const OUT = path.join(
     stamp + (REF ? `-${REF.replace(/\//g, '-')}` : ''),
 )
 fs.mkdirSync(OUT, { recursive: true })
+// Recordings go under recordings/<branch>/ (ignored by git), so the ones for a
+// branch are easy to find when writing up its PR, and a "before" run with
+// --ref main lands next to them under recordings/main/.
+function currentBranch() {
+    const git = (...args: string[]) =>
+        execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim()
+    const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
+    // A detached HEAD has no branch name; use the commit.
+    return branch === 'HEAD' ? git('rev-parse', '--short', 'HEAD') : branch
+}
+const RECORDINGS = path.join(
+    ROOT,
+    'recordings',
+    (REF ?? currentBranch()).replace(/\//g, '-'),
+)
 
 // --- Helpers -------------------------------------------------------------
 
@@ -538,9 +562,64 @@ async function stopMetro() {
 
 // --- Flows ---------------------------------------------------------------
 
+// Saves a copy of a flow's screen recording sized for a GitHub comment (under
+// 10 MB): 1080p at most, 30 fps, real time. A GitHub-hosted mp4 plays inline
+// in a PR; the original stays in the report.
+function saveRecording(
+    app: App,
+    platform: Platform,
+    flow: { name: string; assetsDir?: string },
+    report: string,
+) {
+    const name = `${app} ${platform} ${flow.name} recording`
+    const source = path.join(report, flow.assetsDir ?? '', 'recording.mp4')
+    if (!flow.assetsDir || !fs.existsSync(source)) {
+        record('FAIL', name, 'no recording in the report')
+        return
+    }
+    fs.mkdirSync(RECORDINGS, { recursive: true })
+    const target = path.join(RECORDINGS, `${app}-${platform}-${flow.name}.mp4`)
+    const ffmpeg = spawnSync(
+        'ffmpeg',
+        [
+            '-v',
+            'error',
+            '-y',
+            '-i',
+            source,
+            '-an',
+            '-vf',
+            'scale=-2:2*trunc(min(1080\\,ih)/2),fps=30',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '28',
+            '-pix_fmt',
+            'yuv420p',
+            '-movflags',
+            '+faststart',
+            target,
+        ],
+        { encoding: 'utf8', timeout: 300_000 },
+    )
+    if (ffmpeg.status !== 0) {
+        record(
+            'FAIL',
+            name,
+            ffmpeg.error
+                ? `ffmpeg not found (install it, or use ${rel(source)})`
+                : `ffmpeg failed: ${ffmpeg.stderr.trim().split('\n').at(-1)}`,
+        )
+        return
+    }
+    record('PASS', name, rel(target))
+}
+
 // Runs every flow in maestro/ in one maestro-runner call (one driver session),
-// then reads each flow's result from the report. Screenshots go to the
-// report's assets folder.
+// then reads each flow's result from the report. Screenshots (and recordings
+// with --record) go to the report's assets folder.
 async function runFlows(
     app: App,
     platform: Platform,
@@ -579,6 +658,7 @@ async function runFlows(
             path.join(dir, 'report'),
             '--flatten',
             ...(options.background ? [] : ['--exclude-tags', 'background']),
+            ...(RECORD ? ['--video', 'always'] : []),
             path.join(ROOT, 'maestro'),
         ],
         {
@@ -593,7 +673,7 @@ async function runFlows(
             },
         },
     )
-    let flows: { name: string; status: string }[] = []
+    let flows: { name: string; status: string; assetsDir?: string }[] = []
     try {
         flows = JSON.parse(
             fs.readFileSync(path.join(dir, 'report/report.json'), 'utf8'),
@@ -622,12 +702,18 @@ async function runFlows(
                     result.timedOut ? ', timed out' : ''
                 }; see ${rel(path.join(dir, 'report/report.html'))}`,
             )
+        if (RECORD) saveRecording(app, platform, flow, path.join(dir, 'report'))
     }
 }
 
 // --- iOS -----------------------------------------------------------------
 
 let iosUdid = ''
+
+// The flows run on a simulator of their own by default, so screenshots and
+// recordings don't show other apps installed on a shared simulator. It's
+// created on first use, like the emulator is started when none is running.
+const IOS_SIMULATOR = env.IOS_SIMULATOR ?? 'RNFI iPhone'
 
 function iosDevice() {
     const list = capture('xcrun', [
@@ -641,18 +727,39 @@ function iosDevice() {
     type Device = {
         udid: string
         name: string
-        state: string
         isAvailable: boolean
+        deviceTypeIdentifier: string
     }
+    const version = (runtime: string) =>
+        (runtime.match(/iOS-(\d+)-(\d+)/) ?? []).slice(1).map(Number)
     const devices = Object.entries(
         JSON.parse(list).devices as Record<string, Device[]>,
     )
         .filter(([runtime]) => runtime.includes('iOS'))
-        .flatMap(([, list]) => list)
-        .filter((d) => d.isAvailable && d.name.startsWith('iPhone'))
-    const pick = env.IOS_SIMULATOR
-        ? devices.find((d) => d.name === env.IOS_SIMULATOR)
-        : (devices.find((d) => d.state === 'Booted') ?? devices[0])
+        // Newest iOS first.
+        .sort(([a], [b]) => {
+            const [am = 0, an = 0] = version(a)
+            const [bm = 0, bn = 0] = version(b)
+            return bm - am || bn - an
+        })
+        .flatMap(([runtime, list]) => list.map((d) => ({ ...d, runtime })))
+        .filter((d) => d.isAvailable)
+    let pick = devices.find((d) => d.name === IOS_SIMULATOR)
+    if (!pick && !env.IOS_SIMULATOR) {
+        // Create it with the newest iPhone's device type and runtime.
+        const template = devices.find((d) => d.name.startsWith('iPhone'))
+        if (!template) return false
+        say(`Creating simulator "${IOS_SIMULATOR}" (${template.name})`)
+        const udid = capture('xcrun', [
+            'simctl',
+            'create',
+            IOS_SIMULATOR,
+            template.deviceTypeIdentifier,
+            template.runtime,
+        ])
+        if (!udid) return false
+        pick = { ...template, udid, name: IOS_SIMULATOR }
+    }
     if (!pick) return false
     iosUdid = pick.udid
     capture('xcrun', ['simctl', 'boot', iosUdid])
@@ -805,8 +912,13 @@ async function androidDevice() {
     androidSerial = connectedDevice()
     if (!androidSerial) {
         const emulator = path.join(ANDROID_HOME, 'emulator/emulator')
+        // An AVD of the script's own (see the iOS simulator above) when
+        // there is one; the docs say how to create it.
+        const avds = capture(emulator, ['-list-avds'])?.split('\n') ?? []
         const avd =
-            env.ANDROID_AVD ?? capture(emulator, ['-list-avds'])?.split('\n')[0]
+            env.ANDROID_AVD ??
+            avds.find((name) => name.toLowerCase().startsWith('rnfi')) ??
+            avds[0]
         if (!avd) return false
         say(`Starting emulator ${avd}`)
         // Detached, so it keeps running after this script exits.
