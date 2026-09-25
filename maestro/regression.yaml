@@ -124,6 +124,18 @@ env:
       visible: 'error-null-uri-default: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'resize-mode: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'resize-mode: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'no-reload: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'no-reload: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:

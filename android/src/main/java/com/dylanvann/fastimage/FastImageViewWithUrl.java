@@ -48,6 +48,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mDefaultSource = source;
     }
 
+    // Glide crops or fits the bitmap for the scale type when it loads, so a
+    // new resizeMode needs a reload to take effect (#762).
+    public void setResizeMode(ScaleType scaleType) {
+        if (scaleType == getScaleType()) return;
+        setScaleType(scaleType);
+        mNeedsReload = true;
+    }
+
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
@@ -55,6 +63,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
             @Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
         if (!mNeedsReload)
             return;
+        // Only reload for changes that affect the request (source,
+        // defaultSource, resizeMode), not for every prop update.
+        mNeedsReload = false;
 
         // Nothing to show.
         if (mSource == null && mDefaultSource == null) {

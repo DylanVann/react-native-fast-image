@@ -216,6 +216,93 @@ function PointerEventsCase() {
     )
 }
 
+// A wide image in square boxes: the left one is contain; the right one loads
+// as cover, then switches to contain. Both should match (checked by
+// screenshot). Android kept showing the cover crop.
+// A stable source object: a new one on each render re-sends the source prop,
+// which reloaded the image and hid the bug.
+const WIDE = { uri: 'https://picsum.photos/id/1018/600/300' }
+function ResizeModeChangeCase() {
+    const [resizeMode, setResizeMode] = useState<'cover' | 'contain'>('cover')
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (resizeMode === 'cover') return
+        const timer = setTimeout(() => setDone(true), 1500)
+        return () => clearTimeout(timer)
+    }, [resizeMode])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                resizeMode="contain"
+                source={WIDE}
+            />
+            <FastImage
+                style={[styles.image, { marginLeft: 4 }]}
+                resizeMode={resizeMode}
+                source={WIDE}
+                onLoad={() => setResizeMode('contain')}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-resize-mode" style={styles.status}>
+                    resize-mode: {done ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #762: resizeMode changed after load (should match the left
+                    image)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
+// Changes a prop that doesn't affect loading (accessibilityLabel) a few times
+// after the image loads, and passes if it didn't load again. Android reloaded
+// on every prop update.
+function NoReloadCase() {
+    const [loaded, setLoaded] = useState(false)
+    const [reloads, setReloads] = useState(0)
+    const [label, setLabel] = useState(0)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (!loaded) return
+        const interval = setInterval(() => setLabel((l) => l + 1), 200)
+        const timer = setTimeout(() => {
+            clearInterval(interval)
+            setDone(true)
+        }, 2000)
+        return () => {
+            clearInterval(interval)
+            clearTimeout(timer)
+        }
+    }, [loaded])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={WIDE}
+                accessibilityLabel={`image ${label}`}
+                // Only count load starts after the first load.
+                onLoadStart={() => loaded && setReloads((n) => n + 1)}
+                onLoad={() => setLoaded(true)}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-no-reload" style={styles.status}>
+                    no-reload:{' '}
+                    {!done
+                        ? 'waiting'
+                        : reloads === 0
+                          ? 'OK'
+                          : `reloaded ${reloads} times`}
+                </Text>
+                <Text style={styles.description}>
+                    Unrelated prop changes don't reload the image (Android did)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -350,6 +437,8 @@ export default function RegressionExample() {
                 source={{ uri: null as unknown as string }}
                 defaultSource={DEFAULT}
             />
+            <ResizeModeChangeCase />
+            <NoReloadCase />
             <PreloadCase />
         </ScrollView>
     )
