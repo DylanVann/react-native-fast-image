@@ -148,6 +148,12 @@ env:
       visible: 'source-swap: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'load-start-once: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'load-start-once: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:

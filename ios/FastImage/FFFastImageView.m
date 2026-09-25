@@ -55,7 +55,9 @@
 }
 
 - (void) setOnFastImageLoadStart: (RCTDirectEventBlock)onFastImageLoadStart {
-    if (_source && !self.hasSentOnLoadStart && onFastImageLoadStart) {
+    // Send it for a load that has already started. When a reload is pending
+    // (e.g. source set in the same update), reloadImage sends it.
+    if (_source && !_needsReload && !self.hasSentOnLoadStart && onFastImageLoadStart) {
         _onFastImageLoadStart = onFastImageLoadStart;
         onFastImageLoadStart(@{});
         self.hasSentOnLoadStart = YES;
