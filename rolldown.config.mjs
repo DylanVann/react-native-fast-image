@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { defineConfig } from 'rolldown'
 
-// Builds dist/index.cjs.js (main, which Metro uses) and dist/index.js (module)
-// from src. tsc writes the type declarations (see package.json).
+// Builds dist/index.cjs.js (main) and dist/index.js (module) from src, for
+// tools other than Metro (which uses src, see package.json's react-native). tsc writes the type declarations (see package.json).
 export default defineConfig({
     input: 'src/index.tsx',
     // Dependencies (react, react-native) come from the app.
@@ -14,7 +14,7 @@ export default defineConfig({
         target: 'es2019',
     },
     output: [
-        { file: 'dist/index.cjs.js', format: 'cjs' },
+        { file: 'dist/index.cjs.js', format: 'cjs', exports: 'named' },
         { file: 'dist/index.js', format: 'esm' },
     ],
 })

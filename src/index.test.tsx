@@ -1,8 +1,8 @@
-import { Image, StyleSheet, Platform, NativeModules } from 'react-native'
+import { Image, NativeModules, StyleSheet } from 'react-native'
 import React from 'react'
 import { beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import renderer from 'react-test-renderer'
-import FastImage from './index'
+import FastImage, { FastImageBackground } from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -16,17 +16,22 @@ function jsx(tree: unknown) {
     })
 }
 
-describe('FastImage (iOS)', () => {
+// The props FastImage gives the native view.
+function nativeProps(element: React.ReactElement) {
+    const tree: any = renderer.create(element).toJSON()
+    return tree.props
+}
+
+describe('FastImage', () => {
     beforeAll(() => {
-        Platform.OS = 'ios'
-        NativeModules.FastImageView = {
-            preload: Function.prototype,
-            clearMemoryCache: Function.prototype,
-            clearDiskCache: Function.prototype,
+        NativeModules.FastImageModule = {
+            preload: async () => [],
+            clearMemoryCache: async () => {},
+            clearDiskCache: async () => {},
         }
     })
 
-    it('renders', () => {
+    it('renders the native view directly', () => {
         const tree = renderer
             .create(
                 <FastImage
@@ -45,6 +50,28 @@ describe('FastImage (iOS)', () => {
         expect(jsx(tree)).toMatchSnapshot()
     })
 
+    it('sends headers as a list', () => {
+        const props = nativeProps(
+            <FastImage
+                source={{
+                    uri: 'https://example.com/a.png',
+                    headers: { a: '1', b: '2' },
+                }}
+            />,
+        )
+        expect(props.source.headers).toEqual([
+            { name: 'a', value: '1' },
+            { name: 'b', value: '2' },
+        ])
+    })
+
+    it('marks any source as provided, so one without a uri fails', () => {
+        expect(nativeProps(<FastImage source={{ uri: '' }} />).source).toEqual(
+            expect.objectContaining({ provided: true, uri: '' }),
+        )
+        expect(nativeProps(<FastImage />).source).toBeUndefined()
+    })
+
     it('maps loop to the native loopCount', () => {
         const cases: [boolean | number | undefined, number][] = [
             [undefined, -1],
@@ -56,148 +83,68 @@ describe('FastImage (iOS)', () => {
             [Infinity, 0],
         ]
         for (const [loop, loopCount] of cases) {
-            const [view] = renderer
-                .create(
-                    <FastImage
-                        source={{ uri: 'https://example.com/a.gif' }}
-                        loop={loop}
-                        style={style.image}
-                    />,
-                )
-                .root.findAll((node) => 'loopCount' in node.props)
-            expect(view.props.loopCount).toBe(loopCount)
+            const props = nativeProps(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.gif' }}
+                    loop={loop}
+                />,
+            )
+            expect(props.loopCount).toBe(loopCount)
         }
     })
 
-    it('passes a required (numeric) source to Image when using fallback', () => {
+    it('only enables progress with an onProgress handler', () => {
+        const source = { uri: 'https://example.com/a.png' }
+        expect(nativeProps(<FastImage source={source} />).progressEnabled).toBe(
+            false,
+        )
+        expect(
+            nativeProps(<FastImage source={source} onProgress={() => {}} />)
+                .progressEnabled,
+        ).toBe(true)
+    })
+
+    it('resolves require()d sources and defaultSource', () => {
         const resolveAssetSource = spyOn(
             Image,
             'resolveAssetSource',
-        ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
+        ).mockImplementation(
+            (asset: any) =>
+                ({
+                    uri: `asset-${asset}`,
+                    width: 10,
+                    height: 20,
+                    scale: 2,
+                    __packager_asset: true,
+                }) as any,
+        )
         try {
-            const image = renderer
-                .create(<FastImage source={1} fallback style={style.image} />)
-                .root.findByType(Image)
-
-            expect(resolveAssetSource).toHaveBeenCalledWith(1)
-            expect(image.props.source).toEqual({ uri: 'asset-1' })
-            // Fills FastImage's box instead of taking the asset's size.
-            expect(StyleSheet.flatten(image.props.style)).toMatchObject({
-                width: '100%',
-                height: '100%',
+            const props = nativeProps(
+                <FastImage source={1} defaultSource={2} />,
+            )
+            expect(props.source).toEqual({ provided: true, uri: 'asset-1' })
+            expect(props.defaultSource).toEqual({
+                uri: 'asset-2',
+                width: 10,
+                height: 20,
+                scale: 2,
+                packagerAsset: true,
             })
         } finally {
             resolveAssetSource.mockRestore()
         }
     })
 
-    it('uses tintColor from style, with the prop taking precedence', () => {
-        const source = { uri: 'https://example.com/image.png' }
-        const fromStyle: any = renderer
-            .create(
-                <FastImage source={source} style={{ tintColor: 'green' }} />,
-            )
-            .toJSON()
-        const fromProp: any = renderer
-            .create(
-                <FastImage
-                    source={source}
-                    tintColor="red"
-                    style={{ tintColor: 'green' }}
-                />,
-            )
-            .toJSON()
-
-        expect(fromStyle.children[0].props.tintColor).toBe('green')
-        expect(fromProp.children[0].props.tintColor).toBe('red')
-    })
-
-    it('uses the last tintColor in a style array', () => {
-        const tree: any = renderer
-            .create(
-                <FastImage
-                    source={{ uri: 'https://example.com/image.png' }}
-                    style={[
-                        { tintColor: 'green' },
-                        [false, { width: 10, tintColor: 'blue' }],
-                        { height: 10 },
-                    ]}
-                />,
-            )
-            .toJSON()
-
-        expect(tree.children[0].props.tintColor).toBe('blue')
-    })
-
-    it('reads tintColor from a registered (numeric) style', () => {
-        const flatten = spyOn(StyleSheet, 'flatten').mockImplementation(
-            (s: any) => (s === 7 ? ({ tintColor: 'purple' } as any) : s),
-        )
-        try {
-            const tree: any = renderer
-                .create(
-                    <FastImage
-                        source={{ uri: 'https://example.com/image.png' }}
-                        style={7 as any}
-                    />,
-                )
-                .toJSON()
-
-            expect(tree.children[0].props.tintColor).toBe('purple')
-        } finally {
-            flatten.mockRestore()
-        }
-    })
-
-    it('puts pointerEvents on the wrapper, and none on the image for box-none', () => {
-        const tree: any = renderer
-            .create(
-                <FastImage
-                    source={{ uri: 'https://example.com/image.png' }}
-                    pointerEvents="box-none"
-                    style={style.image}
-                />,
-            )
-            .toJSON()
-
-        expect(tree.props.pointerEvents).toBe('box-none')
-        expect(tree.children[0].props.pointerEvents).toBe('none')
-    })
-
-    it('renders a normal Image when not passed a uri', () => {
+    it('renders FastImageBackground as a view with the image and children', () => {
         const tree = renderer
             .create(
-                <FastImage
-                    source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
+                <FastImageBackground
+                    source={{ uri: 'https://example.com/a.png' }}
                     style={style.image}
-                />,
-            )
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
-    })
-
-    it('renders Image with fallback prop', () => {
-        const tree = renderer
-            .create(
-                <FastImage
-                    source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
-                    style={style.image}
-                    fallback
-                />,
-            )
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
-    })
-
-    it('renders defaultSource', () => {
-        const tree = renderer
-            .create(
-                <FastImage
-                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
-                    style={style.image}
-                />,
+                    imageStyle={{ borderRadius: 4 }}
+                >
+                    <FastImage source={{ uri: 'https://example.com/b.png' }} />
+                </FastImageBackground>,
             )
             .toJSON()
 
@@ -206,7 +153,7 @@ describe('FastImage (iOS)', () => {
 
     it('resolves preload with a result per source', async () => {
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async () => [
             { ok: true, width: 10, height: 20 },
@@ -236,60 +183,25 @@ describe('FastImage (iOS)', () => {
         }
     })
 
-    it('runs static functions', () => {
-        FastImage.preload([
-            {
-                uri: 'https://facebook.github.io/react/img/logo_og.png',
-                headers: {
-                    token: 'someToken',
-                },
-                priority: FastImage.priority.high,
-            },
-        ])
-        FastImage.clearMemoryCache()
-        FastImage.clearDiskCache()
+    it('runs static functions', async () => {
+        await FastImage.clearMemoryCache()
+        await FastImage.clearDiskCache()
     })
 })
 
-describe('FastImage (Android)', () => {
-    beforeAll(() => {
-        Platform.OS = 'android'
-    })
-
-    it('renders a normal defaultSource', () => {
-        const tree = renderer
-            .create(
-                <FastImage
-                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
-                    style={style.image}
-                />,
-            )
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
-    })
-
-    it('renders a normal defaultSource when fails to load source', () => {
-        const tree = renderer
-            .create(
-                <FastImage
-                    defaultSource={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
-                    source={{
-                        uri: 'https://www.google.com/image_does_not_exist.png',
-                    }}
-                    style={style.image}
-                />,
-            )
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
-    })
-
-    it('renders a non-existing defaultSource', () => {
-        const tree = renderer
-            .create(<FastImage defaultSource={12345} style={style.image} />)
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
+describe('FastImage children', () => {
+    it('throws, pointing to FastImageBackground', () => {
+        const error = spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            expect(() =>
+                renderer.create(
+                    <FastImage source={{ uri: 'https://example.com/a.png' }}>
+                        <FastImage />
+                    </FastImage>,
+                ),
+            ).toThrow(/FastImageBackground/)
+        } finally {
+            error.mockRestore()
+        }
     })
 })

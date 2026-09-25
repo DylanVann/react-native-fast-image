@@ -2,7 +2,9 @@
 // same. CI publishes with npm trusted publishing (OIDC) from the `release`
 // environment, which a maintainer approves (see .github/workflows/ci.yml).
 module.exports = {
-    branches: ['main'],
+    // main releases 9.x; 8.x (the legacy-architecture line) gets fixes from
+    // its maintenance branch, published under the 8.x dist-tag.
+    branches: ['main', { name: '8.x', range: '8.x', channel: '8.x' }],
     plugins: [
         [
             '@semantic-release/commit-analyzer',

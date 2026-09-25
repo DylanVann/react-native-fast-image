@@ -5,31 +5,30 @@
 
 @interface FFFastImageView ()
 
-@property(nonatomic, assign) BOOL hasSentOnLoadStart;
-@property(nonatomic, assign) BOOL hasCompleted;
-@property(nonatomic, assign) BOOL hasErrored;
-// Whether the latest change of props requires the image to be reloaded
-@property(nonatomic, assign) BOOL needsReload;
-
-@property(nonatomic, strong) NSDictionary* onLoadEvent;
-@property(nonatomic, strong) NSDictionary* onErrorEvent;
+// Whether the source or default source changed since the last load.
+@property (nonatomic, assign) BOOL needsReload;
 // The image before tinting, kept while a tint is applied so the tint can be
 // changed or removed. nil when there's no tint (super.image is untinted).
-@property(nonatomic, strong) UIImage* untintedImage;
+@property (nonatomic, strong, nullable) UIImage *untintedImage;
 
 @end
 
 @implementation FFFastImageView
 
-- (id) init {
-    self = [super init];
-    self.resizeMode = RCTResizeModeCover;
-    self.clipsToBounds = YES;
-    _loopCount = -1;
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        _resizeMode = FFFResizeModeCover;
+        self.contentMode = UIViewContentModeScaleAspectFill;
+        self.clipsToBounds = YES;
+        _loopCount = -1;
+        // Trilinear filtering (with mipmaps) smooths images drawn smaller than
+        // their size, as React Native's Image does on the New Architecture.
+        self.enableMinificationFilter = YES;
+    }
     return self;
 }
 
-- (void) setLoopCount: (NSInteger)loopCount {
+- (void)setLoopCount:(NSInteger)loopCount {
     if (_loopCount == loopCount) {
         return;
     }
@@ -40,304 +39,235 @@
     self.shouldCustomLoopCount = loopCount >= 0;
     if (loopCount >= 0) {
         self.animationRepeatCount = loopCount;
-    } else if (self.player && [self.image conformsToProtocol: @protocol(SDAnimatedImage)]) {
-        self.player.totalLoopCount = [(id<SDAnimatedImage>) self.image animatedImageLoopCount];
+    } else if (self.player && [self.image conformsToProtocol:@protocol(SDAnimatedImage)]) {
+        self.player.totalLoopCount = [(id<SDAnimatedImage>)self.image animatedImageLoopCount];
     }
     // Apply it to the image that's showing, and play it again.
     if (self.player) {
-        [self.player seekToFrameAtIndex: 0 loopCount: 0];
+        [self.player seekToFrameAtIndex:0 loopCount:0];
         [self startAnimating];
     }
 }
 
-- (void) setResizeMode: (RCTResizeMode)resizeMode {
-    if (_resizeMode != resizeMode) {
-        _resizeMode = resizeMode;
-        self.contentMode = (UIViewContentMode) resizeMode;
+- (void)setResizeMode:(FFFResizeMode)resizeMode {
+    _resizeMode = resizeMode;
+    switch (resizeMode) {
+        case FFFResizeModeContain:
+            self.contentMode = UIViewContentModeScaleAspectFit;
+            break;
+        case FFFResizeModeStretch:
+            self.contentMode = UIViewContentModeScaleToFill;
+            break;
+        case FFFResizeModeCenter:
+            self.contentMode = UIViewContentModeCenter;
+            break;
+        case FFFResizeModeCover:
+            self.contentMode = UIViewContentModeScaleAspectFill;
+            break;
     }
 }
 
-- (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
-    _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (self.hasCompleted && _onFastImageLoadEnd) {
-        _onFastImageLoadEnd(@{});
-    }
+- (void)setEnableMinificationFilter:(BOOL)enableMinificationFilter {
+    _enableMinificationFilter = enableMinificationFilter;
+    self.layer.minificationFilter = enableMinificationFilter ? kCAFilterTrilinear : kCAFilterLinear;
 }
 
-- (void) setOnFastImageLoad: (RCTDirectEventBlock)onFastImageLoad {
-    _onFastImageLoad = onFastImageLoad;
-    if (self.hasCompleted && _onFastImageLoad) {
-        _onFastImageLoad(self.onLoadEvent);
+- (void)setImageColor:(UIColor *)imageColor {
+    if (_imageColor == imageColor || [_imageColor isEqual:imageColor]) {
+        return;
     }
-}
-
-- (void) setOnFastImageError: (RCTDirectEventBlock)onFastImageError {
-    _onFastImageError = onFastImageError;
-    if (self.hasErrored && _onFastImageError) {
-        _onFastImageError(self.onErrorEvent);
-    }
-}
-
-- (void) setOnFastImageLoadStart: (RCTDirectEventBlock)onFastImageLoadStart {
-    // Send it for a load that has already started. When a reload is pending
-    // (e.g. source set in the same update), reloadImage sends it.
-    if (_source && !_needsReload && !self.hasSentOnLoadStart && onFastImageLoadStart) {
-        _onFastImageLoadStart = onFastImageLoadStart;
-        onFastImageLoadStart(@{});
-        self.hasSentOnLoadStart = YES;
-    } else {
-        _onFastImageLoadStart = onFastImageLoadStart;
-        self.hasSentOnLoadStart = NO;
-    }
-}
-
-- (void) setImageColor: (UIColor*)imageColor {
     _imageColor = imageColor;
     // Re-apply to the untinted image, so the tint can change or be removed.
-    UIImage* image = self.untintedImage ?: super.image;
+    UIImage *image = self.untintedImage ?: super.image;
     if (image) {
-        [self setImage: image];
+        [self setImage:image];
     }
 }
 
-- (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
-    // FIX: Prevent crash on zero/invalid image dimensions
+- (UIImage *)makeImage:(UIImage *)image withTint:(UIColor *)color {
+    // Nothing to draw (and the renderer can't draw a zero size).
     if (!image || image.size.width <= 0 || image.size.height <= 0) {
         return image;
     }
 
-    UIImage* templateImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
+    UIImage *templateImage = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
-    UIImage* newImage;
-    if (@available(iOS 10.0, tvOS 10.0, *)) {
-        // UIGraphicsBeginImageContextWithOptions is deprecated since iOS 17.
-        // Keep the source image's scale and a standard-range (8-bit) bitmap,
-        // matching what it produced.
-        UIGraphicsImageRendererFormat* format = [[UIGraphicsImageRendererFormat alloc] init];
-        format.scale = image.scale;
-        format.opaque = NO;
-        if (@available(iOS 12.0, tvOS 12.0, *)) {
-            format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
-        } else {
-            format.prefersExtendedRange = NO;
-        }
-        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: image.size format: format];
-        newImage = [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-            [color set];
-            [templateImage drawInRect: rect];
-        }];
-    } else {
-        // iOS/tvOS 9. Remove this branch once the minimum is iOS 10+.
-        UIGraphicsBeginImageContextWithOptions(image.size, NO, image.scale);
+    // Keep the source image's scale and a standard-range (8-bit) bitmap.
+    UIGraphicsImageRendererFormat *format = [[UIGraphicsImageRendererFormat alloc] init];
+    format.scale = image.scale;
+    format.opaque = NO;
+    format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format];
+    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
         [color set];
-        [templateImage drawInRect: rect];
-        newImage = UIGraphicsGetImageFromCurrentImageContext();
-        UIGraphicsEndImageContext();
-    }
-    return newImage;
+        [templateImage drawInRect:rect];
+    }];
 }
 
-- (void) setImage: (UIImage*)image {
+- (void)setImage:(UIImage *)image {
     if (self.imageColor != nil) {
         self.untintedImage = image;
-        super.image = [self makeImage: image withTint: self.imageColor];
+        super.image = [self makeImage:image withTint:self.imageColor];
     } else {
         self.untintedImage = nil;
         super.image = image;
     }
 }
 
-// The error's description, with the HTTP status code when there is one (as on
-// Android): SDWebImage keeps the code out of the description.
-+ (NSString*) messageForError: (NSError*)error {
-    NSNumber* statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
++ (NSString *)messageForError:(NSError *)error {
+    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
     if (statusCode) {
-        return [NSString stringWithFormat: @"%@, status code: %@", error.localizedDescription, statusCode];
+        return [NSString stringWithFormat:@"%@, status code: %@", error.localizedDescription, statusCode];
     }
-    return error.localizedDescription;
+    return error.localizedDescription ?: @"Failed to load the image";
 }
 
-- (void) sendOnError: (nullable NSString*)message {
-    self.hasErrored = YES;
-    self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
-    if (self.onFastImageError) {
-        self.onFastImageError(self.onErrorEvent);
-    }
-}
-
-- (void) sendOnLoad: (UIImage*)image {
-    self.onLoadEvent = @{
-            @"width": [NSNumber numberWithDouble: image.size.width],
-            @"height": [NSNumber numberWithDouble: image.size.height]
-    };
-    if (self.onFastImageLoad) {
-        self.onFastImageLoad(self.onLoadEvent);
-    }
-}
-
-- (void) setSource: (FFFastImageSource*)source {
+- (void)setSource:(FFFastImageSource *)source {
     if (_source != source) {
         _source = source;
         _needsReload = YES;
     }
 }
 
-- (void) setEnableMinificationFilter: (BOOL)enableMinificationFilter {
-    _enableMinificationFilter = enableMinificationFilter;
-    // Trilinear filtering (with mipmaps) smooths large images drawn much
-    // smaller than their size, which the default linear filter leaves aliased.
-    self.layer.minificationFilter = enableMinificationFilter ? kCAFilterTrilinear : kCAFilterLinear;
-}
-
-- (void) setDefaultSource: (UIImage*)defaultSource {
+- (void)setDefaultSource:(UIImage *)defaultSource {
     if (_defaultSource != defaultSource) {
         _defaultSource = defaultSource;
         _needsReload = YES;
     }
 }
 
-- (void) didSetProps: (NSArray<NSString*>*)changedProps {
+- (void)reloadIfNeeded {
     if (_needsReload) {
         [self reloadImage];
     }
 }
 
-- (void) reloadImage {
+- (void)reset {
+    [self sd_cancelCurrentImageLoad];
+    _source = nil;
+    _defaultSource = nil;
     _needsReload = NO;
-
-    if (_source) {
-        // Load base64 images.
-        NSString* url = [_source.url absoluteString];
-        if (url && [url hasPrefix: @"data:image"]) {
-            if (self.onFastImageLoadStart) {
-                self.onFastImageLoadStart(@{});
-                self.hasSentOnLoadStart = YES;
-            } else {
-                self.hasSentOnLoadStart = NO;
-            }
-            // Use SDWebImage API to support external format like WebP images
-            UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
-            if (!image) {
-                // Not decodable: fail like a remote image, showing defaultSource.
-                [self setImage: _defaultSource];
-                [self sendOnError: @"The data URI couldn't be decoded as an image"];
-                if (self.onFastImageLoadEnd) {
-                    self.onFastImageLoadEnd(@{});
-                }
-                return;
-            }
-            [self setImage: image];
-            if (self.onFastImageProgress) {
-                self.onFastImageProgress(@{
-                        @"loaded": @(1),
-                        @"total": @(1)
-                });
-            }
-            self.hasCompleted = YES;
-            [self sendOnLoad: image];
-
-            if (self.onFastImageLoadEnd) {
-                self.onFastImageLoadEnd(@{});
-            }
-            return;
-        }
-
-        // Set headers.
-        SDWebImageContext* context = @{SDWebImageContextDownloadRequestModifier: _source.requestModifier};
-
-        // Set priority.
-        SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
-        switch (_source.priority) {
-            case FFFPriorityLow:
-                options |= SDWebImageLowPriority;
-                break;
-            case FFFPriorityNormal:
-                // Priority is normal by default.
-                break;
-            case FFFPriorityHigh:
-                options |= SDWebImageHighPriority;
-                break;
-        }
-
-        switch (_source.cacheControl) {
-            case FFFCacheControlWeb:
-                options |= SDWebImageRefreshCached;
-                break;
-            case FFFCacheControlCacheOnly:
-                options |= SDWebImageFromCacheOnly;
-                break;
-            case FFFCacheControlImmutable:
-                break;
-        }
-
-        if (self.onFastImageLoadStart) {
-            self.onFastImageLoadStart(@{});
-            self.hasSentOnLoadStart = YES;
-        } else {
-            self.hasSentOnLoadStart = NO;
-        }
-        self.hasCompleted = NO;
-        self.hasErrored = NO;
-
-        [self downloadImage: _source options: options context: context];
-    } else if (_defaultSource) {
-        [self setImage: _defaultSource];
-    }
+    self.untintedImage = nil;
+    super.image = nil;
 }
 
-- (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
-    __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
-    // Most images have no onProgress, so only ask SDWebImage for progress when
-    // there's a handler as the load starts. A handler added while loading is
-    // used from the next load.
+- (void)reloadImage {
+    _needsReload = NO;
+
+    if (!_source) {
+        [self sd_cancelCurrentImageLoad];
+        [self setImage:_defaultSource];
+        return;
+    }
+
+    id<FFFastImageViewDelegate> delegate = self.delegate;
+    if (!_source.url) {
+        // An empty, missing or null uri: fail, showing defaultSource.
+        [self sd_cancelCurrentImageLoad];
+        [self setImage:_defaultSource];
+        [delegate fastImageView:self didFailWithError:@"Invalid source: no uri"];
+        [delegate fastImageViewDidEndLoading:self];
+        return;
+    }
+    NSString *url = [_source.url absoluteString];
+    if (url && [url hasPrefix:@"data:image"]) {
+        [self sd_cancelCurrentImageLoad];
+        [delegate fastImageViewDidStartLoading:self];
+        // Use SDWebImage API to support external format like WebP images
+        UIImage *image = [UIImage sd_imageWithData:[NSData dataWithContentsOfURL:_source.url]];
+        if (!image) {
+            // Not decodable: fail like a remote image, showing defaultSource.
+            [self setImage:_defaultSource];
+            [delegate fastImageView:self didFailWithError:@"The data URI couldn't be decoded as an image"];
+            [delegate fastImageViewDidEndLoading:self];
+            return;
+        }
+        [self setImage:image];
+        if (self.progressEnabled) {
+            [delegate fastImageView:self didProgress:1 total:1];
+        }
+        [delegate fastImageView:self didLoadWithSize:image.size];
+        [delegate fastImageViewDidEndLoading:self];
+        return;
+    }
+
+    // Set headers.
+    SDWebImageContext *context = @{SDWebImageContextDownloadRequestModifier: _source.requestModifier};
+
+    // Set priority.
+    SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
+    switch (_source.priority) {
+        case FFFPriorityLow:
+            options |= SDWebImageLowPriority;
+            break;
+        case FFFPriorityNormal:
+            // Priority is normal by default.
+            break;
+        case FFFPriorityHigh:
+            options |= SDWebImageHighPriority;
+            break;
+    }
+
+    switch (_source.cacheControl) {
+        case FFFCacheControlWeb:
+            options |= SDWebImageRefreshCached;
+            break;
+        case FFFCacheControlCacheOnly:
+            options |= SDWebImageFromCacheOnly;
+            break;
+        case FFFCacheControlImmutable:
+            break;
+    }
+
+    [delegate fastImageViewDidStartLoading:self];
+    [self downloadImage:_source options:options context:context];
+}
+
+- (void)downloadImage:(FFFastImageSource *)source options:(SDWebImageOptions)options context:(SDWebImageContext *)context {
+    __weak typeof(self) weakSelf = self;
     SDImageLoaderProgressBlock progress = nil;
-    if (self.onFastImageProgress) {
-        progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
+    if (self.progressEnabled) {
+        progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL *_Nullable targetURL) {
             // Without a Content-Length the total is unknown (-1 or 0), and a
             // percentage can't be worked out from it, so don't send those.
             if (expectedSize <= 0) {
                 return;
             }
-            // SDWebImage calls this on its download queue, while React Native
-            // sets onFastImageProgress (and deallocates the view) on the main
-            // queue. Read and call it there, so it can't change or be released
-            // in between (EXC_BAD_ACCESS).
+            // SDWebImage calls this on its download queue; send it from the
+            // main queue, where the delegate lives.
             dispatch_async(dispatch_get_main_queue(), ^{
-                RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
-                if (onProgress) {
-                    onProgress(@{
-                            @"loaded": @(receivedSize),
-                            @"total": @(expectedSize)
-                    });
+                FFFastImageView *strongSelf = weakSelf;
+                if (strongSelf && strongSelf.source == source) {
+                    [strongSelf.delegate fastImageView:strongSelf didProgress:receivedSize total:expectedSize];
                 }
             });
         };
     }
-    [self sd_setImageWithURL: _source.url
-            placeholderImage: _defaultSource
-                     options: options
-                     context: context
-                    progress: progress
-                   completed: ^(UIImage* _Nullable image,
-                    NSError* _Nullable error,
-                    SDImageCacheType cacheType,
-                    NSURL* _Nullable imageURL) {
-                if (error) {
-                    [weakSelf sendOnError: [FFFastImageView messageForError: error]];
-                    if (weakSelf.onFastImageLoadEnd) {
-                        weakSelf.onFastImageLoadEnd(@{});
-                    }
-                } else {
-                    weakSelf.hasCompleted = YES;
-                    [weakSelf sendOnLoad: image];
-                    if (weakSelf.onFastImageLoadEnd) {
-                        weakSelf.onFastImageLoadEnd(@{});
-                    }
-                }
-            }];
+    [self sd_setImageWithURL:source.url
+            placeholderImage:_defaultSource
+                     options:options
+                     context:context
+                    progress:progress
+                   completed:^(UIImage *_Nullable image,
+                               NSError *_Nullable error,
+                               SDImageCacheType cacheType,
+                               NSURL *_Nullable imageURL) {
+        FFFastImageView *strongSelf = weakSelf;
+        // A later load replaced this one.
+        if (!strongSelf || strongSelf.source != source) {
+            return;
+        }
+        id<FFFastImageViewDelegate> delegate = strongSelf.delegate;
+        if (error) {
+            [delegate fastImageView:strongSelf didFailWithError:[FFFastImageView messageForError:error]];
+        } else {
+            [delegate fastImageView:strongSelf didLoadWithSize:image.size];
+        }
+        [delegate fastImageViewDidEndLoading:strongSelf];
+    }];
 }
 
-- (void) dealloc {
+- (void)dealloc {
     [self sd_cancelCurrentImageLoad];
 }
 

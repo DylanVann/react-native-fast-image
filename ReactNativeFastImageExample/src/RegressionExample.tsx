@@ -100,7 +100,7 @@ function NoCrashCase({
 
 // Passes when onLayout reports the image's position in its parent (x = 10
 // from its margin). It reported 0 when it came from the inner native view.
-function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
+function LayoutCase({ id }: { id: string }) {
     const [x, setX] = useState<number>()
     const ok = x !== undefined && Math.abs(x - 10) < 1
     return (
@@ -108,7 +108,6 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
             <FastImage
                 style={[styles.image, { marginLeft: 10 }]}
                 source={{ uri: LOGO }}
-                fallback={fallback}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
             />
             <View style={styles.text}>
@@ -117,7 +116,6 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
                 </Text>
                 <Text style={styles.description}>
                     #992: onLayout reports the position in the parent
-                    {fallback ? ' (fallback)' : ''}
                 </Text>
             </View>
         </View>
@@ -737,8 +735,9 @@ function ProgressUnknownSizeCase() {
 }
 
 // 1px stripes drawn at a fraction of their size: with the minification
-// filter (iOS) the right image is an even gray; without it, the left one shows
-// uneven stripes. Check the screenshot. Android ignores the prop.
+// filter (iOS, on by default) the right image is an even gray; with it off,
+// the left one shows uneven stripes. Check the screenshot. Android ignores the
+// prop.
 const STRIPES = { uri: imageUrl('stripes.png') }
 function MinificationFilterCase() {
     const [loaded, setLoaded] = useState(0)
@@ -749,13 +748,13 @@ function MinificationFilterCase() {
                 testID="minification-filter-off"
                 style={styles.image}
                 source={STRIPES}
+                enableMinificationFilter={false}
                 onLoad={onLoad}
             />
             <FastImage
                 testID="minification-filter-on"
                 style={[styles.image, styles.gap]}
                 source={STRIPES}
-                enableMinificationFilter
                 onLoad={onLoad}
             />
             <View style={styles.text}>
@@ -766,8 +765,9 @@ function MinificationFilterCase() {
                     minification-filter: {loaded === 2 ? 'OK' : 'waiting'}
                 </Text>
                 <Text style={styles.description}>
-                    #445: enableMinificationFilter smooths a large image drawn
-                    small (iOS only: right is even gray, left is striped)
+                    #445: the minification filter (on by default) smooths a
+                    large image drawn small (iOS only: right is even gray, left
+                    with it off is striped)
                 </Text>
             </View>
         </View>
@@ -844,13 +844,11 @@ export default function RegressionExample() {
             />
             <ClearTintCase />
             <LayoutCase id="layout" />
-            <LayoutCase id="layout-fallback" fallback />
             <EventCase
-                id="fallback-require"
-                description="#1044: fallback with a require()d image (should show the logo)"
+                id="require-source"
+                description="#1044: a require()d image (should show the logo)"
                 event="onLoad"
                 source={require('./images/logo.png')}
-                fallback
             />
             <TouchableCase />
             <EventCase

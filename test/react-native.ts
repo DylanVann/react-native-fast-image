@@ -32,6 +32,24 @@ export function requireNativeComponent(name: string) {
     return hostComponent(name)
 }
 
+export function codegenNativeComponent(name: string) {
+    return hostComponent(name)
+}
+
+// Native modules are looked up when called, so tests can set them later.
+export const TurboModuleRegistry = {
+    getEnforcing: (name: string) =>
+        new Proxy(
+            {},
+            {
+                get:
+                    (_target, method: string) =>
+                    (...args: any[]) =>
+                        NativeModules[name][method](...args),
+            },
+        ),
+}
+
 function flatten(style: any): any {
     if (style === null || typeof style !== 'object') return undefined
     if (!Array.isArray(style)) return style

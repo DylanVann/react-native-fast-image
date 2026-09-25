@@ -84,16 +84,10 @@ env:
       visible: 'layout: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'layout-fallback: .*'
+      element: 'require-source: .*'
       timeout: 10000
 - extendedWaitUntil:
-      visible: 'layout-fallback: OK'
-      timeout: 30000
-- scrollUntilVisible:
-      element: 'fallback-require: .*'
-      timeout: 10000
-- extendedWaitUntil:
-      visible: 'fallback-require: OK'
+      visible: 'require-source: OK'
       timeout: 30000
 - scrollUntilVisible:
       element: 'touchable: .*'

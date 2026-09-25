@@ -2,6 +2,8 @@ require 'json'
 
 Pod::Spec.new do |s|
   package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
+  # React Native's minimum iOS version (a helper its Podfile scripts define).
+  min_ios = respond_to?(:min_ios_version_supported) ? min_ios_version_supported : "15.1"
 
   s.name          = "RNFastImage"
   s.version       = package['version']
@@ -9,13 +11,15 @@ Pod::Spec.new do |s|
   s.authors       = { "Dylan Vann" => "dylan@dylanvann.com" }
   s.homepage      = "https://github.com/DylanVann/react-native-fast-image#readme"
   s.license       = "MIT"
-  s.platforms     = { :ios => "8.0", :tvos => "9.0" }
+  s.platforms     = { :ios => min_ios, :tvos => min_ios }
   s.framework     = 'UIKit'
   s.requires_arc  = true
   s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git", :tag => "v#{s.version}" }
-  s.source_files  = "ios/**/*.{h,m}"
+  s.source_files  = "ios/**/*.{h,m,mm}"
 
-  s.dependency 'React-Core'
+  # React Native and the Codegen output for this library's specs.
+  install_modules_dependencies(s)
+
   s.dependency 'SDWebImage', '~> 5.21'
   s.dependency 'SDWebImageWebPCoder', '~> 0.14'
 end

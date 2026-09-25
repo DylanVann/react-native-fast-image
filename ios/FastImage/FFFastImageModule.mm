@@ -1,46 +1,18 @@
-#import "FFFastImageViewManager.h"
+#import "FFFastImageModule.h"
 #import "FFFastImageView.h"
+#import "RCTConvert+FFFastImage.h"
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
-#import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
-@implementation FFFastImageViewManager
+@implementation FFFastImageModule
 
-RCT_EXPORT_MODULE(FastImageView)
-
-- (FFFastImageView*)view {
-  return [[FFFastImageView alloc] init];
-}
-
-RCT_EXPORT_VIEW_PROPERTY(source, FFFastImageSource)
-RCT_EXPORT_VIEW_PROPERTY(defaultSource, UIImage)
-RCT_EXPORT_VIEW_PROPERTY(resizeMode, RCTResizeMode)
-RCT_EXPORT_VIEW_PROPERTY(loopCount, NSInteger)
-RCT_EXPORT_VIEW_PROPERTY(enableMinificationFilter, BOOL)
-RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadStart, RCTDirectEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onFastImageProgress, RCTDirectEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onFastImageError, RCTDirectEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
-RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
-
-// The error's description, with the HTTP status code when there is one.
-static NSString *FFFErrorMessage(NSError *error)
-{
-    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
-    if (statusCode) {
-        return [NSString stringWithFormat:@"%@, status code: %@", error.localizedDescription, statusCode];
-    }
-    return error.localizedDescription ?: @"Failed to load the image";
-}
+RCT_EXPORT_MODULE(FastImageModule)
 
 // Resolves with a result per source, in order, once all have loaded or failed:
 // { ok, width, height } or { ok: false, error }. Never rejects.
-RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(__unused RCTPromiseRejectBlock)reject)
+- (void)preload:(NSArray *)sources resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
 {
     NSMutableArray *results = [NSMutableArray arrayWithCapacity:sources.count];
     dispatch_group_t group = dispatch_group_create();
@@ -49,7 +21,8 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
     // headers with its own request only.
     SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options;
 
-    [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
+    [sources enumerateObjectsUsingBlock:^(id json, NSUInteger idx, BOOL *stop) {
+        FFFastImageSource *source = [RCTConvert FFFastImageSource:json];
         if (!source.url) {
             // An empty, missing or null uri (JS sends null sources as {}).
             [results addObject:@{@"ok": @NO, @"error": @"Invalid source: no uri"}];
@@ -67,7 +40,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
             }
             NSDictionary *result = image
                 ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
-                : @{@"ok": @NO, @"error": FFFErrorMessage(error)};
+                : @{@"ok": @NO, @"error": [FFFastImageView messageForError:error]};
             @synchronized (results) {
                 results[idx] = result;
             }
@@ -80,17 +53,23 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
     });
 }
 
-RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
+- (void)clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
 {
     [SDImageCache.sharedImageCache clearMemory];
-    resolve(NULL);
+    resolve(nil);
 }
 
-RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
+- (void)clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
 {
-    [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){
-        resolve(NULL);
+    [SDImageCache.sharedImageCache clearDiskOnCompletion:^() {
+        resolve(nil);
     }];
+}
+
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+    (const facebook::react::ObjCTurboModule::InitParams &)params
+{
+    return std::make_shared<facebook::react::NativeFastImageModuleSpecJSI>(params);
 }
 
 @end
