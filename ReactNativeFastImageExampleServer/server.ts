@@ -23,6 +23,9 @@
 //
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
+// GET /requests?group=<group> returns how many requests the slow server got
+// with that `group` query parameter, and the most of them in flight at the
+// same time: `{ "count": 4, "peak": 3 }` (for checking a concurrency limit).
 //
 // On the next port (8091), the same images are sent slowly: in 8 parts, one a
 // second (about 7 s in all), with a Content-Length (for progress), and only
@@ -38,12 +41,26 @@ const IMAGES = path.join(import.meta.dir, 'images')
 const PORT = Number(process.env.PORT ?? 8090)
 const SLOW_PORT = PORT + 1
 const requests = new Map<string, number>()
+// Per `group` query parameter on the slow server: requests, requests in
+// flight now, and the most in flight at the same time.
+const groups = new Map<
+    string,
+    { count: number; active: number; peak: number }
+>()
 
 const server = Bun.serve({
     port: PORT,
     async fetch(request) {
         const url = new URL(request.url)
         if (url.pathname === '/requests') {
+            const group = url.searchParams.get('group')
+            if (group !== null) {
+                const stats = groups.get(group)
+                return Response.json({
+                    count: stats?.count ?? 0,
+                    peak: stats?.peak ?? 0,
+                })
+            }
             const key = url.searchParams.get('path') ?? ''
             return Response.json({ count: requests.get(key) ?? 0 })
         }
@@ -135,6 +152,23 @@ http.createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost')
     const key = `slow:${url.pathname}${url.search}`
     requests.set(key, (requests.get(key) ?? 0) + 1)
+    const group = url.searchParams.get('group')
+    if (group !== null) {
+        const stats = groups.get(group) ?? { count: 0, active: 0, peak: 0 }
+        groups.set(group, stats)
+        stats.count++
+        stats.active++
+        stats.peak = Math.max(stats.peak, stats.active)
+        // In flight until the response ends or the client goes away.
+        let done = false
+        const finish = () => {
+            if (done) return
+            done = true
+            stats.active--
+        }
+        response.once('finish', finish)
+        response.once('close', finish)
+    }
     if (request.headers['x-token'] !== 'fast-image') {
         response.writeHead(403).end('Forbidden')
         return

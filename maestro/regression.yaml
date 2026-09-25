@@ -280,6 +280,13 @@ env:
 - extendedWaitUntil:
       visible: 'preload-results: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'preload-limit: .*'
+      timeout: 10000
+# 4 slow images (about 7 s each), 3 at a time: about 14 s from launch.
+- extendedWaitUntil:
+      visible: 'preload-limit: OK'
+      timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000

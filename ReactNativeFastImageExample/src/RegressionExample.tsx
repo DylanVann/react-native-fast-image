@@ -897,6 +897,55 @@ function PreloadResultsCase() {
     )
 }
 
+// Preloads a few slow images at once and asks the server how many it was
+// sending at the same time: preload loads a few sources at a time (3, or
+// SDWebImagePrefetcher's maxConcurrentPrefetchCount on iOS), so a long list
+// doesn't hold up the images the app is showing. Without the limit both
+// platforms load all 4 at once (SDWebImage's downloader allows 6, Glide's
+// source executor has 4 threads on the emulator), so this fails without it.
+const PRELOAD_LIMIT_GROUP = `limit-${RUN}`
+function PreloadLimitCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const sources = [0, 1, 2, 3].map((i) => ({
+            uri: slowImageUrl(
+                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}`,
+            ),
+            headers: { 'x-token': 'fast-image' },
+        }))
+        FastImage.preload(sources)
+            .then(async (results) => {
+                const loaded = results.filter((r) => r.ok).length
+                const response = await fetch(
+                    imageUrl(`requests?group=${PRELOAD_LIMIT_GROUP}`),
+                )
+                const { count, peak } = (await response.json()) as {
+                    count: number
+                    peak: number
+                }
+                setStatus(
+                    loaded === 4 && count === 4 && peak <= 3
+                        ? 'OK'
+                        : `loaded ${loaded}, ${count} requests, ${peak} at once`,
+                )
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <View style={styles.text}>
+                <Text testID="regression-preload-limit" style={styles.status}>
+                    preload-limit: {status}
+                </Text>
+                <Text style={styles.description}>
+                    preload loads a few sources at a time
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -1053,6 +1102,7 @@ export default function RegressionExample() {
             <SourceSizeCachedCase />
             <PreloadCase />
             <PreloadResultsCase />
+            <PreloadLimitCase />
             <PreloadHeadersCase />
             <NoCrashCase
                 id="gif-loop-once"
