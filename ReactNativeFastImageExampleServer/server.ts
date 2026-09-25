@@ -12,6 +12,14 @@
 //               one request must not be sent with others).
 //   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
 //   /chunked/   Streamed without a Content-Length (the size is unknown).
+//   /cookie/    403 unless the request has both cookies from /set-cookie with
+//               the same `run` query parameter; the image is sent with its own
+//               cookie (`fast-image-image=<run>`).
+//
+// GET /set-cookie?run=<run> sets two cookies (`fast-image-a=<run>` and
+// `fast-image-b=<run>`; a new run value each time, so cookies kept from
+// earlier runs don't count), and GET /cookies returns the request's Cookie
+// header: `{ "cookie": "…" }`.
 //
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
@@ -30,12 +38,25 @@ const server = Bun.serve({
             const key = url.searchParams.get('path') ?? ''
             return Response.json({ count: requests.get(key) ?? 0 })
         }
+        const run = url.searchParams.get('run') ?? ''
+        if (url.pathname === '/set-cookie') {
+            const headers = new Headers()
+            headers.append('Set-Cookie', `fast-image-a=${run}; Path=/`)
+            headers.append('Set-Cookie', `fast-image-b=${run}; Path=/`)
+            return new Response('ok', { headers })
+        }
+        if (url.pathname === '/cookies') {
+            return Response.json({
+                cookie: request.headers.get('cookie') ?? '',
+            })
+        }
         const key = url.pathname + url.search
         requests.set(key, (requests.get(key) ?? 0) + 1)
 
         let { pathname } = url
         let cacheControl: string | undefined
         let chunked = false
+        let setCookie: string | undefined
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
             if (token !== 'fast-image') {
@@ -55,6 +76,19 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/chunked/')) {
             chunked = true
             pathname = pathname.slice('/chunked'.length)
+        } else if (pathname.startsWith('/cookie/')) {
+            const cookie = request.headers.get('cookie') ?? ''
+            const cookies = cookie.split(/;\s*/)
+            if (
+                !cookies.includes(`fast-image-a=${run}`) ||
+                !cookies.includes(`fast-image-b=${run}`)
+            ) {
+                return new Response(`Missing cookies: ${cookie}`, {
+                    status: 403,
+                })
+            }
+            setCookie = `fast-image-image=${run}; Path=/`
+            pathname = pathname.slice('/cookie'.length)
         }
         const file = path.join(IMAGES, decodeURIComponent(pathname))
         if (!file.startsWith(IMAGES + path.sep)) {
@@ -79,10 +113,10 @@ const server = Bun.serve({
                 headers: { 'Content-Type': image.type },
             })
         }
-        return new Response(
-            image,
-            cacheControl ? { headers: { 'Cache-Control': cacheControl } } : {},
-        )
+        const headers = new Headers()
+        if (cacheControl) headers.set('Cache-Control', cacheControl)
+        if (setCookie) headers.append('Set-Cookie', setCookie)
+        return new Response(image, { headers })
     },
 })
 

@@ -13,6 +13,7 @@ import com.bumptech.glide.load.model.ModelLoader;
 import com.bumptech.glide.load.model.ModelLoaderFactory;
 import com.bumptech.glide.load.model.MultiModelLoaderFactory;
 import com.bumptech.glide.module.LibraryGlideModule;
+import com.facebook.react.modules.network.CookieJarContainer;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import java.io.File;
@@ -24,6 +25,7 @@ import java.util.WeakHashMap;
 
 import okhttp3.Cache;
 import okhttp3.Interceptor;
+import okhttp3.JavaNetCookieJar;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -47,11 +49,18 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             @NonNull Glide glide,
             @NonNull Registry registry
     ) {
-        OkHttpClient client = OkHttpClientProvider
-                .getOkHttpClient()
+        OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
+        OkHttpClient.Builder builder = sharedClient
                 .newBuilder()
-                .addInterceptor(createInterceptor(progressListener))
-                .build();
+                .addInterceptor(createInterceptor(progressListener));
+        // React Native's shared client comes with an empty cookie jar (React
+        // Native only fills it in for its networking and Image clients), so
+        // images were loaded without the app's cookies, unlike on iOS. Use the
+        // same cookie store. A cookie jar the app set up itself is kept.
+        if (sharedClient.cookieJar() instanceof CookieJarContainer) {
+            builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler(context)));
+        }
+        OkHttpClient client = builder.build();
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
         registry.replace(GlideUrl.class, InputStream.class, factory);
 
