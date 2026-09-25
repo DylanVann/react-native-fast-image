@@ -850,6 +850,53 @@ function CenterCase() {
     )
 }
 
+// Preloads a mix of sources and checks the results: each source's ok, and the
+// size of the ones that loaded. The private image only loads with its header,
+// which checks preload sends it (#571).
+const PRELOAD_RESULTS_RUN = `results=${RUN}`
+function PreloadResultsCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload([
+            { uri: imageUrl(`picsum/1025-200x200.jpg?${PRELOAD_RESULTS_RUN}`) },
+            { uri: MISSING },
+            { uri: '' },
+            null as unknown as Source,
+            {
+                uri: imageUrl(
+                    `private/picsum/1021-120x120.jpg?${PRELOAD_RESULTS_RUN}`,
+                ),
+                headers: { 'x-token': 'fast-image' },
+            },
+            {
+                uri: imageUrl(
+                    `private/picsum/1022-120x120.jpg?${PRELOAD_RESULTS_RUN}`,
+                ),
+            },
+        ]).then((results) => {
+            const got = results
+                .map((r) => (r.ok ? `${r.width}x${r.height}` : 'failed'))
+                .join(', ')
+            const expected = '200x200, failed, failed, failed, 120x120, failed'
+            const errors = results.filter((r) => !r.ok).every((r) => r.error)
+            setStatus(got === expected && errors ? 'OK' : got)
+        })
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <View style={styles.text}>
+                <Text testID="regression-preload-results" style={styles.status}>
+                    preload-results: {status}
+                </Text>
+                <Text style={styles.description}>
+                    preload resolves with each source's result and size
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -1005,6 +1052,7 @@ export default function RegressionExample() {
             />
             <SourceSizeCachedCase />
             <PreloadCase />
+            <PreloadResultsCase />
             <PreloadHeadersCase />
             <NoCrashCase
                 id="gif-loop-once"
