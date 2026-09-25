@@ -55,16 +55,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
                     Glide
                             .with(activity.getApplicationContext())
-                            // This will make this work for remote and local images. e.g.
-                            //    - file:///
-                            //    - content://
-                            //    - res:/
-                            //    - android.resource://
-                            //    - data:image/png;base64
-                            .load(
-                                    imageSource.isBase64Resource() ? imageSource.getSource() :
-                                    imageSource.isResource() ? imageSource.getUri() : imageSource.getGlideUrl()
-                            )
+                            // Load it the way the view does, so local images
+                            // (file://, content://, asset:/) work too.
+                            .load(imageSource.getSourceForLoad())
                             .apply(FastImageViewConverter.getOptions(activity, imageSource, source))
                             .preload();
                 }

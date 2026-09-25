@@ -17,6 +17,7 @@ public class FastImageSource extends ImageSource {
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
     private static final String ANDROID_CONTENT_SCHEME = "content";
     private static final String LOCAL_FILE_SCHEME = "file";
+    private static final String ASSET_SCHEME = "asset";
     private final Headers mHeaders;
     private Uri mUri;
 
@@ -40,6 +41,10 @@ public class FastImageSource extends ImageSource {
         return LOCAL_FILE_SCHEME.equals(uri.getScheme());
     }
 
+    public static boolean isAssetUri(Uri uri) {
+        return ASSET_SCHEME.equals(uri.getScheme());
+    }
+
     public FastImageSource(Context context, String source) {
         this(context, source, null);
     }
@@ -61,6 +66,12 @@ public class FastImageSource extends ImageSource {
             // Convert res:/ scheme to android.resource:// so
             // glide can understand the uri.
             mUri = Uri.parse(mUri.toString().replace("res:/", ANDROID_RESOURCE_SCHEME + "://" + context.getPackageName() + "/"));
+        }
+
+        if (isAssetUri(mUri) && mUri.getPath() != null) {
+            // Convert asset:/ (a file in the app's assets, as React Native's
+            // Image supports) to file:///android_asset/, which Glide loads.
+            mUri = Uri.parse(LOCAL_FILE_SCHEME + ":///android_asset" + mUri.getPath());
         }
     }
 

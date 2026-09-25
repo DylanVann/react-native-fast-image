@@ -154,6 +154,12 @@ env:
       visible: 'load-start-once: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'asset-uri: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'asset-uri: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:
