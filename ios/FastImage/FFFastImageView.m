@@ -168,6 +168,18 @@
             }
             // Use SDWebImage API to support external format like WebP images
             UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
+            if (!image) {
+                // Not decodable: fail like a remote image, showing defaultSource.
+                [self setImage: _defaultSource];
+                self.hasErrored = YES;
+                if (self.onFastImageError) {
+                    self.onFastImageError(@{});
+                }
+                if (self.onFastImageLoadEnd) {
+                    self.onFastImageLoadEnd(@{});
+                }
+                return;
+            }
             [self setImage: image];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
