@@ -635,6 +635,12 @@ export default function RegressionExample() {
             />
             <PointerEventsCase />
             <EventCase
+                id="error-invalid-data-uri"
+                description="A data: uri that isn't an image fires onError (iOS fired onLoad with 0x0)"
+                event="onError"
+                source={{ uri: 'data:image/png;base64,bm90IGFuIGltYWdl' }}
+            />
+            <EventCase
                 id="error-empty-uri"
                 description="#1028: an empty uri fires onError (Android didn't)"
                 event="onError"
