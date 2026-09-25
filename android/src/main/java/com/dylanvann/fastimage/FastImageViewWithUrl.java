@@ -72,9 +72,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             // Cancel existing requests.
             clearView(requestManager);
 
-            if (glideUrl != null) {
-                FastImageOkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
-            }
+            untrackUrl(viewsForUrlsMap);
 
             // Clear the image.
             setImageDrawable(null);
@@ -103,9 +101,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             // Cancel existing requests.
             clearView(requestManager);
 
-            if (glideUrl != null) {
-                FastImageOkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
-            }
+            untrackUrl(viewsForUrlsMap);
             setImageDrawable(mDefaultSource);
             return;
         }
@@ -113,11 +109,16 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // `imageSource` may be null and we still continue, if `defaultSource` is not null
         final GlideUrl glideUrl = imageSource == null ? null : imageSource.getGlideUrl();
 
+        String key = glideUrl == null ? null : glideUrl.toStringUrl();
+
+        // Loading a different url: stop tracking the old one.
+        if (this.glideUrl != null && !this.glideUrl.toStringUrl().equals(key)) {
+            untrackUrl(viewsForUrlsMap);
+        }
+
         // Cancel existing request.
         this.glideUrl = glideUrl;
         clearView(requestManager);
-
-        String key = glideUrl == null ? null : glideUrl.toStringUrl();
 
         if (glideUrl != null) {
             FastImageOkHttpProgressGlideModule.expect(key, manager);
@@ -161,6 +162,24 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
             builder.into(this);
         }
+    }
+
+    // Removes this view from the list of views for its current url (used to send
+    // progress events), which otherwise kept it, and its Activity, alive after
+    // its source changed (#384). The url's progress listener is only forgotten
+    // when no other view uses it.
+    void untrackUrl(@Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
+        if (glideUrl == null) return;
+        String key = glideUrl.toStringUrl();
+        List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
+        if (viewsForKey != null) {
+            viewsForKey.remove(this);
+            if (viewsForKey.isEmpty()) viewsForUrlsMap.remove(key);
+        }
+        if (viewsForKey == null || viewsForKey.isEmpty()) {
+            FastImageOkHttpProgressGlideModule.forget(key);
+        }
+        glideUrl = null;
     }
 
     public void clearView(@Nullable RequestManager requestManager) {

@@ -94,15 +94,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         // This will cancel existing requests.
         view.clearView(requestManager);
 
-        if (view.glideUrl != null) {
-            final String key = view.glideUrl.toString();
-            FastImageOkHttpProgressGlideModule.forget(key);
-            List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
-            if (viewsForKey != null) {
-                viewsForKey.remove(view);
-                if (viewsForKey.size() == 0) VIEWS_FOR_URLS.remove(key);
-            }
-        }
+        // Same key as when the view was tracked (toStringUrl, not toString,
+        // which differ for urls that need escaping).
+        view.untrackUrl(VIEWS_FOR_URLS);
 
         super.onDropViewInstance(view);
     }
