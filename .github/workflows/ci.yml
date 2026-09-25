@@ -6,22 +6,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # Actions are pinned to commits (tag in the comment) so a moved tag
+      # can't change what runs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run format:check
+      - run: bun run typecheck
       - run: bun run build
       - run: bun run test
   release:
     needs: build
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Waits for a maintainer to approve the run (the environment's required
+    # reviewer). npm only accepts trusted publishing from this environment.
+    environment: release
     # One release at a time: a second run waits instead of racing the first to
     # push its release commit.
     concurrency:
@@ -33,7 +39,7 @@ jobs:
       pull-requests: write # comment on released PRs
       id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The branch's latest commit, not the one that triggered this run: a
           # run that waited for another release would otherwise be behind that
@@ -41,26 +47,16 @@ jobs:
           # local branch is behind.
           ref: ${{ github.ref }}
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - id: version
-        run: echo "before=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
-      - run: npx --yes -p semantic-release@25 -p @semantic-release/changelog@7 -p @semantic-release/git@11 semantic-release
+      # Bumps the version, publishes to npm, and pushes the release commit and
+      # tag (release.config.js).
+      - run: bun run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # semantic-release only bumps the version (npmPublish: false). Stage the
-      # release so it goes live only after a maintainer approves it with 2FA.
-      - name: Stage npm release
-        run: |
-          after=$(node -p 'require("./package.json").version')
-          if [ "$after" != "${{ steps.version.outputs.before }}" ]; then
-            npx --yes npm@11 stage publish
-          else
-            echo "No new version; nothing to stage."
-          fi

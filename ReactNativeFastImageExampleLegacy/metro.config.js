@@ -31,9 +31,13 @@ const config = {
         // Needed for subpath imports like @react-native-vector-icons/ionicons/static;
         // on by default in newer React Native.
         unstable_enablePackageExports: true,
-        // Load the library from its source so changes show up without a build.
+        // Load the library from its source so changes show up without a build
+        // (unless `scripts/verify.mts --package` installed the package).
         resolveRequest: (context, moduleName, platform) => {
-            if (moduleName === pkg.name) {
+            if (
+                moduleName === pkg.name &&
+                !process.env.FAST_IMAGE_FROM_PACKAGE
+            ) {
                 return {
                     type: 'sourceFile',
                     filePath: path.join(root, 'src', 'index.tsx'),

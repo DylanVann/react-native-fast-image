@@ -32,7 +32,7 @@
         "@react-native/typescript-config": "0.87.1",
         "@types/bun": "1.4.2",
         "@types/react": "^19.2.0",
-        "typescript": "^6.0.3"
+        "typescript": "7.0.2"
     },
     "engines": {
         "node": ">= 22.11.0"
