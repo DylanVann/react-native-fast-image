@@ -1,3 +1,10 @@
+## [8.6.29](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.28...v8.6.29) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ios:** send preload headers only with that image's request ([#1118](https://github.com/DylanVann/react-native-fast-image/issues/1118)) ([e49e947](https://github.com/DylanVann/react-native-fast-image/commit/e49e947260cd9ce7ed598b258b07ab5a520de8dd)), closes [#14](https://github.com/DylanVann/react-native-fast-image/issues/14)
+
 ## [8.6.28](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.27...v8.6.28) (2026-09-25)
 
 
