@@ -3,7 +3,7 @@
         "target": "ESNext",
         "module": "ESNext",
         "lib": ["ESNext"],
-        "types": ["jest"],
+        "types": ["bun"],
         "noEmit": true,
         "sourceMap": false,
         "strict": true,

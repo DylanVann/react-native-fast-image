@@ -35,39 +35,27 @@
         "build": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
         "lint": "oxlint",
         "release": "semantic-release",
-        "test": "jest",
+        "test": "bun test",
         "typecheck": "tsc -p tsconfig.json",
         "format": "oxfmt",
         "format:check": "oxfmt --check"
     },
     "packageManager": "bun@1.4.2",
-    "jest": {
-        "modulePathIgnorePatterns": [
-            "ReactNativeFastImageExample*",
-            "ReactNativeFastImageExampleServer*"
-        ],
-        "preset": "react-native"
-    },
     "resolutions": {
-        "@jest/create-cache-key-function": "^27",
         "@types/react": "^17.0.14"
     },
     "devDependencies": {
-        "@babel/core": "^7.29.7",
-        "@babel/runtime": "^7.14.6",
         "@semantic-release/changelog": "7.0.0",
         "@semantic-release/git": "11.0.1",
-        "@types/jest": "^26.0.24",
+        "@types/bun": "^1.4.2",
         "@types/react": "^17.0.14",
         "@types/react-native": "^0.69.5",
         "@types/react-test-renderer": "^17.0.1",
-        "jest": "27.0.6",
         "maestro-runner": "1.1.27",
-        "metro-react-native-babel-preset": "^0.66.1",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
+        "pretty-format": "^30.5.1",
         "react": "17.0.2",
-        "react-native": "0.64.2",
         "react-test-renderer": "17.0.2",
         "rolldown": "1.2.11",
         "semantic-release": "25.0.9",
