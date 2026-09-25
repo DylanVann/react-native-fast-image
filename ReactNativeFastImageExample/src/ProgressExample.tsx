@@ -14,12 +14,12 @@ export const ProgressExample = () => {
         start?: number
         progress?: number
         end?: number
-    }>({
+    }>(() => ({
         mount: Date.now(),
         start: undefined,
         progress: undefined,
         end: undefined,
-    })
+    }))
 
     const { url, bust } = useCacheBust(IMAGE_URL)
     const { mount, start, progress, end } = state

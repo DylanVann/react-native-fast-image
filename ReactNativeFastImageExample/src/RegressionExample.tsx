@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
     Platform,
     Pressable,
@@ -78,8 +78,10 @@ function NoCrashCase({
     children?: React.ReactNode
 }) {
     const [ok, setOk] = useState(false)
+    // Only run the onMount given on the first render.
+    const mount = useRef(onMount)
     useEffect(() => {
-        onMount?.()
+        mount.current?.()
         const timer = setTimeout(() => setOk(true), 1500)
         return () => clearTimeout(timer)
     }, [])

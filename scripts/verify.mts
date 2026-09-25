@@ -15,7 +15,7 @@ const HELP = `Checks the library and runs both example apps on iOS and Android.
   node scripts/verify.mts [options]
 
 Steps:
-  1. JS: build, tests, and the typechecks.
+  1. JS: build, tests, typechecks, lint (oxlint) and formatting (oxfmt).
   2. For each example app: build for iOS and Android in parallel, start the
      packager, and run the Maestro flows in maestro/ with maestro-runner on
      both platforms at once. A flow failure or a crash fails the run.
@@ -831,6 +831,8 @@ async function main() {
                 ['-p', 'scripts'],
                 ROOT,
             )
+            await jsCheck('lint', 'yarn', ['-s', 'lint'], ROOT)
+            await jsCheck('format', 'yarn', ['-s', 'format:check'], ROOT)
         }
     }
 

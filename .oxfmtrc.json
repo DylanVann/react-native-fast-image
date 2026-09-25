@@ -1,0 +1,17 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 4,
+    "trailingComma": "all",
+    "printWidth": 80,
+    "sortPackageJson": false,
+    "ignorePatterns": [
+        "CHANGELOG.md",
+        "ReactNativeFastImageExample/ios",
+        "ReactNativeFastImageExample/android",
+        "ReactNativeFastImageExampleLegacy/ios",
+        "ReactNativeFastImageExampleLegacy/android",
+        ".local"
+    ]
+}
