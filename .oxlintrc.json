@@ -8,5 +8,5 @@
     "env": {
         "builtin": true
     },
-    "ignorePatterns": [".yarn", ".local"]
+    "ignorePatterns": [".local"]
 }

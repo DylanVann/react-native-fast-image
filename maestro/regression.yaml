@@ -3,7 +3,7 @@
 # when it's already visible; on the legacy architecture, iOS reports off-screen
 # rows as visible, so the waits pass without scrolling there).
 #
-#   npx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/regression.yaml
+#   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/regression.yaml
 #
 # App IDs are listed in walkthrough.yaml.
 appId: ${APP_ID}

@@ -38,6 +38,7 @@
         "format": "oxfmt",
         "format:check": "oxfmt --check"
     },
+    "packageManager": "bun@1.4.2",
     "jest": {
         "modulePathIgnorePatterns": [
             "ReactNativeFastImageExample*",

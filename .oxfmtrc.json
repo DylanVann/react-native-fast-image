@@ -7,7 +7,6 @@
     "printWidth": 80,
     "sortPackageJson": false,
     "ignorePatterns": [
-        ".yarn",
         "CHANGELOG.md",
         "ReactNativeFastImageExample/ios",
         "ReactNativeFastImageExample/android",
