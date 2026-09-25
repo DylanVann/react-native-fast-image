@@ -241,6 +241,13 @@ env:
       timeout: 30000
 - scrollUntilVisible:
       element:
+          id: 'regression-preload-reuse'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'preload-reuse: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element:
           id: 'regression-preload-headers'
       timeout: 10000
 - extendedWaitUntil:

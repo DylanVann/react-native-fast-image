@@ -22,8 +22,6 @@ import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
-import java.util.ArrayDeque;
-
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
     private static final String REACT_CLASS = "FastImageView";
@@ -38,28 +36,6 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return REACT_CLASS;
     }
 
-    // At most this many preloaded sources load at a time, across all preload
-    // calls (the same as SDWebImagePrefetcher's default on iOS), so a long
-    // list doesn't queue hundreds of requests ahead of the images the app is
-    // showing (Glide's executors run requests in order within a priority).
-    private static final int PRELOAD_LIMIT = 3;
-    // Preloads waiting to start, in the order they were added, and the number
-    // loading. Only used on the UI thread (Glide calls its listeners there).
-    private static final ArrayDeque<Runnable> pendingPreloads = new ArrayDeque<>();
-    private static int preloadsInFlight = 0;
-
-    // Starts pending preloads while there's room. A listener calls it again,
-    // sometimes from inside run() (Glide reports a memory-cached image
-    // synchronously from preload()). That's fine: the counters are shared and
-    // updated before each run(), so the inner call starts what fits, and the
-    // outer loop sees the updated counters when it checks again.
-    private static void startPendingPreloads() {
-        while (preloadsInFlight < PRELOAD_LIMIT && !pendingPreloads.isEmpty()) {
-            preloadsInFlight++;
-            pendingPreloads.poll().run();
-        }
-    }
-
     // Resolves with a result per source, in order, once all have loaded or
     // failed: { ok, width, height } or { ok: false, error }. Never rejects.
     @ReactMethod
@@ -70,14 +46,13 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 final int count = sources.size();
                 final WritableMap[] results = new WritableMap[count];
-                // Sources of this call still to finish. It starts at the
-                // number of sources, so the promise can't resolve before
-                // they've all been added.
-                final int[] remaining = {count};
+                // Loads still running, plus one until they've all started
+                // (Glide can report a cached image before preload() returns).
+                final int[] pending = {1};
                 final Runnable finishOne = new Runnable() {
                     @Override
                     public void run() {
-                        if (--remaining[0] > 0) return;
+                        if (--pending[0] > 0) return;
                         WritableArray array = Arguments.createArray();
                         for (WritableMap result : results) array.pushMap(result);
                         promise.resolve(array);
@@ -86,11 +61,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 for (int i = 0; i < count; i++) {
                     final int index = i;
                     final ReadableMap source = sources.isNull(i) ? null : sources.getMap(i);
-                    // Glide throws on an empty url. Invalid sources fail
-                    // without taking a slot.
+                    // Glide throws on an empty url.
                     if (!FastImageViewConverter.hasUri(source)) {
                         results[i] = failure("Invalid source: no uri");
-                        finishOne.run();
                         continue;
                     }
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
@@ -98,52 +71,39 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     // to an empty one.
                     if (imageSource.getUri().toString().isEmpty()) {
                         results[i] = failure("Invalid source: can't resolve " + source.getString("uri"));
-                        finishOne.run();
                         continue;
                     }
-                    pendingPreloads.add(new Runnable() {
-                        @Override
-                        public void run() {
-                            Glide
-                                    .with(context)
-                                    // Load it the way the view does, so local images
-                                    // (file://, content://, asset:/) work too.
-                                    .load(imageSource.getSourceForLoad())
-                                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
-                                    .listener(new RequestListener<Drawable>() {
-                                        @Override
-                                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                                            results[index] = failure(errorMessage(e));
-                                            preloadsInFlight--;
-                                            finishOne.run();
-                                            startPendingPreloads();
-                                            return false;
-                                        }
+                    pending[0]++;
+                    Glide
+                            .with(context)
+                            // Load it the way the view does, so local images
+                            // (file://, content://, asset:/) work too.
+                            .load(imageSource.getSourceForLoad())
+                            .apply(FastImageViewConverter.getOptions(context, imageSource, source))
+                            .listener(new RequestListener<Drawable>() {
+                                @Override
+                                public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                                    results[index] = failure(errorMessage(e));
+                                    finishOne.run();
+                                    return false;
+                                }
 
-                                        @Override
-                                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                                            // Preloaded at its original size, so this is
-                                            // the image's own size.
-                                            WritableMap result = Arguments.createMap();
-                                            result.putBoolean("ok", true);
-                                            result.putInt("width", resource.getIntrinsicWidth());
-                                            result.putInt("height", resource.getIntrinsicHeight());
-                                            results[index] = result;
-                                            preloadsInFlight--;
-                                            finishOne.run();
-                                            startPendingPreloads();
-                                            return false;
-                                        }
-                                    })
-                                    .preload();
-                        }
-                    });
+                                @Override
+                                public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                                    // Preloaded at its original size, so this is
+                                    // the image's own size.
+                                    WritableMap result = Arguments.createMap();
+                                    result.putBoolean("ok", true);
+                                    result.putInt("width", resource.getIntrinsicWidth());
+                                    result.putInt("height", resource.getIntrinsicHeight());
+                                    results[index] = result;
+                                    finishOne.run();
+                                    return false;
+                                }
+                            })
+                            .preload();
                 }
-                if (count == 0) {
-                    promise.resolve(Arguments.createArray());
-                    return;
-                }
-                startPendingPreloads();
+                finishOne.run();
             }
         });
     }
