@@ -7,16 +7,22 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.Registry;
 import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
+import com.bumptech.glide.load.Options;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.ModelLoader;
+import com.bumptech.glide.load.model.ModelLoaderFactory;
+import com.bumptech.glide.load.model.MultiModelLoaderFactory;
 import com.bumptech.glide.module.LibraryGlideModule;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import okhttp3.Cache;
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -33,6 +39,7 @@ import okio.Source;
 public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     private static final DispatchingProgressListener progressListener = new DispatchingProgressListener();
+    private static final long WEB_CACHE_SIZE = 50 * 1024 * 1024;
 
     @Override
     public void registerComponents(
@@ -47,6 +54,47 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 .build();
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
         registry.replace(GlideUrl.class, InputStream.class, factory);
+
+        // `cache: 'web'` skips Glide's caches and relies on HTTP caching, but
+        // React Native's shared client has no HTTP cache (unless the app gave
+        // it one), so those urls get a client with one (#280). Other urls are
+        // cached by Glide, so they don't use it (that would store them twice).
+        OkHttpClient webClient = client.cache() != null
+                ? client
+                : client.newBuilder()
+                        .cache(new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE))
+                        .build();
+        registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
+    }
+
+    // Loads FastImageWebGlideUrls with the given client.
+    private static class WebUrlLoaderFactory implements ModelLoaderFactory<FastImageWebGlideUrl, InputStream> {
+        private final OkHttpClient client;
+
+        WebUrlLoaderFactory(OkHttpClient client) {
+            this.client = client;
+        }
+
+        @NonNull
+        @Override
+        public ModelLoader<FastImageWebGlideUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
+            final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
+            return new ModelLoader<FastImageWebGlideUrl, InputStream>() {
+                @Override
+                public LoadData<InputStream> buildLoadData(@NonNull FastImageWebGlideUrl model, int width, int height, @NonNull Options options) {
+                    return loader.buildLoadData(model, width, height, options);
+                }
+
+                @Override
+                public boolean handles(@NonNull FastImageWebGlideUrl model) {
+                    return true;
+                }
+            };
+        }
+
+        @Override
+        public void teardown() {
+        }
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
