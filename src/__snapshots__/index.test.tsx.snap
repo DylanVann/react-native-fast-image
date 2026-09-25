@@ -152,7 +152,7 @@ exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
     resizeMode="cover"
     source={
       Object {
-        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+        "testUri": "../../../ReactNativeFastImageExample/src/images/jellyfish.gif",
       }
     }
     style={
@@ -192,7 +192,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
     resizeMode="cover"
     source={
       Object {
-        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+        "testUri": "../../../ReactNativeFastImageExample/src/images/jellyfish.gif",
       }
     }
     style={
@@ -225,7 +225,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
   <FastImageView
     defaultSource={
       Object {
-        "testUri": "../../../ReactNativeFastImageExampleServer/pictures/jellyfish.gif",
+        "testUri": "../../../ReactNativeFastImageExample/src/images/jellyfish.gif",
       }
     }
     resizeMode="cover"

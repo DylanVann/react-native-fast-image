@@ -26,13 +26,16 @@ bun install
 bundle install
 bundle exec pod install --project-directory=ios
 
-# Start the packager.
+# Start the packager, and in another terminal the image server (below).
 bun run start
+bun run images
 
 # In another terminal, build and run the app.
 bun run ios
 bun run android
 ```
+
+The examples load their remote images from a local server (`ReactNativeFastImageExampleServer`, run with Bun) instead of the internet, so they work offline and the flows don't depend on other servers. It serves `ReactNativeFastImageExampleServer/images` on port 8090; the app reaches it at `localhost` on iOS and `10.0.2.2` (the host machine) on the Android emulator. A path that doesn't exist returns 404, and query strings are ignored. The images were downloaded from their original URLs by `ReactNativeFastImageExampleServer/download.ts`, which lists each source; run it again to add one.
 
 ## Testing on older React Native (legacy architecture)
 
@@ -46,6 +49,7 @@ bundle exec pod install --project-directory=ios
 
 # Stop the main example's packager first; both use port 8081.
 bun run start
+bun run images
 bun run ios
 bun run android
 ```
@@ -56,8 +60,8 @@ Its `metro.config.js` resolves every import from the shared screens and the libr
 
 `scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
 
-1. Builds the library, runs its tests, and type-checks the example and the script.
-2. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
+1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
+2. Starts the image server. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
 
 ```bash
 node scripts/verify.mts                      # everything

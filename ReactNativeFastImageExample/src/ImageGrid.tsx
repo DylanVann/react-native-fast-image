@@ -1,9 +1,7 @@
 import React, { memo, useCallback, useEffect, useState } from 'react'
 import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
 import StatusBarUnderlay, { useStatusBarHeight } from './StatusBarUnderlay'
-
-const getImageUrl = (id: string, width: number, height: number) =>
-    `https://picsum.photos/id/${id}/${width}/${height}`
+import { imageUrl } from './imageServer'
 
 const MARGIN = 2
 
@@ -15,7 +13,7 @@ export interface ImageGridItemProps {
 
 export const ImageGridItem = memo(
     ({ id, ImageComponent, testIDPrefix }: ImageGridItemProps) => {
-        const uri = getImageUrl(id, 100, 100)
+        const uri = imageUrl(`picsum/${id}-100x100.jpg`)
         // Lets maestro/walkthrough.yaml wait until the grid has loaded.
         const [loaded, setLoaded] = useState(false)
         return (
@@ -56,7 +54,7 @@ export const ImageGrid = (props: ImageGridProps) => {
     const [error, setError] = useState<Error | null>(null)
 
     useEffect(() => {
-        fetch('https://picsum.photos/list')
+        fetch(imageUrl('picsum/list.json'))
             .then((res) => res.json())
             .then((d) => setImages(d))
             .catch((e) => setError(e))

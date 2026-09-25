@@ -5,7 +5,8 @@
     "scripts": {
         "android": "react-native run-android",
         "ios": "react-native run-ios",
-        "start": "react-native start"
+        "start": "react-native start",
+        "images": "bun ../ReactNativeFastImageExampleServer/server.ts"
     },
     "dependencies": {
         "@react-native-vector-icons/ionicons": "^12.5.0",

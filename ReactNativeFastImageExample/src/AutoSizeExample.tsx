@@ -5,9 +5,9 @@ import FastImage, { FastImageProps } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import { useCacheBust } from './useCacheBust'
+import { imageUrl } from './imageServer'
 
-const GIF_URL =
-    'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
+const GIF_URL = imageUrl('plankton.gif')
 
 interface AutoSizingImageProps extends FastImageProps {
     onLoad?: (event: any) => void

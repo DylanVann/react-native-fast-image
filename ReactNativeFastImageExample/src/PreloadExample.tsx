@@ -8,9 +8,9 @@ import Button from './Button'
 // @ts-ignore
 import { createImageProgress } from 'react-native-image-progress'
 import { useCacheBust } from './useCacheBust'
+import { imageUrl } from './imageServer'
 
-const IMAGE_URL =
-    'https://cdn-images-1.medium.com/max/1600/1*-CY5bU4OqiJRox7G00sftw.gif'
+const IMAGE_URL = imageUrl('plankton.gif')
 
 const Image = createImageProgress(FastImage)
 

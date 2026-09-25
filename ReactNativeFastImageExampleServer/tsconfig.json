@@ -1,0 +1,16 @@
+{
+    // Type-checks the server with the main example's TypeScript and Bun types
+    // (the repo root's TypeScript is too old for them). Bun runs the files
+    // directly.
+    "compilerOptions": {
+        "target": "ES2024",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "typeRoots": ["../ReactNativeFastImageExample/node_modules/@types"],
+        "types": ["bun"]
+    },
+    "files": ["server.ts", "download.ts"]
+}
