@@ -14,6 +14,12 @@ env:
 ---
 - launchApp:
       stopApp: true
+# The first launch after an install can be slow on Android (the app is still
+# being compiled), so wait for the tab bar rather than tapping right away.
+- extendedWaitUntil:
+      visible:
+          id: 'tab-regression'
+      timeout: 60000
 - tapOn:
       id: 'tab-regression'
 - scrollUntilVisible:

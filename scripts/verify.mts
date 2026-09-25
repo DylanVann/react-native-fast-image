@@ -3,7 +3,6 @@
 //
 //   node scripts/verify.mts [options]
 
-import type { ChildProcess } from 'node:child_process'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
@@ -150,6 +149,9 @@ type Result = { status: 'PASS' | 'FAIL'; name: string; detail?: string }
 const results: Result[] = []
 function record(status: Result['status'], name: string, detail?: string) {
     results.push({ status, name, detail })
+    const line = `${status.padEnd(4)}  ${name}${detail ? `  (${detail})` : ''}`
+    // Written as it goes, so a run that's stopped early keeps its results.
+    fs.appendFileSync(path.join(OUT, 'results.txt'), line + '\n')
     console.log(`    ${status}: ${name}${detail ? ` (${detail})` : ''}`)
 }
 
@@ -173,27 +175,39 @@ function capture(
 
 // Every long-running child runs in its own process group, so it can be stopped
 // with everything it started: npx, the maestro-runner wrapper and xcodebuild
-// all start children that outlive them otherwise.
-const running = new Set<ChildProcess>()
+// all start children that outlive them otherwise. Groups are tracked by id
+// rather than by child, because a group can outlive the process that started
+// it (the maestro-runner wrapper exits on SIGTERM; its binary doesn't).
+const groups = new Set<number>()
 
-function killGroup(child: ChildProcess, signal: NodeJS.Signals = 'SIGTERM') {
-    if (
-        child.pid === undefined ||
-        child.exitCode !== null ||
-        child.signalCode !== null
-    )
-        return
+function groupAlive(pgid: number) {
     try {
-        process.kill(-child.pid, signal)
+        process.kill(-pgid, 0)
+        return true
+    } catch {
+        return false
+    }
+}
+
+function killGroup(pgid: number, signal: NodeJS.Signals = 'SIGTERM') {
+    try {
+        process.kill(-pgid, signal)
     } catch {
         // Already gone.
     }
 }
 
-function stop(child: ChildProcess) {
-    killGroup(child)
+function stop(pgid: number) {
+    killGroup(pgid)
     // Some tools shut down slowly or ignore SIGTERM.
-    setTimeout(() => killGroup(child, 'SIGKILL'), 10_000).unref()
+    setTimeout(
+        () => groupAlive(pgid) && killGroup(pgid, 'SIGKILL'),
+        10_000,
+    ).unref()
+}
+
+function sleepSync(ms: number) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
 type StartOptions = {
@@ -229,7 +243,8 @@ function run(
 ): Promise<RunResult> {
     const { log, timeout } = options
     const child = start(cmd, args, options)
-    running.add(child)
+    const pgid = child.pid
+    if (pgid !== undefined) groups.add(pgid)
     let timedOut = false
     const timer = setTimeout(() => {
         timedOut = true
@@ -237,12 +252,14 @@ function run(
             log,
             `\nverify: stopped after the ${timeout}s time limit\n`,
         )
-        stop(child)
+        if (pgid !== undefined) stop(pgid)
     }, timeout * 1000)
     return new Promise((resolve) => {
         child.on('close', (code) => {
             clearTimeout(timer)
-            running.delete(child)
+            // Keep the group if something in it is still running, so cleanup
+            // stops it.
+            if (pgid !== undefined && !groupAlive(pgid)) groups.delete(pgid)
             resolve({ ok: code === 0 && !timedOut, timedOut })
         })
     })
@@ -282,13 +299,19 @@ function restoreLibrary() {
     backup = ''
 }
 
-let metro: ChildProcess | undefined
+let metro: number | undefined
 let cleanedUp = false
 function cleanup() {
     if (cleanedUp) return
     cleanedUp = true
-    for (const child of running) killGroup(child)
-    if (metro) killGroup(metro)
+    // Ask everything still running to stop, give it a moment, then force what's
+    // left (this runs on exit, so it can't wait asynchronously).
+    for (const pgid of groups) killGroup(pgid)
+    const deadline = Date.now() + 3000
+    while ([...groups].some(groupAlive) && Date.now() < deadline) sleepSync(100)
+    for (const pgid of groups) {
+        if (groupAlive(pgid)) killGroup(pgid, 'SIGKILL')
+    }
     restoreLibrary()
 }
 process.on('exit', cleanup)
@@ -363,7 +386,8 @@ async function startMetro(app: App) {
     metro = start('npx', ['react-native', 'start', '--port', '8081'], {
         cwd: appDir(app),
         log: path.join(OUT, `metro-${app}.log`),
-    })
+    }).pid
+    if (metro !== undefined) groups.add(metro)
     for (let i = 0; i < 60; i++) {
         try {
             const response = await fetch('http://localhost:8081/status')
@@ -377,11 +401,13 @@ async function startMetro(app: App) {
 }
 
 async function stopMetro() {
-    if (!metro) return
-    killGroup(metro)
+    if (metro === undefined) return
+    const pgid = metro
+    killGroup(pgid)
     metro = undefined
     // The next app's Metro needs the port.
     for (let i = 0; i < 20 && portInUse(8081); i++) await sleep(500)
+    if (!groupAlive(pgid)) groups.delete(pgid)
 }
 
 // --- Flows ---------------------------------------------------------------
