@@ -344,6 +344,36 @@ function SourceSwapCase() {
     )
 }
 
+// Counts onLoadStart until the image loads; passes if it fired once. iOS sent
+// it twice when source and onLoadStart were set together.
+function LoadStartOnceCase() {
+    const [loadStarts, setLoadStarts] = useState(0)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: PRELOAD }}
+                onLoadStart={() => !loaded && setLoadStarts((n) => n + 1)}
+                onLoad={() => setLoaded(true)}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-load-start-once" style={styles.status}>
+                    load-start-once:{' '}
+                    {!loaded
+                        ? 'waiting'
+                        : loadStarts === 1
+                          ? 'OK'
+                          : `onLoadStart fired ${loadStarts} times`}
+                </Text>
+                <Text style={styles.description}>
+                    onLoadStart fires once per load (iOS sent it twice)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image, shows it a moment later, and passes when it loads. Not a
 // fixed bug; it's here because this screen needs no scrolling, which makes it
 // reliable across runners and architectures.
@@ -481,6 +511,7 @@ export default function RegressionExample() {
             <ResizeModeChangeCase />
             <NoReloadCase />
             <SourceSwapCase />
+            <LoadStartOnceCase />
             <PreloadCase />
         </ScrollView>
     )
