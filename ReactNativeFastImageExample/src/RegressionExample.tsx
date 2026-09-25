@@ -411,6 +411,49 @@ function PreloadCase() {
     )
 }
 
+// Preloads an image with a header, then shows an image whose request fails if
+// it has that header. iOS set preload headers on the shared downloader, so
+// every later request sent them. (That preload still sends its own headers
+// isn't checked here: preload doesn't report when it's done.) The url is new
+// each launch, since the disk cache would otherwise have it from the last run.
+const RUN = Date.now()
+const PRIVATE = imageUrl(`private/picsum/1021-120x120.jpg?run=${RUN}`)
+const NO_TOKEN = imageUrl(`no-token/picsum/1022-120x120.jpg?run=${RUN}`)
+function PreloadHeadersCase() {
+    const [shown, setShown] = useState(false)
+    const [result, setResult] = useState<'waiting' | 'OK' | 'failed'>('waiting')
+    useEffect(() => {
+        FastImage.preload([
+            { uri: PRIVATE, headers: { 'x-token': 'fast-image' } },
+        ])
+        const timer = setTimeout(() => setShown(true), 1000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: NO_TOKEN }}
+                    onLoad={() => setResult('OK')}
+                    onError={() => setResult('failed')}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <View style={styles.text}>
+                <Text testID="regression-preload-headers" style={styles.status}>
+                    preload-headers: {result}
+                </Text>
+                <Text style={styles.description}>
+                    #571: preload headers aren't sent with other images (iOS
+                    sent them with every later request)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -516,6 +559,7 @@ export default function RegressionExample() {
             <SourceSwapCase />
             <LoadStartOnceCase />
             <PreloadCase />
+            <PreloadHeadersCase />
         </ScrollView>
     )
 }

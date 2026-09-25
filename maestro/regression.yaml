@@ -159,8 +159,14 @@ env:
 - extendedWaitUntil:
       visible: 'preload: OK'
       timeout: 30000
+- scrollUntilVisible:
+      element: 'preload-headers: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'preload-headers: OK'
+      timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000
-- assertVisible: 'preload: OK'
+- assertVisible: 'preload-headers: OK'
 - takeScreenshot: ${OUT}/regression

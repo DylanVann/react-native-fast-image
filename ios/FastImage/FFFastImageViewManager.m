@@ -3,6 +3,7 @@
 #import <React/RCTLog.h>
 
 #import <SDWebImage/SDImageCache.h>
+#import <SDWebImage/SDWebImageManager.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
 @implementation FFFastImageViewManager
@@ -25,6 +26,7 @@ RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 {
+    SDWebImagePrefetcher *prefetcher = [SDWebImagePrefetcher sharedImagePrefetcher];
     NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
 
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
@@ -35,13 +37,23 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
             RCTLogWarn(@"FastImage.preload: skipping a source without a valid uri");
             return;
         }
-        [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-            [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
-        }];
-        [urls addObject:source.url];
+        if (source.headers.count == 0) {
+            [urls addObject:source.url];
+            return;
+        }
+        // Send the headers with this source's request only (setting them on
+        // the shared downloader sent them with every later request). The
+        // prefetcher can't take headers per request in SDWebImage 5.11 (its
+        // context is shared by all prefetches), so load it the way the
+        // prefetcher does, with the same options.
+        [[SDWebImageManager sharedManager] loadImageWithURL:source.url
+                                                    options:prefetcher.options
+                                                    context:@{SDWebImageContextDownloadRequestModifier: source.requestModifier}
+                                                   progress:nil
+                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {}];
     }];
 
-    [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
+    [prefetcher prefetchURLs:urls];
 }
 
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)

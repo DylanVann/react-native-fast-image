@@ -17,4 +17,17 @@
     return self;
 }
 
+- (SDWebImageDownloaderRequestModifier *)requestModifier
+{
+    NSDictionary* headers = _headers;
+    return [SDWebImageDownloaderRequestModifier requestModifierWithBlock: ^NSURLRequest* _Nullable (NSURLRequest* _Nonnull request) {
+        NSMutableURLRequest* mutableRequest = [request mutableCopy];
+        for (NSString* header in headers) {
+            NSString* value = headers[header];
+            [mutableRequest setValue: value forHTTPHeaderField: header];
+        }
+        return [mutableRequest copy];
+    }];
+}
+
 @end
