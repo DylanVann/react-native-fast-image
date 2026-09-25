@@ -32,9 +32,13 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private Drawable mDefaultSource = null;
 
     public GlideUrl glideUrl;
+    // Null when the view was created in a destroyed Activity (nothing loads).
+    @Nullable
+    final RequestManager requestManager;
 
-    public FastImageViewWithUrl(Context context) {
+    public FastImageViewWithUrl(Context context, @Nullable RequestManager requestManager) {
         super(context);
+        this.requestManager = requestManager;
     }
 
     public void setSource(@Nullable ReadableMap source) {
