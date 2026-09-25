@@ -1202,6 +1202,31 @@ function GifLoopChangeCase() {
     )
 }
 
+// 1px stripes drawn at a fraction of their size: with the minification
+// filter (iOS) the right image is an even gray; without it, the left one shows
+// uneven stripes. Checked by the screenshot. Android ignores the prop.
+const STRIPES = { uri: imageUrl('stripes.png') }
+function MinificationFilterCase() {
+    const [loaded, setLoaded] = useState(0)
+    const onLoad = () => setLoaded((count) => count + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage style={styles.image} source={STRIPES} onLoad={onLoad} />
+            <FastImage
+                style={[styles.image, styles.gap]}
+                source={STRIPES}
+                enableMinificationFilter
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="minification-filter"
+                status={loaded === 2 ? 'OK' : 'waiting'}
+                description="#445: enableMinificationFilter smooths a large image drawn small (iOS only: right is even gray, left is striped)"
+            />
+        </View>
+    )
+}
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1394,6 +1419,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 />
             </NoCrashCase>,
             <SizeChangeCase key="size-change" />,
+            <MinificationFilterCase key="minification-filter" />,
         ],
     },
     {

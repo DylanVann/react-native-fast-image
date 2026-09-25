@@ -108,6 +108,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * or a number of times. Changing it restarts the animation.
      */
     loop?: boolean | number
+    /**
+     * iOS only: smooth large images drawn much smaller than their size, which
+     * can look aliased otherwise (trilinear filtering; uses a little more GPU
+     * memory).
+     */
+    enableMinificationFilter?: boolean
 
     onLoadStart?(): void
 
