@@ -112,6 +112,18 @@ env:
       visible: 'pointer-events: OK'
       timeout: 10000
 - scrollUntilVisible:
+      element: 'error-empty-uri: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'error-empty-uri: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'error-null-uri-default: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'error-null-uri-default: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:

@@ -1,6 +1,7 @@
 package com.dylanvann.fastimage;
 
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
+import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END_EVENT;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -55,8 +56,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
         if (!mNeedsReload)
             return;
 
-        if (!FastImageViewConverter.hasUri(mSource) && mDefaultSource == null) {
-
+        // Nothing to show.
+        if (mSource == null && mDefaultSource == null) {
             // Cancel existing requests.
             clearView(requestManager);
 
@@ -70,9 +71,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
         }
 
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
-        final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
+        final FastImageSource imageSource = FastImageViewConverter.hasUri(mSource)
+                ? FastImageViewConverter.getImageSource(getContext(), mSource)
+                : null;
 
-        if (imageSource != null && imageSource.getUri().toString().length() == 0) {
+        // A source without a uri (empty, missing or null), or one that can't be
+        // resolved: fire onError and onLoadEnd and show defaultSource, as on iOS
+        // (#1028, #945).
+        if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
             ReactContext context = FastImageViewManager.getReactContext(getContext());
             if (context != null) {
                 RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
@@ -80,6 +86,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 WritableMap event = new WritableNativeMap();
                 event.putString("message", "Invalid source prop:" + mSource);
                 eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
+                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
             }
 
             // Cancel existing requests.
@@ -88,8 +95,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (glideUrl != null) {
                 FastImageOkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
             }
-            // Clear the image.
-            setImageDrawable(null);
+            setImageDrawable(mDefaultSource);
             return;
         }
 
