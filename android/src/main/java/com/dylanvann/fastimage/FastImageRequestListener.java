@@ -11,8 +11,6 @@ import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.facebook.react.bridge.ReactContext;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 public class FastImageRequestListener implements RequestListener<Drawable> {
     static final String REACT_ON_ERROR_EVENT = "onFastImageError";
@@ -33,14 +31,8 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
-        ReactContext context = FastImageViewManager.getReactContext(view.getContext());
-        if (context == null) {
-            return false;
-        }
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
-        eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, new WritableNativeMap());
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
+        FastImageEvents.send(view, REACT_ON_ERROR_EVENT);
+        FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
         return false;
     }
 
@@ -70,16 +62,10 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     }
 
     private static void sendLoad(FastImageViewWithUrl view, int[] size) {
-        ReactContext context = FastImageViewManager.getReactContext(view.getContext());
-        if (context == null) {
-            return;
-        }
-        RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-        int viewId = view.getId();
         WritableMap event = new WritableNativeMap();
         event.putInt("width", size[0]);
         event.putInt("height", size[1]);
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_EVENT, event);
-        eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
+        FastImageEvents.send(view, REACT_ON_LOAD_EVENT, event);
+        FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
     }
 }
