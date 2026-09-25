@@ -1,9 +1,9 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
-#import <React/RCTLog.h>
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
+#import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
 
 @implementation FFFastImageViewManager
@@ -25,36 +25,58 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
-RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
+// The error's description, with the HTTP status code when there is one.
+static NSString *FFFErrorMessage(NSError *error)
 {
-    SDWebImagePrefetcher *prefetcher = [SDWebImagePrefetcher sharedImagePrefetcher];
-    NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
+    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
+    if (statusCode) {
+        return [NSString stringWithFormat:@"%@, status code: %@", error.localizedDescription, statusCode];
+    }
+    return error.localizedDescription ?: @"Failed to load the image";
+}
+
+// Resolves with a result per source, in order, once all have loaded or failed:
+// { ok, width, height } or { ok: false, error }. Never rejects.
+RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+    NSMutableArray *results = [NSMutableArray arrayWithCapacity:sources.count];
+    dispatch_group_t group = dispatch_group_create();
+    // With the prefetcher's options (low priority), but one source at a time
+    // (not SDWebImagePrefetcher), to get each source's result and to send its
+    // headers with its own request only.
+    SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options;
 
     [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
-        // Skip sources without a url (an empty, missing or null uri). NSArray can't
-        // hold nil, so adding one throws and crashes the app.
         if (!source.url) {
-            // preload has no way to report errors, so log it.
-            RCTLogWarn(@"FastImage.preload: skipping a source without a valid uri");
+            // An empty, missing or null uri (JS sends null sources as {}).
+            [results addObject:@{@"ok": @NO, @"error": @"Invalid source: no uri"}];
             return;
         }
-        if (source.headers.count == 0) {
-            [urls addObject:source.url];
-            return;
-        }
-        // Send the headers with this source's request only (setting them on
-        // the shared downloader sent them with every later request). The
-        // prefetcher can't take headers per request in SDWebImage 5.11 (its
-        // context is shared by all prefetches), so load it the way the
-        // prefetcher does, with the same options.
+        [results addObject:[NSNull null]];
+        dispatch_group_enter(group);
         [[SDWebImageManager sharedManager] loadImageWithURL:source.url
-                                                    options:prefetcher.options
+                                                    options:options
                                                     context:@{SDWebImageContextDownloadRequestModifier: source.requestModifier}
                                                    progress:nil
-                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {}];
+                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+            if (!finished) {
+                return;
+            }
+            NSDictionary *result = image
+                ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
+                : @{@"ok": @NO, @"error": FFFErrorMessage(error)};
+            @synchronized (results) {
+                results[idx] = result;
+            }
+            dispatch_group_leave(group);
+        }];
     }];
 
-    [prefetcher prefetchURLs:urls];
+    dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+        resolve(results);
+    });
 }
 
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
