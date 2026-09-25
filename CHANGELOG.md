@@ -1,3 +1,10 @@
+## [8.6.41](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.40...v8.6.41) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** send the app's cookies with image requests ([#1138](https://github.com/DylanVann/react-native-fast-image/issues/1138)) ([ab645ea](https://github.com/DylanVann/react-native-fast-image/commit/ab645ea2bcf22a6b60f4952049cde3d335e15fad))
+
 ## [8.6.40](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.39...v8.6.40) (2026-09-25)
 
 
