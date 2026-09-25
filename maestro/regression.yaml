@@ -202,6 +202,18 @@ env:
       visible: 'source-size-cached: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'progress-unknown-size: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'progress-unknown-size: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'progress-unknown-size: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'progress-unknown-size: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'preload: .*'
       timeout: 10000
 - extendedWaitUntil:
