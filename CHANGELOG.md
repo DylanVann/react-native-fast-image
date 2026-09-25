@@ -1,3 +1,10 @@
+## [8.6.24](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.23...v8.6.24) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** report sources without a uri and show defaultSource ([#1109](https://github.com/DylanVann/react-native-fast-image/issues/1109)) ([9ab4e3b](https://github.com/DylanVann/react-native-fast-image/commit/9ab4e3bdd44535c0480998f55a94d11430fbe4ce)), closes [#1028](https://github.com/DylanVann/react-native-fast-image/issues/1028)
+
 ## [8.6.23](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.22...v8.6.23) (2026-09-24)
 
 
