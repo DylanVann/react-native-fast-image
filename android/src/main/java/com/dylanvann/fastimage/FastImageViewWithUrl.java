@@ -152,6 +152,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
         }
 
         if (requestManager != null) {
+            // Records the image's own size when Glide decodes it, for onLoad.
+            Object model = imageSource == null ? null : imageSource.getSourceForLoad();
+            FastImageSourceSize.Capture capture = FastImageSourceSize.capture(getScaleType(), model);
             RequestBuilder<Drawable> builder =
                     requestManager
                             // This will make this work for remote and local images. e.g.
@@ -160,14 +163,17 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             //    - res:/
                             //    - android.resource://
                             //    - data:image/png;base64
-                            .load(imageSource == null ? null : imageSource.getSourceForLoad())
+                            .load(model)
                             .apply(FastImageViewConverter
                                     .getOptions(getContext(), imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)); // null will not be treated as error
+                                    .fallback(mDefaultSource)) // null will not be treated as error
+                            // What into() would apply for the scale type, with
+                            // the size capture.
+                            .apply(FastImageSourceSize.scaleTypeOptions(getScaleType(), capture));
 
             if (key != null)
-                builder.listener(new FastImageRequestListener(key));
+                builder.listener(new FastImageRequestListener(key, imageSource));
 
             builder.into(this);
         }
