@@ -154,6 +154,18 @@ env:
       visible: 'load-start-once: OK'
       timeout: 30000
 - scrollUntilVisible:
+      element: 'zero-size: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'zero-size: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element: 'zero-height: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'zero-height: OK'
+      timeout: 30000
+- scrollUntilVisible:
       element: 'asset-uri: .*'
       timeout: 10000
 - extendedWaitUntil:
