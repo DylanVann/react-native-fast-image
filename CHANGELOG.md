@@ -1,3 +1,10 @@
+## [8.6.39](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.38...v8.6.39) (2026-09-25)
+
+
+### Bug Fixes
+
+* don't send onProgress when the total size is unknown ([#1134](https://github.com/DylanVann/react-native-fast-image/issues/1134)) ([3c75cb3](https://github.com/DylanVann/react-native-fast-image/commit/3c75cb30671f063d497946bf79eb503a8e7fde2a))
+
 ## [8.6.38](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.37...v8.6.38) (2026-09-25)
 
 
