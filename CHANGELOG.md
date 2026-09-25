@@ -1,3 +1,10 @@
+## [8.6.30](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.29...v8.6.30) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** load asset:/ uris ([#1119](https://github.com/DylanVann/react-native-fast-image/issues/1119)) ([4931a9c](https://github.com/DylanVann/react-native-fast-image/commit/4931a9c71a22e5e7ba22c78f05cdd85b27ce205b))
+
 ## [8.6.29](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.28...v8.6.29) (2026-09-25)
 
 
