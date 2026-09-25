@@ -247,6 +247,11 @@
     SDImageLoaderProgressBlock progress = nil;
     if (self.onFastImageProgress) {
         progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
+            // Without a Content-Length the total is unknown (-1 or 0), and a
+            // percentage can't be worked out from it, so don't send those.
+            if (expectedSize <= 0) {
+                return;
+            }
             // SDWebImage calls this on its download queue, while React Native
             // sets onFastImageProgress (and deallocates the view) on the main
             // queue. Read and call it there, so it can't change or be released

@@ -11,6 +11,7 @@
 //   /no-token/  400 if the request has an `x-token` header (headers meant for
 //               one request must not be sent with others).
 //   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
+//   /chunked/   Streamed without a Content-Length (the size is unknown).
 //
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
@@ -34,6 +35,7 @@ const server = Bun.serve({
 
         let { pathname } = url
         let cacheControl: string | undefined
+        let chunked = false
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
             if (token !== 'fast-image') {
@@ -50,6 +52,9 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/max-age/')) {
             cacheControl = 'max-age=3600'
             pathname = pathname.slice('/max-age'.length)
+        } else if (pathname.startsWith('/chunked/')) {
+            chunked = true
+            pathname = pathname.slice('/chunked'.length)
         }
         const file = path.join(IMAGES, decodeURIComponent(pathname))
         if (!file.startsWith(IMAGES + path.sep)) {
@@ -58,6 +63,21 @@ const server = Bun.serve({
         const image = Bun.file(file)
         if (!(await image.exists())) {
             return new Response('Not found', { status: 404 })
+        }
+        if (chunked) {
+            // A stream of unknown length is sent without a Content-Length.
+            const bytes = new Uint8Array(await image.arrayBuffer())
+            const stream = new ReadableStream({
+                start(controller) {
+                    for (let i = 0; i < bytes.length; i += 65536) {
+                        controller.enqueue(bytes.subarray(i, i + 65536))
+                    }
+                    controller.close()
+                },
+            })
+            return new Response(stream, {
+                headers: { 'Content-Type': image.type },
+            })
         }
         return new Response(
             image,
