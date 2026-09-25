@@ -1,3 +1,10 @@
+## [8.6.38](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.37...v8.6.38) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** cache images loaded with cache web ([#1129](https://github.com/DylanVann/react-native-fast-image/issues/1129)) ([96c7eea](https://github.com/DylanVann/react-native-fast-image/commit/96c7eea3caa5915a026e4c47b991362ed74fa39d))
+
 ## [8.6.37](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.36...v8.6.37) (2026-09-25)
 
 
