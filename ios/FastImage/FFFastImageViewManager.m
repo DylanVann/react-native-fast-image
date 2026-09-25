@@ -34,47 +34,98 @@ static NSString *FFFErrorMessage(NSError *error)
     return error.localizedDescription ?: @"Failed to load the image";
 }
 
+// Preloads waiting to start, in the order they were added, and the number
+// loading, across all preload calls. Like SDWebImagePrefetcher, at most
+// maxConcurrentPrefetchCount load at a time, so a long list doesn't queue
+// hundreds of operations ahead of the images the app is showing. Only used on
+// the main queue (SDWebImageManager calls its completion blocks there).
+static NSMutableArray<dispatch_block_t> *FFFPendingPreloads;
+static NSUInteger FFFPreloadsInFlight;
+
+static NSUInteger FFFPreloadLimit(void)
+{
+    NSUInteger limit = [SDWebImagePrefetcher sharedImagePrefetcher].maxConcurrentPrefetchCount;
+    return MAX(limit, (NSUInteger)1);
+}
+
+// Starts pending preloads while there's room. A completion block calls it
+// again, sometimes from inside start() (a memory cache hit completes
+// synchronously on the main queue). That's fine: the counters are shared and
+// updated before each start(), so the inner call starts what fits, and the
+// outer loop sees the updated counters when it checks again.
+static void FFFStartPendingPreloads(void)
+{
+    while (FFFPreloadsInFlight < FFFPreloadLimit() && FFFPendingPreloads.count > 0) {
+        dispatch_block_t start = FFFPendingPreloads.firstObject;
+        [FFFPendingPreloads removeObjectAtIndex:0];
+        FFFPreloadsInFlight++;
+        start();
+    }
+}
+
 // Resolves with a result per source, in order, once all have loaded or failed:
 // { ok, width, height } or { ok: false, error }. Never rejects.
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
-    NSMutableArray *results = [NSMutableArray arrayWithCapacity:sources.count];
-    dispatch_group_t group = dispatch_group_create();
-    // With the prefetcher's options (low priority), but one source at a time
-    // (not SDWebImagePrefetcher), to get each source's result and to send its
-    // headers with its own request only.
-    SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options;
-
-    [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
-        if (!source.url) {
-            // An empty, missing or null uri (JS sends null sources as {}).
-            [results addObject:@{@"ok": @NO, @"error": @"Invalid source: no uri"}];
-            return;
+    // This runs on the UIManager queue; the queue state is only touched on
+    // the main queue.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!FFFPendingPreloads) {
+            FFFPendingPreloads = [NSMutableArray array];
         }
-        [results addObject:[NSNull null]];
-        dispatch_group_enter(group);
-        [[SDWebImageManager sharedManager] loadImageWithURL:source.url
-                                                    options:options
-                                                    context:@{SDWebImageContextDownloadRequestModifier: source.requestModifier}
-                                                   progress:nil
-                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
-            if (!finished) {
+        NSMutableArray *results = [NSMutableArray arrayWithCapacity:sources.count];
+        // Sources of this call still to finish. It starts at the number of
+        // sources, so the promise can't resolve before they've all been added.
+        __block NSUInteger remaining = sources.count;
+        void (^finishOne)(void) = ^{
+            if (--remaining == 0) {
+                resolve(results);
+            }
+        };
+        // With the prefetcher's options (low priority), but one source at a
+        // time (not SDWebImagePrefetcher), to get each source's result and to
+        // send its headers with its own request only.
+        SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options;
+
+        [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
+            if (!source.url) {
+                // An empty, missing or null uri (JS sends null sources as {}).
+                // It fails without taking a slot.
+                [results addObject:@{@"ok": @NO, @"error": @"Invalid source: no uri"}];
+                finishOne();
                 return;
             }
-            NSDictionary *result = image
-                ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
-                : @{@"ok": @NO, @"error": FFFErrorMessage(error)};
-            @synchronized (results) {
-                results[idx] = result;
-            }
-            dispatch_group_leave(group);
+            [results addObject:[NSNull null]];
+            [FFFPendingPreloads addObject:[^{
+                // Once per slot: SDWebImage calls this once with finished set
+                // (a progressive load calls it more, without).
+                __block BOOL done = NO;
+                [[SDWebImageManager sharedManager] loadImageWithURL:source.url
+                                                            options:options
+                                                            context:@{SDWebImageContextDownloadRequestModifier: source.requestModifier}
+                                                           progress:nil
+                                                          completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+                    if (!finished || done) {
+                        return;
+                    }
+                    done = YES;
+                    results[idx] = image
+                        ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
+                        : @{@"ok": @NO, @"error": FFFErrorMessage(error)};
+                    FFFPreloadsInFlight--;
+                    finishOne();
+                    FFFStartPendingPreloads();
+                }];
+            } copy]];
         }];
-    }];
 
-    dispatch_group_notify(group, dispatch_get_main_queue(), ^{
-        resolve(results);
+        if (sources.count == 0) {
+            resolve(results);
+            return;
+        }
+        FFFStartPendingPreloads();
     });
 }
 
