@@ -595,6 +595,44 @@ function WebCacheCase() {
     )
 }
 
+// Loads an image the server sends without a Content-Length, so its size is
+// unknown while it loads, and passes if no onProgress event had a total of 0
+// or less (both platforms sent -1, which made loaded / total negative).
+const CHUNKED = imageUrl(`chunked/picsum/1015-2048x2048.jpg?run=${RUN}`)
+function ProgressUnknownSizeCase() {
+    const [badTotal, setBadTotal] = useState<number>()
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: CHUNKED }}
+                onProgress={(e) => {
+                    if (e.nativeEvent.total <= 0)
+                        setBadTotal(e.nativeEvent.total)
+                }}
+                onLoad={() => setLoaded(true)}
+            />
+            <View style={styles.text}>
+                <Text
+                    testID="regression-progress-unknown-size"
+                    style={styles.status}
+                >
+                    progress-unknown-size:{' '}
+                    {!loaded
+                        ? 'waiting'
+                        : badTotal === undefined
+                          ? 'OK'
+                          : `onProgress total ${badTotal}`}
+                </Text>
+                <Text style={styles.description}>
+                    No onProgress with an unknown total (no Content-Length)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -705,6 +743,7 @@ export default function RegressionExample() {
             <NoReloadCase />
             <SourceSwapCase />
             <LoadStartOnceCase />
+            <ProgressUnknownSizeCase />
             <EventCase
                 id="zero-size"
                 description="#865: a 0×0 image still loads (Android never did)"

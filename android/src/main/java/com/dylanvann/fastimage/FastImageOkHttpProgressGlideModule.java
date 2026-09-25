@@ -140,7 +140,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         @Override
         public void update(final String key, final long bytesRead, final long contentLength) {
             final FastImageProgressListener listener = LISTENERS.get(key);
-            if (listener == null) {
+            // Without a Content-Length the total is unknown (-1), and a
+            // percentage can't be worked out from it, so don't send those. (It
+            // also looked like the last update, which stopped all updates.)
+            if (listener == null || contentLength <= 0) {
                 return;
             }
             if (contentLength <= bytesRead) {
