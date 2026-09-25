@@ -1,3 +1,10 @@
+## [8.6.34](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.33...v8.6.34) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** send events through React Native's event dispatcher ([#1131](https://github.com/DylanVann/react-native-fast-image/issues/1131)) ([26259a9](https://github.com/DylanVann/react-native-fast-image/commit/26259a9c06db1f3e6ec59371b15b956b9f087fd3))
+
 ## [8.6.33](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.32...v8.6.33) (2026-09-25)
 
 
