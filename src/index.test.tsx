@@ -38,7 +38,7 @@ describe('FastImage (iOS)', () => {
         const resolveAssetSource = jest
             .spyOn(Image, 'resolveAssetSource')
             .mockImplementation(
-                (asset: any) => ({ uri: `asset-${asset}` } as any),
+                (asset: any) => ({ uri: `asset-${asset}` }) as any,
             )
         try {
             const image = renderer

@@ -1,11 +1,6 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
-    "plugins": [
-        "typescript",
-        "unicorn",
-        "oxc",
-        "react"
-    ],
+    "plugins": ["typescript", "unicorn", "oxc", "react"],
     "categories": {
         "correctness": "error"
     },
@@ -13,8 +8,5 @@
     "env": {
         "builtin": true
     },
-    "ignorePatterns": [
-        ".yarn",
-        ".local"
-    ]
+    "ignorePatterns": [".yarn", ".local"]
 }

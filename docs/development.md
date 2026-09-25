@@ -2,14 +2,14 @@
 
 The example app in `ReactNativeFastImageExample` runs against the library source in this repo, so changes to `src/`, `ios/`, and `android/` show up without publishing or linking anything.
 
--   JS/TS changes in `src/` are picked up by Metro (fast refresh).
--   Native changes in `ios/` or `android/` need the app to be rebuilt.
+- JS/TS changes in `src/` are picked up by Metro (fast refresh).
+- Native changes in `ios/` or `android/` need the app to be rebuilt.
 
 ## Requirements
 
--   Node 22.11 or later
--   Xcode, CocoaPods (via Bundler), and an iOS simulator
--   JDK 17, the Android SDK, and an Android emulator
+- Node 22.11 or later
+- Xcode, CocoaPods (via Bundler), and an iOS simulator
+- JDK 17, the Android SDK, and an Android emulator
 
 ## Running the example
 
@@ -70,8 +70,8 @@ Run `node scripts/verify.mts --help` for all options. Use an Android emulator wi
 
 ### Maestro flows
 
--   `maestro/walkthrough.yaml` scrolls through every example, checks that the progress events fire, opens both grids, and saves screenshots.
--   `maestro/regression.yaml` opens the **Regression** tab and waits for every case to report `OK`. Each case covers a fixed bug (for example, removing an event handler after it fires). Add a case there when fixing a bug that can be reproduced in the app.
+- `maestro/walkthrough.yaml` scrolls through every example, checks that the progress events fire, opens both grids, and saves screenshots.
+- `maestro/regression.yaml` opens the **Regression** tab and waits for every case to report `OK`. Each case covers a fixed bug (for example, removing an event handler after it fires). Add a case there when fixing a bug that can be reproduced in the app.
 
 To run a flow by hand against a running app:
 
@@ -85,6 +85,6 @@ The app IDs for each app and platform are listed at the top of `maestro/walkthro
 
 ## How the example uses the library
 
--   `react-native.config.js` autolinks the library's native code from the repo root.
--   `metro.config.js` resolves `react-native-fast-image` to `../src/index.tsx` and makes the library source use the example's `react` and `react-native`, not the repo root's dev copies.
--   `tsconfig.json` does the same for TypeScript.
+- `react-native.config.js` autolinks the library's native code from the repo root.
+- `metro.config.js` resolves `react-native-fast-image` to `../src/index.tsx` and makes the library source use the example's `react` and `react-native`, not the repo root's dev copies.
+- `tsconfig.json` does the same for TypeScript.

@@ -339,7 +339,8 @@ function SourceSwapCase() {
                     source-swap: {done && loaded ? 'OK' : 'waiting'}
                 </Text>
                 <Text style={styles.description}>
-                    #384: changing source keeps loading (Android leaked the view)
+                    #384: changing source keeps loading (Android leaked the
+                    view)
                 </Text>
             </View>
         </View>
