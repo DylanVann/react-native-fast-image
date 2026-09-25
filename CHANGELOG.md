@@ -1,3 +1,10 @@
+## [8.6.37](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.36...v8.6.37) (2026-09-25)
+
+
+### Bug Fixes
+
+* **android:** play GIFs as many times as the file says ([#1127](https://github.com/DylanVann/react-native-fast-image/issues/1127)) ([e77c816](https://github.com/DylanVann/react-native-fast-image/commit/e77c816c3859d848e549b30f94f01c4c3fac6eeb))
+
 ## [8.6.36](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.35...v8.6.36) (2026-09-25)
 
 
