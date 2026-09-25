@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
-import { imageUrl } from './imageServer'
+import { imageUrl, slowImageUrl } from './imageServer'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives; maestro/regression.yaml waits for every OK. A crash fails the
@@ -687,12 +687,21 @@ function CookiesCase() {
 }
 
 // Counts an image's load events while the app goes to the background and
-// comes back (maestro/background.yaml does that). With `slow`, the image is still loading
-// when the app leaves (the server takes about 7 s), and has to finish after it
-// returns (#758). Otherwise it has loaded, and mustn't load again (#1022).
-// Passes 2 s after the app is back, if the image loaded exactly once.
+// comes back (maestro/background.yaml does that). With `slow`, the image is
+// still loading when the app leaves (the slow server takes about 7 s), and has
+// to finish after it returns (#758), still sending the source's header (the
+// slow server needs it) and progress up to the total, with its tint (green,
+// check the screenshot). Otherwise it has loaded, and mustn't load again
+// (#1022). Passes 2 s after the app is back, if the image loaded exactly once.
+const BACKGROUND_SLOW_HEADERS = { 'x-token': 'fast-image' }
 function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     const [counts, setCounts] = useState({ start: 0, load: 0, error: 0 })
+    // afterReturn: a progress event came after the app was back.
+    const [progress, setProgress] = useState({
+        loaded: 0,
+        total: 0,
+        afterReturn: false,
+    })
     const [returned, setReturned] = useState(false)
     const [settled, setSettled] = useState(false)
     const wentAway = useRef(false)
@@ -710,18 +719,49 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     }, [returned])
     const count = (key: keyof typeof counts) => () =>
         setCounts((c) => ({ ...c, [key]: c[key] + 1 }))
-    const summary = `start=${counts.start} load=${counts.load} error=${counts.error}`
-    const ok = counts.start === 1 && counts.load === 1 && counts.error === 0
+    const path = `picsum/1022-120x120.jpg?${id}=${RUN}`
+    const progressDone =
+        progress.afterReturn &&
+        progress.total > 0 &&
+        progress.loaded === progress.total
+    const summary =
+        `start=${counts.start} load=${counts.load} error=${counts.error}` +
+        (slow ? ` progress=${progress.loaded}/${progress.total}` : '')
+    const ok =
+        counts.start === 1 &&
+        counts.load === 1 &&
+        counts.error === 0 &&
+        (!slow || progressDone)
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                source={{
-                    uri: imageUrl(
-                        `${slow ? 'slow/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}`,
-                    ),
-                }}
+                source={
+                    slow
+                        ? {
+                              uri: slowImageUrl(path),
+                              headers: BACKGROUND_SLOW_HEADERS,
+                          }
+                        : { uri: imageUrl(path) }
+                }
+                tintColor={slow ? 'green' : undefined}
                 onLoadStart={count('start')}
+                onProgress={
+                    slow
+                        ? (e) => {
+                              const back =
+                                  wentAway.current &&
+                                  AppState.currentState === 'active'
+                              // Read the event now: the updater runs later.
+                              const { loaded, total } = e.nativeEvent
+                              setProgress((p) => ({
+                                  loaded,
+                                  total,
+                                  afterReturn: p.afterReturn || back,
+                              }))
+                          }
+                        : undefined
+                }
                 onLoad={count('load')}
                 onError={count('error')}
             />
@@ -738,7 +778,7 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 </Text>
                 <Text style={styles.description}>
                     {slow
-                        ? '#758: an image still loading when the app goes to the background finishes after it comes back'
+                        ? '#758: an image still loading when the app goes to the background finishes after it comes back, with its header, progress and tint (green)'
                         : "#1022: a loaded image doesn't load again when the app comes back from the background"}
                 </Text>
             </View>

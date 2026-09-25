@@ -12,8 +12,6 @@
 //               one request must not be sent with others).
 //   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
 //   /chunked/   Streamed without a Content-Length (the size is unknown).
-//   /slow/      Streamed in 8 parts, one a second (about 7 s in all), so a
-//               test can do something while it loads.
 //   /cookie/    403 unless the request has both cookies from /set-cookie with
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
@@ -25,11 +23,20 @@
 //
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
+//
+// On the next port (8091), the same images are sent slowly: in 8 parts, one a
+// second (about 7 s in all), with a Content-Length (for progress), and only
+// with `x-token: fast-image`. A test can do something while they load (e.g.
+// send the app to the background). It's a node:http server because Bun.serve
+// sends streamed responses chunked, ignoring their Content-Length
+// (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
+import http from 'node:http'
 import path from 'node:path'
 
 const IMAGES = path.join(import.meta.dir, 'images')
 const PORT = Number(process.env.PORT ?? 8090)
+const SLOW_PORT = PORT + 1
 const requests = new Map<string, number>()
 
 const server = Bun.serve({
@@ -58,7 +65,6 @@ const server = Bun.serve({
         let { pathname } = url
         let cacheControl: string | undefined
         let chunked = false
-        let slow = false
         let setCookie: string | undefined
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
@@ -79,9 +85,6 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/chunked/')) {
             chunked = true
             pathname = pathname.slice('/chunked'.length)
-        } else if (pathname.startsWith('/slow/')) {
-            slow = true
-            pathname = pathname.slice('/slow'.length)
         } else if (pathname.startsWith('/cookie/')) {
             const cookie = request.headers.get('cookie') ?? ''
             const cookies = cookie.split(/;\s*/)
@@ -103,25 +106,6 @@ const server = Bun.serve({
         const image = Bun.file(file)
         if (!(await image.exists())) {
             return new Response('Not found', { status: 404 })
-        }
-        if (slow) {
-            const bytes = new Uint8Array(await image.arrayBuffer())
-            const parts = 8
-            const size = Math.ceil(bytes.length / parts)
-            let part = 0
-            const stream = new ReadableStream({
-                async pull(controller) {
-                    if (part > 0) await Bun.sleep(1000)
-                    controller.enqueue(
-                        bytes.subarray(part * size, (part + 1) * size),
-                    )
-                    part++
-                    if (part === parts) controller.close()
-                },
-            })
-            return new Response(stream, {
-                headers: { 'Content-Type': image.type },
-            })
         }
         if (chunked) {
             // A stream of unknown length is sent without a Content-Length.
@@ -146,3 +130,35 @@ const server = Bun.serve({
 })
 
 console.log(`Serving ${IMAGES} at ${server.url}`)
+
+http.createServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', 'http://localhost')
+    const key = `slow:${url.pathname}${url.search}`
+    requests.set(key, (requests.get(key) ?? 0) + 1)
+    if (request.headers['x-token'] !== 'fast-image') {
+        response.writeHead(403).end('Forbidden')
+        return
+    }
+    const file = path.join(IMAGES, decodeURIComponent(url.pathname))
+    const image = Bun.file(file)
+    if (!file.startsWith(IMAGES + path.sep) || !(await image.exists())) {
+        response.writeHead(404).end('Not found')
+        return
+    }
+    const bytes = new Uint8Array(await image.arrayBuffer())
+    response.writeHead(200, {
+        'Content-Type': image.type,
+        'Content-Length': String(bytes.length),
+    })
+    const parts = 8
+    const size = Math.ceil(bytes.length / parts)
+    for (let part = 0; part < parts; part++) {
+        // The client went away (e.g. the app cancelled the load).
+        if (response.destroyed) return
+        response.write(bytes.subarray(part * size, (part + 1) * size))
+        if (part < parts - 1) await Bun.sleep(1000)
+    }
+    response.end()
+}).listen(SLOW_PORT, () => {
+    console.log(`Serving them slowly at http://localhost:${SLOW_PORT}/`)
+})

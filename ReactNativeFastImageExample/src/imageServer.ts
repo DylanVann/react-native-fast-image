@@ -7,3 +7,7 @@ import { Platform } from 'react-native'
 const HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost'
 
 export const imageUrl = (path: string) => `http://${HOST}:8090/${path}`
+
+// The same images sent slowly (about 7 s, with progress), which needs the
+// header `x-token: fast-image`. See ReactNativeFastImageExampleServer.
+export const slowImageUrl = (path: string) => `http://${HOST}:8091/${path}`
