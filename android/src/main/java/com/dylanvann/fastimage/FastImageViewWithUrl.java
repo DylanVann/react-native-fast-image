@@ -18,8 +18,6 @@ import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.facebook.react.bridge.ReactContext;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,15 +95,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // resolved: fire onError and onLoadEnd and show defaultSource, as on iOS
         // (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
-            ReactContext context = FastImageViewManager.getReactContext(getContext());
-            if (context != null) {
-                RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
-                int viewId = getId();
-                WritableMap event = new WritableNativeMap();
-                event.putString("message", "Invalid source prop:" + mSource);
-                eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
-                eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_END_EVENT, new WritableNativeMap());
-            }
+            WritableMap event = new WritableNativeMap();
+            event.putString("message", "Invalid source prop:" + mSource);
+            FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
+            FastImageEvents.send(this, REACT_ON_LOAD_END_EVENT);
 
             // Cancel existing requests.
             clearView(requestManager);
@@ -140,15 +133,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
             }
         }
 
-        ReactContext reactContext = FastImageViewManager.getReactContext(getContext());
-        if (imageSource != null && reactContext != null) {
+        if (imageSource != null) {
             // This is an orphan even without a load/loadend when only loading a placeholder
-            RCTEventEmitter eventEmitter = reactContext.getJSModule(RCTEventEmitter.class);
-            int viewId = this.getId();
-
-            eventEmitter.receiveEvent(viewId,
-                    FastImageViewManager.REACT_ON_LOAD_START_EVENT,
-                    new WritableNativeMap());
+            FastImageEvents.send(this, FastImageViewManager.REACT_ON_LOAD_START_EVENT);
         }
 
         if (requestManager != null) {
