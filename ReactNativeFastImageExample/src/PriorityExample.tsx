@@ -6,6 +6,7 @@ import SectionFlex from './SectionFlex'
 import FeatureText from './FeatureText'
 import { useCacheBust } from './useCacheBust'
 import { imageUrl } from './imageServer'
+import { useLoads } from './RunnerContext'
 
 const IMAGE_URLS = [
     imageUrl('picsum/1015-2048x2048.jpg'),
@@ -15,6 +16,7 @@ const IMAGE_URLS = [
 
 export const PriorityExample = () => {
     const { query, bust } = useCacheBust('')
+    const onLoad = useLoads('priority', 3)
     return (
         <View>
             <Section>
@@ -27,6 +29,7 @@ export const PriorityExample = () => {
                         uri: IMAGE_URLS[0] + query,
                         priority: FastImage.priority.low,
                     }}
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
@@ -34,6 +37,7 @@ export const PriorityExample = () => {
                         uri: IMAGE_URLS[1] + query,
                         priority: FastImage.priority.normal,
                     }}
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
@@ -41,6 +45,7 @@ export const PriorityExample = () => {
                         uri: IMAGE_URLS[2] + query,
                         priority: FastImage.priority.high,
                     }}
+                    onLoad={onLoad}
                 />
             </SectionFlex>
         </View>

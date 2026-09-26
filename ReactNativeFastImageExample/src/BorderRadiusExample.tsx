@@ -6,11 +6,13 @@ import Section from './Section'
 import FeatureText from './FeatureText'
 import { useCacheBust } from './useCacheBust'
 import { imageUrl } from './imageServer'
+import { useLoads } from './RunnerContext'
 
-const IMAGE_URL = imageUrl('jellyfish.gif')
+const IMAGE_URL = imageUrl('picsum/1025-200x200.jpg')
 
 export const BorderRadiusExample = () => {
     const { query, bust } = useCacheBust('')
+    const onLoad = useLoads('border-radius', 2)
     return (
         <View>
             <Section>
@@ -22,12 +24,14 @@ export const BorderRadiusExample = () => {
                     source={{
                         uri: IMAGE_URL + query,
                     }}
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.imageRectangular}
                     source={{
                         uri: IMAGE_URL + query,
                     }}
+                    onLoad={onLoad}
                 />
             </SectionFlex>
         </View>

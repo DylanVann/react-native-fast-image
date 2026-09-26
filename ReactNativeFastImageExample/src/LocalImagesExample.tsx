@@ -21,6 +21,7 @@ import FieldsWebP from './images/fields.webp'
 import JellyfishGIF from './images/jellyfish.gif'
 // @ts-ignore
 import JellyfishWebP from './images/jellyfish.webp'
+import { Masked, useLoads } from './RunnerContext'
 
 const Image = ({ source, ...p }: FastImageProps) => (
     <FastImage style={styles.imageSquare} source={source} {...p} />
@@ -33,12 +34,21 @@ const Row: React.ComponentType<ViewProps> = (p: ViewProps) => (
 interface ExampleProps {
     name: string
     source: any
+    onLoad?: () => void
+    // Animated: left out of screenshot comparisons.
+    animated?: boolean
 }
 
-const Example = ({ name, source }: ExampleProps) => (
+const Example = ({ name, source, onLoad, animated }: ExampleProps) => (
     <Row>
         <BulletText>{name}</BulletText>
-        <Image source={source} />
+        {animated ? (
+            <Masked>
+                <Image source={source} onLoad={onLoad} />
+            </Masked>
+        ) : (
+            <Image source={source} onLoad={onLoad} />
+        )}
     </Row>
 )
 
@@ -83,22 +93,45 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
     }
 }
 
-export const LocalImagesExample = () => (
-    <View>
-        <Section>
-            <FeatureText>• Local images.</FeatureText>
-        </Section>
-        <View style={styles.container}>
-            <Example name="Require" source={require('./images/fields.jpg')} />
-            <Example name="Import" source={FieldsImage} />
-            <Example name="GIF" source={JellyfishGIF} />
-            <Example name="Animated WebP" source={JellyfishWebP} />
-            <Example name="Base64" source={{ uri: FieldsBase64 }} />
-            <Example name="WebP" source={FieldsWebP} />
-            <PhotoExample />
+// `compact` lays the examples out in rows, so they fit on one screen (the
+// regression runner shows them that way).
+export const LocalImagesExample = ({ compact }: { compact?: boolean }) => {
+    const onLoad = useLoads('local-images', 6)
+    return (
+        <View>
+            <Section>
+                <FeatureText>• Local images.</FeatureText>
+            </Section>
+            <View style={[styles.container, compact && styles.compact]}>
+                <Example
+                    name="Require"
+                    source={require('./images/fields.jpg')}
+                    onLoad={onLoad}
+                />
+                <Example name="Import" source={FieldsImage} onLoad={onLoad} />
+                <Example
+                    name="GIF"
+                    source={JellyfishGIF}
+                    onLoad={onLoad}
+                    animated
+                />
+                <Example
+                    name="Animated WebP"
+                    source={JellyfishWebP}
+                    onLoad={onLoad}
+                    animated
+                />
+                <Example
+                    name="Base64"
+                    source={{ uri: FieldsBase64 }}
+                    onLoad={onLoad}
+                />
+                <Example name="WebP" source={FieldsWebP} onLoad={onLoad} />
+                <PhotoExample />
+            </View>
         </View>
-    </View>
-)
+    )
+}
 
 const styles = StyleSheet.create({
     pickPhoto: { color: 'white', fontWeight: '900' },
@@ -113,6 +146,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingTop: 10,
         paddingBottom: 10,
+    },
+    compact: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
     },
     imageSquare: {
         alignItems: 'center',

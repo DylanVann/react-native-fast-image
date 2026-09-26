@@ -27,15 +27,27 @@
 // with that `group` query parameter, and the most of them in flight at the
 // same time: `{ "count": 4, "peak": 3 }` (for checking a concurrency limit).
 //
+// /regression is a WebSocket relay for the example's regression runner
+// (ReactNativeFastImageExample/src/RegressionRunner.tsx): the app connects with
+// ?role=app&platform=<ios|android>, scripts/verify.mts with ?role=controller
+// &platform=<the same>. Messages from the app go to that platform's controllers
+// and the other way round, unchanged; controllers also get
+// `{ "type": "app", "connected": true|false }` when the app connects or goes.
+// A plain GET /regression?platform=<platform> answers whether a controller is
+// connected (`{ "controller": true }`): the app asks on launch, and shows the
+// runner instead of its tabs if one is.
+//
 // On the next port (8091), the same images are sent slowly: in 8 parts, one a
-// second (about 7 s in all), with a Content-Length (for progress), and only
-// with `x-token: fast-image`. A test can do something while they load (e.g.
-// send the app to the background). It's a node:http server because Bun.serve
+// second (about 7 s in all; `?delay=<ms>` sets the pause between parts, 50 to
+// 5000), with a Content-Length (for progress), and only with `x-token:
+// fast-image`. A test can do something while they load (e.g. send the app to
+// the background). It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
 import http from 'node:http'
 import path from 'node:path'
+import type { ServerWebSocket } from 'bun'
 
 const IMAGES = path.join(import.meta.dir, 'images')
 const PORT = Number(process.env.PORT ?? 8090)
@@ -48,10 +60,36 @@ const groups = new Map<
     { count: number; active: number; peak: number }
 >()
 
+type Socket = ServerWebSocket<{ role: 'app' | 'controller'; platform: string }>
+const apps = new Map<string, Socket>()
+const controllers = new Map<string, Set<Socket>>()
+const controllersFor = (platform: string) => {
+    let set = controllers.get(platform)
+    if (!set) controllers.set(platform, (set = new Set()))
+    return set
+}
+
 const server = Bun.serve({
     port: PORT,
-    async fetch(request) {
+    async fetch(request, server) {
         const url = new URL(request.url)
+        if (url.pathname === '/regression') {
+            const role = url.searchParams.get('role')
+            const platform = url.searchParams.get('platform') ?? ''
+            if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+                return Response.json({
+                    controller: controllersFor(platform).size > 0,
+                })
+            }
+            if (role !== 'app' && role !== 'controller') {
+                return new Response('role must be app or controller', {
+                    status: 400,
+                })
+            }
+            return server.upgrade(request, { data: { role, platform } })
+                ? undefined
+                : new Response('WebSocket upgrade failed', { status: 400 })
+        }
         if (url.pathname === '/requests') {
             const group = url.searchParams.get('group')
             if (group !== null) {
@@ -144,6 +182,49 @@ const server = Bun.serve({
         if (setCookie) headers.append('Set-Cookie', setCookie)
         return new Response(image, { headers })
     },
+    websocket: {
+        open(ws: Socket) {
+            const { role, platform } = ws.data
+            if (role === 'app') {
+                apps.get(platform)?.close()
+                apps.set(platform, ws)
+                for (const c of controllersFor(platform))
+                    c.send(JSON.stringify({ type: 'app', connected: true }))
+            } else {
+                controllersFor(platform).add(ws)
+                ws.send(
+                    JSON.stringify({
+                        type: 'app',
+                        connected: apps.has(platform),
+                    }),
+                )
+            }
+        },
+        message(ws: Socket, message) {
+            const { role, platform } = ws.data
+            const text =
+                typeof message === 'string' ? message : message.toString()
+            if (role === 'app') {
+                for (const c of controllersFor(platform)) c.send(text)
+            } else {
+                apps.get(platform)?.send(text)
+            }
+        },
+        close(ws: Socket) {
+            const { role, platform } = ws.data
+            if (role === 'app') {
+                if (apps.get(platform) === ws) {
+                    apps.delete(platform)
+                    for (const c of controllersFor(platform))
+                        c.send(
+                            JSON.stringify({ type: 'app', connected: false }),
+                        )
+                }
+            } else {
+                controllersFor(platform).delete(ws)
+            }
+        },
+    },
 })
 
 console.log(`Serving ${IMAGES} at ${server.url}`)
@@ -185,12 +266,16 @@ http.createServer(async (request, response) => {
         'Content-Length': String(bytes.length),
     })
     const parts = 8
+    const delay = Math.min(
+        5000,
+        Math.max(50, Number(url.searchParams.get('delay')) || 1000),
+    )
     const size = Math.ceil(bytes.length / parts)
     for (let part = 0; part < parts; part++) {
         // The client went away (e.g. the app cancelled the load).
         if (response.destroyed) return
         response.write(bytes.subarray(part * size, (part + 1) * size))
-        if (part < parts - 1) await Bun.sleep(1000)
+        if (part < parts - 1) await Bun.sleep(delay)
     }
     response.end()
 }).listen(SLOW_PORT, () => {

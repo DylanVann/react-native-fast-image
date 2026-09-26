@@ -1,0 +1,53 @@
+# Opens the Regression tab and runs the cases that need a real touch: taps the
+# touchable and pointer-events images and waits for their OK. The other cases
+# run in the regression runner (ReactNativeFastImageExample/src/RegressionRunner.tsx),
+# driven by scripts/verify.mts over a WebSocket, which is much faster than
+# waiting on each one through the accessibility tree. A crash fails the flow.
+#
+#   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/touch.yaml
+#
+# App IDs:
+#   ReactNativeFastImageExample        iOS: org.reactjs.native.example.ReactNativeFastImageExample
+#                                      Android: com.reactnativefastimageexample
+#   ReactNativeFastImageExampleLegacy  iOS: org.reactjs.native.example.ReactNativeFastImageExampleLegacy
+#                                      Android: com.reactnativefastimageexamplelegacy
+#
+# Elements are selected by testID
+# (regression-<case>) or exact text: on iOS, maestro-runner resolves those
+# with a WebDriverAgent lookup, while a regex like 'case: .*' makes it fetch
+# and parse the whole page source on every poll.
+appId: ${APP_ID}
+# maestro-runner saves each screenshot in the run's report and also here,
+# relative to this file (ignored).
+env:
+    OUT: maestro-screenshots
+---
+- launchApp:
+      stopApp: true
+# The first launch after an install can be slow on Android (the app is still
+# being compiled), so wait for the tab bar rather than tapping right away.
+- extendedWaitUntil:
+      visible:
+          id: 'tab-regression'
+      timeout: 60000
+- tapOn:
+      id: 'tab-regression'
+- scrollUntilVisible:
+      element:
+          id: 'regression-touchable'
+      timeout: 10000
+- tapOn:
+      id: 'regression-touchable-image'
+- extendedWaitUntil:
+      visible: 'touchable: OK'
+      timeout: 10000
+- scrollUntilVisible:
+      element:
+          id: 'regression-pointer-events'
+      timeout: 10000
+- tapOn:
+      id: 'regression-pointer-events-target'
+- extendedWaitUntil:
+      visible: 'pointer-events: OK'
+      timeout: 10000
+- takeScreenshot: ${OUT}/touch
