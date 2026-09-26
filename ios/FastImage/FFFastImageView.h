@@ -25,6 +25,9 @@
 // How many times animated images play: -1 for the file's own loop count (the
 // `loop` prop not set), 0 for forever, or a number of times.
 @property (nonatomic, assign) NSInteger loopCount;
+// How the image is filtered when drawn at another size: auto, smooth or
+// pixelated.
+@property (nonatomic, copy) NSString *imageRendering;
 
 @end
 

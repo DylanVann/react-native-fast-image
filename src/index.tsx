@@ -116,6 +116,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * or a number of times. Changing it restarts the animation.
      */
     loop?: boolean | number
+    /**
+     * How the image is filtered when it's drawn smaller or larger than its
+     * size: `'auto'` (default, the platform's usual filtering), `'smooth'`
+     * (iOS only: keeps a large image drawn much smaller from looking jagged
+     * or noisy; uses more memory, see the README) or `'pixelated'` (sharp
+     * pixels, e.g. for pixel art).
+     */
+    imageRendering?: 'auto' | 'smooth' | 'pixelated'
 
     onLoadStart?(): void
 

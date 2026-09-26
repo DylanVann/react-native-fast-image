@@ -297,6 +297,20 @@ describe('recyclingKey', () => {
     })
 })
 
+describe('imageRendering', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.png' }}
+                    imageRendering="pixelated"
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.imageRendering).toBe('pixelated')
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import {
     AppState,
     Image,
+    PixelRatio,
     Platform,
     Pressable,
     ScrollView,
@@ -1228,6 +1229,105 @@ function ErrorMessageCase() {
     )
 }
 
+// imageRendering: each row shows an image at its own size (one image pixel
+// per screen pixel, cropped), then drawn in each mode (columns: auto, smooth,
+// pixelated). Checked by the screenshot; each row says what to expect. Shrunk
+// with auto or pixelated, the first two rows lose detail, differently on each
+// platform (they drop different pixels). smooth is iOS only (the same as auto
+// on Android).
+const RENDERING_MODES = ['auto', 'smooth', 'pixelated'] as const
+const RENDERING_COLUMN = 96
+const RENDERING_ROWS = [
+    {
+        image: 'stripes.png',
+        size: { width: 1024, height: 1024 },
+        drawn: { width: 48, height: 48 },
+        label: 'Shrunk: 1px black and white stripes (1024px) drawn at 48. smooth (iOS): an even gray (#445)',
+    },
+    {
+        image: 'text-page.png',
+        size: { width: 1600, height: 1000 },
+        drawn: { width: 96, height: 60 },
+        label: 'Shrunk: a page of small text (1600px wide) drawn at 96. smooth (iOS): the lines of text stay continuous',
+    },
+    {
+        image: 'sprite-12.png',
+        size: { width: 12, height: 12 },
+        drawn: { width: 60, height: 60 },
+        label: 'Enlarged: 12px pixel art drawn at 60. pixelated: sharp pixels; auto and smooth blur it (#926)',
+    },
+]
+
+// The image at its own size, in a window that crops it.
+function OriginalCrop({
+    image,
+    size,
+}: {
+    image: string
+    size: { width: number; height: number }
+}) {
+    const scale = PixelRatio.get()
+    return (
+        <View style={renderingStyles.original}>
+            <FastImage
+                style={{
+                    width: size.width / scale,
+                    height: size.height / scale,
+                }}
+                source={{ uri: imageUrl(image) }}
+                imageRendering="pixelated"
+            />
+        </View>
+    )
+}
+
+function ImageRenderingCase() {
+    const [loads, setLoads] = useState(0)
+    const onLoad = () => setLoads((n) => n + 1)
+    const total = RENDERING_MODES.length * RENDERING_ROWS.length
+    return (
+        <View>
+            {RENDERING_ROWS.map((row) => (
+                <View key={row.image} style={renderingStyles.row}>
+                    <Text style={styles.description}>{row.label}</Text>
+                    <OriginalCrop image={row.image} size={row.size} />
+                    <View style={renderingStyles.columns}>
+                        {RENDERING_MODES.map((mode) => (
+                            <View key={mode} style={renderingStyles.column}>
+                                <Text style={styles.description}>{mode}</Text>
+                                <FastImage
+                                    style={row.drawn}
+                                    source={{ uri: imageUrl(row.image) }}
+                                    imageRendering={mode}
+                                    onLoad={onLoad}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            ))}
+            <CaseStatus
+                id="image-rendering"
+                status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
+                description="imageRendering: each image at its own size, then auto, smooth and pixelated"
+            />
+        </View>
+    )
+}
+
+const renderingStyles = StyleSheet.create({
+    row: { marginBottom: 10 },
+    original: {
+        width: 200,
+        height: 24,
+        overflow: 'hidden',
+        backgroundColor: '#eee',
+        marginVertical: 4,
+    },
+    columns: { flexDirection: 'row' },
+    column: { width: RENDERING_COLUMN, marginRight: 12 },
+})
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1453,6 +1553,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             />,
             <GifLoopChangeCase key="gif-loop-change" />,
         ],
+    },
+    {
+        name: 'image-rendering',
+        cases: [<ImageRenderingCase key="image-rendering" />],
     },
     {
         name: 'loading',
