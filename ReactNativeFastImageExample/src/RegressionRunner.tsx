@@ -21,6 +21,9 @@ import {
     MeasureMask,
     Rect,
     ReportContext,
+    SampleContext,
+    SampleRequest,
+    SampleResult,
     SnapshotContext,
 } from './RunnerContext'
 import { regressionSocketUrl } from './imageServer'
@@ -39,12 +42,17 @@ import { regressionSocketUrl } from './imageServer'
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
 //   { type: 'snapshot', group, name, masks }      take a screenshot now
 //   { type: 'masks', group, id, masks }           the reply to 'measure'
+//   { type: 'sample', group, name, area, durationMs, expect, palette }
+//                                                 record a video sample (see
+//                                                 scripts/verify.mts)
 //   { type: 'done' }                               past the last group
 // masks: the areas (dp, from the window's top left) to leave out of the
 // screenshot comparison, measured just before (see Masked).
 // From the script: { type: 'next' } shows the next group; { type: 'show',
 // index } a given one; { type: 'measure', group, id } asks for the group's
-// masks as they are now, before the script takes its screenshot.
+// masks as they are now, before the script takes its screenshot;
+// { type: 'recording', group, name } says a sample's recording has started,
+// and { type: 'sampled', group, name, ok, seen, detail } gives its result.
 
 type Message = { type: string; [key: string]: unknown }
 
@@ -70,6 +78,14 @@ export default function RegressionRunner() {
     const setMeasureMasks = useCallback((measure: () => Promise<Rect[]>) => {
         measureMasks.current = measure
     }, [])
+    // Samples waiting for their recording to start, then for their result.
+    const [samples] = useState(
+        () =>
+            new Map<
+                string,
+                { change: () => void; resolve: (result: SampleResult) => void }
+            >(),
+    )
     // Sent once the socket is open, after hello.
     const queue = useRef<string[]>([])
     const send = useCallback((message: Message) => {
@@ -102,7 +118,12 @@ export default function RegressionRunner() {
             }
             ws.onmessage = (event) => {
                 const message = JSON.parse(String(event.data)) as Message
-                if (message.type === 'next') setIndex((i) => i + 1)
+                const sample = samples.get(`${message.group}/${message.name}`)
+                if (message.type === 'recording') sample?.change()
+                else if (message.type === 'sampled') {
+                    samples.delete(`${message.group}/${message.name}`)
+                    sample?.resolve(message as unknown as SampleResult)
+                } else if (message.type === 'next') setIndex((i) => i + 1)
                 else if (message.type === 'measure') {
                     afterLayout()
                         .then(() => measureMasks.current())
@@ -133,7 +154,7 @@ export default function RegressionRunner() {
             clearTimeout(retry)
             ws?.close()
         }
-    }, [groups, send])
+    }, [groups, send, samples])
     const done = index >= groups.length
     useEffect(() => {
         if (done) send({ type: 'done' })
@@ -155,6 +176,7 @@ export default function RegressionRunner() {
                         group={groups[index]}
                         send={send}
                         setMeasureMasks={setMeasureMasks}
+                        samples={samples}
                     />
                 )}
             </View>
@@ -167,11 +189,16 @@ function Group({
     group,
     send,
     setMeasureMasks,
+    samples,
 }: {
     index: number
     group: RegressionGroup
     send: (message: Message) => void
     setMeasureMasks: (measure: () => Promise<Rect[]>) => void
+    samples: Map<
+        string,
+        { change: () => void; resolve: (result: SampleResult) => void }
+    >
 }) {
     const statuses = useRef(new Map<string, string>())
     const [summary, setSummary] = useState('')
@@ -219,6 +246,14 @@ function Group({
         },
         [index, send, measure],
     )
+    const sample = useCallback(
+        (request: SampleRequest, change: () => void) =>
+            new Promise<SampleResult>((resolve) => {
+                samples.set(`${index}/${request.name}`, { change, resolve })
+                send({ type: 'sample', group: index, ...request })
+            }),
+        [index, send, samples],
+    )
     // After the cases' effects, which report their first status.
     useEffect(() => {
         send({
@@ -232,14 +267,16 @@ function Group({
         <ReportContext.Provider value={report}>
             <MaskContext.Provider value={mask}>
                 <SnapshotContext.Provider value={snapshot}>
-                    {/* The summary changes as cases settle, so a screenshot
+                    <SampleContext.Provider value={sample}>
+                        {/* The summary changes as cases settle, so a screenshot
                         taken while they run (a snapshot) leaves it out. */}
-                    <Masked>
-                        <Text style={caseStyles.title}>
-                            {group.name}: {summary}
-                        </Text>
-                    </Masked>
-                    {group.cases}
+                        <Masked>
+                            <Text style={caseStyles.title}>
+                                {group.name}: {summary}
+                            </Text>
+                        </Masked>
+                        {group.cases}
+                    </SampleContext.Provider>
                 </SnapshotContext.Provider>
             </MaskContext.Provider>
         </ReportContext.Provider>
