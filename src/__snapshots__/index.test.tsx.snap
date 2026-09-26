@@ -16,6 +16,7 @@ exports[`FastImage (iOS) renders 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    loopCount={-1}
     resizeMode="cover"
     source={
       {
@@ -55,6 +56,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    loopCount={-1}
     resizeMode="cover"
     source={
       {
@@ -133,6 +135,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
         "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
       }
     }
+    loopCount={-1}
     resizeMode="cover"
     source={null}
     style={
@@ -163,6 +166,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
   }
 >
   <FastImageView
+    loopCount={-1}
     resizeMode="cover"
     source={null}
     style={
@@ -193,6 +197,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
   }
 >
   <FastImageView
+    loopCount={-1}
     resizeMode="cover"
     source={
       {
@@ -228,6 +233,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    loopCount={-1}
     resizeMode="cover"
     source={null}
     style={

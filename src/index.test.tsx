@@ -45,6 +45,30 @@ describe('FastImage (iOS)', () => {
         expect(jsx(tree)).toMatchSnapshot()
     })
 
+    it('maps loop to the native loopCount', () => {
+        const cases: [boolean | number | undefined, number][] = [
+            [undefined, -1],
+            [true, 0],
+            [false, 1],
+            [3, 3],
+            [2.7, 2],
+            [0, 1],
+            [Infinity, 0],
+        ]
+        for (const [loop, loopCount] of cases) {
+            const [view] = renderer
+                .create(
+                    <FastImage
+                        source={{ uri: 'https://example.com/a.gif' }}
+                        loop={loop}
+                        style={style.image}
+                    />,
+                )
+                .root.findAll((node) => 'loopCount' in node.props)
+            expect(view.props.loopCount).toBe(loopCount)
+        }
+    })
+
     it('passes a required (numeric) source to Image when using fallback', () => {
         const resolveAssetSource = spyOn(
             Image,

@@ -83,6 +83,7 @@ export type FastImageProps = $ReadOnly<{|
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
     recyclingKey?: ?string,
+    loop?: ?(boolean | number),
     testID?: ?string,
 |}>
 
