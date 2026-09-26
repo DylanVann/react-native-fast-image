@@ -26,9 +26,6 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
-    return error.localizedDescription ?: @"Failed to load the image";
-}
-
 // Preloads waiting to start, in the order they were added, and the number
 // loading, across all preload calls. Like SDWebImagePrefetcher, at most
 // maxConcurrentPrefetchCount load at a time, so a long list doesn't queue
