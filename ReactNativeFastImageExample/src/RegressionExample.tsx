@@ -817,6 +817,39 @@ function BackgroundCases() {
     )
 }
 
+// resizeMode center: a 600x300 image (red, with a blue border) is scaled down
+// to fit the view, so the border shows (iOS showed it at full size, cropped to
+// red); a 16x16 one (green) stays at its own size. Check the screenshot.
+function CenterCase() {
+    const [loaded, setLoaded] = useState(0)
+    const onLoad = () => setLoaded((n) => n + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                resizeMode="center"
+                source={{ uri: imageUrl('center-large.png') }}
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[styles.image, styles.gap]}
+                resizeMode="center"
+                source={{ uri: imageUrl('center-small.png') }}
+                onLoad={onLoad}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-resize-center" style={styles.status}>
+                    resize-center: {loaded === 2 ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #866: resizeMode center scales a larger image down (blue
+                    border shows) and keeps a smaller one at its size
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -984,6 +1017,7 @@ export default function RegressionExample() {
             </NoCrashCase>
             <WebCacheCase />
             <CookiesCase />
+            <CenterCase />
         </ScrollView>
     )
 }
@@ -1006,6 +1040,9 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         backgroundColor: '#eee',
+    },
+    gap: {
+        marginLeft: 8,
     },
     text: {
         flex: 1,

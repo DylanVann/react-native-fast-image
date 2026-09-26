@@ -50,8 +50,32 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 - (void) setResizeMode: (RCTResizeMode)resizeMode {
     if (_resizeMode != resizeMode) {
         _resizeMode = resizeMode;
-        self.contentMode = (UIViewContentMode) resizeMode;
+        [self updateContentMode];
     }
+}
+
+// The content mode for resizeMode. `center` scales an image larger than the
+// view down to fit, as React Native's Image and Android do (#866); only a
+// smaller one is shown at its own size. UIViewContentModeCenter alone showed
+// large images at full size, cropped. So it depends on the image and the
+// view's size.
+- (void) updateContentMode {
+    UIViewContentMode contentMode = (UIViewContentMode) _resizeMode;
+    if (_resizeMode == RCTResizeModeCenter) {
+        CGSize imageSize = super.image.size;
+        CGSize viewSize = self.bounds.size;
+        if (imageSize.width > viewSize.width || imageSize.height > viewSize.height) {
+            contentMode = UIViewContentModeScaleAspectFit;
+        }
+    }
+    if (self.contentMode != contentMode) {
+        self.contentMode = contentMode;
+    }
+}
+
+- (void) layoutSubviews {
+    [super layoutSubviews];
+    [self updateContentMode];
 }
 
 - (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
@@ -142,6 +166,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
         self.untintedImage = nil;
         super.image = image;
     }
+    [self updateContentMode];
 }
 
 - (void) sendOnLoad: (UIImage*)image {
