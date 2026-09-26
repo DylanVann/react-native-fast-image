@@ -8,6 +8,26 @@ const root = path.resolve(__dirname, '..')
 // (react, react-native). Block them so the library source uses this app's.
 const peers = Object.keys(pkg.peerDependencies)
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const dir = (p) => new RegExp(`^${escape(p)}\\/.*$`)
+
+// Metro sends the app an update for any change in its watch folders, even a
+// file the app doesn't use, and React Native shows "Refreshing..." for it
+// (in verify.mts's screenshots too). Leave out what changes while the app
+// runs and isn't JavaScript: verify.mts's output and references, local
+// notes, and the native projects builds write into.
+const notSource = [
+    ...[
+        'verify-output',
+        'screenshots',
+        'recordings',
+        '.local',
+        'android',
+        'ios',
+    ].map((d) => dir(path.join(root, d))),
+    dir(path.join(__dirname, 'android')),
+    dir(path.join(__dirname, 'ios')),
+    new RegExp(`^${escape(root)}\\/[^/]+\\.md$`),
+]
 
 /**
  * Metro configuration
@@ -18,12 +38,10 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const config = {
     watchFolders: [root],
     resolver: {
-        blockList: peers.map(
-            (m) =>
-                new RegExp(
-                    `^${escape(path.join(root, 'node_modules', m))}\\/.*$`,
-                ),
-        ),
+        blockList: [
+            ...peers.map((m) => dir(path.join(root, 'node_modules', m))),
+            ...notSource,
+        ],
         extraNodeModules: Object.fromEntries(
             peers.map((m) => [m, path.join(__dirname, 'node_modules', m)]),
         ),

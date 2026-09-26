@@ -7,6 +7,25 @@ const example = path.join(root, 'ReactNativeFastImageExample')
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const dir = (p) => new RegExp(`^${escape(p)}\\/.*$`)
 
+// Metro sends the app an update for any change in its watch folders, even a
+// file the app doesn't use, and React Native shows "Refreshing..." for it
+// (in verify.mts's screenshots too). Leave out what changes while the app
+// runs and isn't JavaScript: verify.mts's output and references, local
+// notes, and the native projects builds write into.
+const notSource = [
+    ...[
+        'verify-output',
+        'screenshots',
+        'recordings',
+        '.local',
+        'android',
+        'ios',
+    ].map((d) => dir(path.join(root, d))),
+    dir(path.join(__dirname, 'android')),
+    dir(path.join(__dirname, 'ios')),
+    new RegExp(`^${escape(root)}\\/[^/]+\\.md$`),
+]
+
 /**
  * Metro configuration
  * https://facebook.github.io/metro/docs/configuration
@@ -26,6 +45,7 @@ const config = {
             ...Object.keys(pkg.peerDependencies).map((m) =>
                 dir(path.join(root, 'node_modules', m)),
             ),
+            ...notSource,
         ],
         nodeModulesPaths: [path.join(__dirname, 'node_modules')],
         // Needed for subpath imports like @react-native-vector-icons/ionicons/static;
