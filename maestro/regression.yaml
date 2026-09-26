@@ -282,13 +282,15 @@ env:
       visible: 'resize-center: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload-results: .*'
+      element:
+          id: 'regression-preload-results'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'preload-results: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload-limit: .*'
+      element:
+          id: 'regression-preload-limit'
       timeout: 10000
 # 4 slow images (about 7 s each), 3 at a time: about 14 s from launch.
 - extendedWaitUntil:
