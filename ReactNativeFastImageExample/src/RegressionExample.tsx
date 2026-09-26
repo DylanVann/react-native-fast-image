@@ -58,6 +58,20 @@ const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
+// With `fallback`, FastImage renders React Native's Image, which fades an
+// image in over 300 ms on Android after it loads: a case waits that long
+// before it's OK, so the screenshot shows the image, not the fade.
+const FALLBACK_FADE = Platform.OS === 'android' ? 350 : 0
+function useAfterFade(fallback: boolean | undefined) {
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return (done: () => void) => {
+        if (!fallback || FALLBACK_FADE === 0) return done()
+        clearTimeout(timer.current)
+        timer.current = setTimeout(done, FALLBACK_FADE)
+    }
+}
+
 // Passes when `event` fires. With `removeAfter`, the handler is removed after
 // it fires, which crashed on iOS before #1088.
 function EventCase({
@@ -73,8 +87,11 @@ function EventCase({
     removeAfter?: boolean
 } & FastImageProps) {
     const [fired, setFired] = useState(false)
+    const afterFade = useAfterFade(props.fallback && event === 'onLoad')
     const attached = !(removeAfter && fired)
-    const handlers = attached ? { [event]: () => setFired(true) } : {}
+    const handlers = attached
+        ? { [event]: () => afterFade(() => setFired(true)) }
+        : {}
     return (
         <View style={styles.row}>
             <FastImage
@@ -126,10 +143,13 @@ function NoCrashCase({
 }
 
 // Passes when onLayout reports the image's position in its parent (x = 10
-// from its margin). It reported 0 when it came from the inner native view.
+// from its margin), once the image has loaded. It reported 0 when it came
+// from the inner native view.
 function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
     const [x, setX] = useState<number>()
-    const ok = x !== undefined && Math.abs(x - 10) < 1
+    const [loaded, setLoaded] = useState(false)
+    const afterFade = useAfterFade(fallback)
+    const ok = loaded && x !== undefined && Math.abs(x - 10) < 1
     return (
         <View style={styles.row}>
             <FastImage
@@ -137,10 +157,17 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
                 source={{ uri: LOGO }}
                 fallback={fallback}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
+                onLoad={() => afterFade(() => setLoaded(true))}
             />
             <CaseStatus
                 id={id}
-                status={ok ? 'OK' : x === undefined ? 'waiting' : `x=${x}`}
+                status={
+                    ok
+                        ? 'OK'
+                        : x === undefined || !loaded
+                          ? 'waiting'
+                          : `x=${x}`
+                }
                 description={`#992: onLayout reports the position in the parent${
                     fallback ? ' (fallback)' : ''
                 }`}

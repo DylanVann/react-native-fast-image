@@ -37,28 +37,39 @@ export const SnapshotContext = createContext<(name: string) => void>(() => {})
 
 export type Rect = { x: number; y: number; width: number; height: number }
 
-// Registers a screen area (in window coordinates, dp) to leave out of the
-// screenshot comparison.
-export const MaskContext = createContext<(rect: Rect) => void>(() => {})
+// Measures a masked area (in window coordinates, dp); undefined if it isn't
+// on screen.
+export type MeasureMask = () => Promise<Rect | undefined>
+
+// Registers a masked area's measure function, to leave it out of the
+// screenshot comparison; returns a function that unregisters it.
+export const MaskContext = createContext<(measure: MeasureMask) => () => void>(
+    () => () => {},
+)
 
 // Wraps content that differs between runs (an animated image, a timing) so
-// its area isn't compared. Measured after each layout.
+// its area isn't compared. The runner measures it when a screenshot is taken,
+// so it's where it is then, even if something above it changed size (which
+// moves it without a layout event of its own).
 export function Masked({ children, style, ...props }: ViewProps) {
     const register = useContext(MaskContext)
     const ref = useRef<React.ComponentRef<typeof View>>(null)
-    const onLayout = useCallback(() => {
-        ref.current?.measureInWindow((x, y, width, height) =>
-            register({ x, y, width, height }),
-        )
-    }, [register])
+    useEffect(
+        () =>
+            register(
+                () =>
+                    new Promise((resolve) => {
+                        const view = ref.current
+                        if (!view) return resolve(undefined)
+                        view.measureInWindow((x, y, width, height) =>
+                            resolve({ x, y, width, height }),
+                        )
+                    }),
+            ),
+        [register],
+    )
     return (
-        <View
-            ref={ref}
-            collapsable={false}
-            onLayout={onLayout}
-            style={style}
-            {...props}
-        >
+        <View ref={ref} collapsable={false} style={style} {...props}>
             {children}
         </View>
     )

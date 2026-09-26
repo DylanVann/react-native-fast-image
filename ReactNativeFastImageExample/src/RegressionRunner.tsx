@@ -18,6 +18,7 @@ import { EXAMPLE_GROUPS } from './ExampleGroups'
 import {
     Masked,
     MaskContext,
+    MeasureMask,
     Rect,
     ReportContext,
     SnapshotContext,
@@ -36,15 +37,22 @@ import { regressionSocketUrl } from './imageServer'
 //                                                 dp; scale = pixels per dp)
 //   { type: 'group', index, name, cases: [ids] }  once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'mask', group, x, y, width, height }  an area (dp, from the
-//                                                 window's top left) to leave
-//                                                 out of screenshot comparisons
-//   { type: 'snapshot', group, name }             take a screenshot now
+//   { type: 'snapshot', group, name, masks }      take a screenshot now
+//   { type: 'masks', group, id, masks }           the reply to 'measure'
 //   { type: 'done' }                               past the last group
+// masks: the areas (dp, from the window's top left) to leave out of the
+// screenshot comparison, measured just before (see Masked).
 // From the script: { type: 'next' } shows the next group; { type: 'show',
-// index } a given one.
+// index } a given one; { type: 'measure', group, id } asks for the group's
+// masks as they are now, before the script takes its screenshot.
 
 type Message = { type: string; [key: string]: unknown }
+
+// After the last render has been laid out (two frames).
+const afterLayout = () =>
+    new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    )
 
 const isFabric = () =>
     (globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager !=
@@ -57,6 +65,11 @@ export default function RegressionRunner() {
     const [index, setIndex] = useState(0)
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)
+    // Measures the group on screen's masks (set by Group).
+    const measureMasks = useRef<() => Promise<Rect[]>>(async () => [])
+    const setMeasureMasks = useCallback((measure: () => Promise<Rect[]>) => {
+        measureMasks.current = measure
+    }, [])
     // Sent once the socket is open, after hello.
     const queue = useRef<string[]>([])
     const send = useCallback((message: Message) => {
@@ -90,7 +103,18 @@ export default function RegressionRunner() {
             ws.onmessage = (event) => {
                 const message = JSON.parse(String(event.data)) as Message
                 if (message.type === 'next') setIndex((i) => i + 1)
-                else if (
+                else if (message.type === 'measure') {
+                    afterLayout()
+                        .then(() => measureMasks.current())
+                        .then((masks) =>
+                            send({
+                                type: 'masks',
+                                group: message.group,
+                                id: message.id,
+                                masks,
+                            }),
+                        )
+                } else if (
                     message.type === 'show' &&
                     typeof message.index === 'number'
                 )
@@ -109,7 +133,7 @@ export default function RegressionRunner() {
             clearTimeout(retry)
             ws?.close()
         }
-    }, [groups])
+    }, [groups, send])
     const done = index >= groups.length
     useEffect(() => {
         if (done) send({ type: 'done' })
@@ -130,6 +154,7 @@ export default function RegressionRunner() {
                         index={index}
                         group={groups[index]}
                         send={send}
+                        setMeasureMasks={setMeasureMasks}
                     />
                 )}
             </View>
@@ -141,10 +166,12 @@ function Group({
     index,
     group,
     send,
+    setMeasureMasks,
 }: {
     index: number
     group: RegressionGroup
     send: (message: Message) => void
+    setMeasureMasks: (measure: () => Promise<Rect[]>) => void
 }) {
     const statuses = useRef(new Map<string, string>())
     const [summary, setSummary] = useState('')
@@ -165,13 +192,32 @@ function Group({
         },
         [index, send],
     )
-    const mask = useCallback(
-        (rect: Rect) => send({ type: 'mask', group: index, ...rect }),
-        [index, send],
-    )
+    const masks = useRef(new Set<MeasureMask>())
+    const mask = useCallback((measure: MeasureMask) => {
+        masks.current.add(measure)
+        return () => {
+            masks.current.delete(measure)
+        }
+    }, [])
+    const measure = useCallback(async () => {
+        const rects = await Promise.all([...masks.current].map((m) => m()))
+        return rects.filter((rect): rect is Rect => rect != null)
+    }, [])
+    useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
     const snapshot = useCallback(
-        (name: string) => send({ type: 'snapshot', group: index, name }),
-        [index, send],
+        (name: string) => {
+            afterLayout()
+                .then(measure)
+                .then((rects) =>
+                    send({
+                        type: 'snapshot',
+                        group: index,
+                        name,
+                        masks: rects,
+                    }),
+                )
+        },
+        [index, send, measure],
     )
     // After the cases' effects, which report their first status.
     useEffect(() => {
