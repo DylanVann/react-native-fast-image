@@ -64,7 +64,7 @@ and
 
 ## Usage
 
-**Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
+Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture. It's tested on React Native 0.87 with the New Architecture and 0.73 with the legacy architecture. A native New Architecture component is planned for the next major version.
 
 ```bash
 yarn add react-native-fast-image
