@@ -1,3 +1,10 @@
+# [8.12.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.11.0...v8.12.0) (2026-09-26)
+
+
+### Features
+
+* add a paused prop for animated images ([#1154](https://github.com/DylanVann/react-native-fast-image/issues/1154)) ([ca82135](https://github.com/DylanVann/react-native-fast-image/commit/ca82135fdadf98bcfd0180a20644989c02fe4e9e)), closes [#964](https://github.com/DylanVann/react-native-fast-image/issues/964)
+
 # [8.11.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.10.0...v8.11.0) (2026-09-26)
 
 
