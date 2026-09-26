@@ -56,7 +56,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       # Bumps the version, publishes to npm, and pushes the release commit and
-      # tag (release.config.js).
+      # tag (release.config.mjs).
       - run: bun run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
