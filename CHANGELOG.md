@@ -1,3 +1,10 @@
+# [8.8.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.7.0...v8.8.0) (2026-09-26)
+
+
+### Features
+
+* keep the previous image while a new source loads, and add recyclingKey ([#1142](https://github.com/DylanVann/react-native-fast-image/issues/1142)) ([4ae925a](https://github.com/DylanVann/react-native-fast-image/commit/4ae925a69ea3b1844dcbc535ded52e26f9a96f08)), closes [#747](https://github.com/DylanVann/react-native-fast-image/issues/747) [#171](https://github.com/DylanVann/react-native-fast-image/issues/171) [#983](https://github.com/DylanVann/react-native-fast-image/issues/983)
+
 # [8.7.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.43...v8.7.0) (2026-09-26)
 
 
