@@ -1105,6 +1105,51 @@ export const styles = StyleSheet.create({
 // time (each fits on a screen, so its screenshot shows every case). Cases in
 // a group load at the same time; timed ones (a second or two) are grouped so
 // they overlap. Keys are the case ids, which must be unique across groups.
+
+// TEMPORARY (border check): FastImage (left) and React Native's Image (right)
+// with the same border styles.
+const BORDER_STYLES: { name: string; style: object }[] = [
+    { name: 'circle', style: { borderRadius: 48 } },
+    {
+        name: 'radius + border',
+        style: { borderRadius: 24, borderWidth: 4, borderColor: 'red' },
+    },
+    {
+        name: 'corners',
+        style: { borderTopLeftRadius: 40, borderBottomRightRadius: 12 },
+    },
+    { name: 'scale', style: { borderRadius: 48, transform: [{ scale: 0.9 }] } },
+]
+function BordersCase() {
+    const [loads, setLoads] = useState(0)
+    const onLoad = () => setLoads((n) => n + 1)
+    const source = { uri: imageUrl('picsum/1025-200x200.jpg') }
+    return (
+        <View>
+            {BORDER_STYLES.map(({ name, style }) => (
+                <View key={name} style={{ flexDirection: 'row', marginBottom: 8 }}>
+                    <FastImage
+                        source={source}
+                        style={[{ width: 96, height: 96 }, style]}
+                        onLoad={onLoad}
+                    />
+                    <Image
+                        source={source}
+                        style={[{ width: 96, height: 96, marginLeft: 16 }, style]}
+                        onLoad={onLoad}
+                    />
+                    <Text style={{ marginLeft: 12 }}>{name}</Text>
+                </View>
+            ))}
+            <CaseStatus
+                id="borders"
+                status={loads >= 8 ? 'OK' : `loaded ${loads}`}
+                description="border styles: FastImage (left), Image (right)"
+            />
+        </View>
+    )
+}
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1331,6 +1376,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
         ],
     },
+    { name: 'borders', cases: [<BordersCase key="borders" />] },
 ]
 
 export default function RegressionExample() {
