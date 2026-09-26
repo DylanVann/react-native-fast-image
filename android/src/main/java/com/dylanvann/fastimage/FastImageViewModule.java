@@ -7,9 +7,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -101,6 +103,13 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         finishOne.run();
                         continue;
                     }
+                    RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
+                    // Low priority unless the source sets one, as on iOS (the
+                    // prefetcher's options), so the images the app shows load
+                    // first.
+                    final RequestOptions preloadOptions = source.hasKey("priority") && !source.isNull("priority")
+                            ? options
+                            : options.priority(Priority.LOW);
                     pendingPreloads.add(new Runnable() {
                         @Override
                         public void run() {
@@ -109,7 +118,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                     // Load it the way the view does, so local images
                                     // (file://, content://, asset:/) work too.
                                     .load(imageSource.getSourceForLoad())
-                                    .apply(FastImageViewConverter.getOptions(context, imageSource, source))
+                                    .apply(preloadOptions)
                                     .listener(new RequestListener<Drawable>() {
                                         @Override
                                         public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
