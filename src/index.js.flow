@@ -44,7 +44,7 @@ export type Priorities = $Values<Priority>
 export type CacheControls = $Values<CacheControl>
 
 export type PreloadSuccess = {|
-    uri?: string,
+    uri: string,
     ok: true,
     width: number,
     height: number,

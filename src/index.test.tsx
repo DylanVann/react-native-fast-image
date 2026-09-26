@@ -211,6 +211,8 @@ describe('FastImage (iOS)', () => {
             // error.
             const [loaded, failed] = results
             if (loaded.ok) {
+                const uri: string = loaded.uri
+                expect(uri).toBe('https://example.com/a.png')
                 const width: number = loaded.width
                 expect(width).toBe(10)
             }

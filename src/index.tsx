@@ -311,7 +311,7 @@ FastImageComponent.displayName = 'FastImage'
 // A source that loaded (and is now cached).
 export interface PreloadSuccess {
     // The source's uri.
-    uri?: string
+    uri: string
     ok: true
     // The image's size (as in onLoad).
     width: number
@@ -321,7 +321,7 @@ export interface PreloadSuccess {
 
 // A source that failed to load.
 export interface PreloadFailure {
-    // The source's uri.
+    // The source's uri (none for a source without one, e.g. null).
     uri?: string
     ok: false
     // What went wrong.
@@ -365,10 +365,14 @@ FastImage.preload = (sources: Source[]) =>
     Promise.resolve(
         NativeModules.FastImageView.preload(sources.map((s) => s || {})),
     ).then((results?: NativePreloadResult[]) =>
-        sources.map((source, i): PreloadResult => ({
-            uri: source ? source.uri : undefined,
-            ...(results?.[i] ?? noResult),
-        })),
+        sources.map((source, i): PreloadResult => {
+            const uri = source ? source.uri : undefined
+            const result = results?.[i] ?? noResult
+            // Native fails a source without a uri, so one that loaded has one.
+            return result.ok
+                ? { ...result, uri: uri as string }
+                : { ...result, uri }
+        }),
     )
 
 FastImage.clearMemoryCache = () =>
