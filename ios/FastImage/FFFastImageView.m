@@ -20,6 +20,9 @@
 @property(nonatomic, assign) BOOL retriedAfterBackground;
 // Waits for the app to be active again, to restart a load.
 @property(nonatomic, strong) id activeObserver;
+// Whether the view shows an image that loaded (not defaultSource or nothing).
+// A new source then keeps it until the new image has loaded (see reloadImage).
+@property(nonatomic, assign) BOOL showsLoadedImage;
 
 @end
 
@@ -186,6 +189,21 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     }
 }
 
+- (void) setRecyclingKey: (NSString*)recyclingKey {
+    if (_recyclingKey == recyclingKey || [_recyclingKey isEqualToString: recyclingKey]) {
+        return;
+    }
+    BOOL changed = _recyclingKey != nil;
+    _recyclingKey = [recyclingKey copy];
+    if (changed) {
+        // The view shows other content now: don't keep the current image
+        // while the next one loads (reloadImage clears it), even if the
+        // source is the same.
+        self.showsLoadedImage = NO;
+        _needsReload = YES;
+    }
+}
+
 - (void) setDefaultSource: (UIImage*)defaultSource {
     if (_defaultSource != defaultSource) {
         _defaultSource = defaultSource;
@@ -217,6 +235,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
             if (!image) {
                 // Not decodable: fail like a remote image, showing defaultSource.
                 [self setImage: _defaultSource];
+                self.showsLoadedImage = NO;
                 self.hasErrored = YES;
                 if (self.onFastImageError) {
                     self.onFastImageError(@{});
@@ -234,6 +253,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                 });
             }
             self.hasCompleted = YES;
+            self.showsLoadedImage = YES;
             [self sendOnLoad: image];
 
             if (self.onFastImageLoadEnd) {
@@ -270,6 +290,14 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                 break;
         }
 
+        // Keep showing the loaded image until the new one has loaded, instead
+        // of clearing it to defaultSource (or nothing) while it loads, which
+        // flashed (#747). defaultSource shows if the new image fails. As React
+        // Native's Image does; a `key` that changes starts from blank instead.
+        if (self.showsLoadedImage) {
+            options |= SDWebImageDelayPlaceholder;
+        }
+
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
             self.hasSentOnLoadStart = YES;
@@ -284,6 +312,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
         [self downloadImage: _source options: options context: context];
     } else if (_defaultSource) {
         [self setImage: _defaultSource];
+        self.showsLoadedImage = NO;
     }
 }
 
@@ -338,6 +367,8 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                     return;
                 }
                 if (error) {
+                    // SDWebImage shows the placeholder (defaultSource or nothing).
+                    weakSelf.showsLoadedImage = NO;
                     weakSelf.hasErrored = YES;
                     if (weakSelf.onFastImageError) {
                         weakSelf.onFastImageError(@{});
@@ -347,6 +378,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                     }
                 } else {
                     weakSelf.hasCompleted = YES;
+                    weakSelf.showsLoadedImage = YES;
                     [weakSelf sendOnLoad: image];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd(@{});

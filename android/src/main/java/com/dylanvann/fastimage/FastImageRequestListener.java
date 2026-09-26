@@ -19,19 +19,28 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private final String key;
     private final FastImageSource source;
+    // Whether the request shows the previous image as a thumbnail meanwhile.
+    private final boolean thumbnail;
+    // False when loading the image that's showing again at a new size: the
+    // view shows it at its old size if that fails.
+    private final boolean events;
 
-    FastImageRequestListener(String key, FastImageSource source) {
+    FastImageRequestListener(String key, FastImageSource source, boolean thumbnail, boolean events) {
         this.key = key;
         this.source = source;
+        this.thumbnail = thumbnail;
+        this.events = events;
     }
 
     @Override
     public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+        if (!events) return false;
         FastImageOkHttpProgressGlideModule.forget(key);
         if (!(target instanceof ImageViewTarget)) {
             return false;
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageFailed(thumbnail);
         FastImageEvents.send(view, REACT_ON_ERROR_EVENT);
         FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
         return false;
@@ -43,11 +52,13 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         final FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageLoaded();
         if (resource instanceof GifDrawable) {
             // Play the GIF as many times as the file says, as iOS does. Glide
             // loops every GIF forever by default (#651).
             ((GifDrawable) resource).setLoopCount(GifDrawable.LOOP_INTRINSIC);
         }
+        if (!events) return false;
         boolean local = !(model instanceof GlideUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,
                 dataSource == DataSource.RESOURCE_DISK_CACHE);

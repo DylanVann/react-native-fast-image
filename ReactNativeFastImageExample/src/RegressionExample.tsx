@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
     AppState,
+    Image,
     Platform,
     Pressable,
     ScrollView,
@@ -850,6 +851,63 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     )
 }
 
+// Shows a magenta image, then changes the source to a cyan one that takes
+// about 7 s (the slow server). While it loads, the view should keep showing
+// magenta (it flashed blank, #747); with `recycle`, recyclingKey changes too,
+// and it should be blank instead (for views reused for other content). The
+// flow takes a screenshot then. Passes when the cyan one has loaded. Started
+// from the box, so the flow can time the screenshot.
+function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
+    const [step, setStep] = useState<'start' | 'first' | 'second' | 'done'>(
+        'start',
+    )
+    const status = {
+        start: 'tap the box',
+        first: 'loading the first image',
+        second: 'loading the second image',
+        done: 'OK',
+    }[step]
+    return (
+        <View style={styles.row}>
+            {step === 'start' ? (
+                <Pressable
+                    testID={`regression-${id}-start`}
+                    style={styles.image}
+                    onPress={() => setStep('first')}
+                />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={
+                        step === 'first'
+                            ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+                            : {
+                                  uri: slowImageUrl(`cyan.png?${id}=${RUN}`),
+                                  headers: BACKGROUND_SLOW_HEADERS,
+                              }
+                    }
+                    recyclingKey={
+                        recycle ? (step === 'first' ? 'first' : 'second') : null
+                    }
+                    onLoad={() =>
+                        setStep((s) => (s === 'first' ? 'second' : 'done'))
+                    }
+                />
+            )}
+            <View style={styles.text}>
+                <Text testID={`regression-${id}`} style={styles.status}>
+                    {id}: {status}
+                </Text>
+                <Text style={styles.description}>
+                    {recycle
+                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads'
+                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (it flashed blank)'}
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // The background cases load only once started, so the rest of the tab's
 // cases aren't loading while the app goes to the background.
 function BackgroundCases() {
@@ -1004,6 +1062,46 @@ function PreloadLimitCase() {
                 </Text>
                 <Text style={styles.description}>
                     preload loads a few sources at a time
+                </Text>
+            </View>
+        </View>
+    )
+}
+
+// A portrait image (600x1200, 12px black and white stripes) with cover in a
+// view that gets taller after it loaded (96x16, then 96x96), next to React
+// Native's Image. Android showed a zoomed-in slice of it: Glide had cropped it
+// to the first size (#983). Check the screenshot: both should look the same.
+function SizeChangeCase() {
+    const [tall, setTall] = useState(false)
+    const [done, setDone] = useState(false)
+    const size = { width: 96, height: tall ? 96 : 16 }
+    useEffect(() => {
+        if (!tall) return
+        const t = setTimeout(() => setDone(true), 2000)
+        return () => clearTimeout(t)
+    }, [tall])
+    const source = { uri: imageUrl('portrait-stripes.png') }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={size}
+                resizeMode="cover"
+                source={source}
+                onLoad={() => setTimeout(() => setTall(true), 300)}
+            />
+            <Image
+                style={[size, styles.gap]}
+                resizeMode="cover"
+                source={source}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-size-change" style={styles.status}>
+                    size-change: {done ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #983: an image in a view that gets taller after it loaded
+                    looks like Image next to it (not zoomed in)
                 </Text>
             </View>
         </View>
@@ -1181,6 +1279,9 @@ export default function RegressionExample() {
             <WebCacheCase />
             <CookiesCase />
             <CenterCase />
+            <KeepPreviousCase id="keep-previous" />
+            <KeepPreviousCase id="recycling-key" recycle />
+            <SizeChangeCase />
         </ScrollView>
     )
 }

@@ -19,6 +19,9 @@
 @property (nonatomic, strong) FFFastImageSource *source;
 @property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
+// When it changes, the next image doesn't replace the current one: the view
+// clears first (for views reused for other content, like list rows).
+@property (nonatomic, copy) NSString *recyclingKey;
 
 @end
 

@@ -112,6 +112,8 @@ If you use Proguard you will need to add these lines to `android/app/proguard-ru
 
 Source for the remote image to load.
 
+When `source` changes, the image that's showing stays until the new one has loaded, as with `<img>` in browsers and React Native's `Image` on iOS. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
+
 ---
 
 ### `source.uri?: string`
@@ -147,7 +149,18 @@ Indicates the load order priority of an image. Images with `FastImage.priority.h
 ### `defaultSource?: number`
 
 - An asset loaded with `require(...)`.
+- Shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
 - Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
+
+---
+
+### `recyclingKey?: string`
+
+For views that get reused for other content, such as rows in FlashList or recyclerlistview. Set it to something that identifies the content, e.g. the item's id. When it changes, the image is cleared right away (to `defaultSource`, or blank) instead of staying until the new one has loaded. Unlike changing `key`, this keeps the view, which is what list recycling is for.
+
+```jsx
+<FastImage recyclingKey={item.id} source={{ uri: item.imageUrl }} />
+```
 
 ---
 

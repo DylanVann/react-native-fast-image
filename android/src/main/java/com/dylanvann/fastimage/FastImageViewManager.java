@@ -84,6 +84,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
     }
 
+    @ReactProp(name = "recyclingKey")
+    public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
+        view.setRecyclingKey(recyclingKey);
+    }
+
     @ReactProp(name = "resizeMode")
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);

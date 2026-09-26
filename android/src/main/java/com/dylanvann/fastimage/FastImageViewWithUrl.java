@@ -15,6 +15,8 @@ import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.target.DrawableImageViewTarget;
+import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -67,6 +69,143 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mNeedsReload = true;
     }
 
+    // The request for the image the view shows once it has loaded, and the one
+    // loading. A new source starts with the shown one as a thumbnail, from the
+    // cache only, so the image stays until the new one has loaded instead of
+    // flashing blank (#747). This is Glide's safe way to do that: the previous
+    // bitmap can't be kept in the view itself, since Glide reuses it once its
+    // request is cleared.
+    @Nullable
+    private RequestBuilder<Drawable> mShownRequest;
+    @Nullable
+    private RequestBuilder<Drawable> mLoadingRequest;
+    // Counts loads, to tell whether a posted update is for the current one.
+    private int mLoadCount = 0;
+    // The size Glide loaded the shown image at, and is loading the loading
+    // one at (0 until it has one).
+    private int mShownWidth = 0;
+    private int mShownHeight = 0;
+    private int mLoadingWidth = 0;
+    private int mLoadingHeight = 0;
+    private boolean mResizeReloadPosted = false;
+
+    @Nullable
+    private String mRecyclingKey;
+
+    // When it changes, the next image doesn't replace the current one: the
+    // view clears first (for views reused for other content, like list rows).
+    void setRecyclingKey(@Nullable String recyclingKey) {
+        if (recyclingKey == null ? mRecyclingKey == null : recyclingKey.equals(mRecyclingKey)) return;
+        boolean changed = mRecyclingKey != null;
+        mRecyclingKey = recyclingKey;
+        if (changed) {
+            // No thumbnail of the current image, so Glide clears the view to
+            // defaultSource (or nothing) while the next one loads. Reload even
+            // if the source is the same.
+            mShownRequest = null;
+            mNeedsReload = true;
+        }
+    }
+
+    // The loading image loaded (FastImageRequestListener).
+    void onImageLoaded() {
+        mShownRequest = mLoadingRequest;
+        mShownWidth = mLoadingWidth;
+        mShownHeight = mLoadingHeight;
+        reloadIfResized();
+    }
+
+    // Glide crops or scales the image to the view's size when it loads, so if
+    // the view's size changes after that, load it again at the new size.
+    // Otherwise a view that gets taller shows a zoomed-in slice of it (#983).
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        reloadIfResized();
+    }
+
+    private void reloadIfResized() {
+        if (mResizeReloadPosted || !isResized()) return;
+        mResizeReloadPosted = true;
+        // After layout (once per frame), and not from within Glide's callback.
+        post(new Runnable() {
+            @Override
+            public void run() {
+                mResizeReloadPosted = false;
+                if (isResized()) reloadForSize();
+            }
+        });
+    }
+
+    // Whether the image loaded, at a size the view doesn't have now.
+    private boolean isResized() {
+        int width = getWidth() - getPaddingLeft() - getPaddingRight();
+        int height = getHeight() - getPaddingTop() - getPaddingBottom();
+        return requestManager != null && !mNeedsReload
+                && mShownRequest != null && mShownRequest == mLoadingRequest
+                && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
+                && (width != mShownWidth || height != mShownHeight);
+    }
+
+    // The same image at the view's new size. Meanwhile, and if that fails, the
+    // view shows the image at its old size, from the cache. It's the image
+    // that's already showing, so this sends no events.
+    @SuppressLint("CheckResult")
+    private void reloadForSize() {
+        RequestBuilder<Drawable> shown = mShownRequest;
+        RequestBuilder<Drawable> current = fromCache(shown);
+        mLoadCount++;
+        clearView(requestManager);
+        into(shown, shown.clone()
+                .thumbnail(current)
+                .error(current.clone())
+                .listener(new FastImageRequestListener(null, null, true, false)));
+    }
+
+    // The shown image, from the cache only (never loaded again), at the size
+    // it was loaded at: the key it's in Glide's memory cache under.
+    @SuppressLint("CheckResult")
+    private RequestBuilder<Drawable> fromCache(RequestBuilder<Drawable> shown) {
+        RequestBuilder<Drawable> request = shown.clone().onlyRetrieveFromCache(true);
+        if (mShownWidth > 0 && mShownHeight > 0) request = request.override(mShownWidth, mShownHeight);
+        return request;
+    }
+
+    // Starts loading the request (built by builder), recording the size Glide
+    // loads it at. The size callback is added first, so it has the size by
+    // the time the image loads, even from the memory cache.
+    private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder) {
+        final int load = mLoadCount;
+        mLoadingRequest = request;
+        mLoadingWidth = 0;
+        mLoadingHeight = 0;
+        DrawableImageViewTarget target = new DrawableImageViewTarget(this);
+        target.getSize(new SizeReadyCallback() {
+            @Override
+            public void onSizeReady(int width, int height) {
+                if (load != mLoadCount) return;
+                mLoadingWidth = width;
+                mLoadingHeight = height;
+            }
+        });
+        builder.into(target);
+    }
+
+    // The loading image failed (FastImageRequestListener). Glide shows
+    // defaultSource then, but not over a thumbnail: show it here, as iOS does.
+    void onImageFailed(boolean hadThumbnail) {
+        mShownRequest = null;
+        if (!hadThumbnail) return;
+        final int load = mLoadCount;
+        // Not from within Glide's callback.
+        post(new Runnable() {
+            @Override
+            public void run() {
+                if (load == mLoadCount) setImageDrawable(mDefaultSource);
+            }
+        });
+    }
+
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
@@ -77,6 +216,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // Only reload for changes that affect the request (source,
         // defaultSource, resizeMode), not for every prop update.
         mNeedsReload = false;
+        mLoadCount++;
+        RequestBuilder<Drawable> shownRequest = mShownRequest;
+        mShownRequest = null;
+        mLoadingRequest = null;
 
         // Nothing to show.
         if (mSource == null && mDefaultSource == null) {
@@ -162,11 +305,17 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             // What into() would apply for the scale type, with
                             // the size capture.
                             .apply(FastImageSourceSize.scaleTypeOptions(getScaleType(), capture));
+            RequestBuilder<Drawable> request = builder.clone();
+
+            boolean thumbnail = shownRequest != null && model != null;
+            if (thumbnail) {
+                builder = builder.thumbnail(fromCache(shownRequest));
+            }
 
             if (key != null)
-                builder.listener(new FastImageRequestListener(key, imageSource));
+                builder.listener(new FastImageRequestListener(key, imageSource, thumbnail, true));
 
-            builder.into(this);
+            into(request, builder);
         }
     }
 

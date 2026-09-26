@@ -75,6 +75,7 @@ export type FastImageProps = $ReadOnly<{|
     tintColor?: number | string,
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
+    recyclingKey?: ?string,
     testID?: ?string,
 |}>
 

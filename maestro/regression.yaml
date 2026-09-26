@@ -296,6 +296,49 @@ env:
 - extendedWaitUntil:
       visible: 'preload-limit: OK'
       timeout: 30000
+# Changes an image's source to a slow one (about 7 s) and takes a screenshot
+# while it loads: it should still show the first image (magenta), not a blank (#747).
+# Check the screenshot.
+- scrollUntilVisible:
+      element:
+          id: 'regression-keep-previous'
+      timeout: 10000
+- tapOn:
+      id: 'regression-keep-previous-start'
+- extendedWaitUntil:
+      visible: 'keep-previous: loading the second image'
+      timeout: 15000
+- takeScreenshot: ${OUT}/keep-previous
+- extendedWaitUntil:
+      visible: 'keep-previous: OK'
+      timeout: 30000
+# Changes an image's source to a slow one (about 7 s) and takes a screenshot
+# while it loads: it should be blank: recyclingKey changed with the source.
+# Check the screenshot.
+- scrollUntilVisible:
+      element:
+          id: 'regression-recycling-key'
+      timeout: 10000
+- tapOn:
+      id: 'regression-recycling-key-start'
+- extendedWaitUntil:
+      visible: 'recycling-key: loading the second image'
+      timeout: 15000
+- takeScreenshot: ${OUT}/recycling-key
+- extendedWaitUntil:
+      visible: 'recycling-key: OK'
+      timeout: 30000
+# A view that gets taller after its image loaded (#983). Check the screenshot.
+- scrollUntilVisible:
+      element:
+          id: 'regression-size-change'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'size-change: OK'
+      timeout: 30000
+# iOS can report it visible while it's still below the screen.
+- scroll
+- takeScreenshot: ${OUT}/size-change
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000

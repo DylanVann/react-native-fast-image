@@ -93,6 +93,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
+    /**
+     * When `source` changes, the image showing stays until the new one has
+     * loaded. For views that get reused for other content, such as rows in
+     * FlashList or recyclerlistview, set this to something that identifies the
+     * content (e.g. the item's id): when it changes, the image is cleared
+     * right away instead, so a reused row doesn't show the previous row's
+     * image. Unlike changing `key`, the view is kept.
+     */
+    recyclingKey?: string | null
 
     onLoadStart?(): void
 
