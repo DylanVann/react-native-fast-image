@@ -1,3 +1,10 @@
+# [8.9.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.8.1...v8.9.0) (2026-09-26)
+
+
+### Features
+
+* add a loop prop for animated images ([#1128](https://github.com/DylanVann/react-native-fast-image/issues/1128)) ([7bb015f](https://github.com/DylanVann/react-native-fast-image/commit/7bb015f418cc27b29dd142ae8320f1a29786c928))
+
 ## [8.8.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.8.0...v8.8.1) (2026-09-26)
 
 
