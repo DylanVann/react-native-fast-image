@@ -230,6 +230,20 @@ describe('FastImage (iOS)', () => {
         }
     })
 
+    it('fails a preloaded source without a uri even if native loaded it', async () => {
+        const preload = spyOn(
+            NativeModules.FastImageView,
+            'preload',
+        ).mockImplementation(async () => [{ ok: true, width: 10, height: 20 }])
+        try {
+            expect(await FastImage.preload([{}])).toEqual([
+                { uri: undefined, ok: false, error: 'Invalid source: no uri' },
+            ])
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
     it('runs static functions', () => {
         FastImage.preload([
             {

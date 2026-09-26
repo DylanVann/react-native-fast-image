@@ -366,10 +366,11 @@ FastImage.preload = (sources: Source[]) =>
         sources.map((source, i): PreloadResult => {
             const uri = source ? source.uri : undefined
             const result = results?.[i] ?? noResult
-            // Native fails a source without a uri, so one that loaded has one.
-            return result.ok
-                ? { ...result, uri: uri as string }
-                : { ...result, uri }
+            if (!result.ok) return { ...result, uri }
+            // Native already fails a source without a uri.
+            return typeof uri === 'string'
+                ? { ...result, uri }
+                : { ok: false, error: 'Invalid source: no uri', uri }
         }),
     )
 
