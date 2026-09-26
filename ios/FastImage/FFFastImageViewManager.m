@@ -47,6 +47,27 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     return context;
 }
 
+// A preload's options: the prefetcher's (low priority), with the source's own
+// priority instead if it has one (as on Android), and its `cache` (#406). One
+// source at a time, not SDWebImagePrefetcher, to get each source's result and
+// to send its headers with its own request only. Failed urls are tried again,
+// as views do (SDWebImage otherwise fails a url that failed before, e.g. with
+// data that isn't an image, without a request until the app is relaunched,
+// #394).
+static SDWebImageOptions FFFPreloadOptions(FFFastImageSource *source)
+{
+    SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options | SDWebImageRetryFailed;
+    if (source.hasPriority) {
+        options &= ~(SDWebImageLowPriority | SDWebImageHighPriority);
+        if (source.priority == FFFPriorityLow) {
+            options |= SDWebImageLowPriority;
+        } else if (source.priority == FFFPriorityHigh) {
+            options |= SDWebImageHighPriority;
+        }
+    }
+    return options | [source cacheOptions];
+}
+
 static NSUInteger FFFPreloadLimit(void)
 {
     NSUInteger limit = [SDWebImagePrefetcher sharedImagePrefetcher].maxConcurrentPrefetchCount;
@@ -91,11 +112,6 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                 resolve(results);
             }
         };
-        // With the prefetcher's options (low priority), but one source at a
-        // time (not SDWebImagePrefetcher), to get each source's result, to
-        // send its headers with its own request only, and to follow its
-        // `cache` (#406).
-        SDWebImageOptions prefetcherOptions = [SDWebImagePrefetcher sharedImagePrefetcher].options;
 
         [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
             if (!source.url) {
@@ -106,20 +122,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                 return;
             }
             [results addObject:[NSNull null]];
-            // A source's own priority replaces the prefetcher's, as on Android.
-            // Failed urls are tried again, as views do (SDWebImage otherwise
-            // fails a url that failed before, e.g. with data that isn't an
-            // image, without a request until the app is relaunched, #394).
-            SDWebImageOptions options = prefetcherOptions | SDWebImageRetryFailed;
-            if (source.hasPriority) {
-                options &= ~(SDWebImageLowPriority | SDWebImageHighPriority);
-                if (source.priority == FFFPriorityLow) {
-                    options |= SDWebImageLowPriority;
-                } else if (source.priority == FFFPriorityHigh) {
-                    options |= SDWebImageHighPriority;
-                }
-            }
-            options |= [source cacheOptions];
+            SDWebImageOptions options = FFFPreloadOptions(source);
             SDWebImageMutableContext *context = FFFPreloadContext(source);
             if (!source.memoryCache) {
                 // Not decoded (only its header is read, for the size), and not
@@ -159,6 +162,82 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
         }
         FFFStartPendingPreloads();
     });
+}
+
+// The source's downloaded file in the disk cache, downloading it first if it
+// isn't there (without decoding it or keeping it in memory, and in the
+// preloads' queue): { ok, path } or { ok: false, error }. Never rejects. With
+// `cacheOnly` it doesn't download. A local file is its own path.
+RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+    if (!source.url) {
+        resolve(@{@"ok": @NO, @"error": @"Invalid source: no uri"});
+        return;
+    }
+    if (source.url.isFileURL) {
+        BOOL exists = [NSFileManager.defaultManager fileExistsAtPath:source.url.path];
+        resolve(exists
+            ? @{@"ok": @YES, @"path": source.url.path}
+            : @{@"ok": @NO, @"error": @"No file at this uri"});
+        return;
+    }
+    SDWebImageMutableContext *context = FFFPreloadContext(source);
+    // The key SDWebImage stores it under (the cacheKey, or the converted url).
+    NSString *key = [SDWebImageManager.sharedManager cacheKeyForURL:source.url context:context];
+    SDImageCache *cache = SDImageCache.sharedImageCache;
+    void (^resolveFromDisk)(NSString *) = ^(NSString *error) {
+        [cache diskImageExistsWithKey:key completion:^(BOOL exists) {
+            resolve(exists
+                ? @{@"ok": @YES, @"path": [cache cachePathForKey:key]}
+                : @{@"ok": @NO, @"error": error});
+        }];
+    };
+    [cache diskImageExistsWithKey:key completion:^(BOOL exists) {
+        // On the main queue, where the preloads' queue is used.
+        if (exists) {
+            resolve(@{@"ok": @YES, @"path": [cache cachePathForKey:key]});
+            return;
+        }
+        if (source.cacheControl == FFFCacheControlCacheOnly) {
+            resolve(@{@"ok": @NO, @"error": @"Not in the disk cache"});
+            return;
+        }
+        if (!FFFPendingPreloads) {
+            FFFPendingPreloads = [NSMutableArray array];
+        }
+        // As a disk-only preload: not decoded, and not looked up in or kept in
+        // memory (an image in memory may not be on disk). It resolves once the
+        // file is written.
+        SDWebImageOptions options = FFFPreloadOptions(source) | SDWebImageAvoidDecodeImage | SDWebImageWaitStoreCache;
+        context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+        context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+        [FFFPendingPreloads addObject:[^{
+            __block BOOL done = NO;
+            [[SDWebImageManager sharedManager] loadImageWithURL:source.url
+                                                        options:options
+                                                        context:[context copy]
+                                                       progress:nil
+                                                      completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+                if (!finished || done) {
+                    return;
+                }
+                done = YES;
+                FFFPreloadsInFlight--;
+                FFFStartPendingPreloads();
+                if (error) {
+                    [source forgetResponseAfterError:error];
+                }
+                if (!image) {
+                    resolve(@{@"ok": @NO, @"error": FFFErrorMessage(error)});
+                    return;
+                }
+                resolveFromDisk(@"Not stored in the disk cache");
+            }];
+        } copy]];
+        FFFStartPendingPreloads();
+    }];
 }
 
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)

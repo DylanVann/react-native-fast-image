@@ -256,6 +256,165 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return result;
     }
 
+    // Where getCachePath looks in the caches and downloads `web` images
+    // (blocking calls, off the UI and modules threads).
+    private static final Executor cachePathExecutor = Executors.newSingleThreadExecutor();
+
+    private static WritableMap pathResult(File file) {
+        WritableMap result = Arguments.createMap();
+        result.putBoolean("ok", true);
+        result.putString("path", file.getAbsolutePath());
+        return result;
+    }
+
+    // The source's downloaded file in the disk cache, downloading it first if
+    // it isn't there (without decoding it or keeping it in memory, and in the
+    // preloads' queue): { ok, path } or { ok: false, error }. Never rejects.
+    // With `cacheOnly` it doesn't download. A local file is its own path.
+    @ReactMethod
+    public void getCachePath(final ReadableMap source, final Promise promise) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        if (!FastImageViewConverter.hasUri(source)) {
+            promise.resolve(failure("Invalid source: no uri"));
+            return;
+        }
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
+        if (imageSource.getUri().toString().isEmpty()) {
+            promise.resolve(failure("Invalid source: can't resolve " + source.getString("uri")));
+            return;
+        }
+        if ("file".equalsIgnoreCase(imageSource.getUri().getScheme())) {
+            File file = new File(imageSource.getUri().getPath());
+            promise.resolve(file.isFile() ? pathResult(file) : failure("No file at this uri"));
+            return;
+        }
+        if (!imageSource.isRemote()) {
+            // content://, a resource or a data uri: there's no file to give.
+            promise.resolve(failure("Not a remote image"));
+            return;
+        }
+        final boolean cacheOnly = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.CACHE_ONLY;
+        final RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
+        final RequestOptions preloadOptions = source.hasKey("priority") && !source.isNull("priority")
+                ? options
+                : options.priority(Priority.LOW);
+        final String url = imageSource.getUri().toString();
+        cachePathExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                // On disk already: in Glide's cache (not for `web` images,
+                // which it doesn't cache), or in the HTTP cache of `web`
+                // images (set up by Glide, which is started first).
+                File file = null;
+                Glide.get(context);
+                if (!imageSource.isWebCache()) {
+                    try {
+                        file = Glide.with(context)
+                                .asFile()
+                                .load(imageSource.getSourceForLoad())
+                                .apply(options)
+                                .onlyRetrieveFromCache(true)
+                                .submit()
+                                .get();
+                    } catch (Exception e) {
+                        // Not in Glide's cache.
+                    }
+                }
+                if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(url);
+                if (file != null) {
+                    promise.resolve(pathResult(file));
+                    return;
+                }
+                if (cacheOnly) {
+                    promise.resolve(failure("Not in the disk cache"));
+                    return;
+                }
+                UiThreadUtil.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        pendingPreloads.add(imageSource.isWebCache()
+                                ? downloadToWebCache(imageSource, url, promise)
+                                : downloadToDiskCache(context, imageSource, preloadOptions, promise));
+                        startPendingPreloads();
+                    }
+                });
+            }
+        });
+    }
+
+    // Frees a preload slot (on the UI thread) and resolves.
+    private static void finishDownload(final Promise promise, final WritableMap result) {
+        UiThreadUtil.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                preloadsInFlight--;
+                startPendingPreloads();
+                promise.resolve(result);
+            }
+        });
+    }
+
+    // Downloads the image into Glide's disk cache (as a disk-only preload).
+    private static Runnable downloadToDiskCache(
+            final Context context,
+            final FastImageSource imageSource,
+            final RequestOptions options,
+            final Promise promise) {
+        return new Runnable() {
+            @Override
+            public void run() {
+                Glide
+                        .with(context)
+                        .asFile()
+                        .load(imageSource.getSourceForLoad())
+                        .apply(options)
+                        .listener(new RequestListener<File>() {
+                            @Override
+                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                                finishDownload(promise, failure(FastImageRequestListener.errorMessage(e)));
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                                finishDownload(promise, pathResult(file));
+                                return false;
+                            }
+                        })
+                        .preload();
+            }
+        };
+    }
+
+    // Downloads a `web` image into its HTTP cache, which keeps it only if the
+    // server allows caching it.
+    private static Runnable downloadToWebCache(
+            final FastImageSource imageSource,
+            final String url,
+            final Promise promise) {
+        return new Runnable() {
+            @Override
+            public void run() {
+                cachePathExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        WritableMap result;
+                        try {
+                            FastImageOkHttpProgressGlideModule.downloadToWebCache(imageSource.getGlideUrl());
+                            File file = FastImageOkHttpProgressGlideModule.webCacheFile(url);
+                            result = file != null
+                                    ? pathResult(file)
+                                    : failure("Not stored in the disk cache (the server doesn't allow caching it)");
+                        } catch (IOException e) {
+                            result = failure(e.getMessage() != null ? e.getMessage() : e.toString());
+                        }
+                        finishDownload(promise, result);
+                    }
+                });
+            }
+        };
+    }
+
     @ReactMethod
     public void clearMemoryCache(final Promise promise) {
         final Activity activity = getCurrentActivity();

@@ -138,7 +138,7 @@ class FastImageViewConverter {
         return options;
     }
 
-    private static FastImageCacheControl getCacheControl(ReadableMap source) {
+    static FastImageCacheControl getCacheControl(ReadableMap source) {
         return getValueFromSource("cache", "immutable", FAST_IMAGE_CACHE_CONTROL_MAP, source);
     }
 
