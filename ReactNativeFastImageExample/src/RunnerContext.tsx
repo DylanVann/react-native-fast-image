@@ -37,7 +37,7 @@ export const SnapshotContext = createContext<(name: string) => void>(() => {})
 
 export type Rect = { x: number; y: number; width: number; height: number }
 
-// Measures a masked area (in window coordinates, dp); undefined if it isn't
+// Measures a masked area (in screen coordinates, dp); undefined if it isn't
 // on screen.
 export type MeasureMask = () => Promise<Rect | undefined>
 
@@ -61,8 +61,13 @@ export function Masked({ children, style, ...props }: ViewProps) {
                     new Promise((resolve) => {
                         const view = ref.current
                         if (!view) return resolve(undefined)
-                        view.measureInWindow((x, y, width, height) =>
-                            resolve({ x, y, width, height }),
+                        // measure's page position (from the root view,
+                        // which starts at the top of the screen: both apps are
+                        // edge to edge) is where the screenshot shows it. On
+                        // Android's legacy architecture, measureInWindow
+                        // leaves out the status bar (or display cutout) height.
+                        view.measure((_x, _y, width, height, pageX, pageY) =>
+                            resolve({ x: pageX, y: pageY, width, height }),
                         )
                     }),
             ),
