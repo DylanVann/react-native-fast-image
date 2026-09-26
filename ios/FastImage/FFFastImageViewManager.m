@@ -26,16 +26,6 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
-// The error's description, with the HTTP status code when there is one.
-static NSString *FFFErrorMessage(NSError *error)
-{
-    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
-    if (statusCode) {
-        return [NSString stringWithFormat:@"%@, status code: %@", error.localizedDescription, statusCode];
-    }
-    return error.localizedDescription ?: @"Failed to load the image";
-}
-
 // Preloads waiting to start, in the order they were added, and the number
 // loading, across all preload calls. Like SDWebImagePrefetcher, at most
 // maxConcurrentPrefetchCount load at a time, so a long list doesn't queue

@@ -2,6 +2,7 @@
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
 #import <React/RCTUtils.h>
+#import <SDWebImage/SDWebImageError.h>
 
 @interface FFFastImageView ()
 
@@ -12,6 +13,7 @@
 @property(nonatomic, assign) BOOL needsReload;
 
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
+@property(nonatomic, strong) NSDictionary* onErrorEvent;
 // The image before tinting, kept while a tint is applied so the tint can be
 // changed or removed. nil when there's no tint (super.image is untinted).
 @property(nonatomic, strong) UIImage* untintedImage;
@@ -120,7 +122,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 - (void) setOnFastImageError: (RCTDirectEventBlock)onFastImageError {
     _onFastImageError = onFastImageError;
     if (self.hasErrored && _onFastImageError) {
-        _onFastImageError(@{});
+        _onFastImageError(self.onErrorEvent);
     }
 }
 
@@ -194,6 +196,26 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     [self updateContentMode];
 }
 
+// The error's description, with the HTTP status code when there is one (as on
+// Android): SDWebImage keeps the code out of the description. Also for preload
+// results.
+NSString *FFFErrorMessage(NSError *error)
+{
+    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
+    if (statusCode) {
+        return [NSString stringWithFormat: @"%@, status code: %@", error.localizedDescription, statusCode];
+    }
+    return error.localizedDescription ?: @"Failed to load the image";
+}
+
+- (void) sendOnError: (nullable NSString*)message {
+    self.hasErrored = YES;
+    self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
+    if (self.onFastImageError) {
+        self.onFastImageError(self.onErrorEvent);
+    }
+}
+
 - (void) sendOnLoad: (UIImage*)image {
     self.onLoadEvent = @{
             @"width": [NSNumber numberWithDouble: image.size.width],
@@ -258,10 +280,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                 // Not decodable: fail like a remote image, showing defaultSource.
                 [self setImage: _defaultSource];
                 self.showsLoadedImage = NO;
-                self.hasErrored = YES;
-                if (self.onFastImageError) {
-                    self.onFastImageError(@{});
-                }
+                [self sendOnError: @"Failed to decode the image"];
                 if (self.onFastImageLoadEnd) {
                     self.onFastImageLoadEnd(@{});
                 }
@@ -391,10 +410,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
                 if (error) {
                     // SDWebImage shows the placeholder (defaultSource or nothing).
                     weakSelf.showsLoadedImage = NO;
-                    weakSelf.hasErrored = YES;
-                    if (weakSelf.onFastImageError) {
-                        weakSelf.onFastImageError(@{});
-                    }
+                    [weakSelf sendOnError: FFFErrorMessage(error)];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd(@{});
                     }

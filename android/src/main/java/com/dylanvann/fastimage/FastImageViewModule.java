@@ -122,7 +122,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                     .listener(new RequestListener<Drawable>() {
                                         @Override
                                         public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                                            results[index] = failure(errorMessage(e));
+                                            results[index] = failure(FastImageRequestListener.errorMessage(e));
                                             preloadsInFlight--;
                                             finishOne.run();
                                             startPendingPreloads();
@@ -162,17 +162,6 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         result.putBoolean("ok", false);
         result.putString("error", error);
         return result;
-    }
-
-    // The first root cause's message, e.g. "Not Found, status code: 404".
-    private static String errorMessage(@Nullable GlideException e) {
-        if (e != null) {
-            for (Throwable cause : e.getRootCauses()) {
-                if (cause.getMessage() != null) return cause.getMessage();
-            }
-            if (e.getMessage() != null) return e.getMessage();
-        }
-        return "Failed to load the image";
     }
 
     @ReactMethod
