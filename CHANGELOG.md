@@ -1,3 +1,10 @@
+## [8.6.43](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.42...v8.6.43) (2026-09-26)
+
+
+### Bug Fixes
+
+* **ios:** scale images larger than the view down with resizeMode center ([#1144](https://github.com/DylanVann/react-native-fast-image/issues/1144)) ([b4547f8](https://github.com/DylanVann/react-native-fast-image/commit/b4547f87a060133b4592c4b8d64b4afd07d7d8ac)), closes [#866](https://github.com/DylanVann/react-native-fast-image/issues/866)
+
 ## [8.6.42](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.41...v8.6.42) (2026-09-25)
 
 
