@@ -412,12 +412,76 @@ function PreloadCase() {
     )
 }
 
+// Preloads an image at a url that's new each launch (so the disk cache from an
+// earlier run doesn't count), shows it once the preload has resolved, and asks
+// the server how many times it was requested: once, if the shown image came
+// from the preload. On Android, Glide keys loads by size, so a view can't join
+// a preload of the same url still in flight: shown before the preload has
+// finished, the image is downloaded again (#657). Awaiting the result avoids
+// that. The ms are from showing the image to onLoad (a decode from the disk
+// cache on Android; the memory cache on iOS).
+const RUN = Date.now()
+const PRELOAD_REUSE_PATH = `/picsum/1025-200x200.jpg?reuse=${RUN}`
+function PreloadReuseCase() {
+    const [shownAt, setShownAt] = useState<number>()
+    const [result, setResult] = useState<{ count: number; ms: number }>()
+    useEffect(() => {
+        FastImage.preload([{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }])
+            .then((results) => {
+                if (results[0].ok) setShownAt(Date.now())
+                else setResult({ count: 0, ms: 0 })
+            })
+            .catch(() => setResult({ count: -1, ms: 0 }))
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shownAt === undefined ? (
+                <View style={styles.image} />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }}
+                    onLoad={() => {
+                        const ms = Date.now() - shownAt
+                        fetch(
+                            imageUrl(
+                                `requests?path=${encodeURIComponent(PRELOAD_REUSE_PATH)}`,
+                            ),
+                        )
+                            .then((response) => response.json())
+                            .then((json) =>
+                                setResult({ count: json.count, ms }),
+                            )
+                            .catch(() => setResult({ count: -1, ms }))
+                    }}
+                />
+            )}
+            <View style={styles.text}>
+                <Text testID="regression-preload-reuse" style={styles.status}>
+                    preload-reuse:{' '}
+                    {result === undefined
+                        ? 'waiting'
+                        : result.count === 1
+                          ? 'OK'
+                          : result.count < 1
+                            ? 'preload failed'
+                            : `requested ${result.count} times (${result.ms} ms)`}
+                </Text>
+                <Text style={styles.description}>
+                    #657: an image shown after FastImage.preload resolves isn't
+                    downloaded again
+                    {result ? ` (shown in ${result.ms} ms)` : ''}
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 // Preloads an image with a header, then shows an image whose request fails if
 // it has that header. iOS set preload headers on the shared downloader, so
 // every later request sent them. (That preload still sends its own headers
 // isn't checked here: preload doesn't report when it's done.) The url is new
 // each launch, since the disk cache would otherwise have it from the last run.
-const RUN = Date.now()
 const PRIVATE = imageUrl(`private/picsum/1021-120x120.jpg?run=${RUN}`)
 const NO_TOKEN = imageUrl(`no-token/picsum/1022-120x120.jpg?run=${RUN}`)
 function PreloadHeadersCase() {
@@ -850,6 +914,102 @@ function CenterCase() {
     )
 }
 
+// Preloads a mix of sources and checks the results: each source's ok, and the
+// size of the ones that loaded. The private image only loads with its header,
+// which checks preload sends it (#571).
+const PRELOAD_RESULTS_RUN = `results=${RUN}`
+function PreloadResultsCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload([
+            { uri: imageUrl(`picsum/1025-200x200.jpg?${PRELOAD_RESULTS_RUN}`) },
+            { uri: MISSING },
+            { uri: '' },
+            null as unknown as Source,
+            {
+                uri: imageUrl(
+                    `private/picsum/1021-120x120.jpg?${PRELOAD_RESULTS_RUN}`,
+                ),
+                headers: { 'x-token': 'fast-image' },
+            },
+            {
+                uri: imageUrl(
+                    `private/picsum/1022-120x120.jpg?${PRELOAD_RESULTS_RUN}`,
+                ),
+            },
+        ]).then((results) => {
+            const got = results
+                .map((r) => (r.ok ? `${r.width}x${r.height}` : 'failed'))
+                .join(', ')
+            const expected = '200x200, failed, failed, failed, 120x120, failed'
+            const errors = results.filter((r) => !r.ok).every((r) => r.error)
+            setStatus(got === expected && errors ? 'OK' : got)
+        })
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <View style={styles.text}>
+                <Text testID="regression-preload-results" style={styles.status}>
+                    preload-results: {status}
+                </Text>
+                <Text style={styles.description}>
+                    preload resolves with each source's result and size
+                </Text>
+            </View>
+        </View>
+    )
+}
+
+// Preloads a few slow images at once and asks the server how many it was
+// sending at the same time: preload loads a few sources at a time (3, or
+// SDWebImagePrefetcher's maxConcurrentPrefetchCount on iOS), so a long list
+// doesn't hold up the images the app is showing. Without the limit both
+// platforms load all 4 at once (SDWebImage's downloader allows 6, Glide's
+// source executor has 4 threads on the emulator), so this fails without it.
+const PRELOAD_LIMIT_GROUP = `limit-${RUN}`
+function PreloadLimitCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const sources = [0, 1, 2, 3].map((i) => ({
+            uri: slowImageUrl(
+                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}`,
+            ),
+            headers: { 'x-token': 'fast-image' },
+        }))
+        FastImage.preload(sources)
+            .then(async (results) => {
+                const loaded = results.filter((r) => r.ok).length
+                const response = await fetch(
+                    imageUrl(`requests?group=${PRELOAD_LIMIT_GROUP}`),
+                )
+                const { count, peak } = (await response.json()) as {
+                    count: number
+                    peak: number
+                }
+                setStatus(
+                    loaded === 4 && count === 4 && peak <= 3
+                        ? 'OK'
+                        : `loaded ${loaded}, ${count} requests, ${peak} at once`,
+                )
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <View style={styles.text}>
+                <Text testID="regression-preload-limit" style={styles.status}>
+                    preload-limit: {status}
+                </Text>
+                <Text style={styles.description}>
+                    preload loads a few sources at a time
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -1005,6 +1165,9 @@ export default function RegressionExample() {
             />
             <SourceSizeCachedCase />
             <PreloadCase />
+            <PreloadReuseCase />
+            <PreloadResultsCase />
+            <PreloadLimitCase />
             <PreloadHeadersCase />
             <NoCrashCase
                 id="gif-loop-once"

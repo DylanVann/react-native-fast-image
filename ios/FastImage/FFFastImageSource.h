@@ -21,6 +21,8 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 @property (nonatomic) NSURL* url;
 // priority for image request
 @property (nonatomic) FFFPriority priority;
+// whether the source set a priority (preload is low priority otherwise)
+@property (nonatomic) BOOL hasPriority;
 // headers for the image request
 @property (nonatomic) NSDictionary *headers;
 // cache control mode

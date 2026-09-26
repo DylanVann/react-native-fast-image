@@ -43,7 +43,17 @@ export type ResizeModes = $Values<ResizeMode>
 export type Priorities = $Values<Priority>
 export type CacheControls = $Values<CacheControl>
 
-export type PreloadFn = (sources: Array<FastImageSource>) => void
+export type PreloadResult = {|
+    uri?: string,
+    ok: boolean,
+    width?: number,
+    height?: number,
+    error?: string,
+|}
+
+export type PreloadFn = (
+    sources: Array<FastImageSource>,
+) => Promise<Array<PreloadResult>>
 export type FastImageSource = {
     uri?: string,
     headers?: Object,

@@ -241,6 +241,13 @@ env:
       timeout: 30000
 - scrollUntilVisible:
       element:
+          id: 'regression-preload-reuse'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'preload-reuse: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element:
           id: 'regression-preload-headers'
       timeout: 10000
 - extendedWaitUntil:
@@ -273,6 +280,21 @@ env:
       timeout: 10000
 - extendedWaitUntil:
       visible: 'resize-center: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element:
+          id: 'regression-preload-results'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'preload-results: OK'
+      timeout: 30000
+- scrollUntilVisible:
+      element:
+          id: 'regression-preload-limit'
+      timeout: 10000
+# 4 slow images (about 7 s each), 3 at a time: about 14 s from launch.
+- extendedWaitUntil:
+      visible: 'preload-limit: OK'
       timeout: 30000
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:

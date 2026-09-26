@@ -299,11 +299,23 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 
 FastImageComponent.displayName = 'FastImage'
 
+export interface PreloadResult {
+    // The source's uri.
+    uri?: string
+    // Whether the image loaded (and is now cached).
+    ok: boolean
+    // The image's size, when it loaded (as in onLoad).
+    width?: number
+    height?: number
+    // What went wrong, when it didn't.
+    error?: string
+}
+
 export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl
-    preload: (sources: Source[]) => void
+    preload: (sources: Source[]) => Promise<PreloadResult[]>
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
 }
@@ -318,7 +330,16 @@ FastImage.cacheControl = cacheControl
 FastImage.priority = priority
 
 FastImage.preload = (sources: Source[]) =>
-    NativeModules.FastImageView.preload(sources)
+    // Null sources are sent as {} so native results line up with the sources
+    // (iOS drops null entries).
+    Promise.resolve(
+        NativeModules.FastImageView.preload(sources.map((s) => s || {})),
+    ).then((results?: Omit<PreloadResult, 'uri'>[]) =>
+        sources.map((source, i) => ({
+            uri: source ? source.uri : undefined,
+            ...(results?.[i] ?? { ok: false, error: 'No result' }),
+        })),
+    )
 
 FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()

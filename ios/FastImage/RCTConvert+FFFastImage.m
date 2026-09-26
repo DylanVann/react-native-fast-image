@@ -45,6 +45,8 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     }
     
     FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl];
+    id priorityJSON = json[@"priority"];
+    imageSource.hasPriority = priorityJSON && priorityJSON != (id)kCFNull;
     
     return imageSource;
 }

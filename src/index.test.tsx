@@ -180,6 +180,38 @@ describe('FastImage (iOS)', () => {
         expect(jsx(tree)).toMatchSnapshot()
     })
 
+    it('resolves preload with a result per source', async () => {
+        const preload = spyOn(
+            NativeModules.FastImageView,
+            'preload',
+        ).mockImplementation(async () => [
+            { ok: true, width: 10, height: 20 },
+            { ok: false, error: 'Invalid source: no uri' },
+        ])
+        try {
+            const results = await FastImage.preload([
+                { uri: 'https://example.com/a.png' },
+                null as any,
+            ])
+            // Null sources are sent as {} so the results line up.
+            expect(preload).toHaveBeenCalledWith([
+                { uri: 'https://example.com/a.png' },
+                {},
+            ])
+            expect(results).toEqual([
+                {
+                    uri: 'https://example.com/a.png',
+                    ok: true,
+                    width: 10,
+                    height: 20,
+                },
+                { uri: undefined, ok: false, error: 'Invalid source: no uri' },
+            ])
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
     it('runs static functions', () => {
         FastImage.preload([
             {

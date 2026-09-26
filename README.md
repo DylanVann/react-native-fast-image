@@ -213,7 +213,7 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 ## Static Methods
 
-### `FastImage.preload: (source[]) => void`
+### `FastImage.preload: (source[]) => Promise<result[]>`
 
 Preload images to display later. e.g.
 
@@ -228,6 +228,13 @@ FastImage.preload([
         headers: { Authorization: 'someAuthToken' },
     },
 ])
+```
+
+It resolves when all the images have loaded or failed, with a result for each source, in order: `{ uri, ok, width, height, error }`. `width` and `height` are the image's size (as in `onLoad`), which is also a way to find an image's size without showing it. A few sources load at a time (3, or `SDWebImagePrefetcher`'s `maxConcurrentPrefetchCount` on iOS), so a long list doesn't hold up the images the app is showing, and at low priority unless the source sets `priority`. It never rejects:
+
+```js
+const results = await FastImage.preload(sources)
+const failed = results.filter((result) => !result.ok)
 ```
 
 ### `FastImage.clearMemoryCache: () => Promise<void>`
