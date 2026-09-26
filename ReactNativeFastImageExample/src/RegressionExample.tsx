@@ -948,6 +948,101 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
     )
 }
 
+const cachedPhoto = (id: string) => ({
+    uri: imageUrl(`picsum/1020-120x120.jpg?${id}=${RUN}`),
+})
+// An 8 × 8 yellow PNG.
+const YELLOW_DATA_URI =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAE0lEQVR4nGP8dYIBK2DCLjxYJQBkHQHSoiSr7AAAAABJRU5ErkJggg=='
+
+// Changes the source while a slow image (cyan) is still loading, to an image
+// that's already in the memory cache (preloaded), so the first load is
+// cancelled. It mustn't send onError or onLoad, or replace the new image.
+// With `keepPrevious`, an image (magenta) is showing before the slow one, so
+// that load keeps it while it loads. With `toData`, the new source is a data
+// uri (yellow), which isn't loaded through SDWebImage on iOS.
+function SourceChangeWhileLoadingCase({
+    id,
+    keepPrevious,
+    toData,
+}: {
+    id: string
+    keepPrevious?: boolean
+    toData?: boolean
+}) {
+    const [step, setStep] = useState<
+        'preload' | 'first' | 'slow' | 'changed' | 'done'
+    >('preload')
+    const [errors, setErrors] = useState<string[]>([])
+    // onLoad events after the change.
+    const [loads, setLoads] = useState(0)
+    useEffect(() => {
+        FastImage.preload([cachedPhoto(id)]).then(() =>
+            setStep(keepPrevious ? 'first' : 'slow'),
+        )
+    }, [id, keepPrevious])
+    useEffect(() => {
+        if (step !== 'slow') return
+        // The slow image takes about 2.4 s.
+        const timer = setTimeout(() => setStep('changed'), 400)
+        return () => clearTimeout(timer)
+    }, [step])
+    const source =
+        step === 'preload'
+            ? undefined
+            : step === 'first'
+              ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+              : step === 'slow'
+                ? {
+                      uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=300`),
+                      headers: BACKGROUND_SLOW_HEADERS,
+                  }
+                : toData
+                  ? { uri: YELLOW_DATA_URI }
+                  : cachedPhoto(id)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={source}
+                onError={(e) => {
+                    const error = e.nativeEvent.error
+                    setErrors((all) => [...all, error])
+                }}
+                onLoad={() => {
+                    if (step === 'first') setStep('slow')
+                    else if (step === 'changed' || step === 'done') {
+                        setLoads((n) => n + 1)
+                        // Once the slow image would have finished (about
+                        // 2.4 s from its start), had it not been cancelled.
+                        if (step === 'changed')
+                            setTimeout(() => setStep('done'), 2500)
+                    }
+                }}
+            />
+            <CaseStatus
+                id={id}
+                status={
+                    step !== 'done'
+                        ? step
+                        : errors.length
+                          ? `onError: ${errors.join('; ')}`
+                          : loads !== 1
+                            ? `${loads} onLoad after the change`
+                            : 'OK'
+                }
+                description={
+                    toData
+                        ? 'Changing the source to a data uri (yellow) while a slow image loads: no onError or onLoad for the slow one, and it stays yellow'
+                        : keepPrevious
+                          ? 'Changing the source from a loaded image (magenta) to a slow one, then to a cached photo before it loads: no onError, and the photo stays'
+                          : 'Changing the source to a cached photo while a slow image loads: no onError for the first, and the photo stays'
+                }
+            />
+        </View>
+    )
+}
+
 // Preloads a mix of sources and checks the results: each source's ok, and the
 // size of the ones that loaded. The private image only loads with its header,
 // which checks preload sends it (#571).
@@ -1979,6 +2074,25 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadReuseCase key="preload-reuse" />,
             <PreloadResultsCase key="preload-results" />,
             <PreloadLimitCase key="preload-limit" />,
+        ],
+    },
+    {
+        name: 'source-change',
+        cases: [
+            <SourceChangeWhileLoadingCase
+                key="source-change-loading"
+                id="source-change-loading"
+            />,
+            <SourceChangeWhileLoadingCase
+                key="source-change-keep-previous"
+                id="source-change-keep-previous"
+                keepPrevious
+            />,
+            <SourceChangeWhileLoadingCase
+                key="source-change-data"
+                id="source-change-data"
+                toData
+            />,
         ],
     },
     {

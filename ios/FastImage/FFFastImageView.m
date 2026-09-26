@@ -404,6 +404,12 @@ NSString *FFFErrorMessage(NSError *error)
     _needsReload = NO;
     self.waitsForSize = NO;
     self.decodedBox = CGSizeZero;
+    // The previous load, if it's still running, is for a source the view no
+    // longer shows: cancel it (a new download would, but a data uri or no
+    // source doesn't start one), and ignore what it still sends (SDWebImage
+    // completes a cancelled load with an error; see downloadImage:).
+    self.loadCount++;
+    [self sd_cancelCurrentImageLoad];
 
     if (_source) {
         // Load base64 images.
@@ -572,12 +578,19 @@ NSString *FFFErrorMessage(NSError *error)
         return;
     }
     // Like SDAnimatedImageView's sd_setImageWithURL, which sets the image
-    // class to SDAnimatedImage (loadContext sets it).
+    // class to SDAnimatedImage (loadContext sets it). Only while this is the
+    // current load: SDWebImage sets the placeholder when a load it cancelled
+    // completes, which could replace a newer image.
+    SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
+        if (weakSelf.loadCount == load) {
+            weakSelf.image = image;
+        }
+    };
     [self sd_internalSetImageWithURL: url
                     placeholderImage: _defaultSource
                              options: options
                              context: context
-                       setImageBlock: nil
+                       setImageBlock: setImage
                             progress: progress
                            completed: ^(UIImage* _Nullable image,
                     NSData* _Nullable data,
@@ -585,9 +598,10 @@ NSString *FFFErrorMessage(NSError *error)
                     SDImageCacheType cacheType,
                     BOOL finished,
                     NSURL* _Nullable imageURL) {
-                // Restarted for a new size (reloadIfResized): the new load
-                // sends the events.
-                if (weakSelf.loadCount != load && weakSelf.source == source) {
+                // Replaced by another load (a new source, or the same one
+                // restarted for a new size), which sends the events. This
+                // one was cancelled, which SDWebImage reports as an error.
+                if (weakSelf.loadCount != load) {
                     return;
                 }
                 // The download was running when the app went to the
