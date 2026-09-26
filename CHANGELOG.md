@@ -1,3 +1,10 @@
+# [8.7.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.43...v8.7.0) (2026-09-26)
+
+
+### Features
+
+* resolve preload with a result for each source ([#1133](https://github.com/DylanVann/react-native-fast-image/issues/1133)) ([0e49e03](https://github.com/DylanVann/react-native-fast-image/commit/0e49e032a4aec7cfd038e9c0c56d3c5a6272f8d9)), closes [#144](https://github.com/DylanVann/react-native-fast-image/issues/144)
+
 ## [8.6.43](https://github.com/DylanVann/react-native-fast-image/compare/v8.6.42...v8.6.43) (2026-09-26)
 
 
