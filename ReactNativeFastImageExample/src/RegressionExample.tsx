@@ -59,18 +59,10 @@ const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
 // With `fallback`, FastImage renders React Native's Image, which fades an
-// image in over 300 ms on Android after it loads: a case waits that long
-// before it's OK, so the screenshot shows the image, not the fade.
-const FALLBACK_FADE = Platform.OS === 'android' ? 350 : 0
-function useAfterFade(fallback: boolean | undefined) {
-    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-    useEffect(() => () => clearTimeout(timer.current), [])
-    return (done: () => void) => {
-        if (!fallback || FALLBACK_FADE === 0) return done()
-        clearTimeout(timer.current)
-        timer.current = setTimeout(done, FALLBACK_FADE)
-    }
-}
+// image in over 300 ms on Android after it loads. The fallback cases turn that
+// off (FastImage passes other props on to Image), so the screenshot shows the
+// image, not the fade. Not a FastImage prop, hence the cast.
+const NO_FADE = { fadeDuration: 0 } as Partial<FastImageProps>
 
 // Passes when `event` fires. With `removeAfter`, the handler is removed after
 // it fires, which crashed on iOS before #1088.
@@ -87,16 +79,14 @@ function EventCase({
     removeAfter?: boolean
 } & FastImageProps) {
     const [fired, setFired] = useState(false)
-    const afterFade = useAfterFade(props.fallback && event === 'onLoad')
     const attached = !(removeAfter && fired)
-    const handlers = attached
-        ? { [event]: () => afterFade(() => setFired(true)) }
-        : {}
+    const handlers = attached ? { [event]: () => setFired(true) } : {}
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
                 resizeMode="contain"
+                {...(props.fallback ? NO_FADE : null)}
                 {...props}
                 {...handlers}
             />
@@ -148,7 +138,6 @@ function NoCrashCase({
 function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
     const [x, setX] = useState<number>()
     const [loaded, setLoaded] = useState(false)
-    const afterFade = useAfterFade(fallback)
     const ok = loaded && x !== undefined && Math.abs(x - 10) < 1
     return (
         <View style={styles.row}>
@@ -156,8 +145,9 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
                 style={[styles.image, { marginLeft: 10 }]}
                 source={{ uri: LOGO }}
                 fallback={fallback}
+                {...(fallback ? NO_FADE : null)}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
-                onLoad={() => afterFade(() => setLoaded(true))}
+                onLoad={() => setLoaded(true)}
             />
             <CaseStatus
                 id={id}
