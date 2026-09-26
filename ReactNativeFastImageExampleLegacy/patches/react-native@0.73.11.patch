@@ -1,0 +1,16 @@
+diff --git a/React/Views/RCTView.m b/React/Views/RCTView.m
+index bb8336615a020819155fe6efb37d7075533ea5ed..d8717518602c1d50004d176340a9bf427421fb74 100644
+--- a/React/Views/RCTView.m
++++ b/React/Views/RCTView.m
+@@ -235,7 +235,10 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithCoder : unused)
+   if (label) {
+     return label;
+   }
+-  return RCTRecursiveAccessibilityLabel(self);
++  if (self.isAccessibilityElement) {
++    return RCTRecursiveAccessibilityLabel(self);
++  }
++  return nil;
+ }
+ 
+ - (NSArray<UIAccessibilityCustomAction *> *)accessibilityCustomActions

@@ -54,7 +54,7 @@ bun run ios
 bun run android
 ```
 
-Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode.
+Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode. `bun install` also applies `patches/react-native@0.73.11.patch` (Bun's `patchedDependencies`), which backports [facebook/react-native#51988](https://github.com/facebook/react-native/pull/51988): `RCTView` only builds its recursive accessibility label for views that are accessibility elements. Without it, every accessibility snapshot on iOS walks the whole view tree, which made each Maestro step on this app take about twice as long as on the main example.
 
 ## Verifying changes
 
