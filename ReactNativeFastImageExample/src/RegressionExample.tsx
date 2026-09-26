@@ -314,38 +314,32 @@ function NoReloadCase() {
     )
 }
 
-// Cycles one FastImage through three urls, then passes when the last one
-// loads. On Android the view stayed in the progress map under every url it had
-// loaded, which kept it (and its Activity) alive.
+// Cycles one FastImage through three urls, moving to the next as each loads,
+// and passes when the last one loads. On Android the view stayed in the
+// progress map under every url it had loaded, which kept it (and its
+// Activity) alive. A fixed number of swaps, so it always ends on the same
+// image (1021) for the screenshot.
 const SWAP = [1020, 1021, 1022].map((id) => ({
     uri: imageUrl(`picsum/${id}-120x120.jpg`),
 }))
+const SWAPS = 4
 function SourceSwapCase() {
     const [index, setIndex] = useState(0)
-    const [done, setDone] = useState(false)
     const [loaded, setLoaded] = useState(false)
-    useEffect(() => {
-        const interval = setInterval(() => setIndex((i) => i + 1), 300)
-        const timer = setTimeout(() => {
-            clearInterval(interval)
-            setDone(true)
-        }, 1500)
-        return () => {
-            clearInterval(interval)
-            clearTimeout(timer)
-        }
-    }, [])
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
                 source={SWAP[index % SWAP.length]}
                 onLoadStart={() => setLoaded(false)}
-                onLoad={() => setLoaded(true)}
+                onLoad={() => {
+                    if (index < SWAPS) setIndex(index + 1)
+                    else setLoaded(true)
+                }}
             />
             <CaseStatus
                 id="source-swap"
-                status={done && loaded ? 'OK' : 'waiting'}
+                status={index === SWAPS && loaded ? 'OK' : 'waiting'}
                 description="#384: changing source keeps loading (Android leaked the view)"
             />
         </View>
