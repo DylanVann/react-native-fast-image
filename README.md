@@ -191,7 +191,7 @@ Changing it restarts the animation.
 How the image is filtered when it's drawn smaller or larger than its size (like CSS's `image-rendering`):
 
 - `'auto'` **(Default)** - The platform's usual filtering.
-- `'smooth'` - Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. **It uses more memory:** on iOS the image is also kept at smaller sizes for drawing (about a third more than the decoded image); on Android it's decoded at full size while it loads (the image kept in memory afterwards is at most twice the view's size, as with `'auto'`).
+- `'smooth'` - iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are already decoded at about the view's size there).
 - `'pixelated'` - Sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
 
 ---

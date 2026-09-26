@@ -1233,7 +1233,8 @@ function ErrorMessageCase() {
 // per screen pixel, cropped), then drawn in each mode (columns: auto, smooth,
 // pixelated). Checked by the screenshot; each row says what to expect. Shrunk
 // with auto or pixelated, the first two rows lose detail, differently on each
-// platform (they drop different pixels); smooth looks the same on both.
+// platform (they drop different pixels). smooth is iOS only (the same as auto
+// on Android).
 const RENDERING_MODES = ['auto', 'smooth', 'pixelated'] as const
 const RENDERING_COLUMN = 96
 const RENDERING_ROWS = [
@@ -1241,13 +1242,13 @@ const RENDERING_ROWS = [
         image: 'stripes.png',
         size: { width: 1024, height: 1024 },
         drawn: { width: 48, height: 48 },
-        label: 'Shrunk: 1px black and white stripes (1024px) drawn at 48. smooth: an even gray (#445)',
+        label: 'Shrunk: 1px black and white stripes (1024px) drawn at 48. smooth (iOS): an even gray (#445)',
     },
     {
         image: 'text-page.png',
         size: { width: 1600, height: 1000 },
         drawn: { width: 96, height: 60 },
-        label: 'Shrunk: a page of small text (1600px wide) drawn at 96. smooth: the lines of text stay continuous',
+        label: 'Shrunk: a page of small text (1600px wide) drawn at 96. smooth (iOS): the lines of text stay continuous',
     },
     {
         image: 'sprite-12.png',

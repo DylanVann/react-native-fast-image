@@ -119,9 +119,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * How the image is filtered when it's drawn smaller or larger than its
      * size: `'auto'` (default, the platform's usual filtering), `'smooth'`
-     * (keeps a large image drawn much smaller from looking jagged or noisy;
-     * uses more memory, see the README) or `'pixelated'` (sharp pixels, e.g.
-     * for pixel art).
+     * (iOS only: keeps a large image drawn much smaller from looking jagged
+     * or noisy; uses more memory, see the README) or `'pixelated'` (sharp
+     * pixels, e.g. for pixel art).
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
 

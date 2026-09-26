@@ -5,7 +5,6 @@ import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
@@ -16,13 +15,8 @@ import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
-import com.bumptech.glide.load.MultiTransformation;
-import com.bumptech.glide.load.Transformation;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.resource.bitmap.CenterCrop;
-import com.bumptech.glide.load.resource.bitmap.CenterInside;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
-import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
@@ -105,7 +99,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         @Override
         public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
             if (resource instanceof BitmapDrawable) {
-                if ("pixelated".equals(mImageRendering)) {
+                if (mPixelated) {
                     // Scaled by the view without filtering: sharp pixels.
                     resource = resource.mutate();
                     resource.setFilterBitmap(false);
@@ -150,62 +144,31 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mNeedsReload = true;
     }
 
-    // How the image is resampled when it's drawn at another size: "auto"
-    // (Glide's defaults), "smooth" or "pixelated". Part of the request, so a
-    // change reloads.
-    private String mImageRendering = "auto";
+    // imageRendering="pixelated": no resampling by Glide, and drawn without
+    // filtering (sharp pixels). "smooth" is iOS only; here it's the same as
+    // "auto": Glide already decodes a large image at about the view's size, and
+    // averaging it properly would need a full-size decode. Part of the
+    // request, so a change reloads.
+    private boolean mPixelated = false;
 
     public void setImageRendering(@Nullable String imageRendering) {
-        String value = imageRendering == null ? "auto" : imageRendering;
-        if (value.equals(mImageRendering)) return;
-        mImageRendering = value;
+        boolean pixelated = "pixelated".equals(imageRendering);
+        if (pixelated == mPixelated) return;
+        mPixelated = pixelated;
         mNeedsReload = true;
     }
 
-    // The scale type's options (what into() would apply), for imageRendering.
+    // The scale type's options (what into() would apply), or none when
+    // pixelated.
     private RequestOptions renderingOptions(Object model) {
-        String key = String.valueOf(model);
-        switch (mImageRendering) {
-            case "pixelated":
-                // Decoded as it is, then scaled by the view without filtering
-                // (see OwnGifTarget): no resampling by Glide.
-                return new RequestOptions()
-                        .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, key))
-                        .dontTransform();
-            case "smooth": {
-                // Glide decodes a large image smaller by sampling, which for
-                // PNG, WebP and GIF keeps every nth pixel: fine detail aliases
-                // or disappears (1px stripes came out black, #445). JPEG is
-                // averaged. So decode it at full size (more memory while it
-                // loads), halve it (averaging) to at most twice the view's
-                // size, then crop or fit it as usual.
-                Transformation<Bitmap> scaleType = scaleTypeTransformation(getScaleType());
-                RequestOptions options = new RequestOptions()
-                        .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, key));
-                return scaleType == null
-                        ? options.optionalTransform(new FastImageHalve())
-                        : options.optionalTransform(new MultiTransformation<>(new FastImageHalve(), scaleType));
-            }
-            default:
-                return FastImageSourceSize.scaleTypeOptions(getScaleType(), FastImageSourceSize.capture(getScaleType(), model));
+        if (mPixelated) {
+            // Decoded as it is, then scaled by the view without filtering (see
+            // OwnGifTarget).
+            return new RequestOptions()
+                    .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, String.valueOf(model)))
+                    .dontTransform();
         }
-    }
-
-    @Nullable
-    private static Transformation<Bitmap> scaleTypeTransformation(ScaleType scaleType) {
-        switch (scaleType) {
-            case CENTER_CROP:
-                return new CenterCrop();
-            case CENTER_INSIDE:
-            case FIT_XY:
-                return new CenterInside();
-            case FIT_CENTER:
-            case FIT_START:
-            case FIT_END:
-                return new FitCenter();
-            default:
-                return null;
-        }
+        return FastImageSourceSize.scaleTypeOptions(getScaleType(), FastImageSourceSize.capture(getScaleType(), model));
     }
 
     // The request for the image the view shows once it has loaded, and the one
