@@ -1,3 +1,10 @@
+## [8.13.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.0...v8.13.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **ios:** don't report or show a load replaced by a new source ([#1159](https://github.com/DylanVann/react-native-fast-image/issues/1159)) ([b20fc83](https://github.com/DylanVann/react-native-fast-image/commit/b20fc836a069cf0642d416df93664579b094b6d9))
+
 # [8.13.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.12.0...v8.13.0) (2026-09-26)
 
 
