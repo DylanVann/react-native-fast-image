@@ -300,7 +300,8 @@ env:
 # while it loads: it should still show the first image (magenta), not a blank (#747).
 # Check the screenshot.
 - scrollUntilVisible:
-      element: 'keep-previous: .*'
+      element:
+          id: 'regression-keep-previous'
       timeout: 10000
 - tapOn:
       id: 'regression-keep-previous-start'
@@ -315,7 +316,8 @@ env:
 # while it loads: it should be blank: recyclingKey changed with the source.
 # Check the screenshot.
 - scrollUntilVisible:
-      element: 'recycling-key: .*'
+      element:
+          id: 'regression-recycling-key'
       timeout: 10000
 - tapOn:
       id: 'regression-recycling-key-start'
@@ -328,7 +330,8 @@ env:
       timeout: 30000
 # A view that gets taller after its image loaded (#983). Check the screenshot.
 - scrollUntilVisible:
-      element: 'size-change: .*'
+      element:
+          id: 'regression-size-change'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'size-change: OK'
