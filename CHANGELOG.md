@@ -1,3 +1,10 @@
+## [8.8.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.8.0...v8.8.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **types:** make PreloadResult a discriminated union on ok ([#1147](https://github.com/DylanVann/react-native-fast-image/issues/1147)) ([c5f8995](https://github.com/DylanVann/react-native-fast-image/commit/c5f899500470147ffb22998a22867cf2597945d0))
+
 # [8.8.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.7.0...v8.8.0) (2026-09-26)
 
 
