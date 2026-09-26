@@ -3,6 +3,11 @@
 # when it's already visible; on the legacy architecture, iOS reports off-screen
 # rows as visible, so the waits pass without scrolling there).
 #
+# The scroll steps select the status text by testID (regression-<case>) and the
+# waits by exact text: on iOS, maestro-runner resolves those with a
+# WebDriverAgent lookup, while a regex like 'case: .*' makes it fetch and parse
+# the whole page source on every poll, which took about 2.5 s per scroll step.
+#
 #   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/regression.yaml
 #
 # App IDs are listed in walkthrough.yaml.
@@ -23,13 +28,15 @@ env:
 - tapOn:
       id: 'tab-regression'
 - scrollUntilVisible:
-      element: 'tint-remote: .*'
+      element:
+          id: 'regression-tint-remote'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'tint-remote: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'tint-404: .*'
+      element:
+          id: 'regression-tint-404'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'tint-404: OK'
@@ -54,49 +61,57 @@ env:
       timeout: 30000
 - takeScreenshot: ${OUT}/regression-top
 - scrollUntilVisible:
-      element: 'default-no-source: .*'
+      element:
+          id: 'regression-default-no-source'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'default-no-source: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload-no-uri: .*'
+      element:
+          id: 'regression-preload-no-uri'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'preload-no-uri: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload-unresolved: .*'
+      element:
+          id: 'regression-preload-unresolved'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'preload-unresolved: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'clear-tint: .*'
+      element:
+          id: 'regression-clear-tint'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'clear-tint: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'layout: .*'
+      element:
+          id: 'regression-layout'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'layout: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'layout-fallback: .*'
+      element:
+          id: 'regression-layout-fallback'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'layout-fallback: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'fallback-require: .*'
+      element:
+          id: 'regression-fallback-require'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'fallback-require: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'touchable: .*'
+      element:
+          id: 'regression-touchable'
       timeout: 10000
 - tapOn:
       id: 'regression-touchable-image'
@@ -104,13 +119,15 @@ env:
       visible: 'touchable: OK'
       timeout: 10000
 - scrollUntilVisible:
-      element: 'tint-style: .*'
+      element:
+          id: 'regression-tint-style'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'tint-style: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'pointer-events: .*'
+      element:
+          id: 'regression-pointer-events'
       timeout: 10000
 - tapOn:
       id: 'regression-pointer-events-target'
@@ -118,121 +135,141 @@ env:
       visible: 'pointer-events: OK'
       timeout: 10000
 - scrollUntilVisible:
-      element: 'error-invalid-data-uri: .*'
+      element:
+          id: 'regression-error-invalid-data-uri'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'error-invalid-data-uri: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'error-empty-uri: .*'
+      element:
+          id: 'regression-error-empty-uri'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'error-empty-uri: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'error-null-uri-default: .*'
+      element:
+          id: 'regression-error-null-uri-default'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'error-null-uri-default: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'resize-mode: .*'
+      element:
+          id: 'regression-resize-mode'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'resize-mode: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'no-reload: .*'
+      element:
+          id: 'regression-no-reload'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'no-reload: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'source-swap: .*'
+      element:
+          id: 'regression-source-swap'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'source-swap: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'load-start-once: .*'
+      element:
+          id: 'regression-load-start-once'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'load-start-once: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'zero-size: .*'
+      element:
+          id: 'regression-zero-size'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'zero-size: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'zero-height: .*'
+      element:
+          id: 'regression-zero-height'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'zero-height: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'asset-uri: .*'
+      element:
+          id: 'regression-asset-uri'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'asset-uri: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'source-size: .*'
+      element:
+          id: 'regression-source-size'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'source-size: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'source-size-gif: .*'
+      element:
+          id: 'regression-source-size-gif'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'source-size-gif: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'source-size-cached: .*'
+      element:
+          id: 'regression-source-size-cached'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'source-size-cached: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'progress-unknown-size: .*'
+      element:
+          id: 'regression-progress-unknown-size'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'progress-unknown-size: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload: .*'
+      element:
+          id: 'regression-preload'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'preload: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'preload-headers: .*'
+      element:
+          id: 'regression-preload-headers'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'preload-headers: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'gif-loop-once: .*'
+      element:
+          id: 'regression-gif-loop-once'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'gif-loop-once: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'web-cache: .*'
+      element:
+          id: 'regression-web-cache'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'web-cache: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'cookies: .*'
+      element:
+          id: 'regression-cookies'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'cookies: OK'
       timeout: 30000
 - scrollUntilVisible:
-      element: 'resize-center: .*'
+      element:
+          id: 'regression-resize-center'
       timeout: 10000
 - extendedWaitUntil:
       visible: 'resize-center: OK'
