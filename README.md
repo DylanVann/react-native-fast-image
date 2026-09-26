@@ -202,6 +202,16 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ---
 
+### `downsample?: boolean`
+
+iOS only. Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
+
+Use it when you show images much larger than their views and can't get them at the right size, e.g. user uploads or other people's URLs in a list. If you control the images, serve them at the size they're shown instead (resized on your server or by an image CDN), which also saves bandwidth.
+
+Decoding a smaller copy can take a little longer, so use it where the memory matters. Needs SDWebImage 5.19.7 or later. On Android images are already decoded at about the view's size.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

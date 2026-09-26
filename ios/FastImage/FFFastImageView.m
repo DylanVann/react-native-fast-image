@@ -3,6 +3,7 @@
 #import <SDWebImage/UIView+WebCache.h>
 #import <React/RCTUtils.h>
 #import <SDWebImage/SDWebImageError.h>
+#import "FFFDownsampledImage.h"
 
 @interface FFFastImageView ()
 
@@ -25,6 +26,14 @@
 // Whether the view shows an image that loaded (not defaultSource or nothing).
 // A new source then keeps it until the new image has loaded (see reloadImage).
 @property(nonatomic, assign) BOOL showsLoadedImage;
+// downsample: a load waits for the view's size (see didSetProps).
+@property(nonatomic, assign) BOOL waitsForSize;
+// The size (in pixels) the image showing or loading was decoded for, and
+// whether it covers it; zero for a full-size image.
+@property(nonatomic, assign) CGSize decodedBox;
+@property(nonatomic, assign) BOOL decodedCover;
+// Counts loads, so a quiet reload's completion can tell if it's still current.
+@property(nonatomic, assign) NSUInteger loadCount;
 
 @end
 
@@ -140,6 +149,13 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 - (void) layoutSubviews {
     [super layoutSubviews];
     [self updateContentMode];
+    if (self.waitsForSize) {
+        if ([self hasSize]) {
+            [self reloadImage];
+        }
+    } else {
+        [self reloadIfResized];
+    }
 }
 
 - (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
@@ -254,9 +270,14 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (void) sendOnLoad: (UIImage*)image {
+    // The full image's size, also when it was decoded smaller.
+    CGSize size = [FFFDownsampledImage sourceSizeOfImage: image];
+    if (CGSizeEqualToSize(size, CGSizeZero)) {
+        size = image.size;
+    }
     self.onLoadEvent = @{
-            @"width": [NSNumber numberWithDouble: image.size.width],
-            @"height": [NSNumber numberWithDouble: image.size.height]
+            @"width": [NSNumber numberWithDouble: size.width],
+            @"height": [NSNumber numberWithDouble: size.height]
     };
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
@@ -294,12 +315,95 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) didSetProps: (NSArray<NSString*>*)changedProps {
     if (_needsReload) {
+        // With downsample on, the image is decoded for the view's size, so
+        // a view that hasn't been laid out yet loads once it has. Props and
+        // layout are applied in the same update, so that's before the next
+        // frame (in layoutSubviews). A view that still has no size then
+        // (e.g. one sized from onLoad) loads at full size.
+        if ([self downsamples] && ![self hasSize]) {
+            if (!self.waitsForSize) {
+                self.waitsForSize = YES;
+                __weak typeof(self) weakSelf = self;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (weakSelf.waitsForSize) {
+                        [weakSelf reloadImage];
+                    }
+                });
+            }
+            return;
+        }
         [self reloadImage];
+    } else {
+        [self reloadIfResized];
     }
+}
+
+// Whether images are decoded at about the view's size (downsample).
+// Not for `repeat`, which tiles the image at its own size, or SDWebImage
+// before 5.19.
+- (BOOL) downsamples {
+    return _downsample && _resizeMode != RCTResizeModeRepeat && [FFFDownsampledImage isSupported];
+}
+
+// Whether the view has been laid out with an area. One that's 0 wide or tall
+// (e.g. sized from onLoad) has no size to decode the image for.
+- (BOOL) hasSize {
+    return self.bounds.size.width > 0 && self.bounds.size.height > 0;
+}
+
+// The size in pixels to decode the image for, or zero for full size.
+- (CGSize) decodeBox {
+    if (![self downsamples] || ![self hasSize]) {
+        return CGSizeZero;
+    }
+    CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGSize size = self.bounds.size;
+    return CGSizeMake(ceil(size.width * scale), ceil(size.height * scale));
+}
+
+// Whether the image has to cover the box, rather than fit in it.
+- (BOOL) decodeCovers {
+    return _resizeMode == RCTResizeModeCover || _resizeMode == RCTResizeModeStretch;
+}
+
+// The view grew (by more than a fifth, as React Native's Image reloads), or
+// now needs a covering or full-size image: loads the image again for its
+// size, keeping the current one until then. It comes from the disk cache
+// (the downloaded file is kept there whatever size it's decoded at).
+- (void) reloadIfResized {
+    if (!_source || _needsReload || self.hasErrored || CGSizeEqualToSize(self.decodedBox, CGSizeZero)) {
+        return;
+    }
+    // Already at full size (it's no larger than the view it was decoded for).
+    UIImage* image = self.untintedImage ?: super.image;
+    if (self.hasCompleted && CGSizeEqualToSize(image.size, [FFFDownsampledImage sourceSizeOfImage: image])) {
+        return;
+    }
+    CGSize box = [self decodeBox];
+    BOOL cover = [self decodeCovers];
+    if ([self downsamples]) {
+        if (![self hasSize]) {
+            return;
+        }
+        BOOL grew = box.width > self.decodedBox.width * 1.2 || box.height > self.decodedBox.height * 1.2;
+        if (!grew && (self.decodedCover || !cover)) {
+            return;
+        }
+    }
+    SDWebImageOptions options = [self loadOptions];
+    if (self.showsLoadedImage) {
+        options |= SDWebImageDelayPlaceholder;
+    }
+    // Without events once it has loaded: it's the same image. If it's still
+    // loading, it restarts for the new size, and sends its events as usual.
+    BOOL events = !self.hasCompleted;
+    [self downloadImage: _source options: options context: [self loadContext] events: events];
 }
 
 - (void) reloadImage {
     _needsReload = NO;
+    self.waitsForSize = NO;
+    self.decodedBox = CGSizeZero;
 
     if (_source) {
         // Load base64 images.
@@ -340,33 +444,7 @@ NSString *FFFErrorMessage(NSError *error)
             return;
         }
 
-        // Set headers.
-        SDWebImageContext* context = @{SDWebImageContextDownloadRequestModifier: _source.requestModifier};
-
-        // Set priority.
-        SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
-        switch (_source.priority) {
-            case FFFPriorityLow:
-                options |= SDWebImageLowPriority;
-                break;
-            case FFFPriorityNormal:
-                // Priority is normal by default.
-                break;
-            case FFFPriorityHigh:
-                options |= SDWebImageHighPriority;
-                break;
-        }
-
-        switch (_source.cacheControl) {
-            case FFFCacheControlWeb:
-                options |= SDWebImageRefreshCached;
-                break;
-            case FFFCacheControlCacheOnly:
-                options |= SDWebImageFromCacheOnly;
-                break;
-            case FFFCacheControlImmutable:
-                break;
-        }
+        SDWebImageOptions options = [self loadOptions];
 
         // Keep showing the loaded image until the new one has loaded, instead
         // of clearing it to defaultSource (or nothing) while it loads, which
@@ -387,20 +465,66 @@ NSString *FFFErrorMessage(NSError *error)
         self.retriedAfterBackground = NO;
         [self stopWaitingForActive];
 
-        [self downloadImage: _source options: options context: context];
+        [self downloadImage: _source options: options context: [self loadContext] events: YES];
     } else if (_defaultSource) {
         [self setImage: _defaultSource];
         self.showsLoadedImage = NO;
     }
 }
 
-- (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
+- (SDWebImageOptions) loadOptions {
+    SDWebImageOptions options = SDWebImageRetryFailed | SDWebImageHandleCookies;
+    switch (_source.priority) {
+        case FFFPriorityLow:
+            options |= SDWebImageLowPriority;
+            break;
+        case FFFPriorityNormal:
+            // Priority is normal by default.
+            break;
+        case FFFPriorityHigh:
+            options |= SDWebImageHighPriority;
+            break;
+    }
+
+    switch (_source.cacheControl) {
+        case FFFCacheControlWeb:
+            options |= SDWebImageRefreshCached;
+            break;
+        case FFFCacheControlCacheOnly:
+            options |= SDWebImageFromCacheOnly;
+            break;
+        case FFFCacheControlImmutable:
+            break;
+    }
+    return options;
+}
+
+// Headers, and the size to decode at (see FFFDownsampledImage), which it
+// records as decodedBox.
+- (SDWebImageContext*) loadContext {
+    SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
+    context[SDWebImageContextDownloadRequestModifier] = _source.requestModifier;
+    CGSize box = [self decodeBox];
+    self.decodedBox = box;
+    self.decodedCover = [self decodeCovers];
+    if (CGSizeEqualToSize(box, CGSizeZero)) {
+        context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
+        return context;
+    }
+    [FFFDownsampledImage addToContext: context forURL: _source.url box: box cover: self.decodedCover];
+    return context;
+}
+
+// events: NO for a quiet reload at a new size (see reloadIfResized), which
+// sends no events and keeps the current image if it fails.
+- (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context events: (BOOL)events {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
+    NSUInteger load = ++self.loadCount;
     // Most images have no onProgress, so only ask SDWebImage for progress when
     // there's a handler as the load starts. A handler added while loading is
     // used from the next load.
     SDImageLoaderProgressBlock progress = nil;
-    if (self.onFastImageProgress) {
+    if (events && self.onFastImageProgress) {
         progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
             // Without a Content-Length the total is unknown (-1 or 0), and a
             // percentage can't be worked out from it, so don't send those.
@@ -423,15 +547,49 @@ NSString *FFFErrorMessage(NSError *error)
         };
     }
     CFTimeInterval startedAt = CACurrentMediaTime();
-    [self sd_setImageWithURL: _source.url
-            placeholderImage: _defaultSource
-                     options: options
-                     context: context
-                    progress: progress
-                   completed: ^(UIImage* _Nullable image,
+    NSURL* url = context[SDWebImageContextImageThumbnailPixelSize] ? [FFFDownsampledImage loadURLForURL: source.url] : source.url;
+    if (!events) {
+        // Only this load's image: SDWebImage would clear the view (to the
+        // placeholder) if it fails, and a cancelled load can still complete.
+        SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
+            if (image && weakSelf.loadCount == load) {
+                weakSelf.image = image;
+            }
+        };
+        [self sd_internalSetImageWithURL: url
+                        placeholderImage: nil
+                                 options: options
+                                 context: context
+                           setImageBlock: setImage
+                                progress: nil
+                               completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+            if (error && weakSelf.loadCount == load) {
+                // Keeps the image it has, without trying again on every
+                // layout (e.g. while offline).
+                weakSelf.decodedBox = CGSizeZero;
+            }
+        }];
+        return;
+    }
+    // Like SDAnimatedImageView's sd_setImageWithURL, which sets the image
+    // class to SDAnimatedImage (loadContext sets it).
+    [self sd_internalSetImageWithURL: url
+                    placeholderImage: _defaultSource
+                             options: options
+                             context: context
+                       setImageBlock: nil
+                            progress: progress
+                           completed: ^(UIImage* _Nullable image,
+                    NSData* _Nullable data,
                     NSError* _Nullable error,
                     SDImageCacheType cacheType,
+                    BOOL finished,
                     NSURL* _Nullable imageURL) {
+                // Restarted for a new size (reloadIfResized): the new load
+                // sends the events.
+                if (weakSelf.loadCount != load && weakSelf.source == source) {
+                    return;
+                }
                 // The download was running when the app went to the
                 // background, and failed: iOS suspends it there, and its
                 // timeout keeps counting, so it times out as the app comes
@@ -468,7 +626,7 @@ NSString *FFFErrorMessage(NSError *error)
     // nil in app extensions, which don't get these notifications.
     UIApplication* application = RCTSharedApplication();
     if (!application || application.applicationState == UIApplicationStateActive) {
-        [self downloadImage: source options: options context: context];
+        [self downloadImage: source options: options context: context events: YES];
         return;
     }
     [self stopWaitingForActive];
@@ -479,7 +637,7 @@ NSString *FFFErrorMessage(NSError *error)
                                                                         usingBlock: ^(NSNotification* notification) {
         [weakSelf stopWaitingForActive];
         if (weakSelf.source == source) {
-            [weakSelf downloadImage: source options: options context: context];
+            [weakSelf downloadImage: source options: options context: context events: YES];
         }
     }];
 }

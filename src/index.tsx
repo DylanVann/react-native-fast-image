@@ -130,6 +130,13 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * its own, so pausing one doesn't pause others showing the same file.
      */
     paused?: boolean
+    /**
+     * iOS only. Decodes a large image at about the size it's shown at, so it
+     * takes much less memory. For images much larger than their views that
+     * you can't get at the right size (if you can, resize them on your server
+     * or with an image CDN instead). See the README.
+     */
+    downsample?: boolean
 
     onLoadStart?(): void
 
