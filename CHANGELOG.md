@@ -1,3 +1,10 @@
+# [8.10.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.9.0...v8.10.0) (2026-09-26)
+
+
+### Features
+
+* include an error message in onError ([#1132](https://github.com/DylanVann/react-native-fast-image/issues/1132)) ([5ddd59b](https://github.com/DylanVann/react-native-fast-image/commit/5ddd59b34663f1eeb11aa1b57b4ecf8d5fa263d2)), closes [#200](https://github.com/DylanVann/react-native-fast-image/issues/200)
+
 # [8.9.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.8.1...v8.9.0) (2026-09-26)
 
 
