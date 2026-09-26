@@ -14,8 +14,8 @@
 + (NSURL*) loadURLForURL: (NSURL*)url;
 
 // Sets a load's context to decode the image for a box (in pixels) to cover
-// or fit in.
-+ (void) addToContext: (SDWebImageMutableContext*)context forURL: (NSURL*)url box: (CGSize)box cover: (BOOL)cover;
+// or fit in. `key` is the source's cache key (its url, or its cacheKey).
++ (void) addToContext: (SDWebImageMutableContext*)context forKey: (NSString*)key box: (CGSize)box cover: (BOOL)cover;
 
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.

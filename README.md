@@ -146,6 +146,23 @@ Indicates the load order priority of an image. Images with `FastImage.priority.h
 
 ---
 
+### `source.cacheKey?: string`
+
+The key the image is cached under, instead of its uri. Use it for urls that change while the image stays the same, e.g. signed urls with a token or an expiry. Use something that identifies the image, and change it when the image changes (e.g. include a version or the time it was updated), or the old image keeps showing:
+
+```jsx
+<FastImage
+    source={{
+        uri: signedUrl,
+        cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
+    }}
+/>
+```
+
+Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
+
+---
+
 ### `defaultSource?: number`
 
 - An asset loaded with `require(...)`.

@@ -100,11 +100,11 @@ static CGSize FFFPixelSize(NSData* data) {
     return components.URL ?: url;
 }
 
-+ (void) addToContext: (SDWebImageMutableContext*)context forURL: (NSURL*)url box: (CGSize)box cover: (BOOL)cover {
++ (void) addToContext: (SDWebImageMutableContext*)context forKey: (NSString*)key box: (CGSize)box cover: (BOOL)cover {
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
-    // Cached under the url itself (see loadURLForURL:), so the disk cache
-    // keeps one download for every size and for loads that aren't downsampled.
-    NSString* key = url.absoluteString;
+    // Cached under the source's own key (not the url from loadURLForURL:),
+    // so the disk cache keeps one download for every size and for loads
+    // that aren't downsampled.
     context[SDWebImageContextCacheKeyFilter] = [SDWebImageCacheKeyFilter cacheKeyFilterWithBlock: ^NSString* (NSURL* _Nonnull loadURL) {
         return key;
     }];

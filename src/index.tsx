@@ -52,6 +52,12 @@ export type Source = {
     headers?: { [key: string]: string }
     priority?: Priority
     cache?: Cache
+    /**
+     * The key the image is cached under, instead of its uri. For urls that
+     * change while the image stays the same, e.g. signed urls with a token or
+     * an expiry: use something stable, like the image's id.
+     */
+    cacheKey?: string
 }
 
 export interface OnLoadEvent {
