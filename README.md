@@ -204,7 +204,7 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ### `downsample?: boolean`
 
-iOS only. Decodes the image at about the size it's shown at (the view's size in pixels, enough to cover it for `cover` and `stretch`) instead of at full size. A large image in a small view then takes much less memory: a 12 megapixel photo takes about 48 MB decoded at full size, and about 1 MB in a 150 × 150 view. Decoding a large image much smaller is also faster (about 12 ms instead of 39 ms for a 2048 × 2048 JPEG in a 48 × 48 view, in the iOS simulator), though decoding it at about half its size can take a little longer than at full size.
+iOS only. Decodes the image at about the size it's shown at (the view's size in pixels, enough to cover it for `cover` and `stretch`) instead of at full size, for images at least twice that size. It's for memory: a large image in a small view then takes much less of it, e.g. a 12 megapixel photo in a 150 × 150 view takes about 1 MB instead of tens of megabytes, and a very large image can be shown without running out of memory. It isn't faster: newer iPhones decode JPEG and HEIC at full size in hardware, while decoding smaller is done in software, so it can take a little longer (about 27 ms instead of 21 ms for a 12 megapixel JPEG in a 48 × 48 view on an iPhone 15 Pro Max). An image less than twice the size the view needs is decoded at full size, since decoding it a little smaller would take longer and more memory while decoding.
 
 Where you control the images, serving them at the size they're shown (resized on the server or by an image CDN, and cached there) is better: it also saves bandwidth and decoding time. This prop is for images you can't get in the right size.
 

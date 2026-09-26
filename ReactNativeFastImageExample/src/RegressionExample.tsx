@@ -1642,7 +1642,9 @@ function DownsamplePreloadingCase() {
     )
 }
 
-// An animated image, decoded smaller (it animates, so it's masked).
+// An animated image, decoded smaller (it animates, so it's masked). In a
+// small view: an image is only downsampled when it's at least twice the size
+// the view needs.
 const JELLYFISH_SIZE = '500x281'
 function DownsampleGifCase() {
     const [size, setSize] = useState<string>()
@@ -1650,7 +1652,7 @@ function DownsampleGifCase() {
         <View style={styles.row}>
             <Masked>
                 <FastImage
-                    style={styles.image}
+                    style={downsampleStyles.small}
                     source={{ uri: imageUrl('jellyfish.gif') }}
                     downsample
                     onLoad={(e) =>
@@ -1678,6 +1680,7 @@ function DownsampleGifCase() {
 const downsampleStyles = StyleSheet.create({
     large: { width: 96, height: 96, backgroundColor: '#eee' },
     stripes: { width: 48, height: 48 },
+    small: { width: 32, height: 32, backgroundColor: '#eee' },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
 })

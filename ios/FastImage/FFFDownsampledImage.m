@@ -130,8 +130,12 @@ static CGSize FFFPixelSize(NSData* data) {
     BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
     CGSize pixelSize = FFFPixelSize(data);
 
-    // Decode at full size unless the image is larger than it needs to be (or
-    // its size can't be read).
+    // Decode at full size unless the image is at least twice as large as it
+    // needs to be (or its size can't be read). Decoding smaller is done in
+    // software, while newer iPhones decode JPEG and HEIC at full size in
+    // hardware: on an iPhone 15 Pro Max a 12 MP JPEG took about 20 ms at full
+    // size, and 120-130 ms with a peak of 100-125 MB decoded to 60-90% of its
+    // size (1-6 MB and 27-40 ms for a thumbnail).
     NSMutableDictionary* decodeOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
     [decodeOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
     decodeOptions[SDImageCoderDecodePreserveAspectRatio] = @YES;
@@ -139,7 +143,7 @@ static CGSize FFFPixelSize(NSData* data) {
         CGFloat widthRatio = box.width / pixelSize.width;
         CGFloat heightRatio = box.height / pixelSize.height;
         CGFloat ratio = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
-        if (ratio < 1) {
+        if (ratio <= 0.5) {
             // ImageIO takes the longest side (kCGImageSourceThumbnailMaxPixelSize).
             // SDWebImage works it out from the box with the image's stored
             // width and height, before EXIF orientation, so a square box is
