@@ -58,6 +58,12 @@ const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
+// With `fallback`, FastImage renders React Native's Image, which fades an
+// image in over 300 ms on Android after it loads. The fallback cases turn that
+// off (FastImage passes other props on to Image), so the screenshot shows the
+// image, not the fade. Not a FastImage prop, hence the cast.
+const NO_FADE = { fadeDuration: 0 } as Partial<FastImageProps>
+
 // Passes when `event` fires. With `removeAfter`, the handler is removed after
 // it fires, which crashed on iOS before #1088.
 function EventCase({
@@ -80,6 +86,7 @@ function EventCase({
             <FastImage
                 style={styles.image}
                 resizeMode="contain"
+                {...(props.fallback ? NO_FADE : null)}
                 {...props}
                 {...handlers}
             />
@@ -126,21 +133,31 @@ function NoCrashCase({
 }
 
 // Passes when onLayout reports the image's position in its parent (x = 10
-// from its margin). It reported 0 when it came from the inner native view.
+// from its margin), once the image has loaded. It reported 0 when it came
+// from the inner native view.
 function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
     const [x, setX] = useState<number>()
-    const ok = x !== undefined && Math.abs(x - 10) < 1
+    const [loaded, setLoaded] = useState(false)
+    const ok = loaded && x !== undefined && Math.abs(x - 10) < 1
     return (
         <View style={styles.row}>
             <FastImage
                 style={[styles.image, { marginLeft: 10 }]}
                 source={{ uri: LOGO }}
                 fallback={fallback}
+                {...(fallback ? NO_FADE : null)}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
+                onLoad={() => setLoaded(true)}
             />
             <CaseStatus
                 id={id}
-                status={ok ? 'OK' : x === undefined ? 'waiting' : `x=${x}`}
+                status={
+                    ok
+                        ? 'OK'
+                        : x === undefined || !loaded
+                          ? 'waiting'
+                          : `x=${x}`
+                }
                 description={`#992: onLayout reports the position in the parent${
                     fallback ? ' (fallback)' : ''
                 }`}

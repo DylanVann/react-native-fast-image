@@ -741,21 +741,22 @@ async function runRegression(
     // that matters; the group's own is taken once it's all OK. Comparisons
     // run in the background; `shots` is awaited at the end.
     const shots: Promise<void>[] = []
-    const takeShot = (index: number, suffix?: string) => {
+    // masks: the areas the app measured just before (dp), to leave out.
+    const takeShot = (index: number, masksDp: unknown, suffix?: string) => {
         const name = suffix ? `${groups[index]}-${suffix}` : groups[index]
         const file = path.join(
             dir,
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
         )
         screenshot(platform, device, file)
-        const masks = messages
-            .filter((m) => m.type === 'mask' && m.group === index)
-            .map((m) => ({
-                x: (m.x as number) * scale,
-                y: (m.y as number) * scale,
-                width: (m.width as number) * scale,
-                height: (m.height as number) * scale,
-            }))
+        const masks = (
+            Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
+        ).map((m) => ({
+            x: m.x * scale,
+            y: m.y * scale,
+            width: m.width * scale,
+            height: m.height * scale,
+        }))
         // The band above the runner's content (its top padding): the status
         // bar (on iOS even with the override: a "back to the previous app"
         // breadcrumb) and React Native's dev banner ("Loading from Metro…",
@@ -792,7 +793,11 @@ async function runRegression(
         if (message.type === 'app') appConnected = message.connected === true
         else messages.push(message)
         if (message.type === 'snapshot' && groups.length > 0) {
-            takeShot(message.group as number, String(message.name))
+            takeShot(
+                message.group as number,
+                message.masks,
+                String(message.name),
+            )
         }
         notify()
     }
@@ -900,6 +905,7 @@ async function runRegression(
     scale = Number(hello.scale) || 1
     windowWidth = Number((hello.window as { width?: number })?.width) || 0
     const timings: string[] = []
+    let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
     const statusOf = (index: number, id: string) =>
         messages.findLast(
@@ -943,9 +949,16 @@ async function runRegression(
                     failures.push(`${id}: ${status ?? 'no status'}`)
             }
         }
-        // Let the last status's render reach the screen.
-        await sleep(150)
-        takeShot(index)
+        // The app measures the masks once the last status's render has been
+        // laid out, so they're where the screenshot will see them.
+        const id = ++measureRequests
+        send({ type: 'measure', group: index, id })
+        const measured = await waitFor(
+            () => messages.find((m) => m.type === 'masks' && m.id === id),
+            5000,
+        )
+        if (!measured) failures.push(`${group}: the app didn't send its masks`)
+        takeShot(index, measured?.masks)
         timings.push(
             `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,
         )
