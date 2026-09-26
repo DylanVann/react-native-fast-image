@@ -28,6 +28,8 @@
 // How the image is filtered when drawn at another size: auto, smooth or
 // pixelated.
 @property (nonatomic, copy) NSString *imageRendering;
+// Pauses animated images on the frame they're showing.
+@property (nonatomic, assign) BOOL paused;
 
 @end
 

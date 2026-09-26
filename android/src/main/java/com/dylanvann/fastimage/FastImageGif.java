@@ -18,6 +18,7 @@ import com.bumptech.glide.load.resource.bitmap.BitmapResource;
 import com.bumptech.glide.load.resource.gif.GifBitmapProvider;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 
 // Gives a view its own animation of a GIF. Glide gives every view that shows
@@ -62,6 +63,42 @@ final class FastImageGif {
             copy.setFrameTransformation(transformation, transformed.get());
         }
         return copy;
+    }
+
+    // GifDrawable.start() also starts counting plays again, so a paused GIF
+    // would play its whole loop count again when resumed; iOS continues it.
+    // The count isn't public: keep it across start() by reflection. A GIF
+    // that already finished its plays starts over, as on iOS. Without the
+    // fields (another Glide version), it counts again, as start() does.
+    @Nullable
+    private static final Field LOOP_COUNT = field("loopCount");
+    @Nullable
+    private static final Field MAX_LOOP_COUNT = field("maxLoopCount");
+
+    static void resume(GifDrawable gif) {
+        if (LOOP_COUNT == null || MAX_LOOP_COUNT == null) {
+            gif.start();
+            return;
+        }
+        try {
+            int played = LOOP_COUNT.getInt(gif);
+            int max = MAX_LOOP_COUNT.getInt(gif);
+            gif.start();
+            if (max == GifDrawable.LOOP_FOREVER || played < max) LOOP_COUNT.setInt(gif, played);
+        } catch (IllegalAccessException e) {
+            gif.start();
+        }
+    }
+
+    @Nullable
+    private static Field field(String name) {
+        try {
+            Field field = GifDrawable.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.getType() == int.class ? field : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ByteBufferGifDecoder's.

@@ -79,8 +79,26 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // another view plays it.
         if (mOwnGif != null && getDrawable() == mOwnGif) {
             applyLoopCount(mOwnGif);
-            mOwnGif.stop();
-            mOwnGif.startFromFirstFrame();
+            if (!mPaused) {
+                mOwnGif.stop();
+                mOwnGif.startFromFirstFrame();
+            }
+        }
+    }
+
+    // Pauses GIFs on the frame they're showing (the view's own animation).
+    private boolean mPaused = false;
+
+    public void setPaused(boolean paused) {
+        if (paused == mPaused) return;
+        mPaused = paused;
+        if (mOwnGif != null && getDrawable() == mOwnGif) {
+            if (paused) {
+                mOwnGif.stop();
+            } else {
+                // Continues the loop count, as on iOS.
+                FastImageGif.resume(mOwnGif);
+            }
         }
     }
 
@@ -112,10 +130,25 @@ class FastImageViewWithUrl extends AppCompatImageView {
                     applyLoopCount(own);
                     super.onResourceReady(own, transition);
                     mOwnGif = own;
+                    // The target starts it; paused, it waits on its first frame.
+                    if (mPaused) own.stop();
                     return;
                 }
             }
             super.onResourceReady(resource, transition);
+        }
+
+        // The target starts animations again when the Activity does: not a
+        // paused one, and the view's own GIF continues its loop count (start()
+        // would count again).
+        @Override
+        public void onStart() {
+            if (mPaused) return;
+            if (mOwnGif != null && getDrawable() == mOwnGif) {
+                FastImageGif.resume(mOwnGif);
+            } else {
+                super.onStart();
+            }
         }
 
         @Override

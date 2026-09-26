@@ -91,6 +91,7 @@ export type FastImageProps = $ReadOnly<{|
     recyclingKey?: ?string,
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
+    paused?: ?boolean,
     testID?: ?string,
 |}>
 

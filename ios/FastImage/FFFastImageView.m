@@ -85,9 +85,28 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     } else if (self.player && [self.image conformsToProtocol: @protocol(SDAnimatedImage)]) {
         self.player.totalLoopCount = [(id<SDAnimatedImage>) self.image animatedImageLoopCount];
     }
-    // Apply it to the image that's showing, and play it again.
+    // Apply it to the image that's showing, and play it again (unless it's
+    // paused: then it waits on the first frame).
     if (self.player) {
         [self.player seekToFrameAtIndex: 0 loopCount: 0];
+        if (!_paused) {
+            [self startAnimating];
+        }
+    }
+}
+
+- (void) setPaused: (BOOL)paused {
+    if (_paused == paused) {
+        return;
+    }
+    _paused = paused;
+    // SDAnimatedImageView starts an animated image when it's shown, and again
+    // when the view comes back on screen, unless autoPlayAnimatedImage is off.
+    // Stopping keeps the frame it's on (resetFrameIndexWhenStopped is off).
+    self.autoPlayAnimatedImage = !paused;
+    if (paused) {
+        [self stopAnimating];
+    } else {
         [self startAnimating];
     }
 }

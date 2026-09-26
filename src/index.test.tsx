@@ -311,6 +311,20 @@ describe('imageRendering', () => {
     })
 })
 
+describe('paused', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.gif' }}
+                    paused
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.paused).toBe(true)
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'

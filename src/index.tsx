@@ -124,6 +124,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * pixels, e.g. for pixel art).
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
+    /**
+     * Pauses an animated image (GIF, and animated WebP on iOS) on the frame
+     * it's showing; `false` plays it again from there. Each image animates on
+     * its own, so pausing one doesn't pause others showing the same file.
+     */
+    paused?: boolean
 
     onLoadStart?(): void
 
