@@ -52,6 +52,7 @@
         "@types/react-native": "^0.69.5",
         "@types/react-test-renderer": "^17.0.1",
         "maestro-runner": "1.1.27",
+        "odiff-bin": "^4.5.0",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
         "pretty-format": "^30.5.1",

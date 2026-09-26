@@ -12,6 +12,7 @@
         "@types/react-native": "^0.69.5",
         "@types/react-test-renderer": "^17.0.1",
         "maestro-runner": "1.1.27",
+        "odiff-bin": "^4.5.0",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
         "pretty-format": "^30.5.1",
@@ -330,6 +331,20 @@
     "@octokit/request-error": ["@octokit/request-error@7.1.2", "", { "dependencies": { "@octokit/types": "^18.0.0" } }, "sha512-XZRuT3xZ84D3gYErI1DZvhJ33dCWVV6uzBtWkaBB4TvA/L6eOeTZodxLFVB44bBEEo3vEx7y00UfX1tBLrtLRg=="],
 
     "@octokit/types": ["@octokit/types@18.0.0", "", { "dependencies": { "@octokit/openapi-types": "^29.0.1" } }, "sha512-l6bAF43PNxkJp6g+W4PjoUSSkxHomXw2nOum5CTftJz1NlV3vu93NImgOYtLf6CbBUb5j+fiuzW0PPQ5JTSvZA=="],
+
+    "@odiff/darwin-arm64": ["@odiff/darwin-arm64@4.5.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-fztpr/73BNwJqua2xSjGaxkZr9xMVDqYFIKFnZS/MAW1MzHg6lN9r0kno2aY9FSIbCyE6c6/0MqbHs/+AkDhXw=="],
+
+    "@odiff/darwin-x64": ["@odiff/darwin-x64@4.5.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-UXm/Ak+arL5tP8fwUNKR8vuuUGtm9aYOPS2oLzhkoV5/GfK5vY09nusW6Z5c5ka9VYQQyDHRKOUieXTIZKNdxg=="],
+
+    "@odiff/linux-arm64": ["@odiff/linux-arm64@4.5.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-tAuSZSW4H6D6rscqpTtZ68dzK+FxbeSSzJHfJqcAmn9k7WWzXIseNRH6XLgFQE8t3bY1u6DqtOxQbE7nQV3ciw=="],
+
+    "@odiff/linux-riscv64": ["@odiff/linux-riscv64@4.5.0", "", { "os": "linux", "cpu": "none" }, "sha512-LZ42duK8HpPWNTJplqPufQWD9d5ce26imO1DOHWJoq6sGrYaNaihHJNXOX6EV363lmSEeEZNXZr+xOMgOGJoVg=="],
+
+    "@odiff/linux-x64": ["@odiff/linux-x64@4.5.0", "", { "os": "linux", "cpu": "x64" }, "sha512-9Png/tO5M70Btcsv68wvIGk2GXIbc2CAw71rbeSOyUm7acFK/rOOCt5m4aJR4ZPC+bqEpB5RBp0kccNv9/Ji3A=="],
+
+    "@odiff/win32-arm64": ["@odiff/win32-arm64@4.5.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-Icz19TRoJXU6hEHppbEd8p4bGhDkE/aeECC/lnQuMMrUE14Meqmj+8Dwr+9/KWifIqDhgebwtH8wnNwH98x5/A=="],
+
+    "@odiff/win32-x64": ["@odiff/win32-x64@4.5.0", "", { "os": "win32", "cpu": "x64" }, "sha512-KSwUwFSmIbLxM+aJPrQggqLhMD+AUJMtsxX531Oiskp1n3z3o2V/6meIBdY6w7ZXb6ZvU/M1WjojPViCqiQFLw=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.151.0", "", {}, "sha512-J1yXrIlNDZVzE3ada310xeAw7nH8yCAyLPuUIsjKatFPmfn5bS1oW+cM+QsGOtVWd5nhSpbwZWx/rue+r5Z+PA=="],
 
@@ -1204,6 +1219,8 @@
     "object-visit": ["object-visit@1.0.1", "", { "dependencies": { "isobject": "^3.0.0" } }, "sha512-GBaMwwAVK9qbQN3Scdo0OyvgPW7l3lnaVMj84uTOZlswkX0KpF6fyDBJhtTthf7pymztoN36/KEr1DyhF96zEA=="],
 
     "object.pick": ["object.pick@1.3.0", "", { "dependencies": { "isobject": "^3.0.1" } }, "sha512-tqa/UMy/CCoYmj+H5qc07qvSL9dqcs/WZENZ1JbtWBlATP+iVOe778gE6MSijnyCnORzDuX6hU+LA4SZ09YjFQ=="],
+
+    "odiff-bin": ["odiff-bin@4.5.0", "", { "optionalDependencies": { "@odiff/darwin-arm64": "4.5.0", "@odiff/darwin-x64": "4.5.0", "@odiff/linux-arm64": "4.5.0", "@odiff/linux-riscv64": "4.5.0", "@odiff/linux-x64": "4.5.0", "@odiff/win32-arm64": "4.5.0", "@odiff/win32-x64": "4.5.0" }, "bin": { "odiff": "bin/odiff" } }, "sha512-FaXidbI0XDLCjLAet5n5OvRDfr6Fwt/C5SyWPfwgSUvYhCej1rjZjDXb/xdk+N6yTOCeAFaJ5mwTmU4ZthvPaA=="],
 
     "on-finished": ["on-finished@2.4.1", "", { "dependencies": { "ee-first": "1.1.1" } }, "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg=="],
 

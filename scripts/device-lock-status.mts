@@ -188,7 +188,8 @@ function readProgress(dir: string): Progress {
         // No results yet.
     }
     // The most recently written file (two levels deep: logs, then the
-    // per-app/platform folders with flow logs and screenshots).
+    // per-app/platform folders with the regression runner's log and
+    // screenshots, and the flows' reports).
     let newest: { file: string; mtime: number } | undefined
     const visit = (folder: string, depth: number) => {
         let entries: fs.Dirent[]

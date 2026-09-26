@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { compare } from 'odiff-bin'
 import { acquireDeviceLock } from './device-lock.mts'
 
 const HELP = `Checks the library and runs both example apps on iOS and Android.
@@ -17,9 +18,12 @@ const HELP = `Checks the library and runs both example apps on iOS and Android.
 
 Steps:
   1. JS: build, tests, typechecks, lint (oxlint) and formatting (oxfmt).
-  2. For each example app: build for iOS and Android in parallel, start the
-     packager, and run the Maestro flows in maestro/ with maestro-runner on
-     both platforms at once. A flow failure or a crash fails the run.
+  2. For each example app: start the packager, build for iOS and Android in
+     parallel, run the regression cases and the example screens through the
+     app's runner (driven over a WebSocket; a screenshot of each group is
+     compared with its reference in screenshots/), then run the Maestro flows
+     in maestro/ with maestro-runner, both platforms at once. A failed case,
+     a screenshot that differs, a flow failure or a crash fails the run.
 
 Options:
   --app main|legacy   Only this example app (default: both).
@@ -39,6 +43,11 @@ Options:
                       default; run them for changes to loading or lifecycle.
   --no-wait           Fail if another run is using the devices, instead of
                       waiting for it (see "Device lock" below).
+  --update-screenshots
+                      Replace the reference screenshots in screenshots/ with
+                      this run's; a missing reference is always seeded from
+                      the run, except with --ref. Look at them, then commit
+                      them with the change.
   --record            Record the screen while the flows run. Each flow's
                       recording is saved in its report, and a copy sized for
                       a GitHub comment (needs ffmpeg) is written to
@@ -101,6 +110,7 @@ function parseOptions() {
                 background: { type: 'boolean', default: false },
                 'no-wait': { type: 'boolean', default: false },
                 record: { type: 'boolean', default: false },
+                'update-screenshots': { type: 'boolean', default: false },
                 help: { type: 'boolean', short: 'h', default: false },
             },
         }).values
@@ -135,6 +145,7 @@ const RUN_APPS = !options['js-only']
 const REF = options.ref
 const FROM_PACKAGE = options.package
 const RECORD = options.record
+const UPDATE_SCREENSHOTS = options['update-screenshots']
 
 const env = process.env
 // The example apps' metro.config.js and react-native.config.js use the
@@ -373,6 +384,8 @@ function restoreLibrary() {
 }
 
 let metro: number | undefined
+// The bundles Metro was asked for while the current app built (warmBundles).
+let bundleWarm: Promise<void> = Promise.resolve()
 let cleanedUp = false
 function cleanup() {
     if (cleanedUp) return
@@ -461,6 +474,23 @@ async function ensureNodeModules(dir: string) {
     if (!result.ok)
         record('FAIL', `bun install (${rel(dir) || '.'})`, `see ${rel(log)}`)
     return result.ok
+}
+
+// Asks Metro for each platform's bundle, as the app will, so it's built while
+// the native builds run rather than when the app launches (5 to 10 s).
+function warmBundles(app: App, platforms: Platform[]) {
+    return Promise.all(
+        platforms.map(async (platform) => {
+            const appId =
+                platform === 'ios' ? iosBundleId(app) : androidPackage(app)
+            const url = `http://localhost:8081/index.bundle?platform=${platform}&dev=true&lazy=true&minify=false&app=${appId}&modulesOnly=false&runModule=true`
+            try {
+                await (await fetch(url)).arrayBuffer()
+            } catch {
+                // The app will ask again.
+            }
+        }),
+    ).then(() => {})
 }
 
 async function startMetro(app: App) {
@@ -558,6 +588,402 @@ async function stopMetro() {
     // The next app's Metro needs the port.
     for (let i = 0; i < 20 && portInUse(8081); i++) await sleep(500)
     if (!groupAlive(pgid)) groups.delete(pgid)
+}
+
+// --- Regression runner ---------------------------------------------------
+
+// Runs the regression cases through the app's runner
+// (ReactNativeFastImageExample/src/RegressionRunner.tsx) instead of a flow:
+// the app is launched while this script is connected to the image server's
+// relay, so it shows the runner, which shows one group of cases at a time and
+// reports each case's status over the WebSocket the server relays. Once a
+// group is all OK (or GROUP_TIMEOUT has passed) a screenshot
+// of it is saved with simctl or adb, and the next group is asked for. Nothing
+// goes through the accessibility tree, so a group takes about as long as its
+// slowest case. Output: <out>/<app>-<platform>/regression/.
+const HELLO_TIMEOUT = 90_000
+const GROUP_TIMEOUT = 30_000
+
+type RunnerMessage = { type: string } & Record<string, unknown>
+
+function screenshot(platform: Platform, device: string, file: string) {
+    if (platform === 'ios') {
+        capture('xcrun', ['simctl', 'io', device, 'screenshot', file])
+        return
+    }
+    try {
+        fs.writeFileSync(
+            file,
+            execFileSync(ADB, ['-s', device, 'exec-out', 'screencap', '-p'], {
+                maxBuffer: 64 * 1024 * 1024,
+                timeout: 30_000,
+            }),
+        )
+    } catch {
+        // No screenshot, then.
+    }
+}
+
+// Each group's screenshot (and the ones a case asks for while it runs) is
+// compared with a reference, screenshots/<app>-<platform>/<name>.png (in the
+// repository, so a change to how something renders comes with new references
+// in the same PR), with odiff (the odiff-bin dev dependency; anti-aliasing is
+// ignored), leaving out the areas the app masks (animated images, timings).
+// Up to SCREENSHOT_MAX_DIFF percent of the pixels may differ. A missing
+// reference is seeded from the run (look at it before committing it);
+// --update-screenshots replaces them all. On a mismatch the diff is written
+// next to the screenshot in verify-output/.
+const SCREENSHOTS = path.join(ROOT, 'screenshots')
+const SCREENSHOT_MAX_DIFF = 0.1
+
+type PixelRect = { x: number; y: number; width: number; height: number }
+
+async function compareScreenshot(
+    app: App,
+    platform: Platform,
+    name: string,
+    file: string,
+    masks: PixelRect[],
+): Promise<{
+    result: 'match' | 'seeded' | 'none' | 'differs'
+    detail?: string
+}> {
+    const dir = path.join(SCREENSHOTS, `${app}-${platform}`)
+    const reference = path.join(dir, `${name}.png`)
+    if (!fs.existsSync(reference) || UPDATE_SCREENSHOTS) {
+        // Not from a --ref run: it shows the library as it was.
+        if (REF) return { result: 'none' }
+        fs.mkdirSync(dir, { recursive: true })
+        fs.copyFileSync(file, reference)
+        return { result: 'seeded' }
+    }
+    const diffFile = file.replace(/\.png$/, '-diff.png')
+    const ignoreRegions = masks
+        .map((m) => ({
+            x1: Math.max(0, Math.floor(m.x)),
+            y1: Math.max(0, Math.floor(m.y)),
+            x2: Math.ceil(m.x + m.width),
+            y2: Math.ceil(m.y + m.height),
+        }))
+        // odiff hangs on an inverted region, and rejects an empty list.
+        .filter(
+            (r) =>
+                [r.x1, r.y1, r.x2, r.y2].every(Number.isFinite) &&
+                r.x2 > r.x1 &&
+                r.y2 > r.y1,
+        )
+    let result: Awaited<ReturnType<typeof compare>>
+    try {
+        result = await compare(reference, file, diffFile, {
+            antialiasing: true,
+            failOnLayoutDiff: true,
+            noFailOnFsErrors: true,
+            ...(ignoreRegions.length > 0 ? { ignoreRegions } : {}),
+        })
+    } catch (error) {
+        return {
+            result: 'differs',
+            detail: `odiff failed: ${(error as Error).message}`,
+        }
+    }
+    if (result.match) return { result: 'match' }
+    if (result.reason === 'layout-diff') {
+        return {
+            result: 'differs',
+            detail: `its size differs from ${rel(reference)}`,
+        }
+    }
+    if (result.reason === 'pixel-diff') {
+        if (result.diffPercentage <= SCREENSHOT_MAX_DIFF) {
+            fs.rmSync(diffFile, { force: true })
+            return { result: 'match' }
+        }
+        return {
+            result: 'differs',
+            detail: `${result.diffPercentage.toFixed(2)}% of the pixels (${result.diffCount}) differ from ${rel(reference)}; see ${rel(diffFile)}`,
+        }
+    }
+    return { result: 'differs', detail: `${result.reason}: ${result.file}` }
+}
+
+async function runRegression(
+    app: App,
+    platform: Platform,
+    device: string,
+    appId: string,
+) {
+    const name = `${app} ${platform} regression`
+    const dir = path.join(OUT, `${app}-${platform}`, 'regression')
+    fs.mkdirSync(dir, { recursive: true })
+    const log = path.join(dir, 'regression.log')
+    const logLine = (line: string) =>
+        fs.appendFileSync(
+            log,
+            `${new Date().toISOString().slice(11, 23)} ${line}\n`,
+        )
+    const startedAt = Date.now()
+
+    // Messages from the app, and a way to wait for one.
+    const messages: RunnerMessage[] = []
+    const waiters = new Set<() => void>()
+    const notify = () => waiters.forEach((waiter) => waiter())
+    let appConnected = false
+    let socketError: string | undefined
+    // From hello.
+    let groups: string[] = []
+    let scale = 1
+    let windowWidth = 0
+    const failures: string[] = []
+    const seeded: string[] = []
+    const noReference: string[] = []
+    // A screenshot of the group on screen (index), compared with its
+    // reference. Cases can ask for one (a `snapshot` message) at a moment
+    // that matters; the group's own is taken once it's all OK. Comparisons
+    // run in the background; `shots` is awaited at the end.
+    const shots: Promise<void>[] = []
+    const takeShot = (index: number, suffix?: string) => {
+        const name = suffix ? `${groups[index]}-${suffix}` : groups[index]
+        const file = path.join(
+            dir,
+            `${String(index + 1).padStart(2, '0')}-${name}.png`,
+        )
+        screenshot(platform, device, file)
+        const masks = messages
+            .filter((m) => m.type === 'mask' && m.group === index)
+            .map((m) => ({
+                x: (m.x as number) * scale,
+                y: (m.y as number) * scale,
+                width: (m.width as number) * scale,
+                height: (m.height as number) * scale,
+            }))
+        // The band above the runner's content (its top padding): the status
+        // bar (on iOS even with the override: a "back to the previous app"
+        // breadcrumb) and React Native's dev banner ("Loading from Metro…",
+        // "Refreshing…"), which comes and goes.
+        masks.push({
+            x: 0,
+            y: 0,
+            width: windowWidth * scale,
+            height: 140 * scale,
+        })
+        const shot = compareScreenshot(app, platform, name, file, masks).then(
+            ({ result, detail }) => {
+                logLine(
+                    `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
+                        masks.length > 0 ? `, ${masks.length} masked` : ''
+                    }`,
+                )
+                if (result === 'seeded') seeded.push(name)
+                else if (result === 'none') noReference.push(name)
+                else if (result === 'differs')
+                    failures.push(`${name}: ${detail}`)
+            },
+        )
+        shots.push(shot)
+        return shot
+    }
+    const ws = new WebSocket(
+        `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${platform}`,
+    )
+    ws.onopen = notify
+    ws.onmessage = (event) => {
+        const message = JSON.parse(String(event.data)) as RunnerMessage
+        logLine(`<- ${JSON.stringify(message)}`)
+        if (message.type === 'app') appConnected = message.connected === true
+        else messages.push(message)
+        if (message.type === 'snapshot' && groups.length > 0) {
+            takeShot(message.group as number, String(message.name))
+        }
+        notify()
+    }
+    ws.onerror = () => {
+        socketError = 'WebSocket error'
+        notify()
+    }
+    ws.onclose = () => {
+        socketError ??= 'WebSocket closed'
+        notify()
+    }
+    // Resolves with check()'s value once it isn't undefined, or with whatever
+    // it is when the time is up or the socket fails.
+    const waitFor = <T,>(check: () => T | undefined, timeoutMs: number) =>
+        new Promise<T | undefined>((resolve) => {
+            const finish = () => {
+                clearTimeout(timer)
+                waiters.delete(look)
+                resolve(check())
+            }
+            const look = () => {
+                if (check() !== undefined || socketError) finish()
+            }
+            const timer = setTimeout(finish, Math.max(0, timeoutMs))
+            waiters.add(look)
+            look()
+        })
+    const send = (message: RunnerMessage) => {
+        logLine(`-> ${JSON.stringify(message)}`)
+        ws.send(JSON.stringify(message))
+    }
+    const fail = (detail: string) => {
+        record('FAIL', name, `${detail}; see ${rel(dir)}`)
+        ws.close()
+    }
+
+    if (
+        !(await waitFor(
+            () => (ws.readyState === WebSocket.OPEN ? true : undefined),
+            5000,
+        ))
+    ) {
+        fail(socketError ?? "couldn't connect to the image server's relay")
+        return
+    }
+
+    // The bundle Metro was asked for while the native builds ran.
+    await bundleWarm
+    // A fresh start, now that this script is connected, so the app opens on
+    // the runner.
+    if (platform === 'ios') {
+        // The same status bar in every screenshot (Apple's own values).
+        capture('xcrun', [
+            'simctl',
+            'status_bar',
+            device,
+            'override',
+            '--time',
+            '9:41',
+            '--dataNetwork',
+            'wifi',
+            '--wifiMode',
+            'active',
+            '--wifiBars',
+            '3',
+            '--cellularMode',
+            'notSupported',
+            '--batteryState',
+            'charged',
+            '--batteryLevel',
+            '100',
+        ])
+        capture('xcrun', ['simctl', 'terminate', device, appId])
+        capture('xcrun', ['simctl', 'launch', device, appId], { timeout: 60 })
+    } else {
+        capture(ADB, ['-s', device, 'shell', 'am', 'force-stop', appId])
+        capture(
+            ADB,
+            [
+                '-s',
+                device,
+                'shell',
+                'am',
+                'start',
+                '-W',
+                '-n',
+                `${appId}/.MainActivity`,
+            ],
+            { timeout: 60 },
+        )
+    }
+
+    const hello = await waitFor(
+        () => messages.find((m) => m.type === 'hello'),
+        HELLO_TIMEOUT,
+    )
+    if (!hello) {
+        fail(
+            socketError ??
+                `the app didn't connect within ${HELLO_TIMEOUT / 1000}s`,
+        )
+        return
+    }
+    groups = hello.groups as string[]
+    scale = Number(hello.scale) || 1
+    windowWidth = Number((hello.window as { width?: number })?.width) || 0
+    const timings: string[] = []
+    const statuses: Record<string, Record<string, string>> = {}
+    const statusOf = (index: number, id: string) =>
+        messages.findLast(
+            (m) => m.type === 'status' && m.group === index && m.id === id,
+        )?.status as string | undefined
+    for (let index = 0; index < groups.length; index++) {
+        const group = groups[index]
+        const groupStart = Date.now()
+        const shown = await waitFor(
+            () => messages.find((m) => m.type === 'group' && m.index === index),
+            GROUP_TIMEOUT,
+        )
+        if (!shown) {
+            failures.push(
+                `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
+            )
+            break
+        }
+        const cases = shown.cases as string[]
+        // true once every case is OK, false if the app went away.
+        const result = await waitFor(
+            () =>
+                cases.every((id) => statusOf(index, id) === 'OK')
+                    ? true
+                    : appConnected && !socketError
+                      ? undefined
+                      : false,
+            GROUP_TIMEOUT - (Date.now() - groupStart),
+        )
+        statuses[group] = Object.fromEntries(
+            cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
+        )
+        if (result === false) {
+            failures.push(`${group}: the app went away`)
+            break
+        }
+        if (!result) {
+            for (const id of cases) {
+                const status = statusOf(index, id)
+                if (status !== 'OK')
+                    failures.push(`${id}: ${status ?? 'no status'}`)
+            }
+        }
+        // Let the last status's render reach the screen.
+        await sleep(150)
+        takeShot(index)
+        timings.push(
+            `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,
+        )
+        send({ type: 'next' })
+    }
+    await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
+    ws.close()
+    await Promise.all(shots)
+    const total = ((Date.now() - startedAt) / 1000).toFixed(1)
+    fs.writeFileSync(
+        path.join(dir, 'results.json'),
+        JSON.stringify(
+            { hello, statuses, failures, seeded, noReference, timings },
+            null,
+            2,
+        ) + '\n',
+    )
+    logLine(`done in ${total}s: ${timings.join(', ')}`)
+    const seededNote =
+        (seeded.length > 0
+            ? `; ${seeded.length} reference screenshot${seeded.length === 1 ? '' : 's'} seeded in ${rel(SCREENSHOTS)}, look at them before committing`
+            : '') +
+        (noReference.length > 0
+            ? `; no reference for ${noReference.join(', ')} (not seeded from a --ref run)`
+            : '')
+    if (failures.length > 0) {
+        record(
+            'FAIL',
+            name,
+            `${failures.join('; ')}; see ${rel(dir)}${seededNote}`,
+        )
+    } else {
+        record(
+            'PASS',
+            name,
+            `${groups.length} groups in ${total}s${seededNote}`,
+        )
+    }
 }
 
 // --- Flows ---------------------------------------------------------------
@@ -872,6 +1298,7 @@ async function buildIos(app: App) {
 
 async function flowsIos(app: App) {
     const startedAt = Date.now()
+    await runRegression(app, 'ios', iosUdid, iosBundleId(app))
     await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     const reports = path.join(os.homedir(), 'Library/Logs/DiagnosticReports')
     for (const file of fs.existsSync(reports) ? fs.readdirSync(reports) : []) {
@@ -1064,6 +1491,7 @@ async function buildAndroid(app: App) {
 async function flowsAndroid(app: App) {
     const pkg = androidPackage(app)
     capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-c'])
+    await runRegression(app, 'android', androidSerial, pkg)
     await runFlows(app, 'android', androidSerial, pkg)
     const crashes =
         capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-d']) ?? ''
@@ -1174,11 +1602,7 @@ async function main() {
                     ? ready.filter((p) => p !== 'ios')
                     : ready
 
-            say(`Building ${app} (${platforms.join(' ')})`)
-            const built = await Promise.all(platforms.map((p) => build[p](app)))
-            const toRun = platforms.filter((_, i) => built[i])
-            if (toRun.length === 0) continue
-
+            // Metro first, so it builds the bundles while the apps build.
             if (!(await startMetro(app))) {
                 record(
                     'FAIL',
@@ -1188,7 +1612,17 @@ async function main() {
                 await stopMetro()
                 continue
             }
-            say(`Running flows for ${app} (${toRun.join(' ')})`)
+            bundleWarm = warmBundles(app, platforms)
+            say(`Building ${app} (${platforms.join(' ')})`)
+            const built = await Promise.all(platforms.map((p) => build[p](app)))
+            const toRun = platforms.filter((_, i) => built[i])
+            if (toRun.length === 0) {
+                await stopMetro()
+                continue
+            }
+            say(
+                `Running the regression runner and flows for ${app} (${toRun.join(' ')})`,
+            )
             await Promise.all(toRun.map((p) => flows[p](app)))
             await stopMetro()
         }
@@ -1208,7 +1642,7 @@ async function main() {
         results.some(
             (r) =>
                 r.status === 'FAIL' &&
-                / android (walkthrough|regression|flows)$/.test(r.name),
+                / android (touch|regression|flows)$/.test(r.name),
         )
     ) {
         console.log(

@@ -5,7 +5,7 @@
 #
 #   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/background.yaml
 #
-# App IDs are listed in walkthrough.yaml. Each example app registers its app ID
+# App IDs are listed in touch.yaml. Each example app registers its app ID
 # as a URL scheme, which brings it back (maestro-runner's launchApp would
 # restart it).
 appId: ${APP_ID}

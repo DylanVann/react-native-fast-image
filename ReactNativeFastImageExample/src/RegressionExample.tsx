@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import {
     AppState,
     Image,
@@ -13,10 +13,37 @@ import {
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
+import { SnapshotContext, useReport } from './RunnerContext'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
-// event arrives; maestro/regression.yaml waits for every OK. A crash fails the
-// run because the app is gone.
+// event arrives. The cases that need no touch are in REGRESSION_GROUPS, which
+// the regression runner (RegressionRunner.tsx) shows a group at a time and
+// reports over a WebSocket to scripts/verify.mts; the Regression tab shows all
+// of them at once for a look by hand, plus the cases a flow has to touch
+// (maestro/touch.yaml, maestro/background.yaml). A crash fails the run because
+// the app is gone.
+
+// A case's status line ("<id>: <status>", OK when it passed) and description.
+// The runner is told the status too (RunnerContext.tsx).
+function CaseStatus({
+    id,
+    status,
+    description,
+}: {
+    id: string
+    status: string
+    description: React.ReactNode
+}) {
+    useReport(id, status)
+    return (
+        <View style={styles.text}>
+            <Text testID={`regression-${id}`} style={styles.status}>
+                {id}: {status}
+            </Text>
+            <Text style={styles.description}>{description}</Text>
+        </View>
+    )
+}
 
 // In debug builds, Android only resolves a defaultSource that's bundled as a
 // drawable (require() images come from Metro instead), so use one the app
@@ -56,12 +83,11 @@ function EventCase({
                 {...props}
                 {...handlers}
             />
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}: {fired ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>{description}</Text>
-            </View>
+            <CaseStatus
+                id={id}
+                status={fired ? 'OK' : 'waiting'}
+                description={description}
+            />
         </View>
     )
 }
@@ -84,18 +110,17 @@ function NoCrashCase({
     const mount = useRef(onMount)
     useEffect(() => {
         mount.current?.()
-        const timer = setTimeout(() => setOk(true), 1500)
+        const timer = setTimeout(() => setOk(true), 750)
         return () => clearTimeout(timer)
     }, [])
     return (
         <View style={styles.row}>
             {children ?? <View style={styles.image} />}
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}: {ok ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>{description}</Text>
-            </View>
+            <CaseStatus
+                id={id}
+                status={ok ? 'OK' : 'waiting'}
+                description={description}
+            />
         </View>
     )
 }
@@ -113,15 +138,13 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
                 fallback={fallback}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
             />
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}: {ok ? 'OK' : x === undefined ? 'waiting' : `x=${x}`}
-                </Text>
-                <Text style={styles.description}>
-                    #992: onLayout reports the position in the parent
-                    {fallback ? ' (fallback)' : ''}
-                </Text>
-            </View>
+            <CaseStatus
+                id={id}
+                status={ok ? 'OK' : x === undefined ? 'waiting' : `x=${x}`}
+                description={`#992: onLayout reports the position in the parent${
+                    fallback ? ' (fallback)' : ''
+                }`}
+            />
         </View>
     )
 }
@@ -151,15 +174,11 @@ function ClearTintCase() {
                 tintColor={tinted ? 'green' : undefined}
                 onLoad={() => setTinted(false)}
             />
-            <View style={styles.text}>
-                <Text testID="regression-clear-tint" style={styles.status}>
-                    clear-tint: {done ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    #586: tintColor removed after load (should match the left
-                    image)
-                </Text>
-            </View>
+            <CaseStatus
+                id="clear-tint"
+                status={done ? 'OK' : 'waiting'}
+                description="#586: tintColor removed after load (should match the left image)"
+            />
         </View>
     )
 }
@@ -177,14 +196,11 @@ function TouchableCase() {
             >
                 <FastImage style={styles.image} source={{ uri: LOGO }} />
             </TouchableWithoutFeedback>
-            <View style={styles.text}>
-                <Text testID="regression-touchable" style={styles.status}>
-                    touchable: {pressed ? 'OK' : 'tap the image'}
-                </Text>
-                <Text style={styles.description}>
-                    #1020: FastImage as a Touchable's direct child (iOS crashed)
-                </Text>
-            </View>
+            <CaseStatus
+                id="touchable"
+                status={pressed ? 'OK' : 'tap the image'}
+                description="#1020: FastImage as a Touchable's direct child (iOS crashed)"
+            />
         </View>
     )
 }
@@ -208,14 +224,11 @@ function PointerEventsCase() {
                     source={{ uri: LOGO }}
                 />
             </View>
-            <View style={styles.text}>
-                <Text testID="regression-pointer-events" style={styles.status}>
-                    pointer-events: {pressed ? 'OK' : 'tap the image'}
-                </Text>
-                <Text style={styles.description}>
-                    #393: pointerEvents="none" lets touches through
-                </Text>
-            </View>
+            <CaseStatus
+                id="pointer-events"
+                status={pressed ? 'OK' : 'tap the image'}
+                description='#393: pointerEvents="none" lets touches through'
+            />
         </View>
     )
 }
@@ -231,7 +244,7 @@ function ResizeModeChangeCase() {
     const [done, setDone] = useState(false)
     useEffect(() => {
         if (resizeMode === 'cover') return
-        const timer = setTimeout(() => setDone(true), 1500)
+        const timer = setTimeout(() => setDone(true), 750)
         return () => clearTimeout(timer)
     }, [resizeMode])
     return (
@@ -247,15 +260,11 @@ function ResizeModeChangeCase() {
                 source={WIDE}
                 onLoad={() => setResizeMode('contain')}
             />
-            <View style={styles.text}>
-                <Text testID="regression-resize-mode" style={styles.status}>
-                    resize-mode: {done ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    #762: resizeMode changed after load (should match the left
-                    image)
-                </Text>
-            </View>
+            <CaseStatus
+                id="resize-mode"
+                status={done ? 'OK' : 'waiting'}
+                description="#762: resizeMode changed after load (should match the left image)"
+            />
         </View>
     )
 }
@@ -274,7 +283,7 @@ function NoReloadCase() {
         const timer = setTimeout(() => {
             clearInterval(interval)
             setDone(true)
-        }, 2000)
+        }, 1000)
         return () => {
             clearInterval(interval)
             clearTimeout(timer)
@@ -290,19 +299,17 @@ function NoReloadCase() {
                 onLoadStart={() => loaded && setReloads((n) => n + 1)}
                 onLoad={() => setLoaded(true)}
             />
-            <View style={styles.text}>
-                <Text testID="regression-no-reload" style={styles.status}>
-                    no-reload:{' '}
-                    {!done
+            <CaseStatus
+                id="no-reload"
+                status={
+                    !done
                         ? 'waiting'
                         : reloads === 0
                           ? 'OK'
-                          : `reloaded ${reloads} times`}
-                </Text>
-                <Text style={styles.description}>
-                    Unrelated prop changes don't reload the image (Android did)
-                </Text>
-            </View>
+                          : `reloaded ${reloads} times`
+                }
+                description="Unrelated prop changes don't reload the image (Android did)"
+            />
         </View>
     )
 }
@@ -318,11 +325,11 @@ function SourceSwapCase() {
     const [done, setDone] = useState(false)
     const [loaded, setLoaded] = useState(false)
     useEffect(() => {
-        const interval = setInterval(() => setIndex((i) => i + 1), 400)
+        const interval = setInterval(() => setIndex((i) => i + 1), 300)
         const timer = setTimeout(() => {
             clearInterval(interval)
             setDone(true)
-        }, 3000)
+        }, 1500)
         return () => {
             clearInterval(interval)
             clearTimeout(timer)
@@ -336,15 +343,11 @@ function SourceSwapCase() {
                 onLoadStart={() => setLoaded(false)}
                 onLoad={() => setLoaded(true)}
             />
-            <View style={styles.text}>
-                <Text testID="regression-source-swap" style={styles.status}>
-                    source-swap: {done && loaded ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    #384: changing source keeps loading (Android leaked the
-                    view)
-                </Text>
-            </View>
+            <CaseStatus
+                id="source-swap"
+                status={done && loaded ? 'OK' : 'waiting'}
+                description="#384: changing source keeps loading (Android leaked the view)"
+            />
         </View>
     )
 }
@@ -362,19 +365,17 @@ function LoadStartOnceCase() {
                 onLoadStart={() => !loaded && setLoadStarts((n) => n + 1)}
                 onLoad={() => setLoaded(true)}
             />
-            <View style={styles.text}>
-                <Text testID="regression-load-start-once" style={styles.status}>
-                    load-start-once:{' '}
-                    {!loaded
+            <CaseStatus
+                id="load-start-once"
+                status={
+                    !loaded
                         ? 'waiting'
                         : loadStarts === 1
                           ? 'OK'
-                          : `onLoadStart fired ${loadStarts} times`}
-                </Text>
-                <Text style={styles.description}>
-                    onLoadStart fires once per load (iOS sent it twice)
-                </Text>
-            </View>
+                          : `onLoadStart fired ${loadStarts} times`
+                }
+                description="onLoadStart fires once per load (iOS sent it twice)"
+            />
         </View>
     )
 }
@@ -387,7 +388,7 @@ function PreloadCase() {
     const [loaded, setLoaded] = useState(false)
     useEffect(() => {
         FastImage.preload([{ uri: PRELOAD }])
-        const timer = setTimeout(() => setShown(true), 1000)
+        const timer = setTimeout(() => setShown(true), 500)
         return () => clearTimeout(timer)
     }, [])
     return (
@@ -401,79 +402,11 @@ function PreloadCase() {
             ) : (
                 <View style={styles.image} />
             )}
-            <View style={styles.text}>
-                <Text testID="regression-preload" style={styles.status}>
-                    preload: {loaded ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    FastImage.preload, then show the image
-                </Text>
-            </View>
-        </View>
-    )
-}
-
-// Preloads an image at a url that's new each launch (so the disk cache from an
-// earlier run doesn't count), shows it once the preload has resolved, and asks
-// the server how many times it was requested: once, if the shown image came
-// from the preload. On Android, Glide keys loads by size, so a view can't join
-// a preload of the same url still in flight: shown before the preload has
-// finished, the image is downloaded again (#657). Awaiting the result avoids
-// that. The ms are from showing the image to onLoad (a decode from the disk
-// cache on Android; the memory cache on iOS).
-const RUN = Date.now()
-const PRELOAD_REUSE_PATH = `/picsum/1025-200x200.jpg?reuse=${RUN}`
-function PreloadReuseCase() {
-    const [shownAt, setShownAt] = useState<number>()
-    const [result, setResult] = useState<{ count: number; ms: number }>()
-    useEffect(() => {
-        FastImage.preload([{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }])
-            .then((results) => {
-                if (results[0].ok) setShownAt(Date.now())
-                else setResult({ count: 0, ms: 0 })
-            })
-            .catch(() => setResult({ count: -1, ms: 0 }))
-    }, [])
-    return (
-        <View style={styles.row}>
-            {shownAt === undefined ? (
-                <View style={styles.image} />
-            ) : (
-                <FastImage
-                    style={styles.image}
-                    source={{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }}
-                    onLoad={() => {
-                        const ms = Date.now() - shownAt
-                        fetch(
-                            imageUrl(
-                                `requests?path=${encodeURIComponent(PRELOAD_REUSE_PATH)}`,
-                            ),
-                        )
-                            .then((response) => response.json())
-                            .then((json) =>
-                                setResult({ count: json.count, ms }),
-                            )
-                            .catch(() => setResult({ count: -1, ms }))
-                    }}
-                />
-            )}
-            <View style={styles.text}>
-                <Text testID="regression-preload-reuse" style={styles.status}>
-                    preload-reuse:{' '}
-                    {result === undefined
-                        ? 'waiting'
-                        : result.count === 1
-                          ? 'OK'
-                          : result.count < 1
-                            ? 'preload failed'
-                            : `requested ${result.count} times (${result.ms} ms)`}
-                </Text>
-                <Text style={styles.description}>
-                    #657: an image shown after FastImage.preload resolves isn't
-                    downloaded again
-                    {result ? ` (shown in ${result.ms} ms)` : ''}
-                </Text>
-            </View>
+            <CaseStatus
+                id="preload"
+                status={loaded ? 'OK' : 'waiting'}
+                description="FastImage.preload, then show the image"
+            />
         </View>
     )
 }
@@ -483,6 +416,7 @@ function PreloadReuseCase() {
 // every later request sent them. (That preload still sends its own headers
 // isn't checked here: preload doesn't report when it's done.) The url is new
 // each launch, since the disk cache would otherwise have it from the last run.
+const RUN = Date.now()
 const PRIVATE = imageUrl(`private/picsum/1021-120x120.jpg?run=${RUN}`)
 const NO_TOKEN = imageUrl(`no-token/picsum/1022-120x120.jpg?run=${RUN}`)
 function PreloadHeadersCase() {
@@ -492,7 +426,7 @@ function PreloadHeadersCase() {
         FastImage.preload([
             { uri: PRIVATE, headers: { 'x-token': 'fast-image' } },
         ])
-        const timer = setTimeout(() => setShown(true), 1000)
+        const timer = setTimeout(() => setShown(true), 500)
         return () => clearTimeout(timer)
     }, [])
     return (
@@ -507,15 +441,11 @@ function PreloadHeadersCase() {
             ) : (
                 <View style={styles.image} />
             )}
-            <View style={styles.text}>
-                <Text testID="regression-preload-headers" style={styles.status}>
-                    preload-headers: {result}
-                </Text>
-                <Text style={styles.description}>
-                    #571: preload headers aren't sent with other images (iOS
-                    sent them with every later request)
-                </Text>
-            </View>
+            <CaseStatus
+                id="preload-headers"
+                status={result}
+                description="#571: preload headers aren't sent with other images (iOS sent them with every later request)"
+            />
         </View>
     )
 }
@@ -548,17 +478,17 @@ function SourceSizeCase({
                     setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
                 }
             />
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}:{' '}
-                    {size === undefined
+            <CaseStatus
+                id={id}
+                status={
+                    size === undefined
                         ? 'waiting'
                         : size === expected
                           ? 'OK'
-                          : `${size}, expected ${expected}`}
-                </Text>
-                <Text style={styles.description}>{description}</Text>
-            </View>
+                          : `${size}, expected ${expected}`
+                }
+                description={description}
+            />
         </View>
     )
 }
@@ -596,19 +526,11 @@ function SourceSizeCachedCase() {
                     }}
                 />
             )}
-            <View style={styles.text}>
-                <Text
-                    testID="regression-source-size-cached"
-                    style={styles.status}
-                >
-                    source-size-cached:{' '}
-                    {!done ? 'waiting' : ok ? 'OK' : sizes.join(', ')}
-                </Text>
-                <Text style={styles.description}>
-                    onLoad reports the image's size when it comes from a cache
-                    (expected 1000x1000 three times)
-                </Text>
-            </View>
+            <CaseStatus
+                id="source-size-cached"
+                status={!done ? 'waiting' : ok ? 'OK' : sizes.join(', ')}
+                description="onLoad reports the image's size when it comes from a cache (expected 1000x1000 three times)"
+            />
         </View>
     )
 }
@@ -643,20 +565,17 @@ function WebCacheCase() {
             ) : (
                 <View style={styles.image} />
             )}
-            <View style={styles.text}>
-                <Text testID="regression-web-cache" style={styles.status}>
-                    web-cache:{' '}
-                    {requests === undefined
+            <CaseStatus
+                id="web-cache"
+                status={
+                    requests === undefined
                         ? 'waiting'
                         : requests === 1
                           ? 'OK'
-                          : `requested ${requests} times`}
-                </Text>
-                <Text style={styles.description}>
-                    #280: cache web follows the server's caching headers
-                    (Android requested it again)
-                </Text>
-            </View>
+                          : `requested ${requests} times`
+                }
+                description="#280: cache web follows the server's caching headers (Android requested it again)"
+            />
         </View>
     )
 }
@@ -679,22 +598,17 @@ function ProgressUnknownSizeCase() {
                 }}
                 onLoad={() => setLoaded(true)}
             />
-            <View style={styles.text}>
-                <Text
-                    testID="regression-progress-unknown-size"
-                    style={styles.status}
-                >
-                    progress-unknown-size:{' '}
-                    {!loaded
+            <CaseStatus
+                id="progress-unknown-size"
+                status={
+                    !loaded
                         ? 'waiting'
                         : badTotal === undefined
                           ? 'OK'
-                          : `onProgress total ${badTotal}`}
-                </Text>
-                <Text style={styles.description}>
-                    No onProgress with an unknown total (no Content-Length)
-                </Text>
-            </View>
+                          : `onProgress total ${badTotal}`
+                }
+                description="No onProgress with an unknown total (no Content-Length)"
+            />
         </View>
     )
 }
@@ -738,15 +652,11 @@ function CookiesCase() {
             ) : (
                 <View style={styles.image} />
             )}
-            <View style={styles.text}>
-                <Text testID="regression-cookies" style={styles.status}>
-                    cookies: {status}
-                </Text>
-                <Text style={styles.description}>
-                    Images are sent the cookies other requests got, and keep the
-                    ones they get (Android sent none)
-                </Text>
-            </View>
+            <CaseStatus
+                id="cookies"
+                status={status}
+                description="Images are sent the cookies other requests got, and keep the ones they get (Android sent none)"
+            />
         </View>
     )
 }
@@ -830,80 +740,23 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 onLoad={count('load')}
                 onError={count('error')}
             />
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}:{' '}
-                    {!returned
+            <CaseStatus
+                id={id}
+                status={
+                    !returned
                         ? `waiting for the app to come back (${summary})`
                         : !settled
                           ? `back (${summary})`
                           : ok
                             ? 'OK'
-                            : summary}
-                </Text>
-                <Text style={styles.description}>
-                    {slow
+                            : summary
+                }
+                description={
+                    slow
                         ? '#758: an image still loading when the app goes to the background finishes after it comes back, with its header, progress and tint (green)'
-                        : "#1022: a loaded image doesn't load again when the app comes back from the background"}
-                </Text>
-            </View>
-        </View>
-    )
-}
-
-// Shows a magenta image, then changes the source to a cyan one that takes
-// about 7 s (the slow server). While it loads, the view should keep showing
-// magenta (it flashed blank, #747); with `recycle`, recyclingKey changes too,
-// and it should be blank instead (for views reused for other content). The
-// flow takes a screenshot then. Passes when the cyan one has loaded. Started
-// from the box, so the flow can time the screenshot.
-function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
-    const [step, setStep] = useState<'start' | 'first' | 'second' | 'done'>(
-        'start',
-    )
-    const status = {
-        start: 'tap the box',
-        first: 'loading the first image',
-        second: 'loading the second image',
-        done: 'OK',
-    }[step]
-    return (
-        <View style={styles.row}>
-            {step === 'start' ? (
-                <Pressable
-                    testID={`regression-${id}-start`}
-                    style={styles.image}
-                    onPress={() => setStep('first')}
-                />
-            ) : (
-                <FastImage
-                    style={styles.image}
-                    source={
-                        step === 'first'
-                            ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
-                            : {
-                                  uri: slowImageUrl(`cyan.png?${id}=${RUN}`),
-                                  headers: BACKGROUND_SLOW_HEADERS,
-                              }
-                    }
-                    recyclingKey={
-                        recycle ? (step === 'first' ? 'first' : 'second') : null
-                    }
-                    onLoad={() =>
-                        setStep((s) => (s === 'first' ? 'second' : 'done'))
-                    }
-                />
-            )}
-            <View style={styles.text}>
-                <Text testID={`regression-${id}`} style={styles.status}>
-                    {id}: {status}
-                </Text>
-                <Text style={styles.description}>
-                    {recycle
-                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads'
-                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (it flashed blank)'}
-                </Text>
-            </View>
+                        : "#1022: a loaded image doesn't load again when the app comes back from the background"
+                }
+            />
         </View>
     )
 }
@@ -959,15 +812,126 @@ function CenterCase() {
                 source={{ uri: imageUrl('center-small.png') }}
                 onLoad={onLoad}
             />
-            <View style={styles.text}>
-                <Text testID="regression-resize-center" style={styles.status}>
-                    resize-center: {loaded === 2 ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    #866: resizeMode center scales a larger image down (blue
-                    border shows) and keeps a smaller one at its size
-                </Text>
-            </View>
+            <CaseStatus
+                id="resize-center"
+                status={loaded === 2 ? 'OK' : 'waiting'}
+                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps a smaller one at its size"
+            />
+        </View>
+    )
+}
+
+// Preloads an image at a url that's new each launch (so the disk cache from an
+// earlier run doesn't count), shows it once the preload has resolved, and asks
+// the server how many times it was requested: once, if the shown image came
+// from the preload. On Android, Glide keys loads by size, so a view can't join
+// a preload of the same url still in flight: shown before the preload has
+// finished, the image is downloaded again (#657). Awaiting the result avoids
+// that. The ms are from showing the image to onLoad (a decode from the disk
+// cache on Android; the memory cache on iOS).
+const PRELOAD_REUSE_PATH = `/picsum/1025-200x200.jpg?reuse=${RUN}`
+function PreloadReuseCase() {
+    const [shownAt, setShownAt] = useState<number>()
+    const [result, setResult] = useState<{ count: number; ms: number }>()
+    useEffect(() => {
+        FastImage.preload([{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }])
+            .then((results) => {
+                if (results[0].ok) setShownAt(Date.now())
+                else setResult({ count: 0, ms: 0 })
+            })
+            .catch(() => setResult({ count: -1, ms: 0 }))
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shownAt === undefined ? (
+                <View style={styles.image} />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl(PRELOAD_REUSE_PATH.slice(1)) }}
+                    onLoad={() => {
+                        const ms = Date.now() - shownAt
+                        fetch(
+                            imageUrl(
+                                `requests?path=${encodeURIComponent(PRELOAD_REUSE_PATH)}`,
+                            ),
+                        )
+                            .then((response) => response.json())
+                            .then((json) =>
+                                setResult({ count: json.count, ms }),
+                            )
+                            .catch(() => setResult({ count: -1, ms }))
+                    }}
+                />
+            )}
+            <CaseStatus
+                id="preload-reuse"
+                status={
+                    result === undefined
+                        ? 'waiting'
+                        : result.count === 1
+                          ? 'OK'
+                          : result.count < 1
+                            ? 'preload failed'
+                            : `requested ${result.count} times (${result.ms} ms)`
+                }
+                description="#657: an image shown after FastImage.preload resolves isn't downloaded again"
+            />
+        </View>
+    )
+}
+
+// Shows a magenta image, then changes the source to a cyan one that takes
+// about 2 s (the slow server, 300 ms between parts). While it loads, the view
+// should keep showing magenta (it flashed blank, #747); with `recycle`,
+// recyclingKey changes too, and it should be blank instead (for views reused
+// for other content). The runner is asked for a screenshot then (see
+// RunnerContext.tsx); check it against its reference. Passes when the cyan
+// one has loaded.
+function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
+    const [step, setStep] = useState<'first' | 'second' | 'done'>('first')
+    const snapshot = useContext(SnapshotContext)
+    useEffect(() => {
+        if (step !== 'second') return
+        // Half a second in: the slow image takes about 2 s.
+        const timer = setTimeout(() => snapshot(id), 500)
+        return () => clearTimeout(timer)
+    }, [step, snapshot, id])
+    const status = {
+        first: 'loading the first image',
+        second: 'loading the second image',
+        done: 'OK',
+    }[step]
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={
+                    step === 'first'
+                        ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+                        : {
+                              uri: slowImageUrl(
+                                  `cyan.png?${id}=${RUN}&delay=300`,
+                              ),
+                              headers: BACKGROUND_SLOW_HEADERS,
+                          }
+                }
+                recyclingKey={
+                    recycle ? (step === 'first' ? 'first' : 'second') : null
+                }
+                onLoad={() =>
+                    setStep((s) => (s === 'first' ? 'second' : 'done'))
+                }
+            />
+            <CaseStatus
+                id={id}
+                status={status}
+                description={
+                    recycle
+                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads'
+                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (it flashed blank)'
+                }
+            />
         </View>
     )
 }
@@ -1007,14 +971,11 @@ function PreloadResultsCase() {
     return (
         <View style={styles.row}>
             <View style={styles.image} />
-            <View style={styles.text}>
-                <Text testID="regression-preload-results" style={styles.status}>
-                    preload-results: {status}
-                </Text>
-                <Text style={styles.description}>
-                    preload resolves with each source's result and size
-                </Text>
-            </View>
+            <CaseStatus
+                id="preload-results"
+                status={status}
+                description="preload resolves with each source's result and size"
+            />
         </View>
     )
 }
@@ -1031,7 +992,7 @@ function PreloadLimitCase() {
     useEffect(() => {
         const sources = [0, 1, 2, 3].map((i) => ({
             uri: slowImageUrl(
-                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}`,
+                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}&delay=300`,
             ),
             headers: { 'x-token': 'fast-image' },
         }))
@@ -1056,14 +1017,11 @@ function PreloadLimitCase() {
     return (
         <View style={styles.row}>
             <View style={styles.image} />
-            <View style={styles.text}>
-                <Text testID="regression-preload-limit" style={styles.status}>
-                    preload-limit: {status}
-                </Text>
-                <Text style={styles.description}>
-                    preload loads a few sources at a time
-                </Text>
-            </View>
+            <CaseStatus
+                id="preload-limit"
+                status={status}
+                description="preload loads a few sources at a time"
+            />
         </View>
     )
 }
@@ -1078,7 +1036,7 @@ function SizeChangeCase() {
     const size = { width: 96, height: tall ? 96 : 16 }
     useEffect(() => {
         if (!tall) return
-        const t = setTimeout(() => setDone(true), 2000)
+        const t = setTimeout(() => setDone(true), 1000)
         return () => clearTimeout(t)
     }, [tall])
     const source = { uri: imageUrl('portrait-stripes.png') }
@@ -1095,198 +1053,16 @@ function SizeChangeCase() {
                 resizeMode="cover"
                 source={source}
             />
-            <View style={styles.text}>
-                <Text testID="regression-size-change" style={styles.status}>
-                    size-change: {done ? 'OK' : 'waiting'}
-                </Text>
-                <Text style={styles.description}>
-                    #983: an image in a view that gets taller after it loaded
-                    looks like Image next to it (not zoomed in)
-                </Text>
-            </View>
+            <CaseStatus
+                id="size-change"
+                status={done ? 'OK' : 'waiting'}
+                description="#983: an image in a view that gets taller after it loaded looks like Image next to it (not zoomed in)"
+            />
         </View>
     )
 }
 
-export default function RegressionExample() {
-    const statusBarHeight = useStatusBarHeight()
-    return (
-        <ScrollView
-            style={{ marginTop: statusBarHeight }}
-            contentContainerStyle={styles.container}
-        >
-            <Text style={styles.title}>Regression checks</Text>
-            <BackgroundCases />
-            <EventCase
-                id="tint-remote"
-                description="#1082: tintColor on a remote image with no defaultSource"
-                event="onLoad"
-                source={{ uri: LOGO }}
-                tintColor="green"
-            />
-            <EventCase
-                id="tint-404"
-                description="#1082: tintColor on an image that fails to load"
-                event="onError"
-                source={{ uri: MISSING }}
-                tintColor="green"
-            />
-            <EventCase
-                id="remove-onLoad"
-                description="#1088: onLoad removed after it fires"
-                event="onLoad"
-                removeAfter
-                source={{ uri: LOGO }}
-            />
-            <EventCase
-                id="remove-onLoadEnd"
-                description="#1088: onLoadEnd removed after it fires"
-                event="onLoadEnd"
-                removeAfter
-                source={{ uri: LOGO }}
-            />
-            <EventCase
-                id="remove-onError"
-                description="#1088: onError removed after it fires"
-                event="onError"
-                removeAfter
-                source={{ uri: MISSING }}
-            />
-            <NoCrashCase
-                id="default-no-source"
-                description="#973: defaultSource with no source (Android crashed)"
-            >
-                <FastImage style={styles.image} defaultSource={DEFAULT} />
-            </NoCrashCase>
-            <NoCrashCase
-                id="preload-no-uri"
-                description="#774: preload with an empty, missing or null uri, or a null source (crashed)"
-                onMount={() =>
-                    FastImage.preload([
-                        { uri: '' },
-                        {},
-                        { uri: null as unknown as string },
-                        null as unknown as Source,
-                    ])
-                }
-            />
-            <NoCrashCase
-                id="preload-unresolved"
-                description="#849: preload with a uri that can't be resolved (Android crashed)"
-                onMount={() =>
-                    FastImage.preload([{ uri: 'not-a-real-image.jpg' }])
-                }
-            />
-            <ClearTintCase />
-            <LayoutCase id="layout" />
-            <LayoutCase id="layout-fallback" fallback />
-            <EventCase
-                id="fallback-require"
-                description="#1044: fallback with a require()d image (should show the logo)"
-                event="onLoad"
-                source={require('./images/logo.png')}
-                fallback
-            />
-            <TouchableCase />
-            <EventCase
-                id="tint-style"
-                description="#946: tintColor in style (should be green)"
-                event="onLoad"
-                source={{ uri: LOGO }}
-                style={[styles.image, { tintColor: 'green' }]}
-            />
-            <PointerEventsCase />
-            <EventCase
-                id="error-invalid-data-uri"
-                description="A data: uri that isn't an image fires onError (iOS fired onLoad with 0x0)"
-                event="onError"
-                source={{ uri: 'data:image/png;base64,bm90IGFuIGltYWdl' }}
-            />
-            <EventCase
-                id="error-empty-uri"
-                description="#1028: an empty uri fires onError (Android didn't)"
-                event="onError"
-                source={{ uri: '' }}
-            />
-            <EventCase
-                id="error-null-uri-default"
-                description="#945: a null uri fires onError and shows defaultSource (Android showed nothing)"
-                event="onError"
-                source={{ uri: null as unknown as string }}
-                defaultSource={DEFAULT}
-            />
-            <ResizeModeChangeCase />
-            <NoReloadCase />
-            <SourceSwapCase />
-            <LoadStartOnceCase />
-            <ProgressUnknownSizeCase />
-            <EventCase
-                id="zero-size"
-                description="#865: a 0×0 image still loads (Android never did)"
-                event="onLoad"
-                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
-                style={{ width: 0, height: 0 }}
-            />
-            <EventCase
-                id="zero-height"
-                description="#865: an image with a width but no height still loads"
-                event="onLoad"
-                source={{ uri: imageUrl('picsum/1021-120x120.jpg') }}
-                style={{ width: 60, height: 0 }}
-            />
-            {Platform.OS === 'android' ? (
-                <EventCase
-                    id="asset-uri"
-                    description="#1068: an asset:/ uri (a file in the app's Android assets) loads"
-                    event="onLoad"
-                    source={{ uri: 'asset:/fastimage-logo.png' }}
-                />
-            ) : (
-                <NoCrashCase
-                    id="asset-uri"
-                    description="#1068: asset:/ uris are Android only"
-                />
-            )}
-            <SourceSizeCase
-                id="source-size"
-                description="#608: onLoad reports the image's size, not the size decoded for the view (600x300)"
-                uri={imageUrl('picsum/1018-600x300.jpg')}
-                width={600}
-                height={300}
-            />
-            <SourceSizeCase
-                id="source-size-gif"
-                description="#608: the same for a GIF (500x281)"
-                uri={imageUrl('jellyfish.gif')}
-                width={500}
-                height={281}
-            />
-            <SourceSizeCachedCase />
-            <PreloadCase />
-            <PreloadReuseCase />
-            <PreloadResultsCase />
-            <PreloadLimitCase />
-            <PreloadHeadersCase />
-            <NoCrashCase
-                id="gif-loop-once"
-                description="#651: a GIF without a loop count plays once and stops on cyan (Android looped every GIF forever)"
-            >
-                <FastImage
-                    style={styles.image}
-                    source={{ uri: imageUrl('loop-once.gif') }}
-                />
-            </NoCrashCase>
-            <WebCacheCase />
-            <CookiesCase />
-            <CenterCase />
-            <KeepPreviousCase id="keep-previous" />
-            <KeepPreviousCase id="recycling-key" recycle />
-            <SizeChangeCase />
-        </ScrollView>
-    )
-}
-
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
     container: {
         padding: 16,
     },
@@ -1294,6 +1070,10 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 12,
+    },
+    group: {
+        color: '#666',
+        marginBottom: 8,
     },
     row: {
         flexDirection: 'row',
@@ -1320,3 +1100,256 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
 })
+
+// The cases that run on their own, in the groups the runner shows one at a
+// time (each fits on a screen, so its screenshot shows every case). Cases in
+// a group load at the same time; timed ones (a second or two) are grouped so
+// they overlap. Keys are the case ids, which must be unique across groups.
+export type RegressionGroup = { name: string; cases: React.ReactElement[] }
+
+export const REGRESSION_GROUPS: RegressionGroup[] = [
+    {
+        name: 'events',
+        cases: [
+            <EventCase
+                key="tint-remote"
+                id="tint-remote"
+                description="#1082: tintColor on a remote image with no defaultSource"
+                event="onLoad"
+                source={{ uri: LOGO }}
+                tintColor="green"
+            />,
+            <EventCase
+                key="tint-404"
+                id="tint-404"
+                description="#1082: tintColor on an image that fails to load"
+                event="onError"
+                source={{ uri: MISSING }}
+                tintColor="green"
+            />,
+            <EventCase
+                key="remove-onLoad"
+                id="remove-onLoad"
+                description="#1088: onLoad removed after it fires"
+                event="onLoad"
+                removeAfter
+                source={{ uri: LOGO }}
+            />,
+            <EventCase
+                key="remove-onLoadEnd"
+                id="remove-onLoadEnd"
+                description="#1088: onLoadEnd removed after it fires"
+                event="onLoadEnd"
+                removeAfter
+                source={{ uri: LOGO }}
+            />,
+            <EventCase
+                key="remove-onError"
+                id="remove-onError"
+                description="#1088: onError removed after it fires"
+                event="onError"
+                removeAfter
+                source={{ uri: MISSING }}
+            />,
+            <EventCase
+                key="error-invalid-data-uri"
+                id="error-invalid-data-uri"
+                description="A data: uri that isn't an image fires onError (iOS fired onLoad with 0x0)"
+                event="onError"
+                source={{ uri: 'data:image/png;base64,bm90IGFuIGltYWdl' }}
+            />,
+            <EventCase
+                key="error-empty-uri"
+                id="error-empty-uri"
+                description="#1028: an empty uri fires onError (Android didn't)"
+                event="onError"
+                source={{ uri: '' }}
+            />,
+            <EventCase
+                key="error-null-uri-default"
+                id="error-null-uri-default"
+                description="#945: a null uri fires onError and shows defaultSource (Android showed nothing)"
+                event="onError"
+                source={{ uri: null as unknown as string }}
+                defaultSource={DEFAULT}
+            />,
+        ],
+    },
+    {
+        name: 'no-crash',
+        cases: [
+            <NoCrashCase
+                key="default-no-source"
+                id="default-no-source"
+                description="#973: defaultSource with no source (Android crashed)"
+            >
+                <FastImage style={styles.image} defaultSource={DEFAULT} />
+            </NoCrashCase>,
+            <NoCrashCase
+                key="preload-no-uri"
+                id="preload-no-uri"
+                description="#774: preload with an empty, missing or null uri, or a null source (crashed)"
+                onMount={() =>
+                    FastImage.preload([
+                        { uri: '' },
+                        {},
+                        { uri: null as unknown as string },
+                        null as unknown as Source,
+                    ])
+                }
+            />,
+            <NoCrashCase
+                key="preload-unresolved"
+                id="preload-unresolved"
+                description="#849: preload with a uri that can't be resolved (Android crashed)"
+                onMount={() =>
+                    FastImage.preload([{ uri: 'not-a-real-image.jpg' }])
+                }
+            />,
+            Platform.OS === 'android' ? (
+                <EventCase
+                    key="asset-uri"
+                    id="asset-uri"
+                    description="#1068: an asset:/ uri (a file in the app's Android assets) loads"
+                    event="onLoad"
+                    source={{ uri: 'asset:/fastimage-logo.png' }}
+                />
+            ) : (
+                <NoCrashCase
+                    key="asset-uri"
+                    id="asset-uri"
+                    description="#1068: asset:/ uris are Android only"
+                />
+            ),
+            <EventCase
+                key="zero-size"
+                id="zero-size"
+                description="#865: a 0×0 image still loads (Android never did)"
+                event="onLoad"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{ width: 0, height: 0 }}
+            />,
+            <EventCase
+                key="zero-height"
+                id="zero-height"
+                description="#865: an image with a width but no height still loads"
+                event="onLoad"
+                source={{ uri: imageUrl('picsum/1021-120x120.jpg') }}
+                style={{ width: 60, height: 0 }}
+            />,
+        ],
+    },
+    {
+        name: 'layout',
+        cases: [
+            <LayoutCase key="layout" id="layout" />,
+            <LayoutCase key="layout-fallback" id="layout-fallback" fallback />,
+            <EventCase
+                key="fallback-require"
+                id="fallback-require"
+                description="#1044: fallback with a require()d image (should show the logo)"
+                event="onLoad"
+                source={require('./images/logo.png')}
+                fallback
+            />,
+            <EventCase
+                key="tint-style"
+                id="tint-style"
+                description="#946: tintColor in style (should be green)"
+                event="onLoad"
+                source={{ uri: LOGO }}
+                style={[styles.image, { tintColor: 'green' }]}
+            />,
+            <SourceSizeCase
+                key="source-size"
+                id="source-size"
+                description="#608: onLoad reports the image's size, not the size decoded for the view (600x300)"
+                uri={imageUrl('picsum/1018-600x300.jpg')}
+                width={600}
+                height={300}
+            />,
+            <SourceSizeCase
+                key="source-size-gif"
+                id="source-size-gif"
+                description="#608: the same for a GIF (500x281)"
+                uri={imageUrl('jellyfish.gif')}
+                width={500}
+                height={281}
+            />,
+            <SourceSizeCachedCase key="source-size-cached" />,
+        ],
+    },
+    {
+        // Checked by screenshot as much as by status.
+        name: 'visual',
+        cases: [
+            <ClearTintCase key="clear-tint" />,
+            <ResizeModeChangeCase key="resize-mode" />,
+            <CenterCase key="resize-center" />,
+            <NoCrashCase
+                key="gif-loop-once"
+                id="gif-loop-once"
+                description="#651: a GIF without a loop count plays once and stops on cyan (Android looped every GIF forever)"
+            >
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl('loop-once.gif') }}
+                />
+            </NoCrashCase>,
+            <SizeChangeCase key="size-change" />,
+        ],
+    },
+    {
+        name: 'loading',
+        cases: [
+            <NoReloadCase key="no-reload" />,
+            <SourceSwapCase key="source-swap" />,
+            <LoadStartOnceCase key="load-start-once" />,
+            <ProgressUnknownSizeCase key="progress-unknown-size" />,
+            <WebCacheCase key="web-cache" />,
+            <CookiesCase key="cookies" />,
+        ],
+    },
+    {
+        // The slow ones: the slow server takes about 2 s per image here, and
+        // preload-limit loads 4 of them, 3 at a time.
+        name: 'preload',
+        cases: [
+            <PreloadCase key="preload" />,
+            <PreloadHeadersCase key="preload-headers" />,
+            <PreloadReuseCase key="preload-reuse" />,
+            <PreloadResultsCase key="preload-results" />,
+            <PreloadLimitCase key="preload-limit" />,
+        ],
+    },
+    {
+        // On their own: their screenshots are taken while they load, and
+        // other cases' status lines would still be changing.
+        name: 'keep-previous',
+        cases: [
+            <KeepPreviousCase key="keep-previous" id="keep-previous" />,
+            <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
+        ],
+    },
+]
+
+export default function RegressionExample() {
+    const statusBarHeight = useStatusBarHeight()
+    return (
+        <ScrollView
+            style={{ marginTop: statusBarHeight }}
+            contentContainerStyle={styles.container}
+        >
+            <Text style={styles.title}>Regression checks</Text>
+            <BackgroundCases />
+            <TouchableCase />
+            <PointerEventsCase />
+            {REGRESSION_GROUPS.map((group) => (
+                <React.Fragment key={group.name}>
+                    <Text style={styles.group}>{group.name}</Text>
+                    {group.cases}
+                </React.Fragment>
+            ))}
+        </ScrollView>
+    )
+}

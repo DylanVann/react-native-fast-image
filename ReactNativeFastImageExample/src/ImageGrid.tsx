@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useState } from 'react'
 import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
 import StatusBarUnderlay, { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl } from './imageServer'
+import { useReport } from './RunnerContext'
 
 const MARGIN = 2
 
@@ -9,12 +10,13 @@ export interface ImageGridItemProps {
     id: string
     ImageComponent: any
     testIDPrefix: string
+    onLoad: (id: string) => void
 }
 
 export const ImageGridItem = memo(
-    ({ id, ImageComponent, testIDPrefix }: ImageGridItemProps) => {
+    ({ id, ImageComponent, testIDPrefix, onLoad }: ImageGridItemProps) => {
         const uri = imageUrl(`picsum/${id}-100x100.jpg`)
-        // Lets maestro/walkthrough.yaml wait until the grid has loaded.
+        // Lets a flow wait until the grid has loaded.
         const [loaded, setLoaded] = useState(false)
         return (
             <View
@@ -27,7 +29,10 @@ export const ImageGridItem = memo(
                 }}
             >
                 <ImageComponent
-                    onLoad={() => setLoaded(true)}
+                    onLoad={() => {
+                        setLoaded(true)
+                        onLoad(id)
+                    }}
                     source={{ uri }}
                     style={{
                         flex: 1,
@@ -52,6 +57,26 @@ export const ImageGrid = (props: ImageGridProps) => {
     const [images, setImages] = useState<any[]>([])
     const [itemHeight, setItemHeight] = useState(0)
     const [error, setError] = useState<Error | null>(null)
+    // For the regression runner: the first seven rows have loaded, which is
+    // what fits on a phone screen (a row cut off at the bottom included) and
+    // all the FlatList renders on Android without scrolling.
+    const [loaded, setLoaded] = useState<string[]>([])
+    const firstRows = images.slice(0, 28).map((image) => image.id)
+    const firstRowsLoaded = firstRows.filter((id) => loaded.includes(id))
+    useReport(
+        props.testIDPrefix,
+        error
+            ? `error: ${error.message}`
+            : images.length === 0
+              ? 'waiting for the list'
+              : firstRowsLoaded.length === firstRows.length
+                ? 'OK'
+                : `${firstRowsLoaded.length}/${firstRows.length} loaded`,
+    )
+    const onItemLoad = useCallback(
+        (id: string) => setLoaded((ids) => [...ids, id]),
+        [],
+    )
 
     useEffect(() => {
         fetch(imageUrl('picsum/list.json'))
@@ -81,10 +106,11 @@ export const ImageGrid = (props: ImageGridProps) => {
                     id={item.id}
                     ImageComponent={ImageComponent}
                     testIDPrefix={testIDPrefix}
+                    onLoad={onItemLoad}
                 />
             )
         },
-        [ImageComponent, testIDPrefix],
+        [ImageComponent, testIDPrefix, onItemLoad],
     )
 
     const extractKey = useCallback((item: any) => {

@@ -8,10 +8,12 @@ import FeatureText from './FeatureText'
 // @ts-ignore
 import LogoImage from './images/logo.png'
 import { imageUrl } from './imageServer'
+import { useLoads } from './RunnerContext'
 
 const REMOTE_LOGO = imageUrl('logo.png')
 
 export const TintColorExample = () => {
+    const onLoad = useLoads('tint-color', 6)
     return (
         <View>
             <Section>
@@ -23,16 +25,19 @@ export const TintColorExample = () => {
                     style={styles.image}
                     tintColor={'green'}
                     source={LogoImage}
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'#9324c3'}
                     source={LogoImage}
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'rgba(0,0,0,0.5)'}
                     source={LogoImage}
+                    onLoad={onLoad}
                 />
             </SectionFlex>
             <Section>
@@ -44,18 +49,21 @@ export const TintColorExample = () => {
                     tintColor={'green'}
                     source={{ uri: REMOTE_LOGO }}
                     resizeMode="contain"
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'#9324c3'}
                     source={{ uri: REMOTE_LOGO }}
                     resizeMode="contain"
+                    onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'rgba(0,0,0,0.5)'}
                     source={{ uri: REMOTE_LOGO }}
                     resizeMode="contain"
+                    onLoad={onLoad}
                 />
             </SectionFlex>
         </View>
