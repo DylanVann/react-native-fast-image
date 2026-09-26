@@ -89,6 +89,8 @@ Run `node scripts/verify.mts --help` for all options. The flows run on devices o
 - `maestro/walkthrough.yaml` scrolls through every example, checks that the progress events fire, opens both grids, and saves screenshots.
 - `maestro/regression.yaml` opens the **Regression** tab and waits for every case to report `OK`. Each case covers a fixed bug (for example, removing an event handler after it fires). Add a case there when fixing a bug that can be reproduced in the app.
 
+Select elements by testID (`id:`) or exact text where possible. On iOS, maestro-runner resolves those with a WebDriverAgent query, but a regex text selector makes it fetch and parse the whole page source on every poll: in the regression flow that was about 2.5 s per `scrollUntilVisible` step against about 1 s with `id:`, or 3 minutes against 1 minute 40 seconds for the flow.
+
 To run a flow by hand against a running app:
 
 ```bash
