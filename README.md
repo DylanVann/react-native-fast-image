@@ -243,11 +243,17 @@ FastImage.preload([
 ])
 ```
 
-It resolves when all the images have loaded or failed, with a result for each source, in order: `{ uri, ok, width, height, error }`. `width` and `height` are the image's size (as in `onLoad`), which is also a way to find an image's size without showing it. A few sources load at a time (3, or `SDWebImagePrefetcher`'s `maxConcurrentPrefetchCount` on iOS), so a long list doesn't hold up the images the app is showing, and at low priority unless the source sets `priority`. It never rejects:
+It resolves when all the images have loaded or failed, with a result for each source, in order: `{ uri, ok: true, width, height }` if it loaded, or `{ uri, ok: false, error }` if it didn't (checking `ok` narrows the type in TypeScript). `width` and `height` are the image's size (as in `onLoad`), which is also a way to find an image's size without showing it. A few sources load at a time (3, or `SDWebImagePrefetcher`'s `maxConcurrentPrefetchCount` on iOS), so a long list doesn't hold up the images the app is showing, and at low priority unless the source sets `priority`. It never rejects:
 
 ```js
 const results = await FastImage.preload(sources)
-const failed = results.filter((result) => !result.ok)
+for (const result of results) {
+    if (result.ok) {
+        console.log(result.uri, result.width, result.height)
+    } else {
+        console.warn(result.uri, result.error)
+    }
+}
 ```
 
 ### `FastImage.clearMemoryCache: () => Promise<void>`
