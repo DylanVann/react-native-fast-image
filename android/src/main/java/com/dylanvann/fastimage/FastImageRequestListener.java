@@ -21,15 +21,20 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     private final FastImageSource source;
     // Whether the request shows the previous image as a thumbnail meanwhile.
     private final boolean thumbnail;
+    // False when loading the image that's showing again at a new size: the
+    // view shows it at its old size if that fails.
+    private final boolean events;
 
-    FastImageRequestListener(String key, FastImageSource source, boolean thumbnail) {
+    FastImageRequestListener(String key, FastImageSource source, boolean thumbnail, boolean events) {
         this.key = key;
         this.source = source;
         this.thumbnail = thumbnail;
+        this.events = events;
     }
 
     @Override
     public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+        if (!events) return false;
         FastImageOkHttpProgressGlideModule.forget(key);
         if (!(target instanceof ImageViewTarget)) {
             return false;
@@ -53,6 +58,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             // loops every GIF forever by default (#651).
             ((GifDrawable) resource).setLoopCount(GifDrawable.LOOP_INTRINSIC);
         }
+        if (!events) return false;
         boolean local = !(model instanceof GlideUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,
                 dataSource == DataSource.RESOURCE_DISK_CACHE);

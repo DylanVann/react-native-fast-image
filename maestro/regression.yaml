@@ -326,6 +326,16 @@ env:
 - extendedWaitUntil:
       visible: 'recycling-key: OK'
       timeout: 30000
+# A view that gets taller after its image loaded (#983). Check the screenshot.
+- scrollUntilVisible:
+      element: 'size-change: .*'
+      timeout: 10000
+- extendedWaitUntil:
+      visible: 'size-change: OK'
+      timeout: 30000
+# iOS can report it visible while it's still below the screen.
+- scroll
+- takeScreenshot: ${OUT}/size-change
 # Give any delayed crash (e.g. from a prop update after an event) time to happen.
 - waitForAnimationToEnd:
       timeout: 3000

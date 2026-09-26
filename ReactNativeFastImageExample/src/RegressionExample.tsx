@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
     AppState,
+    Image,
     Platform,
     Pressable,
     ScrollView,
@@ -1067,6 +1068,46 @@ function PreloadLimitCase() {
     )
 }
 
+// A portrait image (600x1200, 12px black and white stripes) with cover in a
+// view that gets taller after it loaded (96x16, then 96x96), next to React
+// Native's Image. Android showed a zoomed-in slice of it: Glide had cropped it
+// to the first size (#983). Check the screenshot: both should look the same.
+function SizeChangeCase() {
+    const [tall, setTall] = useState(false)
+    const [done, setDone] = useState(false)
+    const size = { width: 96, height: tall ? 96 : 16 }
+    useEffect(() => {
+        if (!tall) return
+        const t = setTimeout(() => setDone(true), 2000)
+        return () => clearTimeout(t)
+    }, [tall])
+    const source = { uri: imageUrl('portrait-stripes.png') }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={size}
+                resizeMode="cover"
+                source={source}
+                onLoad={() => setTimeout(() => setTall(true), 300)}
+            />
+            <Image
+                style={[size, styles.gap]}
+                resizeMode="cover"
+                source={source}
+            />
+            <View style={styles.text}>
+                <Text testID="regression-size-change" style={styles.status}>
+                    size-change: {done ? 'OK' : 'waiting'}
+                </Text>
+                <Text style={styles.description}>
+                    #983: an image in a view that gets taller after it loaded
+                    looks like Image next to it (not zoomed in)
+                </Text>
+            </View>
+        </View>
+    )
+}
+
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     return (
@@ -1240,6 +1281,7 @@ export default function RegressionExample() {
             <CenterCase />
             <KeepPreviousCase id="keep-previous" />
             <KeepPreviousCase id="recycling-key" recycle />
+            <SizeChangeCase />
         </ScrollView>
     )
 }
