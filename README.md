@@ -196,6 +196,12 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 ---
 
+### `paused?: boolean`
+
+Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showing; `false` plays it again from there. Each image animates on its own, so pausing one doesn't pause others showing the same file.
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.
