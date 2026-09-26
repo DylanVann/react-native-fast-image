@@ -1,3 +1,10 @@
+# [8.13.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.12.0...v8.13.0) (2026-09-26)
+
+
+### Features
+
+* **ios:** add a downsample prop to decode large images at about the view's size ([#1158](https://github.com/DylanVann/react-native-fast-image/issues/1158)) ([2816300](https://github.com/DylanVann/react-native-fast-image/commit/28163006bfd967fbe8bd7789091d925fd82a9f51)), closes [#896](https://github.com/DylanVann/react-native-fast-image/issues/896)
+
 # [8.12.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.11.0...v8.12.0) (2026-09-26)
 
 
