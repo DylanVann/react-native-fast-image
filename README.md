@@ -202,6 +202,23 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ---
 
+### `downsample?: boolean`
+
+iOS only. Decodes the image at about the size it's shown at (the view's size in pixels, enough to cover it for `cover` and `stretch`) instead of at full size. A large image in a small view then takes much less memory: a 12 megapixel photo takes about 48 MB decoded at full size, and about 1 MB in a 150 × 150 view. Decoding a large image much smaller is also faster (about 12 ms instead of 39 ms for a 2048 × 2048 JPEG in a 48 × 48 view, in the iOS simulator), though decoding it at about half its size can take a little longer than at full size.
+
+Where you control the images, serving them at the size they're shown (resized on the server or by an image CDN, and cached there) is better: it also saves bandwidth and decoding time. This prop is for images you can't get in the right size.
+
+- The downloaded file is still cached on disk at full size. A larger view of the same image (e.g. a detail screen) decodes it again from there at its own size, without downloading it again.
+- The image loads once the view has its size, which comes in the same update, so it doesn't wait for another frame. A view without a size (e.g. one sized from `onLoad`) loads the image at full size.
+- If the view grows by more than a fifth, the image is decoded again for the new size, keeping the current one until then, without sending the load events again.
+- `onLoad` still reports the image's full size.
+- Not for `resizeMode="repeat"`, which tiles the image at its own size.
+- Needs SDWebImage 5.19.7 or later (`pod update SDWebImage`). Before 5.19 images are decoded at full size; 5.19.7 fixed the orientation of some JPEGs decoded smaller.
+
+On Android images are already decoded at about the view's size (by Glide).
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

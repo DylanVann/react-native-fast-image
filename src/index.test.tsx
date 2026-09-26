@@ -325,6 +325,20 @@ describe('paused', () => {
     })
 })
 
+describe('downsample', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.jpg' }}
+                    downsample
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.downsample).toBe(true)
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'

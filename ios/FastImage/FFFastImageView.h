@@ -30,6 +30,8 @@
 @property (nonatomic, copy) NSString *imageRendering;
 // Pauses animated images on the frame they're showing.
 @property (nonatomic, assign) BOOL paused;
+// Decodes images at about the view's size instead of at full size.
+@property (nonatomic, assign) BOOL downsample;
 
 @end
 

@@ -1407,6 +1407,281 @@ const renderingStyles = StyleSheet.create({
     column: { width: RENDERING_COLUMN, marginRight: 12 },
 })
 
+// downsample (iOS; Android already decodes at about the view's size).
+// Each image is next to the same one without it, which should look the same
+// (or, for the stripes, smoother), and onLoad reports the full image's size.
+function DownsampleCase({
+    id,
+    description,
+    image,
+    size,
+    style,
+    resizeMode = 'cover',
+}: {
+    id: string
+    description: string
+    image: string
+    size: string
+    style: { width: number; height: number }
+    resizeMode?: FastImageProps['resizeMode']
+}) {
+    const [sizes, setSizes] = useState<string[]>([])
+    const onLoad = (e: { nativeEvent: { width: number; height: number } }) => {
+        // Read now: the event is reused after the handler.
+        const size = `${e.nativeEvent.width}x${e.nativeEvent.height}`
+        setSizes((s) => [...s, size])
+    }
+    const done = sizes.length === 2
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={style}
+                resizeMode={resizeMode}
+                source={{ uri: imageUrl(image) }}
+                downsample
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[style, styles.gap]}
+                resizeMode={resizeMode}
+                source={{ uri: imageUrl(image) }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id={id}
+                status={
+                    !done
+                        ? 'waiting'
+                        : sizes.every((s) => s === size)
+                          ? 'OK'
+                          : `${sizes.join(', ')}, expected ${size}`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
+// A small view of a large image, then a larger one of the same image (like a
+// list and a detail screen): the larger one is decoded again from the disk
+// cache, at its own size (sharp), not downloaded again.
+const DETAIL_PATH = `/picsum/1016-2048x2048.jpg?downsample=${RUN}`
+function DownsampleDetailCase() {
+    const [loads, setLoads] = useState(0)
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loads !== 2) return
+        fetch(imageUrl(`requests?path=${encodeURIComponent(DETAIL_PATH)}`))
+            .then((response) => response.json())
+            .then((json) => setRequests(json.count))
+            .catch(() => setRequests(-1))
+    }, [loads])
+    const source = { uri: imageUrl(DETAIL_PATH.slice(1)) }
+    const onLoad = () => setLoads((n) => n + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={source}
+                downsample
+                onLoad={onLoad}
+            />
+            {loads >= 1 ? (
+                <FastImage
+                    style={[downsampleStyles.large, styles.gap]}
+                    source={source}
+                    downsample
+                    onLoad={onLoad}
+                />
+            ) : (
+                <View style={[downsampleStyles.large, styles.gap]} />
+            )}
+            <CaseStatus
+                id="downsample-detail"
+                status={
+                    requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`
+                }
+                description="downsample: a larger view of the same image decodes it again (sharp) without downloading it again"
+            />
+        </View>
+    )
+}
+
+// A view that grows after its image loaded: the image is decoded again for
+// the new size (the text is sharp, not enlarged from the small one), without
+// sending the load events again.
+function DownsampleGrowCase() {
+    const [large, setLarge] = useState(false)
+    const [done, setDone] = useState(false)
+    const events = useRef({ loadStart: 0, load: 0 })
+    const [counts, setCounts] = useState('')
+    useEffect(() => {
+        if (!large) return
+        const t = setTimeout(() => {
+            const { loadStart, load } = events.current
+            setCounts(`${loadStart} onLoadStart, ${load} onLoad`)
+            setDone(true)
+        }, 1000)
+        return () => clearTimeout(t)
+    }, [large])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={large ? downsampleStyles.large : styles.image}
+                source={{ uri: imageUrl('text-page.png') }}
+                downsample
+                onLoadStart={() => {
+                    events.current.loadStart++
+                }}
+                onLoad={() => {
+                    events.current.load++
+                    setTimeout(() => setLarge(true), 300)
+                }}
+            />
+            <CaseStatus
+                id="downsample-grow"
+                status={
+                    !done
+                        ? 'waiting'
+                        : counts === '1 onLoadStart, 1 onLoad'
+                          ? 'OK'
+                          : counts
+                }
+                description="downsample: a view that grows after loading decodes the image again for its size (sharp text), without load events"
+            />
+        </View>
+    )
+}
+
+// A view without a size until its image loads (sized from onLoad): it still
+// loads, at full size.
+function DownsampleNoSizeCase() {
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    // Passes once the view has been laid out at that size (the screenshot
+    // then shows the image).
+    const [laidOut, setLaidOut] = useState(false)
+    return (
+        <View style={styles.row}>
+            <View style={styles.image}>
+                <FastImage
+                    style={size}
+                    source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                    downsample
+                    onLayout={(e) => {
+                        if (e.nativeEvent.layout.width > 0) setLaidOut(true)
+                    }}
+                    onLoad={(e) =>
+                        setSize({
+                            width: 48,
+                            height:
+                                (48 * e.nativeEvent.height) /
+                                e.nativeEvent.width,
+                        })
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="downsample-no-size"
+                status={laidOut ? 'OK' : 'waiting'}
+                description="downsample: an image in a view sized from onLoad (no size before) still loads"
+            />
+        </View>
+    )
+}
+
+// A downsampled view of an image that's still being preloaded (from the slow
+// server, about a second here; the view loads 300 ms after the preload): the view's image is decoded to cover it
+// (cropped, not stretched to the view's shape), and onLoad reports the full
+// size. SDWebImage shares a download between loads of the same url, and
+// decoded the view's image as the preload asked.
+const PRELOADING = {
+    uri: slowImageUrl(`text-page.png?delay=120&preloading=${RUN}`),
+    headers: { 'x-token': 'fast-image' },
+}
+function DownsamplePreloadingCase() {
+    const [size, setSize] = useState<string>()
+    // The view loads once the preload has started downloading.
+    const [shown, setShown] = useState(false)
+    useEffect(() => {
+        FastImage.preload([PRELOADING])
+        const t = setTimeout(() => setShown(true), 300)
+        return () => clearTimeout(t)
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={downsampleStyles.tall}
+                    source={PRELOADING}
+                    downsample
+                    onLoad={(e) =>
+                        setSize(
+                            `${e.nativeEvent.width}x${e.nativeEvent.height}`,
+                        )
+                    }
+                />
+            ) : (
+                <View style={downsampleStyles.tall} />
+            )}
+            <CaseStatus
+                id="downsample-preloading"
+                status={
+                    size === undefined
+                        ? 'waiting'
+                        : size === '1600x1000'
+                          ? 'OK'
+                          : `${size}, expected 1600x1000`
+                }
+                description="downsample: an image that's still being preloaded is cropped to cover the view, not stretched; onLoad reports its full size"
+            />
+        </View>
+    )
+}
+
+// An animated image, decoded smaller (it animates, so it's masked).
+const JELLYFISH_SIZE = '500x281'
+function DownsampleGifCase() {
+    const [size, setSize] = useState<string>()
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl('jellyfish.gif') }}
+                    downsample
+                    onLoad={(e) =>
+                        setSize(
+                            `${e.nativeEvent.width}x${e.nativeEvent.height}`,
+                        )
+                    }
+                />
+            </Masked>
+            <CaseStatus
+                id="downsample-gif"
+                status={
+                    size === undefined
+                        ? 'waiting'
+                        : size === JELLYFISH_SIZE
+                          ? 'OK'
+                          : `${size}, expected ${JELLYFISH_SIZE}`
+                }
+                description={`downsample: an animated GIF loads and plays; onLoad reports its full size (${JELLYFISH_SIZE}; masked)`}
+            />
+        </View>
+    )
+}
+
+const downsampleStyles = StyleSheet.create({
+    large: { width: 96, height: 96, backgroundColor: '#eee' },
+    stripes: { width: 48, height: 48 },
+    tall: { width: 40, height: 96 },
+    rotated: { width: 64, height: 96 },
+})
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1639,6 +1914,46 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-rendering',
         cases: [<ImageRenderingCase key="image-rendering" />],
+    },
+    {
+        name: 'downsampling',
+        cases: [
+            <DownsampleCase
+                key="downsample-stripes"
+                id="downsample-stripes"
+                description="downsample (left): 1px stripes (1024px) in a 48 view decode to an even gray on iOS, not the stripes drawn smaller (right). Android: both black (Glide keeps every nth pixel of a PNG)"
+                image="stripes.png"
+                size="1024x1024"
+                style={downsampleStyles.stripes}
+            />,
+            <DownsampleCase
+                key="downsample-cover"
+                id="downsample-cover"
+                description="downsample (left) with cover: a wide page of text in a tall view is as sharp as without (right), decoded to cover the view, not fit in it"
+                image="text-page.png"
+                size="1600x1000"
+                style={downsampleStyles.tall}
+            />,
+            <DownsampleCase
+                key="downsample-orientation"
+                id="downsample-orientation"
+                description="downsample (left): a JPEG stored sideways with an EXIF orientation shows upright and as sharp as without (right)"
+                image="exif-rotated.jpg"
+                size="800x1200"
+                style={downsampleStyles.rotated}
+                resizeMode="contain"
+            />,
+        ],
+    },
+    {
+        name: 'downsampling-reload',
+        cases: [
+            <DownsampleDetailCase key="downsample-detail" />,
+            <DownsampleGrowCase key="downsample-grow" />,
+            <DownsampleNoSizeCase key="downsample-no-size" />,
+            <DownsampleGifCase key="downsample-gif" />,
+            <DownsamplePreloadingCase key="downsample-preloading" />,
+        ],
     },
     {
         name: 'loading',
