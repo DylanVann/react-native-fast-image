@@ -220,10 +220,11 @@ describe('FastImage (iOS)', () => {
                 const error: string = failed.error
                 expect(error).toBe('Invalid source: no uri')
             }
-            // Without checking ok, the fields may be undefined.
+            // Reading the size or the error without checking ok is an error.
             // @ts-expect-error
-            const width: number = loaded.width
-            expect(width).toBe(10)
+            expect(loaded.width).toBe(10)
+            // @ts-expect-error
+            expect(failed.error).toBe('Invalid source: no uri')
         } finally {
             preload.mockRestore()
         }

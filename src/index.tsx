@@ -316,7 +316,6 @@ export interface PreloadSuccess {
     // The image's size (as in onLoad).
     width: number
     height: number
-    error?: undefined
 }
 
 // A source that failed to load.
@@ -326,12 +325,11 @@ export interface PreloadFailure {
     ok: false
     // What went wrong.
     error: string
-    width?: undefined
-    height?: undefined
 }
 
 // Check `ok` to tell which it is: e.g. `if (result.ok)` narrows it to a
-// PreloadSuccess, with its size.
+// PreloadSuccess, with its size. Reading `width` or `error` without checking
+// is a type error.
 export type PreloadResult = PreloadSuccess | PreloadFailure
 
 // A result as native sends it (without the uri).

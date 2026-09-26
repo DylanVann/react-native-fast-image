@@ -48,15 +48,12 @@ export type PreloadSuccess = {|
     ok: true,
     width: number,
     height: number,
-    error?: void,
 |}
 
 export type PreloadFailure = {|
     uri?: string,
     ok: false,
     error: string,
-    width?: void,
-    height?: void,
 |}
 
 export type PreloadResult = PreloadSuccess | PreloadFailure
