@@ -1214,6 +1214,42 @@ function GifPausedCase({ resume }: { resume?: boolean }) {
     )
 }
 
+// A GIF that plays once (1.5 s red, then 0.1 s blue), paused after it
+// finished, then resumed: it plays again from the start, on both platforms
+// (iOS's player does; Android matches it), so it's red at the screenshot. One
+// that's still playing continues its count instead.
+function GifResumeFinishedCase() {
+    const [paused, setPaused] = useState(false)
+    const [ok, setOk] = useState(false)
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                paused={paused}
+                source={{ uri: imageUrl('slow-once.gif') }}
+                onLoad={() => {
+                    clearTimeout(timer.current)
+                    // Its one play (1.6 s), then pause, then resume.
+                    timer.current = setTimeout(() => {
+                        setPaused(true)
+                        timer.current = setTimeout(() => {
+                            setPaused(false)
+                            timer.current = setTimeout(() => setOk(true), 300)
+                        }, 200)
+                    }, 1600 + GIF_MARGIN)
+                }}
+            />
+            <CaseStatus
+                id="gif-resume-finished"
+                status={ok ? 'OK' : 'waiting'}
+                description="A GIF that played once, paused, then resumed: plays again (red), as on iOS"
+            />
+        </View>
+    )
+}
+
 // loop={false}, then loop={true} once the GIF has played once: it starts
 // again and keeps looping (orange and purple). Masked: it's animating.
 function GifLoopChangeCase() {
@@ -1597,6 +1633,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <GifLoopChangeCase key="gif-loop-change" />,
             <GifPausedCase key="gif-paused" />,
             <GifPausedCase key="gif-resume" resume />,
+            <GifResumeFinishedCase key="gif-resume-finished" />,
         ],
     },
     {

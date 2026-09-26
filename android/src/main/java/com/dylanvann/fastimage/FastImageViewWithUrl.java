@@ -96,9 +96,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (paused) {
                 mOwnGif.stop();
             } else {
-                // Also starts counting plays again (GifDrawable resets its
-                // loop count on start).
-                mOwnGif.start();
+                // Continues the loop count, as on iOS.
+                FastImageGif.resume(mOwnGif);
             }
         }
     }
@@ -139,11 +138,17 @@ class FastImageViewWithUrl extends AppCompatImageView {
             super.onResourceReady(resource, transition);
         }
 
-        // The target starts animations again when the Activity does; not a
-        // paused one.
+        // The target starts animations again when the Activity does: not a
+        // paused one, and the view's own GIF continues its loop count (start()
+        // would count again).
         @Override
         public void onStart() {
-            if (!mPaused) super.onStart();
+            if (mPaused) return;
+            if (mOwnGif != null && getDrawable() == mOwnGif) {
+                FastImageGif.resume(mOwnGif);
+            } else {
+                super.onStart();
+            }
         }
 
         @Override
