@@ -150,7 +150,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     [super layoutSubviews];
     [self updateContentMode];
     if (self.waitsForSize) {
-        if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
+        if ([self hasSize]) {
             [self reloadImage];
         }
     } else {
@@ -320,7 +320,7 @@ NSString *FFFErrorMessage(NSError *error)
         // layout are applied in the same update, so that's before the next
         // frame (in layoutSubviews). A view that still has no size then
         // (e.g. one sized from onLoad) loads at full size.
-        if ([self downsamples] && CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
+        if ([self downsamples] && ![self hasSize]) {
             if (!self.waitsForSize) {
                 self.waitsForSize = YES;
                 __weak typeof(self) weakSelf = self;
@@ -345,9 +345,15 @@ NSString *FFFErrorMessage(NSError *error)
     return _downsample && _resizeMode != RCTResizeModeRepeat && [FFFDownsampledImage isSupported];
 }
 
+// Whether the view has been laid out with an area. One that's 0 wide or tall
+// (e.g. sized from onLoad) has no size to decode the image for.
+- (BOOL) hasSize {
+    return self.bounds.size.width > 0 && self.bounds.size.height > 0;
+}
+
 // The size in pixels to decode the image for, or zero for full size.
 - (CGSize) decodeBox {
-    if (![self downsamples]) {
+    if (![self downsamples] || ![self hasSize]) {
         return CGSizeZero;
     }
     CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
@@ -376,7 +382,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGSize box = [self decodeBox];
     BOOL cover = [self decodeCovers];
     if ([self downsamples]) {
-        if (CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
+        if (![self hasSize]) {
             return;
         }
         BOOL grew = box.width > self.decodedBox.width * 1.2 || box.height > self.decodedBox.height * 1.2;
