@@ -7,6 +7,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.view.ViewCompat;
@@ -18,6 +19,7 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
+import com.bumptech.glide.request.transition.Transition;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -69,11 +71,52 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public void setLoopCount(int loopCount) {
         if (loopCount == mLoopCount) return;
         mLoopCount = loopCount;
-        // Apply it to the GIF that's showing, and play it again.
-        Drawable drawable = getDrawable();
-        if (drawable instanceof GifDrawable) {
-            applyLoopCount((GifDrawable) drawable);
-            ((GifDrawable) drawable).startFromFirstFrame();
+        // Apply it to the GIF that's showing, and play it again. Only this
+        // view's own animation: restarting one Glide shares throws while
+        // another view plays it.
+        if (mOwnGif != null && getDrawable() == mOwnGif) {
+            applyLoopCount(mOwnGif);
+            mOwnGif.stop();
+            mOwnGif.startFromFirstFrame();
+        }
+    }
+
+    // The GIF this view shows as its own animation (FastImageGif), recycled
+    // when the view stops showing it.
+    @Nullable
+    private GifDrawable mOwnGif;
+
+    // Shows each GIF as this view's own animation. Glide's target also starts
+    // and stops it with the Activity, as it does Glide's own GifDrawable.
+    private final class OwnGifTarget extends DrawableImageViewTarget {
+        OwnGifTarget() {
+            super(FastImageViewWithUrl.this);
+        }
+
+        @Override
+        public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+            if (resource instanceof GifDrawable) {
+                GifDrawable own = FastImageGif.copy(
+                        getContext(), (GifDrawable) resource, mLoadingWidth, mLoadingHeight);
+                if (own != null) {
+                    applyLoopCount(own);
+                    super.onResourceReady(own, transition);
+                    mOwnGif = own;
+                    return;
+                }
+            }
+            super.onResourceReady(resource, transition);
+        }
+
+        @Override
+        protected void setResource(@Nullable Drawable resource) {
+            super.setResource(resource);
+            // Not shown anymore (replaced, cleared or failed): free its frames.
+            if (mOwnGif != null && mOwnGif != resource) {
+                mOwnGif.stop();
+                mOwnGif.recycle();
+                mOwnGif = null;
+            }
         }
     }
 
@@ -201,7 +244,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mLoadingRequest = request;
         mLoadingWidth = 0;
         mLoadingHeight = 0;
-        DrawableImageViewTarget target = new DrawableImageViewTarget(this);
+        OwnGifTarget target = new OwnGifTarget();
         target.getSize(new SizeReadyCallback() {
             @Override
             public void onSizeReady(int width, int height) {
