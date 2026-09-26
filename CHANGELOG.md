@@ -1,3 +1,10 @@
+# [8.11.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.10.0...v8.11.0) (2026-09-26)
+
+
+### Features
+
+* add imageRendering: smooth or pixelated scaling ([#1155](https://github.com/DylanVann/react-native-fast-image/issues/1155)) ([fde8fcc](https://github.com/DylanVann/react-native-fast-image/commit/fde8fcce053c535a2de430f01480465d497f26d5)), closes [#926](https://github.com/DylanVann/react-native-fast-image/issues/926) [#927](https://github.com/DylanVann/react-native-fast-image/issues/927) [#916](https://github.com/DylanVann/react-native-fast-image/issues/916)
+
 # [8.10.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.9.0...v8.10.0) (2026-09-26)
 
 
