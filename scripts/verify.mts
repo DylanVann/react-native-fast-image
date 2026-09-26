@@ -1017,26 +1017,35 @@ async function buildAndroid(app: App) {
         return false
     }
     // Only reinstall a changed APK: installing makes Android compile the app in
-    // the background, which slows the emulator for a while afterwards.
+    // the background, which slows the emulator for a while afterwards. Compare
+    // with the APK on the emulator itself: other checkouts and sessions share
+    // it, and may have installed their own build of the app since this one's.
     const apk = path.join(
         dir,
         'android/app/build/outputs/apk/debug/app-debug.apk',
     )
-    const marker = path.join(path.dirname(apk), `.installed-${androidSerial}`)
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
-    const installed =
-        fs.existsSync(marker) && fs.readFileSync(marker, 'utf8').trim() === hash
-    if (
-        !installed ||
+    const installedApk = capture(ADB, [
+        '-s',
+        androidSerial,
+        'shell',
+        'pm',
+        'path',
+        androidPackage(app),
+    ])
+        ?.split('\n')
+        .map((line) => line.trim().replace(/^package:/, ''))
+        .find((line) => line.endsWith('/base.apk'))
+    const installedHash =
+        installedApk &&
         capture(ADB, [
             '-s',
             androidSerial,
             'shell',
-            'pm',
-            'path',
-            androidPackage(app),
-        ]) === undefined
-    ) {
+            'sha1sum',
+            installedApk,
+        ])?.split(/\s+/)[0]
+    if (installedHash !== hash) {
         const install = await run(
             ADB,
             ['-s', androidSerial, 'install', '-r', apk],
@@ -1046,7 +1055,6 @@ async function buildAndroid(app: App) {
             record('FAIL', `${app} android install`, `see ${rel(log)}`)
             return false
         }
-        fs.writeFileSync(marker, hash)
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
     record('PASS', `${app} android build`)
