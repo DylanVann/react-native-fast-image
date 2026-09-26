@@ -207,6 +207,38 @@ describe('FastImage (iOS)', () => {
                 },
                 { uri: undefined, ok: false, error: 'Invalid source: no uri' },
             ])
+            // ok narrows the result: a success has its size, a failure its
+            // error.
+            const [loaded, failed] = results
+            if (loaded.ok) {
+                const uri: string = loaded.uri
+                expect(uri).toBe('https://example.com/a.png')
+                const width: number = loaded.width
+                expect(width).toBe(10)
+            }
+            if (!failed.ok) {
+                const error: string = failed.error
+                expect(error).toBe('Invalid source: no uri')
+            }
+            // Reading the size or the error without checking ok is an error.
+            // @ts-expect-error
+            expect(loaded.width).toBe(10)
+            // @ts-expect-error
+            expect(failed.error).toBe('Invalid source: no uri')
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
+    it('fails a preloaded source without a uri even if native loaded it', async () => {
+        const preload = spyOn(
+            NativeModules.FastImageView,
+            'preload',
+        ).mockImplementation(async () => [{ ok: true, width: 10, height: 20 }])
+        try {
+            expect(await FastImage.preload([{}])).toEqual([
+                { uri: undefined, ok: false, error: 'Invalid source: no uri' },
+            ])
         } finally {
             preload.mockRestore()
         }

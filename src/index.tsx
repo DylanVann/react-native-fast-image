@@ -308,17 +308,36 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 
 FastImageComponent.displayName = 'FastImage'
 
-export interface PreloadResult {
+// A source that loaded (and is now cached).
+export interface PreloadSuccess {
     // The source's uri.
-    uri?: string
-    // Whether the image loaded (and is now cached).
-    ok: boolean
-    // The image's size, when it loaded (as in onLoad).
-    width?: number
-    height?: number
-    // What went wrong, when it didn't.
-    error?: string
+    uri: string
+    ok: true
+    // The image's size (as in onLoad).
+    width: number
+    height: number
 }
+
+// A source that failed to load.
+export interface PreloadFailure {
+    // The source's uri (none for a source without one, e.g. null).
+    uri?: string
+    ok: false
+    // What went wrong.
+    error: string
+}
+
+// Check `ok` to tell which it is: e.g. `if (result.ok)` narrows it to a
+// PreloadSuccess, with its size. Reading `width` or `error` without checking
+// is a type error.
+export type PreloadResult = PreloadSuccess | PreloadFailure
+
+// A result as native sends it (without the uri).
+type NativePreloadResult =
+    | Omit<PreloadSuccess, 'uri'>
+    | Omit<PreloadFailure, 'uri'>
+
+const noResult: NativePreloadResult = { ok: false, error: 'No result' }
 
 export interface FastImageStaticProperties {
     resizeMode: typeof resizeMode
@@ -343,11 +362,16 @@ FastImage.preload = (sources: Source[]) =>
     // (iOS drops null entries).
     Promise.resolve(
         NativeModules.FastImageView.preload(sources.map((s) => s || {})),
-    ).then((results?: Omit<PreloadResult, 'uri'>[]) =>
-        sources.map((source, i) => ({
-            uri: source ? source.uri : undefined,
-            ...(results?.[i] ?? { ok: false, error: 'No result' }),
-        })),
+    ).then((results?: NativePreloadResult[]) =>
+        sources.map((source, i): PreloadResult => {
+            const uri = source ? source.uri : undefined
+            const result = results?.[i] ?? noResult
+            if (!result.ok) return { ...result, uri }
+            // Native already fails a source without a uri.
+            return typeof uri === 'string'
+                ? { ...result, uri }
+                : { ok: false, error: 'Invalid source: no uri', uri }
+        }),
     )
 
 FastImage.clearMemoryCache = () =>
