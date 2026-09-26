@@ -18,11 +18,12 @@ import { RegressionGroup } from './RegressionExample'
 export const EXAMPLE_GROUPS: RegressionGroup[] = [
     {
         name: 'examples-1',
-        cases: [
-            <PriorityExample key="priority" />,
-            <GifExample key="gif" />,
-            <BorderRadiusExample key="border-radius" />,
-        ],
+        cases: [<PriorityExample key="priority" />, <GifExample key="gif" />],
+    },
+    {
+        // On its own, with room for more border styles.
+        name: 'border-radius',
+        cases: [<BorderRadiusExample key="border-radius" />],
     },
     {
         name: 'examples-2',
