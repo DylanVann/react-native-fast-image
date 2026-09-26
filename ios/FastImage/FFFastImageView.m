@@ -53,6 +53,24 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     return self;
 }
 
+- (void) setImageRendering: (NSString*)imageRendering {
+    _imageRendering = [imageRendering copy];
+    if ([imageRendering isEqualToString: @"smooth"]) {
+        // Trilinear: drawn smaller from mipmaps, so a large image drawn much
+        // smaller is smoothed instead of aliased (#445). The mipmaps take
+        // about a third more memory than the decoded image.
+        self.layer.minificationFilter = kCAFilterTrilinear;
+        self.layer.magnificationFilter = kCAFilterLinear;
+    } else if ([imageRendering isEqualToString: @"pixelated"]) {
+        // Nearest neighbor: sharp pixels, e.g. for pixel art (#926).
+        self.layer.minificationFilter = kCAFilterNearest;
+        self.layer.magnificationFilter = kCAFilterNearest;
+    } else {
+        self.layer.minificationFilter = kCAFilterLinear;
+        self.layer.magnificationFilter = kCAFilterLinear;
+    }
+}
+
 - (void) setLoopCount: (NSInteger)loopCount {
     if (_loopCount == loopCount) {
         return;

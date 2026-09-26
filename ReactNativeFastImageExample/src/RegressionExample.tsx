@@ -1228,6 +1228,42 @@ function ErrorMessageCase() {
     )
 }
 
+// imageRendering: 1px black and white stripes (1024x1024) drawn at 48x48,
+// and an 8x8 red and blue checkerboard drawn at 48x48, in each mode (auto,
+// smooth, pixelated). Checked by the screenshot: with smooth the stripes are
+// an even gray (#445: auto aliases them on iOS, and on Android a PNG came out
+// solid black); with pixelated the checkerboard has sharp squares (#926:
+// auto blurs them).
+const RENDERING_MODES = ['auto', 'smooth', 'pixelated'] as const
+const RENDERING_IMAGES = ['stripes.png', 'checker-8.png']
+function ImageRenderingCase() {
+    const [loads, setLoads] = useState(0)
+    const onLoad = () => setLoads((n) => n + 1)
+    const total = RENDERING_MODES.length * RENDERING_IMAGES.length
+    return (
+        <View>
+            {RENDERING_IMAGES.map((image) => (
+                <View key={image} style={styles.row}>
+                    {RENDERING_MODES.map((mode, i) => (
+                        <FastImage
+                            key={mode}
+                            style={[styles.image, i > 0 && styles.gap]}
+                            source={{ uri: imageUrl(image) }}
+                            imageRendering={mode}
+                            onLoad={onLoad}
+                        />
+                    ))}
+                </View>
+            ))}
+            <CaseStatus
+                id="image-rendering"
+                status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
+                description="imageRendering auto, smooth and pixelated (#445, #926): smooth stripes are even gray, pixelated squares are sharp"
+            />
+        </View>
+    )
+}
+
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -1453,6 +1489,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             />,
             <GifLoopChangeCase key="gif-loop-change" />,
         ],
+    },
+    {
+        name: 'image-rendering',
+        cases: [<ImageRenderingCase key="image-rendering" />],
     },
     {
         name: 'loading',

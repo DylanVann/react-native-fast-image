@@ -5,6 +5,8 @@ import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.NonNull;
@@ -14,9 +16,16 @@ import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.MultiTransformation;
+import com.bumptech.glide.load.Transformation;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.CenterInside;
+import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
+import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.Transition;
@@ -95,6 +104,13 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         @Override
         public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+            if (resource instanceof BitmapDrawable) {
+                if ("pixelated".equals(mImageRendering)) {
+                    // Scaled by the view without filtering: sharp pixels.
+                    resource = resource.mutate();
+                    resource.setFilterBitmap(false);
+                }
+            }
             if (resource instanceof GifDrawable) {
                 GifDrawable own = FastImageGif.copy(
                         getContext(), (GifDrawable) resource, mLoadingWidth, mLoadingHeight);
@@ -132,6 +148,64 @@ class FastImageViewWithUrl extends AppCompatImageView {
         if (scaleType == getScaleType()) return;
         setScaleType(scaleType);
         mNeedsReload = true;
+    }
+
+    // How the image is resampled when it's drawn at another size: "auto"
+    // (Glide's defaults), "smooth" or "pixelated". Part of the request, so a
+    // change reloads.
+    private String mImageRendering = "auto";
+
+    public void setImageRendering(@Nullable String imageRendering) {
+        String value = imageRendering == null ? "auto" : imageRendering;
+        if (value.equals(mImageRendering)) return;
+        mImageRendering = value;
+        mNeedsReload = true;
+    }
+
+    // The scale type's options (what into() would apply), for imageRendering.
+    private RequestOptions renderingOptions(Object model) {
+        String key = String.valueOf(model);
+        switch (mImageRendering) {
+            case "pixelated":
+                // Decoded as it is, then scaled by the view without filtering
+                // (see OwnGifTarget): no resampling by Glide.
+                return new RequestOptions()
+                        .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, key))
+                        .dontTransform();
+            case "smooth": {
+                // Glide decodes a large image smaller by sampling, which for
+                // PNG, WebP and GIF keeps every nth pixel: fine detail aliases
+                // or disappears (1px stripes came out black, #445). JPEG is
+                // averaged. So decode it at full size (more memory while it
+                // loads), halve it (averaging) to at most twice the view's
+                // size, then crop or fit it as usual.
+                Transformation<Bitmap> scaleType = scaleTypeTransformation(getScaleType());
+                RequestOptions options = new RequestOptions()
+                        .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, key));
+                return scaleType == null
+                        ? options.optionalTransform(new FastImageHalve())
+                        : options.optionalTransform(new MultiTransformation<>(new FastImageHalve(), scaleType));
+            }
+            default:
+                return FastImageSourceSize.scaleTypeOptions(getScaleType(), FastImageSourceSize.capture(getScaleType(), model));
+        }
+    }
+
+    @Nullable
+    private static Transformation<Bitmap> scaleTypeTransformation(ScaleType scaleType) {
+        switch (scaleType) {
+            case CENTER_CROP:
+                return new CenterCrop();
+            case CENTER_INSIDE:
+            case FIT_XY:
+                return new CenterInside();
+            case FIT_CENTER:
+            case FIT_START:
+            case FIT_END:
+                return new FitCenter();
+            default:
+                return null;
+        }
     }
 
     // The request for the image the view shows once it has loaded, and the one
@@ -353,7 +427,6 @@ class FastImageViewWithUrl extends AppCompatImageView {
         if (requestManager != null) {
             // Records the image's own size when Glide decodes it, for onLoad.
             Object model = imageSource == null ? null : imageSource.getSourceForLoad();
-            FastImageSourceSize.Capture capture = FastImageSourceSize.capture(getScaleType(), model);
             RequestBuilder<Drawable> builder =
                     requestManager
                             // This will make this work for remote and local images. e.g.
@@ -368,8 +441,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
                                     .placeholder(mDefaultSource) // show until loaded
                                     .fallback(mDefaultSource)) // null will not be treated as error
                             // What into() would apply for the scale type, with
-                            // the size capture.
-                            .apply(FastImageSourceSize.scaleTypeOptions(getScaleType(), capture));
+                            // the size capture, for imageRendering.
+                            .apply(renderingOptions(model));
             RequestBuilder<Drawable> request = builder.clone();
 
             boolean thumbnail = shownRequest != null && model != null;
