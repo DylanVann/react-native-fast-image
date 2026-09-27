@@ -18,7 +18,6 @@ import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
-import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
@@ -472,7 +471,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
     }
 
     public void clearView(@Nullable RequestManager requestManager) {
-        if (requestManager != null && getTag() != null && getTag() instanceof Request) {
+        // Glide keeps the view's request under its own tag id, not getTag().
+        // Without a request this does nothing.
+        if (requestManager != null) {
             requestManager.clear(this);
         }
     }

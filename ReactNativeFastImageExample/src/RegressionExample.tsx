@@ -948,6 +948,53 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
     )
 }
 
+// Clears the source while a slow image (cyan) is still loading. The load is
+// cancelled: no onLoad, and the view stays blank (on Android the load kept
+// going, and showed the image when it finished).
+function SourceClearedWhileLoadingCase({ id }: { id: string }) {
+    const [step, setStep] = useState<'loading' | 'cleared' | 'done'>('loading')
+    const [loads, setLoads] = useState(0)
+    useEffect(() => {
+        // The slow image takes about 2.4 s.
+        const cleared = setTimeout(() => setStep('cleared'), 400)
+        // Once it would have finished, had it not been cancelled.
+        const done = setTimeout(() => setStep('done'), 3500)
+        return () => {
+            clearTimeout(cleared)
+            clearTimeout(done)
+        }
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={
+                    step === 'loading'
+                        ? {
+                              uri: slowImageUrl(
+                                  `cyan.png?${id}=${RUN}&delay=300`,
+                              ),
+                              headers: BACKGROUND_SLOW_HEADERS,
+                          }
+                        : undefined
+                }
+                onLoad={() => setLoads((n) => n + 1)}
+            />
+            <CaseStatus
+                id={id}
+                status={
+                    step !== 'done'
+                        ? step
+                        : loads
+                          ? `${loads} onLoad after clearing the source`
+                          : 'OK'
+                }
+                description="Clearing the source while a slow image loads: no onLoad, and the view stays blank (check the screenshot)"
+            />
+        </View>
+    )
+}
+
 const cachedPhoto = (id: string) => ({
     uri: imageUrl(`picsum/1020-120x120.jpg?${id}=${RUN}`),
 })
@@ -2092,6 +2139,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="source-change-data"
                 id="source-change-data"
                 toData
+            />,
+            <SourceClearedWhileLoadingCase
+                key="source-cleared"
+                id="source-cleared"
             />,
         ],
     },
