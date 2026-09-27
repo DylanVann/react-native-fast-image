@@ -269,9 +269,11 @@ function Group({
                 <SnapshotContext.Provider value={snapshot}>
                     <SampleContext.Provider value={sample}>
                         {/* The summary changes as cases settle, so a screenshot
-                        taken while they run (a snapshot) leaves it out. */}
+                        taken while they run (a snapshot) leaves it out. One
+                        line, so that doesn't move the cases below (areas
+                        they measured for a video sample, while it records). */}
                         <Masked>
-                            <Text style={caseStyles.title}>
+                            <Text style={caseStyles.title} numberOfLines={1}>
                                 {group.name}: {summary}
                             </Text>
                         </Masked>

@@ -694,9 +694,8 @@ async function compareScreenshot(
 // to the nearest of `expect` and `palette` (hex colors), or to none if it's
 // far from all of them or about as near to two (e.g. halfway through a fade
 // that doesn't list a color for it). Colors are compared perceptually (CIE
-// Lab): screen recordings wash out saturated colors (magenta records as
-// about #ff62ff, nearer to light gray than to magenta in RGB). Then repeats
-// are collapsed, and the sample passes if what's left is `expect`,
+// Lab), with some tolerance for video compression. Then repeats are
+// collapsed, and the sample passes if what's left is `expect`,
 // in order. How many frames each color lasted doesn't matter. `palette`
 // lists colors that mustn't appear (so they're matched rather than left
 // out). The result goes back as { type: 'sampled', group, name, ok, seen,
