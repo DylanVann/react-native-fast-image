@@ -76,7 +76,7 @@ With `--package`, the script builds the library, packs it with `npm pack`, and i
 
 `--background` also runs `maestro/background.yaml` (tagged `background`), which sends the app to the background while images load and brings it back 20 s later, past SDWebImage's 15 s download timeout. It takes about a minute more per app on iOS, so it's skipped by default; run it for changes to how images load or to app lifecycle handling. The example apps register their app IDs as URL schemes, which the flow opens to bring the app back.
 
-Only one run at a time can use the devices: the booted simulator, the emulator and the fixed ports (8081 for Metro, 8090 and 8091 for the image server). So the script takes a machine-wide lock, and a run from another checkout, worktree or Rift waits for the first one to finish (`--no-wait` fails instead; `--js-only` doesn't need the lock). The lock is a listening socket on port 8089, which the OS frees when the run exits, however it exits. Anything else that drives the simulator or emulator can run under the same lock with `node scripts/device-lock.mts <command>`.
+Run one `verify.mts` at a time, across checkouts: runs use the booted simulator, the emulator and fixed ports (8081 for Metro, 8090 and 8091 for the image server).
 
 The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which is faster than the Maestro CLI (about 40% less time here), can drive iOS and Android at the same time, and is installed by `bun install` as a dev dependency. Screenshots are saved in each run's report (`verify-output/…/<app>-<platform>/report/assets/`).
 
