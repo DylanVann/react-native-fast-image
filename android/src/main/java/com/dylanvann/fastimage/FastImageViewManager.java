@@ -105,6 +105,16 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));
     }
 
+    @ReactProp(name = "transitionDuration")
+    public void setTransitionDuration(FastImageViewWithUrl view, int transitionDuration) {
+        view.setTransitionDuration(transitionDuration);
+    }
+
+    @ReactProp(name = "transitionSkipOnCacheHit")
+    public void setTransitionSkipOnCacheHit(FastImageViewWithUrl view, @Nullable String skipOnCacheHit) {
+        view.setTransitionSkipOnCacheHit(skipOnCacheHit);
+    }
+
     @ReactProp(name = "paused")
     public void setPaused(FastImageViewWithUrl view, boolean paused) {
         view.setPaused(paused);

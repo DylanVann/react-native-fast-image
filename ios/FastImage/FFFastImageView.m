@@ -26,6 +26,8 @@
 @property(nonatomic, assign) CGSize blurredForSize;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
+// The image being blurred fades in once it's blurred (transition).
+@property(nonatomic, assign) BOOL fadesBlurredImage;
 // Whether the current load was already restarted after the app came back
 // from the background (see downloadImage:).
 @property(nonatomic, assign) BOOL retriedAfterBackground;
@@ -115,6 +117,57 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
             [self startAnimating];
         }
     }
+}
+
+// Whether a loaded image fades in (the `transition` prop). `first`: the view
+// showed no loaded image when the load started, only defaultSource or
+// nothing. Then an image from a cache can show at once (skipOnCacheHit); a
+// new image replacing one always fades. Local files count as memory hits.
+- (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType url: (NSURL*)url first: (BOOL)first {
+    if (self.transitionDuration <= 0) {
+        return NO;
+    }
+    if (!first || [self.transitionSkipOnCacheHit isEqualToString: @"none"]) {
+        return YES;
+    }
+    if (cacheType == SDImageCacheTypeMemory || url.isFileURL) {
+        return NO;
+    }
+    return !(cacheType == SDImageCacheTypeDisk && [self.transitionSkipOnCacheHit isEqualToString: @"all"]);
+}
+
+// Shows a loaded image, fading it in over what the view shows if `fade`. A
+// blurred image fades in once it's blurred.
+- (void) showLoadedImage: (UIImage*)image fade: (BOOL)fade {
+    if (!fade || [self blurs: image]) {
+        self.image = image;
+        self.fadesBlurredImage = fade && [self blurs: image];
+        return;
+    }
+    [self fadeIn: ^{
+        self.image = image;
+    }];
+}
+
+// Makes the change (showing another image), fading it in over what the view
+// showed.
+- (void) fadeIn: (void (^)(void))change {
+    if (!self.layer.presentationLayer) {
+        // Not on screen yet (e.g. a new view with an image from the memory
+        // cache, set as it mounts): a cross-dissolve has nothing drawn to
+        // start from and shows the image at once, so fade the view in.
+        change();
+        CABasicAnimation* fadeIn = [CABasicAnimation animationWithKeyPath: @"opacity"];
+        fadeIn.fromValue = @0;
+        fadeIn.duration = self.transitionDuration / 1000;
+        [self.layer addAnimation: fadeIn forKey: @"FFFFadeIn"];
+        return;
+    }
+    [UIView transitionWithView: self
+                      duration: self.transitionDuration / 1000
+                       options: UIViewAnimationOptionTransitionCrossDissolve | UIViewAnimationOptionAllowUserInteraction
+                    animations: change
+                    completion: nil];
 }
 
 - (void) setPaused: (BOOL)paused {
@@ -246,6 +299,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
     self.originalImage = image && self.imageColor ? image : nil;
     self.blurredImage = nil;
+    self.fadesBlurredImage = NO;
     [self showImage: image];
 }
 
@@ -336,7 +390,14 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 - (void) showBlurredImage: (UIImage*)image count: (NSUInteger)count {
     if (self.imageCount == count) {
         self.blurredImage = image;
-        [self showImage: image];
+        if (self.fadesBlurredImage) {
+            self.fadesBlurredImage = NO;
+            [self fadeIn: ^{
+                [self showImage: image];
+            }];
+        } else {
+            [self showImage: image];
+        }
     }
 }
 
@@ -646,7 +707,7 @@ NSString *FFFErrorMessage(NSError *error)
                 }
                 return;
             }
-            [self setImage: image];
+            [self showLoadedImage: image fade: [self fadesImageFromCache: SDImageCacheTypeMemory url: _source.url first: !self.showsLoadedImage]];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
                         @"loaded": @(1),
@@ -799,13 +860,19 @@ NSString *FFFErrorMessage(NSError *error)
     // class to SDAnimatedImage (loadContext sets it). Only while this is the
     // current load: SDWebImage sets the placeholder when a load it cancelled
     // completes, which could replace a newer image.
+    UIImage* placeholder = _defaultSource;
+    BOOL first = !self.showsLoadedImage;
     SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
-        if (weakSelf.loadCount == load) {
-            weakSelf.image = image;
+        if (weakSelf.loadCount != load) {
+            return;
         }
+        // The loaded image, not defaultSource (shown while it loads, or if it
+        // fails).
+        BOOL loaded = image && image != placeholder;
+        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType url: source.url first: first]];
     };
     [self sd_internalSetImageWithURL: url
-                    placeholderImage: _defaultSource
+                    placeholderImage: placeholder
                              options: options
                              context: context
                        setImageBlock: setImage

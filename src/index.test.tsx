@@ -598,6 +598,56 @@ describe('source.cacheKey', () => {
     })
 })
 
+describe('transition', () => {
+    const nativeView = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+    const source = { uri: 'https://example.com/a.jpg' }
+
+    it('is off by default, skipping cache hits once set', () => {
+        const view = nativeView(<FastImage source={source} />)
+        expect(view.props.transitionDuration).toBe(0)
+        expect(view.props.transitionSkipOnCacheHit).toBe('all')
+    })
+
+    it('takes a duration', () => {
+        const view = nativeView(<FastImage source={source} transition={300} />)
+        expect(view.props.transitionDuration).toBe(300)
+        expect(view.props.transitionSkipOnCacheHit).toBe('all')
+    })
+
+    it('takes an object', () => {
+        const view = nativeView(
+            <FastImage
+                source={source}
+                transition={{
+                    duration: 300,
+                    effect: 'cross-dissolve',
+                    skipOnCacheHit: 'none',
+                }}
+            />,
+        )
+        expect(view.props.transitionDuration).toBe(300)
+        expect(view.props.transitionSkipOnCacheHit).toBe('none')
+    })
+
+    it('ignores a negative or missing duration', () => {
+        expect(
+            nativeView(<FastImage source={source} transition={-1} />).props
+                .transitionDuration,
+        ).toBe(0)
+        expect(
+            nativeView(
+                <FastImage
+                    source={source}
+                    transition={{ skipOnCacheHit: 'memory' }}
+                />,
+            ).props.transitionDuration,
+        ).toBe(0)
+    })
+})
+
 describe('downsample', () => {
     it('is passed to the native view', () => {
         const [view] = renderer

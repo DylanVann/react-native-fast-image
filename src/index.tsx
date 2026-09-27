@@ -68,6 +68,35 @@ export type Source = {
     memoryCache?: boolean
 }
 
+export type Transition = {
+    /**
+     * How long the transition takes, in milliseconds.
+     * @default 0
+     */
+    duration?: number
+    /**
+     * The animation: `'cross-dissolve'` (the new image fades in while the
+     * previous one fades out).
+     * @default 'cross-dissolve'
+     */
+    effect?: 'cross-dissolve' | null
+    /**
+     * Skips the transition when an image first appears in the view from a
+     * cache, so images already loaded show at once, e.g. when scrolling back
+     * up a list. A new source in a view that already shows an image always
+     * transitions.
+     *
+     * - `'all'`: skips it for images from the memory or disk cache, so only
+     *   images that download fade in.
+     * - `'memory'`: skips it for images from the memory cache only.
+     * - `'none'`: always transitions.
+     *
+     * Local files count as memory cache hits.
+     * @default 'all'
+     */
+    skipOnCacheHit?: 'none' | 'memory' | 'all' | null
+}
+
 export interface OnLoadEvent {
     nativeEvent: {
         width: number
@@ -184,6 +213,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * its own, so pausing one doesn't pause others showing the same file.
      */
     paused?: boolean
+    /**
+     * Fades the image in when it loads: a duration in milliseconds, or a
+     * `Transition` (default: no transition). By default an image that first
+     * appears from a cache shows at once (see `skipOnCacheHit`).
+     */
+    transition?: number | Transition | null
     /**
      * iOS only. Decodes a large image at about the size it's shown at, so it
      * takes much less memory. For images much larger than their views that
@@ -332,6 +367,20 @@ function withProgress(onProgress: FastImageProps['onProgress']) {
     )
 }
 
+// The native transition props. Always sent, so removing `transition` turns it
+// off.
+function transitionProps(transition: number | Transition | null | undefined) {
+    const { duration, skipOnCacheHit } =
+        typeof transition === 'number'
+            ? { duration: transition, skipOnCacheHit: null }
+            : transition || {}
+    return {
+        transitionDuration:
+            typeof duration === 'number' && duration > 0 ? duration : 0,
+        transitionSkipOnCacheHit: skipOnCacheHit || 'all',
+    }
+}
+
 // A copy of the source without `cache`.
 function withoutCache(source: Source | undefined) {
     const { cache: _cache, ...rest } = source || {}
@@ -352,6 +401,7 @@ function FastImageBase({
     children,
     resizeMode = 'cover',
     loop,
+    transition,
     forwardedRef,
     // On the wrapper, so the layout is relative to the parent (the image view
     // inside always has x and y of 0).
@@ -459,6 +509,7 @@ function FastImageBase({
                 {...imageProps}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
+                {...transitionProps(transition)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}

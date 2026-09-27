@@ -212,6 +212,26 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ---
 
+### `transition?: number | Transition`
+
+Fades the image in when it loads. A number is the duration in milliseconds, or pass an object:
+
+- `duration` (milliseconds, default 0: no transition).
+- `effect`: `'cross-dissolve'` (the default and only one): the new image fades in while the one showing fades out.
+- `skipOnCacheHit`: whether an image from a cache shows at once, without the transition, when it's the first image in the view:
+    - `'all'` (default): only images that download fade in, so a list scrolled back up shows images it already loaded at once.
+    - `'memory'`: images from the disk cache fade in too.
+    - `'none'`: every image fades in.
+
+A new `source` in a view that already shows an image always fades in over it. Local files count as memory cache hits. In lists that reuse views (e.g. FlashList), set `recyclingKey` so a reused view starts empty instead of fading from the previous item's image.
+
+```jsx
+<FastImage source={{ uri }} transition={300} />
+<FastImage source={{ uri }} transition={{ duration: 300, skipOnCacheHit: 'none' }} />
+```
+
+---
+
 ### `downsample?: boolean`
 
 iOS only. Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.

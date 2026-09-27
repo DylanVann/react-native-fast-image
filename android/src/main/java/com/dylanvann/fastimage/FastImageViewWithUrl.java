@@ -2,9 +2,16 @@ package com.dylanvann.fastimage;
 
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
@@ -13,15 +20,20 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.view.ViewCompat;
 
+import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
+import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
+import com.bumptech.glide.request.transition.TransitionFactory;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -87,6 +99,151 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
+
+    // The `transition` prop (from the next load): how long a loaded image
+    // takes to fade in, in milliseconds (0 for no fade), and which cache hits
+    // show at once when the view shows its first image (none, memory or all).
+    private int mTransitionDuration = 0;
+    private String mTransitionSkipOnCacheHit = "all";
+
+    public void setTransitionDuration(int transitionDuration) {
+        mTransitionDuration = Math.max(0, transitionDuration);
+    }
+
+    public void setTransitionSkipOnCacheHit(@Nullable String skipOnCacheHit) {
+        mTransitionSkipOnCacheHit = skipOnCacheHit == null ? "all" : skipOnCacheHit;
+    }
+
+    // Fades a loaded image in, unless it's the view's first image (`first`:
+    // the view showed no loaded image when the load started, only
+    // defaultSource or nothing) and from a cache that skipOnCacheHit skips.
+    // A new image replacing one always fades. Local files count as memory
+    // hits, as on iOS.
+    private final class FadeFactory implements TransitionFactory<Drawable> {
+        private final int duration;
+        private final String skipOnCacheHit;
+        private final boolean first;
+
+        FadeFactory(int duration, String skipOnCacheHit, boolean first) {
+            this.duration = duration;
+            this.skipOnCacheHit = skipOnCacheHit;
+            this.first = first;
+        }
+
+        @Override
+        public Transition<Drawable> build(DataSource dataSource, boolean isFirstResource) {
+            if (first && skips(dataSource)) return NoTransition.get();
+            return new Transition<Drawable>() {
+                @Override
+                public boolean transition(Drawable current, ViewAdapter adapter) {
+                    startFade(duration);
+                    // The target shows the image as usual.
+                    return false;
+                }
+            };
+        }
+
+        private boolean skips(DataSource dataSource) {
+            if (skipOnCacheHit.equals("none")) return false;
+            if (dataSource == DataSource.MEMORY_CACHE || dataSource == DataSource.LOCAL) return true;
+            boolean disk = dataSource == DataSource.DATA_DISK_CACHE || dataSource == DataSource.RESOURCE_DISK_CACHE;
+            return disk && skipOnCacheHit.equals("all");
+        }
+    }
+
+    // A fade in progress: what the view showed (null if nothing), drawn
+    // fading out while the view's image fades in, as a cross-dissolve on iOS.
+    // Drawn here rather than with Glide's DrawableCrossFadeTransition, whose
+    // TransitionDrawable stretches both images to one size and stays in the
+    // view after the fade, still drawing (and animating) the previous image.
+    @Nullable
+    private ValueAnimator mFade;
+    @Nullable
+    private Bitmap mFadeFrom;
+    private float mFadeProgress = 1f;
+    private final Paint mFadeFromPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final Paint mFadeInPaint = new Paint();
+
+    {
+        // The two add up to a cross-dissolve: from * (1 - t) + image * t.
+        mFadeInPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.ADD));
+    }
+
+    private void startFade(int duration) {
+        int width = getWidth();
+        int height = getHeight();
+        if (width <= 0 || height <= 0) return;
+        // What the view shows now, including a fade in progress.
+        Bitmap from = null;
+        if (getDrawable() != null) {
+            try {
+                from = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                onDraw(new Canvas(from));
+            } catch (OutOfMemoryError e) {
+                from = null;
+            }
+        }
+        endFade();
+        mFadeFrom = from;
+        mFadeProgress = 0f;
+        final ValueAnimator fade = ValueAnimator.ofFloat(0f, 1f);
+        fade.setDuration(duration);
+        fade.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mFadeProgress = (float) animation.getAnimatedValue();
+                invalidate();
+            }
+        });
+        fade.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (mFade == fade) endFade();
+            }
+        });
+        mFade = fade;
+        fade.start();
+    }
+
+    // Shows the image on its own (the fade ends, or a new load starts).
+    private void endFade() {
+        ValueAnimator fade = mFade;
+        mFade = null;
+        if (fade != null) fade.cancel();
+        if (mFadeFrom != null) {
+            mFadeFrom.recycle();
+            mFadeFrom = null;
+        }
+        mFadeProgress = 1f;
+        invalidate();
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void onDraw(Canvas canvas) {
+        if (mFade == null) {
+            super.onDraw(canvas);
+            return;
+        }
+        int width = getWidth();
+        int height = getHeight();
+        // Canvas.ALL_SAVE_FLAG: the saveLayer without flags is API 21+.
+        int count = canvas.saveLayer(0, 0, width, height, null, Canvas.ALL_SAVE_FLAG);
+        if (mFadeFrom != null) {
+            mFadeFromPaint.setAlpha(Math.round(255 * (1 - mFadeProgress)));
+            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+        }
+        mFadeInPaint.setAlpha(Math.round(255 * mFadeProgress));
+        canvas.saveLayer(0, 0, width, height, mFadeInPaint, Canvas.ALL_SAVE_FLAG);
+        super.onDraw(canvas);
+        canvas.restoreToCount(count);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        endFade();
+        super.onDetachedFromWindow();
+    }
 
     public void setPaused(boolean paused) {
         if (paused == mPaused) return;
@@ -395,7 +552,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // it was loaded at: the key it's in Glide's memory cache under.
     @SuppressLint("CheckResult")
     private RequestBuilder<Drawable> fromCache(RequestBuilder<Drawable> shown) {
-        RequestBuilder<Drawable> request = shown.clone().onlyRetrieveFromCache(true);
+        // Never fades: it's the image the view showed.
+        RequestBuilder<Drawable> request = shown.clone().onlyRetrieveFromCache(true)
+                .transition(GenericTransitionOptions.<Drawable>withNoTransition());
         if (mShownWidth > 0 && mShownHeight > 0) request = request.override(mShownWidth, mShownHeight);
         return request;
     }
@@ -461,6 +620,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         boolean restarting = mRestarting;
         mRestarting = false;
         mLoadCount++;
+        endFade();
         RequestBuilder<Drawable> shownRequest = mShownRequest;
         mShownRequest = null;
         mLoadingRequest = null;
@@ -560,6 +720,15 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
             if (model == null) meanwhile = null;
             boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
+            // After the clone: loading the image that's showing again (at a
+            // new size, or with another blur) doesn't fade it in again. The
+            // first image in the view (nothing showing) skips the fade on a
+            // cache hit; a new source over one that's showing always fades.
+            if (mTransitionDuration > 0) {
+                boolean first = shownRequest == null || model == null;
+                builder = builder.transition(DrawableTransitionOptions.with(
+                        new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit, first)));
+            }
             if (thumbnail) {
                 builder = builder.thumbnail(fromCache(shownRequest));
             }
