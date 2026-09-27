@@ -31,7 +31,10 @@ import {
 // the app is gone.
 
 // A case's status line ("<id>: <status>", OK when it passed) and description.
-// The runner is told the status too (RunnerContext.tsx).
+// The runner is told the status too (RunnerContext.tsx). One line, so a long
+// status (a failure) doesn't move the cases below, whose areas were measured
+// for masks and video samples; the runner lists failures in full below the
+// cases.
 function CaseStatus({
     id,
     status,
@@ -44,7 +47,11 @@ function CaseStatus({
     useReport(id, status)
     return (
         <View style={styles.text}>
-            <Text testID={`regression-${id}`} style={styles.status}>
+            <Text
+                testID={`regression-${id}`}
+                style={styles.status}
+                numberOfLines={1}
+            >
                 {id}: {status}
             </Text>
             <Text style={styles.description}>{description}</Text>

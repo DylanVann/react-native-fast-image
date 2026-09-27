@@ -202,6 +202,8 @@ function Group({
 }) {
     const statuses = useRef(new Map<string, string>())
     const [summary, setSummary] = useState('')
+    // Cases that haven't passed (yet), with their statuses in full.
+    const [notOk, setNotOk] = useState<string[]>([])
     const report = useCallback(
         (id: string, status: string) => {
             statuses.current.set(id, status)
@@ -216,6 +218,7 @@ function Group({
                     ? `OK (${ok})`
                     : `${ok}/${all.length} OK; ${rest.join(', ')}`,
             )
+            setNotOk(rest)
         },
         [index, send],
     )
@@ -278,6 +281,16 @@ function Group({
                             </Text>
                         </Masked>
                         {group.cases}
+                        {/* Statuses in full (cases show one line each), below
+                        the cases so they can take as many lines as they need
+                        without moving them. Empty once all have passed. */}
+                        <Masked>
+                            {notOk.map((line) => (
+                                <Text key={line} style={styles.notOk}>
+                                    {line}
+                                </Text>
+                            ))}
+                        </Masked>
                     </SampleContext.Provider>
                 </SnapshotContext.Provider>
             </MaskContext.Provider>
@@ -300,5 +313,9 @@ const styles = StyleSheet.create({
     connection: {
         color: '#666',
         marginBottom: 8,
+    },
+    notOk: {
+        color: '#b00020',
+        marginBottom: 4,
     },
 })
