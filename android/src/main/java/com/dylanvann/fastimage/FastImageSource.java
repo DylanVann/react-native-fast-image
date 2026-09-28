@@ -124,9 +124,23 @@ public class FastImageSource extends ImageSource {
         mWebCache = webCache;
     }
 
+    // `cacheKey`: the key to cache the image under instead of its url.
+    @Nullable
+    private String mCacheKey = null;
+
+    void setCacheKey(@Nullable String cacheKey) {
+        mCacheKey = cacheKey == null || cacheKey.isEmpty() ? null : cacheKey;
+    }
+
     public GlideUrl getGlideUrl() {
-        return mWebCache
-                ? new FastImageWebGlideUrl(getUri().toString(), getHeaders())
-                : new GlideUrl(getUri().toString(), getHeaders());
+        String url = getUri().toString();
+        if (mWebCache) {
+            // Follows the HTTP cache, which is keyed by url.
+            return new FastImageWebGlideUrl(url, getHeaders());
+        }
+        if (mCacheKey != null) {
+            return new FastImageKeyedGlideUrl(url, getHeaders(), mCacheKey);
+        }
+        return new GlideUrl(url, getHeaders());
     }
 }

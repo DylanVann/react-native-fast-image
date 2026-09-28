@@ -37,6 +37,15 @@ RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 static NSMutableArray<dispatch_block_t> *FFFPendingPreloads;
 static NSUInteger FFFPreloadsInFlight;
 
+// A preload's context: the source's headers and cache key.
+static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
+{
+    SDWebImageMutableContext *context = [NSMutableDictionary dictionary];
+    context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
+    context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
+    return context;
+}
+
 static NSUInteger FFFPreloadLimit(void)
 {
     NSUInteger limit = [SDWebImagePrefetcher sharedImagePrefetcher].maxConcurrentPrefetchCount;
@@ -109,7 +118,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                 __block BOOL done = NO;
                 [[SDWebImageManager sharedManager] loadImageWithURL:source.url
                                                             options:options
-                                                            context:@{SDWebImageContextDownloadRequestModifier: source.requestModifier}
+                                                            context:[FFFPreloadContext(source) copy]
                                                            progress:nil
                                                           completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
                     if (!finished || done) {

@@ -17,6 +17,18 @@
     return self;
 }
 
+- (SDWebImageCacheKeyFilter *)cacheKeyFilter
+{
+    NSString* cacheKey = _cacheKey;
+    // `cache: 'web'` follows the HTTP cache, which is keyed by url.
+    if (cacheKey.length == 0 || _cacheControl == FFFCacheControlWeb) {
+        return nil;
+    }
+    return [SDWebImageCacheKeyFilter cacheKeyFilterWithBlock: ^NSString* _Nullable (NSURL* _Nonnull url) {
+        return cacheKey;
+    }];
+}
+
 - (SDWebImageDownloaderRequestModifier *)requestModifier
 {
     NSDictionary* headers = _headers;

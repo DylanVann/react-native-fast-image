@@ -1124,6 +1124,80 @@ function SourceChangeWhileLoadingCase({
     )
 }
 
+// source.cacheKey (#524): an image loaded (or preloaded) with a token in its
+// url, then the same image with another token and the same cacheKey. The
+// second url is never requested: it comes from the cache. With downsample, on
+// iOS, the downloaded file is found under the key too.
+const cacheKeyPath = (id: string, token: string) =>
+    `/picsum/1025-200x200.jpg?token=${token}&${id}=${RUN}`
+function CacheKeyCase({
+    id,
+    description,
+    preload,
+    downsample,
+}: {
+    id: string
+    description: string
+    preload?: boolean
+    downsample?: boolean
+}) {
+    const cacheKey = `${id}-${RUN}`
+    const first = { uri: imageUrl(cacheKeyPath(id, 'a').slice(1)), cacheKey }
+    const second = { uri: imageUrl(cacheKeyPath(id, 'b').slice(1)), cacheKey }
+    const [firstLoaded, setFirstLoaded] = useState(false)
+    const [secondLoaded, setSecondLoaded] = useState(false)
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (preload) {
+            FastImage.preload([first]).then(() => setFirstLoaded(true))
+        }
+        // Only on mount: the sources don't change.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    useEffect(() => {
+        if (!secondLoaded) return
+        const path = encodeURIComponent(cacheKeyPath(id, 'b'))
+        fetch(imageUrl(`requests?path=${path}`))
+            .then((response) => response.json())
+            .then((json) => setRequests(json.count))
+            .catch(() => setRequests(-1))
+    }, [secondLoaded, id])
+    return (
+        <View style={styles.row}>
+            {preload ? (
+                <View style={styles.image} />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={first}
+                    onLoad={() => setFirstLoaded(true)}
+                />
+            )}
+            {firstLoaded ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={second}
+                    downsample={downsample}
+                    onLoad={() => setSecondLoaded(true)}
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id={id}
+                status={
+                    requests === undefined
+                        ? 'waiting'
+                        : requests === 0
+                          ? 'OK'
+                          : `the second url was requested ${requests} times`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
 // Preloads a mix of sources and checks the results: each source's ok, and the
 // size of the ones that loaded. The private image only loads with its header,
 // which checks preload sends it (#571).
@@ -2247,6 +2321,28 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadReuseCase key="preload-reuse" />,
             <PreloadResultsCase key="preload-results" />,
             <PreloadLimitCase key="preload-limit" />,
+        ],
+    },
+    {
+        name: 'cache-key',
+        cases: [
+            <CacheKeyCase
+                key="cache-key"
+                id="cache-key"
+                description="#524: source.cacheKey: the same image with another token in its url comes from the cache (the new url isn't requested)"
+            />,
+            <CacheKeyCase
+                key="cache-key-preload"
+                id="cache-key-preload"
+                preload
+                description="source.cacheKey with preload: a preloaded image is found under its cacheKey"
+            />,
+            <CacheKeyCase
+                key="cache-key-downsample"
+                id="cache-key-downsample"
+                downsample
+                description="source.cacheKey with downsample: the downloaded file is found under the cacheKey"
+            />,
         ],
     },
     {

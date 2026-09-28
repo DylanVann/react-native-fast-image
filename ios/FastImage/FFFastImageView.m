@@ -518,6 +518,7 @@ NSString *FFFErrorMessage(NSError *error)
 - (SDWebImageContext*) loadContext {
     SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = _source.requestModifier;
+    context[SDWebImageContextCacheKeyFilter] = _source.cacheKeyFilter;
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
@@ -525,7 +526,8 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
         return context;
     }
-    [FFFDownsampledImage addToContext: context forURL: _source.url box: box cover: self.decodedCover];
+    NSString* key = _source.cacheKeyFilter ? _source.cacheKey : _source.url.absoluteString;
+    [FFFDownsampledImage addToContext: context forKey: key box: box cover: self.decodedCover];
     return context;
 }
 

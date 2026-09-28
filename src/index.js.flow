@@ -76,6 +76,7 @@ export type FastImageSource = {
     headers?: Object,
     priority?: Priorities,
     cache?: CacheControls,
+    cacheKey?: string,
 }
 
 export type FastImageProps = $ReadOnly<{|

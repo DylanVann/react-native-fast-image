@@ -19,6 +19,7 @@ import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,6 +64,9 @@ class FastImageViewConverter {
         if (source == null) return null;
         FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
         imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
+        if (source.hasKey("cacheKey") && source.getType("cacheKey") == ReadableType.String) {
+            imageSource.setCacheKey(source.getString("cacheKey"));
+        }
         return imageSource;
     }
 

@@ -409,6 +409,19 @@ describe('paused', () => {
     })
 })
 
+describe('source.cacheKey', () => {
+    it('is passed to the native view with the source', () => {
+        const source = {
+            uri: 'https://example.com/a.jpg?token=1',
+            cacheKey: 'a',
+        }
+        const [view] = renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.source).toEqual(source)
+    })
+})
+
 describe('downsample', () => {
     it('is passed to the native view', () => {
         const [view] = renderer
