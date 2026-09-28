@@ -684,6 +684,267 @@ async function compareScreenshot(
     return { result: 'differs', detail: `${result.reason}: ${result.file}` }
 }
 
+// A case can check how an area of the screen changes over time, which a
+// screenshot catches at one moment only (and not at a reliable one): e.g. an
+// image fading in, or a source change that must never show a blank view. It
+// sends { type: 'sample', group, name, area (dp), durationMs, expect,
+// palette? }; the screen is recorded (simctl io recordVideo, adb shell
+// screenrecord), { type: 'recording', group, name } tells the case to make
+// the change, and the case sends { type: 'sampleDone', group, name } once
+// it's done (durationMs is the most it's given). A group's samples share a
+// recording, which starts with the first and stops once they're all done, so
+// they can run at the same time; each is checked in its own part of it, from
+// the last frame before its change. Each frame's color in the middle of the
+// area is matched
+// to the nearest of `expect` and `palette` (hex colors), or to none if it's
+// far from all of them or about as near to two (e.g. halfway through a fade
+// that doesn't list a color for it). Colors are compared perceptually (CIE
+// Lab), with some tolerance for video compression. Then repeats are
+// collapsed, and the sample passes if what's left is `expect`,
+// in order. How many frames each color lasted doesn't matter. `palette`
+// lists colors that mustn't appear (so they're matched rather than left
+// out). The result goes back as { type: 'sampled', group, name, ok, seen,
+// detail? }, which the case shows as its status. The recording is kept in
+// verify-output/.
+type Rgb = [number, number, number]
+// ΔE (CIE76): a frame is a color if it's within this of it, and at most
+// SAMPLE_MAX_RATIO times as far from it as from the next nearest color.
+const SAMPLE_MAX_DISTANCE = 40
+const SAMPLE_MAX_RATIO = 0.6
+// A sample's recording goes on this long after the case is done, for the
+// frames that were still being drawn, and the case makes its change at least
+// this long after it asked.
+const SAMPLE_TAIL_MS = 500
+const SAMPLE_LEAD_MS = 500
+
+// sRGB to CIE Lab (D65).
+function toLab([r, g, b]: Rgb): Rgb {
+    const linear = (c: number) => {
+        const v = c / 255
+        return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    }
+    const [lr, lg, lb] = [linear(r), linear(g), linear(b)]
+    const x = (lr * 0.4124 + lg * 0.3576 + lb * 0.1805) / 0.95047
+    const y = lr * 0.2126 + lg * 0.7152 + lb * 0.0722
+    const z = (lr * 0.0193 + lg * 0.1192 + lb * 0.9505) / 1.08883
+    const f = (t: number) =>
+        t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t) / 116 + 16 / 116
+    return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))]
+}
+
+const hexToRgb = (hex: string): Rgb => {
+    const value = parseInt(hex.replace('#', ''), 16)
+    return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+// Starts recording the screen to `file`. `started` resolves once frames are
+// being recorded (false if the recorder didn't start); `stop` ends the
+// recording and resolves once the file is complete.
+function recordScreen(platform: Platform, device: string, file: string) {
+    const args =
+        platform === 'ios'
+            ? [
+                  'simctl',
+                  'io',
+                  device,
+                  'recordVideo',
+                  '--codec=h264',
+                  '--force',
+                  file,
+              ]
+            : [
+                  '-s',
+                  device,
+                  'shell',
+                  'screenrecord',
+                  '--verbose',
+                  '--time-limit',
+                  '60',
+                  '/sdcard/fast-image-sample.mp4',
+              ]
+    // Not the previous sample's, if this one isn't saved.
+    if (platform === 'android') {
+        capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            'rm',
+            '-f',
+            '/sdcard/fast-image-sample.mp4',
+        ])
+    }
+    const child = spawn(platform === 'ios' ? 'xcrun' : ADB, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const exited = new Promise<void>((resolve) =>
+        child.on('close', () => resolve()),
+    )
+    // simctl says "Recording started"; screenrecord --verbose says which
+    // encoder it configured, just before its first frame.
+    const started = new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), 10_000)
+        const look = (data: Buffer) => {
+            if (/Recording started|Configuring recorder/.test(String(data))) {
+                clearTimeout(timer)
+                // screenrecord's first frame follows its configuration.
+                setTimeout(() => resolve(true), platform === 'ios' ? 0 : 300)
+            }
+        }
+        child.stdout?.on('data', look)
+        child.stderr?.on('data', look)
+        exited.then(() => resolve(false))
+    })
+    const stop = async () => {
+        if (platform === 'ios') {
+            child.kill('SIGINT')
+        } else {
+            // SIGINT makes screenrecord finish the file.
+            capture(ADB, ['-s', device, 'shell', 'pkill', '-2', 'screenrecord'])
+        }
+        await Promise.race([exited, new Promise((r) => setTimeout(r, 15_000))])
+        child.kill('SIGKILL')
+        if (platform === 'android') {
+            capture(
+                ADB,
+                ['-s', device, 'pull', '/sdcard/fast-image-sample.mp4', file],
+                { timeout: 60 },
+            )
+        }
+        return fs.existsSync(file)
+    }
+    return { started, stop }
+}
+
+// The average color of the middle half of `area` (dp) in each frame of the
+// video, with the frame's time (seconds from the start), in order.
+function frameColors(
+    video: string,
+    area: PixelRect,
+    windowWidthDp: number,
+): { time: number; color: Rgb }[] {
+    const size = capture('ffprobe', [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'stream=width,height',
+        '-of',
+        'csv=p=0',
+        video,
+    ])
+    const [width, height] = (size ?? '').split(',').map(Number)
+    if (!width || !height)
+        throw new Error("ffprobe couldn't read the recording")
+    if (!windowWidthDp) throw new Error("the app didn't send its window size")
+    const px = width / windowWidthDp
+    const w = Math.max(2, Math.round((area.width / 2) * px))
+    const h = Math.max(2, Math.round((area.height / 2) * px))
+    const x = Math.min(
+        width - w,
+        Math.max(0, Math.round((area.x + area.width / 4) * px)),
+    )
+    const y = Math.min(
+        height - h,
+        Math.max(0, Math.round((area.y + area.height / 4) * px)),
+    )
+    const result = spawnSync(
+        'ffmpeg',
+        [
+            '-v',
+            'error',
+            '-i',
+            video,
+            '-vf',
+            `crop=${w}:${h}:${x}:${y},scale=1:1:flags=area`,
+            '-fps_mode',
+            'passthrough',
+            '-f',
+            'rawvideo',
+            '-pix_fmt',
+            'rgb24',
+            '-',
+        ],
+        { maxBuffer: 64 * 1024 * 1024, timeout: 60_000 },
+    )
+    if (result.error || result.status !== 0) {
+        throw new Error(
+            `ffmpeg failed: ${result.error?.message ?? String(result.stderr).trim()}`,
+        )
+    }
+    const data = result.stdout
+    const times = (
+        capture('ffprobe', [
+            '-v',
+            'error',
+            '-select_streams',
+            'v:0',
+            '-show_entries',
+            'frame=pts_time',
+            '-of',
+            'csv=p=0',
+            video,
+        ]) ?? ''
+    )
+        .split('\n')
+        .map((line) => parseFloat(line))
+        .filter((time) => !Number.isNaN(time))
+    if (times.length * 3 !== data.length) {
+        throw new Error(
+            `ffprobe found ${times.length} frames, ffmpeg ${data.length / 3}`,
+        )
+    }
+    return times.map((time, i) => ({
+        time,
+        color: [data[i * 3], data[i * 3 + 1], data[i * 3 + 2]],
+    }))
+}
+
+// The frames a sample saw: the last one before `start` (what the area showed
+// when the change was asked for), then those up to `end` (seconds).
+function framesBetween(
+    frames: { time: number; color: Rgb }[],
+    start: number,
+    end: number,
+): Rgb[] {
+    const first = frames.findLastIndex((frame) => frame.time <= start)
+    return frames
+        .slice(Math.max(0, first))
+        .filter((frame) => frame.time <= end)
+        .map((frame) => frame.color)
+}
+
+// The colors seen (see above) and whether they're `expect`.
+function matchSample(frames: Rgb[], expect: string[], palette: string[]) {
+    const colors = [...new Set([...expect, ...palette])].map((hex) => ({
+        hex,
+        lab: toLab(hexToRgb(hex)),
+    }))
+    const seen: string[] = []
+    for (const frame of frames) {
+        const lab = toLab(frame)
+        const [best, next] = colors
+            .map(({ hex, lab: c }) => ({
+                hex,
+                distance: Math.hypot(
+                    lab[0] - c[0],
+                    lab[1] - c[1],
+                    lab[2] - c[2],
+                ),
+            }))
+            .sort((a, b) => a.distance - b.distance)
+        const clear =
+            best !== undefined &&
+            best.distance <= SAMPLE_MAX_DISTANCE &&
+            (!next || best.distance <= SAMPLE_MAX_RATIO * next.distance)
+        if (clear && seen.at(-1) !== best.hex) seen.push(best.hex)
+    }
+    const ok =
+        seen.length === expect.length &&
+        seen.every((color, i) => color === expect[i])
+    return { ok, seen }
+}
+
 async function runRegression(
     app: App,
     platform: Platform,
@@ -714,14 +975,13 @@ async function runRegression(
     const failures: string[] = []
     const seeded: string[] = []
     const noReference: string[] = []
-    // A screenshot of the group on screen (index), compared with its
-    // reference. Cases can ask for one (a `snapshot` message) at a moment
-    // that matters; the group's own is taken once it's all OK. Comparisons
-    // run in the background; `shots` is awaited at the end.
+    // A screenshot of the group on screen (index), once it's all OK (or timed
+    // out), compared with its reference. Comparisons (and video samples) run
+    // in the background; `shots` is awaited at the end.
     const shots: Promise<void>[] = []
     // masks: the areas the app measured just before (dp), to leave out.
-    const takeShot = (index: number, masksDp: unknown, suffix?: string) => {
-        const name = suffix ? `${groups[index]}-${suffix}` : groups[index]
+    const takeShot = (index: number, masksDp: unknown) => {
+        const name = groups[index]
         const file = path.join(
             dir,
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
@@ -761,6 +1021,140 @@ async function runRegression(
         shots.push(shot)
         return shot
     }
+    // Video samples (see matchSample), keyed by `${group}/${name}`. A group's
+    // share a recording (a session), checked once it stops.
+    type Sample = {
+        message: RunnerMessage
+        // When the case asked (its area shows what it should before the
+        // change from then), and when it was done (ms from the recording's
+        // start).
+        start: number
+        end?: number
+        done?: () => void
+    }
+    type Session = {
+        index: number
+        file: string
+        // When the recorder was launched (wall time), undefined if it didn't
+        // start. Its first frame is at most a few hundred ms later (simctl
+        // only says "Recording started" about a second after that).
+        started: Promise<number | undefined>
+        stop: Promise<() => Promise<boolean>>
+        samples: Sample[]
+        active: number
+        stopTimer?: ReturnType<typeof setTimeout>
+    }
+    const openSamples = new Map<string, Sample>()
+    let session: Session | undefined
+    // A recording starts once the previous one has stopped.
+    let stopped = Promise.resolve()
+    const sessionFiles = new Map<number, number>()
+    const startSample = (message: RunnerMessage) => {
+        const index = message.group as number
+        const name = String(message.name)
+        if (!session || session.index !== index) {
+            const count = (sessionFiles.get(index) ?? 0) + 1
+            sessionFiles.set(index, count)
+            const file = path.join(
+                dir,
+                `${String(index + 1).padStart(2, '0')}-${groups[index]}-samples${count > 1 ? `-${count}` : ''}.mp4`,
+            )
+            let launchedAt = 0
+            const recording = stopped.then(() => {
+                launchedAt = Date.now()
+                return recordScreen(platform, device, file)
+            })
+            session = {
+                index,
+                file,
+                started: recording
+                    .then((r) => r.started)
+                    .then((ok) => (ok ? launchedAt : undefined)),
+                stop: recording.then((r) => r.stop),
+                samples: [],
+                active: 0,
+            }
+        }
+        const current = session
+        clearTimeout(current.stopTimer)
+        const requested = Date.now()
+        const sample: Sample = { message, start: 0 }
+        current.samples.push(sample)
+        current.active++
+        openSamples.set(`${index}/${name}`, sample)
+        current.started.then(async (t0) => {
+            sample.start = t0 === undefined ? 0 : Math.max(0, requested - t0)
+            // Some of the video before the change, in case the first frame
+            // came a little after the launch.
+            const lead = requested + SAMPLE_LEAD_MS - Date.now()
+            if (lead > 0) await new Promise((r) => setTimeout(r, lead))
+            // The case makes its change now (even without a recording).
+            send({ type: 'recording', group: index, name })
+            const limit = setTimeout(
+                () => sample.done?.(),
+                Number(message.durationMs) || 5000,
+            )
+            sample.done = () => {
+                if (sample.end !== undefined) return
+                clearTimeout(limit)
+                openSamples.delete(`${index}/${name}`)
+                sample.end = t0 === undefined ? 0 : Date.now() - t0
+                // Once the last is done (and the frames after it recorded),
+                // unless another sample starts meanwhile.
+                if (--current.active === 0) {
+                    current.stopTimer = setTimeout(
+                        () => stopSession(current),
+                        SAMPLE_TAIL_MS,
+                    )
+                }
+            }
+        })
+    }
+    const stopSession = (current: Session) => {
+        if (session === current) session = undefined
+        const finished = (async () => {
+            const t0 = await current.started
+            const saved = await (await current.stop)()
+            let error: string | undefined
+            if (t0 === undefined) error = "the recording didn't start"
+            for (const sample of current.samples) {
+                const { message } = sample
+                const name = String(message.name)
+                // Always answers, so the case doesn't wait forever.
+                let result: { ok: boolean; seen: string[]; detail?: string }
+                try {
+                    if (error) throw new Error(error)
+                    if (!saved) throw new Error('no recording was saved')
+                    const frames = frameColors(
+                        current.file,
+                        message.area as PixelRect,
+                        windowWidth,
+                    )
+                    result = matchSample(
+                        framesBetween(
+                            frames,
+                            sample.start / 1000,
+                            ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
+                        ),
+                        (message.expect as string[]) ?? [],
+                        (message.palette as string[]) ?? [],
+                    )
+                } catch (e) {
+                    result = {
+                        ok: false,
+                        seen: [],
+                        detail: (e as Error).message,
+                    }
+                }
+                logLine(
+                    `sample ${name}: ${result.ok ? 'OK' : 'failed'}, ${result.detail ?? `saw ${result.seen.join(' ') || 'nothing'}`} (${rel(current.file)})`,
+                )
+                send({ type: 'sampled', group: current.index, name, ...result })
+            }
+        })()
+        stopped = finished.catch(() => {})
+        shots.push(stopped)
+    }
     const ws = new WebSocket(
         `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${platform}`,
     )
@@ -770,12 +1164,9 @@ async function runRegression(
         logLine(`<- ${JSON.stringify(message)}`)
         if (message.type === 'app') appConnected = message.connected === true
         else messages.push(message)
-        if (message.type === 'snapshot' && groups.length > 0) {
-            takeShot(
-                message.group as number,
-                message.masks,
-                String(message.name),
-            )
+        if (message.type === 'sample' && groups.length > 0) startSample(message)
+        if (message.type === 'sampleDone') {
+            openSamples.get(`${message.group}/${message.name}`)?.done?.()
         }
         notify()
     }

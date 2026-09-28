@@ -31,11 +31,55 @@ export function useLoads(id: string, expected: number) {
     return useCallback(() => setLoaded((n) => n + 1), [])
 }
 
-// Asks the runner's script for a screenshot now, named after the case (for a
-// state that passes, such as an image still loading).
-export const SnapshotContext = createContext<(name: string) => void>(() => {})
-
 export type Rect = { x: number; y: number; width: number; height: number }
+
+// Where a view is on screen (dp, from the top left), for masks and samples;
+// undefined if it isn't there. measure's page position (from the root view,
+// which starts at the top of the screen: both apps are edge to edge) is where
+// the screenshot shows it. On Android's legacy architecture, measureInWindow
+// leaves out the status bar (or display cutout) height.
+export function measureView(
+    view: React.ComponentRef<typeof View> | null,
+): Promise<Rect | undefined> {
+    return new Promise((resolve) => {
+        if (!view) return resolve(undefined)
+        view.measure((_x, _y, width, height, pageX, pageY) =>
+            resolve({ x: pageX, y: pageY, width, height }),
+        )
+    })
+}
+
+// A video sample (see "video samples" in scripts/verify.mts): the colors to
+// see at the middle of an area, in order, while the screen is recorded (for
+// durationMs at most). `palette`: colors that mustn't appear (so they're
+// recognized).
+export type SampleRequest = {
+    name: string
+    area: Rect
+    durationMs: number
+    expect: string[]
+    palette?: string[]
+}
+export type SampleResult = { ok: boolean; seen: string[]; detail?: string }
+
+// Records a sample: calls `change` once the recording has started (make the
+// change to check then; call `done` once it has finished, e.g. an image has
+// loaded and faded in), and resolves with the result. Outside the runner
+// nothing is recorded: it makes the change and passes.
+export type SampleChange = (done: () => void) => void
+export const SampleContext = createContext<
+    (request: SampleRequest, change: SampleChange) => Promise<SampleResult>
+>(async (_request, change) => {
+    change(() => {})
+    return { ok: true, seen: [], detail: 'not recorded (outside the runner)' }
+})
+
+// A sample's result as a case status: OK, or what was seen instead.
+export const sampleStatus = (result: SampleResult, expect: string[]) =>
+    result.ok
+        ? 'OK'
+        : (result.detail ??
+          `saw ${result.seen.join(', ') || 'nothing'}, expected ${expect.join(', ')}`)
 
 // Measures a masked area (in screen coordinates, dp); undefined if it isn't
 // on screen.
@@ -54,25 +98,7 @@ export const MaskContext = createContext<(measure: MeasureMask) => () => void>(
 export function Masked({ children, style, ...props }: ViewProps) {
     const register = useContext(MaskContext)
     const ref = useRef<React.ComponentRef<typeof View>>(null)
-    useEffect(
-        () =>
-            register(
-                () =>
-                    new Promise((resolve) => {
-                        const view = ref.current
-                        if (!view) return resolve(undefined)
-                        // measure's page position (from the root view,
-                        // which starts at the top of the screen: both apps are
-                        // edge to edge) is where the screenshot shows it. On
-                        // Android's legacy architecture, measureInWindow
-                        // leaves out the status bar (or display cutout) height.
-                        view.measure((_x, _y, width, height, pageX, pageY) =>
-                            resolve({ x: pageX, y: pageY, width, height }),
-                        )
-                    }),
-            ),
-        [register],
-    )
+    useEffect(() => register(() => measureView(ref.current)), [register])
     return (
         <View ref={ref} collapsable={false} style={style} {...props}>
             {children}

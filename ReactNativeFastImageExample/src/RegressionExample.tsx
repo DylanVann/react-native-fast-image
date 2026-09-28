@@ -14,7 +14,13 @@ import {
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
-import { Masked, SnapshotContext, useReport } from './RunnerContext'
+import {
+    Masked,
+    measureView,
+    SampleContext,
+    sampleStatus,
+    useReport,
+} from './RunnerContext'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives. The cases that need no touch are in REGRESSION_GROUPS, which
@@ -25,7 +31,10 @@ import { Masked, SnapshotContext, useReport } from './RunnerContext'
 // the app is gone.
 
 // A case's status line ("<id>: <status>", OK when it passed) and description.
-// The runner is told the status too (RunnerContext.tsx).
+// The runner is told the status too (RunnerContext.tsx). One line, so a long
+// status (a failure) doesn't move the cases below, whose areas were measured
+// for masks and video samples; the runner lists failures in full below the
+// cases.
 function CaseStatus({
     id,
     status,
@@ -38,7 +47,11 @@ function CaseStatus({
     useReport(id, status)
     return (
         <View style={styles.text}>
-            <Text testID={`regression-${id}`} style={styles.status}>
+            <Text
+                testID={`regression-${id}`}
+                style={styles.status}
+                numberOfLines={1}
+            >
                 {id}: {status}
             </Text>
             <Text style={styles.description}>{description}</Text>
@@ -893,55 +906,71 @@ function PreloadReuseCase() {
     )
 }
 
+// Colors of the test images, and of an image view with nothing in it.
+const MAGENTA = '#ff00ff'
+const CYAN = '#00ffff'
+const BLANK = '#eeeeee'
+
 // Shows a magenta image, then changes the source to a cyan one that takes
-// about 2 s (the slow server, 300 ms between parts). While it loads, the view
-// should keep showing magenta (it flashed blank, #747); with `recycle`,
-// recyclingKey changes too, and it should be blank instead (for views reused
-// for other content). The runner is asked for a screenshot then (see
-// RunnerContext.tsx); check it against its reference. Passes when the cyan
-// one has loaded.
+// about 1 s (the slow server, 150 ms between parts), while the screen is
+// recorded (a video sample, see RunnerContext.tsx). The view should go from
+// magenta to cyan without showing blank in between (it flashed blank, #747);
+// with `recycle`, recyclingKey changes too, and it should be blank while cyan
+// loads (for views reused for other content).
 function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
-    const [step, setStep] = useState<'first' | 'second' | 'done'>('first')
-    const snapshot = useContext(SnapshotContext)
-    useEffect(() => {
-        if (step !== 'second') return
-        // Half a second in: the slow image takes about 2 s.
-        const timer = setTimeout(() => snapshot(id), 500)
-        return () => clearTimeout(timer)
-    }, [step, snapshot, id])
-    const status = {
-        first: 'loading the first image',
-        second: 'loading the second image',
-        done: 'OK',
-    }[step]
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [second, setSecond] = useState(false)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('loading the first image')
+    const expect = recycle ? [MAGENTA, BLANK, CYAN] : [MAGENTA, CYAN]
+    const onFirstLoad = async () => {
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 5000,
+                expect,
+                palette: [MAGENTA, BLANK, CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setSecond(true)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
     return (
         <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                source={
-                    step === 'first'
-                        ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
-                        : {
-                              uri: slowImageUrl(
-                                  `cyan.png?${id}=${RUN}&delay=300`,
-                              ),
-                              headers: BACKGROUND_SLOW_HEADERS,
-                          }
-                }
-                recyclingKey={
-                    recycle ? (step === 'first' ? 'first' : 'second') : null
-                }
-                onLoad={() =>
-                    setStep((s) => (s === 'first' ? 'second' : 'done'))
-                }
-            />
+            <View ref={view} collapsable={false}>
+                <FastImage
+                    style={styles.image}
+                    source={
+                        second
+                            ? {
+                                  uri: slowImageUrl(
+                                      `cyan.png?${id}=${RUN}&delay=150`,
+                                  ),
+                                  headers: BACKGROUND_SLOW_HEADERS,
+                              }
+                            : { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+                    }
+                    recyclingKey={
+                        recycle ? (second ? 'second' : 'first') : null
+                    }
+                    onLoad={second ? () => done.current() : onFirstLoad}
+                />
+            </View>
             <CaseStatus
                 id={id}
                 status={status}
                 description={
                     recycle
-                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads'
-                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (it flashed blank)'
+                        ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads (recorded: magenta, blank, cyan)'
+                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
                 }
             />
         </View>
@@ -2147,8 +2176,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // On their own: their screenshots are taken while they load, and
-        // other cases' status lines would still be changing.
+        // Recorded (video samples).
         name: 'keep-previous',
         cases: [
             <KeepPreviousCase key="keep-previous" id="keep-previous" />,
