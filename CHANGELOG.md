@@ -1,3 +1,10 @@
+# [8.15.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.14.0...v8.15.0) (2026-09-28)
+
+
+### Features
+
+* pass the load's result to onLoadEnd ([#1172](https://github.com/DylanVann/react-native-fast-image/issues/1172)) ([2a24373](https://github.com/DylanVann/react-native-fast-image/commit/2a2437377e6f5c75c896431166ca5263154cf599))
+
 # [8.14.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.2...v8.14.0) (2026-09-28)
 
 
