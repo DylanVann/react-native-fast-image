@@ -3,6 +3,7 @@
 #import <SDWebImage/SDWebImageDownloaderRequestModifier.h>
 #import <SDWebImage/SDWebImageCacheKeyFilter.h>
 #import <SDWebImage/SDWebImageDefine.h>
+#import <SDWebImage/SDImageLoader.h>
 
 typedef NS_ENUM(NSInteger, FFFPriority) {
     FFFPriorityLow,
@@ -46,5 +47,14 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // The load options for `cache`: web follows the HTTP cache, cacheOnly never
 // downloads. For views and preload alike.
 - (SDWebImageOptions)cacheOptions;
+
+// The loader for `cache: 'web'` images, whose HTTP cache is their own (see
+// webURLCache), or nil for SDWebImage's shared one.
+- (id<SDImageLoader>)imageLoader;
+
+// The HTTP cache of `cache: 'web'` images: their own rather than the app's
+// shared NSURLCache, so clearDiskCache can empty it without the app's other
+// responses. 50 MB, as on Android.
++ (NSURLCache *)webURLCache;
 
 @end

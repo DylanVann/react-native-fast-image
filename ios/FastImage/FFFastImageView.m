@@ -508,6 +508,7 @@ NSString *FFFErrorMessage(NSError *error)
 - (SDWebImageContext*) loadContext {
     SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = _source.requestModifier;
+    context[SDWebImageContextImageLoader] = _source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = _source.cacheKeyFilter;
     CGSize box = [self decodeBox];
     self.decodedBox = box;

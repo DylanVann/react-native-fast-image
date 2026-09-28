@@ -2,6 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.content.Context;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Registry;
@@ -42,6 +43,15 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     private static final DispatchingProgressListener progressListener = new DispatchingProgressListener();
     private static final long WEB_CACHE_SIZE = 50 * 1024 * 1024;
+    // The HTTP cache of `cache: 'web'` images, once Glide has set up.
+    @Nullable
+    private static Cache webCache;
+
+    // Empties the HTTP cache of `cache: 'web'` images (clearDiskCache).
+    static void clearWebCache() throws IOException {
+        Cache cache = webCache;
+        if (cache != null) cache.evictAll();
+    }
 
     @Override
     public void registerComponents(
@@ -64,15 +74,14 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
         registry.replace(GlideUrl.class, InputStream.class, factory);
 
-        // `cache: 'web'` skips Glide's caches and relies on HTTP caching, but
-        // React Native's shared client has no HTTP cache (unless the app gave
-        // it one), so those urls get a client with one (#280). Other urls are
-        // cached by Glide, so they don't use it (that would store them twice).
-        OkHttpClient webClient = client.cache() != null
-                ? client
-                : client.newBuilder()
-                        .cache(new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE))
-                        .build();
+        // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
+        // those urls get a client with an HTTP cache (#280): one of their own,
+        // not the app's (if it gave React Native's shared client one), so
+        // clearDiskCache can empty it without the app's other responses.
+        // Other urls are cached by Glide, so they don't use it (that would
+        // store them twice).
+        webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
+        OkHttpClient webClient = client.newBuilder().cache(webCache).build();
         registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
     }
 
