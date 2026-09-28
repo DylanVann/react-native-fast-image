@@ -8,6 +8,7 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.facebook.react.devsupport.DefaultDevLoadingViewImplementation
 
 class MainActivity : ReactActivity() {
 
@@ -17,6 +18,11 @@ class MainActivity : ReactActivity() {
   // coordinates, as its screenshots are; otherwise they're off by the status
   // bar (or display cutout) height on this architecture.
   override fun onCreate(savedInstanceState: Bundle?) {
+    // scripts/verify.mts hides React Native's development banner ("Loading
+    // from…"), which its screenshots would catch.
+    if (intent?.getBooleanExtra("hideDevLoadingView", false) == true) {
+      DefaultDevLoadingViewImplementation.setDevLoadingEnabled(false)
+    }
     super.onCreate(savedInstanceState)
     WindowCompat.setDecorFitsSystemWindows(window, false)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

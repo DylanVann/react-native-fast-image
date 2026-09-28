@@ -1248,6 +1248,22 @@ async function runRegression(
             '100',
         ])
         capture('xcrun', ['simctl', 'terminate', device, appId])
+        // Without React Native's development banner ("Downloading 100%"),
+        // which the first group's screenshot caught at the top. A default
+        // rather than a launch argument, so it also applies when
+        // maestro-runner relaunches the app (the touch group); removed after
+        // the app's run (flowsIos).
+        capture('xcrun', [
+            'simctl',
+            'spawn',
+            device,
+            'defaults',
+            'write',
+            appId,
+            'FastImageHideDevLoadingView',
+            '-bool',
+            'YES',
+        ])
         capture('xcrun', ['simctl', 'launch', device, appId], { timeout: 60 })
     } else {
         capture(ADB, ['-s', device, 'shell', 'am', 'force-stop', appId])
@@ -1262,6 +1278,10 @@ async function runRegression(
                 '-W',
                 '-n',
                 `${appId}/.MainActivity`,
+                // Without React Native's development banner (see iOS).
+                '--ez',
+                'hideDevLoadingView',
+                'true',
             ],
             { timeout: 60 },
         )
@@ -1730,6 +1750,16 @@ async function flowsIos(app: App) {
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
     if (options.background)
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
+    // The banner again when the app is used by hand (see runRegression).
+    capture('xcrun', [
+        'simctl',
+        'spawn',
+        iosUdid,
+        'defaults',
+        'delete',
+        iosBundleId(app),
+        'FastImageHideDevLoadingView',
+    ])
     const reports = path.join(os.homedir(), 'Library/Logs/DiagnosticReports')
     for (const file of fs.existsSync(reports) ? fs.readdirSync(reports) : []) {
         if (!file.startsWith(`${appName(app)}-`) || !file.endsWith('.ips'))

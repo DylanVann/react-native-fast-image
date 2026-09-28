@@ -14,6 +14,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // scripts/verify.mts hides React Native's development banner
+    // ("Downloading 100%"), which its screenshots would catch.
+    if UserDefaults.standard.bool(forKey: "FastImageHideDevLoadingView") {
+      RCTDevLoadingViewSetEnabled(false)
+    }
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
