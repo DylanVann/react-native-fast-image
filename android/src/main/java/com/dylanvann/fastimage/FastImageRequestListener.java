@@ -41,10 +41,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         }
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         view.onImageFailed(thumbnail);
+        String error = errorMessage(e);
         WritableMap event = new WritableNativeMap();
-        event.putString("error", errorMessage(e));
+        event.putString("error", error);
         FastImageEvents.send(view, REACT_ON_ERROR_EVENT, event);
-        FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
+        FastImageEvents.sendLoadEnd(view, error);
         return false;
     }
 
@@ -98,6 +99,6 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         event.putInt("width", size[0]);
         event.putInt("height", size[1]);
         FastImageEvents.send(view, REACT_ON_LOAD_EVENT, event);
-        FastImageEvents.send(view, REACT_ON_LOAD_END_EVENT);
+        FastImageEvents.sendLoadEnd(view, size[0], size[1]);
     }
 }

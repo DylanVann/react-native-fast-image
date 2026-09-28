@@ -316,6 +316,57 @@ describe('FastImageBackground', () => {
     })
 })
 
+describe('onLoadEnd', () => {
+    const source = { uri: 'https://example.com/a.png' }
+
+    it("gets the load's result from the native event", () => {
+        const results: any[] = []
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    onLoadEnd={(result) => results.push(result)}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        view.props.onFastImageLoadEnd({
+            nativeEvent: { ok: true, width: 10, height: 20, target: 1 },
+        })
+        view.props.onFastImageLoadEnd({
+            nativeEvent: { ok: false, error: 'status code: 404' },
+        })
+        expect(results).toEqual([
+            { ok: true, width: 10, height: 20 },
+            { ok: false, error: 'status code: 404' },
+        ])
+    })
+
+    it("gets the load's result with fallback, from onLoad or onError", () => {
+        const results: any[] = []
+        const loads: any[] = []
+        const image = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    fallback
+                    onLoad={(event) => loads.push(event)}
+                    onLoadEnd={(result) => results.push(result)}
+                />,
+            )
+            .root.findByType(Image)
+        const load = { nativeEvent: { source: { width: 10, height: 20 } } }
+        image.props.onLoad(load)
+        image.props.onLoadEnd()
+        image.props.onError({ nativeEvent: { error: 'status code: 404' } })
+        image.props.onLoadEnd()
+        expect(loads).toEqual([load])
+        expect(results).toEqual([
+            { ok: true, width: 10, height: 20 },
+            { ok: false, error: 'status code: 404' },
+        ])
+    })
+})
+
 describe('recyclingKey', () => {
     it('is passed to the native view', () => {
         const [view] = renderer

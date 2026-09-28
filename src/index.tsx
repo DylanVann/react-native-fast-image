@@ -1,4 +1,4 @@
-import React, { forwardRef, memo } from 'react'
+import React, { forwardRef, memo, useRef } from 'react'
 import {
     View,
     Image,
@@ -71,6 +71,12 @@ export interface OnErrorEvent {
         error: string
     }
 }
+
+// A load's result, as onLoadEnd gets it: ok with the image's size, or not ok
+// with the error (as onLoad and onError get them).
+export type LoadResult =
+    | { ok: true; width: number; height: number }
+    | { ok: false; error: string }
 
 export interface OnProgressEvent {
     nativeEvent: {
@@ -146,7 +152,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     onError?(event: OnErrorEvent): void
 
-    onLoadEnd?(): void
+    /**
+     * Called once the image has loaded or failed to, with the result: `ok` and
+     * the image's size, or not `ok` and the error.
+     */
+    onLoadEnd?(result: LoadResult): void
 
     /**
      * onLayout function
@@ -237,6 +247,19 @@ function loopCount(loop: boolean | number | undefined) {
     return Number.isFinite(loop) ? Math.max(1, Math.floor(loop)) : 0
 }
 
+// onLoadEnd's result from the native event (ok with the image's size, or not
+// ok with the error).
+function loadResult(event: {
+    ok?: boolean
+    width?: number
+    height?: number
+    error?: string
+}): LoadResult {
+    return event.ok
+        ? { ok: true, width: event.width ?? 0, height: event.height ?? 0 }
+        : { ok: false, error: event.error ?? 'Failed to load the image' }
+}
+
 // A copy of the source without `cache`.
 function withoutCache(source: Source | undefined) {
     const { cache: _cache, ...rest } = source || {}
@@ -273,6 +296,9 @@ function FastImageBase({
     const { onClick, ...props } = viewProps as typeof viewProps & {
         onClick?: (event: any) => void
     }
+    // React Native's Image (fallback) calls onLoadEnd without the result: take
+    // it from the onLoad or onError just before.
+    const fallbackResult = useRef<LoadResult | undefined>(undefined)
     const wrapperProps = { onLayout, onClick, pointerEvents }
     const imageProps = {
         ...props,
@@ -306,9 +332,41 @@ function FastImageBase({
                     defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
                     onProgress={onProgress}
-                    onLoad={onLoad as any}
-                    onError={onError}
-                    onLoadEnd={onLoadEnd}
+                    onLoad={
+                        onLoadEnd
+                            ? (event: any) => {
+                                  const { width, height } =
+                                      event.nativeEvent.source
+                                  fallbackResult.current = {
+                                      ok: true,
+                                      width,
+                                      height,
+                                  }
+                                  onLoad?.(event)
+                              }
+                            : (onLoad as any)
+                    }
+                    onError={
+                        onLoadEnd
+                            ? (event: any) => {
+                                  fallbackResult.current = {
+                                      ok: false,
+                                      error: String(event.nativeEvent.error),
+                                  }
+                                  onError?.(event)
+                              }
+                            : (onError as any)
+                    }
+                    onLoadEnd={
+                        onLoadEnd &&
+                        (() =>
+                            onLoadEnd(
+                                fallbackResult.current ?? {
+                                    ok: false,
+                                    error: 'Failed to load the image',
+                                },
+                            ))
+                    }
                     resizeMode={resizeMode}
                 />
                 {children}
@@ -336,7 +394,11 @@ function FastImageBase({
                 onFastImageProgress={onProgress}
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
-                onFastImageLoadEnd={onLoadEnd}
+                onFastImageLoadEnd={
+                    onLoadEnd &&
+                    ((event: { nativeEvent: any }) =>
+                        onLoadEnd(loadResult(event.nativeEvent)))
+                }
                 resizeMode={resizeMode}
             />
             {children}

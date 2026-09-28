@@ -49,6 +49,10 @@ export type ResizeModes = $Values<ResizeMode>
 export type Priorities = $Values<Priority>
 export type CacheControls = $Values<CacheControl>
 
+export type LoadResult =
+    | {| ok: true, width: number, height: number |}
+    | {| ok: false, error: string |}
+
 export type PreloadSuccess = {|
     uri: string,
     ok: true,
@@ -78,7 +82,7 @@ export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
     onError?: ?(event: OnErrorEvent) => void,
     onLoad?: ?(event: OnLoadEvent) => void,
-    onLoadEnd?: ?() => void,
+    onLoadEnd?: ?(result: LoadResult) => void,
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 

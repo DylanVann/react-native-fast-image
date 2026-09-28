@@ -14,6 +14,7 @@ import {
 import FastImage, {
     FastImageBackground,
     FastImageProps,
+    LoadResult,
     Source,
 } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
@@ -1317,6 +1318,52 @@ const backgroundStyles = StyleSheet.create({
     text: { color: 'white', fontWeight: '600', textAlign: 'center' },
 })
 
+// onLoadEnd gets the load's result: for an image that loads, ok and the size
+// onLoad got; for one that fails (a 404), not ok and the error onError got.
+function LoadEndResultCase({
+    id,
+    uri,
+    description,
+}: {
+    id: string
+    uri: string
+    description: string
+}) {
+    const [expected, setExpected] = useState<LoadResult>()
+    const [result, setResult] = useState<LoadResult>()
+    const got = JSON.stringify(result)
+    const want = JSON.stringify(expected)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri }}
+                onLoad={(e) => {
+                    // Read the event now: the updater runs later.
+                    const { width, height } = e.nativeEvent
+                    setExpected({ ok: true, width, height })
+                }}
+                onError={(e) => {
+                    const { error } = e.nativeEvent
+                    setExpected({ ok: false, error })
+                }}
+                onLoadEnd={setResult}
+            />
+            <CaseStatus
+                id={id}
+                status={
+                    !result || !expected
+                        ? 'waiting'
+                        : got === want
+                          ? 'OK'
+                          : `got ${got}, expected ${want}`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
 // The cases that run on their own, in the groups the runner shows one at a
 // time (each fits on a screen, so its screenshot shows every case). Cases in
 // a group load at the same time; timed ones (a second or two) are grouped so
@@ -1892,6 +1939,23 @@ const downsampleStyles = StyleSheet.create({
 export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
+    {
+        name: 'load-end',
+        cases: [
+            <LoadEndResultCase
+                key="load-end-ok"
+                id="load-end-ok"
+                uri={LOGO}
+                description="onLoadEnd gets ok and the size onLoad got"
+            />,
+            <LoadEndResultCase
+                key="load-end-error"
+                id="load-end-error"
+                uri={MISSING}
+                description="onLoadEnd gets not ok and the error onError got (a 404)"
+            />,
+        ],
+    },
     {
         name: 'events',
         cases: [
