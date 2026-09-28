@@ -24,7 +24,6 @@ import {
     SampleContext,
     SampleRequest,
     SampleResult,
-    SnapshotContext,
 } from './RunnerContext'
 import { regressionSocketUrl } from './imageServer'
 
@@ -40,7 +39,6 @@ import { regressionSocketUrl } from './imageServer'
 //                                                 dp; scale = pixels per dp)
 //   { type: 'group', index, name, cases: [ids] }  once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'snapshot', group, name, masks }      take a screenshot now
 //   { type: 'masks', group, id, masks }           the reply to 'measure'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
@@ -234,21 +232,6 @@ function Group({
         return rects.filter((rect): rect is Rect => rect != null)
     }, [])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
-    const snapshot = useCallback(
-        (name: string) => {
-            afterLayout()
-                .then(measure)
-                .then((rects) =>
-                    send({
-                        type: 'snapshot',
-                        group: index,
-                        name,
-                        masks: rects,
-                    }),
-                )
-        },
-        [index, send, measure],
-    )
     const sample = useCallback(
         (request: SampleRequest, change: () => void) =>
             new Promise<SampleResult>((resolve) => {
@@ -269,30 +252,28 @@ function Group({
     return (
         <ReportContext.Provider value={report}>
             <MaskContext.Provider value={mask}>
-                <SnapshotContext.Provider value={snapshot}>
-                    <SampleContext.Provider value={sample}>
-                        {/* The summary changes as cases settle, so a screenshot
-                        taken while they run (a snapshot) leaves it out. One
-                        line, so that doesn't move the cases below (areas
-                        they measured for a video sample, while it records). */}
-                        <Masked>
-                            <Text style={caseStyles.title} numberOfLines={1}>
-                                {group.name}: {summary}
-                            </Text>
-                        </Masked>
-                        {group.cases}
-                        {/* Statuses in full (cases show one line each), below
+                <SampleContext.Provider value={sample}>
+                    {/* The summary changes as cases settle, so the
+                        screenshot leaves it out. One line, so that doesn't
+                        move the cases below (areas they measured for a video
+                        sample, while it records). */}
+                    <Masked>
+                        <Text style={caseStyles.title} numberOfLines={1}>
+                            {group.name}: {summary}
+                        </Text>
+                    </Masked>
+                    {group.cases}
+                    {/* Statuses in full (cases show one line each), below
                         the cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                        <Masked>
-                            {notOk.map((line) => (
-                                <Text key={line} style={styles.notOk}>
-                                    {line}
-                                </Text>
-                            ))}
-                        </Masked>
-                    </SampleContext.Provider>
-                </SnapshotContext.Provider>
+                    <Masked>
+                        {notOk.map((line) => (
+                            <Text key={line} style={styles.notOk}>
+                                {line}
+                            </Text>
+                        ))}
+                    </Masked>
+                </SampleContext.Provider>
             </MaskContext.Provider>
         </ReportContext.Provider>
     )

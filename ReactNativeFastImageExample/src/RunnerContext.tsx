@@ -31,10 +31,6 @@ export function useLoads(id: string, expected: number) {
     return useCallback(() => setLoaded((n) => n + 1), [])
 }
 
-// Asks the runner's script for a screenshot now, named after the case (for a
-// state that passes, such as an image still loading).
-export const SnapshotContext = createContext<(name: string) => void>(() => {})
-
 export type Rect = { x: number; y: number; width: number; height: number }
 
 // Where a view is on screen (dp, from the top left), for masks and samples;

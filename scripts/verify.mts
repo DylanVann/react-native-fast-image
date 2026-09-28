@@ -752,6 +752,17 @@ function recordScreen(platform: Platform, device: string, file: string) {
                   '60',
                   '/sdcard/fast-image-sample.mp4',
               ]
+    // Not the previous sample's, if this one isn't saved.
+    if (platform === 'android') {
+        capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            'rm',
+            '-f',
+            '/sdcard/fast-image-sample.mp4',
+        ])
+    }
     const child = spawn(platform === 'ios' ? 'xcrun' : ADB, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -813,7 +824,9 @@ function frameColors(
         video,
     ])
     const [width, height] = (size ?? '').split(',').map(Number)
-    if (!width || !height || !windowWidthDp) return []
+    if (!width || !height)
+        throw new Error("ffprobe couldn't read the recording")
+    if (!windowWidthDp) throw new Error("the app didn't send its window size")
     const px = width / windowWidthDp
     const w = Math.max(2, Math.round((area.width / 2) * px))
     const h = Math.max(2, Math.round((area.height / 2) * px))
@@ -844,7 +857,12 @@ function frameColors(
         ],
         { maxBuffer: 64 * 1024 * 1024, timeout: 60_000 },
     )
-    const data = result.stdout ?? Buffer.alloc(0)
+    if (result.error || result.status !== 0) {
+        throw new Error(
+            `ffmpeg failed: ${result.error?.message ?? String(result.stderr).trim()}`,
+        )
+    }
+    const data = result.stdout
     const colors: Rgb[] = []
     for (let i = 0; i + 2 < data.length; i += 3)
         colors.push([data[i], data[i + 1], data[i + 2]])
@@ -912,14 +930,13 @@ async function runRegression(
     const failures: string[] = []
     const seeded: string[] = []
     const noReference: string[] = []
-    // A screenshot of the group on screen (index), compared with its
-    // reference. Cases can ask for one (a `snapshot` message) at a moment
-    // that matters; the group's own is taken once it's all OK. Comparisons
-    // run in the background; `shots` is awaited at the end.
+    // A screenshot of the group on screen (index), once it's all OK (or timed
+    // out), compared with its reference. Comparisons (and video samples) run
+    // in the background; `shots` is awaited at the end.
     const shots: Promise<void>[] = []
     // masks: the areas the app measured just before (dp), to leave out.
-    const takeShot = (index: number, masksDp: unknown, suffix?: string) => {
-        const name = suffix ? `${groups[index]}-${suffix}` : groups[index]
+    const takeShot = (index: number, masksDp: unknown) => {
+        const name = groups[index]
         const file = path.join(
             dir,
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
@@ -968,26 +985,36 @@ async function runRegression(
             dir,
             `${String(index + 1).padStart(2, '0')}-${groups[index]}-${name}.mp4`,
         )
-        const recording = recordScreen(platform, device, file)
-        const started = await recording.started
-        // The case makes its change now (even without a recording, so it
-        // doesn't wait forever).
-        send({ type: 'recording', group: index, name })
-        await new Promise((resolve) =>
-            setTimeout(resolve, Number(message.durationMs) || 1000),
-        )
-        const saved = await recording.stop()
-        const result = !started
-            ? { ok: false, seen: [], detail: "the recording didn't start" }
-            : !saved
-              ? { ok: false, seen: [], detail: 'no recording was saved' }
-              : matchSample(
-                    frameColors(file, message.area as PixelRect, windowWidth),
-                    (message.expect as string[]) ?? [],
-                    (message.palette as string[]) ?? [],
-                )
+        // Always answers, so the case (and the samples after it) don't wait
+        // forever.
+        let result: { ok: boolean; seen: string[]; detail?: string }
+        try {
+            const recording = recordScreen(platform, device, file)
+            const started = await recording.started
+            // The case makes its change now (even without a recording).
+            send({ type: 'recording', group: index, name })
+            await new Promise((resolve) =>
+                setTimeout(resolve, Number(message.durationMs) || 1000),
+            )
+            const saved = await recording.stop()
+            result = !started
+                ? { ok: false, seen: [], detail: "the recording didn't start" }
+                : !saved
+                  ? { ok: false, seen: [], detail: 'no recording was saved' }
+                  : matchSample(
+                        frameColors(
+                            file,
+                            message.area as PixelRect,
+                            windowWidth,
+                        ),
+                        (message.expect as string[]) ?? [],
+                        (message.palette as string[]) ?? [],
+                    )
+        } catch (error) {
+            result = { ok: false, seen: [], detail: (error as Error).message }
+        }
         logLine(
-            `sample ${name}: ${result.ok ? 'OK' : 'failed'}, saw ${result.seen.join(' ') || 'nothing'} (${rel(file)})`,
+            `sample ${name}: ${result.ok ? 'OK' : 'failed'}, ${result.detail ?? `saw ${result.seen.join(' ') || 'nothing'}`} (${rel(file)})`,
         )
         send({ type: 'sampled', group: index, name, ...result })
     }
@@ -1006,13 +1033,6 @@ async function runRegression(
             // case only makes its change once its recording has started).
             samples = samples.then(() => runSample(message))
             shots.push(samples)
-        }
-        if (message.type === 'snapshot' && groups.length > 0) {
-            takeShot(
-                message.group as number,
-                message.masks,
-                String(message.name),
-            )
         }
         notify()
     }
