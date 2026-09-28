@@ -1,6 +1,8 @@
 package com.dylanvann.fastimage;
 
 import android.app.Activity;
+import android.content.Context;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.NonNull;
@@ -9,6 +11,8 @@ import androidx.annotation.Nullable;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.ImageHeaderParser;
+import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
@@ -24,8 +28,13 @@ import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayDeque;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
@@ -63,8 +72,44 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         }
     }
 
+    // Reads the size of images preloaded to disk only, off the UI thread.
+    private static final Executor sizeExecutor = Executors.newSingleThreadExecutor();
+
+    // The image's size from its file's header, as a decoded image has it (with
+    // its EXIF orientation), or null if it can't be read.
+    @Nullable
+    private static int[] imageSize(Context context, File file) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getPath(), bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        int orientation = ImageHeaderParser.UNKNOWN_ORIENTATION;
+        Glide glide = Glide.get(context);
+        try (InputStream stream = new FileInputStream(file)) {
+            orientation = ImageHeaderParserUtils.getOrientation(
+                    glide.getRegistry().getImageHeaderParsers(), stream, glide.getArrayPool());
+        } catch (IOException e) {
+            // Taken as not rotated.
+        }
+        // 5 to 8 turn the image by 90 degrees.
+        boolean transposed = orientation >= 5 && orientation <= 8;
+        return transposed
+                ? new int[] {bounds.outHeight, bounds.outWidth}
+                : new int[] {bounds.outWidth, bounds.outHeight};
+    }
+
+    private static WritableMap success(int width, int height) {
+        WritableMap result = Arguments.createMap();
+        result.putBoolean("ok", true);
+        result.putInt("width", width);
+        result.putInt("height", height);
+        return result;
+    }
+
     // Resolves with a result per source, in order, once all have loaded or
     // failed: { ok, width, height } or { ok: false, error }. Never rejects.
+    // A remote source with memoryCache false is only downloaded to the disk
+    // cache, without decoding it (its size comes from the header).
     @ReactMethod
     public void preload(final ReadableArray sources, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
@@ -111,6 +156,58 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     final RequestOptions preloadOptions = source.hasKey("priority") && !source.isNull("priority")
                             ? options
                             : options.priority(Priority.LOW);
+                    // A source's result, which frees its slot.
+                    final ResultCallback done = new ResultCallback() {
+                        @Override
+                        public void run(WritableMap result) {
+                            results[index] = result;
+                            preloadsInFlight--;
+                            finishOne.run();
+                            startPendingPreloads();
+                        }
+                    };
+                    // Remote images (web ones are in the HTTP cache instead,
+                    // and local ones are already on disk).
+                    if (!imageSource.isMemoryCache() && !imageSource.isWebCache() && imageSource.isRemote()) {
+                        pendingPreloads.add(new Runnable() {
+                            @Override
+                            public void run() {
+                                Glide
+                                        .with(context)
+                                        .asFile()
+                                        .load(imageSource.getSourceForLoad())
+                                        .apply(preloadOptions)
+                                        .listener(new RequestListener<File>() {
+                                            @Override
+                                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                                                done.run(failure(FastImageRequestListener.errorMessage(e)));
+                                                return false;
+                                            }
+
+                                            @Override
+                                            public boolean onResourceReady(final File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                                                sizeExecutor.execute(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        final int[] size = imageSize(context, file);
+                                                        UiThreadUtil.runOnUiThread(new Runnable() {
+                                                            @Override
+                                                            public void run() {
+                                                                done.run(size != null
+                                                                        ? success(size[0], size[1])
+                                                                        : failure("Failed to read the image's size"));
+                                                            }
+                                                        });
+                                                    }
+                                                });
+                                                return false;
+                                            }
+                                        })
+                                        .preload();
+                            }
+                        });
+                        continue;
+                    }
                     pendingPreloads.add(new Runnable() {
                         @Override
                         public void run() {
@@ -123,10 +220,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                     .listener(new RequestListener<Drawable>() {
                                         @Override
                                         public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                                            results[index] = failure(FastImageRequestListener.errorMessage(e));
-                                            preloadsInFlight--;
-                                            finishOne.run();
-                                            startPendingPreloads();
+                                            done.run(failure(FastImageRequestListener.errorMessage(e)));
                                             return false;
                                         }
 
@@ -134,14 +228,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                         public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                                             // Preloaded at its original size, so this is
                                             // the image's own size.
-                                            WritableMap result = Arguments.createMap();
-                                            result.putBoolean("ok", true);
-                                            result.putInt("width", resource.getIntrinsicWidth());
-                                            result.putInt("height", resource.getIntrinsicHeight());
-                                            results[index] = result;
-                                            preloadsInFlight--;
-                                            finishOne.run();
-                                            startPendingPreloads();
+                                            done.run(success(resource.getIntrinsicWidth(), resource.getIntrinsicHeight()));
                                             return false;
                                         }
                                     })
@@ -156,6 +243,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 startPendingPreloads();
             }
         });
+    }
+
+    private interface ResultCallback {
+        void run(WritableMap result);
     }
 
     private static WritableMap failure(String error) {

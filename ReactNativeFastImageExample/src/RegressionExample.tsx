@@ -15,6 +15,7 @@ import FastImage, {
     FastImageBackground,
     FastImageProps,
     LoadResult,
+    PreloadResult,
     Source,
 } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
@@ -971,8 +972,18 @@ const BLANK = '#eeeeee'
 // recorded (a video sample, see RunnerContext.tsx). The view should go from
 // magenta to cyan without showing blank in between (it flashed blank, #747);
 // with `recycle`, recyclingKey changes too, and it should be blank while cyan
-// loads (for views reused for other content).
-function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
+// loads (for views reused for other content). With `memoryCache` false the
+// images aren't kept in memory, so the one shown comes from the disk cache
+// while cyan loads (Android shows it from its cache).
+function KeepPreviousCase({
+    id,
+    recycle,
+    memoryCache,
+}: {
+    id: string
+    recycle?: boolean
+    memoryCache?: boolean
+}) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const [second, setSecond] = useState(false)
@@ -1010,8 +1021,12 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
                                       `cyan.png?${id}=${RUN}&delay=150`,
                                   ),
                                   headers: BACKGROUND_SLOW_HEADERS,
+                                  memoryCache,
                               }
-                            : { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+                            : {
+                                  uri: imageUrl(`magenta.png?${id}=${RUN}`),
+                                  memoryCache,
+                              }
                     }
                     recyclingKey={
                         recycle ? (second ? 'second' : 'first') : null
@@ -1283,6 +1298,114 @@ function PreloadCacheOnlyCase() {
                 id="preload-cache-only"
                 status={status}
                 description="#406: preloading with cache 'cacheOnly' doesn't download (fails if it isn't cached)"
+            />
+        </View>
+    )
+}
+
+// Shows an image with memoryCache false, then shows it in a second view: it
+// comes from the disk cache (the server gets one request). (That it isn't
+// kept in memory isn't visible here.)
+const NO_MEMORY_PATH = `/picsum/1025-200x200.jpg?no-memory=${RUN}`
+function MemoryCacheOffCase() {
+    const [second, setSecond] = useState(false)
+    const [requests, setRequests] = useState<number>()
+    const source = {
+        uri: imageUrl(NO_MEMORY_PATH.slice(1)),
+        memoryCache: false,
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={source}
+                onLoad={() => setSecond(true)}
+            />
+            {second ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={source}
+                    onLoad={() =>
+                        fetch(
+                            imageUrl(
+                                `requests?path=${encodeURIComponent(NO_MEMORY_PATH)}`,
+                            ),
+                        )
+                            .then((response) => response.json())
+                            .then((json) => setRequests(json.count))
+                            .catch(() => setRequests(-1))
+                    }
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="memory-cache-off"
+                status={
+                    requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`
+                }
+                description="memoryCache false: the image shows, and a second view gets it from the disk cache"
+            />
+        </View>
+    )
+}
+
+// Preloads an image with memoryCache false (to disk only, without decoding
+// it), which still reports its size, then shows it: it loads from the disk
+// cache, so the server gets one request. (That it isn't decoded into memory
+// isn't visible here.)
+const PRELOAD_DISK_PATH = `/picsum/1025-200x200.jpg?preload-disk=${RUN}`
+function PreloadDiskCase() {
+    const [result, setResult] = useState<PreloadResult>()
+    const [shown, setShown] = useState(false)
+    const [requests, setRequests] = useState<number>()
+    const source = {
+        uri: imageUrl(PRELOAD_DISK_PATH.slice(1)),
+        memoryCache: false,
+    }
+    useEffect(() => {
+        FastImage.preload([source]).then(([r]) => {
+            setResult(r)
+            setShown(true)
+        })
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    const onLoad = () =>
+        fetch(
+            imageUrl(`requests?path=${encodeURIComponent(PRELOAD_DISK_PATH)}`),
+        )
+            .then((response) => response.json())
+            .then((json) => setRequests(json.count))
+            .catch(() => setRequests(-1))
+    const sized = result?.ok && result.width === 200 && result.height === 200
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={onLoad}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus
+                id="preload-disk"
+                status={
+                    requests === undefined
+                        ? result && !result.ok
+                            ? `error: ${result.error}`
+                            : 'waiting'
+                        : sized && requests === 1
+                          ? 'OK'
+                          : `${JSON.stringify(result)}, ${requests} requests`
+                }
+                description="preload with memoryCache false reports the size, and the image then shows from the disk cache"
             />
         </View>
     )
@@ -2416,6 +2539,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadReuseCase key="preload-reuse" />,
             <PreloadResultsCase key="preload-results" />,
             <PreloadLimitCase key="preload-limit" />,
+            <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
         ],
     },
@@ -2439,6 +2563,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 downsample
                 description="source.cacheKey with downsample: the downloaded file is found under the cacheKey"
             />,
+            <MemoryCacheOffCase key="memory-cache-off" />,
         ],
     },
     {
@@ -2470,6 +2595,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <KeepPreviousCase key="keep-previous" id="keep-previous" />,
             <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
+            <KeepPreviousCase
+                key="keep-previous-no-memory"
+                id="keep-previous-no-memory"
+                memoryCache={false}
+            />,
         ],
     },
     {

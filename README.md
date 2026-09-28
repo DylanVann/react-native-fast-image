@@ -163,6 +163,12 @@ Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
 
 ---
 
+### `source.memoryCache?: boolean`
+
+Whether the decoded image is kept in the memory cache. **Default: true.** With `false` it's only kept on disk: a view doesn't leave it in memory once it stops showing it, and `FastImage.preload` downloads it without decoding it. Use it for large images that are shown once or rarely, like a full-screen photo: a decoded photo can take tens of MB of memory. Images shown again, like a list scrolled back, are decoded from disk again.
+
+---
+
 ### `defaultSource?: number`
 
 - An asset loaded with `require(...)`.
@@ -350,6 +356,12 @@ for (const result of results) {
 ```
 
 Each source's `cache` applies, as for a view: with `web` the preload follows the HTTP cache, and with `cacheOnly` it doesn't download. A `cacheOnly` preload resolves `ok` only if the image is cached, and loads it from the disk cache into memory, so a view shows it at once.
+
+A source with `memoryCache: false` is only downloaded to the disk cache, without being decoded into memory, and is decoded when it's shown. Use it to preload many images, or large ones, e.g. the next pages of a feed: a decoded photo can take tens of MB of memory. Other sources are also kept decoded in memory, so they show at once.
+
+```js
+await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
+```
 
 ### `FastImage.clearMemoryCache: () => Promise<void>`
 

@@ -58,6 +58,14 @@ export type Source = {
      * an expiry: use something stable, like the image's id.
      */
     cacheKey?: string
+    /**
+     * Whether the decoded image is kept in the memory cache (default true).
+     * With false it's only kept on disk: a view doesn't leave it in memory
+     * once it stops showing it, and `FastImage.preload` downloads it without
+     * decoding it. For large images shown once, like a full-screen photo; a
+     * list scrolled back decodes them again.
+     */
+    memoryCache?: boolean
 }
 
 export interface OnLoadEvent {

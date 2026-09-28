@@ -124,6 +124,27 @@ public class FastImageSource extends ImageSource {
         mWebCache = webCache;
     }
 
+    boolean isWebCache() {
+        return mWebCache;
+    }
+
+    // `memoryCache`: whether the decoded image is kept in the memory cache.
+    private boolean mMemoryCache = true;
+
+    void setMemoryCache(boolean memoryCache) {
+        mMemoryCache = memoryCache;
+    }
+
+    boolean isMemoryCache() {
+        return mMemoryCache;
+    }
+
+    // An http(s) url.
+    boolean isRemote() {
+        String scheme = mUri == null ? null : mUri.getScheme();
+        return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    }
+
     // `cacheKey`: the key to cache the image under instead of its url.
     @Nullable
     private String mCacheKey = null;

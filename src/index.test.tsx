@@ -367,6 +367,22 @@ describe('onLoadEnd', () => {
     })
 })
 
+describe('source.memoryCache', () => {
+    it('is passed to the native view with the source', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{
+                        uri: 'https://example.com/a.jpg',
+                        memoryCache: false,
+                    }}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.source.memoryCache).toBe(false)
+    })
+})
+
 describe('recyclingKey', () => {
     it('is passed to the native view', () => {
         const [view] = renderer
