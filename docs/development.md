@@ -61,7 +61,7 @@ Its `metro.config.js` resolves every import from the shared screens and the libr
 `scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
-2. Starts the image server. For each app, builds it for iOS and Android in parallel, starts its packager, and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
+2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
 
 ```bash
 node scripts/verify.mts                      # everything
