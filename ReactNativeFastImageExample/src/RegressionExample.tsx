@@ -912,7 +912,7 @@ const CYAN = '#00ffff'
 const BLANK = '#eeeeee'
 
 // Shows a magenta image, then changes the source to a cyan one that takes
-// about 2 s (the slow server, 300 ms between parts), while the screen is
+// about 1 s (the slow server, 150 ms between parts), while the screen is
 // recorded (a video sample, see RunnerContext.tsx). The view should go from
 // magenta to cyan without showing blank in between (it flashed blank, #747);
 // with `recycle`, recyclingKey changes too, and it should be blank while cyan
@@ -921,6 +921,7 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const [second, setSecond] = useState(false)
+    const done = useRef(() => {})
     const [status, setStatus] = useState('loading the first image')
     const expect = recycle ? [MAGENTA, BLANK, CYAN] : [MAGENTA, CYAN]
     const onFirstLoad = async () => {
@@ -931,11 +932,14 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
             {
                 name: id,
                 area,
-                durationMs: 3500,
+                durationMs: 5000,
                 expect,
                 palette: [MAGENTA, BLANK, CYAN],
             },
-            () => setSecond(true),
+            (sampleDone) => {
+                done.current = sampleDone
+                setSecond(true)
+            },
         )
         setStatus(sampleStatus(result, expect))
     }
@@ -948,7 +952,7 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
                         second
                             ? {
                                   uri: slowImageUrl(
-                                      `cyan.png?${id}=${RUN}&delay=300`,
+                                      `cyan.png?${id}=${RUN}&delay=150`,
                                   ),
                                   headers: BACKGROUND_SLOW_HEADERS,
                               }
@@ -957,7 +961,7 @@ function KeepPreviousCase({ id, recycle }: { id: string; recycle?: boolean }) {
                     recyclingKey={
                         recycle ? (second ? 'second' : 'first') : null
                     }
-                    onLoad={second ? undefined : onFirstLoad}
+                    onLoad={second ? () => done.current() : onFirstLoad}
                 />
             </View>
             <CaseStatus
@@ -2172,7 +2176,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples, one after the other).
+        // Recorded (video samples).
         name: 'keep-previous',
         cases: [
             <KeepPreviousCase key="keep-previous" id="keep-previous" />,

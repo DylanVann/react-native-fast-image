@@ -21,6 +21,7 @@ import {
     MeasureMask,
     Rect,
     ReportContext,
+    SampleChange,
     SampleContext,
     SampleRequest,
     SampleResult,
@@ -43,6 +44,7 @@ import { regressionSocketUrl } from './imageServer'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
 //                                                 scripts/verify.mts)
+//   { type: 'sampleDone', group, name }           its change has finished
 //   { type: 'done' }                               past the last group
 // masks: the areas (dp, from the window's top left) to leave out of the
 // screenshot comparison, measured just before (see Masked).
@@ -81,7 +83,10 @@ export default function RegressionRunner() {
         () =>
             new Map<
                 string,
-                { change: () => void; resolve: (result: SampleResult) => void }
+                {
+                    change: SampleChange
+                    resolve: (result: SampleResult) => void
+                }
             >(),
     )
     // Sent once the socket is open, after hello.
@@ -117,8 +122,15 @@ export default function RegressionRunner() {
             ws.onmessage = (event) => {
                 const message = JSON.parse(String(event.data)) as Message
                 const sample = samples.get(`${message.group}/${message.name}`)
-                if (message.type === 'recording') sample?.change()
-                else if (message.type === 'sampled') {
+                if (message.type === 'recording') {
+                    sample?.change(() =>
+                        send({
+                            type: 'sampleDone',
+                            group: message.group,
+                            name: message.name,
+                        }),
+                    )
+                } else if (message.type === 'sampled') {
                     samples.delete(`${message.group}/${message.name}`)
                     sample?.resolve(message as unknown as SampleResult)
                 } else if (message.type === 'next') setIndex((i) => i + 1)
@@ -195,7 +207,7 @@ function Group({
     setMeasureMasks: (measure: () => Promise<Rect[]>) => void
     samples: Map<
         string,
-        { change: () => void; resolve: (result: SampleResult) => void }
+        { change: SampleChange; resolve: (result: SampleResult) => void }
     >
 }) {
     const statuses = useRef(new Map<string, string>())
@@ -233,7 +245,7 @@ function Group({
     }, [])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
     const sample = useCallback(
-        (request: SampleRequest, change: () => void) =>
+        (request: SampleRequest, change: SampleChange) =>
             new Promise<SampleResult>((resolve) => {
                 samples.set(`${index}/${request.name}`, { change, resolve })
                 send({ type: 'sample', group: index, ...request })

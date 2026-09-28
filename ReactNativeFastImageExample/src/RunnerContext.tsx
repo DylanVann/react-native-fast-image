@@ -50,8 +50,9 @@ export function measureView(
 }
 
 // A video sample (see "video samples" in scripts/verify.mts): the colors to
-// see at the middle of an area, in order, while the screen is recorded for
-// durationMs. `palette`: colors that mustn't appear (so they're recognized).
+// see at the middle of an area, in order, while the screen is recorded (for
+// durationMs at most). `palette`: colors that mustn't appear (so they're
+// recognized).
 export type SampleRequest = {
     name: string
     area: Rect
@@ -62,12 +63,14 @@ export type SampleRequest = {
 export type SampleResult = { ok: boolean; seen: string[]; detail?: string }
 
 // Records a sample: calls `change` once the recording has started (make the
-// change to check then), and resolves with the result. Outside the runner
+// change to check then; call `done` once it has finished, e.g. an image has
+// loaded and faded in), and resolves with the result. Outside the runner
 // nothing is recorded: it makes the change and passes.
+export type SampleChange = (done: () => void) => void
 export const SampleContext = createContext<
-    (request: SampleRequest, change: () => void) => Promise<SampleResult>
+    (request: SampleRequest, change: SampleChange) => Promise<SampleResult>
 >(async (_request, change) => {
-    change()
+    change(() => {})
     return { ok: true, seen: [], detail: 'not recorded (outside the runner)' }
 })
 
