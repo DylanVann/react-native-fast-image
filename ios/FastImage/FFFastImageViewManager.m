@@ -89,8 +89,9 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
             }
         };
         // With the prefetcher's options (low priority), but one source at a
-        // time (not SDWebImagePrefetcher), to get each source's result and to
-        // send its headers with its own request only.
+        // time (not SDWebImagePrefetcher), to get each source's result, to
+        // send its headers with its own request only, and to follow its
+        // `cache` (#406).
         SDWebImageOptions prefetcherOptions = [SDWebImagePrefetcher sharedImagePrefetcher].options;
 
         [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
@@ -112,6 +113,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                     options |= SDWebImageHighPriority;
                 }
             }
+            options |= [source cacheOptions];
             [FFFPendingPreloads addObject:[^{
                 // Once per slot: SDWebImage calls this once with finished set
                 // (a progressive load calls it more, without).

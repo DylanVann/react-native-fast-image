@@ -1198,6 +1198,46 @@ function CacheKeyCase({
     )
 }
 
+// Preloads an image that isn't cached with `cache: 'cacheOnly'`: it fails
+// without a request to the server, as a view with it does. iOS downloaded it
+// (preload didn't follow `cache`, #406).
+const PRELOAD_CACHE_ONLY_PATH = `/logo.png?cache-only=${RUN}`
+function PreloadCacheOnlyCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload([
+            {
+                uri: imageUrl(PRELOAD_CACHE_ONLY_PATH.slice(1)),
+                cache: FastImage.cacheControl.cacheOnly,
+            },
+        ])
+            .then(async ([result]) => {
+                const response = await fetch(
+                    imageUrl(
+                        `requests?path=${encodeURIComponent(PRELOAD_CACHE_ONLY_PATH)}`,
+                    ),
+                )
+                const { count } = (await response.json()) as { count: number }
+                setStatus(
+                    !result.ok && count === 0
+                        ? 'OK'
+                        : `ok: ${result.ok}, ${count} requests`,
+                )
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="preload-cache-only"
+                status={status}
+                description="#406: preloading with cache 'cacheOnly' doesn't download (fails if it isn't cached)"
+            />
+        </View>
+    )
+}
+
 // Preloads a mix of sources and checks the results: each source's ok, and the
 // size of the ones that loaded. The private image only loads with its header,
 // which checks preload sends it (#571).
@@ -2321,6 +2361,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadReuseCase key="preload-reuse" />,
             <PreloadResultsCase key="preload-results" />,
             <PreloadLimitCase key="preload-limit" />,
+            <PreloadCacheOnlyCase key="preload-cache-only" />,
         ],
     },
     {

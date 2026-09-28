@@ -349,6 +349,8 @@ for (const result of results) {
 }
 ```
 
+Each source's `cache` applies, as for a view: with `web` the preload follows the HTTP cache, and with `cacheOnly` it doesn't download. A `cacheOnly` preload resolves `ok` only if the image is cached, and loads it from the disk cache into memory, so a view shows it at once.
+
 ### `FastImage.clearMemoryCache: () => Promise<void>`
 
 Clear all images from memory cache.

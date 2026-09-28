@@ -500,17 +500,7 @@ NSString *FFFErrorMessage(NSError *error)
             break;
     }
 
-    switch (_source.cacheControl) {
-        case FFFCacheControlWeb:
-            options |= SDWebImageRefreshCached;
-            break;
-        case FFFCacheControlCacheOnly:
-            options |= SDWebImageFromCacheOnly;
-            break;
-        case FFFCacheControlImmutable:
-            break;
-    }
-    return options;
+    return options | [_source cacheOptions];
 }
 
 // Headers, and the size to decode at (see FFFDownsampledImage), which it
