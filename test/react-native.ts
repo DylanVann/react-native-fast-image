@@ -14,8 +14,10 @@ export const Platform: { OS: string; select: (spec: any) => any } = {
 export const NativeModules: Record<string, any> = {}
 
 function hostComponent(name: string) {
-    const Component = (props: any) =>
-        React.createElement(name, props, props.children)
+    // With its ref, as React Native's components forward theirs.
+    const Component: any = React.forwardRef((props: any, ref) =>
+        React.createElement(name, { ...props, ref }, props.children),
+    )
     Component.displayName = name
     return Component
 }
