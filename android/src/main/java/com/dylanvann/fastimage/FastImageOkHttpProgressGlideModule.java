@@ -7,6 +7,9 @@ import androidx.annotation.Nullable;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Registry;
 import com.bumptech.glide.annotation.GlideModule;
+import com.bumptech.glide.load.ImageHeaderParser;
+import com.bumptech.glide.load.ImageHeaderParserUtils;
+import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
 import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.Options;
 import com.bumptech.glide.load.model.GlideUrl;
@@ -21,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -62,7 +66,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
         OkHttpClient.Builder builder = sharedClient
                 .newBuilder()
-                .addInterceptor(createInterceptor(progressListener));
+                .addInterceptor(createInterceptor(progressListener))
+                // A network interceptor, so it runs before the HTTP cache of
+                // `web` images stores the response (checking it reads it).
+                .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()));
         // React Native's shared client comes with an empty cookie jar (React
         // Native only fills it in for its networking and Image clients), so
         // images were loaded without the app's cookies, unlike on iOS. Use the
@@ -71,8 +78,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler(context)));
         }
         OkHttpClient client = builder.build();
-        OkHttpUrlLoader.Factory factory = new OkHttpUrlLoader.Factory(client);
-        registry.replace(GlideUrl.class, InputStream.class, factory);
+        registry.replace(GlideUrl.class, InputStream.class, new UrlLoaderFactory(client));
 
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
@@ -83,6 +89,40 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         OkHttpClient webClient = client.newBuilder().cache(webCache).build();
         registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
+    }
+
+    // Loads GlideUrls with the given client, except `web` ones
+    // (FastImageWebGlideUrls): Glide gives a model to the loaders of its
+    // superclasses too, and tries the next one when a load fails, so a `web`
+    // image that failed (e.g. a 404) was requested again with this client,
+    // without the HTTP cache, which also hid the failure.
+    private static class UrlLoaderFactory implements ModelLoaderFactory<GlideUrl, InputStream> {
+        private final OkHttpClient client;
+
+        UrlLoaderFactory(OkHttpClient client) {
+            this.client = client;
+        }
+
+        @NonNull
+        @Override
+        public ModelLoader<GlideUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
+            final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
+            return new ModelLoader<GlideUrl, InputStream>() {
+                @Override
+                public LoadData<InputStream> buildLoadData(@NonNull GlideUrl model, int width, int height, @NonNull Options options) {
+                    return loader.buildLoadData(model, width, height, options);
+                }
+
+                @Override
+                public boolean handles(@NonNull GlideUrl model) {
+                    return !(model instanceof FastImageWebGlideUrl);
+                }
+            };
+        }
+
+        @Override
+        public void teardown() {
+        }
     }
 
     // Loads FastImageWebGlideUrls with the given client.
@@ -113,6 +153,50 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         @Override
         public void teardown() {
         }
+    }
+
+    // Fails a successful response that's clearly not an image: its type isn't
+    // an image's (text, JSON, XML other than SVG) and its first bytes aren't a
+    // format Glide recognizes, e.g. a captive portal's or a proxy's HTML page
+    // sent with status 200. Glide keeps the bytes it downloads in its disk
+    // cache before decoding them (and doesn't remove them when that fails), as
+    // does the HTTP cache of `web` images, so every later load of the url
+    // would fail too. Neither caches a failed response. Images sent with the
+    // wrong type still load.
+    private static Interceptor createNonImageInterceptor(final Registry registry, final ArrayPool arrayPool) {
+        return new Interceptor() {
+            @NonNull
+            @Override
+            public Response intercept(@NonNull Chain chain) throws IOException {
+                Response response = chain.proceed(chain.request());
+                ResponseBody body = response.body();
+                MediaType type = body == null ? null : body.contentType();
+                if (!response.isSuccessful() || type == null || !isNotImageType(type)) {
+                    return response;
+                }
+                ImageHeaderParser.ImageType imageType;
+                try (InputStream stream = response.peekBody(64 * 1024).byteStream()) {
+                    imageType = ImageHeaderParserUtils.getType(
+                            registry.getImageHeaderParsers(), stream, arrayPool);
+                }
+                if (imageType != ImageHeaderParser.ImageType.UNKNOWN) {
+                    return response;
+                }
+                response.close();
+                throw new IOException("Not an image (Content-Type: " + type + ")");
+            }
+        };
+    }
+
+    private static boolean isNotImageType(MediaType type) {
+        String subtype = type.subtype();
+        if ("text".equalsIgnoreCase(type.type())) return true;
+        if (!"application".equalsIgnoreCase(type.type())) return false;
+        return subtype.equalsIgnoreCase("json")
+                || subtype.toLowerCase(Locale.ROOT).endsWith("+json")
+                || subtype.equalsIgnoreCase("xml")
+                || subtype.equalsIgnoreCase("xhtml+xml")
+                || subtype.equalsIgnoreCase("javascript");
     }
 
     private static Interceptor createInterceptor(final ResponseProgressListener listener) {
