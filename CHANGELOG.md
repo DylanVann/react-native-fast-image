@@ -1,3 +1,10 @@
+# [8.14.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.2...v8.14.0) (2026-09-28)
+
+
+### Features
+
+* add FastImageBackground to show content on top of an image ([#1171](https://github.com/DylanVann/react-native-fast-image/issues/1171)) ([957712b](https://github.com/DylanVann/react-native-fast-image/commit/957712b11aaf57a3c41696673025d04b789b955f))
+
 ## [8.13.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.1...v8.13.2) (2026-09-28)
 
 
