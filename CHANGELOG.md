@@ -1,3 +1,10 @@
+## [8.16.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.0...v8.16.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **ios:** make preload follow source.cache ([#1173](https://github.com/DylanVann/react-native-fast-image/issues/1173)) ([f26f033](https://github.com/DylanVann/react-native-fast-image/commit/f26f033bd55acff730a833853fccfc32f10ca539))
+
 # [8.16.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.15.0...v8.16.0) (2026-09-28)
 
 
