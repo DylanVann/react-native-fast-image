@@ -17,13 +17,14 @@ const HELP = `Checks the library and runs both example apps on iOS and Android.
 
 Steps:
   1. JS: build, tests, typechecks, lint (oxlint) and formatting (oxfmt).
-  2. For each example app: start the packager, build for iOS and Android in
-     parallel, run the regression cases and the example screens through the
-     app's runner (driven over a WebSocket; a screenshot of each group is
-     compared with its reference in screenshots/; the touch cases are tapped
-     with maestro/touch.yaml), then, with --background, the Maestro flows in
-     maestro/ with maestro-runner, both platforms at once. A failed case, a
-     screenshot that differs, a flow failure or a crash fails the run.
+  2. Build every example app for iOS and Android (the platforms in
+     parallel), then for each app: start the packager, run the regression
+     cases and the example screens through the app's runner (driven over a
+     WebSocket; a screenshot of each group is compared with its reference in
+     screenshots/; the touch cases are tapped with maestro/touch.yaml), then,
+     with --background, the Maestro flows in maestro/ with maestro-runner,
+     both platforms at once. A failed case, a screenshot that differs, a flow
+     failure or a crash fails the run.
 
 Options:
   --app main|legacy   Only this example app (default: both).
@@ -2023,6 +2024,7 @@ async function main() {
         if (ready.length > 0 && !(await startImageServer())) ready.length = 0
         if (ready.length > 0 && FROM_PACKAGE && !(await installPackage()))
             ready.length = 0
+        const plans: { app: App; platforms: Platform[] }[] = []
         for (const app of APPS) {
             if (ready.length === 0) break
             if (!(await ensureNodeModules(appDir(app)))) continue
@@ -2030,8 +2032,15 @@ async function main() {
                 ready.includes('ios') && !(await iosPods(app))
                     ? ready.filter((p) => p !== 'ios')
                     : ready
-
-            // Metro first, so it builds the bundles while the apps build.
+            plans.push({ app, platforms })
+        }
+        // Every app is built before any runs, so builds don't slow the
+        // devices while cases are timed. Each platform builds the apps one
+        // after the other (both apps' Android builds compile the library into
+        // android/build), the platforms in parallel. Metro serves one app at a
+        // time (port 8081): the first app's starts now and builds its bundles
+        // meanwhile.
+        const startApp = async (app: App, platforms: Platform[]) => {
             if (!(await startMetro(app))) {
                 record(
                     'FAIL',
@@ -2039,20 +2048,44 @@ async function main() {
                     `see ${rel(path.join(OUT, `metro-${app}.log`))}`,
                 )
                 await stopMetro()
-                continue
+                return false
             }
             bundleWarm = warmBundles(app, platforms)
-            say(`Building ${app} (${platforms.join(' ')})`)
-            const built = await Promise.all(platforms.map((p) => build[p](app)))
-            const toRun = platforms.filter((_, i) => built[i])
-            if (toRun.length === 0) {
-                await stopMetro()
+            return true
+        }
+        const first = plans[0]
+        const firstStarted = first
+            ? await startApp(first.app, first.platforms)
+            : false
+        if (plans.length > 0) {
+            say(
+                `Building ${plans.map(({ app, platforms }) => `${app} (${platforms.join(' ')})`).join(', ')}`,
+            )
+        }
+        const built = new Map<App, Platform[]>()
+        await Promise.all(
+            ready.map(async (platform) => {
+                for (const { app, platforms } of plans) {
+                    if (!platforms.includes(platform)) continue
+                    if (await build[platform](app)) {
+                        built.set(app, [...(built.get(app) ?? []), platform])
+                    }
+                }
+            }),
+        )
+        for (const { app } of plans) {
+            const toRun = ready.filter((p) => built.get(app)?.includes(p))
+            if (app === first?.app) {
+                if (!firstStarted) continue
+            } else if (toRun.length === 0 || !(await startApp(app, toRun))) {
                 continue
             }
-            say(
-                `Running the regression runner and flows for ${app} (${toRun.join(' ')})`,
-            )
-            await Promise.all(toRun.map((p) => flows[p](app)))
+            if (toRun.length > 0) {
+                say(
+                    `Running the regression runner and flows for ${app} (${toRun.join(' ')})`,
+                )
+                await Promise.all(toRun.map((p) => flows[p](app)))
+            }
             await stopMetro()
         }
     }
