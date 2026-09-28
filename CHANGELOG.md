@@ -1,3 +1,10 @@
+## [8.13.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.1...v8.13.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **android:** release a view's image when it's removed or its source is cleared ([#1165](https://github.com/DylanVann/react-native-fast-image/issues/1165)) ([00adb71](https://github.com/DylanVann/react-native-fast-image/commit/00adb71ad09f6616fb24151111e7331f83880e05))
+
 ## [8.13.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.13.0...v8.13.1) (2026-09-26)
 
 
