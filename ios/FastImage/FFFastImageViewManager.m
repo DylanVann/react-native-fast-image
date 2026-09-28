@@ -69,7 +69,9 @@ static void FFFStartPendingPreloads(void)
 }
 
 // Resolves with a result per source, in order, once all have loaded or failed:
-// { ok, width, height } or { ok: false, error }. Never rejects.
+// { ok, width, height } or { ok: false, error }. Never rejects. A source with
+// memoryCache false is only stored on disk, without decoding it (its size
+// comes from the header).
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
@@ -115,13 +117,20 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                 }
             }
             options |= [source cacheOptions];
+            SDWebImageMutableContext *context = FFFPreloadContext(source);
+            if (!source.memoryCache) {
+                // Not decoded (only its header is read, for the size), and not
+                // kept in memory, also when it comes from the disk cache.
+                options |= SDWebImageAvoidDecodeImage;
+                context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+            }
             [FFFPendingPreloads addObject:[^{
                 // Once per slot: SDWebImage calls this once with finished set
                 // (a progressive load calls it more, without).
                 __block BOOL done = NO;
                 [[SDWebImageManager sharedManager] loadImageWithURL:source.url
                                                             options:options
-                                                            context:[FFFPreloadContext(source) copy]
+                                                            context:[context copy]
                                                            progress:nil
                                                           completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
                     if (!finished || done) {

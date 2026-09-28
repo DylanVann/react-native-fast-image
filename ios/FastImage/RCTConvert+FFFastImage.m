@@ -49,6 +49,8 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     imageSource.hasPriority = priorityJSON && priorityJSON != (id)kCFNull;
     NSString *cacheKey = [self NSString:json[@"cacheKey"]];
     imageSource.cacheKey = cacheKey.length > 0 ? cacheKey : nil;
+    id memoryCache = json[@"memoryCache"];
+    imageSource.memoryCache = memoryCache && memoryCache != (id)kCFNull ? [self BOOL:memoryCache] : YES;
     
     return imageSource;
 }

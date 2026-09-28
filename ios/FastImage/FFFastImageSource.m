@@ -18,6 +18,7 @@ static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
         _priority = priority;
         _headers = headers;
         _cacheControl = cacheControl;
+        _memoryCache = YES;
     }
     return self;
 }

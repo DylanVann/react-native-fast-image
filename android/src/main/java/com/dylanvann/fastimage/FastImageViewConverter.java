@@ -64,6 +64,9 @@ class FastImageViewConverter {
         if (source == null) return null;
         FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
         imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
+        if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
+            imageSource.setMemoryCache(source.getBoolean("memoryCache"));
+        }
         if (source.hasKey("cacheKey") && source.getType("cacheKey") == ReadableType.String) {
             imageSource.setCacheKey(source.getString("cacheKey"));
         }
@@ -116,7 +119,8 @@ class FastImageViewConverter {
         RequestOptions options = new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
                 .onlyRetrieveFromCache(onlyFromCache)
-                .skipMemoryCache(skipMemoryCache)
+                // memoryCache false: only kept on disk.
+                .skipMemoryCache(skipMemoryCache || (imageSource != null && !imageSource.isMemoryCache()))
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 

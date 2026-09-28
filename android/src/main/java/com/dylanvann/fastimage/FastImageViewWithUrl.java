@@ -4,6 +4,7 @@ import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EV
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
@@ -108,8 +109,20 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // Shows each GIF as this view's own animation. Glide's target also starts
     // and stops it with the Activity, as it does Glide's own GifDrawable.
     private final class OwnGifTarget extends DrawableImageViewTarget {
-        OwnGifTarget() {
+        // Shown instead of the placeholder while loading (see shownCopy).
+        @Nullable
+        private Drawable mMeanwhile;
+
+        OwnGifTarget(@Nullable Drawable meanwhile) {
             super(FastImageViewWithUrl.this);
+            mMeanwhile = meanwhile;
+        }
+
+        @Override
+        public void onLoadStarted(@Nullable Drawable placeholder) {
+            Drawable meanwhile = mMeanwhile;
+            mMeanwhile = null;
+            super.onLoadStarted(meanwhile != null ? meanwhile : placeholder);
         }
 
         @Override
@@ -287,12 +300,35 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private void reloadForSize() {
         RequestBuilder<Drawable> shown = mShownRequest;
         RequestBuilder<Drawable> current = fromCache(shown);
+        Drawable meanwhile = shownCopy(shown);
         mLoadCount++;
         clearView(requestManager);
-        into(shown, shown.clone()
-                .thumbnail(current)
+        RequestBuilder<Drawable> builder = shown.clone()
                 .error(current.clone())
-                .listener(new FastImageRequestListener(null, null, true, false)));
+                .listener(new FastImageRequestListener(null, null, true, false));
+        if (meanwhile == null) builder = builder.thumbnail(current);
+        into(shown, builder, meanwhile);
+    }
+
+    // A copy of the image showing, for the view to show while the next one
+    // loads, when it isn't in Glide's memory cache (source.memoryCache false):
+    // a thumbnail of it would come from the disk, after the view has cleared,
+    // and its own bitmap is reused once its request is cleared. Only the view
+    // keeps the copy, until the next image replaces it. Null when the image
+    // is in the memory cache, or isn't a bitmap (a GIF).
+    @Nullable
+    private Drawable shownCopy(RequestBuilder<Drawable> shown) {
+        if (shown.isMemoryCacheable()) return null;
+        Drawable drawable = getDrawable();
+        if (!(drawable instanceof BitmapDrawable)) return null;
+        Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
+        if (bitmap == null || bitmap.isRecycled()) return null;
+        Bitmap.Config config = bitmap.getConfig();
+        Bitmap copy = bitmap.copy(config != null ? config : Bitmap.Config.ARGB_8888, false);
+        if (copy == null) return null;
+        BitmapDrawable result = new BitmapDrawable(getResources(), copy);
+        if (mPixelated) result.setFilterBitmap(false);
+        return result;
     }
 
     // The shown image, from the cache only (never loaded again), at the size
@@ -304,15 +340,15 @@ class FastImageViewWithUrl extends AppCompatImageView {
         return request;
     }
 
-    // Starts loading the request (built by builder), recording the size Glide
-    // loads it at. The size callback is added first, so it has the size by
+    // Starts loading the request (built by builder), showing meanwhile (if
+    // not null) until it loads, and recording the size Glide loads it at. The size callback is added first, so it has the size by
     // the time the image loads, even from the memory cache.
-    private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder) {
+    private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder, @Nullable Drawable meanwhile) {
         final int load = mLoadCount;
         mLoadingRequest = request;
         mLoadingWidth = 0;
         mLoadingHeight = 0;
-        OwnGifTarget target = new OwnGifTarget();
+        OwnGifTarget target = new OwnGifTarget(meanwhile);
         target.getSize(new SizeReadyCallback() {
             @Override
             public void onSizeReady(int width, int height) {
@@ -399,6 +435,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
             untrackUrl(viewsForUrlsMap);
         }
 
+        // Before the view clears (see shownCopy).
+        Drawable meanwhile = shownRequest != null && imageSource != null ? shownCopy(shownRequest) : null;
+
         // Cancel existing request.
         this.glideUrl = glideUrl;
         clearView(requestManager);
@@ -440,7 +479,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             .apply(renderingOptions(model));
             RequestBuilder<Drawable> request = builder.clone();
 
-            boolean thumbnail = shownRequest != null && model != null;
+            if (model == null) meanwhile = null;
+            boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
             if (thumbnail) {
                 builder = builder.thumbnail(fromCache(shownRequest));
             }
@@ -448,7 +488,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (key != null)
                 builder.listener(new FastImageRequestListener(key, imageSource, thumbnail, true));
 
-            into(request, builder);
+            into(request, builder, meanwhile);
         }
     }
 

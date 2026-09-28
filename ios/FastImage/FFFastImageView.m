@@ -515,10 +515,19 @@ NSString *FFFErrorMessage(NSError *error)
     self.decodedCover = [self decodeCovers];
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
+        if (!_source.memoryCache) {
+            // Only on disk, also when it comes from there.
+            context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+        }
         return context;
     }
     NSString* key = _source.cacheKeyFilter ? _source.cacheKey : _source.url.absoluteString;
     [FFFDownsampledImage addToContext: context forKey: key box: box cover: self.decodedCover];
+    if (!_source.memoryCache) {
+        // The smaller copy is only kept in memory, so it isn't kept (the
+        // downloaded file is still on disk).
+        context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeNone);
+    }
     return context;
 }
 
