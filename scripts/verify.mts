@@ -20,9 +20,10 @@ Steps:
   2. For each example app: start the packager, build for iOS and Android in
      parallel, run the regression cases and the example screens through the
      app's runner (driven over a WebSocket; a screenshot of each group is
-     compared with its reference in screenshots/), then run the Maestro flows
-     in maestro/ with maestro-runner, both platforms at once. A failed case,
-     a screenshot that differs, a flow failure or a crash fails the run.
+     compared with its reference in screenshots/; the touch cases are tapped
+     with maestro/touch.yaml), then, with --background, the Maestro flows in
+     maestro/ with maestro-runner, both platforms at once. A failed case, a
+     screenshot that differs, a flow failure or a crash fails the run.
 
 Options:
   --app main|legacy   Only this example app (default: both).
@@ -1159,11 +1160,17 @@ async function runRegression(
         `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${platform}`,
     )
     ws.onopen = notify
+    // The group on screen. If the app starts again (maestro-runner's iOS
+    // driver relaunches it for the touch group), show that group again.
+    let showing: number | undefined
     ws.onmessage = (event) => {
         const message = JSON.parse(String(event.data)) as RunnerMessage
         logLine(`<- ${JSON.stringify(message)}`)
         if (message.type === 'app') appConnected = message.connected === true
         else messages.push(message)
+        if (message.type === 'hello' && showing !== undefined) {
+            send({ type: 'show', index: showing })
+        }
         if (message.type === 'sample' && groups.length > 0) startSample(message)
         if (message.type === 'sampleDone') {
             openSamples.get(`${message.group}/${message.name}`)?.done?.()
@@ -1282,6 +1289,7 @@ async function runRegression(
         )?.status as string | undefined
     for (let index = 0; index < groups.length; index++) {
         const group = groups[index]
+        showing = index
         const groupStart = Date.now()
         const shown = await waitFor(
             () => messages.find((m) => m.type === 'group' && m.index === index),
@@ -1294,6 +1302,35 @@ async function runRegression(
             break
         }
         const cases = shown.cases as string[]
+        // Cases that need a real touch: tap them (maestro/touch.yaml). They
+        // report their OK like the others.
+        if (group === 'touch') {
+            const tapped = await run(
+                MAESTRO_RUNNER,
+                [
+                    ...maestroArgs(platform, device),
+                    'test',
+                    '-e',
+                    `APP_ID=${appId}`,
+                    '--output',
+                    path.join(dir, 'touch-report'),
+                    '--flatten',
+                    path.join(ROOT, 'maestro/touch.yaml'),
+                ],
+                {
+                    cwd: dir,
+                    log: path.join(dir, 'touch.log'),
+                    timeout: FLOWS_TIMEOUT,
+                    extraEnv: MAESTRO_ENV,
+                },
+            )
+            logLine(
+                `touch flow: ${tapped.ok ? 'OK' : `failed${tapped.timedOut ? ' (timed out)' : ''}, see touch.log`}`,
+            )
+        }
+        // The group's time limit counts from here (the taps can take a while
+        // the first time maestro-runner builds WebDriverAgent).
+        const waitStart = Date.now()
         // true once every case is OK, false if the app went away.
         const result = await waitFor(
             () =>
@@ -1302,7 +1339,7 @@ async function runRegression(
                     : appConnected && !socketError
                       ? undefined
                       : false,
-            GROUP_TIMEOUT - (Date.now() - groupStart),
+            GROUP_TIMEOUT - (Date.now() - waitStart),
         )
         statuses[group] = Object.fromEntries(
             cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
@@ -1425,7 +1462,35 @@ function saveRecording(
     record('PASS', name, rel(target))
 }
 
-// Runs every flow in maestro/ in one maestro-runner call (one driver session),
+// maestro-runner's arguments for a device. The Android driver usually starts
+// in seconds, but can take longer right after an app install while Android
+// compiles it.
+function maestroArgs(platform: Platform, device: string) {
+    return [
+        '--platform',
+        platform,
+        '--device',
+        device,
+        ...(platform === 'android'
+            ? [
+                  '--driver',
+                  env.MAESTRO_RUNNER_ANDROID_DRIVER ?? 'devicelab',
+                  '--driver-start-timeout',
+                  '90',
+              ]
+            : []),
+    ]
+}
+
+// maestro-runner builds WebDriverAgent for iOS; see the xcconfig.
+const MAESTRO_ENV = {
+    XCODE_XCCONFIG_FILE:
+        env.XCODE_XCCONFIG_FILE ??
+        path.join(ROOT, 'scripts/maestro-runner-wda.xcconfig'),
+}
+
+// Runs the flows in maestro/ (with --background; the `runner` flow is run by
+// runRegression) in one maestro-runner call (one driver session),
 // then reads each flow's result from the report. Screenshots (and recordings
 // with --record) go to the report's assets folder.
 async function runFlows(
@@ -1440,32 +1505,18 @@ async function runFlows(
     // minute on iOS (maestro-runner polls slowly on the home screen).
     const timeout = FLOWS_TIMEOUT + (options.background ? 120 : 0)
     const log = path.join(dir, 'flows.log')
-    // The Android driver usually starts in seconds, but can take longer right
-    // after an app install while Android compiles it.
-    const driver =
-        platform === 'android'
-            ? [
-                  '--driver',
-                  env.MAESTRO_RUNNER_ANDROID_DRIVER ?? 'devicelab',
-                  '--driver-start-timeout',
-                  '90',
-              ]
-            : []
     const result = await run(
         MAESTRO_RUNNER,
         [
-            '--platform',
-            platform,
-            '--device',
-            device,
-            ...driver,
+            ...maestroArgs(platform, device),
             'test',
             '-e',
             `APP_ID=${appId}`,
             '--output',
             path.join(dir, 'report'),
             '--flatten',
-            ...(options.background ? [] : ['--exclude-tags', 'background']),
+            '--exclude-tags',
+            'runner',
             ...(RECORD ? ['--video', 'always'] : []),
             path.join(ROOT, 'maestro'),
         ],
@@ -1473,12 +1524,7 @@ async function runFlows(
             cwd: dir,
             log,
             timeout,
-            // maestro-runner builds WebDriverAgent for iOS; see the xcconfig.
-            extraEnv: {
-                XCODE_XCCONFIG_FILE:
-                    env.XCODE_XCCONFIG_FILE ??
-                    path.join(ROOT, 'scripts/maestro-runner-wda.xcconfig'),
-            },
+            extraEnv: MAESTRO_ENV,
         },
     )
     let flows: { name: string; status: string; assetsDir?: string }[] = []
@@ -1681,7 +1727,8 @@ async function buildIos(app: App) {
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
-    await runFlows(app, 'ios', iosUdid, iosBundleId(app))
+    if (options.background)
+        await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     const reports = path.join(os.homedir(), 'Library/Logs/DiagnosticReports')
     for (const file of fs.existsSync(reports) ? fs.readdirSync(reports) : []) {
         if (!file.startsWith(`${appName(app)}-`) || !file.endsWith('.ips'))
@@ -1874,7 +1921,7 @@ async function flowsAndroid(app: App) {
     const pkg = androidPackage(app)
     capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-c'])
     await runRegression(app, 'android', androidSerial, pkg)
-    await runFlows(app, 'android', androidSerial, pkg)
+    if (options.background) await runFlows(app, 'android', androidSerial, pkg)
     const crashes =
         capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-d']) ?? ''
     if (crashes.includes(pkg)) {

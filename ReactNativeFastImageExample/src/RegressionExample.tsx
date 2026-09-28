@@ -23,12 +23,12 @@ import {
 } from './RunnerContext'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
-// event arrives. The cases that need no touch are in REGRESSION_GROUPS, which
-// the regression runner (RegressionRunner.tsx) shows a group at a time and
-// reports over a WebSocket to scripts/verify.mts; the Regression tab shows all
-// of them at once for a look by hand, plus the cases a flow has to touch
-// (maestro/touch.yaml, maestro/background.yaml). A crash fails the run because
-// the app is gone.
+// event arrives. They're in REGRESSION_GROUPS, which the regression runner
+// (RegressionRunner.tsx) shows a group at a time and reports over a WebSocket
+// to scripts/verify.mts (which taps the `touch` group's cases with
+// maestro/touch.yaml); the Regression tab shows all of them at once for a look
+// by hand, plus the cases that send the app to the background
+// (maestro/background.yaml). A crash fails the run because the app is gone.
 
 // A case's status line ("<id>: <status>", OK when it passed) and description.
 // The runner is told the status too (RunnerContext.tsx). One line, so a long
@@ -214,8 +214,8 @@ function ClearTintCase() {
     )
 }
 
-// FastImage as a Touchable's direct child. The flow taps it; passes when
-// onPress fires. The Touchable passes onClick to its child, which crashed on
+// FastImage as a Touchable's direct child. maestro/touch.yaml taps it; passes
+// when onPress fires. The Touchable passes onClick to its child, which crashed on
 // iOS ("unrecognized selector ... setOnClick:").
 function TouchableCase() {
     const [pressed, setPressed] = useState(false)
@@ -236,8 +236,8 @@ function TouchableCase() {
     )
 }
 
-// A FastImage with pointerEvents="none" over a Pressable. The flow taps the
-// Pressable's position; passes when it gets the press. pointerEvents went to
+// A FastImage with pointerEvents="none" over a Pressable. maestro/touch.yaml
+// taps the Pressable's position; passes when it gets the press. pointerEvents went to
 // the image inside FastImage's wrapper, which still took the touch.
 function PointerEventsCase() {
     const [pressed, setPressed] = useState(false)
@@ -2183,6 +2183,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
         ],
     },
+    {
+        // Tapped by scripts/verify.mts (maestro/touch.yaml) while it's shown.
+        // Last, so starting maestro-runner doesn't hold up the others.
+        name: 'touch',
+        cases: [
+            <TouchableCase key="touchable" />,
+            <PointerEventsCase key="pointer-events" />,
+        ],
+    },
 ]
 
 export default function RegressionExample() {
@@ -2194,8 +2203,6 @@ export default function RegressionExample() {
         >
             <Text style={styles.title}>Regression checks</Text>
             <BackgroundCases />
-            <TouchableCase />
-            <PointerEventsCase />
             {REGRESSION_GROUPS.map((group) => (
                 <React.Fragment key={group.name}>
                     <Text style={styles.group}>{group.name}</Text>
