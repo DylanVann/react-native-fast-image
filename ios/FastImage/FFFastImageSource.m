@@ -29,6 +29,19 @@
     }];
 }
 
+- (SDWebImageOptions)cacheOptions
+{
+    switch (_cacheControl) {
+        case FFFCacheControlWeb:
+            return SDWebImageRefreshCached;
+        case FFFCacheControlCacheOnly:
+            return SDWebImageFromCacheOnly;
+        case FFFCacheControlImmutable:
+            return 0;
+    }
+    return 0;
+}
+
 - (SDWebImageDownloaderRequestModifier *)requestModifier
 {
     NSDictionary* headers = _headers;

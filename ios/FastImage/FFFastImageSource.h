@@ -2,6 +2,7 @@
 #import <UIKit/UIKit.h>
 #import <SDWebImage/SDWebImageDownloaderRequestModifier.h>
 #import <SDWebImage/SDWebImageCacheKeyFilter.h>
+#import <SDWebImage/SDWebImageDefine.h>
 
 typedef NS_ENUM(NSInteger, FFFPriority) {
     FFFPriorityLow,
@@ -41,5 +42,9 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 
 // Caches the image under cacheKey, or nil without one.
 - (SDWebImageCacheKeyFilter *)cacheKeyFilter;
+
+// The load options for `cache`: web follows the HTTP cache, cacheOnly never
+// downloads. For views and preload alike.
+- (SDWebImageOptions)cacheOptions;
 
 @end
