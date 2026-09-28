@@ -1,3 +1,10 @@
+# [8.16.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.15.0...v8.16.0) (2026-09-28)
+
+
+### Features
+
+* add source.cacheKey to cache an image under a key instead of its url ([#1161](https://github.com/DylanVann/react-native-fast-image/issues/1161)) ([c7964bd](https://github.com/DylanVann/react-native-fast-image/commit/c7964bd10884d3d225fad7eb46d412fec5f1ad9f)), thanks [@paulrostorp](https://github.com/paulrostorp)
+
 # [8.15.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.14.0...v8.15.0) (2026-09-28)
 
 
