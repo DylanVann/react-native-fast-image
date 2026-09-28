@@ -161,7 +161,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 - (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
     _onFastImageLoadEnd = onFastImageLoadEnd;
     if (self.hasCompleted && _onFastImageLoadEnd) {
-        _onFastImageLoadEnd(@{});
+        _onFastImageLoadEnd([self loadEndEvent: YES]);
     }
 }
 
@@ -282,6 +282,14 @@ NSString *FFFErrorMessage(NSError *error)
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
     }
+}
+
+// onLoadEnd's event: the load's result, as onLoad or onError sent it (ok: its
+// size, or not ok: the error).
+- (NSDictionary*) loadEndEvent: (BOOL)ok {
+    NSMutableDictionary* event = [NSMutableDictionary dictionaryWithDictionary: (ok ? self.onLoadEvent : self.onErrorEvent) ?: @{}];
+    event[@"ok"] = @(ok);
+    return event;
 }
 
 - (void) setSource: (FFFastImageSource*)source {
@@ -429,7 +437,7 @@ NSString *FFFErrorMessage(NSError *error)
                 self.showsLoadedImage = NO;
                 [self sendOnError: @"Failed to decode the image"];
                 if (self.onFastImageLoadEnd) {
-                    self.onFastImageLoadEnd(@{});
+                    self.onFastImageLoadEnd([self loadEndEvent: NO]);
                 }
                 return;
             }
@@ -445,7 +453,7 @@ NSString *FFFErrorMessage(NSError *error)
             [self sendOnLoad: image];
 
             if (self.onFastImageLoadEnd) {
-                self.onFastImageLoadEnd(@{});
+                self.onFastImageLoadEnd([self loadEndEvent: YES]);
             }
             return;
         }
@@ -621,14 +629,14 @@ NSString *FFFErrorMessage(NSError *error)
                     weakSelf.showsLoadedImage = NO;
                     [weakSelf sendOnError: FFFErrorMessage(error)];
                     if (weakSelf.onFastImageLoadEnd) {
-                        weakSelf.onFastImageLoadEnd(@{});
+                        weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: NO]);
                     }
                 } else {
                     weakSelf.hasCompleted = YES;
                     weakSelf.showsLoadedImage = YES;
                     [weakSelf sendOnLoad: image];
                     if (weakSelf.onFastImageLoadEnd) {
-                        weakSelf.onFastImageLoadEnd(@{});
+                        weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: YES]);
                     }
                 }
             }];

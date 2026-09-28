@@ -1,7 +1,6 @@
 package com.dylanvann.fastimage;
 
 import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
-import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_LOAD_END_EVENT;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -376,10 +375,11 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // resolved: fire onError and onLoadEnd and show defaultSource, as on iOS
         // (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
+            String error = "Invalid source: " + mSource;
             WritableMap event = new WritableNativeMap();
-            event.putString("error", "Invalid source: " + mSource);
+            event.putString("error", error);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
-            FastImageEvents.send(this, REACT_ON_LOAD_END_EVENT);
+            FastImageEvents.sendLoadEnd(this, error);
 
             // Cancel existing requests.
             clearView(requestManager);

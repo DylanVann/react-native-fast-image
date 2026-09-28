@@ -242,9 +242,19 @@ e.g. `onError={e => console.log(e.nativeEvent.error)}`
 
 ---
 
-### `onLoadEnd?: () => void`
+### `onLoadEnd?: (result) => void`
 
-Called when the image finishes loading, whether it was successful or an error.
+Called when the image finishes loading, whether it was successful or an error, with the result: `{ ok: true, width, height }` (the image's size, as `onLoad` gets it) or `{ ok: false, error }` (as `onError` gets it). TypeScript makes you check `ok` before reading the size or the error.
+
+```jsx
+<FastImage
+    source={{ uri }}
+    onLoadEnd={(result) => {
+        if (result.ok) setAspectRatio(result.width / result.height)
+        else setFailed(result.error)
+    }}
+/>
+```
 
 ---
 
