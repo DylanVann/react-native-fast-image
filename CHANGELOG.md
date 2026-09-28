@@ -1,3 +1,10 @@
+## [8.16.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.1...v8.16.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* clear the HTTP cache of web images in clearDiskCache ([#1174](https://github.com/DylanVann/react-native-fast-image/issues/1174)) ([75009ac](https://github.com/DylanVann/react-native-fast-image/commit/75009ac2e351d370a7dfd79b2a9894e4a38682eb))
+
 ## [8.16.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.0...v8.16.1) (2026-09-28)
 
 
