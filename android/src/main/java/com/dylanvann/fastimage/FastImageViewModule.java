@@ -24,6 +24,7 @@ import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 
 class FastImageViewModule extends ReactContextBaseJavaModule {
@@ -190,6 +191,13 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         }
 
         Glide.get(activity.getApplicationContext()).clearDiskCache();
+        // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
+        // cache.
+        try {
+            FastImageOkHttpProgressGlideModule.clearWebCache();
+        } catch (IOException e) {
+            // Cleared as far as it could.
+        }
         promise.resolve(null);
     }
 }

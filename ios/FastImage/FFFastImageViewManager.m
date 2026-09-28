@@ -42,6 +42,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
 {
     SDWebImageMutableContext *context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
+    context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     return context;
 }
@@ -153,6 +154,8 @@ RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPr
 
 RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
 {
+    // And the HTTP cache of `cache: 'web'` images.
+    [FFFastImageSource.webURLCache removeAllCachedResponses];
     [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){
         resolve(NULL);
     }];

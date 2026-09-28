@@ -610,6 +610,56 @@ function WebCacheCase() {
     )
 }
 
+// Loads an image with `cache: 'web'` that the server marks as cacheable for an
+// hour, clears the caches, and loads it again: the server should get a second
+// request. clearDiskCache left the HTTP cache of `web` images (Android's, and
+// on iOS the app's shared NSURLCache), so it came from there.
+const WEB_CLEAR_PATH = `/max-age/picsum/1025-200x200.jpg?web-clear=${RUN}`
+function WebCacheClearCase() {
+    const [step, setStep] = useState<'first' | 'cleared' | 'done'>('first')
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (step !== 'done') return
+        fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_CLEAR_PATH)}`))
+            .then((response) => response.json())
+            .then((json) => setRequests(json.count))
+            .catch(() => setRequests(-1))
+    }, [step])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                // A new view for the second load, which stays (showing the
+                // image) once it's done.
+                key={step === 'first' ? 'first' : 'second'}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(WEB_CLEAR_PATH.slice(1)),
+                    cache: FastImage.cacheControl.web,
+                }}
+                onLoad={() => {
+                    if (step === 'first') {
+                        Promise.all([
+                            FastImage.clearMemoryCache(),
+                            FastImage.clearDiskCache(),
+                        ]).then(() => setStep('cleared'))
+                    } else setStep('done')
+                }}
+            />
+            <CaseStatus
+                id="web-cache-clear"
+                status={
+                    requests === undefined
+                        ? step
+                        : requests === 2
+                          ? 'OK'
+                          : `requested ${requests} times`
+                }
+                description="clearDiskCache also clears the HTTP cache of cache web images (loaded again after clearing)"
+            />
+        </View>
+    )
+}
+
 // Loads an image the server sends without a Content-Length, so its size is
 // unknown while it loads, and passes if no onProgress event had a total of 0
 // or less (both platforms sent -1, which made loaded / total negative).
@@ -2350,6 +2400,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <WebCacheCase key="web-cache" />,
             <CookiesCase key="cookies" />,
         ],
+    },
+    {
+        // Clears the caches, so on its own.
+        name: 'web-cache-clear',
+        cases: [<WebCacheClearCase key="web-cache-clear" />],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and
