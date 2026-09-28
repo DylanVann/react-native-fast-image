@@ -984,10 +984,10 @@ function SourceClearedWhileLoadingCase({ id }: { id: string }) {
     const [step, setStep] = useState<'loading' | 'cleared' | 'done'>('loading')
     const [loads, setLoads] = useState(0)
     useEffect(() => {
-        // The slow image takes about 2.4 s.
+        // The slow image takes about 1.2 s.
         const cleared = setTimeout(() => setStep('cleared'), 400)
         // Once it would have finished, had it not been cancelled.
-        const done = setTimeout(() => setStep('done'), 3500)
+        const done = setTimeout(() => setStep('done'), 2000)
         return () => {
             clearTimeout(cleared)
             clearTimeout(done)
@@ -1001,7 +1001,7 @@ function SourceClearedWhileLoadingCase({ id }: { id: string }) {
                     step === 'loading'
                         ? {
                               uri: slowImageUrl(
-                                  `cyan.png?${id}=${RUN}&delay=300`,
+                                  `cyan.png?${id}=${RUN}&delay=150`,
                               ),
                               headers: BACKGROUND_SLOW_HEADERS,
                           }
@@ -1059,7 +1059,7 @@ function SourceChangeWhileLoadingCase({
     }, [id, keepPrevious])
     useEffect(() => {
         if (step !== 'slow') return
-        // The slow image takes about 2.4 s.
+        // The slow image takes about 1.2 s.
         const timer = setTimeout(() => setStep('changed'), 400)
         return () => clearTimeout(timer)
     }, [step])
@@ -1070,7 +1070,7 @@ function SourceChangeWhileLoadingCase({
               ? { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
               : step === 'slow'
                 ? {
-                      uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=300`),
+                      uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=150`),
                       headers: BACKGROUND_SLOW_HEADERS,
                   }
                 : toData
@@ -1090,9 +1090,9 @@ function SourceChangeWhileLoadingCase({
                     else if (step === 'changed' || step === 'done') {
                         setLoads((n) => n + 1)
                         // Once the slow image would have finished (about
-                        // 2.4 s from its start), had it not been cancelled.
+                        // 1.2 s from its start), had it not been cancelled.
                         if (step === 'changed')
-                            setTimeout(() => setStep('done'), 2500)
+                            setTimeout(() => setStep('done'), 1500)
                     }
                 }}
             />
@@ -1175,7 +1175,7 @@ function PreloadLimitCase() {
     useEffect(() => {
         const sources = [0, 1, 2, 3].map((i) => ({
             uri: slowImageUrl(
-                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}&delay=300`,
+                `picsum/1020-120x120.jpg?group=${PRELOAD_LIMIT_GROUP}&i=${i}&delay=150`,
             ),
             headers: { 'x-token': 'fast-image' },
         }))
@@ -2141,7 +2141,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // The slow ones: the slow server takes about 2 s per image here, and
+        // The slow ones: the slow server takes about 1 s per image here, and
         // preload-limit loads 4 of them, 3 at a time.
         name: 'preload',
         cases: [
