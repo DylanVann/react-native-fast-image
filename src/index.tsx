@@ -440,6 +440,64 @@ const styles = StyleSheet.create({
     },
 })
 
+export interface FastImageBackgroundProps extends Omit<
+    FastImageProps,
+    'style' | 'children'
+> {
+    /** The container's style; the image fills it. */
+    style?: StyleProp<ViewStyle>
+    /** The image's style. */
+    imageStyle?: StyleProp<ImageStyle>
+    /** A ref to the image (the FastImage inside). */
+    imageRef?: React.Ref<any>
+    /** Content shown on top of the image. */
+    children?: React.ReactNode
+}
+
+// FastImage forwards its ref, which its type doesn't say.
+const FastImageWithRef = FastImageComponent as React.ComponentType<
+    FastImageProps & { ref?: React.Ref<any> }
+>
+
+/**
+ * An image with content on top of it, like React Native's `ImageBackground`: a
+ * view that the image fills, with the children on top. Use it rather than
+ * giving `FastImage` children, which it won't render in the next major version
+ * (the image will be a single native view). The other props go to the image;
+ * the ref is the view's.
+ */
+export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> =
+    forwardRef(
+        (
+            {
+                style,
+                imageStyle,
+                imageRef,
+                children,
+                importantForAccessibility,
+                ...props
+            }: FastImageBackgroundProps,
+            ref: React.Ref<any>,
+        ) => (
+            <View
+                accessibilityIgnoresInvertColors
+                importantForAccessibility={importantForAccessibility}
+                style={style}
+                ref={ref}
+            >
+                <FastImageWithRef
+                    {...props}
+                    importantForAccessibility={importantForAccessibility}
+                    style={[StyleSheet.absoluteFill, imageStyle]}
+                    ref={imageRef}
+                />
+                {children}
+            </View>
+        ),
+    )
+
+FastImageBackground.displayName = 'FastImageBackground'
+
 // Types of requireNativeComponent are not correct.
 const FastImageView = (requireNativeComponent as any)(
     'FastImageView',

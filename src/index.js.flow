@@ -96,6 +96,15 @@ export type FastImageProps = $ReadOnly<{|
     testID?: ?string,
 |}>
 
+export type FastImageBackgroundProps = $ReadOnly<{|
+    ...FastImageProps,
+    imageStyle?: $PropertyType<ViewProps, 'style'>,
+    imageRef?: React$Ref<any>,
+    children?: React$Node,
+|}>
+
+declare export var FastImageBackground: React$ComponentType<FastImageBackgroundProps>
+
 declare export default class FastImage extends React$Component<FastImageProps> {
     static resizeMode: ResizeMode;
     static priority: Priority;

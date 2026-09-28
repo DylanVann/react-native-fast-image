@@ -265,6 +265,31 @@ In this case the image will still be styled and laid out the same way as `FastIm
 
 If supplied, changes the color of all the non-transparent pixels to the given color.
 
+## `FastImageBackground`
+
+An image with content on top of it, like React Native's `ImageBackground`: a view that the image fills, with the children on top.
+
+Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1137](https://github.com/DylanVann/react-native-fast-image/pull/1137)), which can't hold them. `FastImageBackground` works the same in both.
+
+```jsx
+import { FastImageBackground } from 'react-native-fast-image'
+
+const Banner = () => (
+    <FastImageBackground
+        source={{ uri: 'https://unsplash.it/400/200?image=1' }}
+        style={{ width: 200, height: 100 }}
+        imageStyle={{ borderRadius: 8 }}
+    >
+        <Text>On top of the image</Text>
+    </FastImageBackground>
+)
+```
+
+- `style`: the view's style (it sizes the view, which the image fills).
+- `imageStyle`: the image's style.
+- `imageRef`: a ref to the image.
+- The other props are `FastImage`'s, for the image.
+
 ## Static Methods
 
 ### `FastImage.preload: (source[]) => Promise<result[]>`

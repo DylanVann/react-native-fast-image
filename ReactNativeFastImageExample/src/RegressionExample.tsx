@@ -11,7 +11,11 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native'
-import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
+import FastImage, {
+    FastImageBackground,
+    FastImageProps,
+    Source,
+} from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
@@ -1284,6 +1288,35 @@ export const styles = StyleSheet.create({
     },
 })
 
+// FastImageBackground: a photo filling a wide view (cover, with rounded
+// corners from imageStyle), with text on top. Check the screenshot.
+function ImageBackgroundCase() {
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImageBackground
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={backgroundStyles.view}
+                imageStyle={backgroundStyles.image}
+                onLoad={() => setLoaded(true)}
+            >
+                <Text style={backgroundStyles.text}>on top</Text>
+            </FastImageBackground>
+            <CaseStatus
+                id="image-background"
+                status={loaded ? 'OK' : 'loading'}
+                description="FastImageBackground: the image fills the view (cover, rounded corners), with the text on top"
+            />
+        </View>
+    )
+}
+
+const backgroundStyles = StyleSheet.create({
+    view: { width: 96, height: 48, justifyContent: 'center' },
+    image: { borderRadius: 8 },
+    text: { color: 'white', fontWeight: '600', textAlign: 'center' },
+})
+
 // The cases that run on their own, in the groups the runner shows one at a
 // time (each fits on a screen, so its screenshot shows every case). Cases in
 // a group load at the same time; timed ones (a second or two) are grouped so
@@ -2182,6 +2215,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <KeepPreviousCase key="keep-previous" id="keep-previous" />,
             <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
         ],
+    },
+    {
+        name: 'image-background',
+        cases: [<ImageBackgroundCase key="image-background" />],
     },
     {
         // Tapped by scripts/verify.mts (maestro/touch.yaml) while it's shown.

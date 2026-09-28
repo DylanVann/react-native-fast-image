@@ -1,8 +1,8 @@
-import { Image, StyleSheet, Platform, NativeModules } from 'react-native'
+import { Image, StyleSheet, Platform, NativeModules, View } from 'react-native'
 import React from 'react'
 import { beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import renderer from 'react-test-renderer'
-import FastImage from './index'
+import FastImage, { FastImageBackground } from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -280,6 +280,39 @@ describe('FastImage (iOS)', () => {
         ])
         FastImage.clearMemoryCache()
         FastImage.clearDiskCache()
+    })
+})
+
+describe('FastImageBackground', () => {
+    it('shows the image filling a view, with the children on top', () => {
+        const imageRef = React.createRef<any>()
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                style={{ width: 100, height: 50 }}
+                imageStyle={{ borderRadius: 8 }}
+                imageRef={imageRef}
+                resizeMode="contain"
+            >
+                <View testID="content" />
+            </FastImageBackground>,
+            // Host refs are null without a node.
+            { createNodeMock: () => ({}) },
+        )
+        // A view with the image's wrapper, then the children.
+        const json: any = tree.toJSON()
+        expect(json.props.style).toEqual({ width: 100, height: 50 })
+        expect(json.props.accessibilityIgnoresInvertColors).toBe(true)
+        expect(json.children).toHaveLength(2)
+        expect(json.children[1].props.testID).toBe('content')
+        // The FastImage, with the other props, filling the view.
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props.resizeMode).toBe('contain')
+        expect(StyleSheet.flatten(image.props.style)).toMatchObject({
+            position: 'absolute',
+            borderRadius: 8,
+        })
+        expect(imageRef.current).not.toBeNull()
     })
 })
 
