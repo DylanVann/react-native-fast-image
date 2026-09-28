@@ -15,6 +15,8 @@
 //   /cookie/    403 unless the request has both cookies from /set-cookie with
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
+//   /bad-once/  The first request for a path and query gets data that isn't an
+//               image (with an image type), later ones the image.
 //
 // GET /set-cookie?run=<run> sets two cookies (`fast-image-a=<run>` and
 // `fast-image-b=<run>`; a new run value each time, so cookies kept from
@@ -153,6 +155,13 @@ const server = Bun.serve({
             }
             setCookie = `fast-image-image=${run}; Path=/`
             pathname = pathname.slice('/cookie'.length)
+        } else if (pathname.startsWith('/bad-once/')) {
+            if (requests.get(key) === 1) {
+                return new Response('not an image', {
+                    headers: { 'Content-Type': 'image/jpeg' },
+                })
+            }
+            pathname = pathname.slice('/bad-once'.length)
         }
         const file = path.join(IMAGES, decodeURIComponent(pathname))
         if (!file.startsWith(IMAGES + path.sep)) {
