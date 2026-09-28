@@ -1,3 +1,10 @@
+# [8.17.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.2...v8.17.0) (2026-09-28)
+
+
+### Features
+
+* add source.memoryCache to keep images on disk only ([#1176](https://github.com/DylanVann/react-native-fast-image/issues/1176)) ([fb9b4a6](https://github.com/DylanVann/react-native-fast-image/commit/fb9b4a6685eed6bf6a5ff13403e675a267e6a980))
+
 ## [8.16.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.1...v8.16.2) (2026-09-28)
 
 
