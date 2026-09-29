@@ -1,3 +1,10 @@
+## [8.17.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.1...v8.17.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* don't keep responses that aren't images in the disk cache ([#1178](https://github.com/DylanVann/react-native-fast-image/issues/1178)) ([22fafe6](https://github.com/DylanVann/react-native-fast-image/commit/22fafe6cb5cb2958b45819ec323661ec46ff620f))
+
 ## [8.17.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.0...v8.17.1) (2026-09-29)
 
 
