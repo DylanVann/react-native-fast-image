@@ -309,12 +309,27 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // The source's downloaded file in the disk cache, downloading it first if
     // it isn't there (without decoding it or keeping it in memory, and in the
     // preloads' queue): { ok, path } or { ok: false, error }. Never rejects.
-    // With `cacheOnly` it doesn't download. A local file is its own path.
+    // With `cacheOnly`, or a cacheKey without a uri, it doesn't download. A
+    // local file is its own path.
     @ReactMethod
     public void getCachePath(final ReadableMap source, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         if (!FastImageViewConverter.hasUri(source)) {
-            promise.resolve(failure("Invalid source: no uri"));
+            // `web` images ignore cacheKey.
+            final String cacheKey = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB
+                    ? null
+                    : FastImageViewConverter.getCacheKey(source);
+            if (cacheKey == null) {
+                promise.resolve(failure("Invalid source: no uri or cacheKey"));
+                return;
+            }
+            cachePathExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    File file = cachedFile(context, FastImageKeyedGlideUrl.forKey(cacheKey), new RequestOptions());
+                    promise.resolve(file != null ? pathResult(file) : failure("Not in the disk cache"));
+                }
+            });
             return;
         }
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);

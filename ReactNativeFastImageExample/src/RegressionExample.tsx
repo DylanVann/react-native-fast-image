@@ -1627,11 +1627,14 @@ function CachePathCase({
     cacheOnly,
     missing,
     whileLoading,
+    keyOnly,
 }: {
     id: string
     description: string
     loaded?: boolean
     byCacheKey?: boolean
+    // Asks with only the cacheKey (no uri): only looked up.
+    keyOnly?: boolean
     // A url with a space (iOS caches it escaped).
     space?: boolean
     // With cache 'web', served cacheable (Android keeps it in an HTTP cache).
@@ -1651,7 +1654,7 @@ function CachePathCase({
         : imageUrl(path)
     const source: Source = {
         uri,
-        cacheKey: byCacheKey ? `${id}-${RUN}` : undefined,
+        cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
         cache: web ? FastImage.cacheControl.web : undefined,
         headers: whileLoading ? BACKGROUND_SLOW_HEADERS : undefined,
     }
@@ -1660,13 +1663,15 @@ function CachePathCase({
     const [shown, setShown] = useState(false)
     const getPath = () =>
         FastImage.getCachePath(
-            cacheOnly
-                ? {
-                      uri,
-                      cacheKey: source.cacheKey,
-                      cache: FastImage.cacheControl.cacheOnly,
-                  }
-                : source,
+            keyOnly
+                ? { cacheKey: source.cacheKey }
+                : cacheOnly
+                  ? {
+                        uri,
+                        cacheKey: source.cacheKey,
+                        cache: FastImage.cacheControl.cacheOnly,
+                    }
+                  : source,
         )
             .then(async (r) => {
                 const response = await fetch(
@@ -1689,7 +1694,7 @@ function CachePathCase({
     }, [])
     // Requests the server got: the view's (if it loaded the image first) and
     // getCachePath's download (if any).
-    const expected = loaded ? 1 : cacheOnly ? 0 : 1
+    const expected = loaded ? 1 : cacheOnly || keyOnly ? 0 : 1
     const status =
         result === undefined
             ? 'waiting'
@@ -1697,7 +1702,7 @@ function CachePathCase({
               ? !result.ok && result.error.includes('404')
                   ? 'OK'
                   : `expected a 404: ${JSON.stringify(result)}`
-              : cacheOnly && !loaded
+              : (cacheOnly || keyOnly) && !loaded
                 ? !result.ok && requests === 0
                     ? 'OK'
                     : `${JSON.stringify(result)}, ${requests} requests`
@@ -3007,6 +3012,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 space
                 description="getCachePath for a url with a space: its file"
             />,
+        ],
+    },
+    {
+        name: 'cache-path-more',
+        cases: [
             <CachePathCase
                 key="cache-path-web"
                 id="cache-path-web"
@@ -3021,6 +3031,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 web
                 cacheOnly
                 description="getCachePath with cache 'cacheOnly' for an image loaded with cache 'web': its file, on both platforms"
+            />,
+            <CachePathCase
+                key="cache-path-key-only"
+                id="cache-path-key-only"
+                loaded
+                keyOnly
+                description="getCachePath with only a cacheKey (no uri), for an image a view loaded: its file"
+            />,
+            <CachePathCase
+                key="cache-path-key-only-missing"
+                id="cache-path-key-only-missing"
+                keyOnly
+                description="getCachePath with only a cacheKey that isn't cached: not ok, no request"
             />,
             <CachePathCase
                 key="cache-path-while-loading"

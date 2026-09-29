@@ -219,13 +219,23 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
 // The source's downloaded file in the disk cache, downloading it first if it
 // isn't there (without decoding it or keeping it in memory, and in the
 // preloads' queue): { ok, path } or { ok: false, error }. Never rejects. With
-// `cacheOnly` it doesn't download. A local file is its own path.
+// `cacheOnly`, or a cacheKey without a uri, it doesn't download. A local
+// file is its own path.
 RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
     if (!source.url) {
-        resolve(FFFFailure(@"Invalid source: no uri"));
+        NSString *key = FFFDiskCacheKey(source);
+        if (!key) {
+            resolve(FFFFailure(@"Invalid source: no uri or cacheKey"));
+            return;
+        }
+        FFFFindCachedFile(key, ^(NSString *path) {
+            resolve(FFFFile(path));
+        }, ^{
+            resolve(FFFFailure(@"Not in the disk cache"));
+        });
         return;
     }
     if (source.url.isFileURL) {
