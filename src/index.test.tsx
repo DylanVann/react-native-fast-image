@@ -383,6 +383,30 @@ describe('source.memoryCache', () => {
     })
 })
 
+describe('getCachePath', () => {
+    it("asks native for the source's file", async () => {
+        const sources: any[] = []
+        const getCachePath = async (source: any) => {
+            sources.push(source)
+            return { ok: true, path: '/cache/a' }
+        }
+        const saved = NativeModules.FastImageView
+        NativeModules.FastImageView = { ...saved, getCachePath }
+        try {
+            const source = { uri: 'https://example.com/a.jpg' }
+            expect(await FastImage.getCachePath(source)).toEqual({
+                ok: true,
+                path: '/cache/a',
+            })
+            // A null source is sent as {}.
+            await FastImage.getCachePath(null as any)
+            expect(sources).toEqual([source, {}])
+        } finally {
+            NativeModules.FastImageView = saved
+        }
+    })
+})
+
 describe('recyclingKey', () => {
     it('is passed to the native view', () => {
         const [view] = renderer

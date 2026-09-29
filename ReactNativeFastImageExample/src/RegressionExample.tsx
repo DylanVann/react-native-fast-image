@@ -12,6 +12,7 @@ import {
     View,
 } from 'react-native'
 import FastImage, {
+    CachePathResult,
     FastImageBackground,
     FastImageProps,
     LoadResult,
@@ -1514,6 +1515,137 @@ function MemoryCacheOffCase() {
     )
 }
 
+// FastImage.getCachePath: the source's file in the disk cache, shown as a
+// `file://` source (so it's the downloaded image; the file may have no image
+// extension, which React Native 0.73's Image doesn't load on iOS).
+//   - loaded: a view shows the image first, then the path is asked for;
+//   - otherwise it isn't loaded before: getCachePath downloads it (one
+//     request), or with cacheOnly fails without a request;
+//   - whileLoading: asked for while a view is still downloading it (slowly).
+function CachePathCase({
+    id,
+    description,
+    loaded,
+    byCacheKey,
+    space,
+    web,
+    cacheOnly,
+    missing,
+    whileLoading,
+}: {
+    id: string
+    description: string
+    loaded?: boolean
+    byCacheKey?: boolean
+    // A url with a space (iOS caches it escaped).
+    space?: boolean
+    // With cache 'web', served cacheable (Android keeps it in an HTTP cache).
+    web?: boolean
+    // Asks with cache 'cacheOnly' (for a `web` image loaded before: the same
+    // uri, not as `web`).
+    cacheOnly?: boolean
+    // A url that 404s.
+    missing?: boolean
+    whileLoading?: boolean
+}) {
+    const path = missing
+        ? `does-not-exist.jpg?${id}=${RUN}`
+        : `${web ? 'max-age/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}${space ? '&name=a b' : ''}`
+    const uri = whileLoading
+        ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
+        : imageUrl(path)
+    const source: Source = {
+        uri,
+        cacheKey: byCacheKey ? `${id}-${RUN}` : undefined,
+        cache: web ? FastImage.cacheControl.web : undefined,
+        headers: whileLoading ? BACKGROUND_SLOW_HEADERS : undefined,
+    }
+    const [result, setResult] = useState<CachePathResult>()
+    const [requests, setRequests] = useState<number>()
+    const [shown, setShown] = useState(false)
+    const getPath = () =>
+        FastImage.getCachePath(
+            cacheOnly
+                ? {
+                      uri,
+                      cacheKey: source.cacheKey,
+                      cache: FastImage.cacheControl.cacheOnly,
+                  }
+                : source,
+        )
+            .then(async (r) => {
+                const response = await fetch(
+                    whileLoading
+                        ? imageUrl(`requests?group=${id}-${RUN}`)
+                        : // As the server counts it, with the space escaped.
+                          imageUrl(
+                              `requests?path=${encodeURIComponent(`/${path.replace(/ /g, '%20')}`)}`,
+                          ),
+                )
+                const { count } = (await response.json()) as { count: number }
+                setRequests(count)
+                setResult(r)
+            })
+            .catch((e) => setResult({ ok: false, error: String(e) }))
+    useEffect(() => {
+        if (!loaded) getPath()
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    // Requests the server got: the view's (if it loaded the image first) and
+    // getCachePath's download (if any).
+    const expected = loaded ? 1 : cacheOnly ? 0 : 1
+    const status =
+        result === undefined
+            ? 'waiting'
+            : missing
+              ? !result.ok && result.error.includes('404')
+                  ? 'OK'
+                  : `expected a 404: ${JSON.stringify(result)}`
+              : cacheOnly && !loaded
+                ? !result.ok && requests === 0
+                    ? 'OK'
+                    : `${JSON.stringify(result)}, ${requests} requests`
+                : !result.ok
+                  ? `error: ${result.error}`
+                  : !shown
+                    ? 'showing the file'
+                    : whileLoading
+                      ? // One download on iOS, where SDWebImage shares it;
+                        // Glide on Android downloads it again for a request
+                        // that isn't the same as the view's.
+                        requests === (Platform.OS === 'ios' ? 1 : 2)
+                          ? 'OK'
+                          : `${requests} requests`
+                      : requests === expected
+                        ? 'OK'
+                        : `${requests} requests, expected ${expected}`
+    return (
+        <View style={styles.row}>
+            {loaded || whileLoading ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoadStart={whileLoading ? getPath : undefined}
+                    onLoad={loaded ? getPath : undefined}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            {result?.ok ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={{ uri: `file://${result.path}` }}
+                    onLoad={() => setShown(true)}
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // Preloads an image with memoryCache false (to disk only, without decoding
 // it), which still reports its size, then shows it: it loads from the disk
 // cache, so the server gets one request. (That it isn't decoded into memory
@@ -2738,6 +2870,69 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="source.cacheKey with downsample: the downloaded file is found under the cacheKey"
             />,
             <MemoryCacheOffCase key="memory-cache-off" />,
+        ],
+    },
+    {
+        name: 'cache-path',
+        cases: [
+            <CachePathCase
+                key="cache-path"
+                id="cache-path"
+                loaded
+                description="getCachePath for an image a view loaded: its file (right)"
+            />,
+            <CachePathCase
+                key="cache-path-key"
+                id="cache-path-key"
+                loaded
+                byCacheKey
+                description="getCachePath for an image with a cacheKey: its file"
+            />,
+            <CachePathCase
+                key="cache-path-download"
+                id="cache-path-download"
+                description="getCachePath for an image that wasn't loaded: downloads it (one request) and gives its file"
+            />,
+            <CachePathCase
+                key="cache-path-cache-only"
+                id="cache-path-cache-only"
+                cacheOnly
+                description="getCachePath with cache 'cacheOnly' for an image that wasn't loaded: not ok, no request"
+            />,
+            <CachePathCase
+                key="cache-path-404"
+                id="cache-path-404"
+                missing
+                description="getCachePath for a url that 404s: not ok, with the status"
+            />,
+            <CachePathCase
+                key="cache-path-space"
+                id="cache-path-space"
+                loaded
+                space
+                description="getCachePath for a url with a space: its file"
+            />,
+            <CachePathCase
+                key="cache-path-web"
+                id="cache-path-web"
+                loaded
+                web
+                description="getCachePath for an image with cache 'web' (on Android, in the HTTP cache)"
+            />,
+            <CachePathCase
+                key="cache-path-web-cache-only"
+                id="cache-path-web-cache-only"
+                loaded
+                web
+                cacheOnly
+                description="getCachePath with cache 'cacheOnly' for an image loaded with cache 'web': its file, on both platforms"
+            />,
+            <CachePathCase
+                key="cache-path-while-loading"
+                id="cache-path-while-loading"
+                whileLoading
+                description="getCachePath while a view is still downloading the image: its file"
+            />,
         ],
     },
     {

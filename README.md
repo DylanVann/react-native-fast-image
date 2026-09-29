@@ -371,6 +371,34 @@ Clear all images from memory cache.
 
 Clear all images from disk cache.
 
+### `FastImage.getCachePath: (source: Source) => Promise<CachePathResult>`
+
+The path of the source's downloaded file in the disk cache, e.g. to share, save or upload an image without downloading it again. If the file isn't there, it's downloaded first, without decoding the image or keeping it in memory. Resolves with `{ ok: true, path }`, or `{ ok: false, error }` if it can't be downloaded. Never rejects.
+
+```js
+const result = await FastImage.getCachePath({ uri: photo.url })
+if (result.ok) {
+    await shareFile(`file://${result.path}`) // e.g. with react-native-share
+}
+```
+
+With `cache: 'cacheOnly'` it doesn't download: use it to check whether an image is cached.
+
+```js
+const { ok } = await FastImage.getCachePath({
+    uri: photo.url,
+    cache: FastImage.cacheControl.cacheOnly,
+})
+```
+
+- The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen.
+- The file belongs to the cache, which can remove it at any time: copy it to keep it.
+- Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
+- A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.
+- With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.
+
+There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey-string).
+
 ## Troubleshooting
 
 If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.

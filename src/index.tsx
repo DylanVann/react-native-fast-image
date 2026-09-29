@@ -92,6 +92,11 @@ export type LoadResult =
     | { ok: true; width: number; height: number }
     | { ok: false; error: string }
 
+// getCachePath's result: ok with the file's path, or not ok with the error.
+export type CachePathResult =
+    | { ok: true; path: string }
+    | { ok: false; error: string }
+
 export interface OnProgressEvent {
     nativeEvent: {
         loaded: number
@@ -468,6 +473,12 @@ export interface FastImageStaticProperties {
     preload: (sources: Source[]) => Promise<PreloadResult[]>
     clearMemoryCache: () => Promise<void>
     clearDiskCache: () => Promise<void>
+    /**
+     * The path of the source's downloaded file in the disk cache, downloading
+     * it first if it isn't there (without decoding it). With
+     * `cache: 'cacheOnly'` it doesn't download. Never rejects.
+     */
+    getCachePath: (source: Source) => Promise<CachePathResult>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -500,6 +511,10 @@ FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()
 
 FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+
+FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
+    // A null source is sent as {} (it fails as a source without a uri).
+    Promise.resolve(NativeModules.FastImageView.getCachePath(source || {}))
 
 const styles = StyleSheet.create({
     // React Native's Image sizes itself from a require()d source's width and

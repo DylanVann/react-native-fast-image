@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 import okhttp3.Cache;
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.JavaNetCookieJar;
 import okhttp3.MediaType;
@@ -50,11 +51,51 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     // The HTTP cache of `cache: 'web'` images, once Glide has set up.
     @Nullable
     private static Cache webCache;
+    // The client that loads them, with that cache.
+    @Nullable
+    private static OkHttpClient webClient;
 
     // Empties the HTTP cache of `cache: 'web'` images (clearDiskCache).
     static void clearWebCache() throws IOException {
         Cache cache = webCache;
         if (cache != null) cache.evictAll();
+    }
+
+    // Downloads a `web` image (with its headers) through the client with the
+    // HTTP cache, which stores it if the server allows it (getCachePath).
+    // Blocking. Glide must be set up.
+    static void downloadToWebCache(GlideUrl url) throws IOException {
+        OkHttpClient client = webClient;
+        if (client == null) throw new IOException("Glide isn't set up");
+        Request.Builder request = new Request.Builder().url(url.toStringUrl());
+        for (Map.Entry<String, String> header : url.getHeaders().entrySet()) {
+            request.addHeader(header.getKey(), header.getValue());
+        }
+        try (Response response = client.newCall(request.build()).execute()) {
+            if (!response.isSuccessful()) {
+                // As Glide's HttpException reports it.
+                throw new IOException(response.message() + ", status code: " + response.code());
+            }
+            ResponseBody body = response.body();
+            if (body == null) return;
+            // Read to the end, so the cache stores it.
+            BufferedSource source = body.source();
+            Buffer buffer = new Buffer();
+            while (source.read(buffer, 8192) != -1) buffer.clear();
+        }
+    }
+
+    // The file with the body of url's response in the HTTP cache of
+    // `cache: 'web'` images (getCachePath), or null. OkHttp has no API for it:
+    // its cache stores each response as `<Cache.key(url)>.0` (headers) and
+    // `.1` (body, as the server sent it) once it's complete.
+    @Nullable
+    static File webCacheFile(String url) {
+        Cache cache = webCache;
+        HttpUrl httpUrl = HttpUrl.parse(url);
+        if (cache == null || httpUrl == null) return null;
+        File file = new File(cache.directory(), Cache.key(httpUrl) + ".1");
+        return file.isFile() ? file : null;
     }
 
     @Override
@@ -87,7 +128,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // Other urls are cached by Glide, so they don't use it (that would
         // store them twice).
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
-        OkHttpClient webClient = client.newBuilder().cache(webCache).build();
+        webClient = client.newBuilder().cache(webCache).build();
         registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
     }
 
