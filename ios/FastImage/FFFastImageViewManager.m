@@ -107,7 +107,10 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
             }
             [results addObject:[NSNull null]];
             // A source's own priority replaces the prefetcher's, as on Android.
-            SDWebImageOptions options = prefetcherOptions;
+            // Failed urls are tried again, as views do (SDWebImage otherwise
+            // fails a url that failed before, e.g. with data that isn't an
+            // image, without a request until the app is relaunched, #394).
+            SDWebImageOptions options = prefetcherOptions | SDWebImageRetryFailed;
             if (source.hasPriority) {
                 options &= ~(SDWebImageLowPriority | SDWebImageHighPriority);
                 if (source.priority == FFFPriorityLow) {

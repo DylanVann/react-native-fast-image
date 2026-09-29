@@ -1263,6 +1263,56 @@ function CacheKeyCase({
     )
 }
 
+// Preloads a url that first gets data that isn't an image (which SDWebImage
+// remembers as a failed url), then preloads it again: the second preload
+// downloads it and succeeds. iOS failed it without a request until the app
+// was relaunched (#394), since views retry failed urls but preloads didn't.
+// iOS only for now: Android keeps the first response (not an image) in
+// Glide's disk cache, so the second preload fails too (to fix next).
+const PRELOAD_RETRY_PATH = `/bad-once/picsum/1025-200x200.jpg?retry=${RUN}`
+function PreloadRetryCase() {
+    const [status, setStatus] = useState('waiting')
+    const [shown, setShown] = useState(false)
+    const source = { uri: imageUrl(PRELOAD_RETRY_PATH.slice(1)) }
+    useEffect(() => {
+        const run = async () => {
+            const [first] = await FastImage.preload([source])
+            if (first.ok) return setStatus('the first preload loaded')
+            const [second] = await FastImage.preload([source])
+            const response = await fetch(
+                imageUrl(
+                    `requests?path=${encodeURIComponent(PRELOAD_RETRY_PATH)}`,
+                ),
+            )
+            const { count } = (await response.json()) as { count: number }
+            if (!second.ok) return setStatus(`retry failed: ${second.error}`)
+            if (count !== 2) return setStatus(`${count} requests`)
+            setShown(true)
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={() => setStatus('OK')}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus
+                id="preload-retry"
+                status={status}
+                description="#394: a url that failed once (bad data) is downloaded again by the next preload"
+            />
+        </View>
+    )
+}
+
 // Preloads an image that isn't cached with `cache: 'cacheOnly'`: it fails
 // without a request to the server, as a view with it does. iOS downloaded it
 // (preload didn't follow `cache`, #406).
@@ -2541,6 +2591,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadLimitCase key="preload-limit" />,
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
+            ...(Platform.OS === 'ios'
+                ? [<PreloadRetryCase key="preload-retry" />]
+                : []),
         ],
     },
     {
