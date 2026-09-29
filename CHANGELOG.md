@@ -1,3 +1,10 @@
+## [8.17.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.0...v8.17.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ios:** try failed urls again in preload ([#1177](https://github.com/DylanVann/react-native-fast-image/issues/1177)) ([12e626d](https://github.com/DylanVann/react-native-fast-image/commit/12e626dfb32c177a47fd3e6faf0063c8d83b5a65))
+
 # [8.17.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.16.2...v8.17.0) (2026-09-28)
 
 
