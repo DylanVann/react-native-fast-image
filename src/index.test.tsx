@@ -407,6 +407,32 @@ describe('getCachePath', () => {
     })
 })
 
+describe('writeToCache', () => {
+    it('sends the source and file to native', async () => {
+        const calls: any[] = []
+        const writeToCache = async (source: any, file: string) => {
+            calls.push([source, file])
+            return { ok: true, path: '/cache/a' }
+        }
+        const saved = NativeModules.FastImageView
+        NativeModules.FastImageView = { ...saved, writeToCache }
+        try {
+            const source = { uri: 'https://example.com/a.jpg' }
+            expect(
+                await FastImage.writeToCache(source, 'file:///tmp/a.jpg'),
+            ).toEqual({ ok: true, path: '/cache/a' })
+            // A null source is sent as {}.
+            await FastImage.writeToCache(null as any, 'file:///tmp/a.jpg')
+            expect(calls).toEqual([
+                [source, 'file:///tmp/a.jpg'],
+                [{}, 'file:///tmp/a.jpg'],
+            ])
+        } finally {
+            NativeModules.FastImageView = saved
+        }
+    })
+})
+
 describe('recyclingKey', () => {
     it('is passed to the native view', () => {
         const [view] = renderer

@@ -123,4 +123,8 @@ declare export default class FastImage extends React$Component<FastImageProps> {
     static clearMemoryCache: () => Promise<void>;
     static clearDiskCache: () => Promise<void>;
     static getCachePath: (source: FastImageSource) => Promise<CachePathResult>;
+    static writeToCache: (
+        source: FastImageSource,
+        file: string,
+    ) => Promise<CachePathResult>;
 }
