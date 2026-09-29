@@ -1263,26 +1263,27 @@ function CacheKeyCase({
     )
 }
 
-// Preloads a url that first gets data that isn't an image (which SDWebImage
-// remembers as a failed url), then preloads it again: the second preload
-// downloads it and succeeds. iOS failed it without a request until the app
-// was relaunched (#394), since views retry failed urls but preloads didn't.
-// iOS only for now: Android keeps the first response (not an image) in
-// Glide's disk cache, so the second preload fails too (to fix next).
-const PRELOAD_RETRY_PATH = `/bad-once/picsum/1025-200x200.jpg?retry=${RUN}`
-function PreloadRetryCase() {
+// Preloads a url that first gets an HTML page (status 200, as from a captive
+// portal), then preloads it again: the second preload downloads it and
+// succeeds. iOS failed it without a request until the app was relaunched
+// (#394), since views retry failed urls but preloads didn't. Android kept the
+// page in Glide's disk cache (and `web` images' HTTP cache), so every later
+// load failed; iOS kept it in `web` images' HTTP cache.
+function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
+    const path = `/bad-once/picsum/1025-200x200.jpg?${id}=${RUN}`
     const [status, setStatus] = useState('waiting')
     const [shown, setShown] = useState(false)
-    const source = { uri: imageUrl(PRELOAD_RETRY_PATH.slice(1)) }
+    const source = {
+        uri: imageUrl(path.slice(1)),
+        cache: web ? FastImage.cacheControl.web : undefined,
+    }
     useEffect(() => {
         const run = async () => {
             const [first] = await FastImage.preload([source])
             if (first.ok) return setStatus('the first preload loaded')
             const [second] = await FastImage.preload([source])
             const response = await fetch(
-                imageUrl(
-                    `requests?path=${encodeURIComponent(PRELOAD_RETRY_PATH)}`,
-                ),
+                imageUrl(`requests?path=${encodeURIComponent(path)}`),
             )
             const { count } = (await response.json()) as { count: number }
             if (!second.ok) return setStatus(`retry failed: ${second.error}`)
@@ -1305,9 +1306,118 @@ function PreloadRetryCase() {
                 <View style={styles.image} />
             )}
             <CaseStatus
-                id="preload-retry"
+                id={id}
                 status={status}
-                description="#394: a url that failed once (bad data) is downloaded again by the next preload"
+                description={
+                    web
+                        ? "a url whose first response was an HTML page (with cache 'web') loads the next time"
+                        : '#394: a url whose first response was an HTML page is downloaded again by the next preload'
+                }
+            />
+        </View>
+    )
+}
+
+// Shows a url whose first response is an HTML page (status 200): the view
+// fails, then a new view of the same url downloads it again and shows it.
+// Android kept the page in Glide's disk cache, so the second view failed too.
+function ViewRetryCase() {
+    const path = `/bad-once/picsum/1025-200x200.jpg?view-retry=${RUN}`
+    const [attempt, setAttempt] = useState(1)
+    const [status, setStatus] = useState('waiting')
+    const onLoad = async () => {
+        const response = await fetch(
+            imageUrl(`requests?path=${encodeURIComponent(path)}`),
+        )
+        const { count } = (await response.json()) as { count: number }
+        setStatus(
+            attempt === 1
+                ? 'the first view loaded'
+                : count === 2
+                  ? 'OK'
+                  : `${count} requests`,
+        )
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                // A new view for the second attempt.
+                key={attempt}
+                style={styles.image}
+                source={{ uri: imageUrl(path.slice(1)) }}
+                onError={() =>
+                    attempt === 1
+                        ? setAttempt(2)
+                        : setStatus('the second view failed too')
+                }
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="view-retry"
+                status={status}
+                description="a url whose first response was an HTML page loads in the next view"
+            />
+        </View>
+    )
+}
+
+// Preloads a `web` url that 404s: it fails with one request. Android loaded
+// it again with the client without the HTTP cache (two requests).
+const WEB_404_PATH = `/does-not-exist.jpg?web-404=${RUN}`
+function Web404Case() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const run = async () => {
+            const [result] = await FastImage.preload([
+                {
+                    uri: imageUrl(WEB_404_PATH.slice(1)),
+                    cache: FastImage.cacheControl.web,
+                },
+            ])
+            const response = await fetch(
+                imageUrl(`requests?path=${encodeURIComponent(WEB_404_PATH)}`),
+            )
+            const { count } = (await response.json()) as { count: number }
+            setStatus(
+                !result.ok && count === 1
+                    ? 'OK'
+                    : `ok: ${result.ok}, ${count} requests`,
+            )
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="web-404"
+                status={status}
+                description="a url that 404s with cache 'web' is requested once"
+            />
+        </View>
+    )
+}
+
+// An image sent as `Content-Type: text/plain` still loads (Android fails
+// responses that aren't images only if their bytes aren't an image either).
+function MislabeledCase() {
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `mislabeled/picsum/1025-200x200.jpg?mislabeled=${RUN}`,
+                    ),
+                }}
+                onLoad={() => setStatus('OK')}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="mislabeled"
+                status={status}
+                description="an image sent as text/plain loads"
             />
         </View>
     )
@@ -2591,9 +2701,20 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadLimitCase key="preload-limit" />,
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
-            ...(Platform.OS === 'ios'
-                ? [<PreloadRetryCase key="preload-retry" />]
-                : []),
+            <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+        ],
+    },
+    {
+        name: 'bad-responses',
+        cases: [
+            <PreloadRetryCase
+                key="preload-retry-web"
+                id="preload-retry-web"
+                web
+            />,
+            <ViewRetryCase key="view-retry" />,
+            <MislabeledCase key="mislabeled" />,
+            <Web404Case key="web-404" />,
         ],
     },
     {

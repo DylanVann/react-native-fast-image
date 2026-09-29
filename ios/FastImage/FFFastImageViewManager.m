@@ -140,6 +140,9 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                         return;
                     }
                     done = YES;
+                    if (error) {
+                        [source forgetResponseAfterError:error];
+                    }
                     results[idx] = image
                         ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
                         : @{@"ok": @NO, @"error": FFFErrorMessage(error)};

@@ -579,6 +579,9 @@ NSString *FFFErrorMessage(NSError *error)
                            setImageBlock: setImage
                                 progress: nil
                                completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+            if (error) {
+                [source forgetResponseAfterError: error];
+            }
             if (error && weakSelf.loadCount == load) {
                 // Keeps the image it has, without trying again on every
                 // layout (e.g. while offline).
@@ -608,6 +611,9 @@ NSString *FFFErrorMessage(NSError *error)
                     SDImageCacheType cacheType,
                     BOOL finished,
                     NSURL* _Nullable imageURL) {
+                if (error) {
+                    [source forgetResponseAfterError: error];
+                }
                 // Replaced by another load (a new source, or the same one
                 // restarted for a new size), which sends the events. This
                 // one was cancelled, which SDWebImage reports as an error.

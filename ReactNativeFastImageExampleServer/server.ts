@@ -15,8 +15,10 @@
 //   /cookie/    403 unless the request has both cookies from /set-cookie with
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
-//   /bad-once/  The first request for a path and query gets data that isn't an
-//               image (with an image type), later ones the image.
+//   /bad-once/  The first request for a path and query gets an HTML page
+//               (status 200, cacheable for an hour, like a captive portal's),
+//               later ones the image.
+//   /mislabeled/ The image, sent as `Content-Type: text/plain`.
 //
 // GET /set-cookie?run=<run> sets two cookies (`fast-image-a=<run>` and
 // `fast-image-b=<run>`; a new run value each time, so cookies kept from
@@ -123,6 +125,7 @@ const server = Bun.serve({
         let cacheControl: string | undefined
         let chunked = false
         let setCookie: string | undefined
+        let contentType: string | undefined
         const token = request.headers.get('x-token')
         if (pathname.startsWith('/private/')) {
             if (token !== 'fast-image') {
@@ -157,11 +160,20 @@ const server = Bun.serve({
             pathname = pathname.slice('/cookie'.length)
         } else if (pathname.startsWith('/bad-once/')) {
             if (requests.get(key) === 1) {
-                return new Response('not an image', {
-                    headers: { 'Content-Type': 'image/jpeg' },
-                })
+                return new Response(
+                    '<html><body>Sign in to continue</body></html>',
+                    {
+                        headers: {
+                            'Content-Type': 'text/html; charset=utf-8',
+                            'Cache-Control': 'max-age=3600',
+                        },
+                    },
+                )
             }
             pathname = pathname.slice('/bad-once'.length)
+        } else if (pathname.startsWith('/mislabeled/')) {
+            contentType = 'text/plain'
+            pathname = pathname.slice('/mislabeled'.length)
         }
         const file = path.join(IMAGES, decodeURIComponent(pathname))
         if (!file.startsWith(IMAGES + path.sep)) {
@@ -189,6 +201,7 @@ const server = Bun.serve({
         const headers = new Headers()
         if (cacheControl) headers.set('Cache-Control', cacheControl)
         if (setCookie) headers.append('Set-Cookie', setCookie)
+        if (contentType) headers.set('Content-Type', contentType)
         return new Response(image, { headers })
     },
     websocket: {

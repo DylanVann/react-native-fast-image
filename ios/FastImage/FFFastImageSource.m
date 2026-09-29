@@ -2,6 +2,7 @@
 #import <SDWebImage/SDWebImageDownloader.h>
 #import <SDWebImage/SDWebImageDownloaderResponseModifier.h>
 #import <SDWebImage/SDWebImageDownloaderDecryptor.h>
+#import <SDWebImage/SDWebImageError.h>
 
 static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
 
@@ -77,6 +78,17 @@ static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
         }];
     });
     return downloader;
+}
+
+- (void)forgetResponseAfterError:(NSError *)error
+{
+    if (_cacheControl != FFFCacheControlWeb || !_url) {
+        return;
+    }
+    if (![error.domain isEqualToString:SDWebImageErrorDomain] || error.code != SDWebImageErrorBadImageData) {
+        return;
+    }
+    [[FFFastImageSource webURLCache] removeCachedResponseForRequest:[NSURLRequest requestWithURL:_url]];
 }
 
 + (NSURLCache *)webURLCache

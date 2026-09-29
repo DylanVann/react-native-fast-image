@@ -61,4 +61,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // responses. 50 MB, as on Android.
 + (NSURLCache *)webURLCache;
 
+// After a load of this source failed: for a `cache: 'web'` image whose data
+// isn't an image (e.g. a captive portal's HTML page), removes the response
+// from the HTTP cache, which stored it as it downloaded. Otherwise the next
+// loads would get it from there until it expires, and fail again.
+- (void)forgetResponseAfterError:(NSError *)error;
+
 @end
