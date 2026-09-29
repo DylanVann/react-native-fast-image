@@ -3,8 +3,34 @@
 #import <SDWebImage/SDWebImageDownloaderResponseModifier.h>
 #import <SDWebImage/SDWebImageDownloaderDecryptor.h>
 #import <SDWebImage/SDWebImageError.h>
+#import <SDWebImage/SDWebImageDownloaderOperation.h>
+#import <SDWebImage/NSData+ImageContentType.h>
 
 static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
+
+// Downloads `cache: 'web'` images. The HTTP cache only stores a response whose
+// body is an image: a page sent instead (e.g. a captive portal's, with status
+// 200) would be served from there until it expired, and each load would fail.
+// Removing it after a load failed (forgetResponseAfterError:) could still be
+// in progress when the next load started.
+@interface FFFWebDownloaderOperation : SDWebImageDownloaderOperation
+@end
+
+@implementation FFFWebDownloaderOperation
+
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+ willCacheResponse:(NSCachedURLResponse *)proposedResponse
+ completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
+{
+    if ([NSData sd_imageFormatForImageData:proposedResponse.data] == SDImageFormatUndefined) {
+        completionHandler(nil);
+        return;
+    }
+    [super URLSession:session dataTask:dataTask willCacheResponse:proposedResponse completionHandler:completionHandler];
+}
+
+@end
 
 @implementation FFFastImageSource
 
@@ -62,6 +88,10 @@ static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
         NSURLSessionConfiguration *session = [(config.sessionConfiguration ?: NSURLSessionConfiguration.defaultSessionConfiguration) copy];
         session.URLCache = [FFFastImageSource webURLCache];
         config.sessionConfiguration = session;
+        // Unless the app set its own operation class.
+        if (!config.operationClass || config.operationClass == [SDWebImageDownloaderOperation class]) {
+            config.operationClass = [FFFWebDownloaderOperation class];
+        }
         downloader = [[SDWebImageDownloader alloc] initWithConfig:config];
         // The shared downloader's response modifier and decryptor, when it
         // has them (as they are at each download). Its request modifier

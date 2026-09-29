@@ -62,9 +62,12 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 + (NSURLCache *)webURLCache;
 
 // After a load of this source failed: for a `cache: 'web'` image whose data
-// isn't an image (e.g. a captive portal's HTML page), removes the response
-// from the HTTP cache, which stored it as it downloaded. Otherwise the next
-// loads would get it from there until it expires, and fail again.
+// isn't an image, removes the response from the HTTP cache, which stored it as
+// it downloaded. Otherwise the next loads would get it from there until it
+// expires, and fail again. The web loader already doesn't store responses
+// that aren't images (e.g. a captive portal's HTML page); this is for data
+// that looks like an image but can't be decoded, or an app's own operation
+// class.
 - (void)forgetResponseAfterError:(NSError *)error;
 
 @end
