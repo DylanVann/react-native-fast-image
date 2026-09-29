@@ -403,6 +403,50 @@ const result = await FastImage.writeToCache(
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
+### `FastImage.configureCache: (limits?: CacheLimits) => Promise<CacheState>`
+
+How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
+
+| Limit                                                                                                             | iOS                                                                                        | Android                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
+| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
+
+`0` means no limit.
+
+**Starting limits.** With Expo, in `app.json`:
+
+```json
+"plugins": [["react-native-fast-image", { "maxDiskSize": 209715200, "maxDiskAge": 2592000 }]]
+```
+
+Without Expo, in `ios/<App>/Info.plist`:
+
+```xml
+<key>FastImageMaxDiskSize</key>
+<integer>209715200</integer>
+<key>FastImageMaxDiskAge</key>
+<integer>2592000</integer>
+```
+
+and in `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
+```
+
+**Changing them at runtime.** Pass the limits to change; `null` goes back to the native config's (or the default). It resolves with the limits in effect and `diskSize`, the bytes the image disk cache uses now. Call it without limits to see them.
+
+```js
+await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
+const { maxDiskSize, diskSize } = await FastImage.configureCache()
+```
+
+On Android, if your app has its own `AppGlideModule` (see [Are you using Glide already](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+
+Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
+
 ## Troubleshooting
 
 If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.

@@ -407,6 +407,77 @@ describe('getCachePath', () => {
     })
 })
 
+describe('configureCache', () => {
+    it('sends the limits to native and resolves with the ones in effect', async () => {
+        const calls: any[] = []
+        const configureCache = async (limits: any) => {
+            calls.push(limits)
+            return { maxDiskSize: limits.maxDiskSize, diskSize: 1024 }
+        }
+        const saved = NativeModules.FastImageView
+        NativeModules.FastImageView = { ...saved, configureCache }
+        try {
+            const limits = { maxDiskSize: 100 * 1024 * 1024 }
+            expect(await FastImage.configureCache(limits)).toEqual({
+                ...limits,
+                diskSize: 1024,
+            })
+            expect(calls).toEqual([limits])
+            // Without limits, {} (Android can't read a null map).
+            await FastImage.configureCache()
+            expect(calls).toEqual([limits, {}])
+        } finally {
+            NativeModules.FastImageView = saved
+        }
+    })
+})
+
+describe('Expo config plugin', () => {
+    const plugin = require('../app.plugin.js')
+
+    it('sets the limits in the Info.plist', () => {
+        const infoPlist = plugin.setInfoPlist(
+            { CFBundleName: 'App' },
+            { maxDiskSize: 100, maxDiskAge: 60, maxMemorySize: 0 },
+        )
+        expect(infoPlist).toEqual({
+            CFBundleName: 'App',
+            FastImageMaxDiskSize: 100,
+            FastImageMaxDiskAge: 60,
+            FastImageMaxMemorySize: 0,
+        })
+        // Limits that aren't given aren't set.
+        expect(plugin.setInfoPlist({}, {})).toEqual({})
+    })
+
+    it("sets maxDiskSize in the Android manifest's meta-data, once", () => {
+        const manifest: any = {
+            manifest: {
+                application: [
+                    {
+                        $: {},
+                        'meta-data': [{ $: { 'android:name': 'other' } }],
+                    },
+                ],
+            },
+        }
+        plugin.setAndroidManifest(manifest, { maxDiskSize: 100 })
+        plugin.setAndroidManifest(manifest, {
+            maxDiskSize: 200,
+            maxDiskAge: 60,
+        })
+        expect(manifest.manifest.application[0]['meta-data']).toEqual([
+            { $: { 'android:name': 'other' } },
+            {
+                $: {
+                    'android:name': 'fastimage.MAX_DISK_SIZE',
+                    'android:value': '200',
+                },
+            },
+        ])
+    })
+})
+
 describe('writeToCache', () => {
     it('sends the source and file to native', async () => {
         const calls: any[] = []

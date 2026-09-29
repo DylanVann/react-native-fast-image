@@ -14,12 +14,14 @@ public class FastImageViewPackage implements ReactPackage {
     @NonNull
     @Override
     public List<NativeModule> createNativeModules(@NonNull ReactApplicationContext reactContext) {
+        FastImageCacheLimits.loadInBackground(reactContext);
         return Collections.<NativeModule>singletonList(new FastImageViewModule(reactContext));
     }
 
     @NonNull
     @Override
     public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
+        FastImageCacheLimits.loadInBackground(reactContext);
         return Collections.<ViewManager>singletonList(new FastImageViewManager());
     }
 }

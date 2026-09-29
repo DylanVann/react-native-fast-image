@@ -510,6 +510,37 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
+    // Saves maxDiskSize (bytes, 0 for no limit; null goes back to the app's
+    // manifest or Glide's default), which FastImageGlideModule applies when
+    // Glide starts: now if it hasn't started yet (this starts it), or on the
+    // next launch. Resolves with the limit in effect and the
+    // bytes the disk cache uses now: { maxDiskSize, diskSize }, or {} if the
+    // app starts Glide with its own AppGlideModule (its size and folder are
+    // the app's). maxDiskAge and maxMemorySize are iOS only (Glide has no
+    // age limit, and sizes its memory cache from the screen).
+    @ReactMethod
+    public void configureCache(final ReadableMap limits, final Promise promise) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        if (limits.hasKey("maxDiskSize")) {
+            FastImageCacheLimits.saveMaxDiskSize(context, limits.isNull("maxDiskSize")
+                    ? null
+                    : (Long) (long) Math.max(limits.getDouble("maxDiskSize"), 0));
+        }
+        cachePathExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                Glide.get(context);
+                WritableMap result = Arguments.createMap();
+                long maxDiskSize = FastImageCacheLimits.startedMaxDiskSize;
+                if (maxDiskSize >= 0) {
+                    result.putDouble("maxDiskSize", maxDiskSize);
+                    result.putDouble("diskSize", FastImageCacheLimits.diskSize(context));
+                }
+                promise.resolve(result);
+            }
+        });
+    }
+
     @ReactMethod
     public void clearMemoryCache(final Promise promise) {
         final Activity activity = getCurrentActivity();

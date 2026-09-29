@@ -92,6 +92,33 @@ export type LoadResult =
     | { ok: true; width: number; height: number }
     | { ok: false; error: string }
 
+// configureCache's changes: a number (0 for no limit), or null to go back to
+// the app's native config (Info.plist, AndroidManifest.xml) or the platform's
+// default. Leave one out to keep it. Changes are saved, and used on the next
+// launches too. Android only has maxDiskSize.
+export interface CacheLimits {
+    // The most bytes of images kept on disk. When it's over, the least
+    // recently used are removed (on iOS, until it's half this size). Default:
+    // no limit on iOS, 250 MB on Android.
+    maxDiskSize?: number | null
+    // iOS: the seconds an image is kept on disk after it was last used, or 0
+    // to keep them until maxDiskSize removes them. Default: 1 week.
+    maxDiskAge?: number | null
+    // iOS: the most bytes of decoded images kept in memory. Default: no limit
+    // (they're removed when the system is low on memory).
+    maxMemorySize?: number | null
+}
+
+// configureCache's result: the limits in effect (0 for no limit), and the bytes
+// the disk cache uses now. Android only has maxDiskSize and diskSize, and
+// neither if the app has its own AppGlideModule.
+export interface CacheState {
+    maxDiskSize?: number
+    maxDiskAge?: number
+    maxMemorySize?: number
+    diskSize?: number
+}
+
 // getCachePath's result: ok with the file's path, or not ok with the error.
 export type CachePathResult =
     | { ok: true; path: string }
@@ -489,6 +516,15 @@ export interface FastImageStaticProperties {
      * sources. Never rejects.
      */
     writeToCache: (source: Source, file: string) => Promise<CachePathResult>
+    /**
+     * Changes the cache's limits at runtime (only those given; 0 for no
+     * limit, null to go back to the app's native config) and saves them, then
+     * resolves with the limits in effect and the disk cache's size. Without
+     * limits, only resolves. iOS applies changes at once. Android only has
+     * `maxDiskSize`, applied when Glide starts: at once if no image has
+     * loaded yet, otherwise from the next launch.
+     */
+    configureCache: (limits?: CacheLimits) => Promise<CacheState>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -521,6 +557,9 @@ FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()
 
 FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+
+FastImage.configureCache = (limits: CacheLimits = {}): Promise<CacheState> =>
+    Promise.resolve(NativeModules.FastImageView.configureCache(limits))
 
 FastImage.writeToCache = (
     source: Source,
