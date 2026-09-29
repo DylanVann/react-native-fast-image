@@ -1,3 +1,10 @@
+# [8.18.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.2...v8.18.0) (2026-09-29)
+
+
+### Features
+
+* add FastImage.getCachePath to get an image's file in the disk cache ([#1162](https://github.com/DylanVann/react-native-fast-image/issues/1162)) ([f116677](https://github.com/DylanVann/react-native-fast-image/commit/f116677ca0cf8da1b109d9c382db7aba9122c21c))
+
 ## [8.17.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.1...v8.17.2) (2026-09-29)
 
 
