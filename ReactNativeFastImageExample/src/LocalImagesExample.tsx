@@ -16,11 +16,11 @@ import BulletText from './BulletText'
 // @ts-ignore
 import FieldsImage from './images/fields.jpg'
 // @ts-ignore
-import FieldsWebP from './images/fields.webp'
+import FieldsWebP from './images/fields-webp.webp'
 // @ts-ignore
 import JellyfishGIF from './images/jellyfish.gif'
 // @ts-ignore
-import JellyfishWebP from './images/jellyfish.webp'
+import JellyfishWebP from './images/jellyfish-webp.webp'
 import { Masked, useLoads } from './RunnerContext'
 
 const Image = ({ source, ...p }: FastImageProps) => (
