@@ -19,8 +19,10 @@
     },
     "license": "(MIT AND Apache-2.0)",
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
-    "main": "dist/index.cjs.js",
-    "module": "dist/index.js",
+    "main": "dist/index.cjs",
+    "module": "dist/index",
+    "react-native": "dist/index.cjs",
+    "browser": "dist/index.web.js",
     "typings": "dist/index.d.ts",
     "files": [
         "android/build.gradle",
@@ -34,7 +36,7 @@
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c && cp src/index.js.flow dist/index.js.flow && cp src/index.js.flow dist/index.cjs.js.flow",
+        "build": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c && for f in index index.cjs index.web index.cjs.web; do cp src/index.js.flow dist/$f.js.flow; done",
         "lint": "oxlint",
         "release": "semantic-release",
         "test": "bun test",

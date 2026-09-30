@@ -24,6 +24,8 @@ function hostComponent(name: string) {
 
 export const View = hostComponent('View')
 
+export const Text = hostComponent('Text')
+
 export const Image: any = hostComponent('Image')
 // As in React Native: objects pass through, and a number is looked up in the
 // asset registry, which is empty here.
