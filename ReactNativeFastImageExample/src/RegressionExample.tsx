@@ -19,6 +19,7 @@ import FastImage, {
     OnProgressEvent,
     PreloadResult,
     Source,
+    Transition,
 } from 'react-native-fast-image'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
@@ -2032,6 +2033,198 @@ function PreloadDiskCase() {
     )
 }
 
+// transition, recorded (a video sample, see RunnerContext.tsx): an image that
+// fades in over 1 s, over black, goes from black through half cyan to cyan;
+// one that shows at once goes from black to cyan (half cyan mustn't appear).
+// Over black, so halfway is far from both ends. Each records until the fade's
+// length after its image loaded, so one that shouldn't fade has the time to.
+// Where the image comes from:
+// - download: the slow server (about 350 ms). On the legacy architecture, an
+//   image that loads before the new view is first drawn can show without the
+//   fade.
+// - memory: a view showing the same image (left) has loaded it.
+// - disk: a view showing it loaded it, then went away, and the memory cache
+//   was cleared.
+// - change: the view shows magenta, then its source changes to cyan, which
+//   another view (left) has loaded (from the memory cache): magenta, then
+//   cyan, or through blue-violet if it fades.
+// - change-download: the same, with a cyan image that downloads (the slow
+//   server).
+// - file: the file getCachePath gives for an image a view (left) loaded, as
+//   a `file://` source: a local file, not a memory cache hit.
+// - bundled: a require()d image (from Metro in debug builds, from the app in
+//   release builds).
+const FADE_MS = 1000
+const BLACK = '#000000'
+// Cyan at half opacity over black.
+const HALF_CYAN = '#008080'
+// Halfway from magenta to cyan.
+const MAGENTA_CYAN = '#8080ff'
+type FadeFrom =
+    | 'download'
+    | 'memory'
+    | 'disk'
+    | 'change'
+    | 'change-download'
+    | 'file'
+    | 'bundled'
+function FadeCase({
+    id,
+    from,
+    skipOnCacheHit,
+    betweenImages,
+    blurRadius,
+    fades,
+    description,
+}: {
+    id: string
+    from: FadeFrom
+    skipOnCacheHit?: Transition['skipOnCacheHit']
+    betweenImages?: boolean
+    blurRadius?: number
+    fades: boolean
+    description: string
+}) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const change = from === 'change' || from === 'change-download'
+    const source =
+        from === 'download' || from === 'change-download'
+            ? {
+                  uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=50`),
+                  headers: BACKGROUND_SLOW_HEADERS,
+              }
+            : { uri: imageUrl(`cyan.png?${id}=${RUN}`) }
+    const magenta = { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
+    const [file, setFile] = useState<Source>()
+    // Recorded as the view mounts (download, bundled), or once the view that
+    // loads the image first (left) has loaded it.
+    const onMount = from === 'download' || from === 'bundled'
+    // Whether a view (left) loads the image first.
+    const loader = !onMount && from !== 'change-download'
+    const [loaderShown, setLoaderShown] = useState(loader)
+    // The view that fades (change: it shows magenta until the change).
+    const [shown, setShown] = useState(change)
+    const [changed, setChanged] = useState(false)
+    // What the view that fades shows (change: magenta until the change).
+    const shownSource =
+        from === 'bundled'
+            ? require('./images/cyan.png')
+            : from === 'file'
+              ? file
+              : change && !changed
+                ? magenta
+                : source
+    const [status, setStatus] = useState(
+        onMount ? 'waiting' : 'loading the first view',
+    )
+    const expect = change
+        ? fades
+            ? [MAGENTA, MAGENTA_CYAN, CYAN]
+            : [MAGENTA, CYAN]
+        : fades
+          ? [BLACK, HALF_CYAN, CYAN]
+          : [BLACK, CYAN]
+    const loaded = useRef(0)
+    const done = useRef(() => {})
+    const record = async () => {
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 5000,
+                expect,
+                palette: change
+                    ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                    : [BLACK, HALF_CYAN, CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                if (change) setChanged(true)
+                else setShown(true)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    const onLoaderLoad = async () => {
+        if (from === 'disk') {
+            setLoaderShown(false)
+            // Once the view has let go of the image.
+            await new Promise<void>((resolve) => setTimeout(resolve, 500))
+            await FastImage.clearMemoryCache()
+            record()
+        } else if (from === 'memory') {
+            record()
+        } else if (from === 'file') {
+            const result = await FastImage.getCachePath(source)
+            if (!result.ok) return setStatus(`no file: ${result.error}`)
+            setFile({ uri: `file://${result.path}` })
+            record()
+        } else if (++loaded.current === (loader ? 2 : 1)) {
+            // change: after magenta has faded in too.
+            setTimeout(record, FADE_MS + 500)
+        }
+    }
+    useEffect(() => {
+        if (onMount) record()
+        // Only on mount (the others record once the first view loads).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return (
+        <View style={styles.row}>
+            {loader ? (
+                <View style={styles.image}>
+                    {loaderShown ? (
+                        <FastImage
+                            style={styles.image}
+                            source={source}
+                            onLoad={onLoaderLoad}
+                        />
+                    ) : null}
+                </View>
+            ) : null}
+            <View
+                ref={view}
+                collapsable={false}
+                style={[fadeStyles.black, loader ? styles.gap : null]}
+            >
+                {shown ? (
+                    <FastImage
+                        style={fadeStyles.image}
+                        source={shownSource}
+                        onLoad={
+                            change && !changed
+                                ? onLoaderLoad
+                                : // With some slack: the fade can start a
+                                  // little after onLoad on a busy device.
+                                  () =>
+                                      setTimeout(
+                                          () => done.current(),
+                                          FADE_MS + 500,
+                                      )
+                        }
+                        transition={{
+                            duration: FADE_MS,
+                            betweenImages,
+                            skipOnCacheHit,
+                        }}
+                        blurRadius={blurRadius}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+const fadeStyles = StyleSheet.create({
+    black: { width: 48, height: 48, backgroundColor: BLACK },
+    image: { width: 48, height: 48 },
+})
+
 // Preloads a mix of sources and checks the results: each source's ok, and the
 // size of the ones that loaded. The private image only loads with its header,
 // which checks preload sends it (#571).
@@ -3653,6 +3846,120 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SourceClearedWhileLoadingCase
                 key="source-cleared"
                 id="source-cleared"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade',
+        cases: [
+            <FadeCase
+                key="fade"
+                id="fade"
+                from="download"
+                fades
+                description="transition: a downloaded image fades in over 1 s (recorded: black, half cyan, cyan)"
+            />,
+            <FadeCase
+                key="fade-memory"
+                id="fade-memory"
+                from="memory"
+                fades={false}
+                description="transition: the same image from the memory cache (right) shows at once (recorded: black, then cyan)"
+            />,
+            <FadeCase
+                key="fade-memory-none"
+                id="fade-memory-none"
+                from="memory"
+                skipOnCacheHit="none"
+                fades
+                description="transition with skipOnCacheHit none: the same image from the memory cache (right) fades in (recorded: black, half cyan, cyan)"
+            />,
+            <FadeCase
+                key="fade-blur"
+                id="fade-blur"
+                from="download"
+                blurRadius={6}
+                fades
+                description="transition with blurRadius: a downloaded image fades in once it's blurred (recorded: black, half cyan, cyan; blurring a flat color keeps it)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-source',
+        cases: [
+            <FadeCase
+                key="fade-change"
+                id="fade-change"
+                from="change"
+                fades={false}
+                description="transition: a new source from the memory cache shows at once over the image showing, as in a reused list row (right; recorded: magenta, then cyan)"
+            />,
+            <FadeCase
+                key="fade-file"
+                id="fade-file"
+                from="file"
+                fades
+                description="transition: a local file:// image fades in (right; the file getCachePath gives for the left one; recorded: black, half cyan, cyan)"
+            />,
+            <FadeCase
+                key="fade-bundled"
+                id="fade-bundled"
+                from="bundled"
+                fades
+                description="transition: a bundled require() image fades in, as with Glide and Coil (recorded: black, half cyan, cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-between',
+        cases: [
+            <FadeCase
+                key="fade-change-download"
+                id="fade-change-download"
+                from="change-download"
+                fades={false}
+                description="transition: a new source that downloads replaces the image showing at once, once it has loaded (recorded: magenta, then cyan)"
+            />,
+            <FadeCase
+                key="fade-between"
+                id="fade-between"
+                from="change-download"
+                betweenImages
+                fades
+                description="transition with betweenImages: a new source that downloads cross-dissolves from the image showing (recorded: magenta, blue-violet, cyan)"
+            />,
+            <FadeCase
+                key="fade-between-memory"
+                id="fade-between-memory"
+                from="change"
+                betweenImages
+                skipOnCacheHit="none"
+                fades
+                description="transition with betweenImages and skipOnCacheHit none: a new source from the memory cache cross-dissolves from the image showing (right; recorded: magenta, blue-violet, cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded. Clears the memory cache, so on its own.
+        name: 'fade-disk',
+        cases: [
+            <FadeCase
+                key="fade-disk"
+                id="fade-disk"
+                from="disk"
+                fades
+                description="transition: an image from the disk cache fades in (right; recorded: black, half cyan, cyan)"
+            />,
+            <FadeCase
+                key="fade-disk-all"
+                id="fade-disk-all"
+                from="disk"
+                skipOnCacheHit="all"
+                fades={false}
+                description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
             />,
         ],
     },

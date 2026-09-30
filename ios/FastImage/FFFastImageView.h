@@ -30,6 +30,12 @@
 @property (nonatomic, copy) NSString *imageRendering;
 // Pauses animated images on the frame they're showing.
 @property (nonatomic, assign) BOOL paused;
+// The `transition` prop: how long a loaded image takes to fade in, in
+// milliseconds (0 for no fade), whether it also fades over a loaded image
+// (a new source), and which cache hits show at once (none, memory or all).
+@property (nonatomic, assign) double transitionDuration;
+@property (nonatomic, assign) BOOL transitionBetweenImages;
+@property (nonatomic, copy) NSString *transitionSkipOnCacheHit;
 // Decodes images at about the view's size instead of at full size.
 @property (nonatomic, assign) BOOL downsample;
 // Blurs the loaded image by this radius, in points (0 is no blur).

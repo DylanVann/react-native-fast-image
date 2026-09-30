@@ -598,6 +598,77 @@ describe('source.cacheKey', () => {
     })
 })
 
+describe('transition', () => {
+    const nativeView = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+    const source = { uri: 'https://example.com/a.jpg' }
+
+    it('is off by default, not between images and skipping memory cache hits once set', () => {
+        const view = nativeView(<FastImage source={source} />)
+        expect(view.props.transitionDuration).toBe(0)
+        expect(view.props.transitionBetweenImages).toBe(false)
+        expect(view.props.transitionSkipOnCacheHit).toBe('memory')
+    })
+
+    it('takes a duration', () => {
+        const view = nativeView(<FastImage source={source} transition={300} />)
+        expect(view.props.transitionDuration).toBe(300)
+        expect(view.props.transitionSkipOnCacheHit).toBe('memory')
+    })
+
+    it('takes an object', () => {
+        const view = nativeView(
+            <FastImage
+                source={source}
+                transition={{
+                    duration: 300,
+                    betweenImages: true,
+                    skipOnCacheHit: 'none',
+                }}
+            />,
+        )
+        expect(view.props.transitionDuration).toBe(300)
+        expect(view.props.transitionBetweenImages).toBe(true)
+        expect(view.props.transitionSkipOnCacheHit).toBe('none')
+    })
+
+    it('uses the usual fade (250 ms on iOS) without a duration', () => {
+        for (const transition of [true, { skipOnCacheHit: 'all' as const }]) {
+            expect(
+                nativeView(
+                    <FastImage source={source} transition={transition} />,
+                ).props.transitionDuration,
+            ).toBe(250)
+        }
+    })
+
+    it('is off for false, 0 or a negative duration', () => {
+        for (const transition of [false, 0, -1, { duration: 0 }]) {
+            expect(
+                nativeView(
+                    <FastImage source={source} transition={transition} />,
+                ).props.transitionDuration,
+            ).toBe(0)
+        }
+    })
+
+    it('fades a bundled image like any other', () => {
+        const resolveAssetSource = spyOn(
+            Image,
+            'resolveAssetSource',
+        ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
+        try {
+            const view = nativeView(<FastImage source={1} transition={300} />)
+            expect(view.props.transitionDuration).toBe(300)
+            expect(view.props.transitionSkipOnCacheHit).toBe('memory')
+        } finally {
+            resolveAssetSource.mockRestore()
+        }
+    })
+})
+
 describe('downsample', () => {
     it('is passed to the native view', () => {
         const [view] = renderer

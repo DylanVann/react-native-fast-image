@@ -212,6 +212,27 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ---
 
+### `transition?: boolean | number | Transition`
+
+Fades the image in when it loads. Off by default. `true` uses the platform's usual fade, a number is the duration in milliseconds, or pass an object:
+
+- `duration`: milliseconds; 0 is no fade. Defaults to the platform's usual length: 300 ms on Android, 250 ms on iOS.
+- `betweenImages` (default `false`): also fade between images. By default an image fades in when it appears over nothing (or over `defaultSource`), and a new `source` replaces the image that's showing at once, once it has loaded. With `true`, the new image cross-dissolves from the one showing (for a gallery or an avatar that changes, say).
+- `skipOnCacheHit`: which images show at once, without the fade:
+    - `'memory'` (default): images from the memory cache, so a list scrolled back up shows images it already loaded at once. Images from the disk cache fade in.
+    - `'all'`: images from the memory or disk cache: images that download fade in, and local files and bundled images usually only the first time they load (the disk cache usually keeps them too).
+    - `'none'`: every image fades in.
+
+Downloads, local files (`file://`, `content://`) and bundled images (`require()`) fade in. In lists that reuse views (e.g. FlashList), set `recyclingKey`, so a reused view starts empty and its image fades in, instead of showing the previous item's image until it loads.
+
+```jsx
+<FastImage source={{ uri }} transition />
+<FastImage source={{ uri }} transition={500} />
+<FastImage source={{ uri }} transition={{ betweenImages: true, skipOnCacheHit: 'none' }} />
+```
+
+---
+
 ### `downsample?: boolean`
 
 iOS only. Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.

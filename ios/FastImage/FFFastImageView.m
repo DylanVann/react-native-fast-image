@@ -26,6 +26,11 @@
 @property(nonatomic, assign) CGSize blurredForSize;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
+// The image being blurred fades in once it's blurred (transition).
+@property(nonatomic, assign) BOOL fadesBlurredImage;
+// The image being blurred is the first loaded one the view shows: until it's
+// blurred, the view shows no loaded image (nothing, or defaultSource).
+@property(nonatomic, assign) BOOL blursOverNothing;
 // Whether the current load was already restarted after the app came back
 // from the background (see downloadImage:).
 @property(nonatomic, assign) BOOL retriedAfterBackground;
@@ -115,6 +120,77 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
             [self startAnimating];
         }
     }
+}
+
+// Whether a loaded image fades in (the `transition` prop). Over a loaded
+// image (a new source) only with betweenImages: otherwise it replaces it at
+// once, as Android's image libraries fade an image in from nothing and never
+// between images. Then as SDWebImage's transitions and those libraries
+// decide: from the memory cache it shows at once (skipOnCacheHit 'memory',
+// the default), and from the disk cache too with 'all'. Downloads, local
+// files and bundled images fade.
+- (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
+    if (self.transitionDuration <= 0 || ([self displaysLoadedImage] && !self.transitionBetweenImages)) {
+        return NO;
+    }
+    NSString* skip = self.transitionSkipOnCacheHit;
+    if ([skip isEqualToString: @"none"]) {
+        return YES;
+    }
+    if (cacheType == SDImageCacheTypeMemory) {
+        return NO;
+    }
+    // SDWebImage also keeps local files and bundled images in its disk cache,
+    // so with 'all' they usually only fade the first time.
+    return !(cacheType == SDImageCacheTypeDisk && [skip isEqualToString: @"all"]);
+}
+
+// Whether the view shows a loaded image now: a loaded image that's still
+// being blurred isn't showing yet.
+- (BOOL) displaysLoadedImage {
+    return self.showsLoadedImage && !self.blursOverNothing;
+}
+
+// Shows a loaded image, fading it in over what the view shows if `fade`. A
+// blurred image shows, and fades in, once it's blurred.
+- (void) showLoadedImage: (UIImage*)image fade: (BOOL)fade {
+    if ([self blurs: image]) {
+        self.blursOverNothing = ![self displaysLoadedImage];
+        self.fadesBlurredImage = fade;
+        self.image = image;
+        return;
+    }
+    self.blursOverNothing = NO;
+    self.fadesBlurredImage = NO;
+    if (fade) {
+        [self fadeIn: ^{
+            self.image = image;
+        }];
+    } else {
+        self.image = image;
+    }
+}
+
+// Makes the change (showing another image), fading it in over what the view
+// showed.
+- (void) fadeIn: (void (^)(void))change {
+    if (!super.image || !self.layer.presentationLayer) {
+        // Nothing to cross-dissolve from: the view shows no image, or isn't
+        // on screen yet (e.g. a new view whose image loads as it mounts),
+        // where a cross-dissolve has nothing drawn to start from and shows
+        // the image at once. Fade the view in instead.
+        change();
+        CABasicAnimation* fadeIn = [CABasicAnimation animationWithKeyPath: @"opacity"];
+        fadeIn.fromValue = @0;
+        fadeIn.duration = self.transitionDuration / 1000;
+        [self.layer addAnimation: fadeIn forKey: @"FFFFadeIn"];
+        return;
+    }
+    [UIView transitionWithView: self
+                      duration: self.transitionDuration / 1000
+                       options: UIViewAnimationOptionTransitionCrossDissolve | UIViewAnimationOptionAllowUserInteraction
+                    animations: change
+                    completion: nil];
 }
 
 - (void) setPaused: (BOOL)paused {
@@ -246,7 +322,17 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
     self.originalImage = image && self.imageColor ? image : nil;
     self.blurredImage = nil;
-    [self showImage: image];
+    self.blursOverNothing = NO;
+    // The blur was removed before it was ready: the fade it was waiting for
+    // happens now.
+    if (self.fadesBlurredImage) {
+        self.fadesBlurredImage = NO;
+        [self fadeIn: ^{
+            [self showImage: image];
+        }];
+    } else {
+        [self showImage: image];
+    }
 }
 
 // Shows the image, tinted as React Native's Image does it: UIKit draws a
@@ -336,7 +422,15 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 - (void) showBlurredImage: (UIImage*)image count: (NSUInteger)count {
     if (self.imageCount == count) {
         self.blurredImage = image;
-        [self showImage: image];
+        self.blursOverNothing = NO;
+        if (self.fadesBlurredImage) {
+            self.fadesBlurredImage = NO;
+            [self fadeIn: ^{
+                [self showImage: image];
+            }];
+        } else {
+            [self showImage: image];
+        }
     }
 }
 
@@ -513,8 +607,9 @@ NSString *FFFErrorMessage(NSError *error)
     if (changed) {
         // The view shows other content now: don't keep the current image
         // while the next one loads (reloadImage clears it), even if the
-        // source is the same.
+        // source is the same, nor a fade from it.
         self.showsLoadedImage = NO;
+        [self.layer removeAllAnimations];
         _needsReload = YES;
     }
 }
@@ -646,7 +741,7 @@ NSString *FFFErrorMessage(NSError *error)
                 }
                 return;
             }
-            [self setImage: image];
+            [self showLoadedImage: image fade: [self fadesImageFromCache: SDImageCacheTypeNone]];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
                         @"loaded": @(1),
@@ -799,13 +894,18 @@ NSString *FFFErrorMessage(NSError *error)
     // class to SDAnimatedImage (loadContext sets it). Only while this is the
     // current load: SDWebImage sets the placeholder when a load it cancelled
     // completes, which could replace a newer image.
+    UIImage* placeholder = _defaultSource;
     SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
-        if (weakSelf.loadCount == load) {
-            weakSelf.image = image;
+        if (weakSelf.loadCount != load) {
+            return;
         }
+        // The loaded image, not defaultSource (shown while it loads, or if it
+        // fails).
+        BOOL loaded = image && image != placeholder;
+        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType]];
     };
     [self sd_internalSetImageWithURL: url
-                    placeholderImage: _defaultSource
+                    placeholderImage: placeholder
                              options: options
                              context: context
                        setImageBlock: setImage

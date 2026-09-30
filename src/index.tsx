@@ -68,6 +68,36 @@ export type Source = {
     memoryCache?: boolean
 }
 
+export type Transition = {
+    /**
+     * How long the fade takes, in milliseconds; 0 means no fade. Defaults to
+     * the platform's usual length: 300 ms on Android, 250 ms on iOS.
+     */
+    duration?: number
+    /**
+     * Also fades between images: a new `source` replacing an image that's
+     * showing cross-dissolves from it. Otherwise only an image that appears
+     * over nothing (or over `defaultSource`) fades in, and a new source
+     * replaces the image showing at once, once it has loaded.
+     * @default false
+     */
+    betweenImages?: boolean
+    /**
+     * Skips the fade for an image from a cache, so images already loaded
+     * show at once, e.g. in a list scrolled back up or a reused row.
+     *
+     * - `'memory'`: skips it for images from the memory cache.
+     * - `'all'`: skips it for images from the memory or disk cache too, so
+     *   images that download fade in, and local files and bundled images
+     *   usually only the first time (the disk cache usually keeps them too).
+     * - `'none'`: always fades.
+     *
+     * Downloads, local files and bundled images (`require()`) fade in.
+     * @default 'memory'
+     */
+    skipOnCacheHit?: 'none' | 'memory' | 'all' | null
+}
+
 export interface OnLoadEvent {
     nativeEvent: {
         width: number
@@ -184,6 +214,13 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * its own, so pausing one doesn't pause others showing the same file.
      */
     paused?: boolean
+    /**
+     * Fades the image in when it loads: `true` for the platform's usual fade,
+     * a duration in milliseconds, or a `Transition` (default: no fade). An
+     * image fades in when it appears over nothing (see `betweenImages`),
+     * unless it's from the memory cache (see `skipOnCacheHit`).
+     */
+    transition?: boolean | number | Transition | null
     /**
      * iOS only. Decodes a large image at about the size it's shown at, so it
      * takes much less memory. For images much larger than their views that
@@ -332,6 +369,31 @@ function withProgress(onProgress: FastImageProps['onProgress']) {
     )
 }
 
+// The platform's usual fade length: Glide's and React Native's Image's on
+// Android, Core Animation's default on iOS.
+const DEFAULT_FADE_MS = Platform.OS === 'ios' ? 250 : 300
+
+// The native transition props. Always sent, so removing `transition` turns it
+// off.
+function transitionProps(transition: FastImageProps['transition']) {
+    const { duration, betweenImages, skipOnCacheHit }: Transition =
+        typeof transition === 'number'
+            ? { duration: transition }
+            : typeof transition === 'object' && transition
+              ? {
+                    ...transition,
+                    // A missing (or, from Flow, null) duration is the usual one.
+                    duration: transition.duration ?? DEFAULT_FADE_MS,
+                }
+              : { duration: transition ? DEFAULT_FADE_MS : 0 }
+    return {
+        transitionDuration:
+            typeof duration === 'number' && duration > 0 ? duration : 0,
+        transitionBetweenImages: !!betweenImages,
+        transitionSkipOnCacheHit: skipOnCacheHit || 'memory',
+    }
+}
+
 // A copy of the source without `cache`.
 function withoutCache(source: Source | undefined) {
     const { cache: _cache, ...rest } = source || {}
@@ -352,6 +414,7 @@ function FastImageBase({
     children,
     resizeMode = 'cover',
     loop,
+    transition,
     forwardedRef,
     // On the wrapper, so the layout is relative to the parent (the image view
     // inside always has x and y of 0).
@@ -459,6 +522,7 @@ function FastImageBase({
                 {...imageProps}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
+                {...transitionProps(transition)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}

@@ -72,6 +72,12 @@ export type CachePathResult =
     | {| ok: true, path: string |}
     | {| ok: false, error: string |}
 
+export type Transition = $ReadOnly<{|
+    duration?: ?number,
+    betweenImages?: ?boolean,
+    skipOnCacheHit?: ?('none' | 'memory' | 'all'),
+|}>
+
 export type PreloadSuccess = {|
     uri: string,
     ok: true,
@@ -117,6 +123,7 @@ export type FastImageProps = $ReadOnly<{|
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
     paused?: ?boolean,
+    transition?: ?(boolean | number | Transition),
     downsample?: ?boolean,
     blurRadius?: ?number,
     testID?: ?string,
