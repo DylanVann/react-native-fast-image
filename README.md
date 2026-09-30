@@ -116,7 +116,10 @@ pod 'SDWebImagePhotosPlugin'
 With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/):
 
 ```json
-["expo-build-properties", { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }]
+[
+    "expo-build-properties",
+    { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }
+]
 ```
 
 The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
