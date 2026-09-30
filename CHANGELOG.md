@@ -1,3 +1,10 @@
+## [8.19.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.19.0...v8.19.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **ios:** tint images with the view's tintColor, and tint animated images' frames ([#1195](https://github.com/DylanVann/react-native-fast-image/issues/1195)) ([64743cf](https://github.com/DylanVann/react-native-fast-image/commit/64743cfe10d5be0d6e9b5da609cb3c36e12bd67b))
+
 # [8.19.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.2...v8.19.0) (2026-09-30)
 
 
