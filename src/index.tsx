@@ -45,6 +45,14 @@ export type Source = {
      * list scrolled back decodes them again.
      */
     memoryCache?: boolean
+    /**
+     * With several sources (`source` as an array), the image's size at this
+     * uri in pixels (width and height, times `scale` if given): the view
+     * loads the source closest to its own size.
+     */
+    width?: number
+    height?: number
+    scale?: number
 }
 
 export type Transition = {
@@ -160,7 +168,12 @@ export interface ImageStyle extends ViewStyle {
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
-    source?: Source | ImageRequireSource
+    /**
+     * The image: a source, a `require()`d image, or several sources of the
+     * same image at different sizes (each with its `width` and `height` in
+     * pixels), of which the view loads the one closest to its size.
+     */
+    source?: Source | Source[] | ImageRequireSource
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
@@ -427,7 +440,11 @@ function FastImageBase({
         // Remove `cache`, which React Native's Image doesn't support. A
         // require()d source is a number: pass it through (spreading it gave {}).
         const cleanedSource =
-            typeof source === 'number' ? source : withoutCache(source)
+            typeof source === 'number'
+                ? source
+                : Array.isArray(source)
+                  ? source.map(withoutCache)
+                  : withoutCache(source)
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
 
         return (
@@ -488,7 +505,17 @@ function FastImageBase({
         )
     }
 
-    const resolvedSource = Image.resolveAssetSource(source as any)
+    // Several sources are picked from natively, for the view's size; one in
+    // an array is a plain source.
+    const sources = Array.isArray(source)
+        ? source.length === 1
+            ? undefined
+            : source
+        : undefined
+    const single = Array.isArray(source) ? source[0] : source
+    const resolvedSource = sources
+        ? undefined
+        : Image.resolveAssetSource(single as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
@@ -504,6 +531,7 @@ function FastImageBase({
                 {...transitionProps(transition)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
+                sources={sources}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={withProgress(onProgress)}
@@ -605,13 +633,23 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
+// preload, getCachePath and writeToCache take one source per image, not
+// several sizes of one: pick the size (e.g. the one a view will show).
+const ONE_SOURCE =
+    'Takes one source, not an array of sizes: pass the size to use'
+
 FastImage.preload = (sources: Source[]) =>
     // Null sources are sent as {} so native results line up with the sources
-    // (iOS drops null entries).
+    // (iOS drops null entries), and arrays too (their results are replaced).
     Promise.resolve(
-        NativeModules.FastImageView.preload(sources.map((s) => s || {})),
+        NativeModules.FastImageView.preload(
+            sources.map((s) => (s && !Array.isArray(s) ? s : {})),
+        ),
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
+            if (Array.isArray(source)) {
+                return { ok: false, error: ONE_SOURCE, uri: undefined }
+            }
             const uri = source ? source.uri : undefined
             const result = results?.[i] ?? noResult
             if (!result.ok) return { ...result, uri }
@@ -634,14 +672,20 @@ FastImage.writeToCache = (
     source: Source,
     file: string,
 ): Promise<CachePathResult> =>
-    // A null source is sent as {} (it fails as a source without a uri).
-    Promise.resolve(
-        NativeModules.FastImageView.writeToCache(source || {}, file),
-    )
+    Array.isArray(source)
+        ? Promise.resolve({ ok: false, error: ONE_SOURCE })
+        : // A null source is sent as {} (it fails as a source without a uri).
+          Promise.resolve(
+              NativeModules.FastImageView.writeToCache(source || {}, file),
+          )
 
 FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
-    // A null source is sent as {} (it fails as a source without a uri).
-    Promise.resolve(NativeModules.FastImageView.getCachePath(source || {}))
+    Array.isArray(source)
+        ? Promise.resolve({ ok: false, error: ONE_SOURCE })
+        : // A null source is sent as {} (it fails as a source without a uri).
+          Promise.resolve(
+              NativeModules.FastImageView.getCachePath(source || {}),
+          )
 
 const styles = StyleSheet.create({
     // React Native's Image sizes itself from a require()d source's width and

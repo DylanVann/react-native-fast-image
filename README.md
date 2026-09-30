@@ -175,6 +175,33 @@ Whether the decoded image is kept in the memory cache. **Default: true.** With `
 
 ---
 
+### Several sizes of an image
+
+`source` can also be an array of the same image at different sizes, each with its `width` and `height` in pixels (times `scale`, if it has one). The view loads the one whose size is closest to its own, in pixels, so a small view downloads a small image:
+
+```jsx
+<FastImage
+    style={{ width: 120, height: 120 }}
+    source={[
+        { uri: 'https://example.com/photo-200.jpg', width: 200, height: 200 },
+        { uri: 'https://example.com/photo-800.jpg', width: 800, height: 800 },
+        {
+            uri: 'https://example.com/photo-2000.jpg',
+            width: 2000,
+            height: 2000,
+        },
+    ]}
+/>
+```
+
+- The view picks once it has been laid out. One that has no size (e.g. sized from `onLoad`) loads the largest.
+- When the view's size changes so that another size fits better, it loads that one (with its load events), and keeps showing the current image until then, without a `transition`.
+- Each size is cached separately. A `cacheKey` applies to its own entry: give each size its own key (or none), or the sizes would replace each other in the cache.
+- `FastImage.preload`, `getCachePath` and `writeToCache` take one size: pass the one a view will show. An array fails with `{ ok: false, error }`.
+- An array of one is the same as that source.
+
+---
+
 ### `defaultSource?: number`
 
 - An asset loaded with `require(...)`.

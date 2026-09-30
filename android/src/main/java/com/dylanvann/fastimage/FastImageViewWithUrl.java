@@ -35,6 +35,7 @@ import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
 import com.bumptech.glide.request.transition.TransitionFactory;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -63,7 +64,89 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
     public void setSource(@Nullable ReadableMap source) {
         mNeedsReload = true;
-        mSource = source;
+        mPropSource = source;
+        if (mSources == null) mSource = source;
+    }
+
+    // The `source` prop. With several `sources`, mSource is the one picked for
+    // the view's size instead.
+    @Nullable
+    private ReadableMap mPropSource = null;
+    // Several sources (2 or more) of the same image at different sizes, or
+    // null: the view loads the one whose size is closest to its own.
+    @Nullable
+    private ReadableArray mSources = null;
+    // Several sources: the index of the one picked (-1 before one is), and
+    // whether the load waits for the view's size (after layout), or has
+    // waited (then it loads the largest if the view still has no size).
+    private int mSourceIndex = -1;
+    private boolean mWaitsForSize = false;
+    private boolean mWaitedForSize = false;
+    // Several sources: the next load switches to another one for a new view
+    // size. It's the same picture at another size, so it doesn't fade in.
+    private boolean mSwitchesSource = false;
+    // What the last update was called with, to load once the view has a size.
+    @Nullable
+    private FastImageViewManager mManager;
+    @Nullable
+    private Map<String, List<FastImageViewWithUrl>> mViewsForUrlsMap;
+
+    public void setSources(@Nullable ReadableArray sources) {
+        mNeedsReload = true;
+        mSources = sources != null && sources.size() > 1 ? sources : null;
+        mSourceIndex = -1;
+        if (mSources == null) mSource = mPropSource;
+    }
+
+    // Of several sources, the index of the one whose size in pixels (width ×
+    // height × scale²) is closest to the view's (by pixel count), or of the
+    // largest while the view has no size (e.g. one sized from onLoad).
+    private int sourceIndexForSize() {
+        ReadableArray sources = mSources;
+        if (sources == null) return -1;
+        double viewPixels = (double) getWidth() * getHeight();
+        int best = -1;
+        double bestFit = Double.MAX_VALUE;
+        for (int i = 0; i < sources.size(); i++) {
+            ReadableMap source = sources.getMap(i);
+            if (source == null) continue;
+            double scale = number(source, "scale", 1);
+            double pixels = number(source, "width", 0) * number(source, "height", 0) * scale * scale;
+            double fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels;
+            if (best < 0 || fit < bestFit) {
+                best = i;
+                bestFit = fit;
+            }
+        }
+        return best;
+    }
+
+    // Picks the source for the view's size (several sources).
+    private void pickSource() {
+        mSourceIndex = sourceIndexForSize();
+        mSource = mSourceIndex >= 0 && mSources != null ? mSources.getMap(mSourceIndex) : null;
+    }
+
+    private static double number(ReadableMap map, String key, double fallback) {
+        return map.hasKey(key) && !map.isNull(key) ? map.getDouble(key) : fallback;
+    }
+
+    // Several sources: another one fits the view's new size better. Loads it
+    // (after layout), keeping the image showing until then, without a fade.
+    private boolean switchSourceIfResized() {
+        if (mSources == null || mNeedsReload || mWaitsForSize || getWidth() <= 0 || getHeight() <= 0
+                || mManager == null || sourceIndexForSize() == mSourceIndex) {
+            return false;
+        }
+        mSwitchesSource = true;
+        mNeedsReload = true;
+        post(new Runnable() {
+            @Override
+            public void run() {
+                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager, mViewsForUrlsMap);
+            }
+        });
+        return true;
     }
 
     public void setDefaultSource(@Nullable Drawable source) {
@@ -520,7 +603,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             mFadeFrom = null;
             invalidate();
         }
-        reloadIfResized();
+        if (!switchSourceIfResized()) reloadIfResized();
     }
 
     private void reloadIfResized() {
@@ -671,16 +754,42 @@ class FastImageViewWithUrl extends AppCompatImageView {
             @Nonnull FastImageViewManager manager,
             @Nullable RequestManager requestManager,
             @Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
+        mManager = manager;
+        mViewsForUrlsMap = viewsForUrlsMap;
         if (mBlurChanged && !mNeedsReload) {
             mBlurChanged = false;
             reblur();
         }
         if (!mNeedsReload)
             return;
+        // Several sources: one is picked for the view's size, so a view that
+        // hasn't been laid out yet loads after layout (props and layout are
+        // applied in the same batch). A view that still has no size then
+        // (e.g. one sized from onLoad) loads the largest source.
+        if (mSources != null) {
+            if (mWaitsForSize) return;
+            if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
+                mWaitsForSize = true;
+                post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!mWaitsForSize) return;
+                        mWaitsForSize = false;
+                        mWaitedForSize = true;
+                        onAfterUpdate(manager, requestManager, viewsForUrlsMap);
+                    }
+                });
+                return;
+            }
+            mWaitedForSize = false;
+            pickSource();
+        }
         // Only reload for changes that affect the request (source,
         // defaultSource, resizeMode), not for every prop update.
         mNeedsReload = false;
         mBlurChanged = false;
+        boolean switching = mSwitchesSource;
+        mSwitchesSource = false;
         boolean restarting = mRestarting;
         mRestarting = false;
         mLoadCount++;
@@ -791,7 +900,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             // replaces it at once, as Glide, Coil and Fresco fade an image in
             // from nothing and never between images.
             boolean replacing = shownRequest != null && model != null;
-            if (mTransitionDuration > 0 && (!replacing || mTransitionBetweenImages)) {
+            if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
                 builder = builder.transition(DrawableTransitionOptions.with(
                         new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit)));
             }

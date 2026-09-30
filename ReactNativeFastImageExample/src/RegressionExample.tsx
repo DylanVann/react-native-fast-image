@@ -3617,6 +3617,137 @@ const repeatStyles = StyleSheet.create({
     image: { width: 120, height: 60, backgroundColor: '#eeeeee' },
 })
 
+// Several sources (source as an array of sizes): the view loads the one whose
+// size in pixels is closest to its own. Solid colors so the screenshot shows
+// which: 100 px red, 300 px green, 900 px blue. Each case checks onLoad's
+// size against the same rule worked out here for the view's size.
+const SIZES = [100, 300, 900]
+const sizedSources = (id: string) =>
+    SIZES.map((size) => ({
+        uri: imageUrl(`sized-${size}.png?${id}=${RUN}`),
+        width: size,
+        height: size,
+    }))
+// The size a view of this size (in points) picks: the closest pixel count, or
+// the largest for a view with no size.
+function expectedSize(width: number, height: number) {
+    const scale = PixelRatio.get()
+    const viewPixels = Math.round(width * scale) * Math.round(height * scale)
+    if (viewPixels === 0) return SIZES[SIZES.length - 1]
+    const fit = (size: number) => Math.abs(1 - (size * size) / viewPixels)
+    return SIZES.reduce((best, size) => (fit(size) < fit(best) ? size : best))
+}
+
+function SeveralSourcesCase({ id, size }: { id: string; size: number }) {
+    const [status, setStatus] = useState('loading')
+    const expected = expectedSize(size, size)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: size, height: size }}
+                source={sizedSources(id)}
+                onLoad={(e) =>
+                    setStatus(
+                        e.nativeEvent.width === expected
+                            ? 'OK'
+                            : `picked ${e.nativeEvent.width} px, expected ${expected} px`,
+                    )
+                }
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id={id}
+                status={status}
+                description={`several sources (100, 300, 900 px) in a ${size} pt view: loads the ${expected} px one (red 100, green 300, blue 900)`}
+            />
+        </View>
+    )
+}
+
+// The view grows after its image loaded: it loads the size that fits better.
+function SeveralSourcesResizeCase() {
+    const [big, setBig] = useState(false)
+    const [status, setStatus] = useState('loading')
+    const small = 40
+    const large = 200
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={
+                    big
+                        ? { width: large, height: large }
+                        : { width: small, height: small }
+                }
+                source={sizedSources('several-resize')}
+                onLoad={(e) => {
+                    const width = e.nativeEvent.width
+                    if (!big) {
+                        if (width !== expectedSize(small, small)) {
+                            setStatus(`first picked ${width} px`)
+                        } else {
+                            setBig(true)
+                        }
+                    } else {
+                        setStatus(
+                            width === expectedSize(large, large)
+                                ? 'OK'
+                                : `after growing picked ${width} px`,
+                        )
+                    }
+                }}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="several-resize"
+                status={status}
+                description={`several sources: a ${small} pt view that grows to ${large} pt after loading loads the ${expectedSize(large, large)} px size`}
+            />
+        </View>
+    )
+}
+
+// An array of one is a plain source (not picked by size), and a view with no
+// size loads the largest of several.
+function SeveralSourcesEdgeCase() {
+    const [one, setOne] = useState('loading')
+    const [none, setNone] = useState('loading')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={[sizedSources('several-one')[2]]}
+                onLoad={(e) =>
+                    setOne(
+                        e.nativeEvent.width === 900
+                            ? 'OK'
+                            : `${e.nativeEvent.width} px`,
+                    )
+                }
+            />
+            <FastImage
+                style={{ width: 0, height: 0 }}
+                source={sizedSources('several-no-size')}
+                onLoad={(e) =>
+                    setNone(
+                        e.nativeEvent.width === 900
+                            ? 'OK'
+                            : `${e.nativeEvent.width} px`,
+                    )
+                }
+            />
+            <CaseStatus
+                id="several-edge"
+                status={
+                    one === 'OK' && none === 'OK'
+                        ? 'OK'
+                        : `one: ${one}; no size: ${none}`
+                }
+                description="an array of one source loads it as it is (blue), and a view with no size loads the largest"
+            />
+        </View>
+    )
+}
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'load-end',
@@ -4326,6 +4457,30 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expect={[GREEN, MAGENTA]}
                 description="tintColor removed from a paused GIF (recorded: green, then its magenta first frame)"
             />,
+        ],
+    },
+    {
+        name: 'several-sources',
+        cases: [
+            <SeveralSourcesCase key="several-48" id="several-48" size={48} />,
+            <SeveralSourcesCase
+                key="several-120"
+                id="several-120"
+                size={120}
+            />,
+            <SeveralSourcesEdgeCase key="several-edge" />,
+        ],
+    },
+    {
+        // Large views, on their own.
+        name: 'several-sources-large',
+        cases: [
+            <SeveralSourcesCase
+                key="several-240"
+                id="several-240"
+                size={240}
+            />,
+            <SeveralSourcesResizeCase key="several-resize" />,
         ],
     },
     {

@@ -104,6 +104,9 @@ export type FastImageSource = {
     cache?: CacheControls,
     cacheKey?: string,
     memoryCache?: boolean,
+    width?: number,
+    height?: number,
+    scale?: number,
 }
 
 export type FastImageProps = $ReadOnly<{|
@@ -114,7 +117,7 @@ export type FastImageProps = $ReadOnly<{|
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 
-    source?: ?(FastImageSource | number),
+    source?: ?(FastImageSource | Array<FastImageSource> | number),
     defaultSource?: ?number,
 
     tintColor?: number | string,
