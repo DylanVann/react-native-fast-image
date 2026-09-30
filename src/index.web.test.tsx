@@ -74,6 +74,31 @@ describe('FastImage (web)', () => {
         ).toHaveLength(1)
     })
 
+    it('picks one of several sizes for the view once it has been laid out', () => {
+        const sources = [
+            { uri: 'https://example.com/100.png', width: 100, height: 100 },
+            { uri: 'https://example.com/300.png', width: 300, height: 300 },
+            { uri: 'https://example.com/900.png', width: 900, height: 900 },
+        ]
+        const tree = renderer.create(<FastImage source={sources} />)
+        const image = () =>
+            tree.root.findAll((node) => node.type === ('Image' as any))[0]
+        const layout = (width: number, height: number) =>
+            renderer.act(() => {
+                tree.root
+                    .findAll((node) => node.type === ('View' as any))[0]
+                    .props.onLayout({
+                        nativeEvent: { layout: { width, height } },
+                    })
+            })
+        expect(image().props.source).toBeUndefined()
+        // 150 × 150 at a pixel ratio of 2 is 300 × 300 pixels.
+        layout(150, 150)
+        expect(image().props.source).toEqual({ uri: sources[1].uri })
+        layout(0, 0)
+        expect(image().props.source).toEqual({ uri: sources[2].uri })
+    })
+
     // After React Native's Image sends onLoadEnd, once FastImage has the
     // image's size.
     const settled = () => new Promise((resolve) => setTimeout(resolve, 10))

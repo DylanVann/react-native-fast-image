@@ -3,13 +3,13 @@
 // `.web` files, or the package's `browser` field, pick this file instead of
 // index.tsx, which uses the native views.
 //
-// Works: source (uri or require()), defaultSource, resizeMode, tintColor,
+// Works: source (uri, require(), or several sizes), defaultSource, resizeMode, tintColor,
 // blurRadius, style, children, onLoadStart, onLoad, onError, onLoadEnd, and
 // View props (testID, accessibility, onLayout, pointerEvents). The native-only
 // props (cache, priority, headers, transition, downsample, loop, paused,
 // imageRendering, recyclingKey, fallback) and onProgress are ignored.
-import React, { forwardRef, memo, useRef } from 'react'
-import { Image, StyleSheet, View } from 'react-native'
+import React, { forwardRef, memo, useRef, useState } from 'react'
+import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import type {
     CachePathResult,
@@ -28,6 +28,32 @@ export type * from './index'
 const notSupported: CachePathResult = {
     ok: false,
     error: 'Not supported on the web',
+}
+
+// Of several sizes of an image, as on native: the one whose size in pixels
+// (width × height × scale²) is closest to the view's, or the largest if the
+// view has no size; none until the view has been laid out.
+function pickSource(
+    sources: Source[],
+    size: { width: number; height: number } | undefined,
+): Source | undefined {
+    if (sources.length <= 1) return sources[0]
+    if (!size) return undefined
+    const ratio = PixelRatio.get()
+    const viewPixels = size.width * size.height * ratio * ratio
+    let best: Source | undefined
+    let bestFit = Infinity
+    for (const source of sources) {
+        const scale = source.scale ?? 1
+        const pixels =
+            (source.width ?? 0) * (source.height ?? 0) * scale * scale
+        const fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels
+        if (!best || fit < bestFit) {
+            best = source
+            bestFit = fit
+        }
+    }
+    return best
 }
 
 function FastImageBase({
@@ -62,15 +88,25 @@ function FastImageBase({
     const result = useRef<LoadResult | undefined>(undefined)
     const sent = useRef<Promise<void>>(Promise.resolve())
     const image = useRef<any>(null)
+    // Several sizes (an array), which the web's Image doesn't take: the one
+    // for the view's size, once it has been laid out (see pickSource).
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    const picked = Array.isArray(source) ? pickSource(source, size) : source
     // A require()d image is a number, which the web's Image resolves. Headers
     // and the other source options can't be used by the browser.
-    const uri = typeof source === 'object' && source ? source.uri : undefined
+    const uri = typeof picked === 'object' && picked ? picked.uri : undefined
     const webSource =
-        typeof source === 'number' ? source : uri ? { uri } : undefined
+        typeof picked === 'number' ? picked : uri ? { uri } : undefined
     return (
         <View
             style={[styles.container, style]}
-            onLayout={onLayout}
+            onLayout={(event) => {
+                if (Array.isArray(source)) {
+                    const { width, height } = event.nativeEvent.layout
+                    setSize({ width, height })
+                }
+                onLayout?.(event)
+            }}
             pointerEvents={pointerEvents}
             ref={forwardedRef}
         >
