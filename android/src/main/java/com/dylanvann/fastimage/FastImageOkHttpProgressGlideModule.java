@@ -130,6 +130,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         webClient = client.newBuilder().cache(webCache).build();
         registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
+
+        // writeToCache: local files stored under a source's key.
+        registry.prepend(FastImageCacheWrite.class, InputStream.class,
+                new FastImageCacheWrite.LoaderFactory(context.getApplicationContext()));
     }
 
     // Loads GlideUrls with the given client, except `web` ones

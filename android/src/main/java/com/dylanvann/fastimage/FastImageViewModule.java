@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -13,7 +14,9 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.ImageHeaderParser;
 import com.bumptech.glide.load.ImageHeaderParserUtils;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
@@ -149,13 +152,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         finishOne.run();
                         continue;
                     }
-                    RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
-                    // Low priority unless the source sets one, as on iOS (the
-                    // prefetcher's options), so the images the app shows load
-                    // first.
-                    final RequestOptions preloadOptions = source.hasKey("priority") && !source.isNull("priority")
-                            ? options
-                            : options.priority(Priority.LOW);
+                    final RequestOptions preloadOptions = preloadOptions(context, imageSource, source);
                     // A source's result, which frees its slot.
                     final ResultCallback done = new ResultCallback() {
                         @Override
@@ -172,38 +169,29 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         pendingPreloads.add(new Runnable() {
                             @Override
                             public void run() {
-                                Glide
-                                        .with(context)
-                                        .asFile()
-                                        .load(imageSource.getSourceForLoad())
-                                        .apply(preloadOptions)
-                                        .listener(new RequestListener<File>() {
+                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, new FileCallback() {
+                                    @Override
+                                    public void run(@Nullable final File file, @Nullable String error) {
+                                        if (file == null) {
+                                            done.run(failure(error));
+                                            return;
+                                        }
+                                        sizeExecutor.execute(new Runnable() {
                                             @Override
-                                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
-                                                done.run(failure(FastImageRequestListener.errorMessage(e)));
-                                                return false;
-                                            }
-
-                                            @Override
-                                            public boolean onResourceReady(final File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
-                                                sizeExecutor.execute(new Runnable() {
+                                            public void run() {
+                                                final int[] size = imageSize(context, file);
+                                                UiThreadUtil.runOnUiThread(new Runnable() {
                                                     @Override
                                                     public void run() {
-                                                        final int[] size = imageSize(context, file);
-                                                        UiThreadUtil.runOnUiThread(new Runnable() {
-                                                            @Override
-                                                            public void run() {
-                                                                done.run(size != null
-                                                                        ? success(size[0], size[1])
-                                                                        : failure("Failed to read the image's size"));
-                                                            }
-                                                        });
+                                                        done.run(size != null
+                                                                ? success(size[0], size[1])
+                                                                : failure("Failed to read the image's size"));
                                                     }
                                                 });
-                                                return false;
                                             }
-                                        })
-                                        .preload();
+                                        });
+                                    }
+                                });
                             }
                         });
                         continue;
@@ -247,6 +235,57 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     private interface ResultCallback {
         void run(WritableMap result);
+    }
+
+    // A preload's options: low priority unless the source sets one, as on
+    // iOS (the prefetcher's options), so the images the app shows load first.
+    private static RequestOptions preloadOptions(Context context, FastImageSource imageSource, ReadableMap source) {
+        RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
+        return source.hasKey("priority") && !source.isNull("priority") ? options : options.priority(Priority.LOW);
+    }
+
+    private interface FileCallback {
+        void run(@Nullable File file, @Nullable String error);
+    }
+
+    // Downloads the image into Glide's disk cache without decoding it (if it
+    // isn't there), then calls back with its file or the error, on the UI
+    // thread.
+    private static void loadFile(Context context, Object model, RequestOptions options, final FileCallback callback) {
+        Glide.with(context)
+                .asFile()
+                .load(model)
+                .apply(options)
+                .listener(new RequestListener<File>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                        callback.run(null, FastImageRequestListener.errorMessage(e));
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                        callback.run(file, null);
+                        return false;
+                    }
+                })
+                .preload();
+    }
+
+    // The file of the image in Glide's disk cache, or null. Blocking.
+    @Nullable
+    private static File cachedFile(Context context, Object model, RequestOptions options) {
+        try {
+            return Glide.with(context)
+                    .asFile()
+                    .load(model)
+                    .apply(options)
+                    .onlyRetrieveFromCache(true)
+                    .submit()
+                    .get();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static WritableMap failure(String error) {
@@ -294,33 +333,16 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             return;
         }
         final boolean cacheOnly = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.CACHE_ONLY;
-        final RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
-        final RequestOptions preloadOptions = source.hasKey("priority") && !source.isNull("priority")
-                ? options
-                : options.priority(Priority.LOW);
-        final String url = imageSource.getUri().toString();
+        final RequestOptions options = preloadOptions(context, imageSource, source);
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 // On disk already: in Glide's cache (not for `web` images,
                 // which it doesn't cache), or in the HTTP cache of `web`
                 // images (set up by Glide, which is started first).
-                File file = null;
                 Glide.get(context);
-                if (!imageSource.isWebCache()) {
-                    try {
-                        file = Glide.with(context)
-                                .asFile()
-                                .load(imageSource.getSourceForLoad())
-                                .apply(options)
-                                .onlyRetrieveFromCache(true)
-                                .submit()
-                                .get();
-                    } catch (Exception e) {
-                        // Not in Glide's cache.
-                    }
-                }
-                if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(url);
+                File file = imageSource.isWebCache() ? null : cachedFile(context, imageSource.getSourceForLoad(), options);
+                if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                 if (file != null) {
                     promise.resolve(pathResult(file));
                     return;
@@ -333,8 +355,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     @Override
                     public void run() {
                         pendingPreloads.add(imageSource.isWebCache()
-                                ? downloadToWebCache(imageSource, url, promise)
-                                : downloadToDiskCache(context, imageSource, preloadOptions, promise));
+                                ? downloadToWebCache(imageSource, promise)
+                                : downloadToDiskCache(context, imageSource, options, promise));
                         startPendingPreloads();
                     }
                 });
@@ -363,35 +385,19 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return new Runnable() {
             @Override
             public void run() {
-                Glide
-                        .with(context)
-                        .asFile()
-                        .load(imageSource.getSourceForLoad())
-                        .apply(options)
-                        .listener(new RequestListener<File>() {
-                            @Override
-                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
-                                finishDownload(promise, failure(FastImageRequestListener.errorMessage(e)));
-                                return false;
-                            }
-
-                            @Override
-                            public boolean onResourceReady(File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
-                                finishDownload(promise, pathResult(file));
-                                return false;
-                            }
-                        })
-                        .preload();
+                loadFile(context, imageSource.getSourceForLoad(), options, new FileCallback() {
+                    @Override
+                    public void run(@Nullable File file, @Nullable String error) {
+                        finishDownload(promise, file != null ? pathResult(file) : failure(error));
+                    }
+                });
             }
         };
     }
 
     // Downloads a `web` image into its HTTP cache, which keeps it only if the
     // server allows caching it.
-    private static Runnable downloadToWebCache(
-            final FastImageSource imageSource,
-            final String url,
-            final Promise promise) {
+    private static Runnable downloadToWebCache(final FastImageSource imageSource, final Promise promise) {
         return new Runnable() {
             @Override
             public void run() {
@@ -401,7 +407,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         WritableMap result;
                         try {
                             FastImageOkHttpProgressGlideModule.downloadToWebCache(imageSource.getGlideUrl());
-                            File file = FastImageOkHttpProgressGlideModule.webCacheFile(url);
+                            File file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                             result = file != null
                                     ? pathResult(file)
                                     : failure("Not stored in the disk cache (the server doesn't allow caching it)");
@@ -413,6 +419,80 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 });
             }
         };
+    }
+
+    // Stores a local image file (file:// or content://) as the source's image
+    // in Glide's disk cache, so views and preloads of the source load it
+    // without downloading it, and resolves with its cached file: { ok, path }
+    // or { ok: false, error }. Never rejects. It doesn't replace an image
+    // that's already cached (Glide can't: a new image should get a new
+    // cacheKey), and doesn't store `web` sources (kept only in an HTTP cache,
+    // which can't be added to).
+    @ReactMethod
+    public void writeToCache(final ReadableMap source, final String file, final Promise promise) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        if (FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB) {
+            promise.resolve(failure("Can't store cache: 'web' images (they're kept in an HTTP cache)"));
+            return;
+        }
+        final FastImageSource imageSource = FastImageViewConverter.hasUri(source)
+                ? FastImageViewConverter.getImageSource(context, source)
+                : null;
+        // A cacheKey is enough (the image doesn't need a url yet); otherwise a
+        // remote url.
+        final String cacheKey = FastImageViewConverter.getCacheKey(source);
+        if (cacheKey == null && (imageSource == null || !imageSource.isRemote())) {
+            promise.resolve(failure("Invalid source: no remote uri or cacheKey"));
+            return;
+        }
+        // What the image is cached under, and how the source looks it up.
+        final GlideUrl key = imageSource != null && imageSource.isRemote()
+                ? imageSource.getGlideUrl()
+                : FastImageKeyedGlideUrl.forKey(cacheKey);
+        final Object lookUp = imageSource != null && imageSource.isRemote() ? imageSource.getSourceForLoad() : key;
+        // A file:// or content:// uri, or a path.
+        Uri parsed = Uri.parse(file);
+        final Uri fileUri = parsed.getScheme() == null ? Uri.fromFile(new File(file)) : parsed;
+        if (!"file".equalsIgnoreCase(fileUri.getScheme()) && !"content".equalsIgnoreCase(fileUri.getScheme())) {
+            promise.resolve(failure("Not a local file"));
+            return;
+        }
+        cachePathExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                if (cachedFile(context, lookUp, new RequestOptions()) != null) {
+                    promise.resolve(failure("Already in the disk cache"));
+                    return;
+                }
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                try (InputStream stream = context.getContentResolver().openInputStream(fileUri)) {
+                    if (stream == null) throw new IOException();
+                    BitmapFactory.decodeStream(stream, null, bounds);
+                } catch (IOException | SecurityException e) {
+                    promise.resolve(failure("Can't read the file"));
+                    return;
+                }
+                // The platform's decoders (so HEIF too, where Android has
+                // them), as a view's would decode it.
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    promise.resolve(failure("Not an image"));
+                    return;
+                }
+                try {
+                    File cached = Glide.with(context)
+                            .asFile()
+                            .load(new FastImageCacheWrite(key, fileUri))
+                            .diskCacheStrategy(DiskCacheStrategy.DATA)
+                            .skipMemoryCache(true)
+                            .submit()
+                            .get();
+                    promise.resolve(pathResult(cached));
+                } catch (Exception e) {
+                    promise.resolve(failure("Couldn't store it: " + e));
+                }
+            }
+        });
     }
 
     @ReactMethod

@@ -138,6 +138,16 @@ class FastImageViewConverter {
         return options;
     }
 
+    // The source's cacheKey, or null without one.
+    @Nullable
+    static String getCacheKey(@Nullable ReadableMap source) {
+        if (source == null || !source.hasKey("cacheKey") || source.getType("cacheKey") != ReadableType.String) {
+            return null;
+        }
+        String cacheKey = source.getString("cacheKey");
+        return cacheKey == null || cacheKey.isEmpty() ? null : cacheKey;
+    }
+
     static FastImageCacheControl getCacheControl(ReadableMap source) {
         return getValueFromSource("cache", "immutable", FAST_IMAGE_CACHE_CONTROL_MAP, source);
     }

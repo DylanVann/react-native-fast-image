@@ -1515,6 +1515,101 @@ function MemoryCacheOffCase() {
     )
 }
 
+// FastImage.writeToCache: stores a local file (here an image's file from
+// getCachePath: green) as another url's image (which the server would send
+// brown), then shows that url: the green image, with no request for the url.
+//   - keyOnly: stored with only the cacheKey (no uri yet), then shown by
+//     url and cacheKey;
+//   - cached: the url is in the cache already, so it isn't replaced;
+//   - missing: the file doesn't exist; web: a `cache: 'web'` source.
+function WriteToCacheCase({
+    id,
+    description,
+    byCacheKey,
+    keyOnly,
+    cached,
+    missing,
+    web,
+}: {
+    id: string
+    description: string
+    byCacheKey?: boolean
+    keyOnly?: boolean
+    cached?: boolean
+    missing?: boolean
+    web?: boolean
+}) {
+    const path = `/${web ? 'max-age/' : ''}picsum/1025-200x200.jpg?${id}=${RUN}`
+    const source: Source = {
+        uri: imageUrl(path.slice(1)),
+        cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
+        cache: web ? FastImage.cacheControl.web : undefined,
+    }
+    const [status, setStatus] = useState('waiting')
+    const [shown, setShown] = useState(false)
+    const requests = () =>
+        fetch(imageUrl(`requests?path=${encodeURIComponent(path)}`))
+            .then((response) => response.json())
+            .then((json: { count: number }) => json.count)
+    useEffect(() => {
+        const run = async () => {
+            const file = missing
+                ? { ok: true as const, path: '/no/such/image.jpg' }
+                : await FastImage.getCachePath({
+                      uri: imageUrl(
+                          `picsum/1022-120x120.jpg?${id}-file=${RUN}`,
+                      ),
+                  })
+            if (!file.ok) return setStatus(`no file: ${file.error}`)
+            if (cached) {
+                const before = await FastImage.getCachePath(source)
+                if (!before.ok) return setStatus(`not cached: ${before.error}`)
+            }
+            const result = await FastImage.writeToCache(
+                keyOnly ? { cacheKey: source.cacheKey } : source,
+                `file://${file.path}`,
+            )
+            const expected = cached
+                ? 'Already in the disk cache'
+                : missing
+                  ? "Can't read the file"
+                  : web
+                    ? "Can't store cache: 'web'"
+                    : undefined
+            if (expected) {
+                return setStatus(
+                    !result.ok && result.error.startsWith(expected)
+                        ? 'OK'
+                        : `expected "${expected}": ${JSON.stringify(result)}`,
+                )
+            }
+            if (!result.ok) return setStatus(`error: ${result.error}`)
+            setShown(true)
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={async () => {
+                        const count = await requests()
+                        setStatus(count === 0 ? 'OK' : `${count} requests`)
+                    }}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // FastImage.getCachePath: the source's file in the disk cache, shown as a
 // `file://` source (so it's the downloaded image; the file may have no image
 // extension, which React Native 0.73's Image doesn't load on iOS).
@@ -2932,6 +3027,46 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="cache-path-while-loading"
                 whileLoading
                 description="getCachePath while a view is still downloading the image: its file"
+            />,
+        ],
+    },
+    {
+        name: 'write-to-cache',
+        cases: [
+            <WriteToCacheCase
+                key="write-to-cache"
+                id="write-to-cache"
+                description="writeToCache: a url shows the stored file (green), without a request"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-key"
+                id="write-to-cache-key"
+                byCacheKey
+                description="writeToCache with a cacheKey: the url shows the stored file"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-key-only"
+                id="write-to-cache-key-only"
+                keyOnly
+                description="writeToCache with only a cacheKey (no uri): the url with that cacheKey shows the stored file"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-cached"
+                id="write-to-cache-cached"
+                cached
+                description="writeToCache for a url that's cached: not replaced"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-missing"
+                id="write-to-cache-missing"
+                missing
+                description="writeToCache with a file that doesn't exist: not ok"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-web"
+                id="write-to-cache-web"
+                web
+                description="writeToCache for a cache 'web' source: not ok"
             />,
         ],
     },

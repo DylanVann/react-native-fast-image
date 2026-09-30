@@ -19,6 +19,13 @@ class FastImageKeyedGlideUrl extends GlideUrl {
         mCacheKey = cacheKey;
     }
 
+    // For a source with a cacheKey and no uri (getCachePath, writeToCache):
+    // GlideUrl needs a url, but only the key is used for the caches, and it's
+    // never loaded from the network.
+    static FastImageKeyedGlideUrl forKey(@NonNull String cacheKey) {
+        return new FastImageKeyedGlideUrl("fast-image-cache-key:" + cacheKey, Headers.DEFAULT, cacheKey);
+    }
+
     @Override
     public String getCacheKey() {
         return mCacheKey;

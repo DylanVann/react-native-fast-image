@@ -384,6 +384,25 @@ const { ok } = await FastImage.getCachePath({
 
 There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey-string).
 
+### `FastImage.writeToCache: (source: Source, file: string) => Promise<CachePathResult>`
+
+Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey-string), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
+
+```js
+const result = await FastImage.writeToCache(
+    {
+        uri: user.avatarUrl,
+        cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
+    },
+    pickedPhoto.uri,
+)
+```
+
+- The file must be an image.
+- It doesn't replace an image that's already cached under the source's key: give a new image a new `cacheKey` (Glide can't replace one on Android).
+- Not for `cache: 'web'` sources, which are kept in an HTTP cache.
+- Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
+
 ## Troubleshooting
 
 If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.

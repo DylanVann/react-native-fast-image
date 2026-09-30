@@ -479,6 +479,15 @@ export interface FastImageStaticProperties {
      * `cache: 'cacheOnly'` it doesn't download. Never rejects.
      */
     getCachePath: (source: Source) => Promise<CachePathResult>
+    /**
+     * Stores a local image file (a `file://` uri or a path, or on Android a
+     * `content://` uri) as the source's image in the disk cache, so views and
+     * preloads of the source show it without downloading it. A source with a
+     * `cacheKey` doesn't need a `uri`. Resolves with its cached file. Doesn't
+     * replace an image that's already cached, and isn't for `cache: 'web'`
+     * sources. Never rejects.
+     */
+    writeToCache: (source: Source, file: string) => Promise<CachePathResult>
 }
 
 const FastImage: React.ComponentType<FastImageProps> &
@@ -511,6 +520,15 @@ FastImage.clearMemoryCache = () =>
     NativeModules.FastImageView.clearMemoryCache()
 
 FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+
+FastImage.writeToCache = (
+    source: Source,
+    file: string,
+): Promise<CachePathResult> =>
+    // A null source is sent as {} (it fails as a source without a uri).
+    Promise.resolve(
+        NativeModules.FastImageView.writeToCache(source || {}, file),
+    )
 
 FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
     // A null source is sent as {} (it fails as a source without a uri).
