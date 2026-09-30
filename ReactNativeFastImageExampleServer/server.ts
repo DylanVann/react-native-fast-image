@@ -18,7 +18,8 @@
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
 //   /bad-once/  The first request for a path and query gets an HTML page
-//               (status 200, cacheable for an hour, like a captive portal's),
+//               (status 200, cacheable for an hour, like a captive portal's,
+//               with an inline SVG icon, so it isn't taken for an SVG image),
 //               later ones the image.
 //   /mislabeled/ The image, sent as `Content-Type: text/plain`.
 //
@@ -170,7 +171,7 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/bad-once/')) {
             if (requests.get(key) === 1) {
                 return new Response(
-                    '<html><body>Sign in to continue</body></html>',
+                    '<html><body><svg width="16" height="16"><circle cx="8" cy="8" r="8"/></svg>Sign in to continue</body></html>',
                     {
                         headers: {
                             'Content-Type': 'text/html; charset=utf-8',

@@ -4641,6 +4641,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="cover: the middle of the SVG, half red and half blue, filling the view"
             />,
             <SvgSharpCase key="svg-sharp" />,
+            <SvgCase
+                key="svg-repeat"
+                id="svg-repeat"
+                source={{ uri: imageUrl('svg-rings.svg') }}
+                style={{ width: 120, height: 60 }}
+                expected={[20, 20]}
+                resizeMode="repeat"
+                description="repeat: the 20x20 SVG tiled at its own size in pixels, as other images are"
+            />,
         ],
     },
     {

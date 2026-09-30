@@ -57,11 +57,38 @@ final class FastImageSvg {
                 .append(ByteBuffer.class, Bitmap.class, new BufferDecoder(pool));
     }
 
-    // Whether the data starts like an SVG document: an <svg> element in its
-    // first bytes (after an XML declaration, comments or a doctype).
+    // Whether the data starts like an SVG document: its first element is
+    // <svg> (after a byte order mark, whitespace, an XML declaration, comments
+    // or a doctype), so e.g. an HTML page with an inline SVG isn't one.
     static boolean looksLikeSvg(@NonNull byte[] head, int length) {
         String text = new String(head, 0, length, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
-        return text.contains("<svg");
+        int i = text.startsWith("\uFEFF") ? 1 : 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (Character.isWhitespace(c)) {
+                i++;
+            } else if (text.startsWith("<?", i)) {
+                i = skipPast(text, i, "?>");
+            } else if (text.startsWith("<!--", i)) {
+                i = skipPast(text, i, "-->");
+            } else if (text.startsWith("<!", i)) {
+                // A doctype, whose internal subset ([...]) can have '>'s.
+                int subset = text.indexOf('[', i);
+                int close = text.indexOf('>', i);
+                if (subset >= 0 && subset < close) i = skipPast(text, subset, "]");
+                if (i >= 0) i = skipPast(text, i, ">");
+            } else {
+                return text.startsWith("<svg", i);
+            }
+            if (i < 0) return false;
+        }
+        return false;
+    }
+
+    // The index after the end marker from i, or -1 if it isn't there.
+    private static int skipPast(String text, int i, String end) {
+        int found = text.indexOf(end, i);
+        return found < 0 ? -1 : found + end.length();
     }
 
     private static byte[] readAll(InputStream stream) throws IOException {

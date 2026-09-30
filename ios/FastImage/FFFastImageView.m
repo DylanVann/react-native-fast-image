@@ -401,9 +401,10 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         if (tint) {
             if (animated) {
                 image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
-            } else if (!image.CGImage) {
+            } else if (!image.CGImage && !repeats) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
-                // template: drawn into a bitmap at the size it's shown at.
+                // template: drawn into a bitmap at the size it's shown at
+                // (tiledImage: draws one for repeat).
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
@@ -422,10 +423,17 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // animated image's first frame, scaled down to fit the view if it's larger,
 // as React Native's Image does (and Android here).
 - (UIImage*) tiledImage: (UIImage*)image {
-    if (!image.CGImage) {
-        // A vector image (an SVG): tiled at its own size in points, drawn
-        // sharp for the screen.
-        image = [self rasterizedImage: image];
+    if (!image.CGImage && image.size.width > 0 && image.size.height > 0) {
+        // A vector image (an SVG): drawn at its own size in pixels (its width
+        // and height), as Android tiles it and as any other image's size is.
+        UIImage* vector = image;
+        UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
+        format.scale = 1;
+        format.opaque = NO;
+        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: vector.size format: format];
+        image = [[renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+            [vector drawInRect: CGRectMake(0, 0, vector.size.width, vector.size.height)];
+        }] imageWithRenderingMode: vector.renderingMode];
     }
     CGImageRef cgImage = image.CGImage;
     if (!cgImage) {
