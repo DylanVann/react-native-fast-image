@@ -1,3 +1,10 @@
+# [8.24.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.23.0...v8.24.0) (2026-09-30)
+
+
+### Features
+
+* **ios:** load photo library (ph://) images with SDWebImagePhotosPlugin ([#1199](https://github.com/DylanVann/react-native-fast-image/issues/1199)) ([6f8bd31](https://github.com/DylanVann/react-native-fast-image/commit/6f8bd3157169730e8935bbed3c660213ccc221fa))
+
 # [8.23.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.22.0...v8.23.0) (2026-09-30)
 
 
