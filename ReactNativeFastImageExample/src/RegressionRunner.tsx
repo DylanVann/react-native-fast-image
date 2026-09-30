@@ -13,9 +13,9 @@ import {
     useSafeAreaInsets,
 } from 'react-native-safe-area-context'
 import { caseStyles } from './CaseStatus'
+import { useTextCheck } from './Text'
 import {
     Masked,
-    CutOffContext,
     MaskContext,
     MeasureMask,
     Rect,
@@ -53,7 +53,7 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // area the group's cases take; visible: the window's area that isn't under
 // the system's bars at the bottom (the script fails a group whose cases go
 // past it, as the screenshot would cut them off). cutOff: texts cut off in
-// their own box (see Text.tsx), which the script fails too. safeArea: the
+// their own box (see useTextCheck in Text.tsx), which the script fails too. safeArea: the
 // screen's area inside its safe-area insets, which the script crops the
 // screenshot to.
 // From the script: { type: 'next' } shows the next group; { type: 'show',
@@ -233,7 +233,7 @@ export default function RegressionRunner({
     }, [done, send])
     return (
         <SafeAreaProvider>
-            <View ref={screen} collapsable={false} style={styles.screen}>
+            <Screen viewRef={screen}>
                 <StatusBar hidden />
                 {/* Only while it isn't showing a group, so screenshots
                 don't have it. */}
@@ -252,8 +252,30 @@ export default function RegressionRunner({
                         samples={samples}
                     />
                 )}
-            </View>
+            </Screen>
         </SafeAreaProvider>
+    )
+}
+
+// The runner's screen, below the status bar (on iOS, StatusBar hidden has no
+// effect under the scene lifecycle). React Native's dev banner ("Loading from
+// Metro…") would cover the top; verify.mts hides it.
+function Screen({
+    viewRef,
+    children,
+}: {
+    viewRef: React.RefObject<React.ComponentRef<typeof View> | null>
+    children: React.ReactNode
+}) {
+    const insets = useSafeAreaInsets()
+    return (
+        <View
+            ref={viewRef}
+            collapsable={false}
+            style={[styles.screen, { paddingTop: insets.top + 16 }]}
+        >
+            {children}
+        </View>
     )
 }
 
@@ -302,12 +324,9 @@ function Group({
             masks.current.delete(measure)
         }
     }, [])
-    // Texts that are cut off (see Text.tsx), by the Text's key.
-    const cutOff = useRef(new Map<object, string>())
-    const reportCutOff = useCallback((key: object, text: string | null) => {
-        if (text == null) cutOff.current.delete(key)
-        else cutOff.current.set(key, text)
-    }, [])
+    // Texts that are cut off (see Text.tsx).
+    const textCheck = useTextCheck()
+    const { check: checkText } = textCheck
     const cases = useRef<React.ComponentRef<typeof View>>(null)
     // The group's area, which fills the screen below the runner's padding.
     const area = useRef<React.ComponentRef<typeof View>>(null)
@@ -325,10 +344,10 @@ function Group({
                 ...group,
                 height: group.height - insets.bottom,
             },
-            cutOff: [...cutOff.current.values()],
+            cutOff: await checkText(),
             insets: { top: insets.top, bottom: insets.bottom },
         }
-    }, [insets.top, insets.bottom])
+    }, [insets.top, insets.bottom, checkText])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
     const sample = useCallback(
         (request: SampleRequest, change: SampleChange) =>
@@ -351,7 +370,7 @@ function Group({
         <ReportContext.Provider value={report}>
             <MaskContext.Provider value={mask}>
                 <SampleContext.Provider value={sample}>
-                    <CutOffContext.Provider value={reportCutOff}>
+                    <textCheck.Provider value={textCheck.register}>
                         <View
                             ref={area}
                             collapsable={false}
@@ -394,8 +413,9 @@ function Group({
                                     </Text>
                                 ))}
                             </Masked>
+                            {textCheck.layer}
                         </View>
-                    </CutOffContext.Provider>
+                    </textCheck.Provider>
                 </SampleContext.Provider>
             </MaskContext.Provider>
         </ReportContext.Provider>
@@ -407,12 +427,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'white',
         padding: 16,
-        // Clear of the status bar (on iOS, StatusBar hidden has no effect
-        // under the scene lifecycle) and of React Native's dev banner
-        // ("Loading from Metro…", "Refreshing…"), which comes and goes and
-        // sits up to about 130 dp down when it's shown (verify.mts hides
-        // it).
-        paddingTop: 140,
     },
     group: {
         flex: 1,

@@ -84,12 +84,6 @@ export const sampleStatus = (result: SampleResult, expect: string[]) =>
         : (result.detail ??
           `saw ${result.seen.join(', ') || 'nothing'}, expected ${expect.join(', ')}`)
 
-// Reports whether a text (Text.tsx, by a key of its own) is cut off: its
-// text, or null. Null outside the runner.
-export const CutOffContext = createContext<
-    ((key: object, text: string | null) => void) | null
->(null)
-
 // Measures a masked area (in screen coordinates, dp); undefined if it isn't
 // on screen.
 export type MeasureMask = () => Promise<Rect | undefined>
