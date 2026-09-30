@@ -1,3 +1,10 @@
+# [8.21.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.20.0...v8.21.0) (2026-09-30)
+
+
+### Features
+
+* add blurRadius to blur the image ([#1193](https://github.com/DylanVann/react-native-fast-image/issues/1193)) ([8ffbd26](https://github.com/DylanVann/react-native-fast-image/commit/8ffbd260630b9a05df009232a54c3d56fb5626c8))
+
 # [8.20.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.19.1...v8.20.0) (2026-09-30)
 
 
