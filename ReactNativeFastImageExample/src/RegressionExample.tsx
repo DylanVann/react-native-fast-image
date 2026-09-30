@@ -1515,6 +1515,77 @@ function MemoryCacheOffCase() {
     )
 }
 
+// The disk cache limit the example apps set in their native config
+// (FastImageMaxDiskSize in Info.plist, fastimage.MAX_DISK_SIZE
+// in AndroidManifest.xml), which the configure-cache case checks.
+const EXAMPLE_MAX_DISK_SIZE = 300 * 1024 * 1024
+
+// FastImage.configureCache: the limit in the app's native config is in effect
+// from the start, with the disk cache's size. iOS: a runtime change applies at
+// once: downloads an image (getCachePath), sets maxDiskSize to 1 byte, which
+// removes every image from the disk cache, then the image isn't cached
+// anymore. Resetting it (null) goes back to the native config's limit. On
+// Android a runtime change applies from the next launch, so the limit in
+// effect stays the same. Changes are saved, so it always resets. Only groups
+// after this one see the emptied cache.
+function ConfigureCacheCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const uri = imageUrl(`picsum/1022-120x120.jpg?configure-cache=${RUN}`)
+        const run = async () => {
+            const state = await FastImage.configureCache()
+            if (state.maxDiskSize !== EXAMPLE_MAX_DISK_SIZE) {
+                return setStatus(`maxDiskSize is ${state.maxDiskSize}`)
+            }
+            // Images earlier groups loaded.
+            if (!state.diskSize)
+                return setStatus(`diskSize is ${state.diskSize}`)
+            if (Platform.OS !== 'ios') {
+                const changed = await FastImage.configureCache({
+                    maxDiskSize: 1,
+                })
+                const reset = await FastImage.configureCache({
+                    maxDiskSize: null,
+                })
+                return setStatus(
+                    changed.maxDiskSize === EXAMPLE_MAX_DISK_SIZE &&
+                        reset.maxDiskSize === EXAMPLE_MAX_DISK_SIZE
+                        ? 'OK'
+                        : `in effect: ${changed.maxDiskSize}, ${reset.maxDiskSize}`,
+                )
+            }
+            const before = await FastImage.getCachePath({ uri })
+            if (!before.ok) return setStatus(`not cached: ${before.error}`)
+            const trimmed = await FastImage.configureCache({ maxDiskSize: 1 })
+            const after = await FastImage.getCachePath({
+                uri,
+                cache: FastImage.cacheControl.cacheOnly,
+            })
+            const reset = await FastImage.configureCache({ maxDiskSize: null })
+            setStatus(
+                after.ok
+                    ? `still cached: ${after.path}`
+                    : trimmed.diskSize !== 0
+                      ? `diskSize is ${trimmed.diskSize} after trimming`
+                      : reset.maxDiskSize !== EXAMPLE_MAX_DISK_SIZE
+                        ? `maxDiskSize is ${reset.maxDiskSize} after resetting`
+                        : 'OK',
+            )
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="configure-cache"
+                status={status}
+                description="configureCache: the native config's limit is in effect, with the disk cache's size; a change applies (iOS: at once), and null resets it"
+            />
+        </View>
+    )
+}
+
 // FastImage.writeToCache: stores a local file (here an image's file from
 // getCachePath: green) as another url's image (which the server would send
 // brown), then shows that url: the green image, with no request for the url.
@@ -3132,6 +3203,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-background',
         cases: [<ImageBackgroundCase key="image-background" />],
+    },
+    {
+        // Empties the disk cache on iOS, so it's near the end.
+        name: 'configure-cache',
+        cases: [<ConfigureCacheCase key="configure-cache" />],
     },
     {
         // Tapped by scripts/verify.mts (maestro/touch.yaml) while it's shown.

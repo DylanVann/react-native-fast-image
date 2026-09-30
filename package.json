@@ -29,6 +29,7 @@
         "ios/FastImage",
         "ios/FastImage.xcodeproj/project.pbxproj",
         "ios/FastImage.xcodeproj/xcshareddata",
+        "app.plugin.js",
         "dist",
         "RNFastImage.podspec"
     ],

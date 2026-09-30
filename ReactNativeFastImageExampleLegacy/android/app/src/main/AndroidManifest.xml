@@ -29,5 +29,7 @@
             <data android:scheme="com.reactnativefastimageexamplelegacy" />
         </intent-filter>
       </activity>
+      <!-- FastImage's disk cache limit (the regression runner's configure-cache case). -->
+      <meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="314572800" />
     </application>
 </manifest>

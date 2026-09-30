@@ -7,9 +7,94 @@
 #import <SDWebImage/SDWebImagePrefetcher.h>
 #import <SDWebImage/NSData+ImageContentType.h>
 
+// configureCache's limits, by their names in JS. Each is set in the app's
+// Info.plist (FastImageMaxDiskSize, ...) or changed at runtime, which is saved
+// (FastImage.maxDiskSize, ...) and wins until it's reset with null.
+static NSArray<NSString *> *FFFCacheLimitNames(void)
+{
+    return @[@"maxDiskSize", @"maxDiskAge", @"maxMemorySize"];
+}
+
+static NSString *FFFSavedCacheLimitKey(NSString *name)
+{
+    return [@"FastImage." stringByAppendingString:name];
+}
+
+// A limit's value: the one saved by configureCache, or the app's Info.plist's,
+// or nil for SDWebImage's default.
+static NSNumber *FFFCacheLimit(NSString *name)
+{
+    id saved = [NSUserDefaults.standardUserDefaults objectForKey:FFFSavedCacheLimitKey(name)];
+    if ([saved isKindOfClass:NSNumber.class]) {
+        return saved;
+    }
+    NSString *infoKey = [NSString stringWithFormat:@"FastImage%@%@",
+                         [name substringToIndex:1].uppercaseString, [name substringFromIndex:1]];
+    id info = [NSBundle.mainBundle objectForInfoDictionaryKey:infoKey];
+    if ([info isKindOfClass:NSNumber.class]) {
+        return info;
+    }
+    if ([info isKindOfClass:NSString.class]) {
+        return @([info doubleValue]);
+    }
+    return nil;
+}
+
+// Sets a limit in SDWebImage's cache config: 0 for no limit, nil for
+// SDWebImage's default. maxDiskAge counts from when an image was last used
+// (SDWebImage's default from 5.21; before, from when it was stored).
+static void FFFSetCacheLimit(SDImageCacheConfig *config, NSString *name, NSNumber *value)
+{
+    double limit = MAX(value.doubleValue, 0);
+    if ([name isEqualToString:@"maxDiskSize"]) {
+        config.maxDiskSize = limit;
+    } else if ([name isEqualToString:@"maxMemorySize"]) {
+        config.maxMemoryCost = limit;
+    } else if (value) {
+        // SDWebImage never expires images with a negative age (with 0 it
+        // would remove them all).
+        config.maxDiskAge = limit > 0 ? limit : -1;
+        config.diskCacheExpireType = SDImageCacheConfigExpireTypeAccessDate;
+    } else {
+        config.maxDiskAge = 60 * 60 * 24 * 7;
+    }
+}
+
+// The bytes of the files in a folder.
+static unsigned long long FFFFolderSize(NSString *path)
+{
+    unsigned long long size = 0;
+    NSDirectoryEnumerator<NSURL *> *files = [NSFileManager.defaultManager enumeratorAtURL:[NSURL fileURLWithPath:path isDirectory:YES]
+                                                                includingPropertiesForKeys:@[NSURLFileSizeKey]
+                                                                                   options:0
+                                                                              errorHandler:nil];
+    for (NSURL *file in files) {
+        NSNumber *fileSize;
+        [file getResourceValue:&fileSize forKey:NSURLFileSizeKey error:nil];
+        size += fileSize.unsignedLongLongValue;
+    }
+    return size;
+}
+
 @implementation FFFastImageViewManager
 
 RCT_EXPORT_MODULE(FastImageView)
+
+// The app's cache limits (saved or in its Info.plist), before FastImage loads
+// any image: this class is used first, to create the views and for preload.
++ (void)initialize
+{
+    if (self != [FFFastImageViewManager class]) {
+        return;
+    }
+    SDImageCacheConfig *config = SDImageCache.sharedImageCache.config;
+    for (NSString *name in FFFCacheLimitNames()) {
+        NSNumber *value = FFFCacheLimit(name);
+        if (value) {
+            FFFSetCacheLimit(config, name, value);
+        }
+    }
+}
 
 - (FFFastImageView*)view {
   return [[FFFastImageView alloc] init];
@@ -322,6 +407,52 @@ RCT_EXPORT_METHOD(writeToCache:(FFFastImageSource *)source
             resolve(FFFFile([cache cachePathForKey:key]));
         });
     });
+}
+
+// Changes cache limits at runtime and saves them, so they're used on the next
+// launches too: a number (0 for no limit), or null to go back to the app's
+// Info.plist or SDWebImage's default. A lower disk limit applies at once (what's
+// over it is removed; the disk cache is trimmed to half of maxDiskSize when
+// it's over), instead of when the app next goes to the background. Resolves
+// with the limits in effect (0 for no limit), and diskSize: the bytes the disk
+// cache uses now.
+RCT_EXPORT_METHOD(configureCache:(NSDictionary *)limits
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+    SDImageCache *cache = SDImageCache.sharedImageCache;
+    SDImageCacheConfig *config = cache.config;
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSUInteger maxDiskSize = config.maxDiskSize;
+    NSTimeInterval maxDiskAge = config.maxDiskAge;
+    for (NSString *name in FFFCacheLimitNames()) {
+        id value = limits[name];
+        if (value == (id)kCFNull) {
+            [defaults removeObjectForKey:FFFSavedCacheLimitKey(name)];
+        } else if ([value isKindOfClass:NSNumber.class]) {
+            [defaults setObject:value forKey:FFFSavedCacheLimitKey(name)];
+        } else {
+            // Not given: unchanged.
+            continue;
+        }
+        FFFSetCacheLimit(config, name, FFFCacheLimit(name));
+    }
+    void (^finish)(void) = ^{
+        // Not on the disk cache's queue, which image loads use.
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            resolve(@{
+                @"maxDiskSize": @(config.maxDiskSize),
+                @"maxDiskAge": @(MAX(config.maxDiskAge, 0)),
+                @"maxMemorySize": @(config.maxMemoryCost),
+                @"diskSize": @(FFFFolderSize(cache.diskCachePath)),
+            });
+        });
+    };
+    if (config.maxDiskSize != maxDiskSize || config.maxDiskAge != maxDiskAge) {
+        [cache deleteOldFilesWithCompletionBlock:finish];
+    } else {
+        finish();
+    }
 }
 
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
