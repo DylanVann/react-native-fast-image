@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds allow plain http to the example image server only, so
+         the examples work in release builds too, e.g. to test them with R8.
+         Debug builds allow it everywhere (React Native's template). -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>
