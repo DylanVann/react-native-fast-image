@@ -1877,8 +1877,46 @@ async function buildIos(app: App) {
         record('FAIL', `${app} ios install`)
         return false
     }
+    // Access to the simulator's photo library, for the photo library (ph://)
+    // cases, without the permission prompt.
+    capture('xcrun', [
+        'simctl',
+        'privacy',
+        iosUdid,
+        'grant',
+        'photos',
+        iosBundleId(app),
+    ])
+    addLibraryGif()
     record('PASS', `${app} ios build`)
     return true
+}
+
+// A GIF in the simulator's photo library (its sample photos have none), for
+// the photo library GIF case: added once, as its files show.
+function addLibraryGif() {
+    const dcim = path.join(
+        os.homedir(),
+        'Library/Developer/CoreSimulator/Devices',
+        iosUdid,
+        'data/Media/DCIM',
+    )
+    const hasGif = (dir: string): boolean =>
+        fs.existsSync(dir) &&
+        fs
+            .readdirSync(dir, { withFileTypes: true })
+            .some((entry) =>
+                entry.isDirectory()
+                    ? hasGif(path.join(dir, entry.name))
+                    : entry.name.toLowerCase().endsWith('.gif'),
+            )
+    if (hasGif(dcim)) return
+    capture('xcrun', [
+        'simctl',
+        'addmedia',
+        iosUdid,
+        path.join(IMAGE_SERVER, 'images/loop-forever.gif'),
+    ])
 }
 
 async function flowsIos(app: App) {
