@@ -118,6 +118,7 @@ export type FastImageProps = $ReadOnly<{|
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
     paused?: ?boolean,
     downsample?: ?boolean,
+    blurRadius?: ?number,
     testID?: ?string,
 |}>
 

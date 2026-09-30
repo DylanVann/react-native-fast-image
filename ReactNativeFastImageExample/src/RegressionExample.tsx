@@ -2566,6 +2566,254 @@ const renderingStyles = StyleSheet.create({
     column: { width: RENDERING_COLUMN, marginRight: 12 },
 })
 
+// Shows status OK once `total` images have loaded (count with the returned
+// onLoad), and a moment more, for the blur, which is applied after the load.
+function useLoadedThenOk(total: number) {
+    const [loads, setLoads] = useState(0)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (loads < total) return
+        const timer = setTimeout(() => setDone(true), 500)
+        return () => clearTimeout(timer)
+    }, [loads, total])
+    const onLoad = () => setLoads((n) => n + 1)
+    return [done ? 'OK' : `loaded ${loads}/${total}`, onLoad] as const
+}
+
+const BLUR_PHOTO = imageUrl('picsum/1018-1024x1024.jpg')
+
+// blurRadius, in points: the same number looks about the same as with React
+// Native's Image on iOS, and whatever the file's resolution (it's blurred at
+// the size it's shown at). React Native's Image on Android blurs in the
+// decoded bitmap's pixels, and doesn't resize network images, so a large one
+// hardly blurs. The blurred view doesn't change the unblurred one of the same
+// file.
+function BlurCase() {
+    const [status, onLoad] = useLoadedThenOk(4)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={blurStyles.images}>
+                <FastImage
+                    style={blurStyles.image}
+                    source={{ uri: BLUR_PHOTO }}
+                    onLoad={onLoad}
+                />
+                <Image
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={{ uri: BLUR_PHOTO }}
+                    blurRadius={6}
+                    fadeDuration={0}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={{ uri: BLUR_PHOTO }}
+                    blurRadius={6}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={{ uri: imageUrl('picsum/1018-256x256.jpg') }}
+                    blurRadius={6}
+                    onLoad={onLoad}
+                />
+            </View>
+            <View style={blurStyles.status}>
+                <CaseStatus
+                    id="blur"
+                    status={status}
+                    description="blurRadius={6}: a photo sharp, blurred by React Native's Image (on Android it blurs in the file's pixels, so this 1024 px photo hardly changes), then by FastImage from a 1024 px and a 256 px file (alike)"
+                />
+            </View>
+        </View>
+    )
+}
+
+// A bundled image, a tinted one (the blurred logo, tinted green) and a GIF,
+// which shows its first frame, blurred and still.
+function BlurKindsCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={blurStyles.image}
+                source={require('./images/fields.jpg')}
+                blurRadius={6}
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[blurStyles.image, blurStyles.next]}
+                resizeMode="contain"
+                source={{ uri: LOGO }}
+                tintColor="green"
+                blurRadius={4}
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[blurStyles.image, blurStyles.next]}
+                source={{ uri: imageUrl('jellyfish.gif') }}
+                blurRadius={6}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="blur-kinds"
+                status={status}
+                description="Blurred: a bundled image, a tinted logo (soft green) and a GIF (its first frame, still)"
+            />
+        </View>
+    )
+}
+
+const BLUR_CHANGE_SOURCE = { uri: PRELOAD }
+
+// The load events (onLoadStart, onProgress, onLoad, onLoadEnd) an image sends
+// after its first load has ended, and handlers that record them. onDone runs
+// when the first load ends.
+function useLateEvents(onDone: () => void) {
+    const afterRef = useRef(false)
+    const [late, setLate] = useState<string[]>([])
+    const note = (name: string) => () => {
+        if (afterRef.current) setLate((names) => [...names, name])
+    }
+    const handlers = {
+        onLoadStart: note('onLoadStart'),
+        onProgress: note('onProgress'),
+        onLoad: note('onLoad'),
+        onLoadEnd: () => {
+            note('onLoadEnd')()
+            if (!afterRef.current) {
+                afterRef.current = true
+                onDone()
+            }
+        },
+    }
+    return [late, handlers] as const
+}
+
+// blurRadius changed once the image has loaded (after onLoadEnd, the load's
+// last event): 0 → 6 matches the image blurred from the start, and 6 → 0 the
+// sharp one. It's the image that's showing, so no load events fire again
+// (Android loaded it again, with its events).
+function BlurChangeCase() {
+    const [on, setOn] = useState(false)
+    const [off, setOff] = useState(false)
+    const [done, setDone] = useState(false)
+    const [lateOn, onHandlers] = useLateEvents(() => setOn(true))
+    const [lateOff, offHandlers] = useLateEvents(() => setOff(true))
+    useEffect(() => {
+        if (!on || !off) return
+        const timer = setTimeout(() => setDone(true), 1500)
+        return () => clearTimeout(timer)
+    }, [on, off])
+    const late = [...lateOn, ...lateOff]
+    const source = BLUR_CHANGE_SOURCE
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={blurStyles.images}>
+                <FastImage
+                    style={blurStyles.image}
+                    source={source}
+                    blurRadius={on ? 6 : 0}
+                    {...onHandlers}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={source}
+                    blurRadius={6}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.gap]}
+                    source={source}
+                    blurRadius={off ? 0 : 6}
+                    {...offHandlers}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={source}
+                />
+            </View>
+            <View style={blurStyles.status}>
+                <CaseStatus
+                    id="blur-change"
+                    status={
+                        late.length > 0
+                            ? `fired again: ${late.join(', ')}`
+                            : done
+                              ? 'OK'
+                              : 'waiting'
+                    }
+                    description="blurRadius changed after load: 0 → 6 (like the second), 6 → 0 (like the fourth), without load events"
+                />
+            </View>
+        </View>
+    )
+}
+
+// resizeMode="center" shows a small image at its own size. A large radius
+// blurs a smaller copy, which must still show at that size.
+function BlurCenterCase() {
+    const [status, onLoad] = useLoadedThenOk(2)
+    const source = { uri: imageUrl('picsum/1020-120x120.jpg') }
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={blurStyles.images}>
+                <FastImage
+                    style={blurStyles.large}
+                    resizeMode="center"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[blurStyles.large, blurStyles.next]}
+                    resizeMode="center"
+                    source={source}
+                    blurRadius={30}
+                    onLoad={onLoad}
+                />
+            </View>
+            <View style={blurStyles.status}>
+                <CaseStatus
+                    id="blur-center"
+                    status={status}
+                    description='resizeMode="center" with blurRadius={30}: a 120 px image at its own size, blurred the same size as the sharp one'
+                />
+            </View>
+        </View>
+    )
+}
+
+// defaultSource isn't blurred, as with React Native's Image.
+function BlurDefaultSourceCase() {
+    const [failed, setFailed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={blurStyles.image}
+                source={{ uri: MISSING }}
+                defaultSource={DEFAULT}
+                blurRadius={6}
+                onError={() => setFailed(true)}
+            />
+            <CaseStatus
+                id="blur-default-source"
+                status={failed ? 'OK' : 'waiting'}
+                description="blurRadius with a source that fails: defaultSource shows, sharp"
+            />
+        </View>
+    )
+}
+
+const blurStyles = StyleSheet.create({
+    image: { width: 64, height: 64, backgroundColor: '#eee' },
+    large: { width: 140, height: 140, backgroundColor: '#eee' },
+    next: { marginLeft: 4 },
+    gap: { marginLeft: 16 },
+    // The images, then the status under them (CaseStatus's text is indented).
+    stacked: { marginBottom: 12 },
+    images: { flexDirection: 'row', marginBottom: 4 },
+    status: { flexDirection: 'row', marginLeft: -12 },
+})
+
 // downsample (iOS; Android already decodes at about the view's size).
 // Each image is next to the same one without it, which should look the same
 // (or, for the stripes, smoother), and onLoad reports the full image's size.
@@ -3093,6 +3341,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-rendering',
         cases: [<ImageRenderingCase key="image-rendering" />],
+    },
+    {
+        name: 'blur',
+        cases: [
+            <BlurCase key="blur" />,
+            <BlurKindsCase key="blur-kinds" />,
+            <BlurChangeCase key="blur-change" />,
+            <BlurDefaultSourceCase key="blur-default-source" />,
+        ],
+    },
+    {
+        name: 'blur-center',
+        cases: [<BlurCenterCase key="blur-center" />],
     },
     {
         name: 'downsampling',

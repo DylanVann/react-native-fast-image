@@ -612,6 +612,33 @@ describe('downsample', () => {
     })
 })
 
+describe('blurRadius', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.jpg' }}
+                    blurRadius={10}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.blurRadius).toBe(10)
+    })
+
+    it("is passed to React Native's Image with fallback", () => {
+        const [image] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.jpg' }}
+                    blurRadius={10}
+                    fallback
+                />,
+            )
+            .root.findAll((node) => node.type === Image)
+        expect(image.props.blurRadius).toBe(10)
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'

@@ -32,6 +32,8 @@
 @property (nonatomic, assign) BOOL paused;
 // Decodes images at about the view's size instead of at full size.
 @property (nonatomic, assign) BOOL downsample;
+// Blurs the loaded image by this radius, in points (0 is no blur).
+@property (nonatomic, assign) CGFloat blurRadius;
 
 @end
 
