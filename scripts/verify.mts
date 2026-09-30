@@ -1891,7 +1891,17 @@ async function buildAndroid(app: App) {
     }
     const result = await run(
         './gradlew',
-        [`app:assemble${CONFIGURATION}`, '--console=plain', '-q'],
+        [
+            `app:assemble${CONFIGURATION}`,
+            // React Native's bundle task only tracks the JS in the app's own
+            // folder, not the library's src/ or (for the legacy app) the main
+            // example's, so it would keep a stale bundle.
+            ...(RELEASE
+                ? ['app:createBundleReleaseJsAndAssets', '--rerun']
+                : []),
+            '--console=plain',
+            '-q',
+        ],
         {
             cwd: path.join(dir, 'android'),
             log,
