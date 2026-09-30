@@ -125,8 +125,10 @@ Indicates the load order priority of an image. Images with `FastImage.priority.h
 
 ### `source.cache?: enum`
 
+How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
+
 - `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
-- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures. On Android these responses are kept in a 50 MB HTTP cache (or the app's own, if its OkHttp client has one).
+- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
 - `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
 
 ---
