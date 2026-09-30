@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useState } from 'react'
-import { FlatList, Text, View, LayoutChangeEvent } from 'react-native'
+import { FlatList, View, LayoutChangeEvent } from 'react-native'
+import { Text } from './Text'
 import StatusBarUnderlay, { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl } from './imageServer'
 import { useReport } from './RunnerContext'

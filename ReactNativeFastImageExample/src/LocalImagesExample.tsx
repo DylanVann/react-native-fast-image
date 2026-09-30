@@ -1,11 +1,6 @@
 import React, { Component } from 'react'
-import {
-    StyleSheet,
-    View,
-    Text,
-    TouchableOpacity,
-    ViewProps,
-} from 'react-native'
+import { StyleSheet, View, TouchableOpacity, ViewProps } from 'react-native'
+import { Text } from './Text'
 import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'

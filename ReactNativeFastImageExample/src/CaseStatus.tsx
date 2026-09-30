@@ -1,5 +1,6 @@
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from './Text'
 import { useReport } from './RunnerContext'
 
 // A case's status line ("<id>: <status>", OK when it passed) and description.
@@ -23,6 +24,8 @@ export function CaseStatus({
                 testID={`regression-${id}`}
                 style={caseStyles.status}
                 numberOfLines={1}
+                // Failures are listed in full below the cases.
+                cutOffOk={status !== 'OK'}
             >
                 {id}: {status}
             </Text>

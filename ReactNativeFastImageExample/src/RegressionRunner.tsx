@@ -15,6 +15,7 @@ import {
 import { caseStyles } from './CaseStatus'
 import {
     Masked,
+    CutOffContext,
     MaskContext,
     MeasureMask,
     Rect,
@@ -40,7 +41,7 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //                                                 dp; scale = pixels per dp)
 //   { type: 'group', index, name, cases: [ids] }  once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'masks', group, id, masks, content, visible }
+//   { type: 'masks', group, id, masks, content, visible, cutOff }
 //                                                 the reply to 'measure'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
@@ -51,7 +52,8 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // screenshot comparison, measured just before (see Masked). content: the
 // area the group's cases take; visible: the window's area that isn't under
 // the system's bars at the bottom (the script fails a group whose cases go
-// past it, as the screenshot would cut them off).
+// past it, as the screenshot would cut them off). cutOff: texts cut off in
+// their own box (see Text.tsx), which the script fails too.
 // From the script: { type: 'next' } shows the next group; { type: 'show',
 // index } a given one; { type: 'measure', group, id } asks for the group's
 // masks as they are now, before the script takes its screenshot;
@@ -61,7 +63,12 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 type Message = { type: string; [key: string]: unknown }
 
 // The reply to 'measure' (see above).
-type Measured = { masks: Rect[]; content?: Rect; visible?: Rect }
+type Measured = {
+    masks: Rect[]
+    content?: Rect
+    visible?: Rect
+    cutOff?: string[]
+}
 
 // After the last render has been laid out (two frames).
 const afterLayout = () =>
@@ -276,6 +283,12 @@ function Group({
             masks.current.delete(measure)
         }
     }, [])
+    // Texts that are cut off (see Text.tsx), by the Text's key.
+    const cutOff = useRef(new Map<object, string>())
+    const reportCutOff = useCallback((key: object, text: string | null) => {
+        if (text == null) cutOff.current.delete(key)
+        else cutOff.current.set(key, text)
+    }, [])
     const cases = useRef<React.ComponentRef<typeof View>>(null)
     // The group's area, which fills the screen below the runner's heading.
     const area = useRef<React.ComponentRef<typeof View>>(null)
@@ -293,6 +306,7 @@ function Group({
                 ...group,
                 height: group.height - insets.bottom,
             },
+            cutOff: [...cutOff.current.values()],
         }
     }, [insets.bottom])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
@@ -317,46 +331,51 @@ function Group({
         <ReportContext.Provider value={report}>
             <MaskContext.Provider value={mask}>
                 <SampleContext.Provider value={sample}>
-                    <View
-                        ref={area}
-                        collapsable={false}
-                        style={[
-                            styles.group,
-                            // Above the system's bars at the bottom.
-                            { paddingBottom: insets.bottom },
-                        ]}
-                    >
-                        {/* The summary changes as cases settle, so the
+                    <CutOffContext.Provider value={reportCutOff}>
+                        <View
+                            ref={area}
+                            collapsable={false}
+                            style={[
+                                styles.group,
+                                // Above the system's bars at the bottom.
+                                { paddingBottom: insets.bottom },
+                            ]}
+                        >
+                            {/* The summary changes as cases settle, so the
                         screenshot leaves it out. One line, so that doesn't
                         move the cases below (areas they measured for a video
                         sample, while it records). */}
-                        <Masked>
-                            <Text style={caseStyles.title} numberOfLines={1}>
-                                {group.name}: {summary}
-                            </Text>
-                        </Masked>
-                        {/* Grows to fill the screen (for cases that fill it,
+                            <Masked>
+                                <Text
+                                    style={caseStyles.title}
+                                    numberOfLines={1}
+                                >
+                                    {group.name}: {summary}
+                                </Text>
+                            </Masked>
+                            {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
                         the script fails the group (see 'measure'). */}
-                        <View
-                            ref={cases}
-                            collapsable={false}
-                            style={styles.cases}
-                        >
-                            {group.cases}
-                        </View>
-                        {/* Statuses in full (cases show one line each), below
+                            <View
+                                ref={cases}
+                                collapsable={false}
+                                style={styles.cases}
+                            >
+                                {group.cases}
+                            </View>
+                            {/* Statuses in full (cases show one line each), below
                         the cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                        <Masked>
-                            {notOk.map((line) => (
-                                <Text key={line} style={styles.notOk}>
-                                    {line}
-                                </Text>
-                            ))}
-                        </Masked>
-                    </View>
+                            <Masked>
+                                {notOk.map((line) => (
+                                    <Text key={line} style={styles.notOk}>
+                                        {line}
+                                    </Text>
+                                ))}
+                            </Masked>
+                        </View>
+                    </CutOffContext.Provider>
                 </SampleContext.Provider>
             </MaskContext.Provider>
         </ReportContext.Provider>

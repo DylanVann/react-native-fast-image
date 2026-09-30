@@ -1,5 +1,6 @@
 import React from 'react'
-import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StatusBar, StyleSheet, View } from 'react-native'
+import { Text } from './Text'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import StatusBarUnderlay, { useStatusBarHeight } from './StatusBarUnderlay'
