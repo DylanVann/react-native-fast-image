@@ -1829,10 +1829,26 @@ async function iosPods(app: App) {
     return ok
 }
 
+// Xcode's compilation cache, shared by the apps and checkouts: a clean build
+// (e.g. after pod install) reuses what was compiled before. Emptied when it
+// grows past 2 GB.
+const COMPILATION_CACHE = path.join(
+    os.homedir(),
+    'Library/Caches/react-native-fast-image/compilation-cache',
+)
+
+function trimCompilationCache() {
+    const kb = Number(capture('du', ['-sk', COMPILATION_CACHE])?.split(/\s/)[0])
+    if (kb > 2 * 1024 * 1024) {
+        fs.rmSync(COMPILATION_CACHE, { recursive: true, force: true })
+    }
+}
+
 async function buildIos(app: App) {
     const dir = appDir(app)
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
+    trimCompilationCache()
     const result = await run(
         'xcodebuild',
         [
@@ -1848,6 +1864,8 @@ async function buildIos(app: App) {
             `platform=iOS Simulator,id=${iosUdid}`,
             '-derivedDataPath',
             'build',
+            'COMPILATION_CACHE_ENABLE_CACHING=YES',
+            `COMPILATION_CACHE_CAS_PATH=${COMPILATION_CACHE}`,
         ],
         { cwd: path.join(dir, 'ios'), log, timeout: BUILD_TIMEOUT },
     )
@@ -2059,10 +2077,20 @@ async function buildAndroid(app: App) {
         fs.mkdirSync(androidBuild, { recursive: true })
         fs.writeFileSync(sourceMarker(androidBuild), SOURCE)
     }
+    // Native code (C++) for the emulator's CPU architecture only, rather than
+    // all four.
+    const abi = capture(ADB, [
+        '-s',
+        androidSerial,
+        'shell',
+        'getprop',
+        'ro.product.cpu.abi',
+    ])?.trim()
     const result = await run(
         './gradlew',
         [
             `app:assemble${CONFIGURATION}`,
+            ...(abi ? [`-PreactNativeArchitectures=${abi}`] : []),
             // React Native's bundle task only tracks the JS in the app's own
             // folder, not the library's src/ or (for the legacy app) the main
             // example's, so it would keep a stale bundle.
