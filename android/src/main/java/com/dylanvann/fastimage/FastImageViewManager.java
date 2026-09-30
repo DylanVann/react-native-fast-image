@@ -110,6 +110,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setTransitionDuration(transitionDuration);
     }
 
+    @ReactProp(name = "transitionBetweenImages")
+    public void setTransitionBetweenImages(FastImageViewWithUrl view, boolean betweenImages) {
+        view.setTransitionBetweenImages(betweenImages);
+    }
+
     @ReactProp(name = "transitionSkipOnCacheHit")
     public void setTransitionSkipOnCacheHit(FastImageViewWithUrl view, @Nullable String skipOnCacheHit) {
         view.setTransitionSkipOnCacheHit(skipOnCacheHit);

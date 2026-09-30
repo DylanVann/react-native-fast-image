@@ -2048,6 +2048,8 @@ function PreloadDiskCase() {
 // - change: the view shows magenta, then its source changes to cyan, which
 //   another view (left) has loaded (from the memory cache): magenta, then
 //   cyan, or through blue-violet if it fades.
+// - change-download: the same, with a cyan image that downloads (the slow
+//   server).
 // - file: the file getCachePath gives for an image a view (left) loaded, as
 //   a `file://` source: a local file, not a memory cache hit.
 // - bundled: a require()d image (from Metro in debug builds, from the app in
@@ -2058,11 +2060,19 @@ const BLACK = '#000000'
 const HALF_CYAN = '#008080'
 // Halfway from magenta to cyan.
 const MAGENTA_CYAN = '#8080ff'
-type FadeFrom = 'download' | 'memory' | 'disk' | 'change' | 'file' | 'bundled'
+type FadeFrom =
+    | 'download'
+    | 'memory'
+    | 'disk'
+    | 'change'
+    | 'change-download'
+    | 'file'
+    | 'bundled'
 function FadeCase({
     id,
     from,
     skipOnCacheHit,
+    betweenImages,
     blurRadius,
     fades,
     description,
@@ -2070,14 +2080,16 @@ function FadeCase({
     id: string
     from: FadeFrom
     skipOnCacheHit?: Transition['skipOnCacheHit']
+    betweenImages?: boolean
     blurRadius?: number
     fades: boolean
     description: string
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
+    const change = from === 'change' || from === 'change-download'
     const source =
-        from === 'download'
+        from === 'download' || from === 'change-download'
             ? {
                   uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=50`),
                   headers: BACKGROUND_SLOW_HEADERS,
@@ -2088,9 +2100,11 @@ function FadeCase({
     // Recorded as the view mounts (download, bundled), or once the view that
     // loads the image first (left) has loaded it.
     const onMount = from === 'download' || from === 'bundled'
-    const [loaderShown, setLoaderShown] = useState(!onMount)
+    // Whether a view (left) loads the image first.
+    const loader = !onMount && from !== 'change-download'
+    const [loaderShown, setLoaderShown] = useState(loader)
     // The view that fades (change: it shows magenta until the change).
-    const [shown, setShown] = useState(from === 'change')
+    const [shown, setShown] = useState(change)
     const [changed, setChanged] = useState(false)
     // What the view that fades shows (change: magenta until the change).
     const shownSource =
@@ -2098,20 +2112,19 @@ function FadeCase({
             ? require('./images/cyan.png')
             : from === 'file'
               ? file
-              : from === 'change' && !changed
+              : change && !changed
                 ? magenta
                 : source
     const [status, setStatus] = useState(
         onMount ? 'waiting' : 'loading the first view',
     )
-    const expect =
-        from === 'change'
-            ? fades
-                ? [MAGENTA, MAGENTA_CYAN, CYAN]
-                : [MAGENTA, CYAN]
-            : fades
-              ? [BLACK, HALF_CYAN, CYAN]
-              : [BLACK, CYAN]
+    const expect = change
+        ? fades
+            ? [MAGENTA, MAGENTA_CYAN, CYAN]
+            : [MAGENTA, CYAN]
+        : fades
+          ? [BLACK, HALF_CYAN, CYAN]
+          : [BLACK, CYAN]
     const loaded = useRef(0)
     const done = useRef(() => {})
     const record = async () => {
@@ -2124,14 +2137,13 @@ function FadeCase({
                 area,
                 durationMs: 5000,
                 expect,
-                palette:
-                    from === 'change'
-                        ? [MAGENTA, MAGENTA_CYAN, CYAN]
-                        : [BLACK, HALF_CYAN, CYAN],
+                palette: change
+                    ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                    : [BLACK, HALF_CYAN, CYAN],
             },
             (sampleDone) => {
                 done.current = sampleDone
-                if (from === 'change') setChanged(true)
+                if (change) setChanged(true)
                 else setShown(true)
             },
         )
@@ -2151,7 +2163,7 @@ function FadeCase({
             if (!result.ok) return setStatus(`no file: ${result.error}`)
             setFile({ uri: `file://${result.path}` })
             record()
-        } else if (++loaded.current === 2) {
+        } else if (++loaded.current === (loader ? 2 : 1)) {
             // change: after magenta has faded in too.
             setTimeout(record, FADE_MS + 500)
         }
@@ -2163,7 +2175,7 @@ function FadeCase({
     }, [])
     return (
         <View style={styles.row}>
-            {!onMount ? (
+            {loader ? (
                 <View style={styles.image}>
                     {loaderShown ? (
                         <FastImage
@@ -2177,19 +2189,23 @@ function FadeCase({
             <View
                 ref={view}
                 collapsable={false}
-                style={[fadeStyles.black, !onMount ? styles.gap : null]}
+                style={[fadeStyles.black, loader ? styles.gap : null]}
             >
                 {shown ? (
                     <FastImage
                         style={fadeStyles.image}
                         source={shownSource}
                         onLoad={
-                            from === 'change' && !changed
+                            change && !changed
                                 ? onLoaderLoad
                                 : () =>
                                       setTimeout(() => done.current(), FADE_MS)
                         }
-                        transition={{ duration: FADE_MS, skipOnCacheHit }}
+                        transition={{
+                            duration: FADE_MS,
+                            betweenImages,
+                            skipOnCacheHit,
+                        }}
                         blurRadius={blurRadius}
                     />
                 ) : null}
@@ -3876,14 +3892,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="transition: a new source from the memory cache shows at once over the image showing, as in a reused list row (right; recorded: magenta, then cyan)"
             />,
             <FadeCase
-                key="fade-change-none"
-                id="fade-change-none"
-                from="change"
-                skipOnCacheHit="none"
-                fades
-                description="transition with skipOnCacheHit none: a new source from the memory cache fades in over the image showing (right; recorded: magenta, blue-violet, cyan)"
-            />,
-            <FadeCase
                 key="fade-file"
                 id="fade-file"
                 from="file"
@@ -3896,6 +3904,36 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="bundled"
                 fades
                 description="transition: a bundled require() image fades in, as with Glide and Coil (recorded: black, half cyan, cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-between',
+        cases: [
+            <FadeCase
+                key="fade-change-download"
+                id="fade-change-download"
+                from="change-download"
+                fades={false}
+                description="transition: a new source that downloads replaces the image showing at once, once it has loaded (recorded: magenta, then cyan)"
+            />,
+            <FadeCase
+                key="fade-between"
+                id="fade-between"
+                from="change-download"
+                betweenImages
+                fades
+                description="transition with betweenImages: a new source that downloads cross-dissolves from the image showing (recorded: magenta, blue-violet, cyan)"
+            />,
+            <FadeCase
+                key="fade-between-memory"
+                id="fade-between-memory"
+                from="change"
+                betweenImages
+                skipOnCacheHit="none"
+                fades
+                description="transition with betweenImages and skipOnCacheHit none: a new source from the memory cache cross-dissolves from the image showing (right; recorded: magenta, blue-violet, cyan)"
             />,
         ],
     },

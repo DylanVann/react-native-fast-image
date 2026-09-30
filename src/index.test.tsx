@@ -605,9 +605,10 @@ describe('transition', () => {
             .root.findAll((node) => node.type === ('FastImageView' as any))[0]
     const source = { uri: 'https://example.com/a.jpg' }
 
-    it('is off by default, skipping memory cache hits once set', () => {
+    it('is off by default, not between images and skipping memory cache hits once set', () => {
         const view = nativeView(<FastImage source={source} />)
         expect(view.props.transitionDuration).toBe(0)
+        expect(view.props.transitionBetweenImages).toBe(false)
         expect(view.props.transitionSkipOnCacheHit).toBe('memory')
     })
 
@@ -623,20 +624,22 @@ describe('transition', () => {
                 source={source}
                 transition={{
                     duration: 300,
-                    effect: 'cross-dissolve',
+                    betweenImages: true,
                     skipOnCacheHit: 'none',
                 }}
             />,
         )
         expect(view.props.transitionDuration).toBe(300)
+        expect(view.props.transitionBetweenImages).toBe(true)
         expect(view.props.transitionSkipOnCacheHit).toBe('none')
     })
 
-    it('ignores a negative or missing duration', () => {
+    it("uses the platform's usual fade without a duration", () => {
+        const usual = Platform.OS === 'ios' ? 250 : 300
         expect(
-            nativeView(<FastImage source={source} transition={-1} />).props
+            nativeView(<FastImage source={source} transition />).props
                 .transitionDuration,
-        ).toBe(0)
+        ).toBe(usual)
         expect(
             nativeView(
                 <FastImage
@@ -644,7 +647,17 @@ describe('transition', () => {
                     transition={{ skipOnCacheHit: 'all' }}
                 />,
             ).props.transitionDuration,
-        ).toBe(0)
+        ).toBe(usual)
+    })
+
+    it('is off for false, 0 or a negative duration', () => {
+        for (const transition of [false, 0, -1, { duration: 0 }]) {
+            expect(
+                nativeView(
+                    <FastImage source={source} transition={transition} />,
+                ).props.transitionDuration,
+            ).toBe(0)
+        }
     })
 
     it('fades a bundled image like any other', () => {

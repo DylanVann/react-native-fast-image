@@ -101,13 +101,19 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mPaused = false;
 
     // The `transition` prop (from the next load): how long a loaded image
-    // takes to fade in, in milliseconds (0 for no fade), and which cache hits
-    // show at once when the view shows its first image (none, memory or all).
+    // takes to fade in, in milliseconds (0 for no fade), whether it also fades
+    // over a loaded image (a new source), and which cache hits show at once
+    // (none, memory or all).
     private int mTransitionDuration = 0;
+    private boolean mTransitionBetweenImages = false;
     private String mTransitionSkipOnCacheHit = "memory";
 
     public void setTransitionDuration(int transitionDuration) {
         mTransitionDuration = Math.max(0, transitionDuration);
+    }
+
+    public void setTransitionBetweenImages(boolean betweenImages) {
+        mTransitionBetweenImages = betweenImages;
     }
 
     public void setTransitionSkipOnCacheHit(@Nullable String skipOnCacheHit) {
@@ -117,8 +123,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // Fades a loaded image in, unless it's from a cache that skipOnCacheHit
     // skips, as Glide's and Coil's cross-fades and Fresco decide: from the
     // memory cache it shows at once (by default), and from the disk cache
-    // too with 'all'. Downloads and local files fade. Bundled images get no
-    // transition (see transitionProps in src/index.tsx).
+    // too with 'all'. Downloads, local files and bundled images fade.
     private final class FadeFactory implements TransitionFactory<Drawable> {
         private final int duration;
         private final String skipOnCacheHit;
@@ -719,8 +724,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (model == null) meanwhile = null;
             boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
             // After the clone: loading the image that's showing again (at a
-            // new size, or with another blur) doesn't fade it in again.
-            if (mTransitionDuration > 0) {
+            // new size, or with another blur) doesn't fade it in again. Over a
+            // loaded image (a new source) only with betweenImages: otherwise it
+            // replaces it at once, as Glide, Coil and Fresco fade an image in
+            // from nothing and never between images.
+            boolean replacing = shownRequest != null && model != null;
+            if (mTransitionDuration > 0 && (!replacing || mTransitionBetweenImages)) {
                 builder = builder.transition(DrawableTransitionOptions.with(
                         new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit)));
             }

@@ -74,7 +74,7 @@ export type CachePathResult =
 
 export type Transition = $ReadOnly<{|
     duration?: ?number,
-    effect?: ?'cross-dissolve',
+    betweenImages?: ?boolean,
     skipOnCacheHit?: ?('none' | 'memory' | 'all'),
 |}>
 
@@ -123,7 +123,7 @@ export type FastImageProps = $ReadOnly<{|
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
     paused?: ?boolean,
-    transition?: ?(number | Transition),
+    transition?: ?(boolean | number | Transition),
     downsample?: ?boolean,
     blurRadius?: ?number,
     testID?: ?string,

@@ -119,13 +119,15 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-// Whether a loaded image fades in (the `transition` prop), as SDWebImage's
-// transitions and Android's image libraries decide: from the memory cache it
-// shows at once (skipOnCacheHit 'memory', the default), and from the disk
-// cache too with 'all'. Downloads and local files fade. Bundled images get no
-// transition (see transitionProps in src/index.tsx).
+// Whether a loaded image fades in (the `transition` prop). Over a loaded
+// image (a new source) only with betweenImages: otherwise it replaces it at
+// once, as Android's image libraries fade an image in from nothing and never
+// between images. Then as SDWebImage's transitions and those libraries
+// decide: from the memory cache it shows at once (skipOnCacheHit 'memory',
+// the default), and from the disk cache too with 'all'. Downloads, local
+// files and bundled images fade.
 - (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
-    if (self.transitionDuration <= 0) {
+    if (self.transitionDuration <= 0 || (self.showsLoadedImage && !self.transitionBetweenImages)) {
         return NO;
     }
     NSString* skip = self.transitionSkipOnCacheHit;

@@ -36,6 +36,7 @@ exports[`FastImage (iOS) renders 1`] = `
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
@@ -74,6 +75,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
@@ -151,6 +153,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
@@ -184,6 +187,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
@@ -221,6 +225,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
@@ -255,6 +260,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
         "top": 0,
       }
     }
+    transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
   />
