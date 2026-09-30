@@ -375,15 +375,16 @@ const DEFAULT_FADE_MS = Platform.OS === 'ios' ? 250 : 300
 // The native transition props. Always sent, so removing `transition` turns it
 // off.
 function transitionProps(transition: FastImageProps['transition']) {
-    const {
-        duration = DEFAULT_FADE_MS,
-        betweenImages,
-        skipOnCacheHit,
-    }: Transition = typeof transition === 'number'
-        ? { duration: transition }
-        : typeof transition === 'object' && transition
-          ? transition
-          : { duration: transition ? DEFAULT_FADE_MS : 0 }
+    const { duration, betweenImages, skipOnCacheHit }: Transition =
+        typeof transition === 'number'
+            ? { duration: transition }
+            : typeof transition === 'object' && transition
+              ? {
+                    ...transition,
+                    // A missing (or, from Flow, null) duration is the usual one.
+                    duration: transition.duration ?? DEFAULT_FADE_MS,
+                }
+              : { duration: transition ? DEFAULT_FADE_MS : 0 }
     return {
         transitionDuration:
             typeof duration === 'number' && duration > 0 ? duration : 0,

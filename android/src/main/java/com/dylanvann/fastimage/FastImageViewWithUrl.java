@@ -182,7 +182,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
             try {
                 from = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                 onDraw(new Canvas(from));
-            } catch (OutOfMemoryError e) {
+            } catch (OutOfMemoryError | IllegalArgumentException e) {
+                // Out of memory, or a hardware bitmap (Android 8+), which a
+                // software canvas can't draw: fade in over nothing instead.
+                if (from != null) from.recycle();
                 from = null;
             }
         }

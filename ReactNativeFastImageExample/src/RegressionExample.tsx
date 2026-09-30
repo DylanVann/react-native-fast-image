@@ -2198,8 +2198,13 @@ function FadeCase({
                         onLoad={
                             change && !changed
                                 ? onLoaderLoad
-                                : () =>
-                                      setTimeout(() => done.current(), FADE_MS)
+                                : // With some slack: the fade can start a
+                                  // little after onLoad on a busy device.
+                                  () =>
+                                      setTimeout(
+                                          () => done.current(),
+                                          FADE_MS + 500,
+                                      )
                         }
                         transition={{
                             duration: FADE_MS,
