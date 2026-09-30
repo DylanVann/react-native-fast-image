@@ -50,6 +50,8 @@ export const ImageGridItem = memo(
 export interface ImageGridProps {
     ImageComponent: React.ComponentType<any>
     testIDPrefix: string
+    // Shows this many rows (not scrolling) instead of filling the screen.
+    rows?: number
 }
 
 export const ImageGrid = (props: ImageGridProps) => {
@@ -59,9 +61,12 @@ export const ImageGrid = (props: ImageGridProps) => {
     const [error, setError] = useState<Error | null>(null)
     // For the regression runner: the first seven rows have loaded, which is
     // what fits on a phone screen (a row cut off at the bottom included) and
-    // all the FlatList renders on Android without scrolling.
+    // all the FlatList renders on Android without scrolling. Or all the rows,
+    // with 'rows'.
     const [loaded, setLoaded] = useState<string[]>([])
-    const firstRows = images.slice(0, 28).map((image) => image.id)
+    const firstRows = images
+        .slice(0, (props.rows ?? 7) * 4)
+        .map((image) => image.id)
     const firstRowsLoaded = firstRows.filter((id) => loaded.includes(id))
     useReport(
         props.testIDPrefix,
@@ -97,7 +102,7 @@ export const ImageGrid = (props: ImageGridProps) => {
         [itemHeight],
     )
 
-    const { ImageComponent, testIDPrefix } = props
+    const { ImageComponent, testIDPrefix, rows } = props
 
     const renderItem = useCallback(
         ({ item }: { item: any }) => {
@@ -141,7 +146,7 @@ export const ImageGrid = (props: ImageGridProps) => {
     return (
         <View
             style={{
-                flex: 1,
+                flex: rows == null ? 1 : undefined,
                 alignItems: 'stretch',
                 justifyContent: 'center',
                 backgroundColor: 'white',
@@ -149,10 +154,12 @@ export const ImageGrid = (props: ImageGridProps) => {
         >
             <FlatList
                 onLayout={onLayout}
-                style={{
-                    marginTop: statusBarHeight,
-                    flex: 1,
-                }}
+                style={
+                    rows == null
+                        ? { marginTop: statusBarHeight, flex: 1 }
+                        : { height: rows * itemHeight }
+                }
+                scrollEnabled={rows == null}
                 columnWrapperStyle={[
                     {
                         flex: 1,
@@ -168,7 +175,7 @@ export const ImageGrid = (props: ImageGridProps) => {
                 keyExtractor={extractKey}
                 getItemLayout={getItemLayout}
             />
-            <StatusBarUnderlay />
+            {rows == null && <StatusBarUnderlay />}
         </View>
     )
 }

@@ -2,11 +2,11 @@ import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useReport } from './RunnerContext'
 
-// A case's status line ("<id>: <status>", OK when it passed) and description.
-// The runner is told the status too (RunnerContext.tsx). One line, so a long
-// status (a failure) doesn't move the cases below, whose areas were measured
-// for masks and video samples; the runner lists failures in full below the
-// cases.
+// A case's status line ("<id>: OK" once it passed, "<id>: …" until then) and
+// description. The runner is told the status in full (RunnerContext.tsx) and
+// lists the ones that aren't OK below the cases; the line itself stays short,
+// so a long status (a failure) doesn't move the cases below, whose areas were
+// measured for masks and video samples, and it isn't cut off.
 export function CaseStatus({
     id,
     status,
@@ -19,12 +19,8 @@ export function CaseStatus({
     useReport(id, status)
     return (
         <View style={caseStyles.text}>
-            <Text
-                testID={`regression-${id}`}
-                style={caseStyles.status}
-                numberOfLines={1}
-            >
-                {id}: {status}
+            <Text testID={`regression-${id}`} style={caseStyles.status}>
+                {id}: {status === 'OK' ? 'OK' : '…'}
             </Text>
             <Text style={caseStyles.description}>{description}</Text>
         </View>

@@ -22,7 +22,7 @@ import FastImage, {
     Source,
     Transition,
 } from 'react-native-fast-image'
-import { CaseStatus } from './CaseStatus'
+import { CaseStatus, caseStyles } from './CaseStatus'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
@@ -2710,11 +2710,13 @@ function ImageRenderingCase() {
                     </View>
                 </View>
             ))}
-            <CaseStatus
-                id="image-rendering"
-                status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
-                description="imageRendering: each image at its own size, then auto, smooth and pixelated"
-            />
+            <View style={caseStyles.row}>
+                <CaseStatus
+                    id="image-rendering"
+                    status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
+                    description="imageRendering: each image at its own size, then auto, smooth and pixelated"
+                />
+            </View>
         </View>
     )
 }
@@ -3603,7 +3605,7 @@ function RepeatChangeCase({ to }: { to: 'repeat' | 'cover' }) {
                 onLoad={onLoad}
             />
             <CaseStatus
-                id={`repeat-change-${to}`}
+                id={`to-${to}`}
                 status={changed ? status : 'waiting'}
                 description={`resizeMode ${from} changed to ${to} after loading (left) matches ${to} from the start (right)`}
             />
@@ -3676,6 +3678,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+        ],
+    },
+    {
+        name: 'errors',
+        cases: [
             <EventCase
                 key="error-invalid-data-uri"
                 id="error-invalid-data-uri"
@@ -3889,8 +3896,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="resizeMode repeat: a 20px tile (red, green, blue, yellow) repeated from the top-left, as Image (right)"
             />,
             <RepeatCase
-                key="repeat-large"
-                id="repeat-large"
+                key="repeat-big"
+                id="repeat-big"
                 uri={imageUrl('picsum/1025-200x200.jpg')}
                 description="repeat with an image larger than the view: scaled down to fit, then repeated, as Image (right)"
             />,
@@ -3899,11 +3906,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="repeat-tint"
                 uri={imageUrl('sprite-12.png')}
                 tintColor="#9324c3"
-                description="repeat with tintColor: the tinted tile repeated, as Image (right)"
+                description="repeat with tintColor: the tile tinted, then repeated, as Image (right)"
             />,
+        ],
+    },
+    {
+        name: 'repeat-change',
+        cases: [
             <RepeatGifCase key="repeat-gif" />,
-            <RepeatChangeCase key="repeat-change-repeat" to="repeat" />,
-            <RepeatChangeCase key="repeat-change-cover" to="cover" />,
+            <RepeatChangeCase key="to-repeat" to="repeat" />,
+            <RepeatChangeCase key="to-cover" to="cover" />,
         ],
     },
     {

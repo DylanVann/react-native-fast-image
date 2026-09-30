@@ -23,9 +23,19 @@ import JellyfishGIF from './images/jellyfish.gif'
 import JellyfishWebP from './images/jellyfish-webp.webp'
 import { Masked, useLoads } from './RunnerContext'
 
-const Image = ({ source, ...p }: FastImageProps) => (
-    <FastImage style={styles.imageSquare} source={source} {...p} />
-)
+// Smaller images, so the examples fit on one screen (see LocalImagesExample).
+const CompactContext = React.createContext(false)
+
+const Image = ({ source, style, ...p }: FastImageProps) => {
+    const compact = React.useContext(CompactContext)
+    return (
+        <FastImage
+            style={[styles.imageSquare, compact && styles.imageCompact, style]}
+            source={source}
+            {...p}
+        />
+    )
+}
 
 const Row: React.ComponentType<ViewProps> = (p: ViewProps) => (
     <View style={styles.row} {...p} />
@@ -81,10 +91,7 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
             <Row>
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
-                    <Image
-                        style={styles.imageSquare}
-                        source={this.state.image || 0}
-                    >
+                    <Image source={this.state.image || 0}>
                         <Text style={styles.pickPhoto}>Pick Photo</Text>
                     </Image>
                 </TouchableOpacity>
@@ -102,33 +109,39 @@ export const LocalImagesExample = ({ compact }: { compact?: boolean }) => {
             <Section>
                 <FeatureText>• Local images.</FeatureText>
             </Section>
-            <View style={[styles.container, compact && styles.compact]}>
-                <Example
-                    name="Require"
-                    source={require('./images/fields.jpg')}
-                    onLoad={onLoad}
-                />
-                <Example name="Import" source={FieldsImage} onLoad={onLoad} />
-                <Example
-                    name="GIF"
-                    source={JellyfishGIF}
-                    onLoad={onLoad}
-                    animated
-                />
-                <Example
-                    name="Animated WebP"
-                    source={JellyfishWebP}
-                    onLoad={onLoad}
-                    animated
-                />
-                <Example
-                    name="Base64"
-                    source={{ uri: FieldsBase64 }}
-                    onLoad={onLoad}
-                />
-                <Example name="WebP" source={FieldsWebP} onLoad={onLoad} />
-                <PhotoExample />
-            </View>
+            <CompactContext.Provider value={!!compact}>
+                <View style={[styles.container, compact && styles.compact]}>
+                    <Example
+                        name="Require"
+                        source={require('./images/fields.jpg')}
+                        onLoad={onLoad}
+                    />
+                    <Example
+                        name="Import"
+                        source={FieldsImage}
+                        onLoad={onLoad}
+                    />
+                    <Example
+                        name="GIF"
+                        source={JellyfishGIF}
+                        onLoad={onLoad}
+                        animated
+                    />
+                    <Example
+                        name="Animated WebP"
+                        source={JellyfishWebP}
+                        onLoad={onLoad}
+                        animated
+                    />
+                    <Example
+                        name="Base64"
+                        source={{ uri: FieldsBase64 }}
+                        onLoad={onLoad}
+                    />
+                    <Example name="WebP" source={FieldsWebP} onLoad={onLoad} />
+                    <PhotoExample />
+                </View>
+            </CompactContext.Provider>
         </View>
     )
 }
@@ -160,6 +173,12 @@ const styles = StyleSheet.create({
         marginTop: 10,
         width: 100,
         flex: 0,
+    },
+    imageCompact: {
+        height: 64,
+        width: 64,
+        margin: 10,
+        marginTop: 6,
     },
     plus: {
         width: 30,

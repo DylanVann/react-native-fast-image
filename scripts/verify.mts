@@ -648,6 +648,22 @@ function screenshot(platform: Platform, device: string, file: string) {
     }
 }
 
+// Crops a screenshot (pixels) in place.
+function cropScreenshot(file: string, crop: PixelRect) {
+    const cropped = file.replace(/\.png$/, '-cropped.png')
+    capture('ffmpeg', [
+        '-v',
+        'error',
+        '-y',
+        '-i',
+        file,
+        '-vf',
+        `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
+        cropped,
+    ])
+    if (fs.existsSync(cropped)) fs.renameSync(cropped, file)
+}
+
 // Each group's screenshot (and the ones a case asks for while it runs) is
 // compared with a reference, screenshots/<app>-<platform>/<name>.png (in the
 // repository, so a change to how something renders comes with new references
@@ -1018,7 +1034,6 @@ async function runRegression(
     let groups: string[] = []
     let scale = 1
     let windowWidth = 0
-    let windowHeight = 0
     const failures: string[] = []
     const seeded: string[] = []
     const noReference: string[] = []
@@ -1027,7 +1042,13 @@ async function runRegression(
     // in the background; `shots` is awaited at the end.
     const shots: Promise<void>[] = []
     // masks: the areas the app measured just before (dp), to leave out.
-    const takeShot = (index: number, masksDp: unknown) => {
+    // area: the part of the screen to keep (dp), the safe area: not the
+    // status bar or the system's bars at the bottom.
+    const takeShot = (
+        index: number,
+        masksDp: unknown,
+        area: PixelRect | undefined,
+    ) => {
         // The web version's cases are checked by their statuses only.
         if (platform === 'web') return Promise.resolve()
         const name = groups[index]
@@ -1036,34 +1057,21 @@ async function runRegression(
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
         )
         screenshot(platform, device, file)
+        const crop = area && {
+            x: Math.round(area.x * scale),
+            y: Math.round(area.y * scale),
+            width: Math.round(area.width * scale),
+            height: Math.round(area.height * scale),
+        }
+        if (crop) cropScreenshot(file, crop)
         const masks = (
             Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
         ).map((m) => ({
-            x: m.x * scale,
-            y: m.y * scale,
+            x: m.x * scale - (crop?.x ?? 0),
+            y: m.y * scale - (crop?.y ?? 0),
             width: m.width * scale,
             height: m.height * scale,
         }))
-        // The band above the runner's content (its top padding): the status
-        // bar (on iOS even with the override: a "back to the previous app"
-        // breadcrumb) and React Native's dev banner ("Loading from Metro…",
-        // "Refreshing…"), which comes and goes.
-        masks.push({
-            x: 0,
-            y: 0,
-            width: windowWidth * scale,
-            height: 140 * scale,
-        })
-        // On iOS, the home indicator at the bottom, which is there or not
-        // depending on how long ago the app was opened.
-        if (platform === 'ios' && windowHeight > 0) {
-            masks.push({
-                x: 0,
-                y: (windowHeight - 34) * scale,
-                width: windowWidth * scale,
-                height: 34 * scale,
-            })
-        }
         const shot = compareScreenshot(app, platform, name, file, masks).then(
             ({ result, detail }) => {
                 logLine(
@@ -1359,7 +1367,6 @@ async function runRegression(
     groups = hello.groups as string[]
     scale = Number(hello.scale) || 1
     windowWidth = Number((hello.window as { width?: number })?.width) || 0
-    windowHeight = Number((hello.window as { height?: number })?.height) || 0
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
@@ -1444,7 +1451,26 @@ async function runRegression(
             5000,
         )
         if (!measured) failures.push(`${group}: the app didn't send its masks`)
-        takeShot(index, measured?.masks)
+        // Cases below (or beside) the visible screen would be cut off in the
+        // screenshot: split the group.
+        const content = measured?.content as PixelRect | undefined
+        const visible = measured?.visible as PixelRect | undefined
+        if (content && visible) {
+            const below =
+                content.y + content.height - (visible.y + visible.height)
+            const beside =
+                content.x + content.width - (visible.x + visible.width)
+            if (below > 1 || beside > 1) {
+                failures.push(
+                    `${group}: cut off: its cases end ${Math.ceil(Math.max(below, beside))} dp ${below > 1 ? 'below' : 'right of'} the visible screen (split the group)`,
+                )
+            }
+        }
+        takeShot(
+            index,
+            measured?.masks,
+            measured?.safeArea as PixelRect | undefined,
+        )
         timings.push(
             `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,
         )
