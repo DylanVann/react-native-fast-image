@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import {
     AppState,
     Image,
+    NativeModules,
     PixelRatio,
     Platform,
     Pressable,
@@ -3302,6 +3303,94 @@ const downsampleStyles = StyleSheet.create({
     rotated: { width: 64, height: 96 },
 })
 
+// Photo library images (ph://, iOS, with SDWebImagePhotosPlugin, which the
+// example apps add): a photo from the simulator's library by its id, listed
+// by the example's ExamplePhotos module. It's decoded at about the view's
+// size, and onLoad reports the photo's own size.
+type LibraryPhoto = { id: string; width: number; height: number; type: string }
+const libraryPhotos = (): Promise<{
+    authorized: boolean
+    photos: LibraryPhoto[]
+}> => NativeModules.ExamplePhotos.photos()
+
+function PhotoLibraryCase({
+    id,
+    type,
+    description,
+}: {
+    id: string
+    type: string
+    description: string
+}) {
+    const [photo, setPhoto] = useState<LibraryPhoto>()
+    const [status, setStatus] = useState('listing the photo library')
+    useEffect(() => {
+        libraryPhotos().then(
+            ({ authorized, photos }) => {
+                if (!authorized) return setStatus('no photo library access')
+                const found = photos.find((p) => p.type === type)
+                if (!found) return setStatus(`no ${type} photo in the library`)
+                setPhoto(found)
+                setStatus('loading')
+            },
+            (error) => setStatus(`${error}`),
+        )
+    }, [type])
+    return (
+        <View style={styles.row}>
+            {photo ? (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: `ph://${photo.id}` }}
+                    onLoad={(e) => {
+                        const { width, height } = e.nativeEvent
+                        setStatus(
+                            width === photo.width && height === photo.height
+                                ? 'OK'
+                                : `onLoad ${width}x${height}, the photo is ${photo.width}x${photo.height}`,
+                        )
+                    }}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+// A photo library source that can't load fails with a message that says why.
+function PhotoLibraryErrorCase({
+    id,
+    uri,
+    expected,
+    description,
+}: {
+    id: string
+    uri: string
+    expected: string
+    description: string
+}) {
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri }}
+                onLoad={() => setStatus('loaded')}
+                onError={(e) => {
+                    const { error } = e.nativeEvent
+                    setStatus(
+                        error.includes(expected) ? 'OK' : `error: ${error}`,
+                    )
+                }}
+            />
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 export type { RegressionGroup }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
@@ -3981,6 +4070,46 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-background',
         cases: [<ImageBackgroundCase key="image-background" />],
+    },
+    {
+        name: 'photo-library',
+        cases:
+            Platform.OS === 'ios'
+                ? [
+                      <PhotoLibraryCase
+                          key="photo-library-jpeg"
+                          id="photo-library-jpeg"
+                          type="public.jpeg"
+                          description="#410: a JPEG from the photo library (ph://) loads; onLoad has the photo's own size"
+                      />,
+                      <PhotoLibraryCase
+                          key="photo-library-heic"
+                          id="photo-library-heic"
+                          type="public.heic"
+                          description="#410: a HEIC photo from the photo library (ph://) loads; onLoad has the photo's own size"
+                      />,
+                      <PhotoLibraryErrorCase
+                          key="photo-library-missing"
+                          id="photo-library-missing"
+                          uri="ph://00000000-0000-0000-0000-000000000000/L0/001"
+                          expected="localIdentifier"
+                          description="A ph:// id that isn't in the library fails with onError"
+                      />,
+                      <PhotoLibraryErrorCase
+                          key="photo-library-assets-library"
+                          id="photo-library-assets-library"
+                          uri="assets-library://asset/asset.JPG?id=00000000-0000-0000-0000-000000000000&ext=JPG"
+                          expected="ph://"
+                          description="#314: an assets-library:// url fails with onError, pointing to ph:// urls"
+                      />,
+                  ]
+                : [
+                      <NoCrashCase
+                          key="photo-library"
+                          id="photo-library"
+                          description="Photo library (ph://) urls are iOS only; Android's photo pickers give content:// urls, which load"
+                      />,
+                  ],
     },
     {
         // Empties the disk cache on iOS, so it's near the end.

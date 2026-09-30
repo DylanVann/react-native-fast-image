@@ -646,11 +646,12 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-// Whether images are decoded at about the view's size (downsample).
+// Whether images are decoded at about the view's size (downsample, and
+// always for photo library images, which are large and usually shown small).
 // Not for `repeat`, which tiles the image at its own size, or SDWebImage
 // before 5.19.
 - (BOOL) downsamples {
-    return _downsample && _resizeMode != RCTResizeModeRepeat && [FFFDownsampledImage isSupported];
+    return (_downsample || [_source isPhotoLibrary]) && _resizeMode != RCTResizeModeRepeat && [FFFDownsampledImage isSupported];
 }
 
 // Whether the view has been laid out with an area. One that's 0 wide or tall

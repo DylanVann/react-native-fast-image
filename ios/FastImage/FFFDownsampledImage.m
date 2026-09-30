@@ -89,7 +89,12 @@ static CGSize FFFPixelSize(NSData* data) {
     // After a load that isn't downsampled (e.g. a preload), this class
     // wouldn't be used, and the box would be decoded as SDWebImage does (to
     // fill it, stretched). With its own url, a downsampled load only shares
-    // downloads with other downsampled ones.
+    // downloads with other downsampled ones. Not a photo library url, which
+    // isn't downloaded, and whose loader reads everything after ph:// as the
+    // photo's identifier.
+    if ([url.scheme isEqualToString: @"ph"]) {
+        return url;
+    }
     NSURLComponents* components = [NSURLComponents componentsWithURL: url resolvingAgainstBaseURL: NO];
     if (!components) {
         return url;
@@ -121,6 +126,17 @@ static CGSize FFFPixelSize(NSData* data) {
 + (CGSize) sourceSizeOfImage: (UIImage*)image {
     id sourceSize = image.sd_decodeOptions[FFFDecodeSourceSize];
     return [sourceSize isKindOfClass: [FFFSourceSize class]] ? ((FFFSourceSize*) sourceSize).size : CGSizeZero;
+}
+
++ (void) setSourceSize: (CGSize)size ofImage: (UIImage*)image context: (SDWebImageContext*)context {
+    FFFSourceSize* sourceSize = context[SDWebImageContextImageDecodeOptions][FFFDecodeSourceSize];
+    if (![sourceSize isKindOfClass: [FFFSourceSize class]]) {
+        return;
+    }
+    sourceSize.size = size;
+    NSMutableDictionary* options = [image.sd_decodeOptions mutableCopy] ?: [NSMutableDictionary dictionary];
+    options[FFFDecodeSourceSize] = sourceSize;
+    image.sd_decodeOptions = options;
 }
 
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {

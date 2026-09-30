@@ -17,6 +17,11 @@ end
 target 'ReactNativeFastImageExample' do
   config = use_native_modules!
 
+  # Photo library (ph://) images, which FastImage loads when the app has this.
+  pod 'SDWebImagePhotosPlugin'
+  # Lists the photo library for the regression cases (example only).
+  pod 'ExamplePhotos', :path => './ExamplePhotos'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

@@ -21,6 +21,10 @@
 // loaded this way was decoded from, for onLoad, or zero for other images.
 + (CGSize) sourceSizeOfImage: (UIImage*)image;
 
+// Records the full image's size for an image a load's loader decoded itself
+// (a photo library image), with the load's context from addToContext.
++ (void) setSourceSize: (CGSize)size ofImage: (UIImage*)image context: (SDWebImageContext*)context;
+
 // Whether this version of SDWebImage can decode through this class: it
 // decodes static images through the animated image class since 5.19.
 + (BOOL) isSupported;
