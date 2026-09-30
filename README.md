@@ -223,7 +223,7 @@ Fades the image in when it loads. A number is the duration in milliseconds, or p
     - `'all'`: images from the memory or disk cache: only images that download (or local files) fade in.
     - `'none'`: every image fades in.
 
-This applies to every image, also a new `source` in a view that already shows one: it fades in over the image showing, unless it's skipped. Downloads and local files (`file://`, `content://`) fade in. Bundled images (`require()`) count as memory cache hits, as React Native's `Image` shows them at once (in debug builds too, where Metro serves them). In lists that reuse views (e.g. FlashList), set `recyclingKey` so a reused view starts empty instead of fading from the previous item's image.
+This applies to every image, also a new `source` in a view that already shows one: it fades in over the image showing, unless it's skipped. Downloads, local files (`file://`, `content://`) and bundled images (`require()`) fade in, as with Glide and Coil (React Native's `Image` shows bundled images at once). In lists that reuse views (e.g. FlashList), set `recyclingKey` so a reused view starts empty instead of fading from the previous item's image.
 
 ```jsx
 <FastImage source={{ uri }} transition={300} />

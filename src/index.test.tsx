@@ -647,32 +647,15 @@ describe('transition', () => {
         ).toBe(0)
     })
 
-    it('shows a bundled image at once, unless skipOnCacheHit is none', () => {
+    it('fades a bundled image like any other', () => {
         const resolveAssetSource = spyOn(
             Image,
             'resolveAssetSource',
         ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
         try {
-            expect(
-                nativeView(<FastImage source={1} transition={300} />).props
-                    .transitionDuration,
-            ).toBe(0)
-            expect(
-                nativeView(
-                    <FastImage
-                        source={1}
-                        transition={{ duration: 300, skipOnCacheHit: 'all' }}
-                    />,
-                ).props.transitionDuration,
-            ).toBe(0)
-            expect(
-                nativeView(
-                    <FastImage
-                        source={1}
-                        transition={{ duration: 300, skipOnCacheHit: 'none' }}
-                    />,
-                ).props.transitionDuration,
-            ).toBe(300)
+            const view = nativeView(<FastImage source={1} transition={300} />)
+            expect(view.props.transitionDuration).toBe(300)
+            expect(view.props.transitionSkipOnCacheHit).toBe('memory')
         } finally {
             resolveAssetSource.mockRestore()
         }

@@ -3894,8 +3894,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="fade-bundled"
                 id="fade-bundled"
                 from="bundled"
-                fades={false}
-                description="transition: a bundled require() image shows at once, as React Native's Image shows its resources (recorded: black, then cyan)"
+                fades
+                description="transition: a bundled require() image fades in, as with Glide and Coil (recorded: black, half cyan, cyan)"
             />,
         ],
     },

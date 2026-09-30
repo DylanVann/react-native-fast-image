@@ -90,8 +90,9 @@ export type Transition = {
      *   only images that download (or local files) fade in.
      * - `'none'`: always transitions.
      *
-     * Downloads and local files fade in. Bundled images (`require()`) count
-     * as memory cache hits, as React Native's Image shows them at once.
+     * Downloads, local files and bundled images (`require()`) fade in, as
+     * with Glide and Coil (React Native's Image shows bundled images at
+     * once).
      * @default 'memory'
      */
     skipOnCacheHit?: 'none' | 'memory' | 'all' | null
@@ -368,25 +369,16 @@ function withProgress(onProgress: FastImageProps['onProgress']) {
 }
 
 // The native transition props. Always sent, so removing `transition` turns it
-// off. A bundled image (a require()d source, a number) counts as a memory
-// cache hit, as React Native's Image shows its resources at once: decided
-// here, as it's served by Metro over http in debug builds.
-function transitionProps(
-    transition: number | Transition | null | undefined,
-    source: FastImageProps['source'],
-) {
+// off.
+function transitionProps(transition: number | Transition | null | undefined) {
     const { duration, skipOnCacheHit } =
         typeof transition === 'number'
             ? { duration: transition, skipOnCacheHit: null }
             : transition || {}
-    const skip = skipOnCacheHit || 'memory'
-    const bundled = typeof source === 'number' && skip !== 'none'
     return {
         transitionDuration:
-            typeof duration === 'number' && duration > 0 && !bundled
-                ? duration
-                : 0,
-        transitionSkipOnCacheHit: skip,
+            typeof duration === 'number' && duration > 0 ? duration : 0,
+        transitionSkipOnCacheHit: skipOnCacheHit || 'memory',
     }
 }
 
@@ -518,7 +510,7 @@ function FastImageBase({
                 {...imageProps}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
-                {...transitionProps(transition, source)}
+                {...transitionProps(transition)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}
