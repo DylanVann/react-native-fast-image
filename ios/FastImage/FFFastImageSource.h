@@ -53,8 +53,17 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 - (SDWebImageOptions)cacheOptions;
 
 // The loader for `cache: 'web'` images, whose HTTP cache is their own (see
-// webURLCache), or nil for SDWebImage's shared one.
+// webURLCache), for photo library images (ph://, see FFFPhotosLoader), or nil
+// for SDWebImage's shared one.
 - (id<SDImageLoader>)imageLoader;
+
+// Whether the source is a photo library image (ph://<localIdentifier>),
+// which is decoded at about the view's size.
+- (BOOL)isPhotoLibrary;
+
+// A photo library image's own size in pixels (for onLoad when it comes from
+// a cache, where the size it was decoded from isn't recorded), or zero.
+- (CGSize)photoPixelSize;
 
 // The HTTP cache of `cache: 'web'` images: their own rather than the app's
 // shared NSURLCache, so clearDiskCache can empty it without the app's other

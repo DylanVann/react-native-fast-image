@@ -105,6 +105,25 @@ When `source` changes, the image that's showing stays until the new one has load
 
 Remote url to load the image from. e.g. `'https://facebook.github.io/react/img/logo_og.png'`.
 
+#### Photo library images (iOS)
+
+A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads when the app has SDWebImagePhotosPlugin. Add it to the app's `ios/Podfile` and run `pod install`:
+
+```ruby
+pod 'SDWebImagePhotosPlugin'
+```
+
+With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/):
+
+```json
+[
+    "expo-build-properties",
+    { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }
+]
+```
+
+The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
+
 ---
 
 ### `source.headers?: object`
@@ -239,7 +258,7 @@ iOS only. Decodes a large image at about the size it's shown at, instead of at f
 
 Use it when you show images much larger than their views and can't get them at the right size, e.g. user uploads or other people's URLs in a list. If you control the images, serve them at the size they're shown instead (resized on your server or by an image CDN), which also saves bandwidth.
 
-Decoding a smaller copy can take a little longer, so use it where the memory matters. Needs SDWebImage 5.19.7 or later. On Android images are already decoded at about the view's size.
+Decoding a smaller copy can take a little longer, so use it where the memory matters. Needs SDWebImage 5.19.7 or later. Photo library images are always decoded this way. On Android images are already decoded at about the view's size.
 
 ---
 
