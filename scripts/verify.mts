@@ -1042,9 +1042,8 @@ async function runRegression(
     // in the background; `shots` is awaited at the end.
     const shots: Promise<void>[] = []
     // masks: the areas the app measured just before (dp), to leave out.
-    // area: the part of the screen to keep (dp), from the cases' top to the
-    // bottom of the visible screen: not the status bar, the runner's heading
-    // or the system's bars at the bottom.
+    // area: the part of the screen to keep (dp), the safe area: not the
+    // status bar or the system's bars at the bottom.
     const takeShot = (
         index: number,
         masksDp: unknown,
@@ -1474,13 +1473,7 @@ async function runRegression(
         takeShot(
             index,
             measured?.masks,
-            content &&
-                visible && {
-                    x: visible.x,
-                    y: content.y,
-                    width: visible.width,
-                    height: visible.y + visible.height - content.y,
-                },
+            measured?.safeArea as PixelRect | undefined,
         )
         timings.push(
             `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,

@@ -41,7 +41,7 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //                                                 dp; scale = pixels per dp)
 //   { type: 'group', index, name, cases: [ids] }  once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'masks', group, id, masks, content, visible, cutOff }
+//   { type: 'masks', group, id, masks, content, visible, cutOff, safeArea }
 //                                                 the reply to 'measure'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
@@ -53,7 +53,9 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // area the group's cases take; visible: the window's area that isn't under
 // the system's bars at the bottom (the script fails a group whose cases go
 // past it, as the screenshot would cut them off). cutOff: texts cut off in
-// their own box (see Text.tsx), which the script fails too.
+// their own box (see Text.tsx), which the script fails too. safeArea: the
+// screen's area inside its safe-area insets, which the script crops the
+// screenshot to.
 // From the script: { type: 'next' } shows the next group; { type: 'show',
 // index } a given one; { type: 'measure', group, id } asks for the group's
 // masks as they are now, before the script takes its screenshot;
@@ -68,6 +70,7 @@ type Measured = {
     content?: Rect
     visible?: Rect
     cutOff?: string[]
+    insets?: { top: number; bottom: number }
 }
 
 // After the last render has been laid out (two frames).
@@ -115,6 +118,8 @@ export default function RegressionRunner({
     const [index, setIndex] = useState(0)
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)
+    // The whole screen (see 'measure').
+    const screen = useRef<React.ComponentRef<typeof View>>(null)
     // Measures the group on screen's masks (set by Group).
     const measureMasks = useRef<() => Promise<Measured>>(async () => ({
         masks: [],
@@ -180,15 +185,28 @@ export default function RegressionRunner({
                 } else if (message.type === 'next') setIndex((i) => i + 1)
                 else if (message.type === 'measure') {
                     afterLayout()
-                        .then(() => measureMasks.current())
-                        .then((measured) =>
+                        .then(() =>
+                            Promise.all([
+                                measureMasks.current(),
+                                measureView(screen.current),
+                            ]),
+                        )
+                        .then(([{ insets, ...measured }, all]) => {
+                            const safeArea = all &&
+                                insets && {
+                                    ...all,
+                                    y: all.y + insets.top,
+                                    height:
+                                        all.height - insets.top - insets.bottom,
+                                }
                             send({
                                 type: 'masks',
                                 group: message.group,
                                 id: message.id,
                                 ...measured,
-                            }),
-                        )
+                                safeArea,
+                            })
+                        })
                 } else if (
                     message.type === 'show' &&
                     typeof message.index === 'number'
@@ -215,14 +233,15 @@ export default function RegressionRunner({
     }, [done, send])
     return (
         <SafeAreaProvider>
-            <View style={styles.screen}>
+            <View ref={screen} collapsable={false} style={styles.screen}>
                 <StatusBar hidden />
-                <Text style={styles.connection}>
-                    regression runner: {connected ? 'connected' : 'connecting'}
-                    {done
-                        ? ', done'
-                        : `, group ${index + 1} of ${groups.length}`}
-                </Text>
+                {/* Only while it isn't showing a group, so screenshots
+                don't have it. */}
+                {!connected || done ? (
+                    <Text style={styles.connection}>
+                        regression runner: {connected ? 'done' : 'connecting'}
+                    </Text>
+                ) : null}
                 {done ? null : (
                     <Group
                         key={index}
@@ -290,7 +309,7 @@ function Group({
         else cutOff.current.set(key, text)
     }, [])
     const cases = useRef<React.ComponentRef<typeof View>>(null)
-    // The group's area, which fills the screen below the runner's heading.
+    // The group's area, which fills the screen below the runner's padding.
     const area = useRef<React.ComponentRef<typeof View>>(null)
     const insets = useSafeAreaInsets()
     const measure = useCallback(async (): Promise<Measured> => {
@@ -307,8 +326,9 @@ function Group({
                 height: group.height - insets.bottom,
             },
             cutOff: [...cutOff.current.values()],
+            insets: { top: insets.top, bottom: insets.bottom },
         }
-    }, [insets.bottom])
+    }, [insets.top, insets.bottom])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
     const sample = useCallback(
         (request: SampleRequest, change: SampleChange) =>
@@ -390,8 +410,8 @@ const styles = StyleSheet.create({
         // Clear of the status bar (on iOS, StatusBar hidden has no effect
         // under the scene lifecycle) and of React Native's dev banner
         // ("Loading from Metro…", "Refreshing…"), which comes and goes and
-        // sits up to about 130 dp down; verify.mts leaves that band out of
-        // screenshot comparisons.
+        // sits up to about 130 dp down when it's shown (verify.mts hides
+        // it).
         paddingTop: 140,
     },
     group: {
