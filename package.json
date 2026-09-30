@@ -24,6 +24,7 @@
     "typings": "dist/index.d.ts",
     "files": [
         "android/build.gradle",
+        "android/consumer-rules.pro",
         "android/src/main",
         "ios/FastImage",
         "ios/FastImage.xcodeproj/project.pbxproj",

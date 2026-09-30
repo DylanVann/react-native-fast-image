@@ -91,21 +91,6 @@ const YourImage = () => (
 
 - [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
 
-## Are you using Proguard?
-
-If you use Proguard you will need to add these lines to `android/app/proguard-rules.pro`:
-
-```
--keep public class com.dylanvann.fastimage.* {*;}
--keep public class com.dylanvann.fastimage.** {*;}
--keep public class * implements com.bumptech.glide.module.GlideModule
--keep public class * extends com.bumptech.glide.module.AppGlideModule
--keep public enum com.bumptech.glide.load.ImageHeaderParser$** {
-  **[] $VALUES;
-  public *;
-}
-```
-
 ## Properties
 
 ### `source?: object`
