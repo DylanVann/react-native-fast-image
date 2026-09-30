@@ -33,3 +33,11 @@
   **[] $VALUES;
   public *;
 }
+
+# React Native's event dispatcher, which FastImage looks up by name
+# (FastImageEvents), so it still compiles against React Native 0.60-0.62,
+# which don't have it. R8 would rename it, and on the New Architecture every
+# event (onLoad, onError, ...) would then be dropped.
+-keep class com.facebook.react.uimanager.UIManagerHelper {
+  public static *** getEventDispatcherForReactTag(com.facebook.react.bridge.ReactContext, int);
+}
