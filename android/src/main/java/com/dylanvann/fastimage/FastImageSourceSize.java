@@ -14,7 +14,12 @@ import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.ImageHeaderParserUtils;
+import com.bumptech.glide.load.MultiTransformation;
+import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.CenterInside;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
+import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.RequestOptions;
 
@@ -82,26 +87,36 @@ final class FastImageSourceSize {
 
     // What RequestBuilder.into(ImageView) applies for the view's scale type
     // (it leaves a transformation that's already set alone), with the
-    // downsample strategy it implies wrapped by capture.
-    static RequestOptions scaleTypeOptions(@Nullable ImageView.ScaleType scaleType, Capture capture) {
+    // downsample strategy it implies wrapped by capture, and then blur if it
+    // isn't null.
+    static RequestOptions scaleTypeOptions(@Nullable ImageView.ScaleType scaleType, Capture capture, @Nullable FastImageBlur blur) {
         RequestOptions options = new RequestOptions();
+        BitmapTransformation transformation = null;
         if (scaleType != null) {
             switch (scaleType) {
                 case CENTER_CROP:
                     options = options.optionalCenterCrop();
+                    transformation = new CenterCrop();
                     break;
                 case CENTER_INSIDE:
                 case FIT_XY:
                     options = options.optionalCenterInside();
+                    transformation = new CenterInside();
                     break;
                 case FIT_CENTER:
                 case FIT_START:
                 case FIT_END:
                     options = options.optionalFitCenter();
+                    transformation = new FitCenter();
                     break;
                 default:
                     break;
             }
+        }
+        if (blur != null) {
+            options = transformation == null
+                    ? options.optionalTransform(blur)
+                    : options.optionalTransform(new MultiTransformation<>(transformation, blur));
         }
         return options.downsample(capture);
     }

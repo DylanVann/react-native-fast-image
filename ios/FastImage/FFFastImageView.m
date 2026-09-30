@@ -5,6 +5,7 @@
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
 #import "FFFDownsampledImage.h"
+#import <Accelerate/Accelerate.h>
 
 @interface FFFastImageView ()
 
@@ -16,9 +17,15 @@
 
 @property(nonatomic, strong) NSDictionary* onLoadEvent;
 @property(nonatomic, strong) NSDictionary* onErrorEvent;
-// The image before tinting, kept while a tint is applied so the tint can be
-// changed or removed. nil when there's no tint (super.image is untinted).
-@property(nonatomic, strong) UIImage* untintedImage;
+// The image before tinting and blurring, kept while either is applied so they
+// can be changed or removed. nil when neither is (super.image is the image).
+@property(nonatomic, strong) UIImage* originalImage;
+// Counts images set, so a blur that finishes can tell if it's still current.
+@property(nonatomic, assign) NSUInteger imageCount;
+// The view's size when the image showing was blurred.
+@property(nonatomic, assign) CGSize blurredForSize;
+// The blurred image showing (untinted), so a tint change can re-show it.
+@property(nonatomic, strong) UIImage* blurredImage;
 // Whether the current load was already restarted after the app came back
 // from the background (see downloadImage:).
 @property(nonatomic, assign) BOOL retriedAfterBackground;
@@ -40,6 +47,8 @@
 
 // When the app last went to the background (CACurrentMediaTime), or 0.
 static CFTimeInterval FFFEnteredBackgroundAt = 0;
+
+static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, BOOL downscale);
 
 @implementation FFFastImageView
 
@@ -128,6 +137,10 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     if (_resizeMode != resizeMode) {
         _resizeMode = resizeMode;
         [self updateContentMode];
+        // The blur is made for the size the image is shown at.
+        if ([self blurs: self.originalImage]) {
+            [self setImage: self.originalImage];
+        }
     }
 }
 
@@ -153,6 +166,7 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 - (void) layoutSubviews {
     [super layoutSubviews];
     [self updateContentMode];
+    [self blurAgainIfResized];
     if (self.waitsForSize) {
         if ([self hasSize]) {
             [self reloadImage];
@@ -198,8 +212,16 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 
 - (void) setImageColor: (UIColor*)imageColor {
     _imageColor = imageColor;
-    // Re-apply to the untinted image, so the tint can change or be removed.
-    UIImage* image = self.untintedImage ?: super.image;
+    // A blurred image is a still image: show it with the new tint, without
+    // blurring it again.
+    if ([self blurs: self.originalImage]) {
+        if (self.blurredImage) {
+            [self showImage: self.blurredImage];
+        }
+        return;
+    }
+    // Re-apply to the original image, so the tint can change or be removed.
+    UIImage* image = self.originalImage ?: super.image;
     if (image) {
         // SDAnimatedImageView ignores the image it already shows, which would
         // keep an animated image's frames as they were tinted.
@@ -215,14 +237,26 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 }
 
 - (void) setImage: (UIImage*)image {
-    // Tinted as React Native's Image does it: UIKit draws a template image in
-    // the view's tintColor, so no tinted copy of the image is made.
-    // SDAnimatedImageView draws the frames of an animated image itself,
-    // without the tint, so each frame is tinted as it's decoded (source-in,
-    // as the template is), or, before SDWebImage 5.20, the first frame shows.
+    self.imageCount++;
+    if ([self blurs: image]) {
+        self.originalImage = image;
+        self.blurredImage = nil;
+        [self blurImage: image];
+        return;
+    }
+    self.originalImage = image && self.imageColor ? image : nil;
+    self.blurredImage = nil;
+    [self showImage: image];
+}
+
+// Shows the image, tinted as React Native's Image does it: UIKit draws a
+// template image in the view's tintColor, so no tinted copy of the image is
+// made. SDAnimatedImageView draws the frames of an animated image itself,
+// without the tint, so each frame is tinted as it's decoded (source-in, as the
+// template is), or, before SDWebImage 5.20, the first frame shows.
+- (void) showImage: (UIImage*)image {
     UIColor* tint = image ? self.imageColor : nil;
     BOOL animated = [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
-    self.untintedImage = tint ? image : nil;
     self.tintColor = tint;
     if ([self tintsFrames]) {
         [self setValue: tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil forKey: @"animationTransformer"];
@@ -245,6 +279,179 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
         super.image = image;
     }
     [self updateContentMode];
+}
+
+- (void) setBlurRadius: (CGFloat)blurRadius {
+    if (_blurRadius == blurRadius) {
+        return;
+    }
+    _blurRadius = blurRadius;
+    // Re-apply to the original image, so the blur can change or be removed.
+    UIImage* image = self.originalImage ?: super.image;
+    if (image) {
+        [self setImage: image];
+    }
+}
+
+// Whether the image is blurred: a loaded image, not defaultSource (as with
+// React Native's Image, and on Android).
+- (BOOL) blurs: (UIImage*)image {
+    return _blurRadius > 0 && image && image != _defaultSource;
+}
+
+// Blurs the image off the main thread, and shows it (tinted as any image) unless
+// another image was set meanwhile. Until then the view keeps showing what it
+// showed: never the image without the blur. An animated image shows its first
+// frame.
+- (void) blurImage: (UIImage*)image {
+    // Not laid out yet (an image from the memory cache is set before the
+    // view's first layout): it's blurred for its size once it has one
+    // (blurAgainIfResized), instead of twice.
+    if (![self hasSize]) {
+        self.blurredForSize = CGSizeZero;
+        return;
+    }
+    CGFloat screenScale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    // How many pixels on screen a pixel of the image takes.
+    CGFloat shownScale = [self shownScale: image] * screenScale / image.scale;
+    // Blurred at the size it's shown at (a blurred image needs no more
+    // detail), or at its own size if it's shown larger.
+    CGFloat scale = MIN(shownScale, 1);
+    // The radius in pixels of the image that's blurred.
+    CGFloat radius = _blurRadius * screenScale * scale / shownScale;
+    // Pixelated images are drawn larger without smoothing, so a smaller copy
+    // would show its pixels.
+    BOOL downscale = ![_imageRendering isEqualToString: @"pixelated"];
+    NSUInteger count = self.imageCount;
+    self.blurredForSize = self.bounds.size;
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        UIImage* blurred = FFFBlurredImage(image, scale, radius, downscale);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf showBlurredImage: blurred count: count];
+        });
+    });
+}
+
+- (void) showBlurredImage: (UIImage*)image count: (NSUInteger)count {
+    if (self.imageCount == count) {
+        self.blurredImage = image;
+        [self showImage: image];
+    }
+}
+
+// Points on screen per point of the image, for the view's size and
+// resizeMode, or 1 before the view has a size.
+- (CGFloat) shownScale: (UIImage*)image {
+    CGSize size = image.size;
+    CGSize view = self.bounds.size;
+    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+        return 1;
+    }
+    CGFloat x = view.width / size.width;
+    CGFloat y = view.height / size.height;
+    switch (_resizeMode) {
+        case RCTResizeModeCover:
+            return MAX(x, y);
+        case RCTResizeModeContain:
+            return MIN(x, y);
+        case RCTResizeModeStretch:
+            return sqrt(x * y);
+        case RCTResizeModeCenter:
+            return MIN(MIN(x, y), 1);
+        default:
+            return 1;
+    }
+}
+
+// The view's size changed a lot (by more than a fifth either way) since the
+// image was blurred, which was for the size it was shown at then: blur it
+// again for the new size.
+- (void) blurAgainIfResized {
+    if (![self blurs: self.originalImage] || ![self hasSize]) {
+        return;
+    }
+    CGSize view = self.bounds.size;
+    CGSize blurred = self.blurredForSize;
+    if (blurred.width > 0 && blurred.height > 0 &&
+        view.width <= blurred.width * 1.2 && blurred.width <= view.width * 1.2 &&
+        view.height <= blurred.height * 1.2 && blurred.height <= view.height * 1.2) {
+        return;
+    }
+    [self setImage: self.originalImage];
+}
+
+// The image (its first frame, for an animated image) drawn at scale times its
+// size in pixels, and blurred as React Native's Image blurs on iOS: three box
+// blurs, close to a Gaussian blur, with the box size worked out from the
+// radius (in pixels) as the SVG spec describes and halved, as React Native
+// does. A large box blurs a copy 2, 4 or 8 times smaller instead, with a box
+// that much smaller, of at least 11 pixels: away from the edges that matches
+// blurring at full size within a few levels of 255 (about as much as a
+// slightly different radius changes it), for a quarter to a sixty-fourth of
+// the work. It keeps the image's size in points.
+static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, BOOL downscale)
+{
+    if (image.size.width <= 0 || image.size.height <= 0) {
+        return image;
+    }
+    double fullWidth = MAX(1, round(image.size.width * image.scale * scale));
+    double fullHeight = MAX(1, round(image.size.height * image.scale * scale));
+    // At most the image's larger side (a larger box looks the same, and an
+    // absurd radius would overflow).
+    double box = MIN(floor((radius * 3 * sqrt(2 * M_PI) / 4 + 0.5) / 2), MAX(fullWidth, fullHeight));
+    double factor = !downscale ? 1 : box >= 88 ? 8 : box >= 44 ? 4 : box >= 22 ? 2 : 1;
+    size_t width = MAX(1, (size_t) round(fullWidth / factor));
+    size_t height = MAX(1, (size_t) round(fullHeight / factor));
+    // Odd, so it's centered.
+    uint32_t boxSize = factor == 1 ? (uint32_t) box | 1 : (uint32_t) round((box / factor - 1) / 2) * 2 + 1;
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(NULL, width, height, 8, 0, colorSpace,
+                                                 kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) {
+        return image;
+    }
+    // Drawn as UIKit draws (top-left origin), so it follows the image's
+    // orientation.
+    CGContextTranslateCTM(context, 0, height);
+    CGContextScaleCTM(context, 1, -1);
+    CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
+    UIGraphicsPushContext(context);
+    [image drawInRect: CGRectMake(0, 0, width, height)];
+    UIGraphicsPopContext();
+
+    if (boxSize > 1) {
+        vImage_Buffer buffer = {
+            .data = CGBitmapContextGetData(context),
+            .height = height,
+            .width = width,
+            .rowBytes = CGBitmapContextGetBytesPerRow(context),
+        };
+        vImage_Buffer other = buffer;
+        other.data = malloc(buffer.rowBytes * height);
+        vImage_Error tempSize = vImageBoxConvolve_ARGB8888(&buffer, &other, NULL, 0, 0, boxSize, boxSize, NULL,
+                                                           kvImageGetTempBufferSize | kvImageEdgeExtend);
+        void* temp = tempSize > 0 ? malloc(tempSize) : NULL;
+        if (other.data && temp) {
+            vImageBoxConvolve_ARGB8888(&buffer, &other, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
+            vImageBoxConvolve_ARGB8888(&other, &buffer, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
+            vImageBoxConvolve_ARGB8888(&buffer, &other, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
+            memcpy(buffer.data, other.data, buffer.rowBytes * height);
+        }
+        free(other.data);
+        free(temp);
+    }
+
+    CGImageRef cgImage = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    if (!cgImage) {
+        return image;
+    }
+    // The same size in points, also when it's smaller.
+    UIImage* blurred = [UIImage imageWithCGImage: cgImage scale: width / image.size.width orientation: UIImageOrientationUp];
+    CGImageRelease(cgImage);
+    return blurred;
 }
 
 // The error's description, with the HTTP status code when there is one (as on
@@ -381,7 +588,7 @@ NSString *FFFErrorMessage(NSError *error)
         return;
     }
     // Already at full size (it's no larger than the view it was decoded for).
-    UIImage* image = self.untintedImage ?: super.image;
+    UIImage* image = self.originalImage ?: super.image;
     if (self.hasCompleted && CGSizeEqualToSize(image.size, [FFFDownsampledImage sourceSizeOfImage: image])) {
         return;
     }

@@ -191,6 +191,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * or with an image CDN instead). See the README.
      */
     downsample?: boolean
+    /**
+     * Blurs the image by this radius, in points, like React Native's Image
+     * (the same radius looks about the same on both platforms). `0` (default)
+     * is no blur. For still images or occasional changes, not for animating.
+     * Only the loaded image is blurred, not `defaultSource`. An animated image
+     * shows its first frame, blurred. See the README.
+     */
+    blurRadius?: number
 
     onLoadStart?(): void
 

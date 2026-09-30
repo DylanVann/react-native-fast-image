@@ -22,6 +22,7 @@ import com.facebook.react.uimanager.LayoutShadowNode;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
@@ -97,6 +98,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @ReactProp(name = "imageRendering")
     public void setImageRendering(FastImageViewWithUrl view, @Nullable String imageRendering) {
         view.setImageRendering(imageRendering);
+    }
+
+    @ReactProp(name = "blurRadius")
+    public void setBlurRadius(FastImageViewWithUrl view, float blurRadius) {
+        view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));
     }
 
     @ReactProp(name = "paused")

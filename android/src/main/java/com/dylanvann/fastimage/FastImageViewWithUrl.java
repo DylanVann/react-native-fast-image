@@ -202,18 +202,49 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mNeedsReload = true;
     }
 
+    // blurRadius, in pixels (0 is no blur). Part of the request (see
+    // reblur for a change).
+    private float mBlurRadius = 0;
+    private boolean mBlurChanged = false;
+
+    public void setBlurRadius(float blurRadius) {
+        if (blurRadius == mBlurRadius) return;
+        mBlurRadius = blurRadius;
+        mBlurChanged = true;
+    }
+
     // The scale type's options (what into() would apply), or none when
-    // pixelated.
+    // pixelated, and the blur. A blurred animated image shows its first frame,
+    // as on iOS.
     private RequestOptions renderingOptions(Object model) {
+        FastImageBlur blur = mBlurRadius > 0 ? new FastImageBlur(mBlurRadius, getScaleType()) : null;
+        RequestOptions options;
         if (mPixelated) {
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
-            return new RequestOptions()
+            options = new RequestOptions()
                     .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, String.valueOf(model)))
                     .dontTransform();
+            if (blur != null) options = options.optionalTransform(blur);
+        } else {
+            options = FastImageSourceSize.scaleTypeOptions(
+                    getScaleType(), FastImageSourceSize.capture(getScaleType(), model), blur);
         }
-        return FastImageSourceSize.scaleTypeOptions(getScaleType(), FastImageSourceSize.capture(getScaleType(), model));
+        return blur != null ? options.dontAnimate() : options;
     }
+
+    // The request the loading one was made from, before renderingOptions, and
+    // its model, to make it again with another blur (see reblur).
+    @Nullable
+    private RequestBuilder<Drawable> mBaseRequest;
+    @Nullable
+    private Object mModel;
+    // Whether the loading image has loaded or failed.
+    private boolean mLoadEnded = false;
+    // Set by reblur: the next load is the same one again, so it doesn't send
+    // onLoadStart (it sends its other events, as the load it replaces would
+    // have).
+    private boolean mRestarting = false;
 
     // The request for the image the view shows once it has loaded, and the one
     // loading. A new source starts with the shown one as a thumbnail, from the
@@ -255,6 +286,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
     // The loading image loaded (FastImageRequestListener).
     void onImageLoaded() {
+        mLoadEnded = true;
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -310,6 +342,34 @@ class FastImageViewWithUrl extends AppCompatImageView {
         into(shown, builder, meanwhile);
     }
 
+    // blurRadius changed, and nothing else that needs a reload: the image
+    // that's showing, blurred again, with no events, as reloadForSize does: it's
+    // decoded again from the cache and blurred on Glide's threads, and the view
+    // keeps the current image until then (or if that fails). A load that
+    // hasn't finished starts again with the new blur, without a second
+    // onLoadStart. Nothing loaded (defaultSource, which isn't blurred, or
+    // nothing): the next load has the new blur.
+    @SuppressLint("CheckResult")
+    private void reblur() {
+        if (requestManager == null || mBaseRequest == null) return;
+        RequestBuilder<Drawable> shown = mShownRequest;
+        if (shown != null && shown == mLoadingRequest) {
+            RequestBuilder<Drawable> request = mBaseRequest.clone().apply(renderingOptions(mModel));
+            RequestBuilder<Drawable> current = fromCache(shown);
+            Drawable meanwhile = shownCopy(shown);
+            mLoadCount++;
+            clearView(requestManager);
+            RequestBuilder<Drawable> builder = request.clone()
+                    .error(current.clone())
+                    .listener(new FastImageRequestListener(null, null, true, false));
+            if (meanwhile == null) builder = builder.thumbnail(current);
+            into(request, builder, meanwhile);
+        } else if (mLoadingRequest != null && !mLoadEnded) {
+            mRestarting = true;
+            mNeedsReload = true;
+        }
+    }
+
     // A copy of the image showing, for the view to show while the next one
     // loads, when it isn't in Glide's memory cache (source.memoryCache false):
     // a thumbnail of it would come from the disk, after the view has cleared,
@@ -346,6 +406,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder, @Nullable Drawable meanwhile) {
         final int load = mLoadCount;
         mLoadingRequest = request;
+        mLoadEnded = false;
         mLoadingWidth = 0;
         mLoadingHeight = 0;
         OwnGifTarget target = new OwnGifTarget(meanwhile);
@@ -360,9 +421,16 @@ class FastImageViewWithUrl extends AppCompatImageView {
         builder.into(target);
     }
 
+    // Loading the image that's showing again (at a new size, or with another
+    // blur) failed: the view keeps showing it (FastImageRequestListener).
+    void onQuietLoadFailed() {
+        mLoadEnded = true;
+    }
+
     // The loading image failed (FastImageRequestListener). Glide shows
     // defaultSource then, but not over a thumbnail: show it here, as iOS does.
     void onImageFailed(boolean hadThumbnail) {
+        mLoadEnded = true;
         mShownRequest = null;
         if (!hadThumbnail) return;
         final int load = mLoadCount;
@@ -380,15 +448,24 @@ class FastImageViewWithUrl extends AppCompatImageView {
             @Nonnull FastImageViewManager manager,
             @Nullable RequestManager requestManager,
             @Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
+        if (mBlurChanged && !mNeedsReload) {
+            mBlurChanged = false;
+            reblur();
+        }
         if (!mNeedsReload)
             return;
         // Only reload for changes that affect the request (source,
         // defaultSource, resizeMode), not for every prop update.
         mNeedsReload = false;
+        mBlurChanged = false;
+        boolean restarting = mRestarting;
+        mRestarting = false;
         mLoadCount++;
         RequestBuilder<Drawable> shownRequest = mShownRequest;
         mShownRequest = null;
         mLoadingRequest = null;
+        mBaseRequest = null;
+        mModel = null;
 
         // Nothing to show.
         if (mSource == null && mDefaultSource == null) {
@@ -453,7 +530,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
             }
         }
 
-        if (imageSource != null) {
+        if (imageSource != null && !restarting) {
             // This is an orphan even without a load/loadend when only loading a placeholder
             FastImageEvents.send(this, FastImageViewManager.REACT_ON_LOAD_START_EVENT);
         }
@@ -461,7 +538,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         if (requestManager != null) {
             // Records the image's own size when Glide decodes it, for onLoad.
             Object model = imageSource == null ? null : imageSource.getSourceForLoad();
-            RequestBuilder<Drawable> builder =
+            RequestBuilder<Drawable> base =
                     requestManager
                             // This will make this work for remote and local images. e.g.
                             //    - file:///
@@ -473,10 +550,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             .apply(FastImageViewConverter
                                     .getOptions(getContext(), imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)) // null will not be treated as error
-                            // What into() would apply for the scale type, with
-                            // the size capture, for imageRendering.
-                            .apply(renderingOptions(model));
+                                    .fallback(mDefaultSource)); // null will not be treated as error
+            mBaseRequest = model == null ? null : base;
+            mModel = model;
+            // What into() would apply for the scale type, with the size
+            // capture, for imageRendering, and the blur.
+            RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
             RequestBuilder<Drawable> request = builder.clone();
 
             if (model == null) meanwhile = null;

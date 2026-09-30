@@ -222,6 +222,22 @@ Decoding a smaller copy can take a little longer, so use it where the memory mat
 
 ---
 
+### `blurRadius?: number`
+
+Blurs the image by this radius, in points, like React Native's `Image` (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
+
+It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
+
+- Only the loaded image is blurred, not `defaultSource`.
+- An animated image (GIF, animated WebP) shows its first frame, blurred, and doesn't animate.
+- With `tintColor`, the blurred image is tinted.
+- The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
+- Changing it blurs the image that's showing again, without sending the load events again.
+
+To animate a blur, or to blur an animated image, use React Native's `filter` style instead, which the GPU draws: `style={{ filter: [{ blur: 6 }] }}`. It needs the New Architecture. React Native's docs list `blur` for Android 12+ only; on iOS it's behind an experimental React Native feature flag (`enableSwiftUIBasedFilters`, SwiftUI-based filters).
+
+---
+
 ### `onLoadStart?: () => void`
 
 Called when the image starts to load.

@@ -34,7 +34,12 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
 
     @Override
     public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-        if (!events) return false;
+        if (!events) {
+            if (target instanceof ImageViewTarget) {
+                ((FastImageViewWithUrl) ((ImageViewTarget) target).getView()).onQuietLoadFailed();
+            }
+            return false;
+        }
         FastImageOkHttpProgressGlideModule.forget(key);
         if (!(target instanceof ImageViewTarget)) {
             return false;
