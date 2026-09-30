@@ -119,21 +119,23 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-// Whether a loaded image fades in (the `transition` prop). `first`: the view
-// showed no loaded image when the load started, only defaultSource or
-// nothing. Then an image from a cache can show at once (skipOnCacheHit); a
-// new image replacing one always fades. Local files count as memory hits.
-- (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType url: (NSURL*)url first: (BOOL)first {
+// Whether a loaded image fades in (the `transition` prop), as SDWebImage's
+// transitions and Android's image libraries decide: from the memory cache it
+// shows at once (skipOnCacheHit 'memory', the default), and from the disk
+// cache too with 'all'. Downloads and local files fade. Bundled images get no
+// transition (see transitionProps in src/index.tsx).
+- (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
     if (self.transitionDuration <= 0) {
         return NO;
     }
-    if (!first || [self.transitionSkipOnCacheHit isEqualToString: @"none"]) {
+    NSString* skip = self.transitionSkipOnCacheHit;
+    if ([skip isEqualToString: @"none"]) {
         return YES;
     }
-    if (cacheType == SDImageCacheTypeMemory || url.isFileURL) {
+    if (cacheType == SDImageCacheTypeMemory) {
         return NO;
     }
-    return !(cacheType == SDImageCacheTypeDisk && [self.transitionSkipOnCacheHit isEqualToString: @"all"]);
+    return !(cacheType == SDImageCacheTypeDisk && [skip isEqualToString: @"all"]);
 }
 
 // Shows a loaded image, fading it in over what the view shows if `fade`. A
@@ -707,7 +709,7 @@ NSString *FFFErrorMessage(NSError *error)
                 }
                 return;
             }
-            [self showLoadedImage: image fade: [self fadesImageFromCache: SDImageCacheTypeMemory url: _source.url first: !self.showsLoadedImage]];
+            [self showLoadedImage: image fade: [self fadesImageFromCache: SDImageCacheTypeNone]];
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
                         @"loaded": @(1),
@@ -861,7 +863,6 @@ NSString *FFFErrorMessage(NSError *error)
     // current load: SDWebImage sets the placeholder when a load it cancelled
     // completes, which could replace a newer image.
     UIImage* placeholder = _defaultSource;
-    BOOL first = !self.showsLoadedImage;
     SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
         if (weakSelf.loadCount != load) {
             return;
@@ -869,7 +870,7 @@ NSString *FFFErrorMessage(NSError *error)
         // The loaded image, not defaultSource (shown while it loads, or if it
         // fails).
         BOOL loaded = image && image != placeholder;
-        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType url: source.url first: first]];
+        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType]];
     };
     [self sd_internalSetImageWithURL: url
                     placeholderImage: placeholder

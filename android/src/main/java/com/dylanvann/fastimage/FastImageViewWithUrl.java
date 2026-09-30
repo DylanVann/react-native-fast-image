@@ -104,35 +104,33 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // takes to fade in, in milliseconds (0 for no fade), and which cache hits
     // show at once when the view shows its first image (none, memory or all).
     private int mTransitionDuration = 0;
-    private String mTransitionSkipOnCacheHit = "all";
+    private String mTransitionSkipOnCacheHit = "memory";
 
     public void setTransitionDuration(int transitionDuration) {
         mTransitionDuration = Math.max(0, transitionDuration);
     }
 
     public void setTransitionSkipOnCacheHit(@Nullable String skipOnCacheHit) {
-        mTransitionSkipOnCacheHit = skipOnCacheHit == null ? "all" : skipOnCacheHit;
+        mTransitionSkipOnCacheHit = skipOnCacheHit == null ? "memory" : skipOnCacheHit;
     }
 
-    // Fades a loaded image in, unless it's the view's first image (`first`:
-    // the view showed no loaded image when the load started, only
-    // defaultSource or nothing) and from a cache that skipOnCacheHit skips.
-    // A new image replacing one always fades. Local files count as memory
-    // hits, as on iOS.
+    // Fades a loaded image in, unless it's from a cache that skipOnCacheHit
+    // skips, as Glide's and Coil's cross-fades and Fresco decide: from the
+    // memory cache it shows at once (by default), and from the disk cache
+    // too with 'all'. Downloads and local files fade. Bundled images get no
+    // transition (see transitionProps in src/index.tsx).
     private final class FadeFactory implements TransitionFactory<Drawable> {
         private final int duration;
         private final String skipOnCacheHit;
-        private final boolean first;
 
-        FadeFactory(int duration, String skipOnCacheHit, boolean first) {
+        FadeFactory(int duration, String skipOnCacheHit) {
             this.duration = duration;
             this.skipOnCacheHit = skipOnCacheHit;
-            this.first = first;
         }
 
         @Override
         public Transition<Drawable> build(DataSource dataSource, boolean isFirstResource) {
-            if (first && skips(dataSource)) return NoTransition.get();
+            if (skips(dataSource)) return NoTransition.get();
             return new Transition<Drawable>() {
                 @Override
                 public boolean transition(Drawable current, ViewAdapter adapter) {
@@ -145,7 +143,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         private boolean skips(DataSource dataSource) {
             if (skipOnCacheHit.equals("none")) return false;
-            if (dataSource == DataSource.MEMORY_CACHE || dataSource == DataSource.LOCAL) return true;
+            if (dataSource == DataSource.MEMORY_CACHE) return true;
             boolean disk = dataSource == DataSource.DATA_DISK_CACHE || dataSource == DataSource.RESOURCE_DISK_CACHE;
             return disk && skipOnCacheHit.equals("all");
         }
@@ -721,13 +719,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (model == null) meanwhile = null;
             boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
             // After the clone: loading the image that's showing again (at a
-            // new size, or with another blur) doesn't fade it in again. The
-            // first image in the view (nothing showing) skips the fade on a
-            // cache hit; a new source over one that's showing always fades.
+            // new size, or with another blur) doesn't fade it in again.
             if (mTransitionDuration > 0) {
-                boolean first = shownRequest == null || model == null;
                 builder = builder.transition(DrawableTransitionOptions.with(
-                        new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit, first)));
+                        new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit)));
             }
             if (thumbnail) {
                 builder = builder.thumbnail(fromCache(shownRequest));

@@ -2046,15 +2046,19 @@ function PreloadDiskCase() {
 // - disk: a view showing it loaded it, then went away, and the memory cache
 //   was cleared.
 // - change: the view shows magenta, then its source changes to cyan, which
-//   another view (left) has loaded. It fades even from the memory cache, as
-//   the view already showed an image: magenta, blue-violet, cyan.
+//   another view (left) has loaded (from the memory cache): magenta, then
+//   cyan, or through blue-violet if it fades.
+// - file: the file getCachePath gives for an image a view (left) loaded, as
+//   a `file://` source: a local file, not a memory cache hit.
+// - bundled: a require()d image (from Metro in debug builds, from the app in
+//   release builds).
 const FADE_MS = 1000
 const BLACK = '#000000'
 // Cyan at half opacity over black.
 const HALF_CYAN = '#008080'
 // Halfway from magenta to cyan.
 const MAGENTA_CYAN = '#8080ff'
-type FadeFrom = 'download' | 'memory' | 'disk' | 'change'
+type FadeFrom = 'download' | 'memory' | 'disk' | 'change' | 'file' | 'bundled'
 function FadeCase({
     id,
     from,
@@ -2080,17 +2084,31 @@ function FadeCase({
               }
             : { uri: imageUrl(`cyan.png?${id}=${RUN}`) }
     const magenta = { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
-    // The view that loads the image first (memory, disk and change).
-    const [loaderShown, setLoaderShown] = useState(from !== 'download')
+    const [file, setFile] = useState<Source>()
+    // Recorded as the view mounts (download, bundled), or once the view that
+    // loads the image first (left) has loaded it.
+    const onMount = from === 'download' || from === 'bundled'
+    const [loaderShown, setLoaderShown] = useState(!onMount)
     // The view that fades (change: it shows magenta until the change).
     const [shown, setShown] = useState(from === 'change')
     const [changed, setChanged] = useState(false)
+    // What the view that fades shows (change: magenta until the change).
+    const shownSource =
+        from === 'bundled'
+            ? require('./images/cyan.png')
+            : from === 'file'
+              ? file
+              : from === 'change' && !changed
+                ? magenta
+                : source
     const [status, setStatus] = useState(
-        from === 'download' ? 'waiting' : 'loading the first view',
+        onMount ? 'waiting' : 'loading the first view',
     )
     const expect =
         from === 'change'
-            ? [MAGENTA, MAGENTA_CYAN, CYAN]
+            ? fades
+                ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                : [MAGENTA, CYAN]
             : fades
               ? [BLACK, HALF_CYAN, CYAN]
               : [BLACK, CYAN]
@@ -2128,19 +2146,24 @@ function FadeCase({
             record()
         } else if (from === 'memory') {
             record()
+        } else if (from === 'file') {
+            const result = await FastImage.getCachePath(source)
+            if (!result.ok) return setStatus(`no file: ${result.error}`)
+            setFile({ uri: `file://${result.path}` })
+            record()
         } else if (++loaded.current === 2) {
             // change: after magenta has faded in too.
             setTimeout(record, FADE_MS + 500)
         }
     }
     useEffect(() => {
-        if (from === 'download') record()
+        if (onMount) record()
         // Only on mount (the others record once the first view loads).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     return (
         <View style={styles.row}>
-            {from !== 'download' ? (
+            {!onMount ? (
                 <View style={styles.image}>
                     {loaderShown ? (
                         <FastImage
@@ -2154,17 +2177,12 @@ function FadeCase({
             <View
                 ref={view}
                 collapsable={false}
-                style={[
-                    fadeStyles.black,
-                    from !== 'download' ? styles.gap : null,
-                ]}
+                style={[fadeStyles.black, !onMount ? styles.gap : null]}
             >
                 {shown ? (
                     <FastImage
                         style={fadeStyles.image}
-                        source={
-                            from === 'change' && !changed ? magenta : source
-                        }
+                        source={shownSource}
                         onLoad={
                             from === 'change' && !changed
                                 ? onLoaderLoad
@@ -3844,12 +3862,40 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 fades
                 description="transition with blurRadius: a downloaded image fades in once it's blurred (recorded: black, half cyan, cyan; blurring a flat color keeps it)"
             />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-source',
+        cases: [
             <FadeCase
                 key="fade-change"
                 id="fade-change"
                 from="change"
+                fades={false}
+                description="transition: a new source from the memory cache shows at once over the image showing, as in a reused list row (right; recorded: magenta, then cyan)"
+            />,
+            <FadeCase
+                key="fade-change-none"
+                id="fade-change-none"
+                from="change"
+                skipOnCacheHit="none"
                 fades
-                description="transition: a new source from the memory cache fades in over the image showing (right; recorded: magenta, blue-violet, cyan)"
+                description="transition with skipOnCacheHit none: a new source from the memory cache fades in over the image showing (right; recorded: magenta, blue-violet, cyan)"
+            />,
+            <FadeCase
+                key="fade-file"
+                id="fade-file"
+                from="file"
+                fades
+                description="transition: a local file:// image fades in (right; the file getCachePath gives for the left one; recorded: black, half cyan, cyan)"
+            />,
+            <FadeCase
+                key="fade-bundled"
+                id="fade-bundled"
+                from="bundled"
+                fades={false}
+                description="transition: a bundled require() image shows at once, as React Native's Image shows its resources (recorded: black, then cyan)"
             />,
         ],
     },
@@ -3861,16 +3907,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="fade-disk"
                 id="fade-disk"
                 from="disk"
-                fades={false}
-                description="transition: an image from the disk cache shows at once (right; recorded: black, then cyan)"
+                fades
+                description="transition: an image from the disk cache fades in (right; recorded: black, half cyan, cyan)"
             />,
             <FadeCase
-                key="fade-disk-memory"
-                id="fade-disk-memory"
+                key="fade-disk-all"
+                id="fade-disk-all"
                 from="disk"
-                skipOnCacheHit="memory"
-                fades
-                description="transition with skipOnCacheHit memory: an image from the disk cache fades in (right; recorded: black, half cyan, cyan)"
+                skipOnCacheHit="all"
+                fades={false}
+                description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
             />,
         ],
     },

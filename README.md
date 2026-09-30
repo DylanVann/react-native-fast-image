@@ -218,12 +218,12 @@ Fades the image in when it loads. A number is the duration in milliseconds, or p
 
 - `duration` (milliseconds, default 0: no transition).
 - `effect`: `'cross-dissolve'` (the default and only one): the new image fades in while the one showing fades out.
-- `skipOnCacheHit`: whether an image from a cache shows at once, without the transition, when it's the first image in the view:
-    - `'all'` (default): only images that download fade in, so a list scrolled back up shows images it already loaded at once.
-    - `'memory'`: images from the disk cache fade in too.
+- `skipOnCacheHit`: which images show at once, without the transition, as Glide, Coil, Fresco (React Native's `Image`) and SDWebImage decide:
+    - `'memory'` (default): images from the memory cache, so a list scrolled back up, or a reused row, shows images it already loaded at once. Images from the disk cache fade in.
+    - `'all'`: images from the memory or disk cache: only images that download (or local files) fade in.
     - `'none'`: every image fades in.
 
-A new `source` in a view that already shows an image always fades in over it. Local files count as memory cache hits. In lists that reuse views (e.g. FlashList), set `recyclingKey` so a reused view starts empty instead of fading from the previous item's image.
+This applies to every image, also a new `source` in a view that already shows one: it fades in over the image showing, unless it's skipped. Downloads and local files (`file://`, `content://`) fade in. Bundled images (`require()`) count as memory cache hits, as React Native's `Image` shows them at once (in debug builds too, where Metro serves them). In lists that reuse views (e.g. FlashList), set `recyclingKey` so a reused view starts empty instead of fading from the previous item's image.
 
 ```jsx
 <FastImage source={{ uri }} transition={300} />

@@ -605,16 +605,16 @@ describe('transition', () => {
             .root.findAll((node) => node.type === ('FastImageView' as any))[0]
     const source = { uri: 'https://example.com/a.jpg' }
 
-    it('is off by default, skipping cache hits once set', () => {
+    it('is off by default, skipping memory cache hits once set', () => {
         const view = nativeView(<FastImage source={source} />)
         expect(view.props.transitionDuration).toBe(0)
-        expect(view.props.transitionSkipOnCacheHit).toBe('all')
+        expect(view.props.transitionSkipOnCacheHit).toBe('memory')
     })
 
     it('takes a duration', () => {
         const view = nativeView(<FastImage source={source} transition={300} />)
         expect(view.props.transitionDuration).toBe(300)
-        expect(view.props.transitionSkipOnCacheHit).toBe('all')
+        expect(view.props.transitionSkipOnCacheHit).toBe('memory')
     })
 
     it('takes an object', () => {
@@ -641,10 +641,41 @@ describe('transition', () => {
             nativeView(
                 <FastImage
                     source={source}
-                    transition={{ skipOnCacheHit: 'memory' }}
+                    transition={{ skipOnCacheHit: 'all' }}
                 />,
             ).props.transitionDuration,
         ).toBe(0)
+    })
+
+    it('shows a bundled image at once, unless skipOnCacheHit is none', () => {
+        const resolveAssetSource = spyOn(
+            Image,
+            'resolveAssetSource',
+        ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
+        try {
+            expect(
+                nativeView(<FastImage source={1} transition={300} />).props
+                    .transitionDuration,
+            ).toBe(0)
+            expect(
+                nativeView(
+                    <FastImage
+                        source={1}
+                        transition={{ duration: 300, skipOnCacheHit: 'all' }}
+                    />,
+                ).props.transitionDuration,
+            ).toBe(0)
+            expect(
+                nativeView(
+                    <FastImage
+                        source={1}
+                        transition={{ duration: 300, skipOnCacheHit: 'none' }}
+                    />,
+                ).props.transitionDuration,
+            ).toBe(300)
+        } finally {
+            resolveAssetSource.mockRestore()
+        }
     })
 })
 

@@ -81,18 +81,18 @@ export type Transition = {
      */
     effect?: 'cross-dissolve' | null
     /**
-     * Skips the transition when an image first appears in the view from a
-     * cache, so images already loaded show at once, e.g. when scrolling back
-     * up a list. A new source in a view that already shows an image always
-     * transitions.
+     * Skips the transition for an image from a cache, so images already
+     * loaded show at once, e.g. in a list scrolled back up or a reused row.
+     * As Glide, Coil, Fresco (React Native's Image) and SDWebImage decide:
      *
-     * - `'all'`: skips it for images from the memory or disk cache, so only
-     *   images that download fade in.
-     * - `'memory'`: skips it for images from the memory cache only.
+     * - `'memory'`: skips it for images from the memory cache.
+     * - `'all'`: skips it for images from the memory or disk cache too, so
+     *   only images that download (or local files) fade in.
      * - `'none'`: always transitions.
      *
-     * Local files count as memory cache hits.
-     * @default 'all'
+     * Downloads and local files fade in. Bundled images (`require()`) count
+     * as memory cache hits, as React Native's Image shows them at once.
+     * @default 'memory'
      */
     skipOnCacheHit?: 'none' | 'memory' | 'all' | null
 }
@@ -215,8 +215,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     paused?: boolean
     /**
      * Fades the image in when it loads: a duration in milliseconds, or a
-     * `Transition` (default: no transition). By default an image that first
-     * appears from a cache shows at once (see `skipOnCacheHit`).
+     * `Transition` (default: no transition). By default an image from the
+     * memory cache shows at once (see `skipOnCacheHit`).
      */
     transition?: number | Transition | null
     /**
@@ -368,16 +368,25 @@ function withProgress(onProgress: FastImageProps['onProgress']) {
 }
 
 // The native transition props. Always sent, so removing `transition` turns it
-// off.
-function transitionProps(transition: number | Transition | null | undefined) {
+// off. A bundled image (a require()d source, a number) counts as a memory
+// cache hit, as React Native's Image shows its resources at once: decided
+// here, as it's served by Metro over http in debug builds.
+function transitionProps(
+    transition: number | Transition | null | undefined,
+    source: FastImageProps['source'],
+) {
     const { duration, skipOnCacheHit } =
         typeof transition === 'number'
             ? { duration: transition, skipOnCacheHit: null }
             : transition || {}
+    const skip = skipOnCacheHit || 'memory'
+    const bundled = typeof source === 'number' && skip !== 'none'
     return {
         transitionDuration:
-            typeof duration === 'number' && duration > 0 ? duration : 0,
-        transitionSkipOnCacheHit: skipOnCacheHit || 'all',
+            typeof duration === 'number' && duration > 0 && !bundled
+                ? duration
+                : 0,
+        transitionSkipOnCacheHit: skip,
     }
 }
 
@@ -509,7 +518,7 @@ function FastImageBase({
                 {...imageProps}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
-                {...transitionProps(transition)}
+                {...transitionProps(transition, source)}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}

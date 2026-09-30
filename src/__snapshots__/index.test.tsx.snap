@@ -37,7 +37,7 @@ exports[`FastImage (iOS) renders 1`] = `
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
@@ -75,7 +75,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
@@ -152,7 +152,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
@@ -185,7 +185,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
@@ -222,7 +222,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
@@ -256,7 +256,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
       }
     }
     transitionDuration={0}
-    transitionSkipOnCacheHit="all"
+    transitionSkipOnCacheHit="memory"
   />
 </View>"
 `;
