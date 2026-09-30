@@ -1,3 +1,17 @@
+# [8.19.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.2...v8.19.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **ios:** don't store web responses that aren't images in the HTTP cache ([#1181](https://github.com/DylanVann/react-native-fast-image/issues/1181)) ([3ec8d60](https://github.com/DylanVann/react-native-fast-image/commit/3ec8d6040b5981b0cd504c2856d880d5aacb22eb))
+
+
+### Features
+
+* add FastImage.configureCache to set the image cache's limits ([#1183](https://github.com/DylanVann/react-native-fast-image/issues/1183)) ([a992475](https://github.com/DylanVann/react-native-fast-image/commit/a9924751f994415a211299459ac03dc0c09b0452))
+* add FastImage.writeToCache to store a local image as a source's image ([#1179](https://github.com/DylanVann/react-native-fast-image/issues/1179)) ([0d67287](https://github.com/DylanVann/react-native-fast-image/commit/0d67287478324c423b2d8f133d0f433f3a2f699c))
+* let getCachePath look up a source by its cacheKey alone ([#1180](https://github.com/DylanVann/react-native-fast-image/issues/1180)) ([e44c494](https://github.com/DylanVann/react-native-fast-image/commit/e44c494ca4efa3d5cbadb53de4e74146ddd9dff4))
+
 ## [8.18.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.1...v8.18.2) (2026-09-30)
 
 
