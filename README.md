@@ -486,6 +486,16 @@ On Android, if your app has its own `AppGlideModule` (see [Are you using Glide a
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
+## Web
+
+With [react-native-web](https://necolas.github.io/react-native-web/), FastImage shows images with the web's `Image`. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+
+Support is minimal:
+
+- Props that work: `source` (a `uri`, or a `require()`d image), `defaultSource`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample`, `fallback` and `onProgress`.
+- `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
+
 ## Troubleshooting
 
 If you have any problems using this library try the steps in [troubleshooting](docs/troubleshooting.md) and see if they fix it.

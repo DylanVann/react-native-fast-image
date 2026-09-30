@@ -13,6 +13,7 @@ import {
     AccessibilityProps,
     ViewProps,
 } from 'react-native'
+import { cacheControl, priority, resizeMode } from './constants'
 
 // React Native's ColorValue, which its types only export since 0.63. Taken
 // from ViewStyle so the types also work with older React Native types, where
@@ -21,31 +22,9 @@ type ColorValue = NonNullable<ViewStyle['backgroundColor']>
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
-const resizeMode = {
-    contain: 'contain',
-    cover: 'cover',
-    stretch: 'stretch',
-    center: 'center',
-} as const
-
 export type Priority = 'low' | 'normal' | 'high'
 
-const priority = {
-    low: 'low',
-    normal: 'normal',
-    high: 'high',
-} as const
-
 export type Cache = 'immutable' | 'web' | 'cacheOnly'
-
-const cacheControl = {
-    // Ignore headers, use uri as cache key, fetch only if not in cache.
-    immutable: 'immutable',
-    // Respect http headers, no aggressive caching.
-    web: 'web',
-    // Only load from cache.
-    cacheOnly: 'cacheOnly',
-} as const
 
 export type Source = {
     uri?: string
