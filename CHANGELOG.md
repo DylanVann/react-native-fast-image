@@ -1,3 +1,10 @@
+## [8.18.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.0...v8.18.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **android:** ship the ProGuard rules with the library ([#1185](https://github.com/DylanVann/react-native-fast-image/issues/1185)) ([58dc5b2](https://github.com/DylanVann/react-native-fast-image/commit/58dc5b2d0b86288ecbad6f973615bcb940b4ca60))
+
 # [8.18.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.17.2...v8.18.0) (2026-09-29)
 
 
