@@ -1,3 +1,11 @@
+## [8.18.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.1...v8.18.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **android:** keep Glide modules' constructors in release builds ([#1187](https://github.com/DylanVann/react-native-fast-image/issues/1187)) ([604d121](https://github.com/DylanVann/react-native-fast-image/commit/604d1211d56b12ac7e52e03d2102243f0fb74901))
+* **android:** keep React Native's event dispatcher in release builds ([#1188](https://github.com/DylanVann/react-native-fast-image/issues/1188)) ([ab3d9a5](https://github.com/DylanVann/react-native-fast-image/commit/ab3d9a5fa08ad859284943b01e730b37883d6647))
+
 ## [8.18.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.18.0...v8.18.1) (2026-09-30)
 
 
