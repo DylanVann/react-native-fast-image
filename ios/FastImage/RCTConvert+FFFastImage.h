@@ -5,5 +5,6 @@
 @interface RCTConvert (FFFastImage)
 
 + (FFFastImageSource *)FFFastImageSource:(id)json;
++ (NSArray<FFFastImageSource *> *)FFFastImageSourceArray:(id)json;
 
 @end

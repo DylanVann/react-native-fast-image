@@ -41,8 +41,17 @@
 // Whether the view shows an image that loaded (not defaultSource or nothing).
 // A new source then keeps it until the new image has loaded (see reloadImage).
 @property(nonatomic, assign) BOOL showsLoadedImage;
-// downsample: a load waits for the view's size (see didSetProps).
+// downsample, or several sources: a load waits for the view's size (see
+// didSetProps).
 @property(nonatomic, assign) BOOL waitsForSize;
+// The `source` prop. With several `sources`, _source is the one picked for
+// the view's size instead.
+@property(nonatomic, strong) FFFastImageSource* propSource;
+// Several sources: the next load switches to another one for a new view
+// size, and the one after it is loading. It's the same picture at another
+// size, so it doesn't fade in.
+@property(nonatomic, assign) BOOL switchesSource;
+@property(nonatomic, assign) BOOL loadsSwitchedSource;
 // The size (in pixels) the image showing or loading was decoded for, and
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
@@ -132,7 +141,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // the default), and from the disk cache too with 'all'. Downloads, local
 // files and bundled images fade.
 - (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
-    if (self.transitionDuration <= 0 || ([self displaysLoadedImage] && !self.transitionBetweenImages)) {
+    if (self.transitionDuration <= 0 || self.loadsSwitchedSource ||
+        ([self displaysLoadedImage] && !self.transitionBetweenImages)) {
         return NO;
     }
     NSString* skip = self.transitionSkipOnCacheHit;
@@ -256,7 +266,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         if ([self hasSize]) {
             [self reloadImage];
         }
-    } else {
+    } else if (![self switchSourceIfResized]) {
         [self reloadIfResized];
     }
 }
@@ -643,10 +653,57 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (void) setSource: (FFFastImageSource*)source {
-    if (_source != source) {
-        _source = source;
+    if (self.propSource != source) {
+        self.propSource = source;
+        if (![self picksSource]) {
+            _source = source;
+        }
         _needsReload = YES;
     }
+}
+
+- (void) setSources: (NSArray<FFFastImageSource*>*)sources {
+    if (_sources != sources) {
+        _sources = [sources copy];
+        if (![self picksSource]) {
+            _source = self.propSource;
+        }
+        _needsReload = YES;
+    }
+}
+
+// Whether the view picks one of several sources for its size.
+- (BOOL) picksSource {
+    return _sources.count > 1;
+}
+
+// Of several sources, the one whose size in pixels is closest to the view's
+// (by pixel count), or the largest while the view has no size (e.g. one sized
+// from onLoad).
+- (FFFastImageSource*) sourceForSize {
+    CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGFloat viewPixels = self.bounds.size.width * self.bounds.size.height * scale * scale;
+    FFFastImageSource* best = nil;
+    CGFloat bestFit = CGFLOAT_MAX;
+    for (FFFastImageSource* source in _sources) {
+        CGFloat fit = viewPixels > 0 ? ABS(1 - source.pixelCount / viewPixels) : -source.pixelCount;
+        if (!best || fit < bestFit) {
+            best = source;
+            bestFit = fit;
+        }
+    }
+    return best;
+}
+
+// Several sources: another one fits the view's new size better. Loads it,
+// keeping the image showing until then, without a fade (see switchesSource).
+- (BOOL) switchSourceIfResized {
+    if (![self picksSource] || _needsReload || ![self hasSize] || [self sourceForSize] == _source) {
+        return NO;
+    }
+    self.switchesSource = YES;
+    [self reloadImage];
+    return YES;
 }
 
 - (void) setRecyclingKey: (NSString*)recyclingKey {
@@ -674,12 +731,13 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) didSetProps: (NSArray<NSString*>*)changedProps {
     if (_needsReload) {
-        // With downsample on, the image is decoded for the view's size, so
-        // a view that hasn't been laid out yet loads once it has. Props and
-        // layout are applied in the same update, so that's before the next
-        // frame (in layoutSubviews). A view that still has no size then
-        // (e.g. one sized from onLoad) loads at full size.
-        if ([self downsamples] && ![self hasSize]) {
+        // With downsample on, the image is decoded for the view's size, and
+        // with several sources one is picked for it, so a view that hasn't
+        // been laid out yet loads once it has. Props and layout are applied
+        // in the same update, so that's before the next frame (in
+        // layoutSubviews). A view that still has no size then (e.g. one sized
+        // from onLoad) loads at full size, or the largest source.
+        if (([self downsamples] || [self picksSource]) && ![self hasSize]) {
             if (!self.waitsForSize) {
                 self.waitsForSize = YES;
                 __weak typeof(self) weakSelf = self;
@@ -766,6 +824,11 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) reloadImage {
     _needsReload = NO;
     self.waitsForSize = NO;
+    self.loadsSwitchedSource = self.switchesSource;
+    self.switchesSource = NO;
+    if ([self picksSource]) {
+        _source = [self sourceForSize];
+    }
     self.decodedBox = CGSizeZero;
     // The previous load, if it's still running, is for a source the view no
     // longer shows: cancel it (a new download would, but a data uri or no

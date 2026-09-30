@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -67,6 +68,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     @ReactProp(name = "source")
     public void setSource(FastImageViewWithUrl view, @Nullable ReadableMap source) {
         view.setSource(source);
+    }
+
+    @ReactProp(name = "sources")
+    public void setSources(FastImageViewWithUrl view, @Nullable ReadableArray sources) {
+        view.setSources(sources);
     }
 
     @ReactProp(name = "defaultSource")

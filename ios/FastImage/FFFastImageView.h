@@ -17,6 +17,9 @@
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
 @property (nonatomic, assign) RCTResizeMode resizeMode;
 @property (nonatomic, strong) FFFastImageSource *source;
+// Several sources (2 or more) of the same image at different sizes: the view
+// loads the one whose size is closest to its own.
+@property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
 @property (nonatomic, strong) UIImage *defaultSource;
 @property (nonatomic, strong) UIColor *imageColor;
 // When it changes, the next image doesn't replace the current one: the view

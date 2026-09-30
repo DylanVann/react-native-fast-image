@@ -422,6 +422,67 @@ describe('source.memoryCache', () => {
     })
 })
 
+describe('several sources', () => {
+    const nativeView = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+    const small = {
+        uri: 'https://example.com/a-100.jpg',
+        width: 100,
+        height: 100,
+    }
+    const large = {
+        uri: 'https://example.com/a-800.jpg',
+        width: 800,
+        height: 800,
+    }
+
+    it('passes several sources to the native view, which picks one', () => {
+        const view = nativeView(<FastImage source={[small, large]} />)
+        expect(view.props.sources).toEqual([small, large])
+        expect(view.props.source).toBeUndefined()
+    })
+
+    it('treats an array of one as a plain source', () => {
+        const view = nativeView(<FastImage source={[small]} />)
+        expect(view.props.source).toEqual(small)
+        expect(view.props.sources).toBeUndefined()
+    })
+
+    it('fails the methods that take one source for an array', async () => {
+        const error =
+            'Takes one source, not an array of sizes: pass the size to use'
+        expect(await FastImage.getCachePath([small, large] as any)).toEqual({
+            ok: false,
+            error,
+        })
+        expect(
+            await FastImage.writeToCache([small, large] as any, '/a.jpg'),
+        ).toEqual({ ok: false, error })
+        const preload = spyOn(
+            NativeModules.FastImageView,
+            'preload',
+        ).mockImplementation(async (sources: any[]) =>
+            sources.map(() => ({ ok: true, width: 100, height: 100 })),
+        )
+        try {
+            const results = await FastImage.preload([
+                small,
+                [small, large] as any,
+            ])
+            // The array is sent as {} so the results line up.
+            expect(preload).toHaveBeenCalledWith([small, {}])
+            expect(results).toEqual([
+                { uri: small.uri, ok: true, width: 100, height: 100 },
+                { uri: undefined, ok: false, error },
+            ])
+        } finally {
+            preload.mockRestore()
+        }
+    })
+})
+
 describe('getCachePath', () => {
     it("asks native for the source's file", async () => {
         const sources: any[] = []

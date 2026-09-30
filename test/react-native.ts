@@ -47,6 +47,8 @@ function flatten(style: any): any {
     return result
 }
 
+export const PixelRatio = { get: () => 2 }
+
 export const StyleSheet = {
     create: <T>(styles: T): T => styles,
     flatten,

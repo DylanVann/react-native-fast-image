@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Platform, View } from 'react-native'
+import { PixelRatio, Platform, View } from 'react-native'
 import FastImage, { LoadResult } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
@@ -7,8 +7,8 @@ import type { RegressionGroup } from './RunnerContext'
 
 // A few cases that check FastImage works at all in an app (the Expo example,
 // ReactNativeFastImageExampleExpo, on iOS, Android and the web): an image
-// loads, a missing one fails, a bundled one loads, preload reports its
-// results, and the cache methods answer (on the web, that they aren't
+// loads, a missing one fails, a bundled one loads, one of several sizes is
+// picked for the view, preload reports its results, and the cache methods answer (on the web, that they aren't
 // supported). The regression cases (RegressionExample.tsx) cover the rest.
 
 // Busts the image caches between runs.
@@ -214,6 +214,50 @@ function CacheLimitsCase() {
     )
 }
 
+// Several sizes of an image: the view loads the one closest to its size in
+// pixels (100, 300 or 900 px, for a 96 dp view at the screen's pixel ratio).
+// On the web the browser picks from a srcset: the smallest at least as wide as
+// the view in device pixels.
+function SizesCase() {
+    const [status, setStatus] = useState('loading')
+    const sizes = [100, 300, 900]
+    const view = 96
+    const pixels = (view * PixelRatio.get()) ** 2
+    const fit = (size: number) => Math.abs(1 - (size * size) / pixels)
+    const expected =
+        Platform.OS === 'web'
+            ? (sizes.find((size) => size >= view * PixelRatio.get()) ??
+              sizes[sizes.length - 1])
+            : sizes.reduce((best, size) =>
+                  fit(size) < fit(best) ? size : best,
+              )
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: view, height: view }}
+                source={sizes.map((size) => ({
+                    uri: imageUrl(`sized-${size}.png?smoke=${RUN}`),
+                    width: size,
+                    height: size,
+                }))}
+                onLoad={(e) =>
+                    setStatus(
+                        e.nativeEvent.width === expected
+                            ? 'OK'
+                            : `loaded ${e.nativeEvent.width} px, expected ${expected} px`,
+                    )
+                }
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="smoke-sizes"
+                status={status}
+                description={`Several sizes (100, 300, 900 px): a ${view} dp view loads the ${expected} px one`}
+            />
+        </View>
+    )
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -221,6 +265,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
             <LoadCase key="load" />,
             <ErrorCase key="error" />,
             <BundledCase key="bundled" />,
+            <SizesCase key="sizes" />,
             <PreloadCase key="preload" />,
             <CachePathCase key="cache-path" />,
             ...(Platform.OS === 'web'

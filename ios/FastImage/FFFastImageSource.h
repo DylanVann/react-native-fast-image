@@ -32,6 +32,9 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 @property (nonatomic) FFFCacheControl cacheControl;
 // The key to cache the image under instead of its url, or nil.
 @property (nonatomic, copy) NSString *cacheKey;
+// With several sources, the image's size at this url in pixels (width ×
+// height × scale²), to pick the one closest to the view's size; 0 if unknown.
+@property (nonatomic) CGFloat pixelCount;
 // Whether the decoded image is kept in the memory cache (`memoryCache`,
 // default YES). Without it, it's only kept on disk: views don't leave it in
 // memory, and preload doesn't decode it.
