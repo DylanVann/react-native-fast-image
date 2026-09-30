@@ -1048,6 +1048,77 @@ function KeepPreviousCase({
     )
 }
 
+const GREEN = '#008000'
+
+// Tint over time (a video sample, see RunnerContext.tsx): shows an image
+// tinted green (a GIF paused on its first frame), then, while the screen is
+// recorded, plays the GIF, changes the tint to cyan, or removes it.
+// blink-once.gif plays once: opaque (magenta), transparent, opaque, 400 ms
+// each, so tinted it goes green, blank, green (iOS showed its first frame
+// tinted, without playing it).
+function TintSampleCase({
+    id,
+    uri,
+    change,
+    expect,
+    description,
+}: {
+    id: string
+    uri: string
+    change: 'play' | 'recolor' | 'clear'
+    expect: string[]
+    description: string
+}) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const started = useRef(false)
+    const [changed, setChanged] = useState(false)
+    const [status, setStatus] = useState('loading')
+    const onLoad = async () => {
+        if (started.current) return
+        started.current = true
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 4000,
+                expect,
+                palette: [GREEN, CYAN, MAGENTA, BLANK],
+            },
+            (done) => {
+                setChanged(true)
+                // The GIF takes 1.2 s to play.
+                setTimeout(done, change === 'play' ? 2000 : 500)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    const tintColor = !changed
+        ? GREEN
+        : change === 'recolor'
+          ? CYAN
+          : change === 'clear'
+            ? undefined
+            : GREEN
+    return (
+        <View style={styles.row}>
+            <View ref={view} collapsable={false}>
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: imageUrl(`${uri}?${id}=${RUN}`) }}
+                    tintColor={tintColor}
+                    paused={!(changed && change === 'play')}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // Clears the source while a slow image (cyan) is still loading. The load is
 // cancelled: no onLoad, and the view stays blank (on Android the load kept
 // going, and showed the image when it finished).
@@ -3197,6 +3268,36 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="keep-previous-no-memory"
                 id="keep-previous-no-memory"
                 memoryCache={false}
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'tint',
+        cases: [
+            <TintSampleCase
+                key="tint-gif"
+                id="tint-gif"
+                uri="blink-once.gif"
+                change="play"
+                expect={[GREEN, BLANK, GREEN]}
+                description="A tinted GIF plays, tinted (recorded: green, blank, green)"
+            />,
+            <TintSampleCase
+                key="tint-change"
+                id="tint-change"
+                uri="magenta.png"
+                change="recolor"
+                expect={[GREEN, CYAN]}
+                description="tintColor changed after load (recorded: green, then cyan)"
+            />,
+            <TintSampleCase
+                key="tint-gif-clear"
+                id="tint-gif-clear"
+                uri="blink-once.gif"
+                change="clear"
+                expect={[GREEN, MAGENTA]}
+                description="tintColor removed from a paused GIF (recorded: green, then its magenta first frame)"
             />,
         ],
     },
