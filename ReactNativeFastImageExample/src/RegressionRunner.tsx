@@ -9,24 +9,20 @@ import {
     View,
 } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import {
-    REGRESSION_GROUPS,
-    RegressionGroup,
-    styles as caseStyles,
-} from './RegressionExample'
-import { EXAMPLE_GROUPS } from './ExampleGroups'
+import { caseStyles } from './CaseStatus'
 import {
     Masked,
     MaskContext,
     MeasureMask,
     Rect,
+    RegressionGroup,
     ReportContext,
     SampleChange,
     SampleContext,
     SampleRequest,
     SampleResult,
 } from './RunnerContext'
-import { regressionSocketUrl } from './imageServer'
+import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 
 // Runs the regression cases for scripts/verify.mts, without the accessibility
 // tree: it shows one group of REGRESSION_GROUPS at a time and talks to the
@@ -66,10 +62,38 @@ const isFabric = () =>
     (globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager !=
     null
 
-const GROUPS = [...REGRESSION_GROUPS, ...EXAMPLE_GROUPS]
+// Whether scripts/verify.mts is waiting to run the regression cases: it
+// connects to the image server's relay before launching the app, and the app
+// then shows the regression runner instead of its screens. Without the server
+// (or the script), the request fails at once and the app starts as usual; a
+// cold start on the emulator can take a few seconds to reach the server, so
+// it's given time and a second try.
+export async function runnerWanted() {
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const abort = new AbortController()
+        const timer = setTimeout(() => abort.abort(), 5000)
+        try {
+            const response = await fetch(regressionCheckUrl(), {
+                signal: abort.signal,
+            })
+            return (await response.json()).controller === true
+        } catch {
+            // Refused (no server): start as usual. Timed out: once more.
+            if (!abort.signal.aborted) return false
+        } finally {
+            clearTimeout(timer)
+        }
+    }
+    return false
+}
 
-export default function RegressionRunner() {
-    const groups = GROUPS
+// groups: the groups to run, in order (the example apps' regression cases and
+// example screens, or the Expo example's smoke cases).
+export default function RegressionRunner({
+    groups,
+}: {
+    groups: RegressionGroup[]
+}) {
     const [index, setIndex] = useState(0)
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)

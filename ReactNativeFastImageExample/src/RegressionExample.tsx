@@ -21,14 +21,15 @@ import FastImage, {
     Source,
     Transition,
 } from 'react-native-fast-image'
+import { CaseStatus } from './CaseStatus'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
     Masked,
     measureView,
+    RegressionGroup,
     SampleContext,
     sampleStatus,
-    useReport,
 } from './RunnerContext'
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
@@ -38,35 +39,6 @@ import {
 // maestro/touch.yaml); the Regression tab shows all of them at once for a look
 // by hand, plus the cases that send the app to the background
 // (maestro/background.yaml). A crash fails the run because the app is gone.
-
-// A case's status line ("<id>: <status>", OK when it passed) and description.
-// The runner is told the status too (RunnerContext.tsx). One line, so a long
-// status (a failure) doesn't move the cases below, whose areas were measured
-// for masks and video samples; the runner lists failures in full below the
-// cases.
-function CaseStatus({
-    id,
-    status,
-    description,
-}: {
-    id: string
-    status: string
-    description: React.ReactNode
-}) {
-    useReport(id, status)
-    return (
-        <View style={styles.text}>
-            <Text
-                testID={`regression-${id}`}
-                style={styles.status}
-                numberOfLines={1}
-            >
-                {id}: {status}
-            </Text>
-            <Text style={styles.description}>{description}</Text>
-        </View>
-    )
-}
 
 // In debug builds, Android only resolves a defaultSource that's bundled as a
 // drawable (require() images come from Metro instead), so use one the app
@@ -3330,7 +3302,7 @@ const downsampleStyles = StyleSheet.create({
     rotated: { width: 64, height: 96 },
 })
 
-export type RegressionGroup = { name: string; cases: React.ReactElement[] }
+export type { RegressionGroup }
 
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {

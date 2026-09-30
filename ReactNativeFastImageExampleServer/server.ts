@@ -83,9 +83,12 @@ const server = Bun.serve({
             const role = url.searchParams.get('role')
             const platform = url.searchParams.get('platform') ?? ''
             if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
-                return Response.json({
-                    controller: controllersFor(platform).size > 0,
-                })
+                // Also asked by the Expo example's web page, from another
+                // origin (its dev server).
+                return Response.json(
+                    { controller: controllersFor(platform).size > 0 },
+                    { headers: { 'Access-Control-Allow-Origin': '*' } },
+                )
             }
             if (role !== 'app' && role !== 'controller') {
                 return new Response('role must be app or controller', {

@@ -8,6 +8,9 @@ import React, {
 } from 'react'
 import { View, ViewProps } from 'react-native'
 
+// A group of cases the regression runner (RegressionRunner.tsx) shows at once.
+export type RegressionGroup = { name: string; cases: React.ReactElement[] }
+
 // How the regression runner (RegressionRunner.tsx) hears from the cases and
 // examples it shows. Outside the runner (the app's tabs) the contexts do
 // nothing, so the same components serve both.
