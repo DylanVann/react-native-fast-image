@@ -23,6 +23,8 @@ export type OnProgressEvent = SyntheticEvent<
     $ReadOnly<{|
         loaded: number,
         total: number,
+        // loaded / total, from 0 to 1.
+        progress: number,
     |}>,
 >
 

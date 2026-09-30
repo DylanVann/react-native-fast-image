@@ -128,6 +128,8 @@ export interface OnProgressEvent {
     nativeEvent: {
         loaded: number
         total: number
+        // loaded / total, from 0 to 1.
+        progress: number
     }
 }
 
@@ -306,6 +308,22 @@ function loadResult(event: {
         : { ok: false, error: event.error ?? 'Failed to load the image' }
 }
 
+// Adds `progress` (loaded / total, 0 to 1) to onProgress's event. Worked out
+// here so it's the same on both platforms and architectures, and with
+// fallback (React Native's Image). The native views don't send events with an
+// unknown total; React Native's Image can, and those get 0.
+function withProgress(onProgress: FastImageProps['onProgress']) {
+    return (
+        onProgress &&
+        ((event: OnProgressEvent) => {
+            const { loaded, total } = event.nativeEvent
+            event.nativeEvent.progress =
+                total > 0 ? Math.min(1, Math.max(0, loaded / total)) : 0
+            onProgress(event)
+        })
+    )
+}
+
 // A copy of the source without `cache`.
 function withoutCache(source: Source | undefined) {
     const { cache: _cache, ...rest } = source || {}
@@ -377,7 +395,7 @@ function FastImageBase({
                     source={resolvedSource}
                     defaultSource={defaultSource}
                     onLoadStart={onLoadStart}
-                    onProgress={onProgress}
+                    onProgress={withProgress(onProgress) as any}
                     onLoad={
                         onLoadEnd
                             ? (event: any) => {
@@ -437,7 +455,7 @@ function FastImageBase({
                 source={resolvedSource}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={onProgress}
+                onFastImageProgress={withProgress(onProgress)}
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
                 onFastImageLoadEnd={

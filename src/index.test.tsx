@@ -367,6 +367,45 @@ describe('onLoadEnd', () => {
     })
 })
 
+describe('onProgress', () => {
+    const source = { uri: 'https://example.com/a.png' }
+
+    it('adds progress (loaded / total) to the event', () => {
+        const progress: number[] = []
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    onProgress={(e) => progress.push(e.nativeEvent.progress)}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        view.props.onFastImageProgress({
+            nativeEvent: { loaded: 50, total: 200 },
+        })
+        view.props.onFastImageProgress({
+            nativeEvent: { loaded: 200, total: 200 },
+        })
+        expect(progress).toEqual([0.25, 1])
+    })
+
+    it('adds progress with fallback, 0 for an unknown total', () => {
+        const progress: number[] = []
+        const image = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    fallback
+                    onProgress={(e) => progress.push(e.nativeEvent.progress)}
+                />,
+            )
+            .root.findByType(Image)
+        image.props.onProgress({ nativeEvent: { loaded: 10, total: -1 } })
+        image.props.onProgress({ nativeEvent: { loaded: 30, total: 40 } })
+        expect(progress).toEqual([0, 0.75])
+    })
+})
+
 describe('source.memoryCache', () => {
     it('is passed to the native view with the source', () => {
         const [view] = renderer
