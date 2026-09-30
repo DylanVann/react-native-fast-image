@@ -367,7 +367,7 @@ if (result.ok) {
 }
 ```
 
-With `cache: 'cacheOnly'` it doesn't download: use it to check whether an image is cached.
+With `cache: 'cacheOnly'` it doesn't download: use it to check whether an image is cached. A source with a `cacheKey` and no `uri` is only looked up too (there's no url to download from), e.g. for an image whose signed url has expired.
 
 ```js
 const { ok } = await FastImage.getCachePath({

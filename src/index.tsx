@@ -476,7 +476,8 @@ export interface FastImageStaticProperties {
     /**
      * The path of the source's downloaded file in the disk cache, downloading
      * it first if it isn't there (without decoding it). With
-     * `cache: 'cacheOnly'` it doesn't download. Never rejects.
+     * `cache: 'cacheOnly'`, or a `cacheKey` without a `uri`, it doesn't
+     * download. Never rejects.
      */
     getCachePath: (source: Source) => Promise<CachePathResult>
     /**
