@@ -35,6 +35,8 @@ Options:
   --package           Test the package as published: build it, \`npm pack\` it,
                       and install the tarball into each app's node_modules
                       (instead of using src/, ios/ and android/ directly).
+  --release           Build the apps' Release configuration (Android minified
+                      with R8) and run them without the packager.
   --ref <git-ref>     Test the library code (src/, ios/, android/) from this ref
                       instead of the working tree, e.g. \`--ref main\` for a
                       "before" run. The working tree is restored afterwards.
@@ -98,6 +100,7 @@ function parseOptions() {
                 'no-js': { type: 'boolean', default: false },
                 pods: { type: 'boolean', default: false },
                 package: { type: 'boolean', default: false },
+                release: { type: 'boolean', default: false },
                 ref: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 record: { type: 'boolean', default: false },
@@ -135,6 +138,8 @@ const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
 const FROM_PACKAGE = options.package
+const RELEASE = options.release
+const CONFIGURATION = RELEASE ? 'Release' : 'Debug'
 const RECORD = options.record
 const UPDATE_SCREENSHOTS = options['update-screenshots']
 
@@ -329,7 +334,7 @@ function portInUse(port: number) {
 
 // --- Setup ---------------------------------------------------------------
 
-if (RUN_APPS && portInUse(8081)) {
+if (RUN_APPS && !RELEASE && portInUse(8081)) {
     console.error(
         'Port 8081 is in use. Stop your packager before running this script.',
     )
@@ -1705,7 +1710,7 @@ async function buildIos(app: App) {
             '-scheme',
             name,
             '-configuration',
-            'Debug',
+            CONFIGURATION,
             '-sdk',
             'iphonesimulator',
             '-destination',
@@ -1731,7 +1736,7 @@ async function buildIos(app: App) {
     }
     const product = path.join(
         dir,
-        `ios/build/Build/Products/Debug-iphonesimulator/${name}.app`,
+        `ios/build/Build/Products/${CONFIGURATION}-iphonesimulator/${name}.app`,
     )
     if (
         capture('xcrun', ['simctl', 'install', iosUdid, product], {
@@ -1886,7 +1891,7 @@ async function buildAndroid(app: App) {
     }
     const result = await run(
         './gradlew',
-        ['app:assembleDebug', '--console=plain', '-q'],
+        [`app:assemble${CONFIGURATION}`, '--console=plain', '-q'],
         {
             cwd: path.join(dir, 'android'),
             log,
@@ -1909,7 +1914,9 @@ async function buildAndroid(app: App) {
     // it, and may have installed their own build of the app since this one's.
     const apk = path.join(
         dir,
-        'android/app/build/outputs/apk/debug/app-debug.apk',
+        RELEASE
+            ? 'android/app/build/outputs/apk/release/app-release.apk'
+            : 'android/app/build/outputs/apk/debug/app-debug.apk',
     )
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
     const installedApk = capture(ADB, [
@@ -2069,8 +2076,9 @@ async function main() {
         // after the other (both apps' Android builds compile the library into
         // android/build), the platforms in parallel. Metro serves one app at a
         // time (port 8081): the first app's starts now and builds its bundles
-        // meanwhile.
+        // meanwhile. Release builds have their bundles built in.
         const startApp = async (app: App, platforms: Platform[]) => {
+            if (RELEASE) return true
             if (!(await startMetro(app))) {
                 record(
                     'FAIL',

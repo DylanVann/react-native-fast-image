@@ -68,11 +68,14 @@ node scripts/verify.mts                      # everything
 node scripts/verify.mts --app legacy --ios   # one app and platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
 node scripts/verify.mts --package            # the package as published (see below)
+node scripts/verify.mts --release            # release builds, minified with R8 on Android (see below)
 node scripts/verify.mts --background         # also the slow background flow (see below)
 node scripts/verify.mts --record             # record the screen while the flows run (see below)
 ```
 
 With `--package`, the script builds the library, packs it with `npm pack`, and installs the tarball into each app's `node_modules`. The apps then load `dist/` through the package's `main` field and autolink the native code from the installed package, so a file missing from `files` in `package.json`, or a broken build, fails the run. Switching between this and the usual mode reinstalls pods and regenerates Android autolinking, so the next run takes longer. Use it for changes to the build or to what gets published.
+
+With `--release`, the apps are built in their Release configuration, with the JavaScript bundled in and no packager, and on Android minified with R8 (the example apps turn it on for release). Use it for changes that R8 could affect: the ProGuard rules, reflection, or classes that are only created by name. The example's image server uses plain HTTP, which the apps allow in release for the emulator's host address and localhost only.
 
 `--background` also runs `maestro/background.yaml` (tagged `background`), which sends the app to the background while images load and brings it back 20 s later, past SDWebImage's 15 s download timeout. It takes about a minute more per app on iOS, so it's skipped by default; run it for changes to how images load or to app lifecycle handling. The example apps register their app IDs as URL schemes, which the flow opens to bring the app back.
 
