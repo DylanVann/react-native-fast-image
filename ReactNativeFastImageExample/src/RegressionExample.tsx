@@ -16,6 +16,7 @@ import FastImage, {
     FastImageBackground,
     FastImageProps,
     LoadResult,
+    OnProgressEvent,
     PreloadResult,
     Source,
 } from 'react-native-fast-image'
@@ -662,34 +663,120 @@ function WebCacheClearCase() {
     )
 }
 
+// Checks each onProgress event as it comes: a total above 0, loaded from 0 to
+// the total and never going down, and progress equal to loaded / total (0 to
+// 1). At onLoad, the last event (if there were any; with `required`, there
+// must be) has all of it loaded and a progress of 1. Returns the first
+// problem, or undefined.
+function useProgressCheck(required = false) {
+    const last = useRef<OnProgressEvent['nativeEvent']>(undefined)
+    const [problem, setProblem] = useState<string>()
+    const onProgress = (e: OnProgressEvent) => {
+        const { loaded, total, progress } = e.nativeEvent
+        const previous = last.current
+        last.current = { loaded, total, progress }
+        const bad =
+            total <= 0
+                ? `onProgress total ${total}`
+                : loaded < 0 || loaded > total
+                  ? `onProgress ${loaded}/${total}`
+                  : previous && loaded < previous.loaded
+                    ? `onProgress went from ${previous.loaded} to ${loaded}`
+                    : typeof progress !== 'number' ||
+                        Math.abs(progress - loaded / total) > 1e-9
+                      ? `onProgress progress ${progress} for ${loaded}/${total}`
+                      : undefined
+        if (bad) setProblem((p) => p ?? bad)
+    }
+    const onLoad = () => {
+        const final = last.current
+        const bad = !final
+            ? required
+                ? 'no onProgress'
+                : undefined
+            : final.loaded !== final.total || final.progress !== 1
+              ? `last onProgress ${final.loaded}/${final.total} (progress ${final.progress})`
+              : undefined
+        if (bad) setProblem((p) => p ?? bad)
+    }
+    return { problem, onProgress, onLoad }
+}
+
+// Loads an image with a Content-Length and checks its onProgress events: at
+// least one, each with progress (loaded / total), the last one 1.
+const PROGRESS = imageUrl(`picsum/1015-2048x2048.jpg?progress=${RUN}`)
+function ProgressCase() {
+    const check = useProgressCheck(true)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: PROGRESS }}
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
+                }}
+            />
+            <CaseStatus
+                id="progress"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress events have progress (loaded / total, 0 to 1), ending at 1"
+            />
+        </View>
+    )
+}
+
 // Loads an image the server sends without a Content-Length, so its size is
-// unknown while it loads, and passes if no onProgress event had a total of 0
-// or less (both platforms sent -1, which made loaded / total negative).
+// unknown while it loads (both platforms sent a total of -1, which made
+// loaded / total negative), and checks its onProgress events.
 const CHUNKED = imageUrl(`chunked/picsum/1015-2048x2048.jpg?run=${RUN}`)
 function ProgressUnknownSizeCase() {
-    const [badTotal, setBadTotal] = useState<number>()
+    const check = useProgressCheck()
     const [loaded, setLoaded] = useState(false)
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
                 source={{ uri: CHUNKED }}
-                onProgress={(e) => {
-                    if (e.nativeEvent.total <= 0)
-                        setBadTotal(e.nativeEvent.total)
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
                 }}
-                onLoad={() => setLoaded(true)}
             />
             <CaseStatus
                 id="progress-unknown-size"
-                status={
-                    !loaded
-                        ? 'waiting'
-                        : badTotal === undefined
-                          ? 'OK'
-                          : `onProgress total ${badTotal}`
-                }
-                description="No onProgress with an unknown total (no Content-Length)"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress with an unknown total (no Content-Length): none sent, or each one between 0 and the total"
+            />
+        </View>
+    )
+}
+
+// Loads an image the server sends gzip-compressed, so its Content-Length is
+// the compressed size, smaller than the image the client ends up with, and
+// checks its onProgress events.
+const GZIP = imageUrl(`gzip/picsum/1015-2048x2048.jpg?run=${RUN}`)
+function ProgressGzipCase() {
+    const check = useProgressCheck()
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: GZIP }}
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
+                }}
+            />
+            <CaseStatus
+                id="progress-gzip"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress for a gzip-compressed image: loaded never goes past the total"
             />
         </View>
     )
@@ -3053,7 +3140,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <NoReloadCase key="no-reload" />,
             <SourceSwapCase key="source-swap" />,
             <LoadStartOnceCase key="load-start-once" />,
+            <ProgressCase key="progress" />,
             <ProgressUnknownSizeCase key="progress-unknown-size" />,
+            <ProgressGzipCase key="progress-gzip" />,
             <WebCacheCase key="web-cache" />,
             <CookiesCase key="cookies" />,
         ],

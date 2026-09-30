@@ -230,9 +230,9 @@ Called when the image starts to load.
 
 ### `onProgress?: (event) => void`
 
-Called when the image is loading.
+Called while the image downloads, with the bytes `loaded` so far, the `total`, and `progress` (`loaded / total`, from 0 to 1; the last event has 1). Not called while the total is unknown (a response without a `Content-Length`).
 
-e.g. `onProgress={e => console.log(e.nativeEvent.loaded / e.nativeEvent.total)}`
+e.g. `onProgress={e => console.log(e.nativeEvent.progress)}`
 
 ---
 
