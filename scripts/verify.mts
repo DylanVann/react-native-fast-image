@@ -1444,6 +1444,21 @@ async function runRegression(
             5000,
         )
         if (!measured) failures.push(`${group}: the app didn't send its masks`)
+        // Cases below (or beside) the visible screen would be cut off in the
+        // screenshot: split the group.
+        const content = measured?.content as PixelRect | undefined
+        const visible = measured?.visible as PixelRect | undefined
+        if (content && visible) {
+            const below =
+                content.y + content.height - (visible.y + visible.height)
+            const beside =
+                content.x + content.width - (visible.x + visible.width)
+            if (below > 1 || beside > 1) {
+                failures.push(
+                    `${group}: cut off: its cases end ${Math.ceil(Math.max(below, beside))} dp ${below > 1 ? 'below' : 'right of'} the visible screen (split the group)`,
+                )
+            }
+        }
         takeShot(index, measured?.masks)
         timings.push(
             `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,

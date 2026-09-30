@@ -30,18 +30,25 @@ export const EXAMPLE_GROUPS: RegressionGroup[] = [
         cases: [
             <ProgressExample key="progress" />,
             <ResizeModeExample key="resize-mode-example" />,
-            <TintColorExample key="tint-color" />,
         ],
+    },
+    {
+        name: 'examples-tint',
+        cases: [<TintColorExample key="tint-color" />],
     },
     {
         name: 'examples-3',
-        cases: [
-            <LocalImagesExample key="local-images" compact />,
-            <AutoSizeExample key="auto-size" />,
-        ],
+        cases: [<LocalImagesExample key="local-images" compact />],
+    },
+    {
+        name: 'examples-auto-size',
+        cases: [<AutoSizeExample key="auto-size" />],
     },
     {
         name: 'fastimage-grid',
-        cases: [<FastImageGrid key="fastimage-grid" />],
+        // A fixed number of rows: the runner's status lines below the cases
+        // (while any isn't OK) would change the height of a grid that fills
+        // the screen, and so the rows it waits for.
+        cases: [<FastImageGrid key="fastimage-grid" rows={6} />],
     },
 ]

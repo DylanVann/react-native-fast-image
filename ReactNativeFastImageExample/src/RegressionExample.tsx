@@ -3676,6 +3676,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+        ],
+    },
+    {
+        name: 'errors',
+        cases: [
             <EventCase
                 key="error-invalid-data-uri"
                 id="error-invalid-data-uri"
@@ -3901,6 +3906,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 tintColor="#9324c3"
                 description="repeat with tintColor: the tinted tile repeated, as Image (right)"
             />,
+        ],
+    },
+    {
+        name: 'repeat-change',
+        cases: [
             <RepeatGifCase key="repeat-gif" />,
             <RepeatChangeCase key="repeat-change-repeat" to="repeat" />,
             <RepeatChangeCase key="repeat-change-cover" to="cover" />,
