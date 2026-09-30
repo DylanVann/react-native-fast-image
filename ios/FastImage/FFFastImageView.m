@@ -3,6 +3,7 @@
 #import <SDWebImage/UIView+WebCache.h>
 #import <React/RCTUtils.h>
 #import <SDWebImage/SDWebImageError.h>
+#import <SDWebImage/SDImageTransformer.h>
 #import "FFFDownsampledImage.h"
 
 @interface FFFastImageView ()
@@ -58,6 +59,9 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    // The tint (tintColor) stays as it is while an alert or sheet is shown,
+    // rather than dimming like the system's controls.
+    self.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
     _loopCount = -1;
     return self;
 }
@@ -197,53 +201,47 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
     // Re-apply to the untinted image, so the tint can change or be removed.
     UIImage* image = self.untintedImage ?: super.image;
     if (image) {
+        // SDAnimatedImageView ignores the image it already shows, which would
+        // keep an animated image's frames as they were tinted.
+        super.image = nil;
         [self setImage: image];
     }
 }
 
-- (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
-    // FIX: Prevent crash on zero/invalid image dimensions
-    if (!image || image.size.width <= 0 || image.size.height <= 0) {
-        return image;
-    }
-
-    UIImage* templateImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
-    CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
-    UIImage* newImage;
-    if (@available(iOS 10.0, tvOS 10.0, *)) {
-        // UIGraphicsBeginImageContextWithOptions is deprecated since iOS 17.
-        // Keep the source image's scale and a standard-range (8-bit) bitmap,
-        // matching what it produced.
-        UIGraphicsImageRendererFormat* format = [[UIGraphicsImageRendererFormat alloc] init];
-        format.scale = image.scale;
-        format.opaque = NO;
-        if (@available(iOS 12.0, tvOS 12.0, *)) {
-            format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
-        } else {
-            format.prefersExtendedRange = NO;
-        }
-        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: image.size format: format];
-        newImage = [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-            [color set];
-            [templateImage drawInRect: rect];
-        }];
-    } else {
-        // iOS/tvOS 9. Remove this branch once the minimum is iOS 10+.
-        UIGraphicsBeginImageContextWithOptions(image.size, NO, image.scale);
-        [color set];
-        [templateImage drawInRect: rect];
-        newImage = UIGraphicsGetImageFromCurrentImageContext();
-        UIGraphicsEndImageContext();
-    }
-    return newImage;
+// Whether SDAnimatedImageView can tint the frames of an animated image as
+// they're decoded (animationTransformer, SDWebImage 5.20+).
+- (BOOL) tintsFrames {
+    return [self respondsToSelector: @selector(setAnimationTransformer:)];
 }
 
 - (void) setImage: (UIImage*)image {
-    if (self.imageColor != nil) {
-        self.untintedImage = image;
-        super.image = [self makeImage: image withTint: self.imageColor];
+    // Tinted as React Native's Image does it: UIKit draws a template image in
+    // the view's tintColor, so no tinted copy of the image is made.
+    // SDAnimatedImageView draws the frames of an animated image itself,
+    // without the tint, so each frame is tinted as it's decoded (source-in,
+    // as the template is), or, before SDWebImage 5.20, the first frame shows.
+    UIColor* tint = image ? self.imageColor : nil;
+    BOOL animated = [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
+    self.untintedImage = tint ? image : nil;
+    self.tintColor = tint;
+    if ([self tintsFrames]) {
+        [self setValue: tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil forKey: @"animationTransformer"];
+    }
+    if (tint && animated && [self tintsFrames]) {
+        BOOL changed = super.image != image;
+        super.image = image;
+        // Shows the first frame tinted now, also while paused (the player
+        // only draws frames as it plays; until then the view draws the
+        // untinted image).
+        if (changed) {
+            [self.player seekToFrameAtIndex: 0 loopCount: 0];
+        }
+    } else if (tint) {
+        if (animated) {
+            image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
+        }
+        super.image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
     } else {
-        self.untintedImage = nil;
         super.image = image;
     }
     [self updateContentMode];
