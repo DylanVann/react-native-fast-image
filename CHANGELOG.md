@@ -1,3 +1,10 @@
+# [8.26.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.25.0...v8.26.0) (2026-09-30)
+
+
+### Features
+
+* pick one of several sources for the view's size ([#1201](https://github.com/DylanVann/react-native-fast-image/issues/1201)) ([efa1c7a](https://github.com/DylanVann/react-native-fast-image/commit/efa1c7aeddb67af028871f25c2a04a6932a1ee1b))
+
 # [8.25.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.24.0...v8.25.0) (2026-09-30)
 
 
