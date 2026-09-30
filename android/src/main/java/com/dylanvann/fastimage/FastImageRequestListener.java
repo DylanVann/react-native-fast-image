@@ -54,11 +54,14 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         return false;
     }
 
-    // The first root cause's message, e.g. "Not Found, status code: 404".
     // The first root cause's message, e.g. "Not Found, status code: 404" (also
-    // for preload results).
+    // for preload results). For an SVG without AndroidSVG, what to add: other
+    // decoders (e.g. Glide's video one) also tried it, and failed first.
     static String errorMessage(@androidx.annotation.Nullable GlideException e) {
         if (e != null) {
+            for (Throwable cause : e.getRootCauses()) {
+                if (FastImageSvg.MISSING.equals(cause.getMessage())) return FastImageSvg.MISSING;
+            }
             for (Throwable cause : e.getRootCauses()) {
                 if (cause.getMessage() != null) return cause.getMessage();
             }

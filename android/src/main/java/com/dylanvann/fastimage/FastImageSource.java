@@ -57,6 +57,13 @@ public class FastImageSource extends ImageSource {
         super(context, source, width, height);
         mHeaders = headers == null ? Headers.DEFAULT : headers;
         mUri = super.getUri();
+        if (mUri == null || TextUtils.isEmpty(mUri.toString())) {
+            // A bundled image that release builds package as a raw resource
+            // (e.g. an SVG, which isn't a drawable): React Native's
+            // ImageSource only looks for drawables.
+            Uri raw = rawResourceUri(context, source);
+            if (raw != null) mUri = raw;
+        }
 
         if (isResource() && TextUtils.isEmpty(mUri.toString())) {
             throw new Resources.NotFoundException("Local Resource Not Found. Resource: '" + getSource() + "'.");
@@ -75,6 +82,16 @@ public class FastImageSource extends ImageSource {
         }
     }
 
+
+    // The raw resource with the source's name (a bundled image's source is
+    // its resource name, e.g. src_images_logo), or null.
+    @Nullable
+    private static Uri rawResourceUri(Context context, @Nullable String source) {
+        if (source == null || source.isEmpty() || source.contains(":")) return null;
+        int id = context.getResources().getIdentifier(source, "raw", context.getPackageName());
+        if (id == 0) return null;
+        return Uri.parse(ANDROID_RESOURCE_SCHEME + "://" + context.getPackageName() + "/" + id);
+    }
 
     public boolean isBase64Resource() {
         return mUri != null && FastImageSource.isBase64Uri(mUri);

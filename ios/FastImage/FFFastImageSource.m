@@ -5,7 +5,11 @@
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDWebImageDownloaderOperation.h>
 #import <SDWebImage/NSData+ImageContentType.h>
+#import <SDWebImage/SDImageCodersManager.h>
 #import <objc/message.h>
+
+// In FFFastImageView.m.
+FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
 
 static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
 
@@ -173,7 +177,40 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
 
 @end
 
+// SDWebImageSVGCoder's coder, when the app has the pod (SVG images): found at
+// runtime, so FastImage doesn't depend on it. Nil otherwise.
+static id<SDImageCoder> FFFSVGCoder;
+
 @implementation FFFastImageSource
+
++ (void)initialize
+{
+    if (self != [FFFastImageSource class]) {
+        return;
+    }
+    // Registered with SDWebImage's coders, as the pod's setup does (unless
+    // the app has already): SDWebImage then picks it for SVG data, including
+    // for FastImage's animated and downsampled image classes. Giving the
+    // coder per load instead (SDWebImageContextImageCoder) would make it the
+    // only coder for everything in that load. So the app's own SDWebImage
+    // use can decode SVG too, which is what the pod is for.
+    Class coderClass = NSClassFromString(@"SDImageSVGCoder");
+    SEL shared = NSSelectorFromString(@"sharedCoder");
+    if (!coderClass || ![coderClass respondsToSelector:shared]) {
+        return;
+    }
+    id coder = ((id (*)(id, SEL))objc_msgSend)(coderClass, shared);
+    if (![coder conformsToProtocol:@protocol(SDImageCoder)]) {
+        return;
+    }
+    FFFSVGCoder = coder;
+    for (id<SDImageCoder> registered in SDImageCodersManager.sharedManager.coders) {
+        if ([registered isKindOfClass:coderClass]) {
+            return;
+        }
+    }
+    [SDImageCodersManager.sharedManager addCoder:coder];
+}
 
 - (instancetype)initWithURL:(NSURL *)url
                    priority:(FFFPriority)priority
@@ -214,6 +251,15 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
             return 0;
     }
     return 0;
+}
+
+- (NSString *)errorMessage:(NSError *)error
+{
+    if (!FFFSVGCoder && [error.domain isEqualToString:SDWebImageErrorDomain] && error.code == SDWebImageErrorBadImageData &&
+        [_url.path.lowercaseString hasSuffix:@".svg"]) {
+        return @"SVG images need SDWebImageSVGCoder: add pod 'SDWebImageSVGCoder' to the app's Podfile";
+    }
+    return FFFErrorMessage(error);
 }
 
 - (BOOL)isPhotoLibrary

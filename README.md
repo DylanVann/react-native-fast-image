@@ -124,6 +124,26 @@ With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/la
 
 The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
 
+#### SVG images
+
+SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
+
+```ruby
+# ios/Podfile
+pod 'SDWebImageSVGCoder'
+```
+
+```groovy
+// android/app/build.gradle
+dependencies {
+    implementation 'com.caverock:androidsvg-aar:1.4'
+}
+```
+
+On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one (e.g. from another library) needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`); an app that uses `expo-image` already has both.
+
+An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
+
 ---
 
 ### `source.headers?: object`

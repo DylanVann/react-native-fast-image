@@ -19,6 +19,8 @@ target 'ReactNativeFastImageExample' do
 
   # Photo library (ph://) images, which FastImage loads when the app has this.
   pod 'SDWebImagePhotosPlugin'
+  # SVG images, which FastImage loads when the app has this.
+  pod 'SDWebImageSVGCoder'
   # Lists the photo library for the regression cases (example only).
   pod 'ExamplePhotos', :path => './ExamplePhotos'
 
