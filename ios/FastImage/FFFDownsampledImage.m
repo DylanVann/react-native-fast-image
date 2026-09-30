@@ -128,17 +128,6 @@ static CGSize FFFPixelSize(NSData* data) {
     return [sourceSize isKindOfClass: [FFFSourceSize class]] ? ((FFFSourceSize*) sourceSize).size : CGSizeZero;
 }
 
-+ (void) setSourceSize: (CGSize)size ofImage: (UIImage*)image context: (SDWebImageContext*)context {
-    FFFSourceSize* sourceSize = context[SDWebImageContextImageDecodeOptions][FFFDecodeSourceSize];
-    if (![sourceSize isKindOfClass: [FFFSourceSize class]]) {
-        return;
-    }
-    sourceSize.size = size;
-    NSMutableDictionary* options = [image.sd_decodeOptions mutableCopy] ?: [NSMutableDictionary dictionary];
-    options[FFFDecodeSourceSize] = sourceSize;
-    image.sd_decodeOptions = options;
-}
-
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {
     NSValue* boxValue = options[SDImageCoderDecodeThumbnailPixelSize];
     CGSize box = boxValue ? boxValue.CGSizeValue : CGSizeZero;

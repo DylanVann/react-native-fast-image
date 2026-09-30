@@ -570,7 +570,9 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) sendOnLoad: (UIImage*)image {
     // The full image's size, also when it was decoded smaller.
-    CGSize size = [FFFDownsampledImage sourceSizeOfImage: image];
+    // A photo library image's own size (it's decoded at about the view's
+    // size), looked up when it loaded.
+    CGSize size = [_source isPhotoLibrary] ? [_source photoPixelSize] : [FFFDownsampledImage sourceSizeOfImage: image];
     if (CGSizeEqualToSize(size, CGSizeZero)) {
         size = image.size;
     }
@@ -646,12 +648,15 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-// Whether images are decoded at about the view's size (downsample, and
-// always for photo library images, which are large and usually shown small).
-// Not for `repeat`, which tiles the image at its own size, or SDWebImage
-// before 5.19.
+// Whether images are decoded at about the view's size (downsample, from
+// SDWebImage 5.19, and always for photo library images, which are large and
+// usually shown small: Photos makes them at the size asked for, on any
+// version). Not for `repeat`, which tiles the image at its own size.
 - (BOOL) downsamples {
-    return (_downsample || [_source isPhotoLibrary]) && _resizeMode != RCTResizeModeRepeat && [FFFDownsampledImage isSupported];
+    if (_resizeMode == RCTResizeModeRepeat) {
+        return NO;
+    }
+    return [_source isPhotoLibrary] || (_downsample && [FFFDownsampledImage isSupported]);
 }
 
 // Whether the view has been laid out with an area. One that's 0 wide or tall
@@ -824,6 +829,13 @@ NSString *FFFErrorMessage(NSError *error)
     }
     NSString* key = _source.cacheKeyFilter ? _source.cacheKey : _source.url.absoluteString;
     [FFFDownsampledImage addToContext: context forKey: key box: box cover: self.decodedCover];
+    if ([_source isPhotoLibrary]) {
+        // Photos makes the photo at the size asked for, with no file
+        // downloaded: SDWebImage would keep this smaller copy on disk as the
+        // photo's original, and a larger view would get it from there.
+        context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
+        context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
+    }
     if (!_source.memoryCache) {
         // The smaller copy is only kept in memory, so it isn't kept (the
         // downloaded file is still on disk).

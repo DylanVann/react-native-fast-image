@@ -61,6 +61,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // which is decoded at about the view's size.
 - (BOOL)isPhotoLibrary;
 
+// A photo library image's own size in pixels (for onLoad when it comes from
+// a cache, where the size it was decoded from isn't recorded), or zero.
+- (CGSize)photoPixelSize;
+
 // The HTTP cache of `cache: 'web'` images: their own rather than the app's
 // shared NSURLCache, so clearDiskCache can empty it without the app's other
 // responses. 50 MB, as on Android.

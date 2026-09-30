@@ -6,14 +6,13 @@
 #import <SDWebImage/SDWebImageDownloaderOperation.h>
 #import <SDWebImage/NSData+ImageContentType.h>
 #import <objc/message.h>
-#import "FFFDownsampledImage.h"
 
 static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
 
 // The photo's own size in pixels, looked up by its identifier (the url after
 // ph://), or zero. Through the runtime, as the Photos framework is only there
-// when the app links it (with SDWebImagePhotosPlugin).
-static CGSize FFFPhotoPixelSize(NSURL *url)
+// when the app links it (with SDWebImagePhotosPlugin). Kept once looked up.
+static CGSize FFFLookUpPhotoPixelSize(NSURL *url)
 {
     Class assetClass = NSClassFromString(@"PHAsset");
     SEL fetch = NSSelectorFromString(@"fetchAssetsWithLocalIdentifiers:options:");
@@ -29,6 +28,30 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
         return CGSizeZero;
     }
     return CGSizeMake([[asset valueForKey:@"pixelWidth"] doubleValue], [[asset valueForKey:@"pixelHeight"] doubleValue]);
+}
+
+static NSCache<NSString *, NSValue *> *FFFPhotoSizes(void)
+{
+    static NSCache *sizes;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        sizes = [NSCache new];
+    });
+    return sizes;
+}
+
+static CGSize FFFPhotoPixelSize(NSURL *url)
+{
+    NSString *key = url.absoluteString;
+    NSValue *known = key ? [FFFPhotoSizes() objectForKey:key] : nil;
+    if (known) {
+        return known.CGSizeValue;
+    }
+    CGSize size = FFFLookUpPhotoPixelSize(url);
+    if (key && size.width > 0 && size.height > 0) {
+        [FFFPhotoSizes() setObject:[NSValue valueWithCGSize:size] forKey:key];
+    }
+    return size;
 }
 
 // Loads photo library images (ph://<localIdentifier>) with
@@ -56,8 +79,14 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
             // One image per load, at full quality. By default the plugin
             // first sends a quick low quality one, which a view would show
             // (and fade in) before the one it asked for.
-            // PHImageRequestOptionsDeliveryModeHighQualityFormat.
-            [[(NSObject *)plugin valueForKey:@"imageRequestOptions"] setValue:@1 forKey:@"deliveryMode"];
+            // PHImageRequestOptionsDeliveryModeHighQualityFormat. Skipped if
+            // a later version of the plugin renames these.
+            NSObject *requestOptions = [(NSObject *)plugin respondsToSelector:NSSelectorFromString(@"imageRequestOptions")]
+                ? [(NSObject *)plugin valueForKey:@"imageRequestOptions"]
+                : nil;
+            if ([requestOptions respondsToSelector:NSSelectorFromString(@"setDeliveryMode:")]) {
+                [requestOptions setValue:@1 forKey:@"deliveryMode"];
+            }
             loader.plugin = plugin;
         } else {
             loader.failure = @"Photo library images (ph://) need SDWebImagePhotosPlugin: add pod 'SDWebImagePhotosPlugin' to the app's Podfile";
@@ -102,14 +131,11 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
             }
             return;
         }
-        // The photo's own size, for onLoad: the image is decoded at about
-        // the view's size.
+        // Looks up the photo's own size for onLoad here, off the main thread
+        // (the image is decoded at about the view's size).
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            CGSize size = FFFPhotoPixelSize(url);
+            FFFPhotoPixelSize(url);
             dispatch_async(dispatch_get_main_queue(), ^{
-                if (size.width > 0 && size.height > 0) {
-                    [FFFDownsampledImage setSourceSize:size ofImage:image context:context];
-                }
                 completedBlock(image, data, error, finished);
             });
         });
@@ -193,6 +219,11 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
 - (BOOL)isPhotoLibrary
 {
     return [_url.scheme isEqualToString:@"ph"];
+}
+
+- (CGSize)photoPixelSize
+{
+    return [self isPhotoLibrary] ? FFFPhotoPixelSize(_url) : CGSizeZero;
 }
 
 - (id<SDImageLoader>)imageLoader

@@ -3360,6 +3360,135 @@ function PhotoLibraryCase({
     )
 }
 
+// Finds a photo of a type in the library, or says why there's none.
+function useLibraryPhoto(type: string) {
+    const [photo, setPhoto] = useState<LibraryPhoto>()
+    const [status, setStatus] = useState('listing the photo library')
+    useEffect(() => {
+        libraryPhotos().then(
+            ({ authorized, photos }) => {
+                if (!authorized) return setStatus('no photo library access')
+                const found = photos.find((p) => p.type === type)
+                if (!found) return setStatus(`no ${type} photo in the library`)
+                setPhoto(found)
+                setStatus('loading')
+            },
+            (error) => setStatus(`${error}`),
+        )
+    }, [type])
+    return [photo, status, setStatus] as const
+}
+
+// A photo shown again after the memory cache was cleared (in a new view):
+// onLoad still has the photo's own size, not the size it was decoded at.
+function PhotoLibraryAgainCase() {
+    const [photo, status, setStatus] = useLibraryPhoto('public.jpeg')
+    const [again, setAgain] = useState(false)
+    const onLoad =
+        (second: boolean) =>
+        async (e: { nativeEvent: { width: number; height: number } }) => {
+            if (!photo) return
+            const { width, height } = e.nativeEvent
+            if (width !== photo.width || height !== photo.height) {
+                return setStatus(
+                    `onLoad ${width}x${height}${second ? ' the second time' : ''}, the photo is ${photo.width}x${photo.height}`,
+                )
+            }
+            if (second) return setStatus('OK')
+            await FastImage.clearMemoryCache()
+            setAgain(true)
+        }
+    return (
+        <View style={styles.row}>
+            {photo && !again ? (
+                <FastImage
+                    key="first"
+                    style={styles.image}
+                    source={{ uri: `ph://${photo.id}` }}
+                    onLoad={onLoad(false)}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : photo ? (
+                <FastImage
+                    key="again"
+                    style={styles.image}
+                    source={{ uri: `ph://${photo.id}` }}
+                    onLoad={onLoad(true)}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus
+                id="photo-library-again"
+                status={status}
+                description="A photo shown again after clearMemoryCache (in a new view): onLoad still has the photo's own size"
+            />
+        </View>
+    )
+}
+
+// A GIF from the photo library animates: loop-forever.gif (red, then blue),
+// which verify.mts adds to the simulator's library. Paused on its first frame
+// (red) until the recording starts, then played once, ending on blue.
+const RED = '#ff0000'
+const BLUE = '#0000ff'
+function PhotoLibraryGifCase() {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [photo, status, setStatus] = useLibraryPhoto('com.compuserve.gif')
+    const [playing, setPlaying] = useState(false)
+    const started = useRef(false)
+    const expect = [RED, BLUE]
+    const onLoad = async () => {
+        if (started.current) return
+        started.current = true
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: 'photo-library-gif',
+                area,
+                durationMs: 3000,
+                expect,
+                palette: [RED, BLUE, BLANK],
+            },
+            (done) => {
+                setPlaying(true)
+                // One play takes 0.8 s.
+                setTimeout(done, 1500)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={styles.row}>
+            <View ref={view} collapsable={false}>
+                {photo ? (
+                    <FastImage
+                        style={styles.image}
+                        source={{ uri: `ph://${photo.id}` }}
+                        paused={!playing}
+                        loop={false}
+                        onLoad={onLoad}
+                        onError={(e) =>
+                            setStatus(`error: ${e.nativeEvent.error}`)
+                        }
+                    />
+                ) : (
+                    <View style={styles.image} />
+                )}
+            </View>
+            <CaseStatus
+                id="photo-library-gif"
+                status={status}
+                description="A GIF from the photo library animates (recorded: red, then blue)"
+            />
+        </View>
+    )
+}
+
 // A photo library source that can't load fails with a message that says why.
 function PhotoLibraryErrorCase({
     id,
@@ -4088,6 +4217,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           type="public.heic"
                           description="#410: a HEIC photo from the photo library (ph://) loads; onLoad has the photo's own size"
                       />,
+                      <PhotoLibraryAgainCase key="photo-library-again" />,
+                      <PhotoLibraryGifCase key="photo-library-gif" />,
                       <PhotoLibraryErrorCase
                           key="photo-library-missing"
                           id="photo-library-missing"
