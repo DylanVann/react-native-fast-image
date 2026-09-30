@@ -7,10 +7,28 @@
 -keep public class com.dylanvann.fastimage.* {*;}
 -keep public class com.dylanvann.fastimage.** {*;}
 
-# Glide's modules (FastImage's, and the one Glide generates from them) and
-# its image header types.
--keep public class * implements com.bumptech.glide.module.GlideModule
--keep public class * extends com.bumptech.glide.module.AppGlideModule
+# The Glide rules below cover what Glide's own rules (its library's
+# proguard-rules.txt) didn't at the version FastImage uses by default
+# (glideVersion in build.gradle, 4.12.0) and older ones apps may pick. When
+# updating Glide, revisit which are still needed: whether Glide's rules now
+# keep modules' constructors, and whether its integrations still register
+# old-style modules in their manifests (the OkHttp integration's
+# OkHttpGlideModule still did in 5.0.9).
+
+# Glide's modules and their constructors: FastImage's, the one Glide
+# generates from them, and old-style modules Glide finds in the app's manifest
+# and creates by reflection (e.g. its OkHttp integration's OkHttpGlideModule,
+# which FastImage uses). R8's full mode (the default from the Android Gradle
+# plugin 8.0) removes a constructor a rule doesn't name, and Glide then
+# crashes when it starts ("Unable to instantiate GlideModule implementation").
+-keep public class * implements com.bumptech.glide.module.GlideModule {
+  <init>();
+}
+-keep public class * extends com.bumptech.glide.module.AppGlideModule {
+  <init>(...);
+}
+
+# Glide's image header types.
 -keep public enum com.bumptech.glide.load.ImageHeaderParser$** {
   **[] $VALUES;
   public *;
