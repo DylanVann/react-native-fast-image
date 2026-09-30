@@ -199,6 +199,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 - `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
 - `FastImage.resizeMode.center` - Do not scale the image, keep centered.
+- `FastImage.resizeMode.repeat` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
 

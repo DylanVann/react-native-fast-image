@@ -3522,6 +3522,99 @@ function PhotoLibraryErrorCase({
 
 export type { RegressionGroup }
 
+// resizeMode repeat: the image repeated from the top-left at its own size, as
+// React Native's Image (right) does: a 20px tile of four colors (red, green,
+// blue, yellow), and a 200px photo larger than the view, scaled down to fit.
+// The image's own size is in pixels.
+const QUADRANTS = imageUrl('quadrants.png')
+function RepeatCase({
+    id,
+    uri,
+    tintColor,
+    description,
+}: {
+    id: string
+    uri: string
+    tintColor?: string
+    description: string
+}) {
+    const [status, onLoad] = useLoadedThenOk(2)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={repeatStyles.image}
+                resizeMode="repeat"
+                source={{ uri }}
+                tintColor={tintColor}
+                onLoad={onLoad}
+            />
+            <Image
+                style={[repeatStyles.image, styles.gap, { tintColor }]}
+                resizeMode="repeat"
+                source={{ uri }}
+                onLoad={onLoad}
+            />
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+// An animated image repeats its first frame (still): a GIF of two colors.
+function RepeatGifCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={repeatStyles.image}
+                resizeMode="repeat"
+                source={{ uri: imageUrl('loop-forever.gif') }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="repeat-gif"
+                status={status}
+                description="repeat with a GIF (80px, larger than the view's height): its first frame, still, scaled down and repeated"
+            />
+        </View>
+    )
+}
+
+// resizeMode changed after the image loaded (left) matches the view that had
+// it from the start (right): to repeat, and from repeat to cover.
+function RepeatChangeCase({ to }: { to: 'repeat' | 'cover' }) {
+    const [status, onLoad] = useLoadedThenOk(2)
+    const [changed, setChanged] = useState(false)
+    const from = to === 'repeat' ? 'cover' : 'repeat'
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={repeatStyles.image}
+                resizeMode={changed ? to : from}
+                source={{ uri: QUADRANTS }}
+                onLoad={() => {
+                    if (!changed) setTimeout(() => setChanged(true), 300)
+                    onLoad()
+                }}
+            />
+            <FastImage
+                style={[repeatStyles.image, styles.gap]}
+                resizeMode={to}
+                source={{ uri: QUADRANTS }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id={`repeat-change-${to}`}
+                status={changed ? status : 'waiting'}
+                description={`resizeMode ${from} changed to ${to} after loading (left) matches ${to} from the start (right)`}
+            />
+        </View>
+    )
+}
+
+const repeatStyles = StyleSheet.create({
+    image: { width: 120, height: 60, backgroundColor: '#eeeeee' },
+})
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'load-end',
@@ -3784,6 +3877,33 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <BlurCenterCase key="blur-center" />,
             <BlurTintChangeCase key="blur-tint-change" />,
+        ],
+    },
+    {
+        name: 'repeat',
+        cases: [
+            <RepeatCase
+                key="repeat-tile"
+                id="repeat-tile"
+                uri={QUADRANTS}
+                description="resizeMode repeat: a 20px tile (red, green, blue, yellow) repeated from the top-left, as Image (right)"
+            />,
+            <RepeatCase
+                key="repeat-large"
+                id="repeat-large"
+                uri={imageUrl('picsum/1025-200x200.jpg')}
+                description="repeat with an image larger than the view: scaled down to fit, then repeated, as Image (right)"
+            />,
+            <RepeatCase
+                key="repeat-tint"
+                id="repeat-tint"
+                uri={imageUrl('sprite-12.png')}
+                tintColor="#9324c3"
+                description="repeat with tintColor: the tinted tile repeated, as Image (right)"
+            />,
+            <RepeatGifCase key="repeat-gif" />,
+            <RepeatChangeCase key="repeat-change-repeat" to="repeat" />,
+            <RepeatChangeCase key="repeat-change-cover" to="cover" />,
         ],
     },
     {
