@@ -97,6 +97,8 @@ With `--release`, the apps are built in their Release configuration, with the Ja
 
 `--background` also runs `maestro/background.yaml` (tagged `background`), which sends the app to the background while images load and brings it back 20 s later, past SDWebImage's 15 s download timeout. It takes about a minute more per app on iOS, so it's skipped by default; run it for changes to how images load or to app lifecycle handling. The example apps register their app IDs as URL schemes, which the flow opens to bring the app back.
 
+Android builds only the emulator's CPU architecture (`reactNativeArchitectures`), and iOS builds use Xcode's compilation cache in `~/Library/Caches/react-native-fast-image/compilation-cache` (shared by the apps and checkouts, emptied when it grows past 2 GB), so a clean or new checkout's build is quicker.
+
 Run one `verify.mts` at a time, across checkouts: runs use the booted simulator, the emulator and fixed ports (8081 for Metro, 8090 and 8091 for the image server).
 
 The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](https://github.com/devicelab-dev/maestro-runner), which is faster than the Maestro CLI (about 40% less time here), can drive iOS and Android at the same time, and is installed by `bun install` as a dev dependency. Screenshots are saved in each run's report (`verify-output/…/<app>-<platform>/report/assets/`).
