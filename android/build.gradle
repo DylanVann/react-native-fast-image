@@ -35,6 +35,8 @@ android {
         targetSdkVersion safeExtGet('targetSdkVersion', 28)
         versionCode 1
         versionName "1.0"
+        // Applied to the app's release build, so apps don't need to add them.
+        consumerProguardFiles 'consumer-rules.pro'
     }
     sourceSets {
         main {
