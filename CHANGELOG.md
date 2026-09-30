@@ -1,3 +1,10 @@
+# [8.23.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.22.0...v8.23.0) (2026-09-30)
+
+
+### Features
+
+* add a minimal web version for react-native-web ([#1197](https://github.com/DylanVann/react-native-fast-image/issues/1197)) ([65759ad](https://github.com/DylanVann/react-native-fast-image/commit/65759ada0ff2b7fff40cb18e72a6d64d8f65db42))
+
 # [8.22.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.21.0...v8.22.0) (2026-09-30)
 
 
