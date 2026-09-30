@@ -1762,14 +1762,24 @@ async function expoPrebuild(platform: 'ios' | 'android') {
 }
 
 // Pods need reinstalling after node_modules is: on React Native 0.73,
-// `pod install` also generates files inside node_modules/react-native.
+// `pod install` also generates files inside node_modules/react-native. And
+// after the Podfile changed (e.g. another branch's): the installed Pods record
+// the Podfile's SHA-1 they were installed for.
 function podsCurrent(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
         const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
+        const podfile = createHash('sha1')
+            .update(fs.readFileSync(path.join(dir, 'ios/Podfile')))
+            .digest('hex')
+        const manifest = fs.readFileSync(
+            path.join(dir, 'ios/Pods/Manifest.lock'),
+            'utf8',
+        )
         return (
             pods >= rn.mtimeMs &&
-            builtFrom(path.join(dir, 'ios/Pods')) === SOURCE
+            builtFrom(path.join(dir, 'ios/Pods')) === SOURCE &&
+            manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
         )
     } catch {
         return false
