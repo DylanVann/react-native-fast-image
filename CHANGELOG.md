@@ -1,3 +1,10 @@
+# [8.22.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.21.0...v8.22.0) (2026-09-30)
+
+
+### Features
+
+* add transition to fade images in when they load ([#1164](https://github.com/DylanVann/react-native-fast-image/issues/1164)) ([0946fcf](https://github.com/DylanVann/react-native-fast-image/commit/0946fcf5068330a215966bc929d5a9e4c1cdbf7e))
+
 # [8.21.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.20.0...v8.21.0) (2026-09-30)
 
 
