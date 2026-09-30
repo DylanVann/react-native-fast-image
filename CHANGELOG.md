@@ -1,3 +1,10 @@
+# [8.20.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.19.1...v8.20.0) (2026-09-30)
+
+
+### Features
+
+* add a 0–1 progress to onProgress's event ([#1194](https://github.com/DylanVann/react-native-fast-image/issues/1194)) ([926ee06](https://github.com/DylanVann/react-native-fast-image/commit/926ee06a08c2612e5652b3d60a827f75f5b26a13))
+
 ## [8.19.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.19.0...v8.19.1) (2026-09-30)
 
 
