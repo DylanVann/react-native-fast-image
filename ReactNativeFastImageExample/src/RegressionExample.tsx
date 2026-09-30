@@ -2664,6 +2664,51 @@ function BlurKindsCase() {
     )
 }
 
+// tintColor changed on a blurred image once it has loaded: it shows the new
+// tint on the blurred image (iOS shows the blurred image with the new tint
+// without blurring it again), matching the one tinted that way from the start.
+function BlurTintChangeCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [changed, setChanged] = useState(false)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (loaded < 2 || changed) return
+        const timer = setTimeout(() => setChanged(true), 300)
+        return () => clearTimeout(timer)
+    }, [loaded, changed])
+    useEffect(() => {
+        if (!changed) return
+        const timer = setTimeout(() => setDone(true), 500)
+        return () => clearTimeout(timer)
+    }, [changed])
+    const onLoad = () => setLoaded((n) => n + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={blurStyles.image}
+                resizeMode="contain"
+                source={{ uri: LOGO }}
+                tintColor={changed ? '#9324c3' : 'green'}
+                blurRadius={4}
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[blurStyles.image, blurStyles.next]}
+                resizeMode="contain"
+                source={{ uri: LOGO }}
+                tintColor="#9324c3"
+                blurRadius={4}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="blur-tint-change"
+                status={done ? 'OK' : 'loading'}
+                description="tintColor changed from green to purple on a blurred logo after it loaded (should match the right one)"
+            />
+        </View>
+    )
+}
+
 const BLUR_CHANGE_SOURCE = { uri: PRELOAD }
 
 // The load events (onLoadStart, onProgress, onLoad, onLoadEnd) an image sends
@@ -3353,7 +3398,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'blur-center',
-        cases: [<BlurCenterCase key="blur-center" />],
+        cases: [
+            <BlurCenterCase key="blur-center" />,
+            <BlurTintChangeCase key="blur-tint-change" />,
+        ],
     },
     {
         name: 'downsampling',
