@@ -1,3 +1,10 @@
+# [8.25.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.24.0...v8.25.0) (2026-09-30)
+
+
+### Features
+
+* add resizeMode repeat to tile the image ([#1196](https://github.com/DylanVann/react-native-fast-image/issues/1196)) ([4227c23](https://github.com/DylanVann/react-native-fast-image/commit/4227c23a3cb3f54ecb231d419aa6e5e478bc6fd3))
+
 # [8.24.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.23.0...v8.24.0) (2026-09-30)
 
 
