@@ -56,6 +56,21 @@ bun run android
 
 Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode. `bun install` also applies `patches/react-native@0.73.11.patch` (Bun's `patchedDependencies`), which backports [facebook/react-native#51988](https://github.com/facebook/react-native/pull/51988): `RCTView` only builds its recursive accessibility label for views that are accessibility elements. Without it, every accessibility snapshot on iOS walks the whole view tree, which made each Maestro step on this app take about twice as long as on the main example.
 
+## Testing in an Expo app (iOS, Android and the web)
+
+`ReactNativeFastImageExampleExpo` is an Expo app (from Expo's blank TypeScript template) that shows a few smoke cases: an image loads, a missing one fails, a bundled one loads, `preload` reports its results, `getCachePath` answers, and the cache limits set by FastImage's Expo config plugin (in `app.config.js`) are in effect. It shares the regression runner and the case components with the main example (`ReactNativeFastImageExample/src`, the cases in `SmokeExample.tsx`), and uses the library from the repo like the other apps. Its native projects (`ios/`, `android/`) aren't in the repo: `expo prebuild` makes them, with the config plugin applied.
+
+```bash
+cd ReactNativeFastImageExampleExpo
+bun install
+bun run images
+bun run ios       # expo run:ios (prebuilds the first time)
+bun run android   # expo run:android
+bun run web       # the web version, with react-native-web
+```
+
+`app.config.js` uses the repo's `app.plugin.js` (the installed package's with `verify.mts --package`), and puts the app's `node_modules` on Node's module path for it, since the plugin requires `expo/config-plugins` from where it is. It also turns off Expo's `tsconfigPaths`: `tsconfig.json`'s `paths` point `react` at its types for type checking, which Metro mustn't follow.
+
 ## Verifying changes
 
 `scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
@@ -69,6 +84,7 @@ node scripts/verify.mts --app legacy --ios   # one app and platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
 node scripts/verify.mts --package            # the package as published (see below)
 node scripts/verify.mts --release            # release builds, minified with R8 on Android (see below)
+node scripts/verify.mts --app expo           # the Expo example on iOS, Android and the web (see below)
 node scripts/verify.mts --background         # also the slow background flow (see below)
 node scripts/verify.mts --record             # record the screen while the flows run (see below)
 ```
@@ -76,6 +92,8 @@ node scripts/verify.mts --record             # record the screen while the flows
 With `--package`, the script builds the library, packs it with `npm pack`, and installs the tarball into each app's `node_modules`. The apps then load `dist/` through the package's `main` field and autolink the native code from the installed package, so a file missing from `files` in `package.json`, or a broken build, fails the run. Switching between this and the usual mode reinstalls pods and regenerates Android autolinking, so the next run takes longer. Use it for changes to the build or to what gets published.
 
 With `--release`, the apps are built in their Release configuration, with the JavaScript bundled in and no packager, and on Android minified with R8 (the example apps turn it on for release). Use it for changes that R8 could affect: the ProGuard rules, reflection, or classes that are only created by name. The example's image server uses plain HTTP, which the apps allow in release for the emulator's host address and localhost only.
+
+`--app expo` runs the Expo example instead of the other two (it's not in the default run): its JS typecheck, `expo prebuild` (again when `app.config.js` or `package.json` changed), `pod install` with the installed CocoaPods (the app has no Gemfile), the iOS and Android builds, and its smoke cases through the runner, compared with reference screenshots like the other apps. It also runs them on the web: Expo's dev server (which serves the native bundles) also serves the web version, which the script opens in the installed Chrome, headless (`CHROME_BIN` to use another), and its runner reports each case's status through the image server's relay as the apps do; there are no screenshots on the web. `--ios`, `--android` and `--web` narrow it to one platform.
 
 `--background` also runs `maestro/background.yaml` (tagged `background`), which sends the app to the background while images load and brings it back 20 s later, past SDWebImage's 15 s download timeout. It takes about a minute more per app on iOS, so it's skipped by default; run it for changes to how images load or to app lifecycle handling. The example apps register their app IDs as URL schemes, which the flow opens to bring the app back.
 

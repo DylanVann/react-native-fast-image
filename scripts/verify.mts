@@ -27,8 +27,18 @@ Steps:
      failure or a crash fails the run.
 
 Options:
-  --app main|legacy   Only this example app (default: both).
-  --ios, --android    Only this platform (default: both).
+  --app main|legacy|expo
+                      Only this example app (default: main and legacy). The
+                      Expo example (ReactNativeFastImageExampleExpo) runs only
+                      when asked for: a few smoke cases on iOS and Android
+                      (its native projects made by \`expo prebuild\`, with
+                      FastImage's config plugin) and on the web (its web
+                      version in headless Chrome, statuses only, no
+                      screenshots).
+  --ios, --android, --web
+                      Only this platform (default: iOS and Android, and the
+                      web for the Expo example; --web is for the Expo
+                      example).
   --js-only           Only the JS checks.
   --no-js             Skip the JS checks.
   --pods              Run \`pod install\` even if Pods are already installed.
@@ -56,6 +66,8 @@ Options:
                       after the current branch (or the --ref).
 
 Environment:
+  CHROME_BIN      Chrome for the Expo example's web version (default:
+                  /Applications/Google Chrome.app).
   IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
                   of the script's own so screenshots and recordings don't
                   show other apps; created on first use with the device type
@@ -77,8 +89,8 @@ Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
 emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
-type App = 'main' | 'legacy'
-type Platform = 'ios' | 'android'
+type App = 'main' | 'legacy' | 'expo'
+type Platform = 'ios' | 'android' | 'web'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const IMAGE_SERVER = path.join(ROOT, 'ReactNativeFastImageExampleServer')
@@ -96,6 +108,7 @@ function parseOptions() {
                 app: { type: 'string' },
                 ios: { type: 'boolean', default: false },
                 android: { type: 'boolean', default: false },
+                web: { type: 'boolean', default: false },
                 'js-only': { type: 'boolean', default: false },
                 'no-js': { type: 'boolean', default: false },
                 pods: { type: 'boolean', default: false },
@@ -123,17 +136,27 @@ if (options.help) {
 if (
     options.app !== undefined &&
     options.app !== 'main' &&
-    options.app !== 'legacy'
+    options.app !== 'legacy' &&
+    options.app !== 'expo'
 ) {
-    console.error(`Unknown app: ${options.app} (use main or legacy)`)
+    console.error(`Unknown app: ${options.app} (use main, legacy or expo)`)
     process.exit(2)
 }
+// The Expo example only runs when asked for (--app expo).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
+if (options.web && !APPS.includes('expo')) {
+    console.error('--web is for the Expo example: use it with --app expo')
+    process.exit(2)
+}
 const PLATFORMS: Platform[] = options.ios
     ? ['ios']
     : options.android
       ? ['android']
-      : ['ios', 'android']
+      : options.web
+        ? ['web']
+        : APPS.includes('expo')
+          ? ['ios', 'android', 'web']
+          : ['ios', 'android']
 const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
@@ -174,6 +197,10 @@ env.PATH = [
 const MAESTRO_RUNNER =
     env.MAESTRO_RUNNER_BIN ??
     path.join(ROOT, 'node_modules/.bin/maestro-runner')
+// The Expo example's web version runs in the installed Chrome, headless.
+const CHROME =
+    env.CHROME_BIN ??
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 const now = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -436,16 +463,16 @@ if (REF) {
 const appDir = (app: App) =>
     path.join(
         ROOT,
-        app === 'main'
-            ? 'ReactNativeFastImageExample'
-            : 'ReactNativeFastImageExampleLegacy',
+        {
+            main: 'ReactNativeFastImageExample',
+            legacy: 'ReactNativeFastImageExampleLegacy',
+            expo: 'ReactNativeFastImageExampleExpo',
+        }[app],
     )
 const appName = (app: App) => path.basename(appDir(app))
 const iosBundleId = (app: App) => `org.reactjs.native.example.${appName(app)}`
-const androidPackage = (app: App) =>
-    app === 'main'
-        ? 'com.reactnativefastimageexample'
-        : 'com.reactnativefastimageexamplelegacy'
+// com.reactnativefastimageexample, …legacy and …expo.
+const androidPackage = (app: App) => `com.${appName(app).toLowerCase()}`
 
 async function ensureNodeModules(dir: string) {
     if (fs.existsSync(path.join(dir, 'node_modules'))) return true
@@ -466,6 +493,7 @@ async function ensureNodeModules(dir: string) {
 function warmBundles(app: App, platforms: Platform[]) {
     return Promise.all(
         platforms.map(async (platform) => {
+            if (platform === 'web') return
             const appId =
                 platform === 'ios' ? iosBundleId(app) : androidPackage(app)
             const url = `http://localhost:8081/index.bundle?platform=${platform}&dev=true&lazy=true&minify=false&app=${appId}&modulesOnly=false&runModule=true`
@@ -478,11 +506,21 @@ function warmBundles(app: App, platforms: Platform[]) {
     ).then(() => {})
 }
 
+// The Expo CLI's commands (its dev server, prebuild) without prompts or
+// network requests.
+const EXPO_ENV = { CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_OFFLINE: '1' }
+
 async function startMetro(app: App) {
     say(`Starting Metro for ${app}`)
-    metro = start('bunx', ['react-native', 'start', '--port', '8081'], {
+    // The Expo example's dev server also serves its web version.
+    const [cmd, ...args] =
+        app === 'expo'
+            ? ['bunx', 'expo', 'start', '--port', '8081', '--localhost']
+            : ['bunx', 'react-native', 'start', '--port', '8081']
+    metro = start(cmd, args, {
         cwd: appDir(app),
         log: path.join(OUT, `metro-${app}.log`),
+        extraEnv: app === 'expo' ? EXPO_ENV : undefined,
     }).pid
     if (metro !== undefined) groups.add(metro)
     for (let i = 0; i < 60; i++) {
@@ -988,6 +1026,8 @@ async function runRegression(
     const shots: Promise<void>[] = []
     // masks: the areas the app measured just before (dp), to leave out.
     const takeShot = (index: number, masksDp: unknown) => {
+        // The web version's cases are checked by their statuses only.
+        if (platform === 'web') return Promise.resolve()
         const name = groups[index]
         const file = path.join(
             dir,
@@ -1230,7 +1270,8 @@ async function runRegression(
     await bundleWarm
     // A fresh start, now that this script is connected, so the app opens on
     // the runner.
-    if (platform === 'ios') {
+    if (platform === 'web') openWeb(dir)
+    else if (platform === 'ios') {
         // The same status bar in every screenshot (Apple's own values).
         capture('xcrun', [
             'simctl',
@@ -1586,6 +1627,39 @@ async function runFlows(
     }
 }
 
+// --- Web -----------------------------------------------------------------
+
+// The Expo example's web version, served by its dev server with the native
+// bundles, in headless Chrome (window about the size of an iPhone's), which
+// runs until the run ends. Its runner talks to this script through the image
+// server's relay, as the apps do.
+let chrome: number | undefined
+function openWeb(dir: string) {
+    chrome = start(
+        CHROME,
+        [
+            '--headless=new',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-default-browser-check',
+            `--user-data-dir=${path.join(OUT, 'chrome-profile')}`,
+            '--window-size=402,874',
+            'http://localhost:8081',
+        ],
+        { log: path.join(dir, 'chrome.log') },
+    ).pid
+    if (chrome !== undefined) groups.add(chrome)
+}
+
+async function flowsWeb(app: App) {
+    await runRegression(app, 'web', 'chrome', '')
+    if (chrome !== undefined) {
+        stop(chrome)
+        groups.delete(chrome)
+        chrome = undefined
+    }
+}
+
 // --- iOS -----------------------------------------------------------------
 
 let iosUdid = ''
@@ -1659,6 +1733,34 @@ const builtFrom = (dir: string) => {
     }
 }
 
+// The Expo example's native projects (ios/, android/) are generated by
+// `expo prebuild` (and ignored by git): again when its config or dependencies
+// are newer than the last prebuild.
+async function expoPrebuild(platform: 'ios' | 'android') {
+    const dir = appDir('expo')
+    const marker = path.join(dir, platform, '.fastimage-prebuild')
+    const mtime = (file: string) => fs.statSync(file).mtimeMs
+    const current =
+        fs.existsSync(marker) &&
+        ['app.config.js', 'package.json'].every(
+            (file) => mtime(path.join(dir, file)) <= mtime(marker),
+        )
+    if (current) return true
+    say(`expo prebuild (${platform})`)
+    const log = path.join(OUT, `prebuild-expo-${platform}.log`)
+    const result = await run(
+        'bunx',
+        ['expo', 'prebuild', '--platform', platform, '--no-install'],
+        { cwd: dir, log, timeout: 300, extraEnv: EXPO_ENV },
+    )
+    if (!result.ok) {
+        record('FAIL', `expo ${platform} prebuild`, `see ${rel(log)}`)
+        return false
+    }
+    fs.writeFileSync(marker, '')
+    return true
+}
+
 // Pods need reinstalling after node_modules is: on React Native 0.73,
 // `pod install` also generates files inside node_modules/react-native.
 function podsCurrent(dir: string) {
@@ -1676,19 +1778,25 @@ function podsCurrent(dir: string) {
 
 async function iosPods(app: App) {
     const dir = appDir(app)
+    if (app === 'expo' && !(await expoPrebuild('ios'))) return false
     if (!options['pods'] && podsCurrent(dir)) return true
     say(`pod install (${app})`)
     const log = path.join(OUT, `pods-${app}.log`)
+    const podInstall = (cmd: string, args: string[]) =>
+        run(cmd, args, { cwd: path.join(dir, 'ios'), log, timeout: 600 })
+    // The Expo example has no Gemfile: the installed CocoaPods, as Expo
+    // uses.
     const ok =
-        (await run('bundle', ['install'], { cwd: dir, log, timeout: 300 }))
-            .ok &&
-        (
-            await run('bundle', ['exec', 'pod', 'install'], {
-                cwd: path.join(dir, 'ios'),
-                log,
-                timeout: 600,
-            })
-        ).ok
+        app === 'expo'
+            ? (await podInstall('pod', ['install'])).ok
+            : (
+                  await run('bundle', ['install'], {
+                      cwd: dir,
+                      log,
+                      timeout: 300,
+                  })
+              ).ok &&
+              (await podInstall('bundle', ['exec', 'pod', 'install'])).ok
     if (!ok) record('FAIL', `${app} ios pod install`, `see ${rel(log)}`)
     else {
         const now = new Date()
@@ -1753,7 +1861,7 @@ async function buildIos(app: App) {
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
-    if (options.background)
+    if (options.background && app !== 'expo')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     // The banner again when the app is used by hand (see runRegression).
     capture('xcrun', [
@@ -1878,6 +1986,7 @@ async function androidDevice() {
 async function buildAndroid(app: App) {
     const dir = appDir(app)
     const log = path.join(OUT, `android-build-${app}.log`)
+    if (app === 'expo' && !(await expoPrebuild('android'))) return false
     // React Native 0.87 caches autolinking (the library's directory) here;
     // 0.73 works it out on every build.
     const androidBuild = path.join(dir, 'android/build')
@@ -1969,7 +2078,8 @@ async function flowsAndroid(app: App) {
     const pkg = androidPackage(app)
     capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-c'])
     await runRegression(app, 'android', androidSerial, pkg)
-    if (options.background) await runFlows(app, 'android', androidSerial, pkg)
+    if (options.background && app !== 'expo')
+        await runFlows(app, 'android', androidSerial, pkg)
     const crashes =
         capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-d']) ?? ''
     if (crashes.includes(pkg)) {
@@ -2000,8 +2110,9 @@ async function jsCheck(
     )
 }
 
-const build = { ios: buildIos, android: buildAndroid }
-const flows = { ios: flowsIos, android: flowsAndroid }
+// The web version is bundled by the dev server when Chrome asks for it.
+const build = { ios: buildIos, android: buildAndroid, web: async () => true }
+const flows = { ios: flowsIos, android: flowsAndroid, web: flowsWeb }
 
 async function main() {
     if (RUN_JS) {
@@ -2032,6 +2143,16 @@ async function main() {
                 ['run', '--silent', 'typecheck'],
                 example,
             )
+            if (
+                APPS.includes('expo') &&
+                (await ensureNodeModules(appDir('expo')))
+            )
+                await jsCheck(
+                    'expo example typecheck',
+                    'bun',
+                    ['run', '--silent', 'typecheck'],
+                    appDir('expo'),
+                )
             await jsCheck(
                 'verify script typecheck',
                 path.join(example, 'node_modules/.bin/tsc'),
@@ -2058,7 +2179,11 @@ async function main() {
         // Pick devices up front; each app's platforms then build in parallel.
         const ready: Platform[] = []
         for (const platform of PLATFORMS) {
-            if (platform === 'ios') {
+            if (platform === 'web') {
+                if (fs.existsSync(CHROME)) ready.push('web')
+                else
+                    record('FAIL', 'web', `no Chrome at ${CHROME} (CHROME_BIN)`)
+            } else if (platform === 'ios') {
                 if (iosDevice()) ready.push('ios')
                 else record('FAIL', 'ios', 'no iPhone simulator found')
             } else {
@@ -2075,10 +2200,12 @@ async function main() {
         for (const app of APPS) {
             if (ready.length === 0) break
             if (!(await ensureNodeModules(appDir(app)))) continue
+            // Only the Expo example has a web version.
+            const own = ready.filter((p) => p !== 'web' || app === 'expo')
             const platforms =
-                ready.includes('ios') && !(await iosPods(app))
-                    ? ready.filter((p) => p !== 'ios')
-                    : ready
+                own.includes('ios') && !(await iosPods(app))
+                    ? own.filter((p) => p !== 'ios')
+                    : own
             plans.push({ app, platforms })
         }
         // Every app is built before any runs, so builds don't slow the

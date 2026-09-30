@@ -7,36 +7,14 @@ import { Icon } from './Icon'
 import FastImageExamples from './FastImageExamples'
 import FastImageGrid from './FastImageGrid'
 import DefaultImageGrid from './DefaultImageGrid'
-import RegressionExample from './RegressionExample'
-import RegressionRunner from './RegressionRunner'
-import { regressionCheckUrl } from './imageServer'
+import RegressionExample, { REGRESSION_GROUPS } from './RegressionExample'
+import RegressionRunner, { runnerWanted } from './RegressionRunner'
+import { EXAMPLE_GROUPS } from './ExampleGroups'
 
 const Tab = createBottomTabNavigator()
 
-// Whether scripts/verify.mts is waiting to run the regression cases: it
-// connects to the image server's relay before launching the app, and the app
-// then shows the regression runner instead of its tabs. Without the server
-// (or the script), the request fails at once and the app starts as usual; a
-// cold start on the emulator can take a few seconds to reach the server, so
-// it's given time and a second try.
-async function runnerWanted() {
-    for (let attempt = 0; attempt < 2; attempt++) {
-        const abort = new AbortController()
-        const timer = setTimeout(() => abort.abort(), 5000)
-        try {
-            const response = await fetch(regressionCheckUrl(), {
-                signal: abort.signal,
-            })
-            return (await response.json()).controller === true
-        } catch {
-            // Refused (no server): start as usual. Timed out: once more.
-            if (!abort.signal.aborted) return false
-        } finally {
-            clearTimeout(timer)
-        }
-    }
-    return false
-}
+// What the regression runner shows, in order.
+const RUNNER_GROUPS = [...REGRESSION_GROUPS, ...EXAMPLE_GROUPS]
 
 LogBox.ignoreLogs([
     'Warning: isMounted(...) is deprecated',
@@ -51,7 +29,7 @@ export default function App() {
         runnerWanted().then(setRunner)
     }, [])
     if (runner === undefined) return null
-    if (runner) return <RegressionRunner />
+    if (runner) return <RegressionRunner groups={RUNNER_GROUPS} />
     return (
         <SafeAreaProvider>
             <NavigationContainer>
