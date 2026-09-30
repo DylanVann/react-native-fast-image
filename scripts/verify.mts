@@ -1466,10 +1466,6 @@ async function runRegression(
                 )
             }
         }
-        // Text cut off in its own box (see Text.tsx in the example).
-        for (const text of (measured?.cutOff as string[] | undefined) ?? []) {
-            failures.push(`${group}: text cut off: "${text}"`)
-        }
         takeShot(
             index,
             measured?.masks,

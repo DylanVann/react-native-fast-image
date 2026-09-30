@@ -8,10 +8,10 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Text,
     TouchableWithoutFeedback,
     View,
 } from 'react-native'
-import { Text } from './Text'
 import FastImage, {
     CachePathResult,
     FastImageBackground,

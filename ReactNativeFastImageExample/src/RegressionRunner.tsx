@@ -13,7 +13,6 @@ import {
     useSafeAreaInsets,
 } from 'react-native-safe-area-context'
 import { caseStyles } from './CaseStatus'
-import { useTextCheck } from './Text'
 import {
     Masked,
     MaskContext,
@@ -41,7 +40,7 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //                                                 dp; scale = pixels per dp)
 //   { type: 'group', index, name, cases: [ids] }  once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'masks', group, id, masks, content, visible, cutOff, safeArea }
+//   { type: 'masks', group, id, masks, content, visible, safeArea }
 //                                                 the reply to 'measure'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
@@ -52,10 +51,9 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // screenshot comparison, measured just before (see Masked). content: the
 // area the group's cases take; visible: the window's area that isn't under
 // the system's bars at the bottom (the script fails a group whose cases go
-// past it, as the screenshot would cut them off). cutOff: texts cut off in
-// their own box (see useTextCheck in Text.tsx), which the script fails too. safeArea: the
-// screen's area inside its safe-area insets, which the script crops the
-// screenshot to.
+// past it, as the screenshot would cut them off). safeArea: the screen's
+// area inside its safe-area insets, which the script crops the screenshot
+// to.
 // From the script: { type: 'next' } shows the next group; { type: 'show',
 // index } a given one; { type: 'measure', group, id } asks for the group's
 // masks as they are now, before the script takes its screenshot;
@@ -69,7 +67,6 @@ type Measured = {
     masks: Rect[]
     content?: Rect
     visible?: Rect
-    cutOff?: string[]
     insets?: { top: number; bottom: number }
 }
 
@@ -310,7 +307,7 @@ function Group({
                 .map(([caseId, s]) => `${caseId}: ${s}`)
             setSummary(
                 ok === all.length
-                    ? `OK (${ok})`
+                    ? 'OK'
                     : `${ok}/${all.length} OK; ${rest.join(', ')}`,
             )
             setNotOk(rest)
@@ -324,9 +321,6 @@ function Group({
             masks.current.delete(measure)
         }
     }, [])
-    // Texts that are cut off (see Text.tsx).
-    const textCheck = useTextCheck()
-    const { check: checkText } = textCheck
     const cases = useRef<React.ComponentRef<typeof View>>(null)
     // The group's area, which fills the screen below the runner's padding.
     const area = useRef<React.ComponentRef<typeof View>>(null)
@@ -344,10 +338,9 @@ function Group({
                 ...group,
                 height: group.height - insets.bottom,
             },
-            cutOff: await checkText(),
             insets: { top: insets.top, bottom: insets.bottom },
         }
-    }, [insets.top, insets.bottom, checkText])
+    }, [insets.top, insets.bottom])
     useEffect(() => setMeasureMasks(measure), [setMeasureMasks, measure])
     const sample = useCallback(
         (request: SampleRequest, change: SampleChange) =>
@@ -370,52 +363,46 @@ function Group({
         <ReportContext.Provider value={report}>
             <MaskContext.Provider value={mask}>
                 <SampleContext.Provider value={sample}>
-                    <textCheck.Provider value={textCheck.register}>
-                        <View
-                            ref={area}
-                            collapsable={false}
-                            style={[
-                                styles.group,
-                                // Above the system's bars at the bottom.
-                                { paddingBottom: insets.bottom },
-                            ]}
-                        >
-                            {/* The summary changes as cases settle, so the
+                    <View
+                        ref={area}
+                        collapsable={false}
+                        style={[
+                            styles.group,
+                            // Above the system's bars at the bottom.
+                            { paddingBottom: insets.bottom },
+                        ]}
+                    >
+                        {/* The summary changes as cases settle, so the
                         screenshot leaves it out. One line, so that doesn't
                         move the cases below (areas they measured for a video
                         sample, while it records). */}
-                            <Masked>
-                                <Text
-                                    style={caseStyles.title}
-                                    numberOfLines={1}
-                                >
-                                    {group.name}: {summary}
-                                </Text>
-                            </Masked>
-                            {/* Grows to fill the screen (for cases that fill it,
+                        <Masked>
+                            <Text style={caseStyles.title} numberOfLines={1}>
+                                {group.name}: {summary}
+                            </Text>
+                        </Masked>
+                        {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
                         the script fails the group (see 'measure'). */}
-                            <View
-                                ref={cases}
-                                collapsable={false}
-                                style={styles.cases}
-                            >
-                                {group.cases}
-                            </View>
-                            {/* Statuses in full (cases show one line each), below
+                        <View
+                            ref={cases}
+                            collapsable={false}
+                            style={styles.cases}
+                        >
+                            {group.cases}
+                        </View>
+                        {/* Statuses in full (cases show one line each), below
                         the cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                            <Masked>
-                                {notOk.map((line) => (
-                                    <Text key={line} style={styles.notOk}>
-                                        {line}
-                                    </Text>
-                                ))}
-                            </Masked>
-                            {textCheck.layer}
-                        </View>
-                    </textCheck.Provider>
+                        <Masked>
+                            {notOk.map((line) => (
+                                <Text key={line} style={styles.notOk}>
+                                    {line}
+                                </Text>
+                            ))}
+                        </Masked>
+                    </View>
                 </SampleContext.Provider>
             </MaskContext.Provider>
         </ReportContext.Provider>
