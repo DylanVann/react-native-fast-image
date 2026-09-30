@@ -74,39 +74,39 @@ describe('FastImage (web)', () => {
         ).toHaveLength(1)
     })
 
-    it('gives the browser several sizes once the view has been laid out', () => {
-        const sources = [
-            { uri: 'https://example.com/100.png', width: 100, height: 100 },
-            { uri: 'https://example.com/300.png', width: 300, height: 300 },
-            {
-                uri: 'https://example.com/450.png',
-                width: 300,
-                height: 300,
-                scale: 1.5,
-            },
-        ]
-        const tree = renderer.create(<FastImage source={sources} />)
-        const img = () =>
-            tree.root.findAll((node) => node.type === ('img' as any))[0]
-        const layout = (width: number) =>
-            renderer.act(() => {
-                tree.root
-                    .findAll((node) => node.type === ('View' as any))[0]
-                    .props.onLayout({
-                        nativeEvent: { layout: { width, height: width } },
-                    })
-            })
-        expect(img()).toBeUndefined()
-        layout(150)
-        expect(img().props.srcSet).toBe(
+    it('gives the browser several sizes to pick from (srcset)', () => {
+        const img = renderer
+            .create(
+                <FastImage
+                    source={[
+                        {
+                            uri: 'https://example.com/100.png',
+                            width: 100,
+                            height: 100,
+                        },
+                        {
+                            uri: 'https://example.com/300.png',
+                            width: 300,
+                            height: 300,
+                        },
+                        {
+                            uri: 'https://example.com/450.png',
+                            width: 300,
+                            height: 300,
+                            scale: 1.5,
+                        },
+                    ]}
+                />,
+            )
+            .root.findAll((node) => node.type === ('img' as any))[0]
+        expect(img.props.srcSet).toBe(
             'https://example.com/100.png 100w, https://example.com/300.png 300w, https://example.com/450.png 450w',
         )
-        expect(img().props.sizes).toBe('150px')
-        expect(img().props.src).toBe('https://example.com/450.png')
-        // No width: the largest, as on native.
-        layout(0)
-        expect(img().props.srcSet).toBeUndefined()
-        expect(img().props.src).toBe('https://example.com/450.png')
+        // The width it's laid out at; auto needs a lazy image.
+        expect(img.props.sizes).toBe('auto, 100vw')
+        expect(img.props.loading).toBe('lazy')
+        // Without srcset support, the largest.
+        expect(img.props.src).toBe('https://example.com/450.png')
     })
 
     // After React Native's Image sends onLoadEnd, once FastImage has the

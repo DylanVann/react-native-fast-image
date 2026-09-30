@@ -8,7 +8,7 @@
 // View props (testID, accessibility, onLayout, pointerEvents). The native-only
 // props (cache, priority, headers, transition, downsample, loop, paused,
 // imageRendering, recyclingKey, fallback) and onProgress are ignored.
-import React, { forwardRef, memo, useEffect, useRef, useState } from 'react'
+import React, { forwardRef, memo, useEffect, useRef } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import type {
@@ -62,10 +62,9 @@ function FastImageBase({
     const result = useRef<LoadResult | undefined>(undefined)
     const sent = useRef<Promise<void>>(Promise.resolve())
     const image = useRef<any>(null)
-    // Several sizes (see ImageSizes): the view's width, once it's laid out.
+    // Several sizes (see ImageSizes).
     const sizes =
         Array.isArray(source) && source.length > 1 ? source : undefined
-    const [width, setWidth] = useState<number>()
     const single = Array.isArray(source) ? source[0] : source
     // A require()d image is a number, which the web's Image resolves. Headers
     // and the other source options can't be used by the browser.
@@ -75,27 +74,21 @@ function FastImageBase({
     return (
         <View
             style={[styles.container, style]}
-            onLayout={(event) => {
-                if (sizes) setWidth(event.nativeEvent.layout.width)
-                onLayout?.(event)
-            }}
+            onLayout={onLayout}
             pointerEvents={pointerEvents}
             ref={forwardedRef}
         >
             {sizes ? (
                 <View {...props} style={styles.image}>
-                    {width != null && (
-                        <ImageSizes
-                            sources={sizes}
-                            width={width}
-                            resizeMode={mode}
-                            blurRadius={blurRadius}
-                            onLoadStart={onLoadStart}
-                            onLoad={onLoad}
-                            onError={onError}
-                            onLoadEnd={onLoadEnd}
-                        />
-                    )}
+                    <ImageSizes
+                        sources={sizes}
+                        resizeMode={mode}
+                        blurRadius={blurRadius}
+                        onLoadStart={onLoadStart}
+                        onLoad={onLoad}
+                        onError={onError}
+                        onLoadEnd={onLoadEnd}
+                    />
                 </View>
             ) : (
                 <Image
@@ -145,16 +138,14 @@ function FastImageBase({
 
 // Several sizes of an image, which the web's Image doesn't take (it reads
 // source.uri): an <img> with a srcset of them (each size's width, times its
-// scale), from which the browser loads the one for the view's width in device
-// pixels, usually the smallest at least as wide. `sizes` is the view's width,
-// so it's rendered once the view has been laid out (as native waits for the
-// view's size); a view with no width loads the largest, as on native.
-// sizes="auto" would work before layout, but only for lazy images and not in
-// every browser (the others take 100vw, the largest size). tintColor,
-// defaultSource and resizeMode repeat aren't supported with several sizes.
+// scale), from which the browser loads the one for the image's width in
+// device pixels, usually the smallest at least as wide, as expo-image does.
+// sizes="auto" has the browser use the width the image is laid out at; it
+// only applies to lazy images, and browsers without it use the next value,
+// 100vw (the viewport's width). tintColor, defaultSource and resizeMode
+// repeat aren't supported with several sizes.
 function ImageSizes({
     sources,
-    width,
     resizeMode: mode,
     blurRadius,
     onLoadStart,
@@ -169,7 +160,7 @@ function ImageSizes({
     | 'onLoad'
     | 'onError'
     | 'onLoadEnd'
-> & { sources: Source[]; width: number }) {
+> & { sources: Source[] }) {
     const sized = sources
         .filter((source) => source?.uri && source.width)
         .map((source) => ({
@@ -182,7 +173,7 @@ function ImageSizes({
     )
     const src = largest?.uri ?? sources.find((source) => source?.uri)?.uri
     const srcSet =
-        width > 0 && sized.length > 0
+        sized.length > 0
             ? sized.map((source) => `${source.uri} ${source.width}w`).join(', ')
             : undefined
     useEffect(() => {
@@ -194,7 +185,8 @@ function ImageSizes({
         <img
             src={src}
             srcSet={srcSet}
-            sizes={srcSet ? `${Math.round(width)}px` : undefined}
+            sizes={srcSet ? 'auto, 100vw' : undefined}
+            loading="lazy"
             alt=""
             draggable={false}
             style={{
