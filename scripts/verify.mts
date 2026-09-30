@@ -41,7 +41,8 @@ Options:
                       example).
   --js-only           Only the JS checks.
   --no-js             Skip the JS checks.
-  --pods              Run \`pod install\` even if Pods are already installed.
+  --pods              Run \`pod install\` even if Pods are current (they're
+                      reinstalled when the Podfile or node_modules changed).
   --package           Test the package as published: build it, \`npm pack\` it,
                       and install the tarball into each app's node_modules
                       (instead of using src/, ios/ and android/ directly).
