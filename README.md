@@ -539,8 +539,9 @@ With [react-native-web](https://necolas.github.io/react-native-web/), FastImage 
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, picked once the view has been laid out), `defaultSource`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
 - Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample`, `fallback` and `onProgress`.
+- Several sizes are shown with an `<img>` whose `srcset` lists them, with the view's width as `sizes`: the browser loads the one for the view's width in device pixels (usually the smallest that's at least as wide), once the view has been laid out. `tintColor`, `defaultSource` and `resizeMode="repeat"` don't apply to them.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
 
 ## Troubleshooting

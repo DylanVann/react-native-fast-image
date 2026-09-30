@@ -216,15 +216,21 @@ function CacheLimitsCase() {
 
 // Several sizes of an image: the view loads the one closest to its size in
 // pixels (100, 300 or 900 px, for a 96 dp view at the screen's pixel ratio).
+// On the web the browser picks from a srcset: the smallest at least as wide as
+// the view in device pixels.
 function SizesCase() {
     const [status, setStatus] = useState('loading')
     const sizes = [100, 300, 900]
     const view = 96
     const pixels = (view * PixelRatio.get()) ** 2
     const fit = (size: number) => Math.abs(1 - (size * size) / pixels)
-    const expected = sizes.reduce((best, size) =>
-        fit(size) < fit(best) ? size : best,
-    )
+    const expected =
+        Platform.OS === 'web'
+            ? (sizes.find((size) => size >= view * PixelRatio.get()) ??
+              sizes[sizes.length - 1])
+            : sizes.reduce((best, size) =>
+                  fit(size) < fit(best) ? size : best,
+              )
     return (
         <View style={styles.row}>
             <FastImage

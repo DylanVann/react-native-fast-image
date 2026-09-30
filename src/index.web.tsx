@@ -3,13 +3,13 @@
 // `.web` files, or the package's `browser` field, pick this file instead of
 // index.tsx, which uses the native views.
 //
-// Works: source (uri, require(), or several sizes), defaultSource, resizeMode, tintColor,
+// Works: source (uri, require(), or several sizes: see ImageSizes), defaultSource, resizeMode, tintColor,
 // blurRadius, style, children, onLoadStart, onLoad, onError, onLoadEnd, and
 // View props (testID, accessibility, onLayout, pointerEvents). The native-only
 // props (cache, priority, headers, transition, downsample, loop, paused,
 // imageRendering, recyclingKey, fallback) and onProgress are ignored.
-import React, { forwardRef, memo, useRef, useState } from 'react'
-import { Image, PixelRatio, StyleSheet, View } from 'react-native'
+import React, { forwardRef, memo, useEffect, useRef, useState } from 'react'
+import { Image, StyleSheet, View } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import type {
     CachePathResult,
@@ -28,32 +28,6 @@ export type * from './index'
 const notSupported: CachePathResult = {
     ok: false,
     error: 'Not supported on the web',
-}
-
-// Of several sizes of an image, as on native: the one whose size in pixels
-// (width × height × scale²) is closest to the view's, or the largest if the
-// view has no size; none until the view has been laid out.
-function pickSource(
-    sources: Source[],
-    size: { width: number; height: number } | undefined,
-): Source | undefined {
-    if (sources.length <= 1) return sources[0]
-    if (!size) return undefined
-    const ratio = PixelRatio.get()
-    const viewPixels = size.width * size.height * ratio * ratio
-    let best: Source | undefined
-    let bestFit = Infinity
-    for (const source of sources) {
-        const scale = source.scale ?? 1
-        const pixels =
-            (source.width ?? 0) * (source.height ?? 0) * scale * scale
-        const fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels
-        if (!best || fit < bestFit) {
-            best = source
-            bestFit = fit
-        }
-    }
-    return best
 }
 
 function FastImageBase({
@@ -88,70 +62,199 @@ function FastImageBase({
     const result = useRef<LoadResult | undefined>(undefined)
     const sent = useRef<Promise<void>>(Promise.resolve())
     const image = useRef<any>(null)
-    // Several sizes (an array), which the web's Image doesn't take: the one
-    // for the view's size, once it has been laid out (see pickSource).
-    const [size, setSize] = useState<{ width: number; height: number }>()
-    const picked = Array.isArray(source) ? pickSource(source, size) : source
+    // Several sizes (see ImageSizes): the view's width, once it's laid out.
+    const sizes =
+        Array.isArray(source) && source.length > 1 ? source : undefined
+    const [width, setWidth] = useState<number>()
+    const single = Array.isArray(source) ? source[0] : source
     // A require()d image is a number, which the web's Image resolves. Headers
     // and the other source options can't be used by the browser.
-    const uri = typeof picked === 'object' && picked ? picked.uri : undefined
+    const uri = typeof single === 'object' && single ? single.uri : undefined
     const webSource =
-        typeof picked === 'number' ? picked : uri ? { uri } : undefined
+        typeof single === 'number' ? single : uri ? { uri } : undefined
     return (
         <View
             style={[styles.container, style]}
             onLayout={(event) => {
-                if (Array.isArray(source)) {
-                    const { width, height } = event.nativeEvent.layout
-                    setSize({ width, height })
-                }
+                if (sizes) setWidth(event.nativeEvent.layout.width)
                 onLayout?.(event)
             }}
             pointerEvents={pointerEvents}
             ref={forwardedRef}
         >
-            <Image
-                {...props}
-                style={styles.image}
-                source={webSource as any}
-                defaultSource={defaultSource}
-                resizeMode={mode}
-                {...({ tintColor, blurRadius, ref: image } as any)}
-                onLoadStart={onLoadStart}
-                onLoad={(event: any) => {
-                    sent.current = loadedSize(
-                        event?.nativeEvent?.target,
-                        image.current,
-                        uri,
-                    ).then(({ width, height }) => {
-                        result.current = { ok: true, width, height }
-                        onLoad?.({ nativeEvent: { width, height } })
-                    })
-                }}
-                onError={(event: any) => {
-                    const error = String(
-                        event?.nativeEvent?.error ?? 'Failed to load the image',
-                    )
-                    result.current = { ok: false, error }
-                    sent.current = Promise.resolve()
-                    onError?.({ nativeEvent: { error } })
-                }}
-                onLoadEnd={() => {
-                    sent.current.then(() => {
-                        onLoadEnd?.(
-                            result.current ?? {
-                                ok: false,
-                                error: 'Failed to load the image',
-                            },
+            {sizes ? (
+                <View {...props} style={styles.image}>
+                    {width != null && (
+                        <ImageSizes
+                            sources={sizes}
+                            width={width}
+                            resizeMode={mode}
+                            blurRadius={blurRadius}
+                            onLoadStart={onLoadStart}
+                            onLoad={onLoad}
+                            onError={onError}
+                            onLoadEnd={onLoadEnd}
+                        />
+                    )}
+                </View>
+            ) : (
+                <Image
+                    {...props}
+                    style={styles.image}
+                    source={webSource as any}
+                    defaultSource={defaultSource}
+                    resizeMode={mode}
+                    {...({ tintColor, blurRadius, ref: image } as any)}
+                    onLoadStart={onLoadStart}
+                    onLoad={(event: any) => {
+                        sent.current = loadedSize(
+                            event?.nativeEvent?.target,
+                            image.current,
+                            uri,
+                        ).then(({ width, height }) => {
+                            result.current = { ok: true, width, height }
+                            onLoad?.({ nativeEvent: { width, height } })
+                        })
+                    }}
+                    onError={(event: any) => {
+                        const error = String(
+                            event?.nativeEvent?.error ??
+                                'Failed to load the image',
                         )
-                        result.current = undefined
-                    })
-                }}
-            />
+                        result.current = { ok: false, error }
+                        sent.current = Promise.resolve()
+                        onError?.({ nativeEvent: { error } })
+                    }}
+                    onLoadEnd={() => {
+                        sent.current.then(() => {
+                            onLoadEnd?.(
+                                result.current ?? {
+                                    ok: false,
+                                    error: 'Failed to load the image',
+                                },
+                            )
+                            result.current = undefined
+                        })
+                    }}
+                />
+            )}
             {children}
         </View>
     )
 }
+
+// Several sizes of an image, which the web's Image doesn't take (it reads
+// source.uri): an <img> with a srcset of them (each size's width, times its
+// scale), from which the browser loads the one for the view's width in device
+// pixels, usually the smallest at least as wide. `sizes` is the view's width,
+// so it's rendered once the view has been laid out (as native waits for the
+// view's size); a view with no width loads the largest, as on native.
+// sizes="auto" would work before layout, but only for lazy images and not in
+// every browser (the others take 100vw, the largest size). tintColor,
+// defaultSource and resizeMode repeat aren't supported with several sizes.
+function ImageSizes({
+    sources,
+    width,
+    resizeMode: mode,
+    blurRadius,
+    onLoadStart,
+    onLoad,
+    onError,
+    onLoadEnd,
+}: Pick<
+    FastImageProps,
+    | 'resizeMode'
+    | 'blurRadius'
+    | 'onLoadStart'
+    | 'onLoad'
+    | 'onError'
+    | 'onLoadEnd'
+> & { sources: Source[]; width: number }) {
+    const sized = sources
+        .filter((source) => source?.uri && source.width)
+        .map((source) => ({
+            uri: source.uri as string,
+            width: Math.round((source.width ?? 0) * (source.scale ?? 1)),
+        }))
+    const largest = sized.reduce<(typeof sized)[number] | undefined>(
+        (best, source) => (!best || source.width > best.width ? source : best),
+        undefined,
+    )
+    const src = largest?.uri ?? sources.find((source) => source?.uri)?.uri
+    const srcSet =
+        width > 0 && sized.length > 0
+            ? sized.map((source) => `${source.uri} ${source.width}w`).join(', ')
+            : undefined
+    useEffect(() => {
+        onLoadStart?.()
+        // Once per image the browser is asked for.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [src, srcSet])
+    return (
+        <img
+            src={src}
+            srcSet={srcSet}
+            sizes={srcSet ? `${Math.round(width)}px` : undefined}
+            alt=""
+            draggable={false}
+            style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                objectFit: OBJECT_FIT[mode ?? 'cover'],
+                filter: blurRadius ? `blur(${blurRadius}px)` : undefined,
+            }}
+            onLoad={(event) => {
+                // The library's types don't include the DOM's.
+                const image = event.currentTarget as unknown as {
+                    naturalWidth: number
+                    naturalHeight: number
+                    currentSrc: string
+                }
+                // With a srcset, the natural size is divided by the density
+                // the browser picked (the candidate's width over `sizes`):
+                // onLoad has the file's size in pixels, as on native.
+                const picked = srcSet
+                    ? sized.find(
+                          (source) =>
+                              new URL(source.uri, image.currentSrc).href ===
+                              image.currentSrc,
+                      )
+                    : undefined
+                const loadedWidth = picked?.width ?? image.naturalWidth
+                const loadedHeight = picked
+                    ? Math.round(
+                          (image.naturalHeight * picked.width) /
+                              image.naturalWidth,
+                      )
+                    : image.naturalHeight
+                onLoad?.({
+                    nativeEvent: { width: loadedWidth, height: loadedHeight },
+                })
+                onLoadEnd?.({
+                    ok: true,
+                    width: loadedWidth,
+                    height: loadedHeight,
+                })
+            }}
+            onError={() => {
+                const error = 'Failed to load the image'
+                onError?.({ nativeEvent: { error } })
+                onLoadEnd?.({ ok: false, error })
+            }}
+        />
+    )
+}
+
+// resizeMode as object-fit: center shows the image at its size, scaled down if
+// it's larger than the view. repeat has no object-fit (it's shown as cover).
+const OBJECT_FIT = {
+    cover: 'cover',
+    contain: 'contain',
+    stretch: 'fill',
+    center: 'scale-down',
+    repeat: 'cover',
+} as const
 
 const FastImageMemo = memo(FastImageBase)
 
