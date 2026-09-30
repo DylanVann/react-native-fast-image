@@ -71,8 +71,7 @@ export type Source = {
 export type Transition = {
     /**
      * How long the fade takes, in milliseconds; 0 means no fade. Defaults to
-     * the platform's usual length: 300 ms on Android (as Glide and React
-     * Native's Image), 250 ms on iOS (Core Animation's default).
+     * the platform's usual length: 300 ms on Android, 250 ms on iOS.
      */
     duration?: number
     /**
@@ -86,16 +85,13 @@ export type Transition = {
     /**
      * Skips the fade for an image from a cache, so images already loaded
      * show at once, e.g. in a list scrolled back up or a reused row.
-     * As Glide, Coil, Fresco (React Native's Image) and SDWebImage decide:
      *
      * - `'memory'`: skips it for images from the memory cache.
      * - `'all'`: skips it for images from the memory or disk cache too, so
      *   only images that download (or local files) fade in.
      * - `'none'`: always fades.
      *
-     * Downloads, local files and bundled images (`require()`) fade in, as
-     * with Glide and Coil (React Native's Image shows bundled images at
-     * once).
+     * Downloads, local files and bundled images (`require()`) fade in.
      * @default 'memory'
      */
     skipOnCacheHit?: 'none' | 'memory' | 'all' | null
