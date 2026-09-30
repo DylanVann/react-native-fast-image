@@ -150,8 +150,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (skipOnCacheHit.equals("none")) return false;
             if (dataSource == DataSource.MEMORY_CACHE) return true;
             // Glide also keeps a local file's or bundled image's decoded
-            // image in its disk cache, so with 'all' they only fade the first
-            // time, like a download.
+            // image in its disk cache (at the size it was decoded at, and not
+            // for GIFs), so with 'all' they usually only fade the first time.
             boolean disk = dataSource == DataSource.DATA_DISK_CACHE || dataSource == DataSource.RESOURCE_DISK_CACHE;
             return disk && skipOnCacheHit.equals("all");
         }
@@ -451,9 +451,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mRecyclingKey = recyclingKey;
         if (changed) {
             // No thumbnail of the current image, so Glide clears the view to
-            // defaultSource (or nothing) while the next one loads. Reload even
-            // if the source is the same.
+            // defaultSource (or nothing) while the next one loads, nor a fade
+            // from it. Reload even if the source is the same.
             mShownRequest = null;
+            endFade();
             mNeedsReload = true;
         }
     }

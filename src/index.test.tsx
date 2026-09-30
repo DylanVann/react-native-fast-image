@@ -634,6 +634,16 @@ describe('transition', () => {
         expect(view.props.transitionSkipOnCacheHit).toBe('none')
     })
 
+    it('uses the usual fade (250 ms on iOS) without a duration', () => {
+        for (const transition of [true, { skipOnCacheHit: 'all' as const }]) {
+            expect(
+                nativeView(
+                    <FastImage source={source} transition={transition} />,
+                ).props.transitionDuration,
+            ).toBe(250)
+        }
+    })
+
     it('is off for false, 0 or a negative duration', () => {
         for (const transition of [false, 0, -1, { duration: 0 }]) {
             expect(

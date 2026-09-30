@@ -141,7 +141,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         return NO;
     }
     // SDWebImage also keeps local files and bundled images in its disk cache,
-    // so with 'all' they only fade the first time, like a download.
+    // so with 'all' they usually only fade the first time.
     return !(cacheType == SDImageCacheTypeDisk && [skip isEqualToString: @"all"]);
 }
 
@@ -607,8 +607,9 @@ NSString *FFFErrorMessage(NSError *error)
     if (changed) {
         // The view shows other content now: don't keep the current image
         // while the next one loads (reloadImage clears it), even if the
-        // source is the same.
+        // source is the same, nor a fade from it.
         self.showsLoadedImage = NO;
+        [self.layer removeAllAnimations];
         _needsReload = YES;
     }
 }

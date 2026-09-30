@@ -88,8 +88,8 @@ export type Transition = {
      *
      * - `'memory'`: skips it for images from the memory cache.
      * - `'all'`: skips it for images from the memory or disk cache too, so
-     *   only images that download fade in, and local files and bundled
-     *   images the first time (the disk cache keeps them too).
+     *   images that download fade in, and local files and bundled images
+     *   usually only the first time (the disk cache usually keeps them too).
      * - `'none'`: always fades.
      *
      * Downloads, local files and bundled images (`require()`) fade in.
