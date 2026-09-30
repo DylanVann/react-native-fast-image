@@ -149,6 +149,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
         private boolean skips(DataSource dataSource) {
             if (skipOnCacheHit.equals("none")) return false;
             if (dataSource == DataSource.MEMORY_CACHE) return true;
+            // Glide also keeps a local file's or bundled image's decoded
+            // image in its disk cache, so with 'all' they only fade the first
+            // time, like a download.
             boolean disk = dataSource == DataSource.DATA_DISK_CACHE || dataSource == DataSource.RESOURCE_DISK_CACHE;
             return disk && skipOnCacheHit.equals("all");
         }
@@ -182,9 +185,10 @@ class FastImageViewWithUrl extends AppCompatImageView {
             try {
                 from = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                 onDraw(new Canvas(from));
-            } catch (OutOfMemoryError | IllegalArgumentException e) {
-                // Out of memory, or a hardware bitmap (Android 8+), which a
-                // software canvas can't draw: fade in over nothing instead.
+            } catch (OutOfMemoryError | RuntimeException e) {
+                // Out of memory, or a hardware bitmap (Android 8+; an app's
+                // Glide module can enable them), which a software canvas
+                // can't draw: fade in over nothing instead.
                 if (from != null) from.recycle();
                 from = null;
             }
@@ -211,7 +215,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
         fade.start();
     }
 
-    // Shows the image on its own (the fade ends, or a new load starts).
+    // Shows the image on its own (the fade ends, another starts, or the view
+    // is detached).
     private void endFade() {
         ValueAnimator fade = mFade;
         mFade = null;
@@ -233,13 +238,19 @@ class FastImageViewWithUrl extends AppCompatImageView {
         }
         int width = getWidth();
         int height = getHeight();
+        int alpha = Math.round(255 * mFadeProgress);
+        if (mFadeFrom == null) {
+            // Fading in over nothing: one layer.
+            int count = canvas.saveLayerAlpha(0, 0, width, height, alpha, Canvas.ALL_SAVE_FLAG);
+            super.onDraw(canvas);
+            canvas.restoreToCount(count);
+            return;
+        }
         // Canvas.ALL_SAVE_FLAG: the saveLayer without flags is API 21+.
         int count = canvas.saveLayer(0, 0, width, height, null, Canvas.ALL_SAVE_FLAG);
-        if (mFadeFrom != null) {
-            mFadeFromPaint.setAlpha(Math.round(255 * (1 - mFadeProgress)));
-            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
-        }
-        mFadeInPaint.setAlpha(Math.round(255 * mFadeProgress));
+        mFadeFromPaint.setAlpha(255 - alpha);
+        canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+        mFadeInPaint.setAlpha(alpha);
         canvas.saveLayer(0, 0, width, height, mFadeInPaint, Canvas.ALL_SAVE_FLAG);
         super.onDraw(canvas);
         canvas.restoreToCount(count);
@@ -462,6 +473,13 @@ class FastImageViewWithUrl extends AppCompatImageView {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        // During a fade, what the view showed was drawn at the old size: the
+        // image fades in over nothing instead.
+        if (mFadeFrom != null && (w != mFadeFrom.getWidth() || h != mFadeFrom.getHeight())) {
+            mFadeFrom.recycle();
+            mFadeFrom = null;
+            invalidate();
+        }
         reloadIfResized();
     }
 
@@ -626,7 +644,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
         boolean restarting = mRestarting;
         mRestarting = false;
         mLoadCount++;
-        endFade();
+        // A fade in progress carries on, as on iOS: into the next image if it
+        // shows at once, and a next image that fades starts from it.
         RequestBuilder<Drawable> shownRequest = mShownRequest;
         mShownRequest = null;
         mLoadingRequest = null;

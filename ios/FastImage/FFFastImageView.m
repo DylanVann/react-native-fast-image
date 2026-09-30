@@ -28,6 +28,9 @@
 @property(nonatomic, strong) UIImage* blurredImage;
 // The image being blurred fades in once it's blurred (transition).
 @property(nonatomic, assign) BOOL fadesBlurredImage;
+// The image being blurred is the first loaded one the view shows: until it's
+// blurred, the view shows no loaded image (nothing, or defaultSource).
+@property(nonatomic, assign) BOOL blursOverNothing;
 // Whether the current load was already restarted after the app came back
 // from the background (see downloadImage:).
 @property(nonatomic, assign) BOOL retriedAfterBackground;
@@ -127,7 +130,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // the default), and from the disk cache too with 'all'. Downloads, local
 // files and bundled images fade.
 - (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
-    if (self.transitionDuration <= 0 || (self.showsLoadedImage && !self.transitionBetweenImages)) {
+    if (self.transitionDuration <= 0 || ([self displaysLoadedImage] && !self.transitionBetweenImages)) {
         return NO;
     }
     NSString* skip = self.transitionSkipOnCacheHit;
@@ -137,29 +140,45 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     if (cacheType == SDImageCacheTypeMemory) {
         return NO;
     }
+    // SDWebImage also keeps local files and bundled images in its disk cache,
+    // so with 'all' they only fade the first time, like a download.
     return !(cacheType == SDImageCacheTypeDisk && [skip isEqualToString: @"all"]);
 }
 
+// Whether the view shows a loaded image now: a loaded image that's still
+// being blurred isn't showing yet.
+- (BOOL) displaysLoadedImage {
+    return self.showsLoadedImage && !self.blursOverNothing;
+}
+
 // Shows a loaded image, fading it in over what the view shows if `fade`. A
-// blurred image fades in once it's blurred.
+// blurred image shows, and fades in, once it's blurred.
 - (void) showLoadedImage: (UIImage*)image fade: (BOOL)fade {
-    if (!fade || [self blurs: image]) {
+    if ([self blurs: image]) {
+        self.blursOverNothing = ![self displaysLoadedImage];
+        self.fadesBlurredImage = fade;
         self.image = image;
-        self.fadesBlurredImage = fade && [self blurs: image];
         return;
     }
-    [self fadeIn: ^{
+    self.blursOverNothing = NO;
+    self.fadesBlurredImage = NO;
+    if (fade) {
+        [self fadeIn: ^{
+            self.image = image;
+        }];
+    } else {
         self.image = image;
-    }];
+    }
 }
 
 // Makes the change (showing another image), fading it in over what the view
 // showed.
 - (void) fadeIn: (void (^)(void))change {
-    if (!self.layer.presentationLayer) {
-        // Not on screen yet (e.g. a new view with an image from the memory
-        // cache, set as it mounts): a cross-dissolve has nothing drawn to
-        // start from and shows the image at once, so fade the view in.
+    if (!super.image || !self.layer.presentationLayer) {
+        // Nothing to cross-dissolve from: the view shows no image, or isn't
+        // on screen yet (e.g. a new view whose image loads as it mounts),
+        // where a cross-dissolve has nothing drawn to start from and shows
+        // the image at once. Fade the view in instead.
         change();
         CABasicAnimation* fadeIn = [CABasicAnimation animationWithKeyPath: @"opacity"];
         fadeIn.fromValue = @0;
@@ -303,8 +322,17 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
     self.originalImage = image && self.imageColor ? image : nil;
     self.blurredImage = nil;
-    self.fadesBlurredImage = NO;
-    [self showImage: image];
+    self.blursOverNothing = NO;
+    // The blur was removed before it was ready: the fade it was waiting for
+    // happens now.
+    if (self.fadesBlurredImage) {
+        self.fadesBlurredImage = NO;
+        [self fadeIn: ^{
+            [self showImage: image];
+        }];
+    } else {
+        [self showImage: image];
+    }
 }
 
 // Shows the image, tinted as React Native's Image does it: UIKit draws a
@@ -394,6 +422,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 - (void) showBlurredImage: (UIImage*)image count: (NSUInteger)count {
     if (self.imageCount == count) {
         self.blurredImage = image;
+        self.blursOverNothing = NO;
         if (self.fadesBlurredImage) {
             self.fadesBlurredImage = NO;
             [self fadeIn: ^{
