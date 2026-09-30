@@ -12,6 +12,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
@@ -354,12 +355,39 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 : mLoopCount);
     }
 
+    // resizeMode repeat: the image (a GIF's first frame) repeated from the
+    // top-left at its own size, scaled down to fit the view if it's larger,
+    // as React Native's Image does. The view fills with it (FIT_XY).
+    private boolean mRepeat = false;
+
     // Glide crops or fits the bitmap for the scale type when it loads, so a
     // new resizeMode needs a reload to take effect (#762).
-    public void setResizeMode(ScaleType scaleType) {
-        if (scaleType == getScaleType()) return;
+    public void setResizeMode(ScaleType scaleType, boolean repeat) {
+        if (scaleType == getScaleType() && repeat == mRepeat) return;
         setScaleType(scaleType);
+        mRepeat = repeat;
         mNeedsReload = true;
+    }
+
+    // Repeats what the view shows (the loaded image, and defaultSource).
+    @Override
+    public void setImageDrawable(@Nullable Drawable drawable) {
+        super.setImageDrawable(mRepeat ? tiled(drawable) : drawable);
+    }
+
+    @Nullable
+    private Drawable tiled(@Nullable Drawable drawable) {
+        if (!(drawable instanceof BitmapDrawable)) return drawable;
+        BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
+        if (bitmapDrawable.getTileModeX() == Shader.TileMode.REPEAT) return drawable;
+        Bitmap bitmap = bitmapDrawable.getBitmap();
+        if (bitmap == null) return drawable;
+        // A copy of the drawable (not of the bitmap): Glide's may be shown by
+        // other views too.
+        BitmapDrawable tiled = new BitmapDrawable(getResources(), bitmap);
+        tiled.setTileModeXY(Shader.TileMode.REPEAT, Shader.TileMode.REPEAT);
+        if (mPixelated) tiled.setFilterBitmap(false);
+        return tiled;
     }
 
     // imageRendering="pixelated": no resampling by Glide, and drawn without
@@ -391,9 +419,20 @@ class FastImageViewWithUrl extends AppCompatImageView {
     // pixelated, and the blur. A blurred animated image shows its first frame,
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
-        FastImageBlur blur = mBlurRadius > 0 ? new FastImageBlur(mBlurRadius, getScaleType()) : null;
+        FastImageBlur blur = mBlurRadius > 0 ? new FastImageBlur(mBlurRadius, mRepeat ? null : getScaleType()) : null;
         RequestOptions options;
-        if (mPixelated) {
+        if (mRepeat) {
+            // Decoded at its own size, or scaled down to fit the view if it's
+            // larger (not cropped or fitted for the scale type), and a GIF as
+            // its first frame (tiled by setImageDrawable).
+            options = new RequestOptions()
+                    .downsample(new FastImageSourceSize.Capture(
+                            mPixelated ? DownsampleStrategy.NONE : DownsampleStrategy.CENTER_INSIDE,
+                            String.valueOf(model)))
+                    .dontTransform()
+                    .dontAnimate();
+            if (blur != null) options = options.optionalTransform(blur);
+        } else if (mPixelated) {
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
             options = new RequestOptions()

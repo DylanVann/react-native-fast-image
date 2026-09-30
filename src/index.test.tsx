@@ -752,3 +752,18 @@ describe('FastImage (Android)', () => {
         expect(jsx(tree)).toMatchSnapshot()
     })
 })
+
+describe('resizeMode', () => {
+    it('passes repeat to the native view', () => {
+        expect(FastImage.resizeMode.repeat).toBe('repeat')
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.png' }}
+                    resizeMode={FastImage.resizeMode.repeat}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.resizeMode).toBe('repeat')
+    })
+})

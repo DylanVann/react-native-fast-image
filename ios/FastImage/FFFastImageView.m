@@ -24,6 +24,8 @@
 @property(nonatomic, assign) NSUInteger imageCount;
 // The view's size when the image showing was blurred.
 @property(nonatomic, assign) CGSize blurredForSize;
+// The view's size when the image showing was tiled (resizeMode repeat).
+@property(nonatomic, assign) CGSize tiledForSize;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
 // The image being blurred fades in once it's blurred (transition).
@@ -211,11 +213,14 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 
 - (void) setResizeMode: (RCTResizeMode)resizeMode {
     if (_resizeMode != resizeMode) {
+        BOOL repeated = _resizeMode == RCTResizeModeRepeat;
         _resizeMode = resizeMode;
         [self updateContentMode];
-        // The blur is made for the size the image is shown at.
-        if ([self blurs: self.originalImage]) {
-            [self setImage: self.originalImage];
+        // The blur is made for the size the image is shown at, and repeat
+        // shows the image tiled: show it again.
+        UIImage* image = self.originalImage ?: super.image;
+        if ([self blurs: self.originalImage] || ((repeated || resizeMode == RCTResizeModeRepeat) && image)) {
+            [self setImage: image];
         }
     }
 }
@@ -227,7 +232,10 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // view's size.
 - (void) updateContentMode {
     UIViewContentMode contentMode = (UIViewContentMode) _resizeMode;
-    if (_resizeMode == RCTResizeModeCenter) {
+    if (_resizeMode == RCTResizeModeRepeat) {
+        // The tiled image (see tiledImage:) fills the view.
+        contentMode = UIViewContentModeScaleToFill;
+    } else if (_resizeMode == RCTResizeModeCenter) {
         CGSize imageSize = super.image.size;
         CGSize viewSize = self.bounds.size;
         if (imageSize.width > viewSize.width || imageSize.height > viewSize.height) {
@@ -243,6 +251,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     [super layoutSubviews];
     [self updateContentMode];
     [self blurAgainIfResized];
+    [self tileAgainIfResized];
     if (self.waitsForSize) {
         if ([self hasSize]) {
             [self reloadImage];
@@ -320,7 +329,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         [self blurImage: image];
         return;
     }
-    self.originalImage = image && self.imageColor ? image : nil;
+    // Kept to tint, or tile (resizeMode repeat), it again.
+    self.originalImage = image && (self.imageColor || _resizeMode == RCTResizeModeRepeat) ? image : nil;
     self.blurredImage = nil;
     self.blursOverNothing = NO;
     // The blur was removed before it was ready: the fade it was waiting for
@@ -342,7 +352,9 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // template is), or, before SDWebImage 5.20, the first frame shows.
 - (void) showImage: (UIImage*)image {
     UIColor* tint = image ? self.imageColor : nil;
-    BOOL animated = [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
+    // resizeMode repeat tiles an animated image's first frame (tiledImage:).
+    BOOL repeats = image && _resizeMode == RCTResizeModeRepeat;
+    BOOL animated = !repeats && [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
     self.tintColor = tint;
     if ([self tintsFrames]) {
         [self setValue: tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil forKey: @"animationTransformer"];
@@ -356,15 +368,52 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         if (changed) {
             [self.player seekToFrameAtIndex: 0 loopCount: 0];
         }
-    } else if (tint) {
-        if (animated) {
-            image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
-        }
-        super.image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
     } else {
+        if (tint) {
+            if (animated) {
+                image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
+            }
+            image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
+        }
+        if (repeats) {
+            image = [self tiledImage: image];
+            self.tiledForSize = self.bounds.size;
+        }
         super.image = image;
     }
     [self updateContentMode];
+}
+
+// resizeMode repeat: the image repeated from the top-left at its own size in
+// pixels (a scaled image, e.g. a bundled @3x one, at its size in points), an
+// animated image's first frame, scaled down to fit the view if it's larger,
+// as React Native's Image does (and Android here).
+- (UIImage*) tiledImage: (UIImage*)image {
+    CGImageRef cgImage = image.CGImage;
+    if (!cgImage) {
+        return image;
+    }
+    CGFloat scale = image.scale > 1 ? image.scale : (self.window.screen.scale ?: [UIScreen mainScreen].scale);
+    CGSize size = CGSizeMake(image.size.width * image.scale / scale, image.size.height * image.scale / scale);
+    CGSize view = self.bounds.size;
+    if (view.width > 0 && view.height > 0 && (size.width > view.width || size.height > view.height)) {
+        scale *= MAX(size.width / view.width, size.height / view.height);
+    }
+    UIImage* still = [[UIImage imageWithCGImage: cgImage scale: scale orientation: image.imageOrientation]
+                      imageWithRenderingMode: image.renderingMode];
+    return [still resizableImageWithCapInsets: UIEdgeInsetsZero resizingMode: UIImageResizingModeTile];
+}
+
+// The view's size changed since the image was tiled, which scales an image
+// larger than the view down to fit it: tile it again.
+- (void) tileAgainIfResized {
+    if (_resizeMode != RCTResizeModeRepeat || CGSizeEqualToSize(self.bounds.size, self.tiledForSize)) {
+        return;
+    }
+    UIImage* image = [self blurs: self.originalImage] ? self.blurredImage : self.originalImage;
+    if (image) {
+        [self showImage: image];
+    }
 }
 
 - (void) setBlurRadius: (CGFloat)blurRadius {

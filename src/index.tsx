@@ -20,7 +20,7 @@ import { cacheControl, priority, resizeMode } from './constants'
 // it's string.
 type ColorValue = NonNullable<ViewStyle['backgroundColor']>
 
-export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
+export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
 
 export type Priority = 'low' | 'normal' | 'high'
 

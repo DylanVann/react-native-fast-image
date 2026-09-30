@@ -33,6 +33,7 @@ export type ResizeMode = $ReadOnly<{|
     cover: 'cover',
     stretch: 'stretch',
     center: 'center',
+    repeat: 'repeat',
 |}>
 
 export type Priority = $ReadOnly<{|

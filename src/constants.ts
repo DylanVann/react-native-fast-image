@@ -6,6 +6,7 @@ export const resizeMode = {
     cover: 'cover',
     stretch: 'stretch',
     center: 'center',
+    repeat: 'repeat',
 } as const
 
 export const priority = {

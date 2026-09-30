@@ -127,8 +127,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
-        final FastImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.getScaleType(resizeMode);
-        view.setResizeMode(scaleType);
+        // repeat fills the view with the tiled image (see setImageDrawable).
+        boolean repeat = "repeat".equals(resizeMode);
+        final FastImageViewWithUrl.ScaleType scaleType =
+                repeat ? FastImageViewWithUrl.ScaleType.FIT_XY : FastImageViewConverter.getScaleType(resizeMode);
+        view.setResizeMode(scaleType, repeat);
     }
 
     @Override
