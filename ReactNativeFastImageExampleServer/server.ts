@@ -12,6 +12,8 @@
 //               one request must not be sent with others).
 //   /max-age/   Sent with `Cache-Control: max-age=3600` (for HTTP caching).
 //   /chunked/   Streamed without a Content-Length (the size is unknown).
+//   /gzip/      Sent gzip-compressed (`Content-Encoding: gzip`), so its
+//               Content-Length is the compressed size, smaller than the image.
 //   /cookie/    403 unless the request has both cookies from /set-cookie with
 //               the same `run` query parameter; the image is sent with its own
 //               cookie (`fast-image-image=<run>`).
@@ -124,6 +126,7 @@ const server = Bun.serve({
         let { pathname } = url
         let cacheControl: string | undefined
         let chunked = false
+        let gzip = false
         let setCookie: string | undefined
         let contentType: string | undefined
         const token = request.headers.get('x-token')
@@ -145,6 +148,9 @@ const server = Bun.serve({
         } else if (pathname.startsWith('/chunked/')) {
             chunked = true
             pathname = pathname.slice('/chunked'.length)
+        } else if (pathname.startsWith('/gzip/')) {
+            gzip = true
+            pathname = pathname.slice('/gzip'.length)
         } else if (pathname.startsWith('/cookie/')) {
             const cookie = request.headers.get('cookie') ?? ''
             const cookies = cookie.split(/;\s*/)
@@ -197,6 +203,17 @@ const server = Bun.serve({
             return new Response(stream, {
                 headers: { 'Content-Type': image.type },
             })
+        }
+        if (gzip) {
+            return new Response(
+                Bun.gzipSync(new Uint8Array(await image.arrayBuffer())),
+                {
+                    headers: {
+                        'Content-Type': image.type,
+                        'Content-Encoding': 'gzip',
+                    },
+                },
+            )
         }
         const headers = new Headers()
         if (cacheControl) headers.set('Cache-Control', cacheControl)
