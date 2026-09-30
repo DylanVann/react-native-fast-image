@@ -1018,6 +1018,7 @@ async function runRegression(
     let groups: string[] = []
     let scale = 1
     let windowWidth = 0
+    let windowHeight = 0
     const failures: string[] = []
     const seeded: string[] = []
     const noReference: string[] = []
@@ -1053,6 +1054,16 @@ async function runRegression(
             width: windowWidth * scale,
             height: 140 * scale,
         })
+        // On iOS, the home indicator at the bottom, which is there or not
+        // depending on how long ago the app was opened.
+        if (platform === 'ios' && windowHeight > 0) {
+            masks.push({
+                x: 0,
+                y: (windowHeight - 34) * scale,
+                width: windowWidth * scale,
+                height: 34 * scale,
+            })
+        }
         const shot = compareScreenshot(app, platform, name, file, masks).then(
             ({ result, detail }) => {
                 logLine(
@@ -1348,6 +1359,7 @@ async function runRegression(
     groups = hello.groups as string[]
     scale = Number(hello.scale) || 1
     windowWidth = Number((hello.window as { width?: number })?.width) || 0
+    windowHeight = Number((hello.window as { height?: number })?.height) || 0
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
