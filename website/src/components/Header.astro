@@ -1,0 +1,72 @@
+---
+// Starlight's header, with search as an icon on the right, beside the GitHub
+// link, instead of a box in the middle.
+import config from 'virtual:starlight/user-config'
+import LanguageSelect from 'virtual:starlight/components/LanguageSelect'
+import Search from 'virtual:starlight/components/Search'
+import SiteTitle from 'virtual:starlight/components/SiteTitle'
+import SocialIcons from 'virtual:starlight/components/SocialIcons'
+
+const shouldRenderSearch =
+    config.pagefind ||
+    config.components.Search !== '@astrojs/starlight/components/Search.astro'
+---
+
+<div class="header">
+    <div class="title-wrapper sl-flex">
+        <SiteTitle />
+    </div>
+    <div class="sl-flex end print:hidden">
+        {shouldRenderSearch && <Search />}
+        <div class="sl-hidden md:sl-flex right-group">
+            <div class="sl-flex social-icons">
+                <SocialIcons />
+            </div>
+            <LanguageSelect />
+        </div>
+    </div>
+</div>
+
+<style>
+    .header {
+        display: flex;
+        gap: var(--sl-nav-gap);
+        justify-content: space-between;
+        align-items: center;
+        height: 100%;
+    }
+
+    .title-wrapper {
+        /* Long titles mustn't cover the buttons on narrow screens. */
+        overflow: clip;
+        /* Room for the focus ring around the title's link. */
+        padding: 0.25rem;
+        margin: -0.25rem;
+        min-width: 0;
+    }
+
+    .end,
+    .right-group,
+    .social-icons {
+        gap: 1rem;
+        align-items: center;
+    }
+
+    /* The search button as just its icon, like the GitHub link. */
+    .end :global(button[data-open-modal]) {
+        border: 0;
+        padding: 0.5em;
+        margin: -0.5em;
+        width: auto;
+        height: auto;
+        background: none;
+        color: var(--sl-color-text-accent);
+        font-size: var(--sl-text-base);
+    }
+    .end :global(button[data-open-modal]:hover) {
+        color: var(--sl-color-white);
+    }
+    .end :global(button[data-open-modal] > :not(svg)) {
+        display: none;
+    }
+</style>

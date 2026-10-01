@@ -9,7 +9,7 @@ export default defineConfig({
     base: '/react-native-fast-image',
     integrations: [
         starlight({
-            title: 'FastImage',
+            title: 'React Native Fast Image',
             social: [
                 {
                     icon: 'github',
@@ -18,8 +18,17 @@ export default defineConfig({
                 },
             ],
             customCss: ['./src/styles/api.css'],
+            components: {
+                Header: './src/components/Header.astro',
+                ThemeSelect: './src/components/ThemeSelect.astro',
+                TwoColumnContent: './src/components/TwoColumnContent.astro',
+                PageSidebar: './src/components/PageSidebar.astro',
+            },
+            // Down to the source's options (source.uri etc.): Components →
+            // FastImage → source → source.uri.
+            tableOfContents: { maxHeadingLevel: 5 },
             sidebar: [
-                { label: 'README', link: '/' },
+                { label: 'Usage', link: '/' },
                 {
                     label: 'Guides',
                     items: [{ autogenerate: { directory: 'guides' } }],

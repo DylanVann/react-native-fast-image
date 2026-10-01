@@ -40,13 +40,13 @@ export type Source = {
     /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */
     headers?: { [key: string]: string }
     /**
-     * Indicates the load order priority of an image. Images with
-     * `FastImage.priority.high` will load before images in a similar context
-     * with low or normal priority.
+     * Indicates the load order priority of an image. Images with priority
+     * `'high'` will load before images in a similar context with low or
+     * normal priority.
      *
-     * - `FastImage.priority.low` - Low Priority.
-     * - `FastImage.priority.normal` - Normal Priority.
-     * - `FastImage.priority.high` - High Priority.
+     * - `'low'` - Low Priority.
+     * - `'normal'` - Normal Priority.
+     * - `'high'` - High Priority.
      *
      * @default 'normal'
      */
@@ -56,11 +56,11 @@ export type Source = {
      * [how caching is handled](docs/how-is-caching-handled.md) for how the
      * options fit together.
      *
-     * - `FastImage.cacheControl.immutable` - Only updates if url changes.
-     * - `FastImage.cacheControl.web` - Use headers and follow normal caching
+     * - `'immutable'` - Only updates if url changes.
+     * - `'web'` - Use headers and follow normal caching
      *   procedures. These responses are kept in their own HTTP cache (50 MB on
      *   each platform), which `clearDiskCache` also clears.
-     * - `FastImage.cacheControl.cacheOnly` - Only show images from cache, do
+     * - `'cacheOnly'` - Only show images from cache, do
      *   not make any network requests.
      *
      * @default 'immutable'
@@ -268,19 +268,19 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     defaultSource?: ImageRequireSource
     /**
-     * - `FastImage.resizeMode.contain` - Scale the image uniformly (maintain
+     * - `'contain'` - Scale the image uniformly (maintain
      *   the image's aspect ratio) so that both dimensions (width and height)
      *   of the image will be equal to or less than the corresponding
      *   dimension of the view (minus padding).
-     * - `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the
+     * - `'cover'` - Scale the image uniformly (maintain the
      *   image's aspect ratio) so that both dimensions (width and height) of
      *   the image will be equal to or larger than the corresponding dimension
      *   of the view (minus padding).
-     * - `FastImage.resizeMode.stretch` - Scale width and height independently,
+     * - `'stretch'` - Scale width and height independently,
      *   This may change the aspect ratio of the src.
-     * - `FastImage.resizeMode.center` - Center the image at its own size,
+     * - `'center'` - Center the image at its own size,
      *   scaled down uniformly to fit if it's larger than the view.
-     * - `FastImage.resizeMode.repeat` - Repeat the image to cover the view,
+     * - `'repeat'` - Repeat the image to cover the view,
      *   from its top-left corner, at the image's own size in pixels (a bundled
      *   image at its size in points), scaled down to fit if it's larger than
      *   the view. An animated image repeats its first frame, and

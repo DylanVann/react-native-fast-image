@@ -1,20 +1,10 @@
-<h1 align="center">
-  React Native Fast Image
-</h1>
-
-<div align="center">
+# React Native Fast Image
 
 Performant React Native image component.
 
 [![Version][version-badge]][package]
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
-
-[![Watch on GitHub][github-watch-badge]][github-watch]
-[![Star on GitHub][github-star-badge]][github-star]
-[![Tweet][twitter-badge]][twitter]
-
-</div>
 
 <p align="center" >
   <kbd>
@@ -62,7 +52,7 @@ and
 - [x] GIF support.
 - [x] Border radius.
 
-## Usage
+## Installation
 
 Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
 
@@ -79,6 +69,10 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
+
+## Usage
+
 ```jsx
 import FastImage from 'react-native-fast-image'
 
@@ -88,22 +82,20 @@ const YourImage = () => (
         source={{
             uri: 'https://example.com/image.jpg',
             headers: { Authorization: 'someAuthToken' },
-            priority: FastImage.priority.normal,
+            priority: 'normal',
         }}
-        resizeMode={FastImage.resizeMode.contain}
+        resizeMode="contain"
     />
 )
 ```
 
-## If your app already has an AppGlideModule
+## Components
 
-If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
-
-## Properties
+### `FastImage`
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
-### `source`
+#### `source`
 
 **Type:** `number | Source | Source[]`
 
@@ -131,7 +123,7 @@ When `source` changes, the image that's showing stays until the new one has load
 
 ---
 
-### `source.uri`
+##### `source.uri`
 
 **Type:** `string`
 
@@ -141,7 +133,7 @@ Also loads local files (`file://`, and on Android `content://`), photo library i
 
 ---
 
-### `source.headers`
+##### `source.headers`
 
 **Type:** `{ [key: string]: string }`
 
@@ -149,31 +141,31 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 ---
 
-### `source.priority`
+##### `source.priority`
 
 **Type:** `Priority` · **Default:** `'normal'`
 
-Indicates the load order priority of an image. Images with `FastImage.priority.high` will load before images in a similar context with low or normal priority.
+Indicates the load order priority of an image. Images with priority `'high'` will load before images in a similar context with low or normal priority.
 
-- `FastImage.priority.low` - Low Priority.
-- `FastImage.priority.normal` - Normal Priority.
-- `FastImage.priority.high` - High Priority.
+- `'low'` - Low Priority.
+- `'normal'` - Normal Priority.
+- `'high'` - High Priority.
 
 ---
 
-### `source.cache`
+##### `source.cache`
 
 **Type:** `Cache` · **Default:** `'immutable'`
 
 How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
 
-- `FastImage.cacheControl.immutable` - Only updates if url changes.
-- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
-- `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
+- `'immutable'` - Only updates if url changes.
+- `'web'` - Use headers and follow normal caching procedures. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
+- `'cacheOnly'` - Only show images from cache, do not make any network requests.
 
 ---
 
-### `source.cacheKey`
+##### `source.cacheKey`
 
 **Type:** `string`
 
@@ -192,7 +184,7 @@ Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
 
 ---
 
-### `source.memoryCache`
+##### `source.memoryCache`
 
 **Type:** `boolean` · **Default:** `true`
 
@@ -200,7 +192,7 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 ---
 
-### `source.width`
+##### `source.width`
 
 **Type:** `number`
 
@@ -208,7 +200,7 @@ With several sources (`source` as an array), the image's width at this uri, in p
 
 ---
 
-### `source.height`
+##### `source.height`
 
 **Type:** `number`
 
@@ -216,7 +208,7 @@ With several sources (`source` as an array), the image's height at this uri, in 
 
 ---
 
-### `source.scale`
+##### `source.scale`
 
 **Type:** `number`
 
@@ -224,7 +216,7 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 ---
 
-### `defaultSource`
+#### `defaultSource`
 
 **Type:** `number`
 
@@ -234,19 +226,19 @@ On Android, `defaultSource` doesn't show in debug builds: there the dev server s
 
 ---
 
-### `resizeMode`
+#### `resizeMode`
 
 **Type:** `ResizeMode` · **Default:** `'cover'`
 
-- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
-- `FastImage.resizeMode.center` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
-- `FastImage.resizeMode.repeat` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
+- `'contain'` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
+- `'cover'` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
+- `'stretch'` - Scale width and height independently, This may change the aspect ratio of the src.
+- `'center'` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
+- `'repeat'` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
 
-### `fallback`
+#### `fallback`
 
 **Type:** `boolean`
 
@@ -254,7 +246,7 @@ If true, the image is shown with React Native's `Image` instead, styled and laid
 
 ---
 
-### `recyclingKey`
+#### `recyclingKey`
 
 **Type:** `string | null`
 
@@ -266,7 +258,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 ---
 
-### `loop`
+#### `loop`
 
 **Type:** `number | boolean`
 
@@ -281,7 +273,7 @@ Changing it restarts the animation.
 
 ---
 
-### `imageRendering`
+#### `imageRendering`
 
 **Type:** `'auto' | 'smooth' | 'pixelated'` · **Default:** `'auto'`
 
@@ -293,7 +285,7 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 ---
 
-### `paused`
+#### `paused`
 
 **Type:** `boolean`
 
@@ -301,7 +293,7 @@ Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showi
 
 ---
 
-### `transition`
+#### `transition`
 
 **Type:** `number | boolean | Transition | null` · **Default:** `false`
 
@@ -317,7 +309,7 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 
 ---
 
-### `downsample`
+#### `downsample`
 
 **Type:** `boolean` · **Default:** `true` · iOS only
 
@@ -332,7 +324,7 @@ If you control the images, serve them at the size they're shown (resized on your
 
 ---
 
-### `blurRadius`
+#### `blurRadius`
 
 **Type:** `number` · **Default:** `0`
 
@@ -350,7 +342,7 @@ To animate a blur, or to blur an animated image, use React Native's `filter` sty
 
 ---
 
-### `onLoadStart`
+#### `onLoadStart`
 
 **Type:** `() => void`
 
@@ -358,7 +350,7 @@ Called when the image starts to load.
 
 ---
 
-### `onProgress`
+#### `onProgress`
 
 **Type:** `(event: OnProgressEvent) => void`
 
@@ -370,7 +362,7 @@ onProgress={e => console.log(e.nativeEvent.progress)}
 
 ---
 
-### `onLoad`
+#### `onLoad`
 
 **Type:** `(event: OnLoadEvent) => void`
 
@@ -382,7 +374,7 @@ onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}
 
 ---
 
-### `onError`
+#### `onError`
 
 **Type:** `(event: OnErrorEvent) => void`
 
@@ -394,7 +386,7 @@ onError={e => console.log(e.nativeEvent.error)}
 
 ---
 
-### `onLoadEnd`
+#### `onLoadEnd`
 
 **Type:** `(result: LoadResult) => void`
 
@@ -412,7 +404,7 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 ---
 
-### `onLayout`
+#### `onLayout`
 
 **Type:** `(event: LayoutChangeEvent) => void`
 
@@ -420,7 +412,7 @@ Invoked on mount and layout changes with `{ nativeEvent: { layout: { x, y, width
 
 ---
 
-### `style`
+#### `style`
 
 **Type:** `StyleProp<ImageStyle>`
 
@@ -428,7 +420,7 @@ A React Native style. Supports using `borderRadius`.
 
 ---
 
-### `tintColor`
+#### `tintColor`
 
 **Type:** `ColorValue`
 
@@ -436,7 +428,7 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 ---
 
-### `testID`
+#### `testID`
 
 **Type:** `string`
 
@@ -444,7 +436,7 @@ A unique identifier for this element to be used in UI Automation testing scripts
 
 ---
 
-### `children`
+#### `children`
 
 **Type:** `ReactNode`
 
@@ -452,46 +444,7 @@ Render children within the image. In the next major version, `FastImage` won't r
 
 <!-- api:props end -->
 
-### Photo library images (iOS)
-
-A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads when the app has SDWebImagePhotosPlugin. Add it to the app's `ios/Podfile` and run `pod install`:
-
-```ruby
-pod 'SDWebImagePhotosPlugin'
-```
-
-With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/):
-
-```json
-[
-    "expo-build-properties",
-    { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }
-]
-```
-
-The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
-
-### SVG images
-
-SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
-
-```ruby
-# ios/Podfile
-pod 'SDWebImageSVGCoder'
-```
-
-```groovy
-// android/app/build.gradle
-dependencies {
-    implementation 'com.caverock:androidsvg-aar:1.4'
-}
-```
-
-On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
-
-An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
-
-## `FastImageBackground`
+### `FastImageBackground`
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
@@ -511,14 +464,20 @@ const Banner = () => (
 )
 ```
 
-- `style`: the view's style (it sizes the view, which the image fills).
-- `imageStyle`: the image's style.
-- `imageRef`: a ref to the image.
-- The other props are `FastImage`'s, for the image.
+Its own props are these; the others are `FastImage`'s and go to the image. Its ref is the view's (`imageRef` is the image's).
 
-## Static Methods
+<!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
 
-### `FastImage.preload: (source[]) => Promise<result[]>`
+- `style` (`StyleProp<ViewStyle>`): The container's style; the image fills it.
+- `imageStyle` (`StyleProp<ImageStyle>`): The image's style.
+- `imageRef` (`Ref<any>`): A ref to the image (the FastImage inside).
+- `children` (`ReactNode`): Content shown on top of the image.
+
+<!-- api:background-props end -->
+
+## Methods
+
+### `preload: (source[]) => Promise<result[]>`
 
 Preload images to display later. e.g.
 
@@ -556,15 +515,15 @@ A source with `memoryCache: false` is only downloaded to the disk cache, without
 await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 ```
 
-### `FastImage.clearMemoryCache: () => Promise<void>`
+### `clearMemoryCache: () => Promise<void>`
 
 Clear all images from memory cache.
 
-### `FastImage.clearDiskCache: () => Promise<void>`
+### `clearDiskCache: () => Promise<void>`
 
 Clear all images from disk cache.
 
-### `FastImage.getCachePath: (source: Source) => Promise<CachePathResult>`
+### `getCachePath: (source: Source) => Promise<CachePathResult>`
 
 The path of the source's downloaded file in the disk cache, e.g. to share, save or upload an image without downloading it again. If the file isn't there, it's downloaded first, without decoding the image or keeping it in memory. Resolves with `{ ok: true, path }`, or `{ ok: false, error }` if it can't be downloaded. Never rejects.
 
@@ -580,7 +539,7 @@ With `cache: 'cacheOnly'` it doesn't download: use it to check whether an image 
 ```js
 const { ok } = await FastImage.getCachePath({
     uri: photo.url,
-    cache: FastImage.cacheControl.cacheOnly,
+    cache: 'cacheOnly',
 })
 ```
 
@@ -592,7 +551,7 @@ const { ok } = await FastImage.getCachePath({
 
 There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey).
 
-### `FastImage.writeToCache: (source: Source, file: string) => Promise<CachePathResult>`
+### `writeToCache: (source: Source, file: string) => Promise<CachePathResult>`
 
 Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
 
@@ -611,7 +570,7 @@ const result = await FastImage.writeToCache(
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
-### `FastImage.configureCache: (limits?: CacheLimits) => Promise<CacheState>`
+### `configureCache: (limits?: CacheLimits) => Promise<CacheState>`
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
@@ -655,6 +614,45 @@ On Android, if your app has its own `AppGlideModule` (see [using FastImage with 
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
+## Photo library images (iOS)
+
+A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads when the app has SDWebImagePhotosPlugin. Add it to the app's `ios/Podfile` and run `pod install`:
+
+```ruby
+pod 'SDWebImagePhotosPlugin'
+```
+
+With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/):
+
+```json
+[
+    "expo-build-properties",
+    { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }
+]
+```
+
+The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
+
+## SVG images
+
+SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
+
+```ruby
+# ios/Podfile
+pod 'SDWebImageSVGCoder'
+```
+
+```groovy
+// android/app/build.gradle
+dependencies {
+    implementation 'com.caverock:androidsvg-aar:1.4'
+}
+```
+
+On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
+
+An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
+
 ## Web
 
 FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/). Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
@@ -696,9 +694,3 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
 [version-badge]: https://img.shields.io/npm/v/react-native-fast-image.svg
-[twitter]: https://twitter.com/home?status=Check%20out%20react-native-fast-image%20by%20%40atomarranger%20https%3A//github.com/DylanVann/react-native-fast-image
-[twitter-badge]: https://img.shields.io/twitter/url/https/github.com/DylanVann/react-native-fast-image.svg?style=social
-[github-watch-badge]: https://img.shields.io/github/watchers/dylanvann/react-native-fast-image.svg?style=social
-[github-watch]: https://github.com/dylanvann/react-native-fast-image/watchers
-[github-star-badge]: https://img.shields.io/github/stars/dylanvann/react-native-fast-image.svg?style=social
-[github-star]: https://github.com/dylanvann/react-native-fast-image/stargazers

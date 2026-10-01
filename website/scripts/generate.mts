@@ -1,5 +1,6 @@
 // Writes the docs generated from the doc comments in src/: the README's props
-// section (between its api:props markers), and the website's pages: the README
+// sections (between its api:props and api:background-props markers), and the
+// website's pages: the README
 // as the main page and each docs/*.md as a page of its own. Checks that links to
 // the README's headings still exist. With --check, fails if the README is out of
 // date instead of writing it.
@@ -163,7 +164,8 @@ function members(name: string, prefix = ''): Member[] {
     )
 }
 
-// FastImage's props, with the source's options (source.uri etc.) after source.
+// FastImage's props, with the source's options (source.uri etc.) after source,
+// a heading level below it. Both under Components → FastImage in the README.
 const props = members('FastImageProps').flatMap((m) =>
     m.name === 'source' ? [m, ...members('Source', 'source.')] : [m],
 )
@@ -192,24 +194,35 @@ function propsSection(site: boolean) {
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
-                `### ${code(m.name)}`,
+                `${m.name.includes('.') ? '#####' : '####'} ${code(m.name)}`,
                 site ? `<div class="api-meta">${line}</div>` : line,
                 m.body,
             ].join('\n\n')
         })
-        .join(site ? '\n\n' : '\n\n---\n\n')
+        .join('\n\n---\n\n')
 }
 
-const START =
-    '<!-- api:props start (generated from src/ by website/scripts/generate.mts) -->'
-const END = '<!-- api:props end -->'
+// FastImageBackground's own props, as a list: the rest are FastImage's.
+const backgroundProps = members('FastImageBackgroundProps')
+    .map((m) => `- ${code(m.name)} (${code(m.type)}): ${m.body}`)
+    .join('\n')
+
 const readme = readFileSync(`${root}README.md`, 'utf8')
-const withProps = (generated: string) => {
-    const [before, rest] = readme.split(START)
-    if (rest === undefined) throw new Error(`README.md has no ${START}`)
-    return `${before}${START}\n\n${generated}\n\n${rest.slice(rest.indexOf(END))}`
-}
-const updatedReadme = withProps(propsSection(false))
+// The README with each marked section replaced.
+const withGenerated = (sections: Record<string, string>) =>
+    Object.entries(sections).reduce((markdown, [name, generated]) => {
+        const start = `<!-- api:${name} start (generated from src/ by website/scripts/generate.mts) -->`
+        const end = `<!-- api:${name} end -->`
+        const [before, rest] = markdown.split(start)
+        if (rest === undefined) throw new Error(`README.md has no ${start}`)
+        return `${before}${start}\n\n${generated}\n\n${rest.slice(rest.indexOf(end))}`
+    }, readme)
+const withProps = (site: boolean) =>
+    withGenerated({
+        props: propsSection(site),
+        'background-props': backgroundProps,
+    })
+const updatedReadme = withProps(false)
 if (process.argv.includes('--check')) {
     if (updatedReadme !== readme) {
         console.error(
@@ -291,15 +304,19 @@ const frontmatter = (fields: Record<string, unknown>) =>
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
         .join('\n')}\n---\n\n`
 
-// The main page: the README, with the props as the website shows them.
+// The main page: the README, with the props as the website shows them, and
+// without its title (the page's title is shown instead).
 const { description } = JSON.parse(readFileSync(`${root}package.json`, 'utf8'))
-const readmePage = withProps(propsSection(true)).replace(
-    /^<h1[\s\S]*?<\/h1>\s*/,
-    '',
-)
+const readmePage = withProps(true).replace(/^# .*\n+/m, '')
 write(
     '',
-    frontmatter({ title: 'React Native Fast Image', description }) +
+    frontmatter({
+        title: 'React Native Fast Image',
+        description,
+        // The site's name alone, not "React Native Fast Image | React Native
+        // Fast Image".
+        head: [{ tag: 'title', content: 'React Native Fast Image' }],
+    }) +
         rewriteLinks(readmePage, 'README.md'),
 )
 
