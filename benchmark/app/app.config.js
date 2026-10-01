@@ -7,6 +7,8 @@ module.exports = {
     expo: {
         name: `Bench ${subject}`,
         slug: 'react-native-fast-image-benchmark',
+        // Android launches a scenario with rnfibench://run?scenario=…&run=…
+        scheme: 'rnfibench',
         version: '1.0.0',
         orientation: 'portrait',
         userInterfaceStyle: 'light',
@@ -17,7 +19,11 @@ module.exports = {
         android: {
             package: `com.dylanvann.rnfibenchmark.${subject.replace(/[^a-z0-9]/gi, '')}`,
         },
-        plugins: ['./plugins/withSceneLifecycle', './plugins/withSubject'],
+        plugins: [
+            './plugins/withSceneLifecycle',
+            './plugins/withSubject',
+            './plugins/withAndroidBenchmark',
+        ],
         extra: { subject },
     },
 }

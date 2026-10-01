@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
+    Linking,
     Platform,
     Pressable,
     Settings,
@@ -10,26 +11,52 @@ import {
 import { Scenario, SCENARIOS, type ScenarioName } from './src/Scenario'
 import adapter from './src/subject'
 
-// The benchmark app. The UI test (../ios) launches it with arguments, e.g.
-// `-scenario grid -run <id>`, which iOS puts in the app's user defaults;
-// without them it shows a menu, for trying a scenario by hand.
+// The benchmark app. On iOS it's launched with arguments, e.g. `-scenario
+// grid -run <id>`, which iOS puts in the app's user defaults; on Android with
+// a link, rnfibench://run?scenario=grid&run=<id>. Without them it shows a
+// menu, for trying a scenario by hand.
 const SERVER = 'https://react-native-fast-image-benchmark.dylanvann.workers.dev'
 
-const arg = (name: string): string | undefined =>
-    Platform.OS === 'ios' ? (Settings.get(name) ?? undefined) : undefined
+type Args = Record<string, string | undefined>
+
+const iosArgs = (): Args =>
+    Object.fromEntries(
+        ['scenario', 'run', 'server', 'delay'].map((name) => [
+            name,
+            Settings.get(name) ?? undefined,
+        ]),
+    )
+
+// rnfibench://run?scenario=grid&run=<id>
+const linkArgs = (url: string | null): Args =>
+    Object.fromEntries(
+        (url?.split('?')[1] ?? '')
+            .split('&')
+            .filter(Boolean)
+            .map((pair) => pair.split('=').map(decodeURIComponent)),
+    )
 
 export default function App() {
-    const fromArgs = arg('scenario') as ScenarioName | undefined
-    const [scenario, setScenario] = useState(fromArgs)
-    const [run] = useState(() => arg('run') ?? `manual-${Date.now()}`)
+    const [args, setArgs] = useState<Args | undefined>(() =>
+        Platform.OS === 'ios' ? iosArgs() : undefined,
+    )
+    useEffect(() => {
+        if (Platform.OS !== 'ios') {
+            Linking.getInitialURL().then((url) => setArgs(linkArgs(url)))
+        }
+    }, [])
+    const [chosen, setChosen] = useState<ScenarioName>()
+    const [manualRun] = useState(() => `manual-${Date.now()}`)
+    if (!args) return null
+    const scenario = (args.scenario as ScenarioName | undefined) ?? chosen
     if (scenario) {
         return (
             <Scenario
                 name={scenario}
                 adapter={adapter}
-                run={run}
-                server={arg('server') ?? SERVER}
-                delay={Number(arg('delay') ?? 0)}
+                run={args.run ?? manualRun}
+                server={args.server ?? SERVER}
+                delay={Number(args.delay ?? 0)}
             />
         )
     }
@@ -43,7 +70,7 @@ export default function App() {
                     key={name}
                     testID={`scenario-${name}`}
                     style={styles.button}
-                    onPress={() => setScenario(name)}
+                    onPress={() => setChosen(name)}
                 >
                     <Text>{name}</Text>
                 </Pressable>

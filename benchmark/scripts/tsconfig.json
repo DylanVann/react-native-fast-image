@@ -11,5 +11,5 @@
         "typeRoots": ["../images/node_modules/@types"],
         "types": ["bun"]
     },
-    "files": ["run.ts", "analyze.ts", "summarize.ts"]
+    "files": ["run.ts", "run-android.ts", "analyze.ts", "summarize.ts"]
 }

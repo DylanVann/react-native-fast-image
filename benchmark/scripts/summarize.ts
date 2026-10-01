@@ -1,6 +1,7 @@
-// Summarizes a results folder (from run.ts): every run's JSON file and every
-// subject's XCTest result bundle in it, as a markdown table, written to
-// summary.md and printed.
+// Summarizes a results folder (from run.ts and run-android.ts): every run's
+// JSON file, every subject's iOS XCTest result bundle and Android
+// Macrobenchmark metrics in it, as markdown tables, written to summary.md and
+// printed.
 //
 //   bun benchmark/scripts/summarize.ts benchmark/results/<time>
 
@@ -14,6 +15,8 @@ const subjects: Record<string, { name: string }> = JSON.parse(
         'utf8',
     ),
 )
+const nameOf = (subject: string) => subjects[subject]?.name ?? subject
+const order = Object.keys(subjects)
 
 // The XCTest metrics in the summary (the result bundles have them all).
 const SUMMARY_METRICS = [
@@ -42,6 +45,7 @@ const fmt = (values: number[], f: (v: number[]) => number | undefined) => {
 }
 
 type Run = {
+    platform?: string
     subject: string
     scenario: string
     device?: { model: string; os: string }
@@ -51,6 +55,13 @@ type Run = {
         error?: string
         images: { shownMs?: number; eventGapMs?: number }[]
     }
+}
+
+type Failure = {
+    platform?: string
+    subject: string
+    scenario: string
+    error: string
 }
 
 type MetricTest = {
@@ -64,6 +75,16 @@ type MetricTest = {
     }[]
 }
 
+type AndroidMetrics = {
+    benchmarks: {
+        name: string
+        metrics?: Record<string, { median: number }>
+        sampledMetrics?: Record<string, { P50: number; P90: number }>
+    }[]
+}
+
+const platformOf = (r: { platform?: string }) => r.platform ?? 'ios'
+
 export function summarize(dir: string) {
     const files = fs.readdirSync(dir)
     const runs = files
@@ -72,31 +93,43 @@ export function summarize(dir: string) {
             (f) =>
                 JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as Run,
         )
-    const failures: { subject: string; scenario: string; error: string }[] =
-        fs.existsSync(path.join(dir, 'failures.json'))
-            ? JSON.parse(
-                  fs.readFileSync(path.join(dir, 'failures.json'), 'utf8'),
-              )
-            : []
-    const order = Object.keys(subjects)
+    const failuresFile = path.join(dir, 'failures.json')
+    const failures: Failure[] = fs.existsSync(failuresFile)
+        ? JSON.parse(fs.readFileSync(failuresFile, 'utf8'))
+        : []
     const keys = [
-        ...new Set(runs.map((r) => `${r.subject}\t${r.scenario}`)),
-    ].sort(
-        (a, b) =>
-            order.indexOf(a.split('\t')[0]) - order.indexOf(b.split('\t')[0]) ||
-            a.localeCompare(b),
-    )
-    const device = runs.find((r) => r.device)?.device
+        ...new Set(
+            runs.map((r) => `${platformOf(r)}\t${r.subject}\t${r.scenario}`),
+        ),
+    ].sort((a, b) => {
+        const [pa, sa] = a.split('\t')
+        const [pb, sb] = b.split('\t')
+        return (
+            pa.localeCompare(pb) ||
+            order.indexOf(sa) - order.indexOf(sb) ||
+            a.localeCompare(b)
+        )
+    })
+    const devices = [
+        ...new Set(
+            runs
+                .filter((r) => r.device)
+                .map((r) => `${r.device!.model} (iOS ${r.device!.os})`),
+        ),
+    ]
     const lines = [
-        `Device: ${device ? `${device.model} (iOS ${device.os})` : 'unknown'}. Times in ms from the images being mounted, from the screen recording (median / p90 over all runs).`,
+        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs).${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}`,
         '',
-        '| Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Failures |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Failures |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ]
     for (const key of keys) {
-        const [subject, scenario] = key.split('\t')
+        const [platform, subject, scenario] = key.split('\t')
         const these = runs.filter(
-            (r) => r.subject === subject && r.scenario === scenario,
+            (r) =>
+                platformOf(r) === platform &&
+                r.subject === subject &&
+                r.scenario === scenario,
         )
         const pick = (f: (r: Run) => number | undefined) =>
             these.map(f).filter((v): v is number => v !== undefined)
@@ -110,24 +143,29 @@ export function summarize(dir: string) {
         const failed =
             these.filter((r) => r.analysis.error).length +
             failures.filter(
-                (f) => f.subject === subject && f.scenario === scenario,
+                (f) =>
+                    platformOf(f) === platform &&
+                    f.subject === subject &&
+                    f.scenario === scenario,
             ).length
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${subjects[subject]?.name ?? subject} | ${scenario} | ${these.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${these.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${failed || ''} |`,
         )
     }
-    lines.push(
-        '',
-        'XCTest metrics (median / p90 of the measurements):',
-        '',
-        '| Subject | Test | Metric | Median | p90 |',
-        '| --- | --- | --- | --- | --- |',
-    )
-    for (const bundle of files.filter((f) =>
-        /^metrics-.*\.xcresult$/.test(f),
-    )) {
+
+    const bundles = files.filter((f) => /^metrics-.*\.xcresult$/.test(f))
+    if (bundles.length > 0) {
+        lines.push(
+            '',
+            'iOS XCTest metrics (median / p90 of the measurements):',
+            '',
+            '| Subject | Test | Metric | Median | p90 |',
+            '| --- | --- | --- | --- | --- |',
+        )
+    }
+    for (const bundle of bundles) {
         const subject = bundle.replace(/^metrics-|\.xcresult$/g, '')
         const result = spawnSync(
             'xcrun',
@@ -150,16 +188,51 @@ export function summarize(dir: string) {
                         !SUMMARY_METRICS.some((name) =>
                             metric.displayName.startsWith(name),
                         )
-                    )
+                    ) {
                         continue
+                    }
                     const unit = metric.unitOfMeasurement
                     lines.push(
-                        `| ${subjects[subject]?.name ?? subject} | ${test.testIdentifier.replace(/.*\/test/, '').replace('()', '')} | ${metric.displayName.replace(/ \(.*\)$/, '')} | ${fmt(metric.measurements, median)} ${unit} | ${fmt(metric.measurements, p90)} ${unit} |`,
+                        `| ${nameOf(subject)} | ${test.testIdentifier.replace(/.*\/test/, '').replace('()', '')} | ${metric.displayName.replace(/ \(.*\)$/, '')} | ${fmt(metric.measurements, median)} ${unit} | ${fmt(metric.measurements, p90)} ${unit} |`,
                     )
                 }
             }
         }
     }
+
+    const android = files.filter((f) => /^metrics-android-.*\.json$/.test(f))
+    if (android.length > 0) {
+        lines.push(
+            '',
+            'Android Macrobenchmark metrics (median, or p50 / p90 for sampled metrics):',
+            '',
+            '| Subject | Test | Metric | Value |',
+            '| --- | --- | --- | --- |',
+        )
+    }
+    for (const file of android) {
+        const subject = file.replace(/^metrics-android-|\.json$/g, '')
+        const data = JSON.parse(
+            fs.readFileSync(path.join(dir, file), 'utf8'),
+        ) as AndroidMetrics
+        for (const benchmark of data.benchmarks) {
+            for (const [name, metric] of Object.entries(
+                benchmark.metrics ?? {},
+            )) {
+                lines.push(
+                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${Math.round(metric.median)} |`,
+                )
+            }
+            for (const [name, metric] of Object.entries(
+                benchmark.sampledMetrics ?? {},
+            )) {
+                lines.push(
+                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} |`,
+                )
+            }
+        }
+    }
+
     const table = lines.join('\n') + '\n'
     fs.writeFileSync(path.join(dir, 'summary.md'), table)
     return table

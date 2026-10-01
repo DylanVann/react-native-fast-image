@@ -14,7 +14,7 @@ import type { Adapter } from './adapter'
 // The scenarios (see PLAN-benchmark.local.md and ../README.md). Each shows a
 // marker bar, warms the image server's edge cache, then on a frame it records
 // turns the marker green and mounts its images, records when each image's
-// load event arrives, and once they've all loaded (or after `maxMs`) measures
+// load event arrives, and once they've all loaded (or after `fixedMs`) measures
 // where each cell is on screen and writes the results to
 // Documents/results-<run>.json, which run.ts copies from the device over USB
 // (no network permission needed).
@@ -24,20 +24,40 @@ type Config = {
     set: 'grid' | 'scroll' | 'large'
     columns: number
     list: boolean
-    // Done after this long without all load events (or without any: Nitro).
-    // Every image has shown within about 0.9 s in the runs so far (large),
-    // 0.4 s in the grid: about twice that.
-    maxMs: number
+    // For subjects without load events (Nitro Image), done after this long
+    // on each platform: about twice the longest any subject has taken to
+    // show every image (iOS: 0.9 s large, 0.4 s grid; Android on a Pixel 8
+    // Pro: 4.4 s large, 0.8 s grid). The others are done at their last load
+    // event (or after SAFETY_MS).
+    fixedMs: { ios: number; android: number }
 }
+
+// A subject with load events that doesn't send them all is done after this.
+const SAFETY_MS = 30_000
 
 export const SCENARIOS: Record<ScenarioName, Config> = {
     // 60 photos (400 px) in a grid that's laid out at once: the ones on
     // screen are timed from the recording.
-    grid: { set: 'grid', columns: 4, list: false, maxMs: 1_000 },
+    grid: {
+        set: 'grid',
+        columns: 4,
+        list: false,
+        fixedMs: { ios: 1_000, android: 1_500 },
+    },
     // 500 photos (300 px) in a FlashList, which the UI test scrolls.
-    scroll: { set: 'scroll', columns: 3, list: true, maxMs: 1_000 },
+    scroll: {
+        set: 'scroll',
+        columns: 3,
+        list: true,
+        fixedMs: { ios: 1_000, android: 1_500 },
+    },
     // 20 large photos (4000 × 3000) shown small: memory.
-    large: { set: 'large', columns: 4, list: false, maxMs: 2_000 },
+    large: {
+        set: 'large',
+        columns: 4,
+        list: false,
+        fixedMs: { ios: 2_000, android: 9_000 },
+    },
 }
 
 // The cell background while an image hasn't shown: far from every tinted
@@ -198,9 +218,20 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             images: cells.map((cell, i) => ({ ...cell, rect: rects[i] })),
         }
         try {
-            new File(Paths.document, `results-${run}.json`).write(
-                JSON.stringify(results),
-            )
+            const json = JSON.stringify(results)
+            new File(Paths.document, `results-${run}.json`).write(json)
+            // Android: also in the log, for the Macrobenchmark test to read
+            // (it can't read a release app's files), in chunks a log line
+            // can hold.
+            if (Platform.OS === 'android') {
+                const size = 3000
+                const count = Math.ceil(json.length / size)
+                for (let i = 0; i < count; i++) {
+                    console.log(
+                        `BENCH_RESULTS ${run} ${i + 1}/${count} ${json.slice(i * size, (i + 1) * size)}`,
+                    )
+                }
+            }
             setPhase('done')
         } catch (error) {
             setMessage(`couldn't write the results: ${error}`)
@@ -209,12 +240,15 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     }, [adapter, cells, delay, name, run, server])
 
     // Done when every mounted image has loaded or failed (a list only mounts
-    // the ones near the screen), or after maxMs.
+    // the ones near the screen); without load events, after fixedMs.
+    const waitMs = adapter.loadEvents
+        ? SAFETY_MS
+        : config.fixedMs[Platform.OS === 'android' ? 'android' : 'ios']
     useEffect(() => {
         if (phase !== 'running') return
-        const timer = setTimeout(finish, config.maxMs)
+        const timer = setTimeout(finish, waitMs)
         return () => clearTimeout(timer)
-    }, [phase, finish, config.maxMs])
+    }, [phase, finish, waitMs])
 
     const settle = (index: number, result: Partial<Cell>) => {
         setCells((current) =>
