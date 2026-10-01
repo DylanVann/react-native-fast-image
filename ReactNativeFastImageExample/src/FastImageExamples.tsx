@@ -24,7 +24,7 @@ const FastImageExample = () => {
             >
                 <View style={styles.contentContainer}>
                     <Section>
-                        <Text style={styles.titleText}>🚩 FastImage</Text>
+                        <Text style={styles.titleText}>FastImage</Text>
                         <FeatureText text="Tap images to reload examples." />
                     </Section>
                     <PriorityExample />

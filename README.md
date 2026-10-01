@@ -1,5 +1,5 @@
 <h1 align="center">
-  🚩 FastImage
+  FastImage
 </h1>
 
 <div align="center">
@@ -67,9 +67,17 @@ and
 Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
 
 ```bash
-yarn add react-native-fast-image
+npm install react-native-fast-image
 cd ios && pod install
 ```
+
+With Expo:
+
+```bash
+npx expo install react-native-fast-image
+```
+
+It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
 ```jsx
 import FastImage from 'react-native-fast-image'
@@ -78,7 +86,7 @@ const YourImage = () => (
     <FastImage
         style={{ width: 200, height: 200 }}
         source={{
-            uri: 'https://unsplash.it/400/400?image=1',
+            uri: 'https://example.com/image.jpg',
             headers: { Authorization: 'someAuthToken' },
             priority: FastImage.priority.normal,
         }}
@@ -87,9 +95,9 @@ const YourImage = () => (
 )
 ```
 
-## Are you using Glide already using an AppGlideModule?
+## If your app already has an AppGlideModule
 
-- [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/app-glide-module.md) first, or FastImage may not work.
 
 ## Properties
 
@@ -103,7 +111,7 @@ When `source` changes, the image that's showing stays until the new one has load
 
 ### `source.uri?: string`
 
-Remote url to load the image from. e.g. `'https://facebook.github.io/react/img/logo_og.png'`.
+Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
 
 #### Photo library images (iOS)
 
@@ -378,10 +386,9 @@ A React Native style. Supports using `borderRadius`.
 
 ---
 
-### `fallback: boolean`
+### `fallback?: boolean`
 
-If true will fallback to using `Image`.
-In this case the image will still be styled and laid out the same way as `FastImage`.
+If true, the image is shown with React Native's `Image` instead, styled and laid out the same way. FastImage's own features, such as its caching options, `priority` and `transition`, don't apply.
 
 ---
 
@@ -400,7 +407,7 @@ import { FastImageBackground } from 'react-native-fast-image'
 
 const Banner = () => (
     <FastImageBackground
-        source={{ uri: 'https://unsplash.it/400/200?image=1' }}
+        source={{ uri: 'https://example.com/banner.jpg' }}
         style={{ width: 200, height: 100 }}
         imageStyle={{ borderRadius: 8 }}
     >
@@ -423,11 +430,11 @@ Preload images to display later. e.g.
 ```js
 FastImage.preload([
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        uri: 'https://example.com/image-1.jpg',
         headers: { Authorization: 'someAuthToken' },
     },
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        uri: 'https://example.com/image-2.jpg',
         headers: { Authorization: 'someAuthToken' },
     },
 ])
@@ -549,7 +556,7 @@ await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
 const { maxDiskSize, diskSize } = await FastImage.configureCache()
 ```
 
-On Android, if your app has its own `AppGlideModule` (see [Are you using Glide already](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
@@ -571,13 +578,6 @@ If you have any problems using this library try the steps in [troubleshooting](d
 ## Development
 
 [Follow these instructions to get the example app running.](docs/development.md)
-
-## Supported React Native Versions
-
-This project only aims to support the latest version of React Native.\
-This simplifies the development and the testing of the project.
-
-If you require new features or bug fixes for older versions you can fork this project.
 
 ## Credits
 
