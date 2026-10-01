@@ -1401,26 +1401,43 @@ function CacheKeyCase({
 // succeeds. iOS failed it without a request until the app was relaunched
 // (#394), since views retry failed urls but preloads didn't. Android kept the
 // page in Glide's disk cache (and `web` images' HTTP cache), so every later
-// load failed; iOS kept it in `web` images' HTTP cache.
+// load failed; iOS kept it in `web` images' HTTP cache. With `web`, iOS still
+// stored the page (it has an inline <svg>, and SDWebImage took it for an SVG
+// image) until the failed load removed it, so a preload right after could get
+// it from there: it happened once in tens of urls, so with many.
+const RETRY_TRIES = 40
 function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
-    const path = `/bad-once/picsum/1025-200x200.jpg?${id}=${RUN}`
+    const pathFor = (attempt: number) =>
+        `/bad-once/picsum/1025-200x200.jpg?${id}=${RUN}-${attempt}`
+    const sourceFor = (attempt: number) => ({
+        uri: imageUrl(pathFor(attempt).slice(1)),
+        cache: web ? FastImage.cacheControl.web : undefined,
+    })
     const [status, setStatus] = useState('waiting')
     const [shown, setShown] = useState(false)
-    const source = {
-        uri: imageUrl(path.slice(1)),
-        cache: web ? FastImage.cacheControl.web : undefined,
-    }
+    const source = sourceFor(0)
     useEffect(() => {
         const run = async () => {
-            const [first] = await FastImage.preload([source])
-            if (first.ok) return setStatus('the first preload loaded')
-            const [second] = await FastImage.preload([source])
-            const response = await fetch(
-                imageUrl(`requests?path=${encodeURIComponent(path)}`),
-            )
-            const { count } = (await response.json()) as { count: number }
-            if (!second.ok) return setStatus(`retry failed: ${second.error}`)
-            if (count !== 2) return setStatus(`${count} requests`)
+            for (let attempt = 0; attempt < RETRY_TRIES; attempt++) {
+                const tried = sourceFor(attempt)
+                const [first] = await FastImage.preload([tried])
+                if (first.ok) return setStatus('the first preload loaded')
+                const [second] = await FastImage.preload([tried])
+                const response = await fetch(
+                    imageUrl(
+                        `requests?path=${encodeURIComponent(pathFor(attempt))}`,
+                    ),
+                )
+                const { count } = (await response.json()) as { count: number }
+                if (!second.ok) {
+                    return setStatus(
+                        `retry ${attempt + 1} failed (${count} requests): ${second.error}`,
+                    )
+                }
+                if (count !== 2) {
+                    return setStatus(`retry ${attempt + 1}: ${count} requests`)
+                }
+            }
             setShown(true)
         }
         run().catch((e) => setStatus(`error: ${e}`))
