@@ -1,3 +1,10 @@
+## [8.27.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.1...v8.27.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **ios:** load downsampled images in the order they're mounted ([#1213](https://github.com/DylanVann/react-native-fast-image/issues/1213)) ([5db1a95](https://github.com/DylanVann/react-native-fast-image/commit/5db1a9518a06acf8bcc88b91ea3e893c92a7e882))
+
 ## [8.27.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.0...v8.27.1) (2026-10-01)
 
 
