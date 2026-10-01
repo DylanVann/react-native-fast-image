@@ -591,9 +591,9 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 ## Licenses
 
-- FastImage - MIT © [DylanVann](https://github.com/DylanVann)
-- SDWebImage - `MIT`
-- Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
+- react-native-fast-image - MIT © [Dylan Vann](https://github.com/DylanVann). See the [LICENSE](LICENSE) file.
+- [SDWebImage](https://github.com/SDWebImage/SDWebImage) (iOS) - MIT. See its [LICENSE](https://github.com/SDWebImage/SDWebImage/blob/master/LICENSE) file.
+- [Glide](https://github.com/bumptech/glide) (Android) - BSD, part MIT and Apache 2.0. See its [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file.
 
 [build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml
