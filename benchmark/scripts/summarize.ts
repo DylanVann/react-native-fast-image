@@ -58,6 +58,7 @@ type Run = {
     }
     images?: { error?: string }[]
     network?: { before?: { mbps: number }; after?: { mbps: number } }
+    imageServer?: { latencyMs: number; mbps: number }
 }
 
 type Failure = {
@@ -120,8 +121,18 @@ export function summarize(dir: string) {
                 .map((r) => `${r.device!.model} (iOS ${r.device!.os})`),
         ),
     ]
+    const servers = [
+        ...new Set(
+            runs
+                .filter((r) => r.imageServer)
+                .map(
+                    (r) =>
+                        `${r.imageServer!.latencyMs} ms latency, ${r.imageServer!.mbps || 'unlimited'} Mbps`,
+                ),
+        ),
+    ]
     const lines = [
-        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}`,
+        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Android: images served on the phone (${servers.join('; ')}).` : ''}`,
         '',
         '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
         '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',

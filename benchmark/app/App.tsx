@@ -13,15 +13,17 @@ import adapter from './src/subject'
 
 // The benchmark app. On iOS it's launched with arguments, e.g. `-scenario
 // grid -run <id>`, which iOS puts in the app's user defaults; on Android with
-// a link, rnfibench://run?scenario=grid&run=<id>. Without them it shows a
-// menu, for trying a scenario by hand.
+// a link, rnfibench://run?scenario=grid&run=<id>. Both can also pass `server`
+// (the Android tests serve the images on the phone, with `warm=0` since
+// there's no edge cache to warm) and `delay`. Without them it shows a menu,
+// for trying a scenario by hand.
 const SERVER = 'https://react-native-fast-image-benchmark.dylanvann.workers.dev'
 
 type Args = Record<string, string | undefined>
 
 const iosArgs = (): Args =>
     Object.fromEntries(
-        ['scenario', 'run', 'server', 'delay'].map((name) => [
+        ['scenario', 'run', 'server', 'delay', 'warm'].map((name) => [
             name,
             Settings.get(name) ?? undefined,
         ]),
@@ -57,6 +59,7 @@ export default function App() {
                 run={args.run ?? manualRun}
                 server={args.server ?? SERVER}
                 delay={Number(args.delay ?? 0)}
+                warm={args.warm !== '0'}
             />
         )
     }

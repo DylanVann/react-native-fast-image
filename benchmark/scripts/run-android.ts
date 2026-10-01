@@ -55,6 +55,10 @@ const scenarios = list(option('scenarios', 'grid,large'))
 const tests = list(option('tests', Object.keys(TESTS).join(',')))
 const iterations = Number(option('iterations', '5'))
 const firebase = flag('firebase')
+// The network of the image server the tests run on the phone: latency before
+// each response, and bandwidth shared by all of them (0 for none).
+const latencyMs = Number(option('latency', '40'))
+const mbps = Number(option('mbps', '50'))
 // The Pixel 8 (Android 15): the same generation as the iPhone 15 Pro Max
 // the iOS runs use, and one Test Lab has many of (high capacity).
 const firebaseDevice = option('device', 'model=shiba,version=35')
@@ -133,6 +137,8 @@ const testArgs = (subject: string): Record<string, string> => ({
     benchPackage: packageName(subject),
     benchIterations: String(iterations),
     benchScenarios: scenarios.join(','),
+    benchLatencyMs: String(latencyMs),
+    benchMbps: String(mbps),
     ...(firebase
         ? {}
         : {
@@ -285,7 +291,7 @@ function findFiles(dir: string, match: RegExp): string[] {
 }
 
 log(
-    `results ${path.relative(process.cwd(), out)}${firebase ? `; Firebase Test Lab (${firebaseDevice})` : '; adb device'}`,
+    `results ${path.relative(process.cwd(), out)}; images served on the phone (${latencyMs} ms, ${mbps || 'unlimited'} Mbps)${firebase ? `; Firebase Test Lab (${firebaseDevice})` : '; adb device'}`,
 )
 type Apks = { app: string; test: string }
 
@@ -302,7 +308,11 @@ async function analyzeOutputs(subject: string, pulled: string) {
             const analysis = await analyze(data, video)
             fs.writeFileSync(
                 path.join(out, `android-${subject}-${scenario}-${n}.json`),
-                JSON.stringify({ ...data, analysis }, null, 2),
+                JSON.stringify(
+                    { ...data, imageServer: { latencyMs, mbps }, analysis },
+                    null,
+                    2,
+                ),
             )
             log(
                 `  ${subject} ${scenario} #${n}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed), network ${Math.round(data.network?.before?.mbps)} / ${Math.round(data.network?.after?.mbps)} Mbps${analysis.error ? `: ${analysis.error}` : ''}`,

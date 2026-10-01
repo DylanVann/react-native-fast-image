@@ -13,6 +13,9 @@ import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.io.File
+import java.net.URLEncoder
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +23,9 @@ import org.junit.runner.RunWith
 // Measures the benchmark app (../../app) on Android, the same scenarios as
 // the iOS UI tests (../../ios) and recordings (../../capture). Instrumentation
 // arguments: benchPackage (the subject's app), benchIterations (default 5),
-// benchScenarios (for timeToImage, default "grid,large").
+// benchScenarios (for timeToImage, default "grid,large"), benchLatencyMs and
+// benchMbps (the image server's network, default 40 ms and 50 Mbps; 0 for
+// none).
 @RunWith(AndroidJUnit4::class)
 class BenchmarkTest {
     @get:Rule val rule = MacrobenchmarkRule()
@@ -31,14 +36,32 @@ class BenchmarkTest {
     private val iterations = arguments.getString("benchIterations")?.toInt() ?: 5
     private val device = UiDevice.getInstance(instrumentation)
 
+    private val latencyMs = arguments.getString("benchLatencyMs")?.toLong() ?: 40
+    private val mbps = arguments.getString("benchMbps")?.toDouble() ?: 50.0
+    private lateinit var server: ImageServer
+
     private fun shell(command: String): String = device.executeShellCommand(command)
 
+    // The images come from this process, on the phone (ImageServer), so
+    // every run and every phone has the same network.
+    @Before
+    fun startServer() {
+        server = ImageServer(instrumentation.context.assets, latencyMs, mbps)
+    }
+
+    @After
+    fun stopServer() {
+        server.close()
+    }
+
     // Starts the app on a scenario with a new run id (so no image comes from
-    // an earlier run's caches), in a new process.
+    // an earlier run's caches), in a new process, loading from the server
+    // here (no edge cache to warm up).
     private fun launch(scenario: String, run: String) {
         shell("am force-stop $pkg")
+        val url = URLEncoder.encode(server.url, "UTF-8")
         // Not through a shell: `&` needs no escaping.
-        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run $pkg")
+        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run&server=$url&warm=0 $pkg")
     }
 
     // Waits for the scenario to finish; returns its results (JSON), which the

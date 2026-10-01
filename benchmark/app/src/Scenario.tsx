@@ -98,6 +98,9 @@ export type ScenarioProps = {
     run: string
     server: string
     delay: number
+    // Warm the image server's edge cache first (not for a server on the
+    // phone).
+    warm: boolean
 }
 
 const now = () => performance.now()
@@ -160,7 +163,14 @@ async function probe(urls: string[]): Promise<Probe> {
     return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
 }
 
-export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
+export function Scenario({
+    name,
+    adapter,
+    run,
+    server,
+    delay,
+    warm: warmUp,
+}: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
         'loading' | 'warming' | 'running' | 'measuring' | 'done' | 'failed'
@@ -193,15 +203,18 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             if (cancelled) return
             setPhase('warming')
             // The probe's images too, so neither probe waits for the edge.
-            warmTimings.current = await warm(
-                [
-                    ...images.map((image) => image.key),
-                    ...probeKeys.filter(
-                        (key) => !images.some((image) => image.key === key),
-                    ),
-                ].map((key) => url(key, `${run}-warm`)),
-                6,
-            )
+            warmTimings.current = !warmUp
+                ? []
+                : await warm(
+                      [
+                          ...images.map((image) => image.key),
+                          ...probeKeys.filter(
+                              (key) =>
+                                  !images.some((image) => image.key === key),
+                          ),
+                      ].map((key) => url(key, `${run}-warm`)),
+                      6,
+                  )
             probeUrls.current = (when) =>
                 probeKeys.map((key) => url(key, `${run}-probe-${when}`))
             probeBefore.current = await probe(
@@ -227,7 +240,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [config.set, delay, run, server])
+    }, [config.set, delay, run, server, warmUp])
 
     const finish = useCallback(async () => {
         if (finished.current) return
