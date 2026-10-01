@@ -134,6 +134,32 @@ async function warm(urls: string[], limit: number) {
     return timings
 }
 
+// The images the network probe downloads: the same for every scenario, so
+// rates compare across them.
+const PROBE_SET = 'large'
+const PROBE_COUNT = 4
+
+export type Probe = { bytes: number; ms: number; mbps: number }
+
+// Times downloading the probe images with fetch, `PROBE_COUNT` at a time, the
+// same way for every subject (not through the image library), so a run's
+// network speed shows next to its times. The bodies are read as blobs, which
+// stay on the native side, so it doesn't time copying them into JS.
+async function probe(urls: string[]): Promise<Probe> {
+    const start = now()
+    const sizes = await Promise.all(
+        urls.map(async (url) => {
+            const blob = await (await fetch(url)).blob()
+            const size = blob.size
+            ;(blob as { close?: () => void }).close?.()
+            return size
+        }),
+    )
+    const ms = now() - start
+    const bytes = sizes.reduce((sum, size) => sum + size, 0)
+    return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
+}
+
 export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
@@ -146,6 +172,8 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const views = useRef(new Map<number, View>())
     const marker = useRef<View>(null)
     const warmTimings = useRef<number[]>([])
+    const probeUrls = useRef<(when: string) => string[]>(() => [])
+    const probeBefore = useRef<Probe | undefined>(undefined)
     const finished = useRef(false)
     const { width } = Dimensions.get('window')
     const cellSize = Math.floor(width / config.columns)
@@ -159,12 +187,26 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             const images = manifest.sets[config.set].images
             const url = (key: string, runId: string) =>
                 `${server}/${key}?run=${encodeURIComponent(runId)}${delay ? `&delay=${delay}` : ''}`
+            const probeKeys = manifest.sets[PROBE_SET].images
+                .slice(0, PROBE_COUNT)
+                .map((image) => image.key)
             if (cancelled) return
             setPhase('warming')
+            // The probe's images too, so neither probe waits for the edge.
             warmTimings.current = await warm(
-                images.map((image) => url(image.key, `${run}-warm`)),
+                [
+                    ...images.map((image) => image.key),
+                    ...probeKeys.filter(
+                        (key) => !images.some((image) => image.key === key),
+                    ),
+                ].map((key) => url(key, `${run}-warm`)),
                 6,
             )
+            probeUrls.current = (when) =>
+                probeKeys.map((key) => url(key, `${run}-probe-${when}`))
+            probeBefore.current = await probe(
+                probeUrls.current('before'),
+            ).catch(() => undefined)
             // A moment for the recording to show the marker before it changes.
             await new Promise((r) => setTimeout(r, 300))
             if (cancelled) return
@@ -197,6 +239,9 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             cells.map((cell) => measure(views.current.get(cell.index) ?? null)),
         )
         const markerRect = await measure(marker.current)
+        const probeAfter = await probe(probeUrls.current('after')).catch(
+            () => undefined,
+        )
         const window = Dimensions.get('window')
         const results = {
             version: 1,
@@ -215,6 +260,9 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             loadEvents: adapter.loadEvents,
             durationMs: now() - started.current,
             warmServerMs: warmTimings.current,
+            // Network speed just before the images mount and just after
+            // they've all loaded.
+            network: { before: probeBefore.current, after: probeAfter },
             images: cells.map((cell, i) => ({ ...cell, rect: rects[i] })),
         }
         try {

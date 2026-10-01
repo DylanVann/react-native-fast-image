@@ -305,7 +305,7 @@ async function analyzeOutputs(subject: string, pulled: string) {
                 JSON.stringify({ ...data, analysis }, null, 2),
             )
             log(
-                `  ${subject} ${scenario} #${n}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed)${analysis.error ? `: ${analysis.error}` : ''}`,
+                `  ${subject} ${scenario} #${n}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed), network ${Math.round(data.network?.before?.mbps)} / ${Math.round(data.network?.after?.mbps)} Mbps${analysis.error ? `: ${analysis.error}` : ''}`,
             )
         } catch (error) {
             failed(subject, scenario, error)

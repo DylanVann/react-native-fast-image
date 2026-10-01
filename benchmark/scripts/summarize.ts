@@ -57,6 +57,7 @@ type Run = {
         images: { shownMs?: number; eventGapMs?: number }[]
     }
     images?: { error?: string }[]
+    network?: { before?: { mbps: number }; after?: { mbps: number } }
 }
 
 type Failure = {
@@ -120,10 +121,10 @@ export function summarize(dir: string) {
         ),
     ]
     const lines = [
-        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs).${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}`,
+        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}`,
         '',
-        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Images not shown (load errors) | Failures |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ]
     for (const key of keys) {
         const [platform, subject, scenario] = key.split('\t')
@@ -158,10 +159,12 @@ export function summarize(dir: string) {
             (sum, r) => sum + (r.images ?? []).filter((i) => i.error).length,
             0,
         )
+        const before = pick((r) => r.network?.before?.mbps)
+        const after = pick((r) => r.network?.after?.mbps)
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${these.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${these.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
         )
     }
 
