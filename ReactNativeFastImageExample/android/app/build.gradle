@@ -110,6 +110,9 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // SVG images, which FastImage loads when the app has AndroidSVG (either
+    // package: the legacy example uses com.caverock:androidsvg).
+    implementation("com.caverock:androidsvg-aar:1.4")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

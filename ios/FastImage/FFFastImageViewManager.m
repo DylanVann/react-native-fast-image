@@ -293,7 +293,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
                 results[idx] = image
                     ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
-                    : FFFFailure(FFFErrorMessage(error));
+                    : FFFFailure([source errorMessage:error]);
                 finishOne();
             });
         }];
@@ -351,7 +351,7 @@ RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
         context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
         FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
             if (!image) {
-                resolve(FFFFailure(FFFErrorMessage(error)));
+                resolve(FFFFailure([source errorMessage:error]));
                 return;
             }
             FFFFindCachedFile(key, resolveFile, ^{

@@ -355,6 +355,25 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
+// A vector image drawn into a bitmap, with its size in points, at a scale
+// that's sharp at the size the view shows it (or its own size before the view
+// has one).
+- (UIImage*) rasterizedImage: (UIImage*)image {
+    CGSize size = image.size;
+    if (size.width <= 0 || size.height <= 0) {
+        return image;
+    }
+    CGSize view = self.bounds.size;
+    CGFloat shown = MAX(1, MAX(view.width / size.width, view.height / size.height));
+    UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
+    format.scale = (self.window.screen.scale ?: [UIScreen mainScreen].scale) * shown;
+    format.opaque = NO;
+    UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
+    return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+        [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
+    }];
+}
+
 // Shows the image, tinted as React Native's Image does it: UIKit draws a
 // template image in the view's tintColor, so no tinted copy of the image is
 // made. SDAnimatedImageView draws the frames of an animated image itself,
@@ -382,6 +401,11 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         if (tint) {
             if (animated) {
                 image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
+            } else if (!image.CGImage && !repeats) {
+                // A vector image (an SVG), which UIKit doesn't draw as a
+                // template: drawn into a bitmap at the size it's shown at
+                // (tiledImage: draws one for repeat).
+                image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
         }
@@ -399,6 +423,18 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // animated image's first frame, scaled down to fit the view if it's larger,
 // as React Native's Image does (and Android here).
 - (UIImage*) tiledImage: (UIImage*)image {
+    if (!image.CGImage && image.size.width > 0 && image.size.height > 0) {
+        // A vector image (an SVG): drawn at its own size in pixels (its width
+        // and height), as Android tiles it and as any other image's size is.
+        UIImage* vector = image;
+        UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
+        format.scale = 1;
+        format.opaque = NO;
+        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: vector.size format: format];
+        image = [[renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+            [vector drawInRect: CGRectMake(0, 0, vector.size.width, vector.size.height)];
+        }] imageWithRenderingMode: vector.renderingMode];
+    }
     CGImageRef cgImage = image.CGImage;
     if (!cgImage) {
         return image;
@@ -1065,7 +1101,7 @@ NSString *FFFErrorMessage(NSError *error)
                 if (error) {
                     // SDWebImage shows the placeholder (defaultSource or nothing).
                     weakSelf.showsLoadedImage = NO;
-                    [weakSelf sendOnError: FFFErrorMessage(error)];
+                    [weakSelf sendOnError: [source errorMessage: error]];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: NO]);
                     }

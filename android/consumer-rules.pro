@@ -41,3 +41,8 @@
 -keep class com.facebook.react.uimanager.UIManagerHelper {
   public static *** getEventDispatcherForReactTag(com.facebook.react.bridge.ReactContext, int);
 }
+
+# AndroidSVG, which FastImage uses for SVG images when the app has it
+# (FastImageSvgRenderer), and doesn't ship. Without it, R8 would stop at the
+# missing classes.
+-dontwarn com.caverock.androidsvg.**

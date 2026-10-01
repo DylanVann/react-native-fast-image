@@ -64,6 +64,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // which is decoded at about the view's size.
 - (BOOL)isPhotoLibrary;
 
+// The error's message, or for an SVG image that couldn't be decoded because
+// the app doesn't have SDWebImageSVGCoder, what to add.
+- (NSString *)errorMessage:(NSError *)error;
+
 // A photo library image's own size in pixels (for onLoad when it comes from
 // a cache, where the size it was decoded from isn't recorded), or zero.
 - (CGSize)photoPixelSize;

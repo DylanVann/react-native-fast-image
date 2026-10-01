@@ -3748,6 +3748,84 @@ function SeveralSourcesEdgeCase() {
     )
 }
 
+// SVG images (the example apps have SDWebImageSVGCoder on iOS and AndroidSVG
+// on Android: the main app's androidsvg-aar package, the legacy app's
+// androidsvg). onLoad has the SVG's own size (its width and height, or its
+// viewBox's). Check the screenshot: flat colors, sharp edges.
+function SvgCase({
+    id,
+    source,
+    style,
+    expected,
+    resizeMode,
+    tintColor,
+    description,
+}: {
+    id: string
+    source: Source | number
+    style: { width: number; height: number }
+    expected: [number, number]
+    resizeMode?: FastImageProps['resizeMode']
+    tintColor?: string
+    description: string
+}) {
+    const [status, setStatus] = useState('loading')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[style, { backgroundColor: '#eee' }]}
+                source={source}
+                resizeMode={resizeMode}
+                tintColor={tintColor}
+                onLoad={(e) => {
+                    const { width, height } = e.nativeEvent
+                    setStatus(
+                        width === expected[0] && height === expected[1]
+                            ? 'OK'
+                            : `onLoad ${width}x${height}, expected ${expected[0]}x${expected[1]}`,
+                    )
+                }}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+// The same SVG small and large: the large one drawn at its size (thin, sharp
+// rings), not scaled up from a small bitmap.
+function SvgSharpCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [error, setError] = useState<string>()
+    const source = { uri: imageUrl('svg-rings.svg') }
+    const onLoad = () => setLoaded((n) => n + 1)
+    const onError = (e: { nativeEvent: { error: string } }) =>
+        setError(e.nativeEvent.error)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: 24, height: 24 }}
+                source={source}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <FastImage
+                style={[{ width: 160, height: 160 }, styles.gap]}
+                source={source}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="svg-sharp"
+                status={
+                    error ? `error: ${error}` : loaded >= 2 ? 'OK' : 'loading'
+                }
+                description="An SVG at 24 and 160: the large one has thin, sharp rings"
+            />
+        </View>
+    )
+}
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'load-end',
@@ -4486,6 +4564,93 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-background',
         cases: [<ImageBackgroundCase key="image-background" />],
+    },
+    {
+        name: 'svg',
+        cases: [
+            <SvgCase
+                key="svg-remote"
+                id="svg-remote"
+                source={{ uri: imageUrl('svg-flag.svg') }}
+                style={{ width: 100, height: 50 }}
+                expected={[100, 50]}
+                description="A remote SVG loads (red and blue halves); onLoad has its size"
+            />,
+            <SvgCase
+                key="svg-bundled"
+                id="svg-bundled"
+                source={require('./images/svg-flag.svg')}
+                style={{ width: 100, height: 50 }}
+                expected={[100, 50]}
+                description="A bundled (require()d) SVG loads, also in release builds"
+            />,
+            <SvgCase
+                key="svg-viewbox"
+                id="svg-viewbox"
+                source={{ uri: imageUrl('svg-viewbox.svg') }}
+                style={{ width: 60, height: 30 }}
+                expected={[60, 30]}
+                description="An SVG with only a viewBox (green and yellow): onLoad has the viewBox's size"
+            />,
+            <SvgCase
+                key="svg-nosize"
+                id="svg-nosize"
+                source={{ uri: imageUrl('svg-nosize.svg') }}
+                style={{ width: 60, height: 30 }}
+                expected={[300, 150]}
+                description="An SVG with no size or viewBox is 300x150 (cyan and magenta)"
+            />,
+            <SvgCase
+                key="svg-mislabeled"
+                id="svg-mislabeled"
+                source={{ uri: imageUrl('mislabeled/svg-flag.svg') }}
+                style={{ width: 100, height: 50 }}
+                expected={[100, 50]}
+                description="An SVG sent as text/plain loads"
+            />,
+            <SvgCase
+                key="svg-tint"
+                id="svg-tint"
+                source={{ uri: imageUrl('svg-icon.svg') }}
+                style={{ width: 48, height: 48 }}
+                expected={[24, 24]}
+                tintColor="green"
+                description="tintColor on an SVG icon: a green ring"
+            />,
+        ],
+    },
+    {
+        name: 'svg-sizes',
+        cases: [
+            <SvgCase
+                key="svg-contain"
+                id="svg-contain"
+                source={{ uri: imageUrl('svg-flag.svg') }}
+                style={{ width: 64, height: 64 }}
+                expected={[100, 50]}
+                resizeMode="contain"
+                description="contain: the whole SVG, with gray above and below"
+            />,
+            <SvgCase
+                key="svg-cover"
+                id="svg-cover"
+                source={{ uri: imageUrl('svg-flag.svg') }}
+                style={{ width: 64, height: 64 }}
+                expected={[100, 50]}
+                resizeMode="cover"
+                description="cover: the middle of the SVG, half red and half blue, filling the view"
+            />,
+            <SvgSharpCase key="svg-sharp" />,
+            <SvgCase
+                key="svg-repeat"
+                id="svg-repeat"
+                source={{ uri: imageUrl('svg-rings.svg') }}
+                style={{ width: 120, height: 60 }}
+                expected={[20, 20]}
+                resizeMode="repeat"
+                description="repeat: the 20x20 SVG tiled at its own size in pixels, as other images are"
+            />,
+        ],
     },
     {
         name: 'photo-library',

@@ -120,6 +120,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         }
         OkHttpClient client = builder.build();
         registry.replace(GlideUrl.class, InputStream.class, new UrlLoaderFactory(client));
+        FastImageSvg.register(registry, glide.getBitmapPool());
 
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
@@ -202,7 +203,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     // Fails a successful response that's clearly not an image: its type isn't
     // an image's (text, JSON, XML other than SVG) and its first bytes aren't a
-    // format Glide recognizes, e.g. a captive portal's or a proxy's HTML page
+    // format Glide recognizes or an SVG's, e.g. a captive portal's or a proxy's HTML page
     // sent with status 200. Glide keeps the bytes it downloads in its disk
     // cache before decoding them (and doesn't remove them when that fails), as
     // does the HTTP cache of `web` images, so every later load of the url
@@ -225,6 +226,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                             registry.getImageHeaderParsers(), stream, arrayPool);
                 }
                 if (imageType != ImageHeaderParser.ImageType.UNKNOWN) {
+                    return response;
+                }
+                byte[] head = response.peekBody(1024).bytes();
+                if (FastImageSvg.looksLikeSvg(head, head.length)) {
                     return response;
                 }
                 response.close();
