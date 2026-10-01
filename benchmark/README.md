@@ -19,12 +19,12 @@ Options: `--subjects` (from `app/subjects.json`), `--scenarios` (`grid`, `large`
 Runs on a connected device or emulator (adb), or on Firebase Test Lab's physical devices, which need `gcloud` logged in (`gcloud auth login`) and the Firebase project (`react-native-fast-image` by default):
 
 ```sh
-bun benchmark/scripts/run-android.ts --firebase                     # every subject, on a Pixel 8 Pro
+bun benchmark/scripts/run-android.ts --firebase                     # every subject, on a Pixel 8
 bun benchmark/scripts/run-android.ts --firebase --device model=akita,version=35 --subjects fast-image
 bun benchmark/scripts/run-android.ts --subjects fast-image --iterations 2   # adb device (an emulator only checks the setup)
 ```
 
-Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`. It needs JDK 17 and the Android SDK.
+Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`. It needs JDK 17 and the Android SDK. It builds every subject first; on Test Lab the subjects then run at the same time, each on its own device.
 
 Results go to `benchmark/results/<time>/`: a JSON file per run (the app's results, and when each image showed), the XCTest result bundles, and `summary.md`.
 

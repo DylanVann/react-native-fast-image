@@ -25,9 +25,9 @@ type Config = {
     columns: number
     list: boolean
     // For subjects without load events (Nitro Image), done after this long
-    // on each platform: about twice the longest any subject has taken to
-    // show every image (iOS: 0.9 s large, 0.4 s grid; Android on a Pixel 8
-    // Pro: 4.4 s large, 0.8 s grid). The others are done at their last load
+    // on each platform: about twice the longest it has taken to show every
+    // image (iOS: under 0.9 s large, 0.4 s grid; Android on a Pixel 8 Pro:
+    // 8.2 s large, 1.6 s grid). The others are done at their last load
     // event (or after SAFETY_MS).
     fixedMs: { ios: number; android: number }
 }
@@ -42,21 +42,21 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
         set: 'grid',
         columns: 4,
         list: false,
-        fixedMs: { ios: 1_000, android: 1_500 },
+        fixedMs: { ios: 1_000, android: 3_000 },
     },
     // 500 photos (300 px) in a FlashList, which the UI test scrolls.
     scroll: {
         set: 'scroll',
         columns: 3,
         list: true,
-        fixedMs: { ios: 1_000, android: 1_500 },
+        fixedMs: { ios: 1_000, android: 3_000 },
     },
     // 20 large photos (4000 × 3000) shown small: memory.
     large: {
         set: 'large',
         columns: 4,
         list: false,
-        fixedMs: { ios: 2_000, android: 9_000 },
+        fixedMs: { ios: 2_000, android: 16_000 },
     },
 }
 

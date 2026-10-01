@@ -7,14 +7,15 @@
 //                                        [--firebase --device model=…,version=…]
 //
 // For each subject: builds the app with only that library (app/subjects.js)
-// and the Macrobenchmark test APK (android/macrobenchmark), in release, then
-// runs the tests: time-to-image records the screen while each scenario runs
+// and the Macrobenchmark test APK (android/macrobenchmark), in release
+// (keeping both in the results folder's apks/), then runs the tests, on
+// Firebase Test Lab all subjects at once: time-to-image records the screen while each scenario runs
 // and saves the recordings and the app's results, which are analyzed here as
 // on iOS (analyze.ts); scroll and large-memory are Macrobenchmark metrics.
 // Writes android-<subject>-<scenario>-<n>.json and
 // metrics-android-<subject>.json to the results folder, and prints a summary.
 
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -54,9 +55,9 @@ const scenarios = list(option('scenarios', 'grid,large'))
 const tests = list(option('tests', Object.keys(TESTS).join(',')))
 const iterations = Number(option('iterations', '5'))
 const firebase = flag('firebase')
-// The Pixel 8 Pro (Android 15): the same generation as the iPhone 15 Pro Max
-// the iOS runs use.
-const firebaseDevice = option('device', 'model=husky,version=35')
+// The Pixel 8 (Android 15): the same generation as the iPhone 15 Pro Max
+// the iOS runs use, and one Test Lab has many of (high capacity).
+const firebaseDevice = option('device', 'model=shiba,version=35')
 const firebaseProject = option('project', 'react-native-fast-image')
 for (const subject of chosenSubjects) {
     if (!subjects[subject]) throw new Error(`Unknown subject ${subject}`)
@@ -143,9 +144,9 @@ const testArgs = (subject: string): Record<string, string> => ({
 })
 
 // Runs the tests on the adb device, and pulls their outputs into `into`.
-function runLocal(subject: string, into: string) {
-    run(ADB, ['install', '-r', appApk])
-    run(ADB, ['install', '-r', '-t', testApk])
+function runLocal(subject: string, into: string, apks: Apks) {
+    run(ADB, ['install', '-r', apks.app])
+    run(ADB, ['install', '-r', '-t', apks.test])
     run(ADB, ['shell', `rm -rf ${DEVICE_OUTPUT}/*`], { allowFailure: true })
     const args = Object.entries(testArgs(subject)).flatMap(([k, v]) => [
         '-e',
@@ -178,8 +179,8 @@ function runLocal(subject: string, into: string) {
 }
 
 // Runs the tests on Firebase Test Lab, and downloads their outputs into
-// `into`.
-function runFirebase(subject: string, into: string) {
+// `into`. Several can run at once, on separate devices.
+async function runFirebase(subject: string, into: string, apks: Apks) {
     const bucketDir = `benchmark-${path.basename(out)}-${subject}`
     // `^;^`: entries separated by `;`, as values have commas (gcloud topic
     // escaping).
@@ -188,42 +189,43 @@ function runFirebase(subject: string, into: string) {
         Object.entries(testArgs(subject))
             .map(([k, v]) => `${k}=${v}`)
             .join(';')
-    log(`  firebase (${firebaseDevice})`)
-    const test = spawnSync(
-        'gcloud',
-        [
-            'firebase',
-            'test',
-            'android',
-            'run',
-            '--type',
-            'instrumentation',
-            '--app',
-            appApk,
-            '--test',
-            testApk,
-            '--device',
-            firebaseDevice,
-            '--test-targets',
-            tests
-                .map((t) => `class ${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
-                .join(','),
-            '--environment-variables',
-            env,
-            '--directories-to-pull',
-            DEVICE_OUTPUT,
-            '--results-dir',
-            bucketDir,
-            '--timeout',
-            '45m',
-            '--format',
-            'json',
-            '--project',
-            firebaseProject,
-        ],
-        { encoding: 'utf8', maxBuffer: 1 << 28 },
+    log(`  ${subject}: firebase (${firebaseDevice})`)
+    const test = spawn('gcloud', [
+        'firebase',
+        'test',
+        'android',
+        'run',
+        '--type',
+        'instrumentation',
+        '--app',
+        apks.app,
+        '--test',
+        apks.test,
+        '--device',
+        firebaseDevice,
+        '--test-targets',
+        tests
+            .map((t) => `class ${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
+            .join(','),
+        '--environment-variables',
+        env,
+        '--directories-to-pull',
+        DEVICE_OUTPUT,
+        '--results-dir',
+        bucketDir,
+        '--timeout',
+        '45m',
+        '--format',
+        'json',
+        '--project',
+        firebaseProject,
+    ])
+    let output = ''
+    test.stdout.on('data', (d) => (output += d))
+    test.stderr.on('data', (d) => (output += d))
+    const status = await new Promise<number>((resolve) =>
+        test.on('close', (code) => resolve(code ?? 1)),
     )
-    const output = `${test.stdout}${test.stderr}`
     // gcloud reports where the results are as a Cloud Console url:
     // …/storage/browser/<bucket>/<folder>/
     const location = output.match(/storage\/browser\/([^\s\]]+)/)?.[1]
@@ -232,15 +234,16 @@ function runFirebase(subject: string, into: string) {
             `firebase test didn't report its results:\n${output.slice(-2000)}`,
         )
     }
-    const bucket = `gs://${location}`
-    if (test.status !== 0)
-        log(`  gcloud exited with ${test.status}:\n${output.slice(-1500)}`)
+    if (status !== 0)
+        log(
+            `  ${subject}: gcloud exited with ${status}:\n${output.slice(-1500)}`,
+        )
     fs.mkdirSync(into, { recursive: true })
     run('gcloud', [
         'storage',
         'cp',
         '-r',
-        `${bucket.replace(/\/$/, '')}/*`,
+        `gs://${location.replace(/\/$/, '')}/*`,
         into,
         '--project',
         firebaseProject,
@@ -284,25 +287,11 @@ function findFiles(dir: string, match: RegExp): string[] {
 log(
     `results ${path.relative(process.cwd(), out)}${firebase ? `; Firebase Test Lab (${firebaseDevice})` : '; adb device'}`,
 )
-for (const subject of chosenSubjects) {
-    if (!flag('no-build')) {
-        try {
-            build(subject)
-        } catch (error) {
-            failed(subject, 'build', String(error).slice(0, 2000))
-            continue
-        }
-    }
-    const pulled = path.join(out, `android-${subject}-outputs`)
-    fs.rmSync(pulled, { recursive: true, force: true })
-    try {
-        if (firebase) runFirebase(subject, pulled)
-        else runLocal(subject, pulled)
-    } catch (error) {
-        failed(subject, 'tests', error)
-        continue
-    }
-    // Time to image: each recording with its run's results.
+type Apks = { app: string; test: string }
+
+// Analyzes a subject's pulled outputs: each recording with its run's results
+// (time to image), and Macrobenchmark's metrics.
+async function analyzeOutputs(subject: string, pulled: string) {
     for (const json of findFiles(pulled, /^(grid|large|scroll)-\d+\.json$/)) {
         const [, scenario, n] = path
             .basename(json)
@@ -322,13 +311,64 @@ for (const subject of chosenSubjects) {
             failed(subject, scenario, error)
         }
     }
-    // Macrobenchmark's metrics.
     const metrics = findFiles(pulled, /benchmarkData\.json$/)[0]
-    if (metrics)
+    if (metrics) {
         fs.copyFileSync(
             metrics,
             path.join(out, `metrics-android-${subject}.json`),
         )
+    }
+}
+
+// Builds every subject first (they share the generated project), keeping
+// each one's APKs.
+const apks = new Map<string, Apks>()
+const apkDir = path.join(out, 'apks')
+fs.mkdirSync(apkDir, { recursive: true })
+for (const subject of chosenSubjects) {
+    const kept = {
+        app: path.join(apkDir, `${subject}-app.apk`),
+        test: path.join(apkDir, `${subject}-test.apk`),
+    }
+    if (flag('no-build')) {
+        // The last build's APKs (for the one subject it was).
+        apks.set(
+            subject,
+            fs.existsSync(kept.app) ? kept : { app: appApk, test: testApk },
+        )
+        continue
+    }
+    try {
+        build(subject)
+        fs.copyFileSync(appApk, kept.app)
+        fs.copyFileSync(testApk, kept.test)
+        apks.set(subject, kept)
+    } catch (error) {
+        failed(subject, 'build', String(error).slice(0, 2000))
+    }
+}
+
+const runSubject = async (subject: string, subjectApks: Apks) => {
+    const pulled = path.join(out, `android-${subject}-outputs`)
+    fs.rmSync(pulled, { recursive: true, force: true })
+    try {
+        if (firebase) await runFirebase(subject, pulled, subjectApks)
+        else runLocal(subject, pulled, subjectApks)
+    } catch (error) {
+        failed(subject, 'tests', error)
+        return
+    }
+    await analyzeOutputs(subject, pulled)
+}
+if (firebase) {
+    await Promise.all(
+        [...apks].map(([subject, subjectApks]) =>
+            runSubject(subject, subjectApks),
+        ),
+    )
+} else {
+    for (const [subject, subjectApks] of apks)
+        await runSubject(subject, subjectApks)
 }
 
 log('')
