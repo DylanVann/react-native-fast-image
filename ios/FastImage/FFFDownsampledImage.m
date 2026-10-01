@@ -91,8 +91,9 @@ static CGSize FFFPixelSize(NSData* data) {
     // fill it, stretched). With its own url, a downsampled load only shares
     // downloads with other downsampled ones. Not a photo library url, which
     // isn't downloaded, and whose loader reads everything after ph:// as the
-    // photo's identifier.
-    if ([url.scheme isEqualToString: @"ph"]) {
+    // photo's identifier. No url (a source whose uri isn't one), which fails
+    // as it does without downsample (NSURLComponents throws for nil).
+    if (!url || [url.scheme isEqualToString: @"ph"]) {
         return url;
     }
     NSURLComponents* components = [NSURLComponents componentsWithURL: url resolvingAgainstBaseURL: NO];
