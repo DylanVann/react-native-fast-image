@@ -20,10 +20,13 @@ import { cacheControl, priority, resizeMode } from './constants'
 // it's string.
 type ColorValue = NonNullable<ViewStyle['backgroundColor']>
 
+/** How the image fits the view: see [`resizeMode`](#resizemode). */
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
 
+/** An image's load priority: see [`source.priority`](#sourcepriority). */
 export type Priority = 'low' | 'normal' | 'high'
 
+/** How fresh an image must be: see [`source.cache`](#sourcecache). */
 export type Cache = 'immutable' | 'web' | 'cacheOnly'
 
 /** A remote image to load, and how to load and cache it. */
@@ -112,6 +115,7 @@ export type Source = {
     scale?: number
 }
 
+/** How the image fades in: see [`transition`](#transition). */
 export type Transition = {
     /**
      * How long the fade takes, in milliseconds; 0 means no fade. Defaults to
@@ -142,67 +146,92 @@ export type Transition = {
     skipOnCacheHit?: 'none' | 'memory' | 'all' | null
 }
 
+/**
+ * `onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in
+ * pixels, and `target`, the view's React tag (missing on Android with the
+ * legacy architecture).
+ */
 export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
-        // The view's React tag. Missing on Android with the legacy architecture.
         // TODO: make it required once the New Architecture is the minimum.
         target?: number
     }
 }
 
+/**
+ * `onError`'s event: `nativeEvent.error` says what went wrong, e.g. an HTTP
+ * status code or an image that can't be decoded.
+ */
 export interface OnErrorEvent {
     nativeEvent: {
-        // What went wrong, e.g. an HTTP status code or an image that can't be
-        // decoded.
         error: string
     }
 }
 
-// A load's result, as onLoadEnd gets it: ok with the image's size, or not ok
-// with the error (as onLoad and onError get them).
+/**
+ * A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not
+ * `ok` with the error (as `onLoad` and `onError` get them).
+ */
 export type LoadResult =
     | { ok: true; width: number; height: number }
     | { ok: false; error: string }
 
-// configureCache's changes: a number (0 for no limit), or null to go back to
-// the app's native config (Info.plist, AndroidManifest.xml) or the platform's
-// default. Leave one out to keep it. Changes are saved, and used on the next
-// launches too. Android only has maxDiskSize.
+/**
+ * `configureCache`'s changes: a number (0 for no limit), or `null` to go back
+ * to the app's native config (Info.plist, AndroidManifest.xml) or the
+ * platform's default. Leave one out to keep it. Changes are saved, and used on
+ * the next launches too. Android only has `maxDiskSize`.
+ */
 export interface CacheLimits {
-    // The most bytes of images kept on disk. When it's over, the least
-    // recently used are removed (on iOS, until it's half this size). Default:
-    // no limit on iOS, 250 MB on Android.
+    /**
+     * The most bytes of images kept on disk. When it's over, the least
+     * recently used are removed (on iOS, until it's half this size). Default:
+     * no limit on iOS, 250 MB on Android.
+     */
     maxDiskSize?: number | null
-    // iOS: the seconds an image is kept on disk after it was last used, or 0
-    // to keep them until maxDiskSize removes them. Default: 1 week.
+    /**
+     * iOS: the seconds an image is kept on disk after it was last used, or 0
+     * to keep them until `maxDiskSize` removes them. Default: 1 week.
+     */
     maxDiskAge?: number | null
-    // iOS: the most bytes of decoded images kept in memory. Default: no limit
-    // (they're removed when the system is low on memory).
+    /**
+     * iOS: the most bytes of decoded images kept in memory. Default: no limit
+     * (they're removed when the system is low on memory).
+     */
     maxMemorySize?: number | null
 }
 
-// configureCache's result: the limits in effect (0 for no limit), and the bytes
-// the disk cache uses now. Android only has maxDiskSize and diskSize, and
-// neither if the app has its own AppGlideModule.
+/**
+ * `configureCache`'s result: the limits in effect (0 for no limit), and the
+ * bytes the disk cache uses now. Android only has `maxDiskSize` and
+ * `diskSize`, and neither if the app has its own `AppGlideModule`.
+ */
 export interface CacheState {
     maxDiskSize?: number
     maxDiskAge?: number
     maxMemorySize?: number
+    /** The bytes the disk cache uses now. */
     diskSize?: number
 }
 
-// getCachePath's result: ok with the file's path, or not ok with the error.
+/**
+ * `getCachePath`'s and `writeToCache`'s result: `ok` with the file's path, or
+ * not `ok` with the error.
+ */
 export type CachePathResult =
     | { ok: true; path: string }
     | { ok: false; error: string }
 
+/**
+ * `onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`,
+ * and `progress`, `loaded / total` from 0 to 1.
+ */
 export interface OnProgressEvent {
     nativeEvent: {
         loaded: number
         total: number
-        // loaded / total, from 0 to 1.
         progress: number
     }
 }
@@ -797,28 +826,31 @@ const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
 
 FastImageComponent.displayName = 'FastImage'
 
-// A source that loaded (and is now cached).
+/** A preloaded source that loaded (and is now cached). */
 export interface PreloadSuccess {
-    // The source's uri.
+    /** The source's uri. */
     uri: string
     ok: true
-    // The image's size (as in onLoad).
+    /** The image's width (as in `onLoad`). */
     width: number
+    /** The image's height (as in `onLoad`). */
     height: number
 }
 
-// A source that failed to load.
+/** A preloaded source that failed to load. */
 export interface PreloadFailure {
-    // The source's uri (none for a source without one, e.g. null).
+    /** The source's uri (none for a source without one, e.g. `null`). */
     uri?: string
     ok: false
-    // What went wrong.
+    /** What went wrong. */
     error: string
 }
 
-// Check `ok` to tell which it is: e.g. `if (result.ok)` narrows it to a
-// PreloadSuccess, with its size. Reading `width` or `error` without checking
-// is a type error.
+/**
+ * `preload`'s result for a source. Check `ok` to tell which it is: e.g.
+ * `if (result.ok)` narrows it to a `PreloadSuccess`, with its size. Reading
+ * `width` or `error` without checking is a type error.
+ */
 export type PreloadResult = PreloadSuccess | PreloadFailure
 
 // A result as native sends it (without the uri).

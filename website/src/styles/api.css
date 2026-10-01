@@ -150,3 +150,36 @@ mobile-starlight-toc .dropdown {
         padding-top: 2.5rem;
     }
 }
+
+/* Types in the API docs (generate.mts's typeCode) highlighted like the code
+   blocks, with Expressive Code's Night Owl colors: value types, literals,
+   numbers, strings and type names. Linked type names keep the link color. */
+:root {
+    --tk-k: #c792ea;
+    --tk-l: #ff6a83;
+    --tk-n: #f78c6c;
+    --tk-s: #ecc48d;
+    --tk-t: #7fdbca;
+}
+:root[data-theme='light'] {
+    --tk-k: #8844ae;
+    --tk-l: #a24848;
+    --tk-n: #aa0982;
+    --tk-s: #984e4d;
+    --tk-t: #096e72;
+}
+.api-type .tk-k {
+    color: var(--tk-k);
+}
+.api-type .tk-l {
+    color: var(--tk-l);
+}
+.api-type .tk-n {
+    color: var(--tk-n);
+}
+.api-type .tk-s {
+    color: var(--tk-s);
+}
+.api-type .tk-t {
+    color: var(--tk-t);
+}

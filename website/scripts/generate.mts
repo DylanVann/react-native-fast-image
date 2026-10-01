@@ -12,7 +12,7 @@ import {
     writeFileSync,
 } from 'node:fs'
 import { posix } from 'node:path'
-import { slug } from 'github-slugger'
+import GithubSlugger, { slug } from 'github-slugger'
 import { Application, normalizePath, type JSONOutput as J } from 'typedoc'
 
 const root = new URL('../../', import.meta.url).pathname
@@ -34,6 +34,12 @@ const PLATFORMS: Record<string, string> = {
     android: 'Android',
     web: 'Web',
 }
+
+// By where they're declared: line, then column (an object type's fields can
+// share a line).
+const bySource = (a: J.Reflection, b: J.Reflection) =>
+    (a.sources?.[0]?.line ?? 0) - (b.sources?.[0]?.line ?? 0) ||
+    (a.sources?.[0]?.character ?? 0) - (b.sources?.[0]?.character ?? 0)
 
 function typeToString(t: J.SomeType | undefined): string {
     if (!t) return 'unknown'
@@ -58,10 +64,13 @@ function typeToString(t: J.SomeType | undefined): string {
         case 'reflection': {
             const sig = t.declaration.signatures?.[0]
             if (sig) return signatureToString(sig)
-            const props = (t.declaration.children ?? []).map(
-                (c) =>
-                    `${c.name}${c.flags.isOptional ? '?' : ''}: ${typeToString(c.type)}`,
-            )
+            // In source order (TypeDoc sorts them by name).
+            const props = (t.declaration.children ?? [])
+                .toSorted(bySource)
+                .map(
+                    (c) =>
+                        `${c.name}${c.flags.isOptional ? '?' : ''}: ${typeToString(c.type)}`,
+                )
             for (const i of t.declaration.indexSignatures ?? [])
                 props.push(
                     `[${i.parameters![0].name}: ${typeToString(i.parameters![0].type)}]: ${typeToString(i.type)}`,
@@ -109,8 +118,9 @@ interface Member {
     body: string
 }
 
-// An interface's or type's own members, with their docs, in source order.
-function members(name: string, prefix = ''): Member[] {
+// An interface's or type's own members, with their docs, in source order: only
+// those with docs, unless all.
+function members(name: string, prefix = '', all = false): Member[] {
     const node = byName.get(name)
     const children =
         node?.children ??
@@ -124,12 +134,9 @@ function members(name: string, prefix = ''): Member[] {
             .filter(
                 (c) =>
                     !c.inheritedFrom &&
-                    (c.comment || c.signatures?.[0]?.comment),
+                    (all || c.comment || c.signatures?.[0]?.comment),
             )
-            .sort(
-                (a, b) =>
-                    (a.sources?.[0]?.line ?? 0) - (b.sources?.[0]?.line ?? 0),
-            )
+            .sort(bySource)
             .map((c) => {
                 const sig = c.signatures?.[0]
                 const r = sig?.comment ? sig : c
@@ -175,6 +182,33 @@ const props = members('FastImageProps').flatMap((m) =>
 // default under it: in the README as markdown, on the website styled.
 const code = (s: string) => `\`${s}\``
 const html = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+
+// On the website, a type as code, highlighted like the code blocks (see
+// api.css): value types, literals, numbers, strings and type names.
+const PRIMITIVES = new Set(['any', 'boolean', 'number', 'string', 'void'])
+const LITERALS = new Set(['true', 'false', 'null', 'undefined'])
+function typeCode(type: string) {
+    const highlighted = type.replace(
+        /'[^']*'|\b\d[\d.]*\b|\b[A-Za-z_]\w*\b|[^'\w]+/g,
+        (token) => {
+            const kind = token.startsWith("'")
+                ? 's'
+                : /^\d/.test(token)
+                  ? 'n'
+                  : PRIMITIVES.has(token)
+                    ? 'k'
+                    : LITERALS.has(token)
+                      ? 'l'
+                      : /^[A-Z]/.test(token)
+                        ? 't'
+                        : undefined
+            return kind
+                ? `<span class="tk-${kind}">${html(token)}</span>`
+                : html(token)
+        },
+    )
+    return `<code class="api-type">${highlighted}</code>`
+}
 function propsSection(site: boolean) {
     return props
         .map((m) => {
@@ -184,8 +218,8 @@ function propsSection(site: boolean) {
                           (p) => `<span class="api-badge">${p} only</span>`,
                       ),
                       m.optional ? 'Optional' : 'Required',
-                      `Type: <code>${html(m.type)}</code>`,
-                      m.default && `Default: <code>${html(m.default)}</code>`,
+                      `Type: ${typeCode(m.type)}`,
+                      m.default && `Default: ${typeCode(m.default)}`,
                   ]
                 : [
                       `**Type:** ${code(m.type)}`,
@@ -202,10 +236,167 @@ function propsSection(site: boolean) {
         .join('\n\n---\n\n')
 }
 
+// Members as a list, each with its type, default and docs (indented to stay in
+// its item when they're several paragraphs): in the README as markdown, on the
+// website highlighted.
+const fieldList = (ms: Member[], site: boolean) =>
+    ms
+        .map((m) => {
+            const typed = site ? typeCode : code
+            const type = [
+                typed(m.type),
+                m.default && `default ${typed(m.default)}`,
+            ].filter(Boolean)
+            const body = m.body.replace(/\n(?=.)/g, '\n  ')
+            return `- ${code(m.name + (m.optional ? '?' : ''))} (${type.join(', ')})${body ? `: ${body}` : ''}`
+        })
+        .join('\n')
+
 // FastImageBackground's own props, as a list: the rest are FastImage's.
-const backgroundProps = members('FastImageBackgroundProps')
-    .map((m) => `- ${code(m.name)} (${code(m.type)}): ${m.body}`)
-    .join('\n')
+const backgroundProps = (site: boolean) =>
+    fieldList(members('FastImageBackgroundProps'), site)
+
+// FastImage's methods' signatures, by name.
+const methods = new Map(
+    (byName.get('FastImageStaticProperties')?.children ?? []).flatMap((c) => {
+        const sig =
+            c.type?.type === 'reflection'
+                ? c.type.declaration.signatures?.[0]
+                : undefined
+        return sig ? [[c.name, sig] as const] : []
+    }),
+)
+
+// Each method's heading (its name and parameters' names) and, under it, its
+// parameters' and result's types, like a prop's type: in the README as
+// markdown, on the website styled. The rest of a method's docs are written in
+// the README.
+function withMethods(markdown: string, site: boolean) {
+    return markdown.replace(
+        /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
+        (all, name: string) => {
+            const sig = methods.get(name)
+            if (!sig) return all
+            const params = sig.parameters ?? []
+            const typed = params.map(
+                (p) =>
+                    `${p.name}${p.flags.isOptional ? '?' : ''}: ${typeToString(p.type)}`,
+            )
+            const returns = typeToString(sig.type)
+            const meta = site
+                ? [
+                      typed.length &&
+                          `Parameters: ${typed.map(typeCode).join(', ')}`,
+                      `Returns: ${typeCode(returns)}`,
+                  ]
+                : [
+                      typed.length &&
+                          `**Parameters:** ${typed.map(code).join(', ')}`,
+                      `**Returns:** ${code(returns)}`,
+                  ]
+            const line = meta.filter(Boolean).join(' · ')
+            return [
+                `### ${code(`${name}(${params.map((p) => p.name).join(', ')})`)}`,
+                site ? `<div class="api-meta">${line}</div>` : line,
+                '',
+            ].join('\n\n')
+        },
+    )
+}
+
+// The exported types the props and methods use, and the types those use, for
+// the Types section. Except those documented elsewhere: Source's options are
+// the source prop's, and ImageStyle is React Native's style props.
+const DOCUMENTED_ELSEWHERE = new Set(['Source', 'ImageStyle'])
+const typeNames = new Set<string>()
+function collectTypes(t: J.SomeType | undefined) {
+    if (!t) return
+    switch (t.type) {
+        case 'reference': {
+            t.typeArguments?.forEach(collectTypes)
+            const node = byName.get(t.name)
+            if (!node || DOCUMENTED_ELSEWHERE.has(t.name) || typeNames.has(t.name))
+                return
+            typeNames.add(t.name)
+            node.children?.forEach((c) => collectTypes(c.type))
+            return collectTypes(node.type)
+        }
+        case 'union':
+            return t.types.forEach(collectTypes)
+        case 'array':
+            return collectTypes(t.elementType)
+        case 'reflection':
+            for (const sig of t.declaration.signatures ?? []) {
+                sig.parameters?.forEach((p) => collectTypes(p.type))
+                collectTypes(sig.type)
+            }
+            t.declaration.children?.forEach((c) => collectTypes(c.type))
+    }
+}
+for (const name of ['FastImageProps', 'Source', 'FastImageBackgroundProps'])
+    byName
+        .get(name)
+        ?.children?.filter((c) => !c.inheritedFrom)
+        .forEach((c) => {
+            collectTypes(c.type)
+            // Props declared as methods, e.g. onLoad(event: OnLoadEvent).
+            for (const sig of c.signatures ?? [])
+                sig.parameters?.forEach((p) => collectTypes(p.type))
+        })
+for (const sig of methods.values()) {
+    sig.parameters?.forEach((p) => collectTypes(p.type))
+    collectTypes(sig.type)
+}
+
+// A heading per type, in alphabetical order, and under it its docs and either
+// its fields (an object type) or its type (e.g. a union of values).
+function typesSection(site: boolean) {
+    return [...typeNames]
+        .sort()
+        .map((name) => {
+            const node = byName.get(name)!
+            const fields = members(name, '', true)
+            const type = typeToString(node.type)
+            const meta =
+                !fields.length &&
+                (site
+                    ? `<div class="api-meta">Type: ${typeCode(type)}</div>`
+                    : `**Type:** ${code(type)}`)
+            return [
+                `### ${code(name)}`,
+                meta,
+                partsToMarkdown(node.comment?.summary),
+                fields.length && fieldList(fields, site),
+            ]
+                .filter(Boolean)
+                .join('\n\n')
+        })
+        .join('\n\n---\n\n')
+}
+
+// On the website, the type names in the generated types (props', methods',
+// types' and fields') link to their docs: in the Types section, or Source to
+// the source prop. The anchors are as GitHub and Astro make them, numbered when
+// headings repeat.
+function withTypeLinks(markdown: string) {
+    const slugger = new GithubSlugger()
+    const anchors = new Map<string, string>()
+    let inTypes = false
+    for (const [, level, text] of markdown
+        .replace(/```[\s\S]*?```/g, '')
+        .matchAll(/^(#{1,6}) (.*)$/gm)) {
+        const plain = text.replace(/`/g, '')
+        const anchor = slugger.slug(plain)
+        if (level === '##') inTypes = plain === 'Types'
+        else if (inTypes && typeNames.has(plain)) anchors.set(plain, anchor)
+        else if (plain === 'source' && !anchors.has('Source'))
+            anchors.set('Source', anchor)
+    }
+    const names = new RegExp(`\\b(${[...anchors.keys()].join('|')})\\b`, 'g')
+    return markdown.replace(/<code class="api-type">.*?<\/code>/g, (type) =>
+        type.replace(names, (n) => `<a href="#${anchors.get(n)}">${n}</a>`),
+    )
+}
 
 const readme = readFileSync(`${root}README.md`, 'utf8')
 // The README with each marked section replaced.
@@ -217,12 +408,18 @@ const withGenerated = (sections: Record<string, string>) =>
         if (rest === undefined) throw new Error(`README.md has no ${start}`)
         return `${before}${start}\n\n${generated}\n\n${rest.slice(rest.indexOf(end))}`
     }, readme)
-const withProps = (site: boolean) =>
-    withGenerated({
-        props: propsSection(site),
-        'background-props': backgroundProps,
-    })
-const updatedReadme = withProps(false)
+// The README with its generated API docs, as the README or the website shows
+// them.
+const withApi = (site: boolean) =>
+    withMethods(
+        withGenerated({
+            props: propsSection(site),
+            'background-props': backgroundProps(site),
+            types: typesSection(site),
+        }),
+        site,
+    )
+const updatedReadme = withApi(false)
 if (process.argv.includes('--check')) {
     if (updatedReadme !== readme) {
         console.error(
@@ -304,10 +501,10 @@ const frontmatter = (fields: Record<string, unknown>) =>
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
         .join('\n')}\n---\n\n`
 
-// The main page: the README, with the props as the website shows them, and
+// The main page: the README, with the API docs as the website shows them, and
 // without its title (the page's title is shown instead).
 const { description } = JSON.parse(readFileSync(`${root}package.json`, 'utf8'))
-const readmePage = withProps(true).replace(/^# .*\n+/m, '')
+const readmePage = withTypeLinks(withApi(true).replace(/^# .*\n+/m, ''))
 write(
     '',
     frontmatter({

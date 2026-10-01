@@ -468,16 +468,18 @@ Its own props are these; the others are `FastImage`'s and go to the image. Its r
 
 <!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
 
-- `style` (`StyleProp<ViewStyle>`): The container's style; the image fills it.
-- `imageStyle` (`StyleProp<ImageStyle>`): The image's style.
-- `imageRef` (`Ref<any>`): A ref to the image (the FastImage inside).
-- `children` (`ReactNode`): Content shown on top of the image.
+- `style?` (`StyleProp<ViewStyle>`): The container's style; the image fills it.
+- `imageStyle?` (`StyleProp<ImageStyle>`): The image's style.
+- `imageRef?` (`Ref<any>`): A ref to the image (the FastImage inside).
+- `children?` (`ReactNode`): Content shown on top of the image.
 
 <!-- api:background-props end -->
 
 ## Methods
 
-### `preload: (source[]) => Promise<result[]>`
+### `preload(sources)`
+
+**Parameters:** `sources: Source[]` · **Returns:** `Promise<PreloadResult[]>`
 
 Preload images to display later. e.g.
 
@@ -515,15 +517,21 @@ A source with `memoryCache: false` is only downloaded to the disk cache, without
 await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 ```
 
-### `clearMemoryCache: () => Promise<void>`
+### `clearMemoryCache()`
+
+**Returns:** `Promise<void>`
 
 Clear all images from memory cache.
 
-### `clearDiskCache: () => Promise<void>`
+### `clearDiskCache()`
+
+**Returns:** `Promise<void>`
 
 Clear all images from disk cache.
 
-### `getCachePath: (source: Source) => Promise<CachePathResult>`
+### `getCachePath(source)`
+
+**Parameters:** `source: Source` · **Returns:** `Promise<CachePathResult>`
 
 The path of the source's downloaded file in the disk cache, e.g. to share, save or upload an image without downloading it again. If the file isn't there, it's downloaded first, without decoding the image or keeping it in memory. Resolves with `{ ok: true, path }`, or `{ ok: false, error }` if it can't be downloaded. Never rejects.
 
@@ -551,7 +559,9 @@ const { ok } = await FastImage.getCachePath({
 
 There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey).
 
-### `writeToCache: (source: Source, file: string) => Promise<CachePathResult>`
+### `writeToCache(source, file)`
+
+**Parameters:** `source: Source`, `file: string` · **Returns:** `Promise<CachePathResult>`
 
 Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
 
@@ -570,7 +580,9 @@ const result = await FastImage.writeToCache(
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
-### `configureCache: (limits?: CacheLimits) => Promise<CacheState>`
+### `configureCache(limits)`
+
+**Parameters:** `limits?: CacheLimits` · **Returns:** `Promise<CacheState>`
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
@@ -613,6 +625,140 @@ const { maxDiskSize, diskSize } = await FastImage.configureCache()
 On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
+
+## Types
+
+<!-- api:types start (generated from src/ by website/scripts/generate.mts) -->
+
+### `Cache`
+
+**Type:** `'immutable' | 'web' | 'cacheOnly'`
+
+How fresh an image must be: see [`source.cache`](#sourcecache).
+
+---
+
+### `CacheLimits`
+
+`configureCache`'s changes: a number (0 for no limit), or `null` to go back to the app's native config (Info.plist, AndroidManifest.xml) or the platform's default. Leave one out to keep it. Changes are saved, and used on the next launches too. Android only has `maxDiskSize`.
+
+- `maxDiskSize?` (`number | null`): The most bytes of images kept on disk. When it's over, the least recently used are removed (on iOS, until it's half this size). Default: no limit on iOS, 250 MB on Android.
+- `maxDiskAge?` (`number | null`): iOS: the seconds an image is kept on disk after it was last used, or 0 to keep them until `maxDiskSize` removes them. Default: 1 week.
+- `maxMemorySize?` (`number | null`): iOS: the most bytes of decoded images kept in memory. Default: no limit (they're removed when the system is low on memory).
+
+---
+
+### `CachePathResult`
+
+**Type:** `{ ok: true; path: string } | { ok: false; error: string }`
+
+`getCachePath`'s and `writeToCache`'s result: `ok` with the file's path, or not `ok` with the error.
+
+---
+
+### `CacheState`
+
+`configureCache`'s result: the limits in effect (0 for no limit), and the bytes the disk cache uses now. Android only has `maxDiskSize` and `diskSize`, and neither if the app has its own `AppGlideModule`.
+
+- `maxDiskSize?` (`number`)
+- `maxDiskAge?` (`number`)
+- `maxMemorySize?` (`number`)
+- `diskSize?` (`number`): The bytes the disk cache uses now.
+
+---
+
+### `LoadResult`
+
+**Type:** `{ ok: true; width: number; height: number } | { ok: false; error: string }`
+
+A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not `ok` with the error (as `onLoad` and `onError` get them).
+
+---
+
+### `OnErrorEvent`
+
+`onError`'s event: `nativeEvent.error` says what went wrong, e.g. an HTTP status code or an image that can't be decoded.
+
+- `nativeEvent` (`{ error: string }`)
+
+---
+
+### `OnLoadEvent`
+
+`onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in pixels, and `target`, the view's React tag (missing on Android with the legacy architecture).
+
+- `nativeEvent` (`{ width: number; height: number; target?: number }`)
+
+---
+
+### `OnProgressEvent`
+
+`onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`, and `progress`, `loaded / total` from 0 to 1.
+
+- `nativeEvent` (`{ loaded: number; total: number; progress: number }`)
+
+---
+
+### `PreloadFailure`
+
+A preloaded source that failed to load.
+
+- `uri?` (`string`): The source's uri (none for a source without one, e.g. `null`).
+- `ok` (`false`)
+- `error` (`string`): What went wrong.
+
+---
+
+### `PreloadResult`
+
+**Type:** `PreloadSuccess | PreloadFailure`
+
+`preload`'s result for a source. Check `ok` to tell which it is: e.g. `if (result.ok)` narrows it to a `PreloadSuccess`, with its size. Reading `width` or `error` without checking is a type error.
+
+---
+
+### `PreloadSuccess`
+
+A preloaded source that loaded (and is now cached).
+
+- `uri` (`string`): The source's uri.
+- `ok` (`true`)
+- `width` (`number`): The image's width (as in `onLoad`).
+- `height` (`number`): The image's height (as in `onLoad`).
+
+---
+
+### `Priority`
+
+**Type:** `'low' | 'normal' | 'high'`
+
+An image's load priority: see [`source.priority`](#sourcepriority).
+
+---
+
+### `ResizeMode`
+
+**Type:** `'contain' | 'cover' | 'stretch' | 'center' | 'repeat'`
+
+How the image fits the view: see [`resizeMode`](#resizemode).
+
+---
+
+### `Transition`
+
+How the image fades in: see [`transition`](#transition).
+
+- `duration?` (`number`): How long the fade takes, in milliseconds; 0 means no fade. Defaults to the platform's usual length: 300 ms on Android, 250 ms on iOS.
+- `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over `defaultSource`) fades in, and a new source replaces the image showing at once, once it has loaded.
+- `skipOnCacheHit?` (`'none' | 'memory' | 'all' | null`, default `'memory'`): Skips the fade for an image from a cache, so images already loaded show at once, e.g. in a list scrolled back up or a reused row.
+
+  - `'memory'`: skips it for images from the memory cache.
+  - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
+  - `'none'`: always fades.
+
+  Downloads, local files and bundled images (`require()`) fade in.
+
+<!-- api:types end -->
 
 ## Photo library images (iOS)
 
