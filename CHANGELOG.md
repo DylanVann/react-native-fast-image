@@ -1,3 +1,10 @@
+# [8.28.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.4...v8.28.0) (2026-10-01)
+
+
+### Features
+
+* **ios:** downsample by default ([#1218](https://github.com/DylanVann/react-native-fast-image/issues/1218)) ([8bc205f](https://github.com/DylanVann/react-native-fast-image/commit/8bc205fbe8a845344588352d3b9db46e8e7b3bd6))
+
 ## [8.27.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.3...v8.27.4) (2026-10-01)
 
 
