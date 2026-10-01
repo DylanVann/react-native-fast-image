@@ -4,6 +4,8 @@
 #import <SDWebImage/SDImageCacheDefine.h>
 #import <SDWebImage/SDWebImageCacheKeyFilter.h>
 #import <SDWebImage/UIImage+Metadata.h>
+#import <SDWebImage/NSData+ImageContentType.h>
+#import <SDWebImage/SDImageCodersManager.h>
 
 // The decode option that carries the full image's size to the view.
 static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
@@ -130,6 +132,22 @@ static CGSize FFFPixelSize(NSData* data) {
 }
 
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {
+    // An SVG isn't decoded smaller: it's a vector image, drawn at any size.
+    // This class can't decode it, and SDWebImage would then give it to the
+    // SVG coder with the box, which draws it into a bitmap that size. Decoded
+    // as without downsample instead (this init can return another image).
+    if ([NSData sd_imageFormatForImageData: data] == SDImageFormatSVG) {
+        NSMutableDictionary* vectorOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
+        [vectorOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
+        UIImage* image = [[SDImageCodersManager sharedManager] decodedImageWithData: data options: vectorOptions];
+        FFFSourceSize* sourceSize = options[FFFDecodeSourceSize];
+        if (image && [sourceSize isKindOfClass: [FFFSourceSize class]]) {
+            sourceSize.size = image.size;
+        }
+        self = (id) image;
+        return self;
+    }
+
     NSValue* boxValue = options[SDImageCoderDecodeThumbnailPixelSize];
     CGSize box = boxValue ? boxValue.CGSizeValue : CGSizeZero;
     NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
