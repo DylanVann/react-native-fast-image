@@ -35,20 +35,7 @@ Performant React Native image component.
   <em>FastImage example app.</em>
 </p>
 
-React Native's `Image` component handles image caching like browsers
-for the most part.
-If the server is returning proper cache control
-headers for images you'll generally get the sort of built in
-caching behavior you'd have in a browser.
-Even so many people have noticed:
-
-- Flickering.
-- Cache misses.
-- Low performance loading from cache.
-- Low performance in general.
-
-`FastImage` is an `Image` replacement that solves these issues.
-`FastImage` is a wrapper around
+`FastImage` is an image component for React Native that loads, caches and shows images quickly, without flickering. It's built on
 [SDWebImage (iOS)](https://github.com/rs/SDWebImage)
 and
 [Glide (Android)](https://github.com/bumptech/glide).
@@ -64,7 +51,7 @@ and
 
 ## Usage
 
-**Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
+Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
 
 ```bash
 yarn add react-native-fast-image
@@ -97,7 +84,7 @@ const YourImage = () => (
 
 Source for the remote image to load.
 
-When `source` changes, the image that's showing stays until the new one has loaded, as with `<img>` in browsers and React Native's `Image` on iOS. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
+When `source` changes, the image that's showing stays until the new one has loaded. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
 
 ---
 
@@ -140,7 +127,7 @@ dependencies {
 }
 ```
 
-On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one (e.g. from another library) needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`); an app that uses `expo-image` already has both.
+On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
 
 An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
 
@@ -226,7 +213,7 @@ Whether the decoded image is kept in the memory cache. **Default: true.** With `
 
 - An asset loaded with `require(...)`.
 - Shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
-- Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
+- On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
 
 ---
 
@@ -245,7 +232,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 - `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
-- `FastImage.resizeMode.center` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view (as React Native's `Image` does).
+- `FastImage.resizeMode.center` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
 - `FastImage.resizeMode.repeat` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
@@ -312,7 +299,7 @@ Decoding a smaller copy can take a little longer, so use it where the memory mat
 
 ### `blurRadius?: number`
 
-Blurs the image by this radius, in points, like React Native's `Image` (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
+Blurs the image by this radius, in points (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
@@ -391,7 +378,7 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 ## `FastImageBackground`
 
-An image with content on top of it, like React Native's `ImageBackground`: a view that the image fills, with the children on top.
+An image with content on top of it: a view that the image fills, with the children on top.
 
 Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1137](https://github.com/DylanVann/react-native-fast-image/pull/1137)), which can't hold them. `FastImageBackground` works the same in both.
 
@@ -505,7 +492,7 @@ const result = await FastImage.writeToCache(
 ```
 
 - The file must be an image.
-- It doesn't replace an image that's already cached under the source's key: give a new image a new `cacheKey` (Glide can't replace one on Android).
+- It doesn't replace an image that's already cached under the source's key: give a new image a new `cacheKey` (on Android a cached image can't be replaced).
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
@@ -513,11 +500,11 @@ const result = await FastImage.writeToCache(
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
-| Limit                                                                                                             | iOS                                                                                        | Android                                                                                              |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
-| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
+| Limit                                                                                                             | iOS                                                                                        | Android                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (the disk cache's size is set when it starts). Default: 250 MB. |
+| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                      |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen.                                                                             |
 
 `0` means no limit.
 
@@ -555,7 +542,7 @@ Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB
 
 ## Web
 
-With [react-native-web](https://necolas.github.io/react-native-web/), FastImage shows images with the web's `Image`. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/). Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
 
 Support is minimal:
 
