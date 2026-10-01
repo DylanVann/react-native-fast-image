@@ -3231,16 +3231,21 @@ function DownsampleNoSizeCase() {
 }
 
 // A downsampled view of an image that's still being preloaded (from the slow
-// server, about a second here; the view loads 300 ms after the preload): the view's image is decoded to cover it
-// (cropped, not stretched to the view's shape), and onLoad reports the full
-// size. SDWebImage shares a download between loads of the same url, and
-// decoded the view's image as the preload asked.
+// server, about a second here; the view loads 300 ms after the preload): on
+// iOS it shares the preload's download (one request; it downloaded it again),
+// its image is decoded to cover it (cropped, not stretched to the view's
+// shape), and onLoad reports the full size. SDWebImage decodes each load of a
+// download with the first load's image class. Android (Glide) downloads it
+// again for the view, which has another size, so the requests aren't checked
+// there.
+const PRELOADING_GROUP = `downsample-preloading-${RUN}`
 const PRELOADING = {
-    uri: slowImageUrl(`text-page.png?delay=120&preloading=${RUN}`),
+    uri: slowImageUrl(`text-page.png?delay=120&group=${PRELOADING_GROUP}`),
     headers: { 'x-token': 'fast-image' },
 }
 function DownsamplePreloadingCase() {
     const [size, setSize] = useState<string>()
+    const [requests, setRequests] = useState<number>()
     // The view loads once the preload has started downloading.
     const [shown, setShown] = useState(false)
     useEffect(() => {
@@ -3255,11 +3260,15 @@ function DownsamplePreloadingCase() {
                     style={downsampleStyles.tall}
                     source={PRELOADING}
                     downsample
-                    onLoad={(e) =>
+                    onLoad={(e) => {
                         setSize(
                             `${e.nativeEvent.width}x${e.nativeEvent.height}`,
                         )
-                    }
+                        fetch(imageUrl(`requests?group=${PRELOADING_GROUP}`))
+                            .then((response) => response.json())
+                            .then((json) => setRequests(json.count))
+                            .catch(() => setRequests(-1))
+                    }}
                 />
             ) : (
                 <View style={downsampleStyles.tall} />
@@ -3267,13 +3276,15 @@ function DownsamplePreloadingCase() {
             <CaseStatus
                 id="downsample-preloading"
                 status={
-                    size === undefined
+                    size === undefined || requests === undefined
                         ? 'waiting'
-                        : size === '1600x1000'
-                          ? 'OK'
-                          : `${size}, expected 1600x1000`
+                        : size !== '1600x1000'
+                          ? `${size}, expected 1600x1000`
+                          : Platform.OS === 'ios' && requests !== 1
+                            ? `requested ${requests} times`
+                            : 'OK'
                 }
-                description="downsample: an image that's still being preloaded is cropped to cover the view, not stretched; onLoad reports its full size"
+                description="downsample: an image that's still being preloaded is downloaded once (iOS), and cropped to cover the view, not stretched; onLoad reports its full size"
             />
         </View>
     )

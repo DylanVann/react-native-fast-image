@@ -991,8 +991,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     CGSize box = [self decodeBox];
     SDWebImageContext* context = [self contextForSource: source box: box cover: [self decodeCovers]];
-    NSURL* url = CGSizeEqualToSize(box, CGSizeZero) ? source.url : [FFFDownsampledImage loadURLForURL: source.url];
-    NSString* key = [manager cacheKeyForURL: url context: context];
+    NSString* key = [manager cacheKeyForURL: source.url context: context];
     return [(SDImageCache*) manager.imageCache imageFromMemoryCacheForKey: key] != nil;
 }
 
@@ -1002,15 +1001,14 @@ NSString *FFFErrorMessage(NSError *error)
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     if (CGSizeEqualToSize(box, CGSizeZero)) {
-        context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
+        [FFFDownsampledImage addFullSizeToContext: context];
         if (!source.memoryCache) {
             // Only on disk, also when it comes from there.
             context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
         }
         return context;
     }
-    NSString* key = source.cacheKeyFilter ? source.cacheKey : source.url.absoluteString;
-    [FFFDownsampledImage addToContext: context forKey: key box: box cover: cover];
+    [FFFDownsampledImage addToContext: context box: box cover: cover];
     if ([source isPhotoLibrary]) {
         // Photos makes the photo at the size asked for, with no file
         // downloaded: SDWebImage would keep this smaller copy on disk as the
@@ -1058,7 +1056,7 @@ NSString *FFFErrorMessage(NSError *error)
         };
     }
     CFTimeInterval startedAt = CACurrentMediaTime();
-    NSURL* url = context[SDWebImageContextImageThumbnailPixelSize] ? [FFFDownsampledImage loadURLForURL: source.url] : source.url;
+    NSURL* url = source.url;
     if (!events) {
         // Only this load's image: SDWebImage would clear the view (to the
         // placeholder) if it fails, and a cancelled load can still complete.
