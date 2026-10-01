@@ -1,5 +1,5 @@
 <h1 align="center">
-  FastImage
+  React Native Fast Image
 </h1>
 
 <div align="center">
@@ -591,7 +591,7 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 ## Licenses
 
-- react-native-fast-image - MIT © [Dylan Vann](https://github.com/DylanVann). See the [LICENSE](LICENSE) file.
+- React Native Fast Image - MIT © [Dylan Vann](https://github.com/DylanVann). See the [LICENSE](LICENSE) file.
 - [SDWebImage](https://github.com/SDWebImage/SDWebImage) (iOS) - MIT. See its [LICENSE](https://github.com/SDWebImage/SDWebImage/blob/master/LICENSE) file.
 - [Glide](https://github.com/bumptech/glide) (Android) - BSD, part MIT and Apache 2.0. See its [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file.
 
