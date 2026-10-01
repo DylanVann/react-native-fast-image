@@ -1,0 +1,14 @@
+{
+    // worker.ts with the Workers types; the scripts (Bun) with Bun's.
+    "compilerOptions": {
+        "target": "ES2024",
+        "lib": ["ES2024"],
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "types": ["@cloudflare/workers-types", "bun"]
+    },
+    "files": ["worker.ts", "make-images.ts"]
+}
