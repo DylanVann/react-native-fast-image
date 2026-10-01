@@ -1,3 +1,10 @@
+## [8.27.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.0...v8.27.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **types:** take ImageStyle's radii, opacity and colors from ViewStyle ([#1211](https://github.com/DylanVann/react-native-fast-image/issues/1211)) ([acfb962](https://github.com/DylanVann/react-native-fast-image/commit/acfb962645b4b1955e286a289a0b88fbf03099a9))
+
 # [8.27.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.26.0...v8.27.0) (2026-10-01)
 
 
