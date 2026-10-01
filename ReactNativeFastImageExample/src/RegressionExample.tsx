@@ -3835,6 +3835,7 @@ function SvgCase({
     expected,
     resizeMode,
     tintColor,
+    downsample,
     description,
 }: {
     id: string
@@ -3843,6 +3844,7 @@ function SvgCase({
     expected: [number, number]
     resizeMode?: FastImageProps['resizeMode']
     tintColor?: string
+    downsample?: boolean
     description: string
 }) {
     const [status, setStatus] = useState('loading')
@@ -3853,6 +3855,7 @@ function SvgCase({
                 source={source}
                 resizeMode={resizeMode}
                 tintColor={tintColor}
+                downsample={downsample}
                 onLoad={(e) => {
                     const { width, height } = e.nativeEvent
                     setStatus(
@@ -4701,6 +4704,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected={[24, 24]}
                 tintColor="green"
                 description="tintColor on an SVG icon: a green ring"
+            />,
+            <SvgCase
+                key="svg-downsample"
+                id="svg-downsample"
+                source={{ uri: imageUrl('svg-flag.svg') }}
+                style={{ width: 100, height: 50 }}
+                expected={[100, 50]}
+                downsample
+                description="An SVG with downsample stays a vector image (sharp); onLoad has its size (iOS drew it into a bitmap the view's size)"
             />,
         ],
     },
