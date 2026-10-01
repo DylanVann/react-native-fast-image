@@ -1,5 +1,5 @@
 // Checks the library and runs both example apps on iOS and Android. Run it with
-// Node 24 (or 22.18+), which runs TypeScript directly:
+// Node 26 (the repo's .node-version), which runs TypeScript directly:
 //
 //   node scripts/verify.mts [options]
 

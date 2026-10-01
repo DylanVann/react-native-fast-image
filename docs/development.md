@@ -7,7 +7,7 @@ The example app in `ReactNativeFastImageExample` runs against the library source
 
 ## Requirements
 
-- Node 22.11 or later
+- Node 26 (`.node-version`, which [fnm](https://github.com/Schniz/fnm) picks with `fnm use`)
 - [Bun](https://bun.sh), which installs dependencies and runs package scripts (Node still runs the tools)
 - Xcode, CocoaPods (via Bundler), and an iOS simulator
 - JDK 17, the Android SDK, and an Android emulator
@@ -73,7 +73,7 @@ bun run web       # the web version, with react-native-web
 
 ## Verifying changes
 
-`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
+`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 26, which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
 2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
