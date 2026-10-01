@@ -505,7 +505,7 @@ const result = await FastImage.writeToCache(
 ```
 
 - The file must be an image.
-- It doesn't replace an image that's already cached under the source's key: give a new image a new `cacheKey` (on Android a cached image can't be replaced).
+- It doesn't replace an image that's already cached under the source's key: give a new image a new `cacheKey` (Glide can't replace one on Android).
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
@@ -513,11 +513,11 @@ const result = await FastImage.writeToCache(
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
-| Limit                                                                                                             | iOS                                                                                        | Android                                                                                            |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (the disk cache's size is set when it starts). Default: 250 MB. |
-| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                      |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen.                                                                             |
+| Limit                                                                                                             | iOS                                                                                        | Android                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
+| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
 
 `0` means no limit.
 
