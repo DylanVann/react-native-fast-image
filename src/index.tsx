@@ -207,9 +207,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     transition?: boolean | number | Transition | null
     /**
      * iOS only. Decodes a large image at about the size it's shown at, so it
-     * takes much less memory. For images much larger than their views that
-     * you can't get at the right size (if you can, resize them on your server
-     * or with an image CDN instead). See the README.
+     * takes much less memory. `true` (default). `false` decodes images at
+     * full size, e.g. for an image that's zoomed in on with a transform. See
+     * the README.
      */
     downsample?: boolean
     /**

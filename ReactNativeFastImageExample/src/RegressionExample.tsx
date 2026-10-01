@@ -1375,7 +1375,7 @@ function CacheKeyCase({
                 <FastImage
                     style={[styles.image, styles.gap]}
                     source={second}
-                    downsample={downsample}
+                    downsample={!!downsample}
                     onLoad={() => setSecondLoaded(true)}
                 />
             ) : (
@@ -2720,6 +2720,9 @@ function ImageRenderingCase() {
                                     style={row.drawn}
                                     source={{ uri: imageUrl(row.image) }}
                                     imageRendering={mode}
+                                    // Drawn from the full image, not one
+                                    // decoded smaller (downsample).
+                                    downsample={false}
                                     onLoad={onLoad}
                                 />
                             </View>
@@ -3044,9 +3047,10 @@ const blurStyles = StyleSheet.create({
     status: { flexDirection: 'row', marginLeft: -12 },
 })
 
-// downsample (iOS; Android already decodes at about the view's size).
-// Each image is next to the same one without it, which should look the same
-// (or, for the stripes, smoother), and onLoad reports the full image's size.
+// downsample (iOS, the default; Android always decodes at about the view's
+// size). Each image is next to the same one with downsample false, which
+// should look the same (or, for the stripes, smoother), and onLoad reports
+// the full image's size.
 function DownsampleCase({
     id,
     description,
@@ -3082,6 +3086,7 @@ function DownsampleCase({
                 style={[style, styles.gap]}
                 resizeMode={resizeMode}
                 source={{ uri: imageUrl(image) }}
+                downsample={false}
                 onLoad={onLoad}
             />
             <CaseStatus

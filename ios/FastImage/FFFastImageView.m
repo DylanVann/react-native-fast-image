@@ -88,6 +88,9 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     // rather than dimming like the system's controls.
     self.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
     _loopCount = -1;
+    // Images are decoded at about the size they're shown at unless
+    // downsample is false, as on Android.
+    _downsample = YES;
     return self;
 }
 
