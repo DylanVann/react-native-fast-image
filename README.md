@@ -35,7 +35,20 @@ Performant React Native image component.
   <em>FastImage example app.</em>
 </p>
 
-`FastImage` is an image component for React Native that loads, caches and shows images quickly, without flickering. It's built on
+React Native's `Image` component handles image caching like browsers
+for the most part.
+If the server is returning proper cache control
+headers for images you'll generally get the sort of built in
+caching behavior you'd have in a browser.
+Even so many people have noticed:
+
+- Flickering.
+- Cache misses.
+- Low performance loading from cache.
+- Low performance in general.
+
+`FastImage` is an `Image` replacement that solves these issues.
+`FastImage` is a wrapper around
 [SDWebImage (iOS)](https://github.com/rs/SDWebImage)
 and
 [Glide (Android)](https://github.com/bumptech/glide).
