@@ -3297,10 +3297,69 @@ function DownsampleGifCase() {
     )
 }
 
+// Images that are downsampled (so each view waits for its size) and not
+// cached, mounted together: they start loading in the order the views are
+// (left to right), which is the order they download in. On the New
+// Architecture iOS started them as UIKit laid the views out, last first. Only
+// checked there: on the legacy architecture the views have their size with
+// their props and start loading in the order React Native sets those, and
+// Android (which doesn't wait for the size) loads in another order too; with
+// or without downsample, in both.
+const ORDER_COUNT = 6
+const CHECKS_ORDER =
+    Platform.OS === 'ios' &&
+    (globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager !=
+        null
+function DownsampleOrderCase() {
+    const [order, setOrder] = useState<number[]>([])
+    const [loaded, setLoaded] = useState(0)
+    const started = (index: number) => () =>
+        setOrder((o) => (o.includes(index) ? o : [...o, index]))
+    // Once they've all loaded too, so the screenshot shows them.
+    const done = order.length === ORDER_COUNT && loaded === ORDER_COUNT
+    return (
+        <View style={styles.row}>
+            {Array.from({ length: ORDER_COUNT }, (_, index) => (
+                // Each in a cell, as in a grid.
+                <View
+                    key={index}
+                    collapsable={false}
+                    style={[downsampleStyles.small, index > 0 && styles.gap]}
+                >
+                    <FastImage
+                        style={downsampleStyles.fill}
+                        source={{
+                            uri: imageUrl(
+                                `picsum/1016-2048x2048.jpg?order=${RUN}-${index}`,
+                            ),
+                        }}
+                        downsample
+                        onLoadStart={started(index)}
+                        onLoad={() => setLoaded((n) => n + 1)}
+                    />
+                </View>
+            ))}
+            <CaseStatus
+                id="downsample-order"
+                status={
+                    !done
+                        ? 'waiting'
+                        : !CHECKS_ORDER ||
+                            order.every((index, i) => index === i)
+                          ? 'OK'
+                          : `started ${order.join(', ')}`
+                }
+                description="downsample: images mounted together start loading in order, left to right (iOS, New Architecture)"
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     large: { width: 96, height: 96, backgroundColor: '#eee' },
     stripes: { width: 48, height: 48 },
     small: { width: 32, height: 32, backgroundColor: '#eee' },
+    fill: { flex: 1 },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
 })
@@ -4165,6 +4224,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleNoSizeCase key="downsample-no-size" />,
             <DownsampleGifCase key="downsample-gif" />,
             <DownsamplePreloadingCase key="downsample-preloading" />,
+            <DownsampleOrderCase key="downsample-order" />,
         ],
     },
     {

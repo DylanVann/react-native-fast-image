@@ -263,7 +263,12 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     [self blurAgainIfResized];
     [self tileAgainIfResized];
     if (self.waitsForSize) {
-        if ([self hasSize]) {
+        // An image in the memory cache shows in this frame. Others start
+        // loading from didSetProps's block, after layout, in the order the
+        // views got their props: UIKit lays views out in its own order (in a
+        // grid, the last one first), and downloads start in the order they're
+        // asked for, so a screen's first images would load last.
+        if ([self hasSize] && [self loadsDuringLayout]) {
             [self reloadImage];
         }
     } else if (![self switchSourceIfResized]) {
@@ -770,9 +775,10 @@ NSString *FFFErrorMessage(NSError *error)
         // With downsample on, the image is decoded for the view's size, and
         // with several sources one is picked for it, so a view that hasn't
         // been laid out yet loads once it has. Props and layout are applied
-        // in the same update, so that's before the next frame (in
-        // layoutSubviews). A view that still has no size then (e.g. one sized
-        // from onLoad) loads at full size, or the largest source.
+        // in the same update, so that's here, just after it, or before the
+        // next frame (layoutSubviews) for an image in the memory cache. A
+        // view that still has no size then (e.g. one sized from onLoad) loads
+        // at full size, or the largest source.
         if (([self downsamples] || [self picksSource]) && ![self hasSize]) {
             if (!self.waitsForSize) {
                 self.waitsForSize = YES;
@@ -960,31 +966,59 @@ NSString *FFFErrorMessage(NSError *error)
 // Headers, and the size to decode at (see FFFDownsampledImage), which it
 // records as decodedBox.
 - (SDWebImageContext*) loadContext {
-    SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
-    context[SDWebImageContextDownloadRequestModifier] = _source.requestModifier;
-    context[SDWebImageContextImageLoader] = _source.imageLoader;
-    context[SDWebImageContextCacheKeyFilter] = _source.cacheKeyFilter;
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
+    return [self contextForSource: _source box: box cover: self.decodedCover];
+}
+
+// Whether the view loads as it's laid out, so its image shows in this frame:
+// one in the memory cache, where SDWebImage finds it as the load starts, or
+// one that isn't downloaded (no source, which shows defaultSource, or a data
+// uri). Also when that can't be told (an app's own image cache, or an
+// SDWebImage without cacheKeyForURL:context:), as before.
+- (BOOL) loadsDuringLayout {
+    FFFastImageSource* source = [self picksSource] ? [self sourceForSize] : _source;
+    if (!source.url || [source.url.scheme isEqualToString: @"data"]) {
+        return YES;
+    }
+    if (!source.memoryCache) {
+        return NO;
+    }
+    SDWebImageManager* manager = [SDWebImageManager sharedManager];
+    if (![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
+        return YES;
+    }
+    CGSize box = [self decodeBox];
+    SDWebImageContext* context = [self contextForSource: source box: box cover: [self decodeCovers]];
+    NSURL* url = CGSizeEqualToSize(box, CGSizeZero) ? source.url : [FFFDownsampledImage loadURLForURL: source.url];
+    NSString* key = [manager cacheKeyForURL: url context: context];
+    return [(SDImageCache*) manager.imageCache imageFromMemoryCacheForKey: key] != nil;
+}
+
+- (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover {
+    SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
+    context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
+    context[SDWebImageContextImageLoader] = source.imageLoader;
+    context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
-        if (!_source.memoryCache) {
+        if (!source.memoryCache) {
             // Only on disk, also when it comes from there.
             context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
         }
         return context;
     }
-    NSString* key = _source.cacheKeyFilter ? _source.cacheKey : _source.url.absoluteString;
-    [FFFDownsampledImage addToContext: context forKey: key box: box cover: self.decodedCover];
-    if ([_source isPhotoLibrary]) {
+    NSString* key = source.cacheKeyFilter ? source.cacheKey : source.url.absoluteString;
+    [FFFDownsampledImage addToContext: context forKey: key box: box cover: cover];
+    if ([source isPhotoLibrary]) {
         // Photos makes the photo at the size asked for, with no file
         // downloaded: SDWebImage would keep this smaller copy on disk as the
         // photo's original, and a larger view would get it from there.
         context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
         context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
     }
-    if (!_source.memoryCache) {
+    if (!source.memoryCache) {
         // The smaller copy is only kept in memory, so it isn't kept (the
         // downloaded file is still on disk).
         context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeNone);
