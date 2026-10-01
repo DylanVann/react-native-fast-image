@@ -97,7 +97,7 @@ const YourImage = () => (
 
 ## If your app already has an AppGlideModule
 
-If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/app-glide-module.md) first, or FastImage may not work.
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
 
 ## Properties
 
@@ -571,7 +571,7 @@ await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
 const { maxDiskSize, diskSize } = await FastImage.configureCache()
 ```
 
-On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
