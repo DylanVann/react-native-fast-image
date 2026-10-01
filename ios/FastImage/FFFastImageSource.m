@@ -157,18 +157,73 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
 // body is an image: a page sent instead (e.g. a captive portal's, with status
 // 200) would be served from there until it expired, and each load would fail.
 // Removing it after a load failed (forgetResponseAfterError:) could still be
-// in progress when the next load started.
+// in progress when the next load started. A page with an inline <svg> isn't
+// an SVG image.
 @interface FFFWebDownloaderOperation : SDWebImageDownloaderOperation
 @end
 
 @implementation FFFWebDownloaderOperation
+
+// Whether data is an SVG document: its first element (after an XML
+// declaration, comments or a doctype) is <svg>, as on Android
+// (FastImageSvg.looksLikeSvg). SDWebImage takes data that starts with '<' and
+// has an <svg> element anywhere for SVG, such as a page with an icon.
+static BOOL FFFHasPrefixAt(NSString *text, NSUInteger i, NSString *prefix)
+{
+    return text.length - i >= prefix.length && [text compare:prefix options:0 range:NSMakeRange(i, prefix.length)] == NSOrderedSame;
+}
+
+// The index after the end marker from i, or NSNotFound if it isn't there.
+static NSUInteger FFFSkipPast(NSString *text, NSUInteger i, NSString *end)
+{
+    NSRange found = [text rangeOfString:end options:0 range:NSMakeRange(i, text.length - i)];
+    return found.location == NSNotFound ? NSNotFound : NSMaxRange(found);
+}
+
+static BOOL FFFLooksLikeSVG(NSData *data)
+{
+    // The markup is ASCII: Latin-1 reads any bytes (a UTF-8 character cut off
+    // at the end too).
+    NSData *head = [data subdataWithRange:NSMakeRange(0, MIN(data.length, (NSUInteger)1024))];
+    NSString *text = [[[NSString alloc] initWithData:head encoding:NSISOLatin1StringEncoding] lowercaseString];
+    NSCharacterSet *space = NSCharacterSet.whitespaceAndNewlineCharacterSet;
+    // A UTF-8 byte order mark, as Latin-1.
+    NSUInteger i = FFFHasPrefixAt(text, 0, @"\u00EF\u00BB\u00BF") ? 3 : 0;
+    while (i < text.length) {
+        if ([space characterIsMember:[text characterAtIndex:i]]) {
+            i++;
+        } else if (FFFHasPrefixAt(text, i, @"<?")) {
+            i = FFFSkipPast(text, i, @"?>");
+        } else if (FFFHasPrefixAt(text, i, @"<!--")) {
+            i = FFFSkipPast(text, i, @"-->");
+        } else if (FFFHasPrefixAt(text, i, @"<!")) {
+            // A doctype, whose internal subset ([...]) can have '>'s.
+            NSRange rest = NSMakeRange(i, text.length - i);
+            NSUInteger subset = [text rangeOfString:@"[" options:0 range:rest].location;
+            NSUInteger close = [text rangeOfString:@">" options:0 range:rest].location;
+            if (subset != NSNotFound && subset < close) {
+                i = FFFSkipPast(text, subset, @"]");
+            }
+            if (i != NSNotFound) {
+                i = FFFSkipPast(text, i, @">");
+            }
+        } else {
+            return FFFHasPrefixAt(text, i, @"<svg");
+        }
+        if (i == NSNotFound) {
+            return NO;
+        }
+    }
+    return NO;
+}
 
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
  willCacheResponse:(NSCachedURLResponse *)proposedResponse
  completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
 {
-    if ([NSData sd_imageFormatForImageData:proposedResponse.data] == SDImageFormatUndefined) {
+    SDImageFormat format = [NSData sd_imageFormatForImageData:proposedResponse.data];
+    if (format == SDImageFormatUndefined || (format == SDImageFormatSVG && !FFFLooksLikeSVG(proposedResponse.data))) {
         completionHandler(nil);
         return;
     }
