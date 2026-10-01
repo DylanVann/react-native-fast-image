@@ -11,6 +11,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 import kotlin.math.max
@@ -44,7 +45,11 @@ class ImageServer(
                 } catch (e: IOException) {
                     break
                 }
-                executor.execute { serve(client) }
+                try {
+                    executor.execute { serve(client) }
+                } catch (e: RejectedExecutionException) {
+                    client.close()
+                }
             }
         }
     }
@@ -54,51 +59,68 @@ class ImageServer(
         executor.shutdownNow()
     }
 
+    // A client can close its connection at any time, e.g. a list cancelling
+    // a cell's download while it scrolls: that ends this connection, and
+    // must not throw (an exception on any thread ends the test run), nor
+    // must closing the server.
     private fun serve(client: Socket) {
-        client.use {
-            client.tcpNoDelay = true
-            val input = BufferedInputStream(client.getInputStream())
-            val output = BufferedOutputStream(client.getOutputStream(), CHUNK)
-            sleep(latencyMs)
-            // HTTP/1.1 with keep-alive: requests one after another.
+        try {
+            respond(client)
+        } catch (e: IOException) {
+            // The client went away.
+        } catch (e: InterruptedException) {
+            // The server was closed.
+        } finally {
+            try {
+                client.close()
+            } catch (e: IOException) {
+            }
+        }
+    }
+
+    private fun respond(client: Socket) {
+        client.tcpNoDelay = true
+        val input = BufferedInputStream(client.getInputStream())
+        val output = BufferedOutputStream(client.getOutputStream(), CHUNK)
+        sleep(latencyMs)
+        // HTTP/1.1 with keep-alive: requests one after another.
+        while (true) {
+            val request = readLine(input) ?: return
             while (true) {
-                val request = readLine(input) ?: return
-                while (true) {
-                    val header = readLine(input) ?: return
-                    if (header.isEmpty()) break
-                }
-                val target = request.split(' ').getOrNull(1) ?: return
-                val path = target.substringBefore('?').trimStart('/')
-                val delay = target.substringAfter('?', "")
-                    .split('&')
-                    .firstOrNull { it.startsWith("delay=") }
-                    ?.substringAfter('=')
-                    ?.toLongOrNull() ?: 0
-                sleep(latencyMs + delay)
-                val body = file(path)
-                if (body == null) {
-                    output.write(
-                        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".toByteArray(),
-                    )
-                    output.flush()
-                    continue
-                }
-                val type = if (path.endsWith(".json")) "application/json" else "image/jpeg"
+                val header = readLine(input) ?: return
+                if (header.isEmpty()) break
+            }
+            val target = request.split(' ').getOrNull(1) ?: return
+            val path = target.substringBefore('?').trimStart('/')
+            val delay = target.substringAfter('?', "")
+                .split('&')
+                .firstOrNull { it.startsWith("delay=") }
+                ?.substringAfter('=')
+                ?.toLongOrNull() ?: 0
+            sleep(latencyMs + delay)
+            val body = file(path)
+            if (body == null) {
                 output.write(
-                    ("HTTP/1.1 200 OK\r\n" +
-                        "Content-Type: $type\r\n" +
-                        "Content-Length: ${body.size}\r\n" +
-                        "Cache-Control: public, max-age=31536000, immutable\r\n" +
-                        "\r\n").toByteArray(),
+                    "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".toByteArray(),
                 )
-                var offset = 0
-                while (offset < body.size) {
-                    val count = minOf(CHUNK, body.size - offset)
-                    link.send(count)
-                    output.write(body, offset, count)
-                    output.flush()
-                    offset += count
-                }
+                output.flush()
+                continue
+            }
+            val type = if (path.endsWith(".json")) "application/json" else "image/jpeg"
+            output.write(
+                ("HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: $type\r\n" +
+                    "Content-Length: ${body.size}\r\n" +
+                    "Cache-Control: public, max-age=31536000, immutable\r\n" +
+                    "\r\n").toByteArray(),
+            )
+            var offset = 0
+            while (offset < body.size) {
+                val count = minOf(CHUNK, body.size - offset)
+                link.send(count)
+                output.write(body, offset, count)
+                output.flush()
+                offset += count
             }
         }
     }
