@@ -1,0 +1,15 @@
+/* A prop's platforms, type and default, under its heading. */
+.api-meta {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    border-left: 2px solid var(--sl-color-accent);
+    padding-left: 0.75rem;
+}
+.api-badge {
+    font-size: var(--sl-text-xs);
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    color: var(--sl-color-orange-high);
+    background: var(--sl-color-orange-low);
+    border: 1px solid var(--sl-color-orange);
+}

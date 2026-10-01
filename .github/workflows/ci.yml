@@ -21,6 +21,9 @@ jobs:
       - run: bun run typecheck
       - run: bun run build
       - run: bun run test
+      # The README's props section is generated from the doc comments in src/.
+      - run: bun install --frozen-lockfile && bun run check
+        working-directory: website
   release:
     needs: build
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'

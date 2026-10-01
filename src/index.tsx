@@ -26,32 +26,89 @@ export type Priority = 'low' | 'normal' | 'high'
 
 export type Cache = 'immutable' | 'web' | 'cacheOnly'
 
+/** A remote image to load, and how to load and cache it. */
 export type Source = {
+    /**
+     * Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
+     *
+     * Also loads local files (`file://`, and on Android `content://`), photo
+     * library images on iOS (`ph://`, see
+     * [Photo library images](#photo-library-images-ios)) and SVG images (see
+     * [SVG images](#svg-images)).
+     */
     uri?: string
+    /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */
     headers?: { [key: string]: string }
+    /**
+     * Indicates the load order priority of an image. Images with
+     * `FastImage.priority.high` will load before images in a similar context
+     * with low or normal priority.
+     *
+     * - `FastImage.priority.low` - Low Priority.
+     * - `FastImage.priority.normal` - Normal Priority.
+     * - `FastImage.priority.high` - High Priority.
+     *
+     * @default 'normal'
+     */
     priority?: Priority
+    /**
+     * How fresh the image must be. See
+     * [how caching is handled](docs/how-is-caching-handled.md) for how the
+     * options fit together.
+     *
+     * - `FastImage.cacheControl.immutable` - Only updates if url changes.
+     * - `FastImage.cacheControl.web` - Use headers and follow normal caching
+     *   procedures. These responses are kept in their own HTTP cache (50 MB on
+     *   each platform), which `clearDiskCache` also clears.
+     * - `FastImage.cacheControl.cacheOnly` - Only show images from cache, do
+     *   not make any network requests.
+     *
+     * @default 'immutable'
+     */
     cache?: Cache
     /**
-     * The key the image is cached under, instead of its uri. For urls that
-     * change while the image stays the same, e.g. signed urls with a token or
-     * an expiry: use something stable, like the image's id.
+     * The key the image is cached under, instead of its uri. Use it for urls
+     * that change while the image stays the same, e.g. signed urls with a
+     * token or an expiry. Use something that identifies the image, and change
+     * it when the image changes (e.g. include a version or the time it was
+     * updated), or the old image keeps showing.
+     *
+     * Not used with `cache: 'web'`, which follows the HTTP cache (keyed by
+     * url).
+     *
+     * @example
+     * ```jsx
+     * <FastImage
+     *     source={{
+     *         uri: signedUrl,
+     *         cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
+     *     }}
+     * />
+     * ```
      */
     cacheKey?: string
     /**
-     * Whether the decoded image is kept in the memory cache (default true).
-     * With false it's only kept on disk: a view doesn't leave it in memory
-     * once it stops showing it, and `FastImage.preload` downloads it without
-     * decoding it. For large images shown once, like a full-screen photo; a
-     * list scrolled back decodes them again.
+     * Whether the decoded image is kept in the memory cache. With `false`
+     * it's only kept on disk: a view doesn't leave it in memory once it stops
+     * showing it, and `FastImage.preload` downloads it without decoding it.
+     * Use it for large images that are shown once or rarely, like a
+     * full-screen photo: a decoded photo can take tens of MB of memory. Images
+     * shown again, like a list scrolled back, are decoded from disk again.
+     *
+     * @default true
      */
     memoryCache?: boolean
     /**
-     * With several sources (`source` as an array), the image's size at this
-     * uri in pixels (width and height, times `scale` if given): the view
-     * loads the source closest to its own size.
+     * With several sources (`source` as an array), the image's width at this
+     * uri, in pixels (times `scale`, if given).
      */
     width?: number
+    /**
+     * With several sources (`source` as an array), the image's height at this
+     * uri, in pixels (times `scale`, if given).
+     */
     height?: number
+    /** With several sources, the scale `width` and `height` are multiplied by. */
     scale?: number
 }
 
@@ -161,35 +218,127 @@ export interface ImageStyle extends ViewStyle {
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
-     * The image: a source, a `require()`d image, or several sources of the
-     * same image at different sizes (each with its `width` and `height` in
-     * pixels), of which the view loads the one closest to its size.
+     * Source for the remote image to load: a `Source`, a `require()`d image,
+     * or an array of the same image at different sizes.
+     *
+     * When `source` changes, the image that's showing stays until the new one
+     * has loaded. In views that get reused for other content, such as rows in
+     * FlashList or recyclerlistview, set `recyclingKey` so a reused row
+     * doesn't show the previous row's image.
+     *
+     * **Several sizes of an image.** `source` can also be an array of the
+     * same image at different sizes, each with its `width` and `height` in
+     * pixels (times `scale`, if it has one). The view loads the one whose size
+     * is closest to its own, in pixels, so a small view downloads a small
+     * image:
+     *
+     * ```jsx
+     * <FastImage
+     *     style={{ width: 120, height: 120 }}
+     *     source={[
+     *         { uri: 'https://example.com/photo-200.jpg', width: 200, height: 200 },
+     *         { uri: 'https://example.com/photo-800.jpg', width: 800, height: 800 },
+     *     ]}
+     * />
+     * ```
+     *
+     * - The view picks once it has been laid out. One that has no size (e.g.
+     *   sized from `onLoad`) loads the largest.
+     * - When the view's size changes so that another size fits better, it
+     *   loads that one (with its load events), and keeps showing the current
+     *   image until then, without a `transition`.
+     * - Each size is cached separately. A `cacheKey` applies to its own entry:
+     *   give each size its own key (or none), or the sizes would replace each
+     *   other in the cache.
+     * - `FastImage.preload`, `getCachePath` and `writeToCache` take one size:
+     *   pass the one a view will show. An array fails with
+     *   `{ ok: false, error }`.
+     * - An array of one is the same as that source.
      */
     source?: Source | Source[] | ImageRequireSource
+    /**
+     * An asset loaded with `require(...)`, shown while the first image loads,
+     * and if an image fails to load. When `source` changes, the previous image
+     * shows while the new one loads instead (see `source` and
+     * `recyclingKey`).
+     *
+     * On Android, `defaultSource` doesn't show in debug builds: there the dev
+     * server serves `require()`d images, and `defaultSource` is only loaded
+     * from the app's resources.
+     */
     defaultSource?: ImageRequireSource
+    /**
+     * - `FastImage.resizeMode.contain` - Scale the image uniformly (maintain
+     *   the image's aspect ratio) so that both dimensions (width and height)
+     *   of the image will be equal to or less than the corresponding
+     *   dimension of the view (minus padding).
+     * - `FastImage.resizeMode.cover` - Scale the image uniformly (maintain the
+     *   image's aspect ratio) so that both dimensions (width and height) of
+     *   the image will be equal to or larger than the corresponding dimension
+     *   of the view (minus padding).
+     * - `FastImage.resizeMode.stretch` - Scale width and height independently,
+     *   This may change the aspect ratio of the src.
+     * - `FastImage.resizeMode.center` - Center the image at its own size,
+     *   scaled down uniformly to fit if it's larger than the view.
+     * - `FastImage.resizeMode.repeat` - Repeat the image to cover the view,
+     *   from its top-left corner, at the image's own size in pixels (a bundled
+     *   image at its size in points), scaled down to fit if it's larger than
+     *   the view. An animated image repeats its first frame, and
+     *   `defaultSource` repeats too.
+     *
+     * @default 'cover'
+     */
     resizeMode?: ResizeMode
+    /**
+     * If true, the image is shown with React Native's `Image` instead, styled
+     * and laid out the same way. FastImage's own features, such as its
+     * caching options, `priority` and `transition`, don't apply.
+     */
     fallback?: boolean
     /**
-     * When `source` changes, the image showing stays until the new one has
-     * loaded. For views that get reused for other content, such as rows in
-     * FlashList or recyclerlistview, set this to something that identifies the
-     * content (e.g. the item's id): when it changes, the image is cleared
-     * right away instead, so a reused row doesn't show the previous row's
-     * image. Unlike changing `key`, the view is kept.
+     * For views that get reused for other content, such as rows in FlashList
+     * or recyclerlistview. Set it to something that identifies the content,
+     * e.g. the item's id. When it changes, the image is cleared right away (to
+     * `defaultSource`, or blank) instead of staying until the new one has
+     * loaded. Unlike changing `key`, this keeps the view, which is what list
+     * recycling is for.
+     *
+     * @example
+     * ```jsx
+     * <FastImage recyclingKey={item.id} source={{ uri: item.imageUrl }} />
+     * ```
      */
     recyclingKey?: string | null
     /**
-     * How many times an animated image (GIF, animated WebP, APNG, and animated
-     * AVIF on Android) plays: the file's own loop count by default, `true` to loop forever, `false` to play once,
-     * or a number of times. Changing it restarts the animation.
+     * How many times an animated image (GIF, animated WebP) plays:
+     *
+     * - Not set - As many times as the file says (like a browser).
+     * - `true` - Loop forever.
+     * - `false` - Play once.
+     * - A number - Play that many times.
+     *
+     * Changing it restarts the animation.
      */
     loop?: boolean | number
     /**
      * How the image is filtered when it's drawn smaller or larger than its
-     * size: `'auto'` (default, the platform's usual filtering), `'smooth'`
-     * (iOS only: keeps a large image drawn much smaller from looking jagged
-     * or noisy; uses more memory, see the README) or `'pixelated'` (sharp
-     * pixels, e.g. for pixel art).
+     * size (like CSS's `image-rendering`):
+     *
+     * - `'auto'` - The platform's usual filtering.
+     * - `'smooth'` - iOS only. Keeps a large image drawn much smaller than its
+     *   size (e.g. a big photo as a thumbnail, or fine lines and text) from
+     *   looking jagged or noisy. Such an image is already decoded at about the
+     *   view's size by default (see `downsample`), so this is for images shown
+     *   at less than half their size with `downsample={false}`, or a little
+     *   smaller than their size. **It uses more memory:** the image is also
+     *   kept at smaller sizes for drawing, about a third more than the decoded
+     *   image. On Android it's the same as `'auto'` (images are always decoded
+     *   at about the view's size there).
+     * - `'pixelated'` - Sharp pixels, without smoothing, e.g. for pixel art
+     *   drawn larger than its size. On Android, animated images are still
+     *   smoothed.
+     *
+     * @default 'auto'
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
     /**
@@ -201,72 +350,164 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     paused?: boolean
     /**
-     * Fades the image in when it loads: `true` for the platform's usual fade,
-     * a duration in milliseconds, or a `Transition` (default: no fade). An
-     * image fades in when it appears over nothing (see `betweenImages`),
-     * unless it's from the memory cache (see `skipOnCacheHit`).
+     * Fades the image in when it loads. `true` uses the platform's usual
+     * fade, a number is the duration in milliseconds, or pass a `Transition`.
+     *
+     * Downloads, local files (`file://`, `content://`) and bundled images
+     * (`require()`) fade in. In lists that reuse views (e.g. FlashList), set
+     * `recyclingKey`, so a reused view starts empty and its image fades in,
+     * instead of showing the previous item's image until it loads.
+     *
+     * @default false
+     * @example
+     * ```jsx
+     * <FastImage source={{ uri }} transition />
+     * <FastImage source={{ uri }} transition={500} />
+     * <FastImage source={{ uri }} transition={{ betweenImages: true, skipOnCacheHit: 'none' }} />
+     * ```
      */
     transition?: boolean | number | Transition | null
     /**
-     * iOS only. Decodes a large image at about the size it's shown at, so it
-     * takes much less memory. `true` (default). `false` decodes images at
-     * full size, e.g. for an image that's zoomed in on with a transform. See
-     * the README.
+     * Decodes a large image at about the size it's shown at, instead of at
+     * full size, so it takes much less memory.
+     *
+     * - `true` - An image at least twice the size its view needs is decoded
+     *   at about the view's size. If the view grows, the image is decoded
+     *   again for its new size (from the disk cache).
+     * - `false` - Images are decoded at full size, e.g. for an image that's
+     *   zoomed in on with a transform (a pinch-to-zoom viewer), which would
+     *   otherwise show the smaller copy enlarged.
+     *
+     * It doesn't change `onLoad`'s width and height (the image's own size) or
+     * the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images
+     * are decoded at full size, and 5.19.0 to 5.19.6 show photos stored
+     * sideways with an EXIF orientation (most phone photos) sideways. Photo
+     * library images are always decoded this way, and on Android images are
+     * always decoded at about the view's size.
+     *
+     * If you control the images, serve them at the size they're shown
+     * (resized on your server or by an image CDN), which also saves
+     * bandwidth.
+     *
+     * @platform ios
+     * @default true
      */
     downsample?: boolean
     /**
-     * Blurs the image by this radius, in points, like React Native's Image
-     * (the same radius looks about the same on both platforms). `0` (default)
-     * is no blur. For still images or occasional changes, not for animating.
-     * Only the loaded image is blurred, not `defaultSource`. An animated image
-     * shows its first frame, blurred. See the README.
+     * Blurs the image by this radius, in points (the same radius looks about
+     * the same on iOS and Android). `0` is no blur.
+     *
+     * It's for still images, or a radius that changes now and then (e.g.
+     * blurring a photo behind a sheet). Each change blurs the image again on
+     * the CPU, so don't animate it.
+     *
+     * - Only the loaded image is blurred, not `defaultSource`.
+     * - An animated image (GIF, animated WebP) shows its first frame, blurred,
+     *   and doesn't animate.
+     * - With `tintColor`, the blurred image is tinted.
+     * - The image is blurred at about the size it's shown at, off the main
+     *   thread. The cached file stays the original image, so `getCachePath`
+     *   and other views of it aren't affected.
+     * - Changing it blurs the image that's showing again, without sending the
+     *   load events again.
+     *
+     * To animate a blur, or to blur an animated image, use React Native's
+     * `filter` style instead, which the GPU draws:
+     * `style={{ filter: [{ blur: 6 }] }}`. It needs the New Architecture.
+     * React Native's docs list `blur` for Android 12+ only; on iOS it's behind
+     * an experimental React Native feature flag (`enableSwiftUIBasedFilters`,
+     * SwiftUI-based filters).
+     *
+     * @default 0
+     * @privateRemarks
+     * The radius is converted from points to the bitmap's pixels on both
+     * platforms, so it matches React Native's Image. (Example internal note:
+     * not in the README, the website or dist/index.d.ts.)
      */
     blurRadius?: number
 
+    /** Called when the image starts to load. */
     onLoadStart?(): void
 
+    /**
+     * Called while the image downloads, with the bytes `loaded` so far, the
+     * `total`, and `progress` (`loaded / total`, from 0 to 1; the last event
+     * has 1). Not called while the total is unknown (a response without a
+     * `Content-Length`).
+     *
+     * @example
+     * ```jsx
+     * onProgress={e => console.log(e.nativeEvent.progress)}
+     * ```
+     */
     onProgress?(event: OnProgressEvent): void
 
+    /**
+     * Called on a successful image fetch. Called with the width and height of
+     * the image itself, not of the view (on iOS, in points: an `@2x` asset
+     * reports half its pixel size).
+     *
+     * @example
+     * ```jsx
+     * onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}
+     * ```
+     */
     onLoad?(event: OnLoadEvent): void
 
+    /**
+     * Called on an image fetching error, with a message describing it (e.g.
+     * the HTTP status code).
+     *
+     * @example
+     * ```jsx
+     * onError={e => console.log(e.nativeEvent.error)}
+     * ```
+     */
     onError?(event: OnErrorEvent): void
 
     /**
-     * Called once the image has loaded or failed to, with the result: `ok` and
-     * the image's size, or not `ok` and the error.
+     * Called when the image finishes loading, whether it was successful or an
+     * error, with the result: `{ ok: true, width, height }` (the image's size,
+     * as `onLoad` gets it) or `{ ok: false, error }` (as `onError` gets it).
+     * TypeScript makes you check `ok` before reading the size or the error.
+     *
+     * @example
+     * ```jsx
+     * <FastImage
+     *     source={{ uri }}
+     *     onLoadEnd={(result) => {
+     *         if (result.ok) setAspectRatio(result.width / result.height)
+     *         else setFailed(result.error)
+     *     }}
+     * />
+     * ```
      */
     onLoadEnd?(result: LoadResult): void
 
     /**
-     * onLayout function
-     *
      * Invoked on mount and layout changes with
-     *
-     * {nativeEvent: { layout: {x, y, width, height}}}.
+     * `{ nativeEvent: { layout: { x, y, width, height } } }`.
      */
     onLayout?: (event: LayoutChangeEvent) => void
 
-    /**
-     *
-     * Style
-     */
+    /** A React Native style. Supports using `borderRadius`. */
     style?: StyleProp<ImageStyle>
 
     /**
-     * TintColor
-     *
-     * If supplied, changes the color of all the non-transparent pixels to the given color.
+     * If supplied, changes the color of all the non-transparent pixels to the
+     * given color.
      */
-
     tintColor?: ColorValue
 
     /**
-     * A unique identifier for this element to be used in UI Automation testing scripts.
+     * A unique identifier for this element to be used in UI Automation
+     * testing scripts.
      */
     testID?: string
 
     /**
-     * Render children within the image.
+     * Render children within the image. In the next major version,
+     * `FastImage` won't render children: use `FastImageBackground`.
      */
     children?: React.ReactNode
 }
