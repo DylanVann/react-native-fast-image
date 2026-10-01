@@ -1,0 +1,33 @@
+{
+    "image": {
+        "name": "React Native Image",
+        "packages": {}
+    },
+    "fast-image": {
+        "name": "FastImage",
+        "packages": {
+            "react-native-fast-image": "8.27.0"
+        }
+    },
+    "expo-image": {
+        "name": "expo-image",
+        "packages": {
+            "expo-image": "57.0.5"
+        }
+    },
+    "nitro-image": {
+        "name": "Nitro Image",
+        "packages": {
+            "react-native-nitro-modules": "0.37.1",
+            "react-native-nitro-image": "0.15.2",
+            "react-native-nitro-web-image": "0.15.2"
+        },
+        "podfile": ["pod 'SDWebImage', :modular_headers => true"]
+    },
+    "turbo-image": {
+        "name": "Turbo Image",
+        "packages": {
+            "react-native-turbo-image": "1.24.3"
+        }
+    }
+}

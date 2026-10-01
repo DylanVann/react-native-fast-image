@@ -1,0 +1,41 @@
+# The UI tests that measure scrolling and memory (UITests/), with XcodeGen:
+# `xcodegen` makes BenchmarkRunner.xcodeproj (not committed). They drive the
+# benchmark app (../app) by its bundle id; Host is only there because a UI
+# test bundle needs a target app.
+name: BenchmarkRunner
+options:
+    bundleIdPrefix: com.dylanvann.rnfibenchmark.runner
+    deploymentTarget:
+        iOS: '17.0'
+settings:
+    base:
+        DEVELOPMENT_TEAM: U8E2VB5JLQ
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: '5.0'
+targets:
+    Host:
+        type: application
+        platform: iOS
+        sources: [Host]
+        info:
+            path: Host/Info.plist
+            properties:
+                UILaunchScreen: {}
+    BenchmarkUITests:
+        type: bundle.ui-testing
+        platform: iOS
+        sources: [UITests]
+        dependencies:
+            - target: Host
+        settings:
+            base:
+                TEST_TARGET_NAME: Host
+                GENERATE_INFOPLIST_FILE: YES
+schemes:
+    Benchmark:
+        build:
+            targets:
+                Host: all
+                BenchmarkUITests: [test]
+        test:
+            targets: [BenchmarkUITests]
