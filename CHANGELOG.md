@@ -1,3 +1,12 @@
+## [8.27.4](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.3...v8.27.4) (2026-10-01)
+
+
+### Bug Fixes
+
+* **ios:** don't crash on a source without a url when downsampling ([#1215](https://github.com/DylanVann/react-native-fast-image/issues/1215)) ([f8d24c0](https://github.com/DylanVann/react-native-fast-image/commit/f8d24c0ce436e0ea44503a36d8bda526225242b0))
+* **ios:** keep SVGs as vector images when downsampling ([#1216](https://github.com/DylanVann/react-native-fast-image/issues/1216)) ([fb6dabd](https://github.com/DylanVann/react-native-fast-image/commit/fb6dabd723f354f2f014de94ea625e296a1f9aef))
+* **ios:** share a download between downsampled and full-size loads ([#1217](https://github.com/DylanVann/react-native-fast-image/issues/1217)) ([28eafc4](https://github.com/DylanVann/react-native-fast-image/commit/28eafc45c9f6cd7735fc734fb42ed177668699b3))
+
 ## [8.27.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.2...v8.27.3) (2026-10-01)
 
 
