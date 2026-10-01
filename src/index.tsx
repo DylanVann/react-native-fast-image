@@ -151,20 +151,12 @@ export interface OnProgressEvent {
 }
 
 // Extends ViewStyle rather than FlexStyle/TransformsStyle/ShadowStyleIOS, which
-// React Native 0.80+'s default types no longer export.
+// React Native 0.80+'s default types no longer export. Only the image's own keys
+// are added; the rest (radii, opacity, colors) come from ViewStyle, so they're
+// the app's React Native types (e.g. string radii, Animated values).
 export interface ImageStyle extends ViewStyle {
-    backfaceVisibility?: 'visible' | 'hidden'
-    borderBottomLeftRadius?: number
-    borderBottomRightRadius?: number
-    backgroundColor?: ColorValue
-    borderColor?: ColorValue
-    borderWidth?: number
-    borderRadius?: number
-    borderTopLeftRadius?: number
-    borderTopRightRadius?: number
-    overlayColor?: ColorValue
-    tintColor?: ColorValue
-    opacity?: number
+    overlayColor?: ViewStyle['backgroundColor']
+    tintColor?: ViewStyle['backgroundColor']
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
@@ -303,7 +295,7 @@ const resolveDefaultSource = (
 // Finds tintColor in a style prop, where the last style that sets it wins, as
 // with StyleSheet.flatten, but without flattening (which allocates a merged
 // object for an array style on every render).
-function tintColorFromStyle(style: unknown): ColorValue | undefined {
+function tintColorFromStyle(style: unknown): ImageStyle['tintColor'] {
     if (Array.isArray(style)) {
         for (let i = style.length - 1; i >= 0; i--) {
             const found = tintColorFromStyle(style[i])
