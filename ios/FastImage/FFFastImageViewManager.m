@@ -1,5 +1,6 @@
 #import "FFFastImageViewManager.h"
 #import "FFFastImageView.h"
+#import "FFFDownsampledImage.h"
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
@@ -128,13 +129,16 @@ RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 static NSMutableArray<dispatch_block_t> *FFFPendingPreloads;
 static NSUInteger FFFPreloadsInFlight;
 
-// A preload's context: the source's headers and cache key.
+// A preload's context: the source's headers and cache key, and the image
+// class views use, so a view of the same url can share its download (see
+// FFFDownsampledImage).
 static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
 {
     SDWebImageMutableContext *context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
+    [FFFDownsampledImage addFullSizeToContext:context];
     return context;
 }
 

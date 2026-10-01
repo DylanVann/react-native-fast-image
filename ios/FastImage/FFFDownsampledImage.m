@@ -2,15 +2,12 @@
 #import <ImageIO/ImageIO.h>
 #import <SDWebImage/SDImageCoder.h>
 #import <SDWebImage/SDImageCacheDefine.h>
-#import <SDWebImage/SDWebImageCacheKeyFilter.h>
 #import <SDWebImage/UIImage+Metadata.h>
 #import <SDWebImage/NSData+ImageContentType.h>
 #import <SDWebImage/SDImageCodersManager.h>
 
 // The decode option that carries the full image's size to the view.
 static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
-// Added to the url's fragment, which isn't sent to the server.
-static NSString* const FFFDownsampledFragment = @"fastimage-downsampled";
 
 // The image's size in pixels as it's shown (EXIF orientations 5 to 8 turn it
 // sideways), from its header, or zero if ImageIO can't read it.
@@ -85,39 +82,20 @@ static CGSize FFFPixelSize(NSData* data) {
     return supported;
 }
 
-+ (NSURL*) loadURLForURL: (NSURL*)url {
-    // SDWebImage's downloader shares a download between loads of the same
-    // url, and decodes each load's image with the first load's image class.
-    // After a load that isn't downsampled (e.g. a preload), this class
-    // wouldn't be used, and the box would be decoded as SDWebImage does (to
-    // fill it, stretched). With its own url, a downsampled load only shares
-    // downloads with other downsampled ones. Not a photo library url, which
-    // isn't downloaded, and whose loader reads everything after ph:// as the
-    // photo's identifier. No url (a source whose uri isn't one), which fails
-    // as it does without downsample (NSURLComponents throws for nil).
-    if (!url || [url.scheme isEqualToString: @"ph"]) {
-        return url;
++ (void) addFullSizeToContext: (SDWebImageMutableContext*)context {
+    if (![self isSupported]) {
+        context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
+        return;
     }
-    NSURLComponents* components = [NSURLComponents componentsWithURL: url resolvingAgainstBaseURL: NO];
-    if (!components) {
-        return url;
-    }
-    components.fragment = components.fragment.length > 0
-        ? [components.fragment stringByAppendingFormat: @"-%@", FFFDownsampledFragment]
-        : FFFDownsampledFragment;
-    return components.URL ?: url;
+    context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
+    context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
 }
 
-+ (void) addToContext: (SDWebImageMutableContext*)context forKey: (NSString*)key box: (CGSize)box cover: (BOOL)cover {
++ (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover {
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
-    // Cached under the source's own key (not the url from loadURLForURL:),
-    // so the disk cache keeps one download for every size and for loads
-    // that aren't downsampled.
-    context[SDWebImageContextCacheKeyFilter] = [SDWebImageCacheKeyFilter cacheKeyFilterWithBlock: ^NSString* (NSURL* _Nonnull loadURL) {
-        return key;
-    }];
-    // The memory cache key is the url with these (SDWebImage's thumbnail
-    // key), so views of other sizes don't get this image.
+    // The memory cache key is the source's key with these (SDWebImage's
+    // thumbnail key), so views of other sizes don't get this image. The disk
+    // cache keeps the downloaded file under the source's key, for every size.
     context[SDWebImageContextImageThumbnailPixelSize] = [NSValue valueWithCGSize: box];
     context[SDWebImageContextImagePreserveAspectRatio] = @(!cover);
     context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
