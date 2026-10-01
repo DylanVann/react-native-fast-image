@@ -3990,6 +3990,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: null as unknown as string }}
                 defaultSource={DEFAULT}
             />,
+            <EventCase
+                key="error-null-uri-downsample"
+                id="error-null-uri-downsample"
+                description="a null uri with downsample fires onError (iOS crashed)"
+                event="onError"
+                source={{ uri: null as unknown as string }}
+                downsample
+            />,
             <ErrorMessageCase key="error-message" />,
         ],
     },
