@@ -1,3 +1,10 @@
+# [8.27.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.26.0...v8.27.0) (2026-10-01)
+
+
+### Features
+
+* load SVG images when the app has an SVG library ([#1206](https://github.com/DylanVann/react-native-fast-image/issues/1206)) ([012f9cf](https://github.com/DylanVann/react-native-fast-image/commit/012f9cf37bb773c3c8652805e968ad6e7af2ba22))
+
 # [8.26.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.25.0...v8.26.0) (2026-09-30)
 
 
