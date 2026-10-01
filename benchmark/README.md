@@ -26,7 +26,7 @@ bun benchmark/scripts/run-android.ts --subjects fast-image --iterations 2   # ad
 
 Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`. It needs JDK 17 and the Android SDK. It builds every subject first; on Test Lab the subjects then run at the same time, each on its own device.
 
-Results go to `benchmark/results/<time>/`: a JSON file per run (the app's results, and when each image showed), the XCTest result bundles, and `summary.md`.
+Results go to `benchmark/results/<time>/`: a JSON file per run (the app's results, and when each image showed), the XCTest result bundles, and `summary.md`. The folders aren't committed (recordings and builds); summaries of reference runs are in `baselines/`, to compare later runs with.
 
 ## How it works
 
