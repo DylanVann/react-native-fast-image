@@ -1,3 +1,10 @@
+## [8.27.3](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.2...v8.27.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* **ios:** don't keep a page with an inline SVG in the web image cache ([#1214](https://github.com/DylanVann/react-native-fast-image/issues/1214)) ([8fadf23](https://github.com/DylanVann/react-native-fast-image/commit/8fadf23b51ee772ac0014ec266b4f54e8311d7c6))
+
 ## [8.27.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.1...v8.27.2) (2026-10-01)
 
 
