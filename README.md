@@ -1,5 +1,5 @@
 <h1 align="center">
-  🚩 FastImage
+  React Native Fast Image
 </h1>
 
 <div align="center">
@@ -64,12 +64,20 @@ and
 
 ## Usage
 
-**Note: You must be using React Native 0.60.0 or higher to use the most recent version of `react-native-fast-image`.**
+Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
 
 ```bash
-yarn add react-native-fast-image
+npm install react-native-fast-image
 cd ios && pod install
 ```
+
+With Expo:
+
+```bash
+npx expo install react-native-fast-image
+```
+
+It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
 ```jsx
 import FastImage from 'react-native-fast-image'
@@ -78,7 +86,7 @@ const YourImage = () => (
     <FastImage
         style={{ width: 200, height: 200 }}
         source={{
-            uri: 'https://unsplash.it/400/400?image=1',
+            uri: 'https://example.com/image.jpg',
             headers: { Authorization: 'someAuthToken' },
             priority: FastImage.priority.normal,
         }}
@@ -87,9 +95,9 @@ const YourImage = () => (
 )
 ```
 
-## Are you using Glide already using an AppGlideModule?
+## If your app already has an AppGlideModule
 
-- [Are you using Glide already using an AppGlideModule?](docs/app-glide-module.md) (you might have problems if you don't read this)
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/app-glide-module.md) first, or FastImage may not work.
 
 ## Properties
 
@@ -97,13 +105,13 @@ const YourImage = () => (
 
 Source for the remote image to load.
 
-When `source` changes, the image that's showing stays until the new one has loaded, as with `<img>` in browsers and React Native's `Image` on iOS. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
+When `source` changes, the image that's showing stays until the new one has loaded. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
 
 ---
 
 ### `source.uri?: string`
 
-Remote url to load the image from. e.g. `'https://facebook.github.io/react/img/logo_og.png'`.
+Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
 
 #### Photo library images (iOS)
 
@@ -140,7 +148,7 @@ dependencies {
 }
 ```
 
-On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one (e.g. from another library) needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`); an app that uses `expo-image` already has both.
+On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
 
 An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
 
@@ -226,7 +234,7 @@ Whether the decoded image is kept in the memory cache. **Default: true.** With `
 
 - An asset loaded with `require(...)`.
 - Shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
-- Note that like the built-in `Image` implementation, on Android `defaultSource` does not work in debug mode. This is due to the fact that assets are sent from the dev server, but RN's functions only know how to load it from `res`.
+- On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
 
 ---
 
@@ -245,7 +253,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 - `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
 - `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
-- `FastImage.resizeMode.center` - Do not scale the image, keep centered.
+- `FastImage.resizeMode.center` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
 - `FastImage.resizeMode.repeat` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
@@ -312,7 +320,7 @@ Decoding a smaller copy can take a little longer, so use it where the memory mat
 
 ### `blurRadius?: number`
 
-Blurs the image by this radius, in points, like React Native's `Image` (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
+Blurs the image by this radius, in points (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
@@ -378,10 +386,9 @@ A React Native style. Supports using `borderRadius`.
 
 ---
 
-### `fallback: boolean`
+### `fallback?: boolean`
 
-If true will fallback to using `Image`.
-In this case the image will still be styled and laid out the same way as `FastImage`.
+If true, the image is shown with React Native's `Image` instead, styled and laid out the same way. FastImage's own features, such as its caching options, `priority` and `transition`, don't apply.
 
 ---
 
@@ -391,7 +398,7 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 ## `FastImageBackground`
 
-An image with content on top of it, like React Native's `ImageBackground`: a view that the image fills, with the children on top.
+An image with content on top of it: a view that the image fills, with the children on top.
 
 Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1137](https://github.com/DylanVann/react-native-fast-image/pull/1137)), which can't hold them. `FastImageBackground` works the same in both.
 
@@ -400,7 +407,7 @@ import { FastImageBackground } from 'react-native-fast-image'
 
 const Banner = () => (
     <FastImageBackground
-        source={{ uri: 'https://unsplash.it/400/200?image=1' }}
+        source={{ uri: 'https://example.com/banner.jpg' }}
         style={{ width: 200, height: 100 }}
         imageStyle={{ borderRadius: 8 }}
     >
@@ -423,11 +430,11 @@ Preload images to display later. e.g.
 ```js
 FastImage.preload([
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        uri: 'https://example.com/image-1.jpg',
         headers: { Authorization: 'someAuthToken' },
     },
     {
-        uri: 'https://facebook.github.io/react/img/logo_og.png',
+        uri: 'https://example.com/image-2.jpg',
         headers: { Authorization: 'someAuthToken' },
     },
 ])
@@ -549,13 +556,13 @@ await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
 const { maxDiskSize, diskSize } = await FastImage.configureCache()
 ```
 
-On Android, if your app has its own `AppGlideModule` (see [Are you using Glide already](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
 ## Web
 
-With [react-native-web](https://necolas.github.io/react-native-web/), FastImage shows images with the web's `Image`. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/). Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
 
 Support is minimal:
 
@@ -572,13 +579,6 @@ If you have any problems using this library try the steps in [troubleshooting](d
 
 [Follow these instructions to get the example app running.](docs/development.md)
 
-## Supported React Native Versions
-
-This project only aims to support the latest version of React Native.\
-This simplifies the development and the testing of the project.
-
-If you require new features or bug fixes for older versions you can fork this project.
-
 ## Credits
 
 The idea for this modules came from
@@ -591,9 +591,9 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 ## Licenses
 
-- FastImage - MIT © [DylanVann](https://github.com/DylanVann)
-- SDWebImage - `MIT`
-- Glide - BSD, part MIT and Apache 2.0. See the [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file for details.
+- React Native Fast Image - MIT © [Dylan Vann](https://github.com/DylanVann). See the [LICENSE](LICENSE) file.
+- [SDWebImage](https://github.com/SDWebImage/SDWebImage) (iOS) - MIT. See its [LICENSE](https://github.com/SDWebImage/SDWebImage/blob/master/LICENSE) file.
+- [Glide](https://github.com/bumptech/glide) (Android) - BSD, part MIT and Apache 2.0. See its [LICENSE](https://github.com/bumptech/glide/blob/master/LICENSE) file.
 
 [build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml
