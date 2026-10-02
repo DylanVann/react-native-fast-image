@@ -169,7 +169,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         pendingPreloads.add(new Runnable() {
                             @Override
                             public void run() {
-                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, new FileCallback() {
+                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
                                     @Override
                                     public void run(@Nullable final File file, @Nullable String error) {
                                         if (file == null) {
@@ -196,7 +196,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         });
                         continue;
                     }
-                    pendingPreloads.add(new Runnable() {
+                    // Decodes it into the memory cache.
+                    final Runnable decode = new Runnable() {
                         @Override
                         public void run() {
                             Glide
@@ -221,6 +222,22 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                         }
                                     })
                                     .preload();
+                        }
+                    };
+                    // A remote image is downloaded to the disk cache first,
+                    // so views that load it meanwhile can wait for the file
+                    // (FastImageSharedDownloads), then decoded from there.
+                    final boolean download = !imageSource.isWebCache() && imageSource.isRemote();
+                    pendingPreloads.add(!download ? decode : new Runnable() {
+                        @Override
+                        public void run() {
+                            loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
+                                @Override
+                                public void run(@Nullable File file, @Nullable String error) {
+                                    if (file == null) done.run(failure(error));
+                                    else decode.run();
+                                }
+                            });
                         }
                     });
                 }
@@ -250,21 +267,26 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // Downloads the image into Glide's disk cache without decoding it (if it
     // isn't there), then calls back with its file or the error, on the UI
-    // thread.
-    private static void loadFile(Context context, Object model, RequestOptions options, final FileCallback callback) {
+    // thread. For a preload (`shared`), views that load the image meanwhile
+    // wait for the download and read its file (FastImageSharedDownloads).
+    private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
+        final String key = shared && model instanceof GlideUrl ? ((GlideUrl) model).getCacheKey() : null;
         Glide.with(context)
                 .asFile()
                 .load(model)
                 .apply(options)
+                .set(FastImageSharedDownloads.PRELOAD, shared)
                 .listener(new RequestListener<File>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                        if (key != null) FastImageSharedDownloads.finished(key, null);
                         callback.run(null, FastImageRequestListener.errorMessage(e));
                         return false;
                     }
 
                     @Override
                     public boolean onResourceReady(File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                        if (key != null) FastImageSharedDownloads.finished(key, file);
                         callback.run(file, null);
                         return false;
                     }
@@ -400,7 +422,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return new Runnable() {
             @Override
             public void run() {
-                loadFile(context, imageSource.getSourceForLoad(), options, new FileCallback() {
+                loadFile(context, imageSource.getSourceForLoad(), options, false, new FileCallback() {
                     @Override
                     public void run(@Nullable File file, @Nullable String error) {
                         finishDownload(promise, file != null ? pathResult(file) : failure(error));

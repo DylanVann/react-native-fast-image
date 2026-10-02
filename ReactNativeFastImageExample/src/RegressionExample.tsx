@@ -3362,12 +3362,27 @@ const PRELOADING = {
 function DownsamplePreloadingCase() {
     const [size, setSize] = useState<string>()
     const [requests, setRequests] = useState<number>()
-    // The view loads once the preload has started downloading.
+    // The view loads once the server has the preload's request, so it
+    // mounts while the preload is downloading (a preload that hasn't started
+    // isn't waited for).
     const [shown, setShown] = useState(false)
     useEffect(() => {
+        let cancelled = false
         FastImage.preload([PRELOADING])
-        const t = setTimeout(() => setShown(true), 300)
-        return () => clearTimeout(t)
+        ;(async () => {
+            for (let i = 0; i < 100 && !cancelled; i++) {
+                const response = await fetch(
+                    imageUrl(`requests?group=${PRELOADING_GROUP}`),
+                ).catch(() => undefined)
+                const count = (await response?.json())?.count ?? 0
+                if (count > 0) break
+                await new Promise<void>((r) => setTimeout(r, 50))
+            }
+            if (!cancelled) setShown(true)
+        })()
+        return () => {
+            cancelled = true
+        }
     }, [])
     return (
         <View style={styles.row}>
@@ -3396,11 +3411,11 @@ function DownsamplePreloadingCase() {
                         ? 'waiting'
                         : size !== '1600x1000'
                           ? `${size}, expected 1600x1000`
-                          : Platform.OS === 'ios' && requests !== 1
+                          : requests !== 1
                             ? `requested ${requests} times`
                             : 'OK'
                 }
-                description="downsample: an image that's still being preloaded is downloaded once (iOS), and cropped to cover the view, not stretched; onLoad reports its full size"
+                description="downsample: an image that's still being preloaded is downloaded once, and cropped to cover the view, not stretched; onLoad reports its full size"
             />
         </View>
     )
