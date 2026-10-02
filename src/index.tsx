@@ -5,7 +5,6 @@ import {
     NativeModules,
     requireNativeComponent,
     StyleSheet,
-    LayoutChangeEvent,
     StyleProp,
     ViewStyle,
     ImageRequireSource,
@@ -511,12 +510,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     onLoadEnd?(result: LoadResult): void
 
     /**
-     * Invoked on mount and layout changes with
-     * `{ nativeEvent: { layout: { x, y, width, height } } }`.
+     * The image's style: View's style props (`borderRadius` clips the image),
+     * and `tintColor`, as with React Native's `Image` (the `tintColor` prop
+     * wins).
      */
-    onLayout?: (event: LayoutChangeEvent) => void
-
-    /** A React Native style. Supports using `borderRadius`. */
     style?: StyleProp<ImageStyle>
 
     /**
@@ -524,12 +521,6 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * given color.
      */
     tintColor?: ColorValue
-
-    /**
-     * A unique identifier for this element to be used in UI Automation
-     * testing scripts.
-     */
-    testID?: string
 
     /**
      * Render children within the image. In the next major version,

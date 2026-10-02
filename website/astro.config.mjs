@@ -26,6 +26,9 @@ export default defineConfig({
             // Down to the source's options (source.uri etc.): Components →
             // FastImage → source → source.uri.
             tableOfContents: { maxHeadingLevel: 5 },
+            // No "Previous"/"Next" links at the bottom of pages: the guides
+            // aren't read in order.
+            pagination: false,
             sidebar: [
                 { label: 'Usage', link: '/' },
                 {

@@ -62,6 +62,8 @@ const YourImage = () => (
 
 ### `FastImage`
 
+It also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout` and `pointerEvents`.
+
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
 #### `source`
@@ -375,19 +377,11 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 ---
 
-#### `onLayout`
-
-**Type:** `(event: LayoutChangeEvent) => void`
-
-Invoked on mount and layout changes with `{ nativeEvent: { layout: { x, y, width, height } } }`.
-
----
-
 #### `style`
 
 **Type:** `StyleProp<ImageStyle>`
 
-A React Native style. Supports using `borderRadius`.
+The image's style: View's style props (`borderRadius` clips the image), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
 
 ---
 
@@ -396,14 +390,6 @@ A React Native style. Supports using `borderRadius`.
 **Type:** `ColorValue`
 
 If supplied, changes the color of all the non-transparent pixels to the given color.
-
----
-
-#### `testID`
-
-**Type:** `string`
-
-A unique identifier for this element to be used in UI Automation testing scripts.
 
 ---
 
@@ -435,14 +421,39 @@ const Banner = () => (
 )
 ```
 
-Its own props are these; the others are `FastImage`'s and go to the image. Its ref is the view's (`imageRef` is the image's).
+Its own props are below; the others are `FastImage`'s and go to the image. Its ref is the view's (`imageRef` is the image's).
 
 <!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
 
-- `style?` (`StyleProp<ViewStyle>`): The container's style; the image fills it.
-- `imageStyle?` (`StyleProp<ImageStyle>`): The image's style.
-- `imageRef?` (`Ref<any>`): A ref to the image (the FastImage inside).
-- `children?` (`ReactNode`): Content shown on top of the image.
+#### `style`
+
+**Type:** `StyleProp<ViewStyle>`
+
+The container's style; the image fills it.
+
+---
+
+#### `imageStyle`
+
+**Type:** `StyleProp<ImageStyle>`
+
+The image's style.
+
+---
+
+#### `imageRef`
+
+**Type:** `Ref<any>`
+
+A ref to the image (the FastImage inside).
+
+---
+
+#### `children`
+
+**Type:** `ReactNode`
+
+Content shown on top of the image.
 
 <!-- api:background-props end -->
 

@@ -175,9 +175,6 @@ const props = members('FastImageProps').flatMap((m) =>
     m.name === 'source' ? [m, ...members('Source', 'source.')] : [m],
 )
 
-// A heading per prop, the same in the README and on the website so links work
-// on both (and don't change with the prop's type), and its platforms, type and
-// default under it: in the README as markdown, on the website styled.
 const code = (s: string) => `\`${s}\``
 const html = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
@@ -207,8 +204,11 @@ function typeCode(type: string) {
     )
     return `<code class="api-type">${highlighted}</code>`
 }
-function propsSection(site: boolean) {
-    return props
+// A heading per prop, the same in the README and on the website so links work
+// on both (and don't change with the prop's type), and its platforms, type and
+// default under it: in the README as markdown, on the website styled.
+function propsSection(ms: Member[], site: boolean) {
+    return ms
         .map((m) => {
             const meta = site
                 ? [
@@ -250,9 +250,8 @@ const fieldList = (ms: Member[], site: boolean) =>
         })
         .join('\n')
 
-// FastImageBackground's own props, as a list: the rest are FastImage's.
-const backgroundProps = (site: boolean) =>
-    fieldList(members('FastImageBackgroundProps'), site)
+// FastImageBackground's own props: the rest are FastImage's.
+const backgroundProps = members('FastImageBackgroundProps')
 
 // FastImage's methods' signatures, by name.
 const methods = new Map(
@@ -415,8 +414,8 @@ const withGenerated = (sections: Record<string, string>) =>
 const withApi = (site: boolean) =>
     withMethods(
         withGenerated({
-            props: propsSection(site),
-            'background-props': backgroundProps(site),
+            props: propsSection(props, site),
+            'background-props': propsSection(backgroundProps, site),
             types: typesSection(site),
         }),
         site,
