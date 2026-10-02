@@ -3840,6 +3840,130 @@ function SeveralSourcesEdgeCase() {
     )
 }
 
+// Image formats, for the README's table of them. The samples in the image
+// server's images/formats/ are the same picture in each format (red, green,
+// blue and yellow quadrants, 80x80), and the animated ones are red, then blue,
+// 400 ms each, looping. A case passes when the format does what `expected`
+// says on this platform, so a change in what's supported fails it (and the
+// table needs updating). Check the screenshot: four flat quadrants.
+type FormatResult = 'loads' | 'fails'
+function FormatCase({
+    id,
+    file,
+    expected,
+    description,
+}: {
+    id: string
+    file: string
+    expected: FormatResult
+    description: string
+}) {
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                resizeMode="contain"
+                source={{ uri: imageUrl(`formats/${file}`) }}
+                onLoad={(e) => {
+                    const { width, height } = e.nativeEvent
+                    setStatus(
+                        expected === 'fails'
+                            ? `loaded (${width}x${height}), expected it to fail`
+                            : width === 80 && height === 80
+                              ? 'OK'
+                              : `loaded at ${width}x${height}, expected 80x80`,
+                    )
+                }}
+                onError={(e) =>
+                    setStatus(
+                        expected === 'fails'
+                            ? 'OK'
+                            : `error: ${e.nativeEvent.error}`,
+                    )
+                }
+            />
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+// An animated format: it animates (red and blue are both recorded), shows only
+// its first frame (red), or fails to load. It loops, so a recording can start
+// on either frame: what was seen is classified here rather than matched.
+type AnimationResult = 'animates' | 'first frame' | 'fails'
+function FormatAnimationCase({
+    id,
+    file,
+    expected,
+    description,
+}: {
+    id: string
+    file: string
+    expected: AnimationResult
+    description: string
+}) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [status, setStatus] = useState('waiting')
+    const started = useRef(false)
+    const onLoad = async () => {
+        if (started.current) return
+        started.current = true
+        if (expected === 'fails')
+            return setStatus('loaded, expected it to fail')
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 3000,
+                expect: [RED, BLUE],
+                palette: [RED, BLUE, BLANK],
+            },
+            // Two plays (0.8 s each).
+            (done) => setTimeout(done, 1600),
+        )
+        const { seen } = result
+        const got =
+            seen.includes(RED) && seen.includes(BLUE)
+                ? 'animates'
+                : seen.length === 1 && seen[0] === RED
+                  ? 'first frame'
+                  : (result.detail ?? `saw ${seen.join(', ') || 'nothing'}`)
+        setStatus(
+            got === expected
+                ? 'OK'
+                : got === 'animates' || got === 'first frame'
+                  ? `${got === 'animates' ? 'animates' : 'shows its first frame'}, expected: ${expected}`
+                  : got,
+        )
+    }
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <View ref={view} collapsable={false}>
+                    <FastImage
+                        style={styles.image}
+                        source={{ uri: imageUrl(`formats/${file}`) }}
+                        onLoad={onLoad}
+                        onError={(e) =>
+                            setStatus(
+                                expected === 'fails'
+                                    ? 'OK'
+                                    : `error: ${e.nativeEvent.error}`,
+                            )
+                        }
+                    />
+                </View>
+            </Masked>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // SVG images (the example apps have SDWebImageSVGCoder on iOS and AndroidSVG
 // on Android: the main app's androidsvg-aar package, the legacy app's
 // androidsvg). onLoad has the SVG's own size (its width and height, or its
@@ -4668,6 +4792,107 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'image-background',
         cases: [<ImageBackgroundCase key="image-background" />],
+    },
+    {
+        name: 'formats',
+        cases: [
+            <FormatCase
+                key="format-jpeg"
+                id="format-jpeg"
+                file="quadrants.jpg"
+                expected="loads"
+                description="JPEG loads"
+            />,
+            <FormatCase
+                key="format-png"
+                id="format-png"
+                file="quadrants.png"
+                expected="loads"
+                description="PNG loads"
+            />,
+            <FormatCase
+                key="format-gif"
+                id="format-gif"
+                file="quadrants.gif"
+                expected="loads"
+                description="GIF (a still one) loads"
+            />,
+            <FormatCase
+                key="format-webp"
+                id="format-webp"
+                file="quadrants.webp"
+                expected="loads"
+                description="WebP loads"
+            />,
+            <FormatCase
+                key="format-avif"
+                id="format-avif"
+                file="quadrants.avif"
+                expected="loads"
+                description="AVIF loads"
+            />,
+            <FormatCase
+                key="format-heic"
+                id="format-heic"
+                file="quadrants.heic"
+                expected="loads"
+                description="HEIC loads"
+            />,
+            <FormatCase
+                key="format-bmp"
+                id="format-bmp"
+                file="quadrants.bmp"
+                expected="loads"
+                description="BMP loads"
+            />,
+            <FormatCase
+                key="format-ico"
+                id="format-ico"
+                file="quadrants.ico"
+                expected="loads"
+                description="ICO loads"
+            />,
+            <FormatCase
+                key="format-tiff"
+                id="format-tiff"
+                file="quadrants.tiff"
+                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
+                description="TIFF: loads on iOS, fails on Android"
+            />,
+        ],
+    },
+    {
+        name: 'formats-animated',
+        cases: [
+            <FormatAnimationCase
+                key="format-animated-gif"
+                id="format-animated-gif"
+                file="animated.gif"
+                expected="animates"
+                description="An animated GIF animates (red and blue; masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-apng"
+                id="format-animated-apng"
+                file="animated.png"
+                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
+                description="An APNG: animates on iOS, shows its first frame (red) on Android (masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-webp"
+                id="format-animated-webp"
+                file="animated.webp"
+                expected="first frame"
+                description="An animated WebP shows its first frame (red; masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-avif"
+                id="format-animated-avif"
+                file="animated.avif"
+                expected="first frame"
+                description="An animated AVIF shows its first frame (red; masked)"
+            />,
+        ],
     },
     {
         name: 'svg',
