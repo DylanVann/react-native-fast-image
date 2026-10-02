@@ -1,3 +1,10 @@
+## [8.28.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.28.0...v8.28.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **android:** only send progress events for images with onProgress ([#1225](https://github.com/DylanVann/react-native-fast-image/issues/1225)) ([5fe7667](https://github.com/DylanVann/react-native-fast-image/commit/5fe7667c3c647d2d606321d2e015ea813186cc43))
+
 # [8.28.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.27.4...v8.28.0) (2026-10-01)
 
 
