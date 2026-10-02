@@ -470,7 +470,8 @@ function rewriteLinks(markdown: string, file: string) {
     const toRoot =
         '../'.repeat(pageOf(file)!.split('/').filter(Boolean).length) || './'
     return markdown.replace(
-        /(\]\(|^\[[^\]]+\]: )([^)\s#]*)(#[^)\s]*)?/gm,
+        // Links, and link definitions (not footnotes, [^name]: ...).
+        /(\]\(|^\[(?!\^)[^\]]+\]: )([^)\s#]*)(#[^)\s]*)?/gm,
         (all, start, target, anchor = '') => {
             if (/^[a-z]+:/.test(target)) return all
             const resolved = target

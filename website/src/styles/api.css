@@ -50,6 +50,11 @@
     flex-wrap: wrap;
     gap: 0.5rem;
 }
+/* Their height before they load, so the page doesn't move when they do
+   (shields.io's and GitHub's badges are 20px tall; their widths vary). */
+.sl-markdown-content p:has(> a > img):not(:has(> :not(a))) img {
+    height: 20px;
+}
 
 /* The header bar the page's color, without a border. */
 header.header {
@@ -177,4 +182,36 @@ mobile-starlight-toc .dropdown {
 }
 .api-type .tk-t {
     color: var(--tk-t);
+}
+
+/* The footnotes under a "Footnotes" heading (which Markdown only gives screen
+   readers), smaller and muted like GitHub's, so they don't run on from the
+   last section. */
+.sl-markdown-content section[data-footnotes] h2#footnote-label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+}
+.sl-markdown-content section[data-footnotes] {
+    /* As much space above as other sections' headings. */
+    margin-top: 2rem;
+}
+.sl-markdown-content section[data-footnotes] ol {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+}
+/* A footnote's links back to where it's used: an up arrow for each, instead
+   of ↩ (an emoji on some systems) with a number for the second and later.
+   Screen readers read their labels ("Back to reference 1"). */
+.sl-markdown-content [data-footnote-backref] {
+    font-size: 0;
+    text-decoration: none;
+}
+.sl-markdown-content [data-footnote-backref]::after {
+    content: '↑';
+    font-size: var(--sl-text-sm);
 }

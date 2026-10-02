@@ -17,7 +17,7 @@ It caches aggressively, and is built on [SDWebImage](https://github.com/SDWebIma
 - **Animated images** (GIF, animated WebP) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
 - [**SVG**](#svg-images) and [**photo library**](#photo-library-images-ios) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
-- **Expo**, with a config plugin, and the [**web**](#web).
+- **Expo**, with a [config plugin](#expo-config-plugin), and the [**web**](#web).
 
 ## Installation
 
@@ -35,6 +35,8 @@ npx expo install react-native-fast-image
 ```
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
+
+To set the cache's size when the app starts, see [Native config](#native-config).
 
 If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
 
@@ -559,30 +561,11 @@ How much the image cache keeps. Set the limits your app starts with in its nativ
 | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
 | `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | About two screenfuls of images.[^glide-memory]                                                       |
 
 `0` means no limit.
 
-**Starting limits.** With Expo, in `app.json`:
-
-```json
-"plugins": [["react-native-fast-image", { "maxDiskSize": 209715200, "maxDiskAge": 2592000 }]]
-```
-
-Without Expo, in `ios/<App>/Info.plist`:
-
-```xml
-<key>FastImageMaxDiskSize</key>
-<integer>209715200</integer>
-<key>FastImageMaxDiskAge</key>
-<integer>2592000</integer>
-```
-
-and in `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
-
-```xml
-<meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
-```
+**Starting limits.** Set them in the app's [native config](#native-config).
 
 **Changing them at runtime.** Pass the limits to change; `null` goes back to the native config's (or the default). It resolves with the limits in effect and `diskSize`, the bytes the image disk cache uses now. Call it without limits to see them.
 
@@ -728,6 +711,49 @@ How the image fades in: see [`transition`](#transition).
     Downloads, local files and bundled images (`require()`) fade in.
 
 <!-- api:types end -->
+
+## Native config
+
+The cache's limits the app starts with, read from its native projects so they're in effect from the first image. [`configureCache`](#configurecachelimits) says what each one does and its default, and changes them while the app runs. `0` means no limit.
+
+| Limit           | Unit    | iOS (`Info.plist`)       | Android (`AndroidManifest.xml`)               |
+| --------------- | ------- | ------------------------ | --------------------------------------------- |
+| `maxDiskSize`   | bytes   | `FastImageMaxDiskSize`   | `fastimage.MAX_DISK_SIZE`                     |
+| `maxDiskAge`    | seconds | `FastImageMaxDiskAge`    | No age limit                                  |
+| `maxMemorySize` | bytes   | `FastImageMaxMemorySize` | About two screenfuls of images[^glide-memory] |
+
+### Expo config plugin
+
+With Expo, FastImage's config plugin sets them, from its options in `app.json` (or `app.config.js`):
+
+```json
+"plugins": [["react-native-fast-image", { "maxDiskSize": 209715200, "maxDiskAge": 2592000 }]]
+```
+
+It writes the native settings below when Expo generates the native projects (`npx expo prebuild`), so run that again after changing them. An app that keeps its own `ios/` and `android/` projects sets them there instead.
+
+### iOS
+
+In `ios/<App>/Info.plist`:
+
+```xml
+<key>FastImageMaxDiskSize</key>
+<integer>209715200</integer>
+<key>FastImageMaxDiskAge</key>
+<integer>2592000</integer>
+```
+
+### Android
+
+In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
+```
+
+If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead.
+
+[^glide-memory]: Glide's default, which FastImage keeps: room for two screenfuls of decoded images (2 × the screen's width × height × 4 bytes, about 20 MB on a 1080 × 2400 screen), plus a pool of bitmaps to reuse (one screenful on Android 8 and later, four before). Together they're limited to 40% of the memory Android gives the app (33% on low-memory devices), and both shrink to fit.
 
 ## Photo library images (iOS)
 
