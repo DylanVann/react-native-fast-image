@@ -4,7 +4,7 @@
 //     "plugins": [["react-native-fast-image", { "maxDiskSize": 209715200 }]]
 //
 // maxDiskSize (bytes), maxDiskAge (seconds, iOS) and maxMemorySize (bytes,
-// iOS); 0 means no limit. See the README's configureCache section.
+// iOS); 0 means no limit. See the README's Native config section.
 
 const INFO_PLIST_KEYS = {
     maxDiskSize: 'FastImageMaxDiskSize',

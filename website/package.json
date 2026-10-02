@@ -1,0 +1,24 @@
+{
+    "name": "fast-image-website",
+    "private": true,
+    "type": "module",
+    "devDependencies": {
+        "github-slugger": "2",
+        "typedoc": "0.28",
+        "typedoc-plugin-markdown": "4",
+        "typescript": "6",
+        "wrangler": "4"
+    },
+    "dependencies": {
+        "@astrojs/starlight": "^0.42.5",
+        "astro": "^7.3.5"
+    },
+    "scripts": {
+        "generate": "node scripts/generate.mts",
+        "check": "node scripts/generate.mts --check",
+        "dev": "node scripts/generate.mts && astro dev",
+        "build": "node scripts/generate.mts && astro build",
+        "preview": "astro preview",
+        "deploy": "bun run build && wrangler deploy"
+    }
+}
