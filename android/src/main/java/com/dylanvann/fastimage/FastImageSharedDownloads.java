@@ -15,10 +15,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 // Lets a view load an image that a preload is downloading from the preload's
 // file, instead of downloading it again. Glide only shares a download between
@@ -27,9 +32,10 @@ import java.util.concurrent.TimeUnit;
 // time. A preload's download registers here once it has started (not while
 // it's queued); a view's download of the same url then waits for the
 // preload's file and reads it, and downloads as usual if the preload fails.
-// A finished download stays for a while: a view's request that looked in the
-// disk cache before the preload stored the file, and gets to downloading
-// after, reads it too.
+// The wait holds no thread: the view's fetch returns, and goes on when the
+// preload has finished, as an OkHttp download does. A finished download stays
+// for a while: a view's request that looked in the disk cache before the
+// preload stored the file, and gets to downloading after, reads it too.
 final class FastImageSharedDownloads {
     // Set on a preload's request (see FastImageViewModule.loadFile).
     static final Option<Boolean> PRELOAD = Option.memory("com.dylanvann.fastimage.Preload", false);
@@ -40,14 +46,101 @@ final class FastImageSharedDownloads {
     // How long a finished download's file is used.
     private static final long KEEP_MS = 60_000;
 
+    // Goes on with waiting views (opening the file, or starting their own
+    // download), off the main thread, where preloads finish.
+    private static final ScheduledExecutorService executor =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                @Override
+                public Thread newThread(@NonNull Runnable runnable) {
+                    Thread thread = new Thread(runnable, "FastImageSharedDownloads");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
+
+    // A view's fetch waiting for a download. It goes on once: with the file,
+    // or without it (the preload failed, or took too long).
+    private static final class Waiter {
+        private final Fetcher fetcher;
+        private final Priority priority;
+        private final DataFetcher.DataCallback<? super InputStream> callback;
+        private final AtomicBoolean went = new AtomicBoolean();
+
+        Waiter(Fetcher fetcher, Priority priority, DataFetcher.DataCallback<? super InputStream> callback) {
+            this.fetcher = fetcher;
+            this.priority = priority;
+            this.callback = callback;
+        }
+
+        void go(@Nullable File file) {
+            if (went.compareAndSet(false, true)) fetcher.resume(file, priority, callback);
+        }
+
+        // Cancelled: never goes on.
+        void drop() {
+            went.set(true);
+        }
+    }
+
     private static final class Download {
-        final CountDownLatch done = new CountDownLatch(1);
+        // Guarded by this.
+        private boolean done;
+        private final List<Waiter> waiters = new ArrayList<>();
         @Nullable
         volatile File file;
         volatile long finishedAt;
 
+        synchronized boolean isDone() {
+            return done;
+        }
+
         boolean isStale(long now) {
-            return done.getCount() == 0 && now - finishedAt > KEEP_MS;
+            return isDone() && now - finishedAt > KEEP_MS;
+        }
+
+        void await(final Waiter waiter) {
+            synchronized (this) {
+                if (!done) {
+                    waiters.add(waiter);
+                    executor.schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            remove(waiter);
+                            waiter.go(null);
+                        }
+                    }, WAIT_MS, TimeUnit.MILLISECONDS);
+                    return;
+                }
+            }
+            goOn(waiter, file);
+        }
+
+        synchronized void remove(Waiter waiter) {
+            waiters.remove(waiter);
+        }
+
+        // Returns false if it had finished already.
+        boolean finish(@Nullable File file, long now) {
+            List<Waiter> waiting;
+            synchronized (this) {
+                if (done) return false;
+                done = true;
+                this.file = file;
+                finishedAt = now;
+                waiting = new ArrayList<>(waiters);
+                waiters.clear();
+            }
+            for (Waiter waiter : waiting) goOn(waiter, file);
+            return true;
+        }
+
+        private static void goOn(final Waiter waiter, @Nullable final File file) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    waiter.go(file);
+                }
+            });
         }
     }
 
@@ -67,11 +160,8 @@ final class FastImageSharedDownloads {
             if (entry.getValue().isStale(now)) downloads.remove(entry.getKey(), entry.getValue());
         }
         Download download = downloads.get(key);
-        if (download == null || download.done.getCount() == 0) return;
-        if (file == null) downloads.remove(key, download);
-        download.file = file;
-        download.finishedAt = now;
-        download.done.countDown();
+        if (download == null) return;
+        if (download.finish(file, now) && file == null) downloads.remove(key, download);
     }
 
     // The url loader's load data, with a fetcher that shares preloads'
@@ -90,9 +180,14 @@ final class FastImageSharedDownloads {
         private final String key;
         private final boolean preload;
         private volatile boolean cancelled;
+        // While it waits for a preload's download.
+        @Nullable
+        private volatile Download download;
+        @Nullable
+        private volatile Waiter waiter;
         // The preload's file, when the image came from it.
         @Nullable
-        private InputStream stream;
+        private volatile InputStream stream;
 
         Fetcher(DataFetcher<InputStream> fetcher, String key, boolean preload) {
             this.fetcher = fetcher;
@@ -107,7 +202,7 @@ final class FastImageSharedDownloads {
                 // first's entry while it's downloading; one after it finished
                 // downloads again (the file left the disk cache).
                 Download current = downloads.get(key);
-                if (current == null || current.done.getCount() == 0) downloads.put(key, new Download());
+                if (current == null || current.isDone()) downloads.put(key, new Download());
                 fetcher.loadData(priority, new DataCallback<InputStream>() {
                     @Override
                     public void onDataReady(@Nullable InputStream data) {
@@ -122,44 +217,41 @@ final class FastImageSharedDownloads {
                 });
                 return;
             }
-            Download download = downloads.get(key);
-            if (download != null && download.isStale(System.currentTimeMillis())) download = null;
-            if (download != null) {
-                File file = await(download);
-                if (cancelled) return;
-                if (file != null) {
-                    try {
-                        stream = new FileInputStream(file);
-                        callback.onDataReady(stream);
-                        return;
-                    } catch (IOException e) {
-                        // Gone from the disk cache meanwhile: download it.
-                    }
+            Download current = downloads.get(key);
+            if (current == null || current.isStale(System.currentTimeMillis())) {
+                fetcher.loadData(priority, callback);
+                return;
+            }
+            Waiter waiting = new Waiter(this, priority, callback);
+            download = current;
+            waiter = waiting;
+            current.await(waiting);
+        }
+
+        // Goes on after waiting: reads the preload's file, or downloads the
+        // image if there's none.
+        void resume(@Nullable File file, Priority priority, DataCallback<? super InputStream> callback) {
+            download = null;
+            waiter = null;
+            if (cancelled) return;
+            if (file != null) {
+                try {
+                    stream = new FileInputStream(file);
+                    callback.onDataReady(stream);
+                    return;
+                } catch (IOException e) {
+                    // Gone from the disk cache meanwhile: download it.
                 }
             }
             fetcher.loadData(priority, callback);
         }
 
-        // Waits (on Glide's thread) for the preload's file; null if it failed,
-        // or took too long, or this load was cancelled.
-        @Nullable
-        private File await(Download download) {
-            long end = System.currentTimeMillis() + WAIT_MS;
-            try {
-                while (!cancelled && System.currentTimeMillis() < end) {
-                    if (download.done.await(100, TimeUnit.MILLISECONDS)) return download.file;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return null;
-        }
-
         @Override
         public void cleanup() {
-            if (stream != null) {
+            InputStream opened = stream;
+            if (opened != null) {
                 try {
-                    stream.close();
+                    opened.close();
                 } catch (IOException e) {
                     // Closed as far as it could.
                 }
@@ -171,6 +263,12 @@ final class FastImageSharedDownloads {
         @Override
         public void cancel() {
             cancelled = true;
+            Download waitingFor = download;
+            Waiter waiting = waiter;
+            if (waitingFor != null && waiting != null) {
+                waitingFor.remove(waiting);
+                waiting.drop();
+            }
             // The preload's download stops: views waiting for it download
             // the image themselves.
             if (preload) finished(key, null);
