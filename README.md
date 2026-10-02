@@ -260,7 +260,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 ### `loop?: boolean | number`
 
-How many times an animated image (GIF, animated WebP) plays:
+How many times an animated image (GIF, animated WebP, and animated AVIF on Android) plays:
 
 - Not set **(Default)** - As many times as the file says (like a browser).
 - `true` - Loop forever.
@@ -283,7 +283,7 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 ### `paused?: boolean`
 
-Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showing; `false` plays it again from there. Each image animates on its own, so pausing one doesn't pause others showing the same file.
+Pauses an animated image (GIF, animated WebP, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
 ---
 
@@ -328,7 +328,7 @@ Blurs the image by this radius, in points (the same radius looks about the same 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
 - Only the loaded image is blurred, not `defaultSource`.
-- An animated image (GIF, animated WebP) shows its first frame, blurred, and doesn't animate.
+- An animated image (GIF, animated WebP or AVIF) shows its first frame, blurred, and doesn't animate.
 - With `tintColor`, the blurred image is tinted.
 - The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
 - Changing it blurs the image that's showing again, without sending the load events again.

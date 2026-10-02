@@ -13,11 +13,14 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Shader;
+import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.view.ViewCompat;
 
@@ -177,6 +180,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
             if (!mPaused) {
                 mOwnGif.stop();
                 mOwnGif.startFromFirstFrame();
+            }
+        }
+        if (mAnimated != null && getDrawable() == mAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            AnimatedImageDrawable animated = (AnimatedImageDrawable) mAnimated;
+            applyRepeatCount(animated);
+            if (!mPaused) {
+                animated.stop();
+                animated.start();
             }
         }
     }
@@ -359,12 +370,26 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 FastImageGif.resume(mOwnGif);
             }
         }
+        if (mAnimated != null && getDrawable() == mAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (paused) {
+                ((AnimatedImageDrawable) mAnimated).stop();
+            } else {
+                // Plays from its first frame: an AnimatedImageDrawable has no
+                // way to resume.
+                ((AnimatedImageDrawable) mAnimated).start();
+            }
+        }
     }
 
     // The GIF this view shows as its own animation (FastImageGif), recycled
     // when the view stops showing it.
     @Nullable
     private GifDrawable mOwnGif;
+
+    // An animated WebP or AVIF this view shows: an AnimatedImageDrawable, which
+    // Glide 4.15+ decodes with Android's ImageDecoder (API 28+; AVIF 31+).
+    @Nullable
+    private Drawable mAnimated;
 
     // Shows each GIF as this view's own animation. Glide's target also starts
     // and stops it with the Activity, as it does Glide's own GifDrawable.
@@ -406,6 +431,15 @@ class FastImageViewWithUrl extends AppCompatImageView {
                     return;
                 }
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && resource instanceof AnimatedImageDrawable) {
+                AnimatedImageDrawable animated = (AnimatedImageDrawable) resource;
+                applyRepeatCount(animated);
+                // The target starts it; paused, it waits on its first frame.
+                super.onResourceReady(animated, transition);
+                mAnimated = animated;
+                if (mPaused) animated.stop();
+                return;
+            }
             super.onResourceReady(resource, transition);
         }
 
@@ -431,6 +465,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 mOwnGif.recycle();
                 mOwnGif = null;
             }
+            if (mAnimated != null && mAnimated != resource) {
+                mAnimated = null;
+            }
         }
     }
 
@@ -438,6 +475,14 @@ class FastImageViewWithUrl extends AppCompatImageView {
         gif.setLoopCount(mLoopCount == -1 ? GifDrawable.LOOP_INTRINSIC
                 : mLoopCount == 0 ? GifDrawable.LOOP_FOREVER
                 : mLoopCount);
+    }
+
+    // The loop prop for an animated WebP or AVIF: its repeat count is the
+    // plays after the first. Not set, it plays as many times as the file says.
+    @RequiresApi(Build.VERSION_CODES.P)
+    private void applyRepeatCount(AnimatedImageDrawable animated) {
+        if (mLoopCount == -1) return;
+        animated.setRepeatCount(mLoopCount == 0 ? AnimatedImageDrawable.REPEAT_INFINITE : mLoopCount - 1);
     }
 
     // resizeMode repeat: the image (a GIF's first frame) repeated from the
