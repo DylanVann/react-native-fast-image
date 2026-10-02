@@ -159,9 +159,10 @@ The README's props section (between its `api:props` markers) is generated from t
 - `@default`: the default value.
 - `@platform ios`, `@platform android`, `@platform web`: for a prop that only works on some platforms.
 - `@example`: a code block shown after the description.
-- `@privateRemarks`: notes for maintainers, as the comment's last tag. They aren't in the README, the website or the published types (`bun run build` removes them from `dist/`).
 
-The website in `website/` ([Starlight](https://starlight.astro.build)) shows the README as its main page and each file in `docs/` as a page (`development.md` under Contributing). `bun run dev` in `website/` generates the pages and serves them; `bun run build` writes the site to `website/dist/`. The generator runs [TypeDoc](https://typedoc.org), which needs TypeScript 6 (the library uses TypeScript 7, which has no JavaScript API yet), so `website/` has its own dependencies. It warns about links to headings that don't exist in the README or `docs/`.
+Notes for maintainers go in `//` comments instead: they aren't in editor hovers, the README, the website or the published types.
+
+The website in `website/` ([Starlight](https://starlight.astro.build)) shows the README as its main page and each file in `docs/` as a page (`development.md` under Contributing). `bun run dev` in `website/` generates the pages and serves them; `bun run build` writes the site to `website/dist/` (`bun run build:docs` from the repo's root does the same). The generator runs [TypeDoc](https://typedoc.org), which needs TypeScript 6 (the library uses TypeScript 7, which has no JavaScript API yet), so `website/` has its own dependencies. It warns about links to headings that don't exist in the README or `docs/`.
 
 ## Releasing
 

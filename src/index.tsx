@@ -421,6 +421,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * @default true
      */
     downsample?: boolean
+    // The radius is converted from points to the bitmap's pixels on both
+    // platforms, so it matches React Native's Image.
     /**
      * Blurs the image by this radius, in points (the same radius looks about
      * the same on iOS and Android). `0` is no blur.
@@ -447,10 +449,6 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * SwiftUI-based filters).
      *
      * @default 0
-     * @privateRemarks
-     * The radius is converted from points to the bitmap's pixels on both
-     * platforms, so it matches React Native's Image. (Example internal note:
-     * not in the README, the website or dist/index.d.ts.)
      */
     blurRadius?: number
 

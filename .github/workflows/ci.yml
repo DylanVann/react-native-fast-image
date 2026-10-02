@@ -19,7 +19,7 @@ jobs:
       - run: bun run lint
       - run: bun run format:check
       - run: bun run typecheck
-      - run: bun run build
+      - run: bun run build:package
       - run: bun run test
       # The README's props section is generated from the doc comments in src/.
       - run: bun install --frozen-lockfile && bun run check
@@ -57,7 +57,7 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun run build
+      - run: bun run build:package
       # Bumps the version, publishes to npm, and pushes the release commit and
       # tag (release.config.mjs).
       - run: bun run release

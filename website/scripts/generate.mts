@@ -19,9 +19,7 @@ const root = new URL('../../', import.meta.url).pathname
 const app = await Application.bootstrap({
     entryPoints: [`${root}src/index.tsx`],
     tsconfig: `${root}tsconfig.build.json`,
-    blockTags: ['@default', '@example', '@platform', '@see', '@privateRemarks'],
-    // Internal notes: in the source only.
-    excludeTags: ['@privateRemarks'],
+    blockTags: ['@default', '@example', '@platform', '@see'],
     logLevel: 'Error',
 })
 const project = await app.convert()

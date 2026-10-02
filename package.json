@@ -38,7 +38,9 @@
         "RNFastImage.podspec"
     ],
     "scripts": {
-        "build": "rm -rf dist && tsc -p tsconfig.build.json && perl -0pi -e 's/\\n\\s*\\* \\@privateRemarks.*?(?=\\n\\s*\\*\\/)//gs' dist/index.d.ts dist/index.web.d.ts && rolldown -c && for f in index index.cjs index.web index.cjs.web; do cp src/index.js.flow dist/$f.js.flow; done",
+        "build": "bun run build:package && bun run build:docs",
+        "build:package": "rm -rf dist && tsc -p tsconfig.build.json && rolldown -c",
+        "build:docs": "bun run --cwd website build",
         "lint": "oxlint",
         "release": "semantic-release",
         "test": "bun test",
