@@ -8,7 +8,9 @@
 // has shown in the first frame whose average color (of the middle of the
 // cell) is more than halfway from the placeholder's to the cell's final color
 // (the last frame's), so a fade-in counts from its middle. Only cells fully
-// on screen are timed.
+// on screen are timed. The phone's recording can stall and resume with a
+// stale frame: a run where an image shows long before its load event, or
+// never shows although it loaded, is an error (run.ts runs it again).
 
 import { spawn, spawnSync } from 'node:child_process'
 
@@ -51,6 +53,10 @@ export type Analysis = {
 
 // The recording is decoded at 1/DOWNSCALE of its size.
 const DOWNSCALE = 6
+// The longest an image's load event can come after its pixels before the
+// recording is taken to have stalled: the largest seen otherwise is about
+// 100 ms, on a busy JS thread.
+const STALL_MS = 500
 
 type Rgb = [number, number, number]
 
@@ -275,6 +281,16 @@ export async function analyze(
     const shownTimes = images
         .map((image) => image.shownMs)
         .filter((ms): ms is number => ms !== undefined)
+    const early = images.find((image) => (image.eventGapMs ?? 0) > STALL_MS)
+    const unseen = images.find(
+        (image, i) =>
+            image.shownMs === undefined && timedImages[i].loadMs !== undefined,
+    )
+    const error = early
+        ? `recording stalled: image ${early.index} showed ${early.eventGapMs} ms before its load event`
+        : unseen
+          ? `recording stalled: image ${unseen.index} loaded but didn't show`
+          : undefined
     return {
         images,
         firstMs: shownTimes.length ? Math.min(...shownTimes) : undefined,
@@ -285,5 +301,6 @@ export async function analyze(
         timed: images.length,
         notShown,
         frames,
+        ...(error ? { error } : {}),
     }
 }

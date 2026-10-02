@@ -145,9 +145,12 @@ export function summarize(dir: string) {
                 r.subject === subject &&
                 r.scenario === scenario,
         )
+        // The times leave out runs whose analysis failed (e.g. a stalled
+        // recording): they count as failures.
+        const timed = these.filter((r) => !r.analysis.error)
         const pick = (f: (r: Run) => number | undefined) =>
-            these.map(f).filter((v): v is number => v !== undefined)
-        const images = these.flatMap((r) => r.analysis.images)
+            timed.map(f).filter((v): v is number => v !== undefined)
+        const images = timed.flatMap((r) => r.analysis.images)
         const perImage = images.flatMap((i) =>
             i.shownMs === undefined ? [] : [i.shownMs],
         )
@@ -162,11 +165,11 @@ export function summarize(dir: string) {
                     f.subject === subject &&
                     f.scenario === scenario,
             ).length
-        const notShown = these.reduce(
+        const notShown = timed.reduce(
             (sum, r) => sum + (r.analysis.notShown ?? 0),
             0,
         )
-        const errors = these.reduce(
+        const errors = timed.reduce(
             (sum, r) => sum + (r.images ?? []).filter((i) => i.error).length,
             0,
         )
@@ -175,7 +178,7 @@ export function summarize(dir: string) {
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${these.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
         )
     }
 

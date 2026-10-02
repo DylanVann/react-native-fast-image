@@ -145,6 +145,9 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const started = useRef(0)
     const loaded = useRef(0)
     const views = useRef(new Map<number, View>())
+    // Each image's load or error time, by cell index. Not state: the
+    // results aren't shown, so a load doesn't render the cells again.
+    const settled = useRef(new Map<number, Partial<Cell>>())
     const marker = useRef<View>(null)
     const probeUrls = useRef<(when: string) => string[]>(() => [])
     const probeBefore = useRef<Probe | undefined>(undefined)
@@ -225,7 +228,11 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             // Network speed just before the images mount and just after
             // they've all loaded.
             network: { before: probeBefore.current, after: probeAfter },
-            images: cells.map((cell, i) => ({ ...cell, rect: rects[i] })),
+            images: cells.map((cell, i) => ({
+                ...cell,
+                ...settled.current.get(cell.index),
+                rect: rects[i],
+            })),
         }
         try {
             const json = JSON.stringify(results)
@@ -261,11 +268,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     }, [phase, finish, waitMs])
 
     const settle = (index: number, result: Partial<Cell>) => {
-        setCells((current) =>
-            current.map((cell) =>
-                cell.index === index ? { ...cell, ...result } : cell,
-            ),
-        )
+        settled.current.set(index, result)
         loaded.current += 1
         const expected = config.list ? views.current.size : cells.length
         if (adapter.loadEvents && loaded.current >= expected) finish()
