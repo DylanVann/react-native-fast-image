@@ -132,7 +132,7 @@ export function summarize(dir: string) {
         ),
     ]
     const lines = [
-        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Android: images served on the phone (${servers.join('; ')}).` : ''}`,
+        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
         '',
         '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
         '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',

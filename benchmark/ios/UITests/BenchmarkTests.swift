@@ -1,18 +1,34 @@
-// Measures the benchmark app (../../app) with XCTest's metrics, on a device:
-// hitches while scrolling, and memory. scripts/metrics.ts runs these with
-// `xcodebuild test` for one subject and reads the metrics from the result
-// bundle. The app is chosen by BENCH_BUNDLE_ID (passed as
-// TEST_RUNNER_BENCH_BUNDLE_ID), and BENCH_ITERATIONS sets how many times each
-// metric is measured.
+// Measures the benchmark app (../../app) on a device, with the images served
+// on the phone (ImageServer). scripts/run.ts runs these with `xcodebuild`:
+// testServe while it records the timed runs (it launches the app itself),
+// then the XCTest metrics for one subject (hitches while scrolling, memory),
+// read from the result bundle. Environment (passed as TEST_RUNNER_BENCH_…):
+// BENCH_BUNDLE_ID (the subject's app), BENCH_ITERATIONS (how many times each
+// metric is measured), BENCH_PORT, BENCH_LATENCY_MS and BENCH_MBPS (the image
+// server's).
 import XCTest
 
 final class BenchmarkTests: XCTestCase {
     private var environment: [String: String] { ProcessInfo.processInfo.environment }
     private var bundleId: String { environment["BENCH_BUNDLE_ID"] ?? "com.dylanvann.rnfibenchmark.image" }
     private var iterations: Int { Int(environment["BENCH_ITERATIONS"] ?? "") ?? 5 }
+    private var server: ImageServer!
 
-    override func setUp() {
+    override func setUpWithError() throws {
         continueAfterFailure = false
+        let images = try XCTUnwrap(
+            Bundle(for: BenchmarkTests.self).url(forResource: "out", withExtension: nil),
+            "No images in the test bundle: run make-images.ts in ../images")
+        server = ImageServer(
+            root: images,
+            port: UInt16(environment["BENCH_PORT"] ?? "") ?? 8099,
+            latencyMs: Int(environment["BENCH_LATENCY_MS"] ?? "") ?? 40,
+            mbps: Double(environment["BENCH_MBPS"] ?? "") ?? 50)
+        try server.start()
+    }
+
+    override func tearDown() {
+        server.stop()
     }
 
     private func options() -> XCTMeasureOptions {
@@ -21,11 +37,21 @@ final class BenchmarkTests: XCTestCase {
         return options
     }
 
+    // Only serves the images, while scripts/run.ts launches the app on its
+    // timed runs and records them, until it stops the test (at most an hour).
+    // It prints when the server is ready.
+    func testServe() {
+        print("BENCH_SERVER_READY \(server.url)")
+        Thread.sleep(forTimeInterval: 60 * 60)
+    }
+
     // Launches the app on a scenario with a new run id (so no image comes
     // from an earlier run's caches) and waits for it to be done.
     @discardableResult
     private func launch(_ app: XCUIApplication, scenario: String) -> XCUIApplication {
-        app.launchArguments = ["-scenario", scenario, "-run", "xctest-\(scenario)-\(UUID().uuidString)"]
+        app.launchArguments = [
+            "-scenario", scenario, "-run", "xctest-\(scenario)-\(UUID().uuidString)", "-server", server.url,
+        ]
         app.launch()
         XCTAssert(app.staticTexts["done"].waitForExistence(timeout: 120), "\(scenario) didn't finish")
         return app

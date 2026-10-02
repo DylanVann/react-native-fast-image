@@ -1,7 +1,8 @@
-# The UI tests that measure scrolling and memory (UITests/), with XcodeGen:
-# `xcodegen` makes BenchmarkRunner.xcodeproj (not committed). They drive the
-# benchmark app (../app) by its bundle id; Host is only there because a UI
-# test bundle needs a target app.
+# The UI tests (UITests/): the image server on the phone, and the metrics for
+# scrolling and memory, with XcodeGen: `xcodegen` makes BenchmarkRunner.xcodeproj
+# (not committed). They drive the benchmark app (../app) by its bundle id;
+# Host is only there because a UI test bundle needs a target app. The images
+# (../images/out, from make-images.ts) are in the test bundle.
 name: BenchmarkRunner
 options:
     bundleIdPrefix: com.dylanvann.rnfibenchmark.runner
@@ -9,7 +10,7 @@ options:
         iOS: '17.0'
 settings:
     base:
-        DEVELOPMENT_TEAM: U8E2VB5JLQ
+        DEVELOPMENT_TEAM: ${BENCH_APPLE_TEAM_ID}
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: '5.0'
 targets:
@@ -24,7 +25,11 @@ targets:
     BenchmarkUITests:
         type: bundle.ui-testing
         platform: iOS
-        sources: [UITests]
+        sources:
+            - UITests
+            - path: ../images/out
+              type: folder
+              buildPhase: resources
         dependencies:
             - target: Host
         settings:

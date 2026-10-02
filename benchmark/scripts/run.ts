@@ -2,18 +2,23 @@
 //
 //   bun benchmark/scripts/run.ts [--subjects fast-image,image] [--scenarios grid,large]
 //                                [--metrics scroll,large-memory] [--iterations 5]
+//                                [--latency 40] [--mbps 50]
 //                                [--no-build] [--keep-videos] [--out <results folder>]
 //
-// For each subject: builds the app with only that library (app/subjects.js),
-// in Release, installs it, and runs it once unmeasured (a newly installed
+// Needs BENCH_APPLE_TEAM_ID (your team, for signing). Builds the XCUITest
+// runner (../ios), which serves the images on the phone (ImageServer.swift).
+// Then for each subject: builds the app with only that library
+// (app/subjects.js), in Release, installs it, starts the runner's image
+// server (testServe), and runs the app once unmeasured (a newly installed
 // app's first launch is slower). Then for each scenario, `iterations` times:
 // records the phone's screen (capture/), launches the app with a new run id
 // (so nothing comes from an earlier run's caches; the process is new too),
 // waits for the app's results file (copied from the device over USB), stops
-// the recording, and finds when each image showed in it (analyze.ts). Then runs
-// the XCTest metrics (../ios: hitches while scrolling, memory), `iterations`
-// measurements each. Writes results/<time>/<subject>-<scenario>-<n>.json and
-// metrics-<subject>.xcresult, and prints a summary (also in summary.md).
+// the recording, and finds when each image showed in it (analyze.ts). Then
+// stops the server and runs the XCTest metrics (hitches while scrolling,
+// memory), `iterations` measurements each. Writes
+// results/<time>/<subject>-<scenario>-<n>.json and metrics-<subject>.xcresult,
+// and prints a summary (also in summary.md).
 
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -31,9 +36,12 @@ const METRIC_TESTS: Record<string, string> = {
     scroll: 'testScroll',
     'large-memory': 'testLargeMemory',
 }
-// How long a run may take: the app's longest wait (the large scenario's), its
-// warm-up pass and launch.
+// How long a run may take: the app's longest wait (the large scenario's) and
+// launch.
 const RUN_TIMEOUT = 60_000
+// The port the runner's image server listens on, on the phone.
+const PORT = 8099
+const SERVER = `http://127.0.0.1:${PORT}`
 
 const subjects: Record<string, { name: string }> = JSON.parse(
     fs.readFileSync(path.join(APP, 'subjects.json'), 'utf8'),
@@ -53,6 +61,13 @@ const metricNames = option('metrics', Object.keys(METRIC_TESTS).join(','))
     .split(',')
     .filter(Boolean)
 const iterations = Number(option('iterations', '5'))
+// The image server's network: latency before each response, and bandwidth
+// shared by all of them (0 for none), as on Android.
+const latencyMs = Number(option('latency', '40'))
+const mbps = Number(option('mbps', '50'))
+if (!process.env.BENCH_APPLE_TEAM_ID) {
+    throw new Error('Set BENCH_APPLE_TEAM_ID (your Apple team id, for signing)')
+}
 for (const name of metricNames) {
     if (!METRIC_TESTS[name]) throw new Error(`Unknown metrics ${name}`)
 }
@@ -218,28 +233,101 @@ type MetricTest = {
     }[]
 }
 
+// xcodebuild's arguments for the runner (../ios), built once.
+const runnerArgs = (udid: string) => [
+    '-project',
+    'BenchmarkRunner.xcodeproj',
+    '-scheme',
+    'Benchmark',
+    '-destination',
+    `id=${udid}`,
+    '-derivedDataPath',
+    'build',
+    '-allowProvisioningUpdates',
+]
+
+// The runner's environment (TEST_RUNNER_ variables reach the tests).
+const runnerEnv = (subject: string) => ({
+    ...process.env,
+    TEST_RUNNER_BENCH_BUNDLE_ID: bundleId(subject),
+    TEST_RUNNER_BENCH_ITERATIONS: String(iterations),
+    TEST_RUNNER_BENCH_PORT: String(PORT),
+    TEST_RUNNER_BENCH_LATENCY_MS: String(latencyMs),
+    TEST_RUNNER_BENCH_MBPS: String(mbps),
+})
+
+function buildRunner(udid: string) {
+    log('build runner')
+    run('xcodegen', [], { cwd: IOS })
+    run('xcodebuild', [...runnerArgs(udid), '-quiet', 'build-for-testing'], {
+        cwd: IOS,
+    })
+}
+
+// Starts the runner's image server on the phone (testServe), until stop().
+async function serve(udid: string, subject: string) {
+    const child = spawn(
+        'xcodebuild',
+        [
+            ...runnerArgs(udid),
+            'test-without-building',
+            '-only-testing:BenchmarkUITests/BenchmarkTests/testServe',
+        ],
+        {
+            cwd: IOS,
+            env: runnerEnv(subject),
+            stdio: ['ignore', 'pipe', 'pipe'],
+        },
+    )
+    let output = ''
+    const exited = new Promise<void>((resolve) =>
+        child.on('exit', () => resolve()),
+    )
+    await new Promise<void>((resolve, reject) => {
+        child.stdout.on('data', (d) => {
+            output += d
+            if (output.includes('BENCH_SERVER_READY')) resolve()
+        })
+        child.stderr.on('data', (d) => (output += d))
+        exited.then(() =>
+            reject(new Error(`testServe exited:\n${output.slice(-3000)}`)),
+        )
+        setTimeout(
+            () =>
+                reject(
+                    new Error(
+                        `testServe didn't start:\n${output.slice(-3000)}`,
+                    ),
+                ),
+            120_000,
+        )
+    }).catch((error) => {
+        child.kill('SIGINT')
+        throw error
+    })
+    return {
+        stop: async () => {
+            child.kill('SIGINT')
+            await exited
+        },
+    }
+}
+
 // Runs the XCTest metrics for the installed subject, and reads them from the
 // result bundle (a failed test still leaves its other measurements).
 function runMetrics(subject: string, udid: string, out: string): MetricTest[] {
     if (metricNames.length === 0) return []
     log(`  metrics ${metricNames.join(', ')}`)
     const bundle = path.join(out, `metrics-${subject}.xcresult`)
-    run('xcodegen', [], { cwd: IOS })
     // xcodebuild won't write over a result bundle.
     fs.rmSync(bundle, { recursive: true, force: true })
     const test = spawnSync(
         'xcodebuild',
         [
-            'test',
-            '-project',
-            'BenchmarkRunner.xcodeproj',
-            '-scheme',
-            'Benchmark',
-            '-destination',
-            `id=${udid}`,
+            ...runnerArgs(udid),
+            'test-without-building',
             '-resultBundlePath',
             bundle,
-            '-allowProvisioningUpdates',
             ...metricNames.map(
                 (name) =>
                     `-only-testing:BenchmarkUITests/BenchmarkTests/${METRIC_TESTS[name]}`,
@@ -249,11 +337,7 @@ function runMetrics(subject: string, udid: string, out: string): MetricTest[] {
             cwd: IOS,
             encoding: 'utf8',
             maxBuffer: 1 << 28,
-            env: {
-                ...process.env,
-                TEST_RUNNER_BENCH_BUNDLE_ID: bundleId(subject),
-                TEST_RUNNER_BENCH_ITERATIONS: String(iterations),
-            },
+            env: runnerEnv(subject),
         },
     )
     if (!fs.existsSync(bundle)) {
@@ -330,6 +414,8 @@ const launch = (
         scenario,
         '-run',
         runId,
+        '-server',
+        SERVER,
     ])
 
 const median = (values: number[]) => {
@@ -356,6 +442,7 @@ log(
     `device: ${device.name} (${device.model}, iOS ${device.os}); results ${path.relative(process.cwd(), out)}`,
 )
 const captureBinary = buildCapture()
+buildRunner(device.udid)
 
 const failed = (subject: string, scenario: string, error: unknown) => {
     const file = path.join(out, 'failures.json')
@@ -375,6 +462,13 @@ for (const subject of chosenSubjects) {
             failed(subject, 'build', String(error).slice(0, 2000))
             continue
         }
+    }
+    let server: Awaited<ReturnType<typeof serve>>
+    try {
+        server = await serve(device.udid, subject)
+    } catch (error) {
+        failed(subject, 'server', error)
+        continue
     }
     // An unmeasured first run.
     const firstRun = `${stamp}-${subject}-first`
@@ -419,7 +513,16 @@ for (const subject of chosenSubjects) {
             }
             fs.writeFileSync(
                 path.join(out, `${subject}-${scenario}-${i}.json`),
-                JSON.stringify({ device, ...data, analysis }, null, 2),
+                JSON.stringify(
+                    {
+                        device,
+                        ...data,
+                        imageServer: { latencyMs, mbps },
+                        analysis,
+                    },
+                    null,
+                    2,
+                ),
             )
             if (!flag('keep-videos')) fs.rmSync(video)
             log(
@@ -429,6 +532,7 @@ for (const subject of chosenSubjects) {
             attempt = 0
         }
     }
+    await server.stop()
     try {
         runMetrics(subject, device.udid, out)
     } catch (error) {

@@ -11,9 +11,8 @@ import {
 } from 'react-native'
 import type { Adapter } from './adapter'
 
-// The scenarios (see PLAN-benchmark.local.md and ../README.md). Each shows a
-// marker bar, warms the image server's edge cache, then on a frame it records
-// turns the marker green and mounts its images, records when each image's
+// The scenarios (see ../README.md). Each shows a marker bar, times the
+// network (`probe`), then on a frame it records turns the marker green and mounts its images, records when each image's
 // load event arrives, and once they've all loaded (or after `fixedMs`) measures
 // where each cell is on screen and writes the results to
 // Documents/results-<run>.json, which run.ts copies from the device over USB
@@ -98,9 +97,6 @@ export type ScenarioProps = {
     run: string
     server: string
     delay: number
-    // Warm the image server's edge cache first (not for a server on the
-    // phone).
-    warm: boolean
 }
 
 const now = () => performance.now()
@@ -112,30 +108,6 @@ const measure = (view: View | null) =>
             resolve({ x, y, width, height }),
         )
     })
-
-// Fetches every url once, `limit` at a time, and returns the Server-Timing
-// durations (ms) the server reported.
-async function warm(urls: string[], limit: number) {
-    const timings: number[] = []
-    let next = 0
-    await Promise.all(
-        Array.from({ length: limit }, async () => {
-            while (next < urls.length) {
-                const url = urls[next++]
-                try {
-                    const response = await fetch(url)
-                    await response.arrayBuffer()
-                    const timing = response.headers.get('server-timing')
-                    const match = timing?.match(/dur=([\d.]+)/)
-                    if (match) timings.push(Number(match[1]))
-                } catch {
-                    // Counted as a miss: the run still goes on.
-                }
-            }
-        }),
-    )
-    return timings
-}
 
 // The images the network probe downloads: the same for every scenario, so
 // rates compare across them.
@@ -163,17 +135,10 @@ async function probe(urls: string[]): Promise<Probe> {
     return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
 }
 
-export function Scenario({
-    name,
-    adapter,
-    run,
-    server,
-    delay,
-    warm: warmUp,
-}: ScenarioProps) {
+export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
-        'loading' | 'warming' | 'running' | 'measuring' | 'done' | 'failed'
+        'loading' | 'running' | 'measuring' | 'done' | 'failed'
     >('loading')
     const [cells, setCells] = useState<Cell[]>([])
     const [message, setMessage] = useState('')
@@ -181,7 +146,6 @@ export function Scenario({
     const loaded = useRef(0)
     const views = useRef(new Map<number, View>())
     const marker = useRef<View>(null)
-    const warmTimings = useRef<number[]>([])
     const probeUrls = useRef<(when: string) => string[]>(() => [])
     const probeBefore = useRef<Probe | undefined>(undefined)
     const finished = useRef(false)
@@ -201,20 +165,6 @@ export function Scenario({
                 .slice(0, PROBE_COUNT)
                 .map((image) => image.key)
             if (cancelled) return
-            setPhase('warming')
-            // The probe's images too, so neither probe waits for the edge.
-            warmTimings.current = !warmUp
-                ? []
-                : await warm(
-                      [
-                          ...images.map((image) => image.key),
-                          ...probeKeys.filter(
-                              (key) =>
-                                  !images.some((image) => image.key === key),
-                          ),
-                      ].map((key) => url(key, `${run}-warm`)),
-                      6,
-                  )
             probeUrls.current = (when) =>
                 probeKeys.map((key) => url(key, `${run}-probe-${when}`))
             probeBefore.current = await probe(
@@ -240,7 +190,7 @@ export function Scenario({
         return () => {
             cancelled = true
         }
-    }, [config.set, delay, run, server, warmUp])
+    }, [config.set, delay, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -272,7 +222,6 @@ export function Scenario({
             placeholder: PLACEHOLDER,
             loadEvents: adapter.loadEvents,
             durationMs: now() - started.current,
-            warmServerMs: warmTimings.current,
             // Network speed just before the images mount and just after
             // they've all loaded.
             network: { before: probeBefore.current, after: probeAfter },
@@ -348,7 +297,7 @@ export function Scenario({
         </View>
     )
 
-    const running = phase !== 'loading' && phase !== 'warming'
+    const running = phase !== 'loading'
     return (
         <View style={styles.screen}>
             <View

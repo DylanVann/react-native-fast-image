@@ -1,6 +1,7 @@
-// The benchmark app, built once per subject (see ../scripts/build.mts):
-// BENCH_SUBJECT picks the image library, which the build installs alone. Each
-// subject is its own app (bundle id), so they can be installed side by side.
+// The benchmark app, built once per subject (by ../scripts/run.ts and
+// run-android.ts): BENCH_SUBJECT picks the image library, which the build
+// installs alone. Each subject is its own app (bundle id), so they can be
+// installed side by side.
 const { subject } = require('./subjects')
 
 module.exports = {
@@ -14,7 +15,8 @@ module.exports = {
         userInterfaceStyle: 'light',
         ios: {
             bundleIdentifier: `com.dylanvann.rnfibenchmark.${subject.replace(/[^a-z0-9]/gi, '')}`,
-            appleTeamId: 'U8E2VB5JLQ',
+            // Your team, for signing on a device.
+            appleTeamId: process.env.BENCH_APPLE_TEAM_ID,
         },
         android: {
             package: `com.dylanvann.rnfibenchmark.${subject.replace(/[^a-z0-9]/gi, '')}`,

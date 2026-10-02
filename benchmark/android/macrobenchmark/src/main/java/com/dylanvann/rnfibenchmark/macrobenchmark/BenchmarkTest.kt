@@ -55,13 +55,12 @@ class BenchmarkTest {
     }
 
     // Starts the app on a scenario with a new run id (so no image comes from
-    // an earlier run's caches), in a new process, loading from the server
-    // here (no edge cache to warm up).
+    // an earlier run's caches), in a new process, loading from the server here.
     private fun launch(scenario: String, run: String) {
         shell("am force-stop $pkg")
         val url = URLEncoder.encode(server.url, "UTF-8")
         // Not through a shell: `&` needs no escaping.
-        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run&server=$url&warm=0 $pkg")
+        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run&server=$url $pkg")
     }
 
     // Waits for the scenario to finish; returns its results (JSON), which the

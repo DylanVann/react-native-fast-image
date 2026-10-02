@@ -13,17 +13,15 @@ import adapter from './src/subject'
 
 // The benchmark app. On iOS it's launched with arguments, e.g. `-scenario
 // grid -run <id>`, which iOS puts in the app's user defaults; on Android with
-// a link, rnfibench://run?scenario=grid&run=<id>. Both can also pass `server`
-// (the Android tests serve the images on the phone, with `warm=0` since
-// there's no edge cache to warm) and `delay`. Without them it shows a menu,
-// for trying a scenario by hand.
-const SERVER = 'https://react-native-fast-image-benchmark.dylanvann.workers.dev'
+// a link, rnfibench://run?scenario=grid&run=<id>. Both pass `server`, the
+// image server the tests run on the phone, and can pass `delay`. Without a
+// scenario it shows a menu, for trying one by hand (still with a `server`).
 
 type Args = Record<string, string | undefined>
 
 const iosArgs = (): Args =>
     Object.fromEntries(
-        ['scenario', 'run', 'server', 'delay', 'warm'].map((name) => [
+        ['scenario', 'run', 'server', 'delay'].map((name) => [
             name,
             Settings.get(name) ?? undefined,
         ]),
@@ -51,15 +49,23 @@ export default function App() {
     const [manualRun] = useState(() => `manual-${Date.now()}`)
     if (!args) return null
     const scenario = (args.scenario as ScenarioName | undefined) ?? chosen
+    if (!args.server) {
+        return (
+            <View style={styles.menu}>
+                <Text>
+                    No image server: launch with `server` (see README.md).
+                </Text>
+            </View>
+        )
+    }
     if (scenario) {
         return (
             <Scenario
                 name={scenario}
                 adapter={adapter}
                 run={args.run ?? manualRun}
-                server={args.server ?? SERVER}
+                server={args.server}
                 delay={Number(args.delay ?? 0)}
-                warm={args.warm !== '0'}
             />
         )
     }
