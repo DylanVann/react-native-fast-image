@@ -1,0 +1,14 @@
+{
+    "name": "fastimage-benchmark-images",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "make": "bun make-images.ts",
+        "typecheck": "tsc -p tsconfig.json"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "sharp": "^0.35.5",
+        "typescript": "^7.0.2"
+    }
+}

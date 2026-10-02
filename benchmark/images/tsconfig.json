@@ -1,0 +1,14 @@
+{
+    // The image script, with Bun's types.
+    "compilerOptions": {
+        "target": "ES2024",
+        "lib": ["ES2024"],
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "types": ["bun"]
+    },
+    "files": ["make-images.ts"]
+}
