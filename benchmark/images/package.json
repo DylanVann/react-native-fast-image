@@ -4,14 +4,11 @@
     "type": "module",
     "scripts": {
         "make": "bun make-images.ts",
-        "deploy": "wrangler deploy",
         "typecheck": "tsc -p tsconfig.json"
     },
     "devDependencies": {
-        "@cloudflare/workers-types": "^5.20261001.1",
         "@types/bun": "^1.4.2",
         "sharp": "^0.35.5",
-        "typescript": "^7.0.2",
-        "wrangler": "^4.145.0"
+        "typescript": "^7.0.2"
     }
 }

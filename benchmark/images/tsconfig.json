@@ -1,5 +1,5 @@
 {
-    // worker.ts with the Workers types; the scripts (Bun) with Bun's.
+    // The image script, with Bun's types.
     "compilerOptions": {
         "target": "ES2024",
         "lib": ["ES2024"],
@@ -8,7 +8,7 @@
         "strict": true,
         "noEmit": true,
         "skipLibCheck": true,
-        "types": ["@cloudflare/workers-types", "bun"]
+        "types": ["bun"]
     },
-    "files": ["worker.ts", "make-images.ts"]
+    "files": ["make-images.ts"]
 }
