@@ -26,8 +26,9 @@ env:
       id: 'tab-regression'
 - tapOn:
       id: 'regression-background-start'
-# The slow image takes about 7 s. The 20 s away is past SDWebImage's 15 s
-# download timeout. The wait is one that never matches (it takes longer than
+# The slow server holds the rest of the slow image until the app is back and
+# releases it, so it's still downloading then. The 20 s away is past
+# SDWebImage's 15 s download timeout. The wait is one that never matches (it takes longer than
 # its timeout on iOS).
 - extendedWaitUntil:
       visible: 'background-loading: .*'
