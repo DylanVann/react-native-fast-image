@@ -1,3 +1,10 @@
+# [8.29.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.28.1...v8.29.0) (2026-10-02)
+
+
+### Features
+
+* **ios:** register an animated WebP coder by default ([#1222](https://github.com/DylanVann/react-native-fast-image/issues/1222)) ([793f988](https://github.com/DylanVann/react-native-fast-image/commit/793f988311b28b91e9db5ea09a45119472e6906b)), closes [#488](https://github.com/DylanVann/react-native-fast-image/issues/488)
+
 ## [8.28.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.28.0...v8.28.1) (2026-10-02)
 
 
