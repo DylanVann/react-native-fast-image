@@ -49,6 +49,6 @@ Nitro Image's view sends no load events, so its scenarios end after a fixed time
 
 ## Limits
 
-- On Test Lab each subject runs on its own phone, so differences between the phones (and their temperature) count as differences between the subjects. The device isn't recorded per run.
+- On Test Lab each subject runs on its own phone, so differences between the phones (and their temperature) count as differences between the subjects: between two rounds, subjects' times moved by up to 450 ms, in both directions, and the network probe measured 87–144 Mbps depending on the phone. The device isn't recorded per run. Running every subject on one phone, in turns, would fix this.
 - On iOS the subjects run one after another in the same order, each after the previous one's XCTest metrics, so later subjects can run on a warmer phone.
 - The phone's screen recording and the app's clock cost every subject the same, but they do cost something.
