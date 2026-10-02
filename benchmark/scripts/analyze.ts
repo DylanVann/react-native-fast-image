@@ -2,15 +2,19 @@
 //
 // The app's results say where each cell is (in points) and what's in it; the
 // recording (from capture, at the device's pixel size) is decoded at a
-// fraction of its size. The start is the first frame in which the marker bar
-// is green (the app turns it green as it mounts the images) and the cells are
-// still empty. A cell's image
-// has shown in the first frame whose average color (of the middle of the
-// cell) is more than halfway from the placeholder's to the cell's final color
-// (the last frame's), so a fade-in counts from its middle. Only cells fully
-// on screen are timed. The phone's recording can stall and resume with a
-// stale frame: a run where an image shows long before its load event, or
-// never shows although it loaded, is an error (run.ts runs it again).
+// fraction of its size. Each frame's time comes from the clock the app draws
+// next to the marker (the time since the run started, in binary), not from
+// the file's timestamps: the phone's frames can reach the Mac late, and then
+// they're stamped as if no time had passed. The run's frames are the ones
+// after the last with the marker black (waiting): earlier ones show the
+// previous run, or a snapshot of it while the app launches again. A cell's
+// image has shown in the first frame whose average color (of the middle of
+// the cell) is more than halfway from the placeholder's to the cell's final
+// color (in the last frame, which must show the marker blue: the run's end),
+// so a fade-in counts from its middle. Only cells fully on screen are timed.
+// A gap in the clock (a frame the phone didn't draw, or one that didn't
+// reach the Mac) is reported as each image's window: the image showed
+// within that long before its frame.
 
 import { spawn, spawnSync } from 'node:child_process'
 
@@ -20,6 +24,7 @@ export type Results = {
     scale: number
     window: { width: number; height: number }
     marker?: Rect
+    clock?: { rect: Rect; bits: number; unitMs: number }
     placeholder: string
     images: {
         index: number
@@ -32,12 +37,15 @@ export type Results = {
 }
 
 export type Analysis = {
-    // ms from the marker's green frame to each timed image's frame.
+    // ms from the run's start to each timed image's frame (by its clock).
     images: {
         index: number
         shownMs?: number
+        // How long before that frame the previous one was drawn: the image
+        // showed within this long.
+        windowMs?: number
         // loadMs minus shownMs: positive when the load event came after the
-        // pixels. Includes the marker's own drawing delay (about a frame).
+        // pixels. The clock starts within about a frame of loadMs's start.
         eventGapMs?: number
         // The final color is far from the image's average: another image, or
         // none, shows there.
@@ -47,16 +55,14 @@ export type Analysis = {
     allMs?: number
     timed: number
     notShown: number
+    // The run's frames, and the median time between them.
     frames: number
+    frameMs?: number
     error?: string
 }
 
 // The recording is decoded at 1/DOWNSCALE of its size.
 const DOWNSCALE = 6
-// The longest an image's load event can come after its pixels before the
-// recording is taken to have stalled: the largest seen otherwise is about
-// 100 ms, on a busy JS thread.
-const STALL_MS = 500
 
 type Rgb = [number, number, number]
 
@@ -157,23 +163,6 @@ export async function analyze(
     const [fullWidth, fullHeight] = probe.split(',').map(Number)
     const width = Math.floor(fullWidth / DOWNSCALE)
     const height = Math.floor(fullHeight / DOWNSCALE)
-    const times = String(
-        capture('ffprobe', [
-            '-v',
-            'error',
-            '-select_streams',
-            'v:0',
-            '-show_entries',
-            'frame=pts_time',
-            '-of',
-            'csv=p=0',
-            video,
-        ]),
-    )
-        .trim()
-        .split('\n')
-        // A frame's line can end with a comma (side data).
-        .map((line) => parseFloat(line))
     // Points to the decoded frame's pixels.
     const px = fullWidth / results.window.width / DOWNSCALE
 
@@ -201,7 +190,9 @@ export async function analyze(
 
     const empty: Analysis = { images: [], timed: 0, notShown: 0, frames: 0 }
     if (!results.marker) return { ...empty, error: 'no marker' }
+    if (!results.clock) return { ...empty, error: 'no clock' }
     const marker = results.marker
+    const clock = results.clock
     const onScreen = (rect?: Rect): rect is Rect =>
         !!rect &&
         rect.x >= 0 &&
@@ -209,47 +200,72 @@ export async function analyze(
         rect.x + rect.width <= results.window.width &&
         rect.y + rect.height <= results.window.height
     const timedImages = results.images.filter((image) => onScreen(image.rect))
-    // Each frame's marker and cell colors: all that's kept of the video.
+    const bitWidth = clock.rect.width / clock.bits
+    const bitRects = Array.from({ length: clock.bits }, (_, k) => ({
+        ...clock.rect,
+        x: clock.rect.x + k * bitWidth,
+        width: bitWidth,
+    }))
+    // Each frame's marker color, clock (ms) and cell colors: all that's kept
+    // of the video.
     const markerColors: Rgb[] = []
+    const clockMs: number[] = []
     const cellColors: Rgb[][] = []
     await eachFrame(video, width, height, (data) => {
         markerColors.push(average(data, marker, 0.2))
+        clockMs.push(
+            bitRects.reduce((value, rect, k) => {
+                const [r, g, b] = average(data, rect, 0.3)
+                return r + g + b > 3 * 128 ? value + 2 ** k : value
+            }, 0) * clock.unitMs,
+        )
         cellColors.push(
             timedImages.map((image) => average(data, image.rect!, 0.2)),
         )
     })
-    const frames = Math.min(times.length, markerColors.length)
+    const frames = markerColors.length
     if (frames === 0) return { ...empty, error: 'no frames' }
 
-    // The start: the first frame with the marker green and the cells still
-    // showing the placeholder. The recording can begin on an earlier run's
-    // screen, and iOS can show a snapshot of it while the app launches again:
-    // both have a green marker, but with images in the cells.
-    const green: Rgb = [0, 255, 0]
-    const placeholder = parseHex(results.placeholder)
-    const empty_ = (f: number) =>
-        cellColors[f].filter((color) => distance(color, placeholder) < 10)
-            .length >=
-        0.8 * timedImages.length
-    let start = -1
+    const black: Rgb = [0, 0, 0]
+    const blue: Rgb = [0, 0, 255]
+    let waiting = -1
     for (let f = 0; f < frames; f++) {
-        if (distance(markerColors[f], green) < 20 && empty_(f)) {
-            start = f
-            break
-        }
+        if (distance(markerColors[f], black) < 20) waiting = f
     }
-    if (start < 0) {
+    const run = Array.from({ length: frames }, (_, f) => f).filter(
+        (f) => f > waiting,
+    )
+    if (waiting < 0 || run.length === 0) {
+        return { ...empty, error: 'no frame with the marker black (waiting)' }
+    }
+    const last = run[run.length - 1]
+    if (distance(markerColors[last], blue) >= 20) {
         return {
             ...empty,
-            frames,
-            error: 'no frame with the marker green and the cells empty',
+            frames: run.length,
+            error: "the recording ended before the run's end",
         }
     }
+    for (let i = 1; i < run.length; i++) {
+        if (clockMs[run[i]] < clockMs[run[i - 1]]) {
+            return {
+                ...empty,
+                frames: run.length,
+                error: `the clock went back at frame ${run[i]}: ${clockMs[run[i - 1]]} to ${clockMs[run[i]]} ms`,
+            }
+        }
+    }
+    const gaps = run
+        .slice(1)
+        .map((f, i) => clockMs[f] - clockMs[run[i]])
+        .filter((ms) => ms > 0)
+        .sort((a, b) => a - b)
 
+    const placeholder = parseHex(results.placeholder)
     const images: Analysis['images'] = []
     let notShown = 0
     timedImages.forEach((image, i) => {
-        const final = cellColors[frames - 1][i]
+        const final = cellColors[last][i]
         const span = distance(final, placeholder)
         const mismatch = distance(final, parseHex(image.color)) > 30
         if (span < 10) {
@@ -257,20 +273,17 @@ export async function analyze(
             images.push({ index: image.index, mismatch: true })
             return
         }
-        let shown: number | undefined
-        for (let f = start; f < frames; f++) {
-            if (distance(cellColors[f][i], placeholder) > span / 2) {
-                shown = f
-                break
-            }
-        }
-        const shownMs =
-            shown === undefined
-                ? undefined
-                : Math.round((times[shown] - times[start]) * 1000)
+        const at = run.findIndex(
+            (f) => distance(cellColors[f][i], placeholder) > span / 2,
+        )
+        const shownMs = at < 0 ? undefined : clockMs[run[at]]
         images.push({
             index: image.index,
             shownMs,
+            windowMs:
+                shownMs === undefined
+                    ? undefined
+                    : shownMs - (at > 0 ? clockMs[run[at - 1]] : 0),
             eventGapMs:
                 shownMs !== undefined && image.loadMs !== undefined
                     ? Math.round(image.loadMs - shownMs)
@@ -281,16 +294,13 @@ export async function analyze(
     const shownTimes = images
         .map((image) => image.shownMs)
         .filter((ms): ms is number => ms !== undefined)
-    const early = images.find((image) => (image.eventGapMs ?? 0) > STALL_MS)
     const unseen = images.find(
         (image, i) =>
             image.shownMs === undefined && timedImages[i].loadMs !== undefined,
     )
-    const error = early
-        ? `recording stalled: image ${early.index} showed ${early.eventGapMs} ms before its load event`
-        : unseen
-          ? `recording stalled: image ${unseen.index} loaded but didn't show`
-          : undefined
+    const error = unseen
+        ? `image ${unseen.index} loaded but didn't show`
+        : undefined
     return {
         images,
         firstMs: shownTimes.length ? Math.min(...shownTimes) : undefined,
@@ -300,7 +310,8 @@ export async function analyze(
                 : undefined,
         timed: images.length,
         notShown,
-        frames,
+        frames: run.length,
+        frameMs: gaps.length ? gaps[Math.floor(gaps.length / 2)] : undefined,
         ...(error ? { error } : {}),
     }
 }

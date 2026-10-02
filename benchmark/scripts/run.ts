@@ -192,33 +192,70 @@ function buildCapture() {
     return path.join(CAPTURE, '.build', 'release', 'capture')
 }
 
-// Records the device's screen until stop() resolves.
-function record(binary: string, deviceName: string, file: string) {
-    const child = spawn(binary, [deviceName, file], {
+// The phone's screen recorder (../ios/capture): one process for the whole
+// run, recording each movie on a command (see main.swift).
+async function recorder(binary: string, deviceName: string) {
+    const child = spawn(binary, [deviceName], {
         stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stderr = ''
     child.stderr.on('data', (d) => (stderr += d))
-    const exited = new Promise<number>((resolve) =>
-        child.on('exit', (code) => resolve(code ?? 1)),
+    const exited = new Promise<void>((resolve) =>
+        child.on('exit', () => resolve()),
     )
-    const started = new Promise<void>((resolve, reject) => {
-        child.stdout.on('data', (d) => {
-            if (String(d).includes('recording')) resolve()
-        })
-        exited.then(() => reject(new Error(`capture exited: ${stderr}`)))
-        setTimeout(
-            () => reject(new Error(`capture didn't start: ${stderr}`)),
-            20_000,
-        )
+    // Its output, a line at a time.
+    const lines: string[] = []
+    let waiting: (() => void) | undefined
+    let pending = ''
+    child.stdout.on('data', (d) => {
+        pending += d
+        const parts = pending.split('\n')
+        pending = parts.pop()!
+        lines.push(...parts)
+        waiting?.()
     })
+    const next = async (timeoutMs: number) => {
+        const deadline = Date.now() + timeoutMs
+        while (!lines.length) {
+            if (child.exitCode !== null) {
+                throw new Error(`capture exited: ${stderr}`)
+            }
+            if (Date.now() > deadline) {
+                throw new Error(`capture didn't answer: ${stderr}`)
+            }
+            await Promise.race([
+                new Promise<void>((resolve) => (waiting = resolve)),
+                exited,
+                new Promise((resolve) => setTimeout(resolve, 1000)),
+            ])
+        }
+        return lines.shift()!
+    }
+    if ((await next(20_000)) !== 'ready') {
+        throw new Error(`capture didn't start: ${stderr}`)
+    }
     return {
-        started,
-        stop: async () => {
-            child.stdin.end()
-            const code = await exited
-            if (code !== 0) throw new Error(`capture failed: ${stderr}`)
+        // Records to `file` until stop() resolves: at once, or once a frame
+        // has arrived with the point `until` (fractions of the screen's size)
+        // blue (the run's end).
+        record: async (file: string) => {
+            child.stdin.write(`start ${file}\n`)
+            const line = await next(20_000)
+            if (line !== 'recording') {
+                throw new Error(`capture didn't record: ${line} ${stderr}`)
+            }
+            return {
+                stop: async (until?: { x: number; y: number }) => {
+                    child.stdin.write(
+                        until ? `stop ${until.x} ${until.y}\n` : 'stop\n',
+                    )
+                    const line = await next(30_000)
+                    // e.g. frames it couldn't write in time.
+                    if (line !== 'stopped') log(`  capture: ${line.slice(8)}`)
+                },
+            }
         },
+        close: () => child.stdin.end(),
     }
 }
 
@@ -441,7 +478,7 @@ fs.mkdirSync(out, { recursive: true })
 log(
     `device: ${device.name} (${device.model}, iOS ${device.os}); results ${path.relative(process.cwd(), out)}`,
 )
-const captureBinary = buildCapture()
+const capture = await recorder(buildCapture(), device.name)
 buildRunner(device.udid)
 
 const failed = (subject: string, scenario: string, error: unknown) => {
@@ -477,11 +514,10 @@ for (const subject of chosenSubjects) {
         log(`  first run: ${error}`),
     )
     for (const scenario of scenarios) {
-        for (let i = 1, attempt = 1; i <= iterations; attempt++) {
-            const runId = `${stamp}-${subject}-${scenario}-${i}-${attempt}`
+        for (let i = 1; i <= iterations; i++) {
+            const runId = `${stamp}-${subject}-${scenario}-${i}`
             const video = path.join(out, `${subject}-${scenario}-${i}.mov`)
-            const recording = record(captureBinary, device.name, video)
-            await recording.started
+            const recording = await capture.record(video)
             launch(device.udid, subject, scenario, runId)
             let data: Results & Record<string, unknown>
             try {
@@ -489,26 +525,19 @@ for (const subject of chosenSubjects) {
             } catch (error) {
                 await recording.stop()
                 failed(subject, scenario, error)
-                i++
-                attempt = 0
                 continue
             }
-            await new Promise((r) => setTimeout(r, 500))
-            await recording.stop()
+            // The marker's middle, as fractions of the screen's size.
+            const marker = data.marker!
+            await recording.stop({
+                x: (marker.x + marker.width / 2) / data.window.width,
+                y: (marker.y + marker.height / 2) / data.window.height,
+            })
             let analysis: Analysis
             try {
                 analysis = await analyze(data, video)
             } catch (error) {
                 failed(subject, scenario, error)
-                i++
-                attempt = 0
-                continue
-            }
-            // The phone's screen recording can stall (seen while large
-            // images decode): run the iteration again, up to twice.
-            if (analysis.error && attempt < 3) {
-                log(`  ${subject} ${scenario} #${i}: ${analysis.error}; again`)
-                fs.rmSync(video, { force: true })
                 continue
             }
             fs.writeFileSync(
@@ -524,12 +553,11 @@ for (const subject of chosenSubjects) {
                     2,
                 ),
             )
-            if (!flag('keep-videos')) fs.rmSync(video)
+            // A run whose analysis failed keeps its recording, to look into.
+            if (!flag('keep-videos') && !analysis.error) fs.rmSync(video)
             log(
                 `  ${subject} ${scenario} #${i}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed${analysis.notShown ? `, ${analysis.notShown} not shown` : ''}), event gap ${median(analysis.images.flatMap((x) => (x.eventGapMs === undefined ? [] : [x.eventGapMs])))} ms${analysis.error ? `: ${analysis.error}` : ''}`,
             )
-            i++
-            attempt = 0
         }
     }
     await server.stop()
@@ -540,5 +568,6 @@ for (const subject of chosenSubjects) {
     }
 }
 
+capture.close()
 log('')
 log(summarize(out))

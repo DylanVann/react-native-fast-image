@@ -54,7 +54,7 @@ type Run = {
         allMs?: number
         error?: string
         notShown?: number
-        images: { shownMs?: number; eventGapMs?: number }[]
+        images: { shownMs?: number; windowMs?: number; eventGapMs?: number }[]
     }
     images?: { error?: string }[]
     network?: { before?: { mbps: number }; after?: { mbps: number } }
@@ -132,10 +132,10 @@ export function summarize(dir: string) {
         ),
     ]
     const lines = [
-        `Times in ms from the images being mounted, from screen recordings (median / p90 over all runs). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
+        `Times in ms from the images being mounted, from screen recordings, timed by the clock the app draws in each frame (median / p90 over all runs). Frame window: how long before an image's first frame the previous frame was drawn (median / max): the image showed within that time. Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
         '',
-        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Frame window | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ]
     for (const key of keys) {
         const [platform, subject, scenario] = key.split('\t')
@@ -153,6 +153,9 @@ export function summarize(dir: string) {
         const images = timed.flatMap((r) => r.analysis.images)
         const perImage = images.flatMap((i) =>
             i.shownMs === undefined ? [] : [i.shownMs],
+        )
+        const windows = images.flatMap((i) =>
+            i.windowMs === undefined ? [] : [i.windowMs],
         )
         const gap = images.flatMap((i) =>
             i.eventGapMs === undefined ? [] : [i.eventGapMs],
@@ -178,7 +181,7 @@ export function summarize(dir: string) {
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
         )
     }
 

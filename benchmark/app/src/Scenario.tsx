@@ -2,7 +2,9 @@ import { FlashList } from '@shopify/flash-list'
 import { File, Paths } from 'expo-file-system'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
+    Animated,
     Dimensions,
+    Easing,
     PixelRatio,
     Platform,
     StyleSheet,
@@ -11,12 +13,13 @@ import {
 } from 'react-native'
 import type { Adapter } from './adapter'
 
-// The scenarios (see ../README.md). Each shows a marker bar, times the
-// network (`probe`), then on a frame it records turns the marker green and mounts its images, records when each image's
-// load event arrives, and once they've all loaded (or after `fixedMs`) measures
-// where each cell is on screen and writes the results to
-// Documents/results-<run>.json, which run.ts copies from the device over USB
-// (no network permission needed).
+// The scenarios (see ../README.md). Each shows a black marker bar, times the
+// network (`probe`), then turns the marker green, starts the clock and mounts
+// its images, records when each image's load event arrives, and once they've
+// all loaded (or after `fixedMs`) measures where each cell is on screen,
+// writes the results to Documents/results-<run>.json (which run.ts copies
+// from the device over USB, no network permission needed) and turns the
+// marker blue.
 export type ScenarioName = 'grid' | 'scroll' | 'large'
 
 type Config = {
@@ -33,6 +36,14 @@ type Config = {
 
 // A subject with load events that doesn't send them all is done after this.
 const SAFETY_MS = 30_000
+
+// The clock next to the marker: CLOCK_BITS squares, white for a 1, showing
+// the time since the run started in CLOCK_UNIT_MS units, in binary (lowest
+// bit first). The native driver updates it every frame without JS, so each
+// frame of a recording says when it was drawn, whenever it reached the Mac.
+const CLOCK_BITS = 12
+const CLOCK_UNIT_MS = 4
+const CLOCK_UNITS = 2 ** CLOCK_BITS
 
 export const SCENARIOS: Record<ScenarioName, Config> = {
     // 60 photos (400 px) in a grid that's laid out at once: the ones on
@@ -64,9 +75,11 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
 export const PLACEHOLDER = '#d9d9d9'
 const MARKER_WAITING = '#000000'
 const MARKER_STARTED = '#00ff00'
+const MARKER_DONE = '#0000ff'
 // Room for the status bar and the Dynamic Island above the marker.
 const TOP = 60
 const MARKER_HEIGHT = 24
+const MARKER_WIDTH = 96
 
 type Manifest = {
     sets: Record<
@@ -149,6 +162,17 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     // results aren't shown, so a load doesn't render the cells again.
     const settled = useRef(new Map<number, Partial<Cell>>())
     const marker = useRef<View>(null)
+    const clockView = useRef<View>(null)
+    const [clock] = useState(() => new Animated.Value(0))
+    // Bit k is 1 while the clock modulo 2^(k+1) is at least 2^k.
+    const [clockBits] = useState(() =>
+        Array.from({ length: CLOCK_BITS }, (_, k) =>
+            Animated.modulo(clock, 2 ** (k + 1)).interpolate({
+                inputRange: [0, 2 ** k - 0.001, 2 ** k, 2 ** (k + 1)],
+                outputRange: [0, 0, 1, 1],
+            }),
+        ),
+    )
     const probeUrls = useRef<(when: string) => string[]>(() => [])
     const probeBefore = useRef<Probe | undefined>(undefined)
     const finished = useRef(false)
@@ -186,6 +210,12 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             )
             started.current = now()
             setPhase('running')
+            Animated.timing(clock, {
+                toValue: CLOCK_UNITS,
+                duration: CLOCK_UNITS * CLOCK_UNIT_MS,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            }).start()
         })().catch((error) => {
             setMessage(String(error))
             setPhase('failed')
@@ -193,7 +223,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [config.set, delay, run, server])
+    }, [clock, config.set, delay, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -205,6 +235,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             cells.map((cell) => measure(views.current.get(cell.index) ?? null)),
         )
         const markerRect = await measure(marker.current)
+        const clockRect = await measure(clockView.current)
         const probeAfter = await probe(probeUrls.current('after')).catch(
             () => undefined,
         )
@@ -222,6 +253,11 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             scale: PixelRatio.get(),
             window: { width: window.width, height: window.height },
             marker: markerRect,
+            clock: clockRect && {
+                rect: clockRect,
+                bits: CLOCK_BITS,
+                unitMs: CLOCK_UNIT_MS,
+            },
             placeholder: PLACEHOLDER,
             loadEvents: adapter.loadEvents,
             durationMs: now() - started.current,
@@ -303,18 +339,38 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const running = phase !== 'loading'
     return (
         <View style={styles.screen}>
-            <View
-                ref={marker}
-                collapsable={false}
-                style={[
-                    styles.marker,
-                    {
-                        backgroundColor: running
-                            ? MARKER_STARTED
-                            : MARKER_WAITING,
-                    },
-                ]}
-            />
+            <View style={styles.markerRow}>
+                <View
+                    ref={marker}
+                    collapsable={false}
+                    style={[
+                        styles.marker,
+                        {
+                            backgroundColor:
+                                phase === 'done'
+                                    ? MARKER_DONE
+                                    : running
+                                      ? MARKER_STARTED
+                                      : MARKER_WAITING,
+                        },
+                    ]}
+                />
+                {/* Not in the list scenario, which is only scrolled. */}
+                {!config.list && (
+                    <View
+                        ref={clockView}
+                        collapsable={false}
+                        style={styles.clock}
+                    >
+                        {clockBits.map((opacity, k) => (
+                            <Animated.View
+                                key={k}
+                                style={[styles.clockBit, { opacity }]}
+                            />
+                        ))}
+                    </View>
+                )}
+            </View>
             {running &&
                 (config.list ? (
                     <FlashList
@@ -340,7 +396,10 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
 
 const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: '#ffffff', paddingTop: TOP },
-    marker: { height: MARKER_HEIGHT },
+    markerRow: { flexDirection: 'row', height: MARKER_HEIGHT },
+    marker: { width: MARKER_WIDTH },
+    clock: { flex: 1, flexDirection: 'row', backgroundColor: '#000000' },
+    clockBit: { flex: 1, backgroundColor: '#ffffff' },
     grid: { flexDirection: 'row', flexWrap: 'wrap' },
     cell: {
         backgroundColor: PLACEHOLDER,
