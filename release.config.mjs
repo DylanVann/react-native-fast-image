@@ -57,7 +57,9 @@ const writerOpts = {
 }
 
 export default {
-    branches: ['main'],
+    // 8.x (the legacy architecture's line) releases fixes from its branch, to
+    // the npm dist-tag 8.x; main releases 9.0 and later.
+    branches: [{ name: '8.x', range: '8.x', channel: '8.x' }, 'main'],
     plugins: [
         [
             '@semantic-release/commit-analyzer',

@@ -2,8 +2,6 @@ import React, { forwardRef, memo, useRef } from 'react'
 import {
     View,
     Image,
-    NativeModules,
-    requireNativeComponent,
     StyleSheet,
     LayoutChangeEvent,
     StyleProp,
@@ -12,13 +10,11 @@ import {
     Platform,
     AccessibilityProps,
     ViewProps,
+    ColorValue,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-
-// React Native's ColorValue, which its types only export since 0.63. Taken
-// from ViewStyle so the types also work with older React Native types, where
-// it's string.
-type ColorValue = NonNullable<ViewStyle['backgroundColor']>
+import FastImageView from './specs/FastImageViewNativeComponent'
+import NativeFastImageModule from './specs/NativeFastImageModule'
 
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
 
@@ -271,25 +267,17 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
 const resolveDefaultSource = (
     defaultSource?: ImageRequireSource,
-): string | number | null => {
+): string | object | null => {
     if (!defaultSource) {
         return null
     }
-    if (Platform.OS === 'android') {
-        // Android receives a URI string, and resolves into a Drawable using RN's methods.
-        const resolved = Image.resolveAssetSource(
-            defaultSource as ImageRequireSource,
-        )
-
-        if (resolved) {
-            return resolved.uri
-        }
-
+    const resolved = Image.resolveAssetSource(defaultSource)
+    if (!resolved) {
         return null
     }
-    // iOS or other number mapped assets
-    // In iOS the number is passed, and bridged automatically into a UIImage
-    return defaultSource
+    // Android takes the uri, and loads it as a Drawable with React Native's
+    // helpers; iOS the image source ({ uri, width, height, scale }).
+    return Platform.OS === 'android' ? resolved.uri : resolved
 }
 
 // Finds tintColor in a style prop, where the last style that sets it wins, as
@@ -518,6 +506,8 @@ function FastImageBase({
         >
             <FastImageView
                 {...imageProps}
+                // null (no key) as undefined, which the native prop takes.
+                recyclingKey={imageProps.recyclingKey ?? undefined}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
                 {...transitionProps(transition)}
@@ -526,7 +516,9 @@ function FastImageBase({
                 sources={sources}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={withProgress(onProgress)}
+                // Adds `progress` to the native event.
+                onFastImageProgress={withProgress(onProgress) as any}
+                trackProgress={!!onProgress}
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
                 onFastImageLoadEnd={
@@ -634,9 +626,9 @@ FastImage.preload = (sources: Source[]) =>
     // Null sources are sent as {} so native results line up with the sources
     // (iOS drops null entries), and arrays too (their results are replaced).
     Promise.resolve(
-        NativeModules.FastImageView.preload(
+        NativeFastImageModule.preload(
             sources.map((s) => (s && !Array.isArray(s) ? s : {})),
-        ),
+        ) as Promise<NativePreloadResult[]>,
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
             if (Array.isArray(source)) {
@@ -652,13 +644,19 @@ FastImage.preload = (sources: Source[]) =>
         }),
     )
 
-FastImage.clearMemoryCache = () =>
-    NativeModules.FastImageView.clearMemoryCache()
+FastImage.clearMemoryCache = () => NativeFastImageModule.clearMemoryCache()
 
-FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+FastImage.clearDiskCache = () => NativeFastImageModule.clearDiskCache()
 
 FastImage.configureCache = (limits: CacheLimits = {}): Promise<CacheState> =>
-    Promise.resolve(NativeModules.FastImageView.configureCache(limits))
+    NativeFastImageModule.configureCache({
+        ...limits,
+        // The limits set to null (reset), which iOS's TurboModule leaves out
+        // of the object it passes.
+        reset: Object.keys(limits).filter(
+            (name) => limits[name as keyof CacheLimits] === null,
+        ),
+    }) as Promise<CacheState>
 
 FastImage.writeToCache = (
     source: Source,
@@ -668,7 +666,10 @@ FastImage.writeToCache = (
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : // A null source is sent as {} (it fails as a source without a uri).
           Promise.resolve(
-              NativeModules.FastImageView.writeToCache(source || {}, file),
+              NativeFastImageModule.writeToCache(
+                  source || {},
+                  file,
+              ) as Promise<CachePathResult>,
           )
 
 FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
@@ -676,7 +677,9 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : // A null source is sent as {} (it fails as a source without a uri).
           Promise.resolve(
-              NativeModules.FastImageView.getCachePath(source || {}),
+              NativeFastImageModule.getCachePath(
+                  source || {},
+              ) as Promise<CachePathResult>,
           )
 
 const styles = StyleSheet.create({
@@ -751,20 +754,5 @@ export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> 
     )
 
 FastImageBackground.displayName = 'FastImageBackground'
-
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-        },
-    },
-)
 
 export default FastImage

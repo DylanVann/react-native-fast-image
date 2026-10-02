@@ -23,7 +23,7 @@ jobs:
       - run: bun run test
   release:
     needs: build
-    if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/8.x')
     runs-on: ubuntu-latest
     # Waits for a maintainer to approve the run (the environment's required
     # reviewer). npm only accepts trusted publishing from this environment.

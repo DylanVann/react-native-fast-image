@@ -19,7 +19,7 @@ function jsx(tree: unknown) {
 describe('FastImage (iOS)', () => {
     beforeAll(() => {
         Platform.OS = 'ios'
-        NativeModules.FastImageView = {
+        NativeModules.FastImageModule = {
             preload: Function.prototype,
             clearMemoryCache: Function.prototype,
             clearDiskCache: Function.prototype,
@@ -206,7 +206,7 @@ describe('FastImage (iOS)', () => {
 
     it('resolves preload with a result per source', async () => {
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async () => [
             { ok: true, width: 10, height: 20 },
@@ -256,7 +256,7 @@ describe('FastImage (iOS)', () => {
 
     it('fails a preloaded source without a uri even if native loaded it', async () => {
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async () => [{ ok: true, width: 10, height: 20 }])
         try {
@@ -461,7 +461,7 @@ describe('several sources', () => {
             await FastImage.writeToCache([small, large] as any, '/a.jpg'),
         ).toEqual({ ok: false, error })
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async (sources: any[]) =>
             sources.map(() => ({ ok: true, width: 100, height: 100 })),
@@ -490,8 +490,8 @@ describe('getCachePath', () => {
             sources.push(source)
             return { ok: true, path: '/cache/a' }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, getCachePath }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, getCachePath }
         try {
             const source = { uri: 'https://example.com/a.jpg' }
             expect(await FastImage.getCachePath(source)).toEqual({
@@ -502,7 +502,7 @@ describe('getCachePath', () => {
             await FastImage.getCachePath(null as any)
             expect(sources).toEqual([source, {}])
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })
@@ -514,20 +514,27 @@ describe('configureCache', () => {
             calls.push(limits)
             return { maxDiskSize: limits.maxDiskSize, diskSize: 1024 }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, configureCache }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, configureCache }
         try {
             const limits = { maxDiskSize: 100 * 1024 * 1024 }
             expect(await FastImage.configureCache(limits)).toEqual({
                 ...limits,
                 diskSize: 1024,
             })
-            expect(calls).toEqual([limits])
+            expect(calls).toEqual([{ ...limits, reset: [] }])
             // Without limits, {} (Android can't read a null map).
             await FastImage.configureCache()
-            expect(calls).toEqual([limits, {}])
+            expect(calls[1]).toEqual({ reset: [] })
+            // A limit set to null is reset, and also listed (iOS's
+            // TurboModule leaves out null values).
+            await FastImage.configureCache({ maxDiskSize: null })
+            expect(calls[2]).toEqual({
+                maxDiskSize: null,
+                reset: ['maxDiskSize'],
+            })
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })
@@ -585,8 +592,8 @@ describe('writeToCache', () => {
             calls.push([source, file])
             return { ok: true, path: '/cache/a' }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, writeToCache }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, writeToCache }
         try {
             const source = { uri: 'https://example.com/a.jpg' }
             expect(
@@ -599,7 +606,7 @@ describe('writeToCache', () => {
                 [{}, 'file:///tmp/a.jpg'],
             ])
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })

@@ -9,7 +9,7 @@
 
 # The Glide rules below cover what Glide's own rules (its library's
 # proguard-rules.txt) didn't at the version FastImage uses by default
-# (glideVersion in build.gradle, 4.12.0) and older ones apps may pick. When
+# (glideVersion in build.gradle, 5.0.9) and older ones apps may pick. When
 # updating Glide, revisit which are still needed: whether Glide's rules now
 # keep modules' constructors, and whether its integrations still register
 # old-style modules in their manifests (the OkHttp integration's

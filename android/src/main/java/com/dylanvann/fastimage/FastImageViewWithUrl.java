@@ -19,7 +19,6 @@ import android.graphics.drawable.Drawable;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.RequestBuilder;
@@ -154,13 +153,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mDefaultSource = source;
     }
 
-    // Legacy architecture only (see FastImageShadowNode): the view's layout is
-    // 0×0 at its parent's origin, which React Native never applies. Lay it out
-    // at that size, as the New Architecture does, so Glide stops waiting for a
-    // size and loads it (#865).
-    void onZeroLayout() {
-        if (!ViewCompat.isLaidOut(this)) layout(0, 0, 0, 0);
-    }
+    // Whether to send onProgress events (the view has an onProgress handler).
+    boolean trackProgress;
 
     // How many times GIFs play: -1 for the file's own loop count (the `loop`
     // prop not set), 0 for forever, or a number of times.
