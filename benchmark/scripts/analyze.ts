@@ -41,15 +41,12 @@ export type Analysis = {
     images: {
         index: number
         shownMs?: number
-        // How long before that frame the previous one was drawn: the image
-        // showed within this long.
+        // How long before that frame the last one with an earlier clock was
+        // drawn: the image showed within this long.
         windowMs?: number
         // loadMs minus shownMs: positive when the load event came after the
         // pixels. The clock starts within about a frame of loadMs's start.
         eventGapMs?: number
-        // The final color is far from the image's average: another image, or
-        // none, shows there.
-        mismatch?: boolean
     }[]
     firstMs?: number
     allMs?: number
@@ -267,28 +264,32 @@ export async function analyze(
     timedImages.forEach((image, i) => {
         const final = cellColors[last][i]
         const span = distance(final, placeholder)
-        const mismatch = distance(final, parseHex(image.color)) > 30
         if (span < 10) {
             notShown++
-            images.push({ index: image.index, mismatch: true })
+            images.push({ index: image.index })
             return
         }
         const at = run.findIndex(
             (f) => distance(cellColors[f][i], placeholder) > span / 2,
         )
         const shownMs = at < 0 ? undefined : clockMs[run[at]]
+        // On a screen faster than the clock's animation (60 Hz frames on
+        // Android), frames in a row can have the same clock.
+        const earlier = run
+            .slice(0, Math.max(at, 0))
+            .map((f) => clockMs[f])
+            .filter((ms) => ms < (shownMs ?? 0))
         images.push({
             index: image.index,
             shownMs,
             windowMs:
                 shownMs === undefined
                     ? undefined
-                    : shownMs - (at > 0 ? clockMs[run[at - 1]] : 0),
+                    : shownMs - (earlier.length ? Math.max(...earlier) : 0),
             eventGapMs:
                 shownMs !== undefined && image.loadMs !== undefined
                     ? Math.round(image.loadMs - shownMs)
                     : undefined,
-            ...(mismatch ? { mismatch } : {}),
         })
     })
     const shownTimes = images

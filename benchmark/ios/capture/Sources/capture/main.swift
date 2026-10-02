@@ -10,7 +10,7 @@
 // device (macOS was still taking it down, and didn't offer it again).
 //
 //   start <out.mov>   records from the next frame; prints "recording" once
-//                     frames are being written
+//                     three frames have been written (the device is sending)
 //   stop [<x> <y>]    finishes the movie (with the point at fractions <x>,
 //                     <y> of the screen blue, the benchmark's marker at the
 //                     run's end: once a frame like that has arrived, at most
@@ -191,9 +191,11 @@ Thread.detachNewThread {
     while let line = readLine() {
         let words = line.split(separator: " ").map(String.init)
         switch words.first {
-        case "start" where words.count == 2:
+        case "start" where words.count >= 2:
+            // The rest of the line, which can have spaces.
+            let file = String(line.dropFirst("start ".count))
             recorder.queue.sync {
-                recorder.movie = Movie(URL(fileURLWithPath: words[1]))
+                recorder.movie = Movie(URL(fileURLWithPath: file))
                 recorder.until = nil
                 recorder.sawUntil = false
             }

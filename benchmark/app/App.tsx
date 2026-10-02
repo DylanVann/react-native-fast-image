@@ -13,15 +13,15 @@ import adapter from './src/subject'
 
 // The benchmark app. On iOS it's launched with arguments, e.g. `-scenario
 // grid -run <id>`, which iOS puts in the app's user defaults; on Android with
-// a link, rnfibench://run?scenario=grid&run=<id>. Both pass `server`, the
-// image server the tests run on the phone, and can pass `delay`. Without a
-// scenario it shows a menu, for trying one by hand (still with a `server`).
+// a link, rnfibench://run?scenario=grid&run=<id>&server=<url>. Both pass
+// `server`, the image server the tests run on the phone. Without a scenario it
+// shows a menu, for trying one by hand (still with a `server`).
 
 type Args = Record<string, string | undefined>
 
 const iosArgs = (): Args =>
     Object.fromEntries(
-        ['scenario', 'run', 'server', 'delay'].map((name) => [
+        ['scenario', 'run', 'server'].map((name) => [
             name,
             Settings.get(name) ?? undefined,
         ]),
@@ -33,7 +33,12 @@ const linkArgs = (url: string | null): Args =>
         (url?.split('?')[1] ?? '')
             .split('&')
             .filter(Boolean)
-            .map((pair) => pair.split('=').map(decodeURIComponent)),
+            .map((pair) => {
+                const at = pair.indexOf('=')
+                return [pair.slice(0, at), pair.slice(at + 1)].map((part) =>
+                    decodeURIComponent(part.replace(/\+/g, ' ')),
+                )
+            }),
     )
 
 export default function App() {
@@ -65,7 +70,6 @@ export default function App() {
                 adapter={adapter}
                 run={args.run ?? manualRun}
                 server={args.server}
-                delay={Number(args.delay ?? 0)}
             />
         )
     }

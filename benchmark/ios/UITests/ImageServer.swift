@@ -1,12 +1,14 @@
 // Serves the benchmark's images (../../images/out, in this test bundle) on
 // the phone, at http://127.0.0.1:<port>, as the Android tests do
-// (ImageServer.kt): GET /<set>/<index>.jpg?run=<id>[&delay=<ms>] and
-// /manifest.json, the query ignored for the lookup. The app loads them over
-// HTTP with each library's own networking, but every run gets the same
-// network: `latencyMs` before each response (and before a new connection's
-// first, for its handshake), and `mbps` shared by every response at once, as
-// on one real link (0 for no limit). It runs in the test runner's process,
-// not the app's.
+// (ImageServer.kt): GET /<set>/<index>.jpg?run=<id> and /manifest.json, the
+// query ignored for the lookup. The app loads them over HTTP with each
+// library's own networking, but every run gets the same network: `latencyMs`
+// before each response (and before a new connection's first, for its
+// handshake), and `mbps` shared by every response at once, as on one real
+// link (0 for no limit). The manifest's and the network probe's (`?…&close`)
+// responses close their connection, so no library starts with one open. The
+// files are read when it starts, so every run is served from memory. It runs
+// in the test runner's process, not the app's.
 import Foundation
 
 final class ImageServer {
@@ -15,8 +17,8 @@ final class ImageServer {
     private let latencyMs: Int
     private let link: Link
     private var listener: Int32 = -1
+    // By path under `root`, e.g. "grid/0.jpg"; only read after start().
     private var files: [String: Data] = [:]
-    private let filesLock = NSLock()
 
     var url: String { "http://127.0.0.1:\(port)" }
 
@@ -28,6 +30,10 @@ final class ImageServer {
     }
 
     func start() throws {
+        let paths = FileManager.default.enumerator(atPath: root.path)?.allObjects as? [String] ?? []
+        for path in paths where path.hasSuffix(".jpg") || path.hasSuffix(".json") {
+            files[path] = try Data(contentsOf: root.appendingPathComponent(path))
+        }
         listener = socket(AF_INET, SOCK_STREAM, 0)
         guard listener >= 0 else { throw ServerError("socket: \(errno)") }
         var yes: Int32 = 1
@@ -50,13 +56,18 @@ final class ImageServer {
             while true {
                 let client = accept(listener, nil, nil)
                 if client < 0 { return }
-                Thread.detachNewThread { self?.serve(client) }
+                guard let self else {
+                    close(client)
+                    return
+                }
+                Thread.detachNewThread { self.serve(client) }
             }
         }
     }
 
     func stop() {
         if listener >= 0 {
+            shutdown(listener, SHUT_RDWR)
             close(listener)
             listener = -1
         }
@@ -77,20 +88,19 @@ final class ImageServer {
             guard let target = head.split(separator: "\r\n").first?.split(separator: " ").dropFirst().first else {
                 return
             }
-            let parts = target.split(separator: "?", maxSplits: 1)
+            let parts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
             let path = String(parts[0].drop(while: { $0 == "/" }))
-            let delay = parts.count > 1
-                ? parts[1].split(separator: "&").first(where: { $0.hasPrefix("delay=") })
-                    .flatMap { Int($0.dropFirst("delay=".count)) } ?? 0
-                : 0
-            sleep(milliseconds: latencyMs + delay)
-            guard let body = file(path) else {
+            let closing = path == "manifest.json"
+                || (parts.count > 1 && parts[1].split(separator: "&").contains("close"))
+            sleep(milliseconds: latencyMs)
+            guard let body = files[path] else {
                 guard write(client, Data("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".utf8)) else { return }
                 continue
             }
             let type = path.hasSuffix(".json") ? "application/json" : "image/jpeg"
             let headers = "HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nContent-Length: \(body.count)\r\n"
-                + "Cache-Control: public, max-age=31536000, immutable\r\n\r\n"
+                + "Cache-Control: public, max-age=31536000, immutable\r\n"
+                + (closing ? "Connection: close\r\n" : "") + "\r\n"
             guard write(client, Data(headers.utf8)) else { return }
             var offset = 0
             while offset < body.count {
@@ -99,6 +109,7 @@ final class ImageServer {
                 guard write(client, body.subdata(in: offset..<(offset + count))) else { return }
                 offset += count
             }
+            if closing { return }
         }
     }
 
@@ -128,19 +139,6 @@ final class ImageServer {
             }
             return true
         }
-    }
-
-    // The image or the manifest, only by their names (no other path).
-    private func file(_ path: String) -> Data? {
-        guard path.range(of: #"^(manifest\.json|[a-z]+/\d+\.jpg)$"#, options: .regularExpression) != nil else {
-            return nil
-        }
-        filesLock.lock()
-        defer { filesLock.unlock() }
-        if let data = files[path] { return data }
-        let data = try? Data(contentsOf: root.appendingPathComponent(path))
-        files[path] = data
-        return data
     }
 
     private func sleep(milliseconds: Int) {

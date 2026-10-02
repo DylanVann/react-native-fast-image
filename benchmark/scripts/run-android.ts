@@ -3,15 +3,17 @@
 //
 //   bun benchmark/scripts/run-android.ts [--subjects fast-image,image] [--scenarios grid,large]
 //                                        [--tests time-to-image,scroll,large-memory]
-//                                        [--iterations 5] [--no-build] [--out <results folder>]
-//                                        [--firebase --device model=…,version=…]
+//                                        [--iterations 5] [--latency 40] [--mbps 0]
+//                                        [--no-build] [--out <results folder>]
+//                                        [--firebase --device model=…,version=…] [--project <id>]
 //
 // For each subject: builds the app with only that library (app/subjects.js)
 // and the Macrobenchmark test APK (android/macrobenchmark), in release
 // (keeping both in the results folder's apks/), then runs the tests, on
-// Firebase Test Lab all subjects at once: time-to-image records the screen while each scenario runs
-// and saves the recordings and the app's results, which are analyzed here as
-// on iOS (analyze.ts); scroll and large-memory are Macrobenchmark metrics.
+// Firebase Test Lab all subjects at once: time-to-image records the screen
+// while each scenario runs and saves the recordings and the app's results,
+// which are analyzed here as on iOS (analyze.ts); scroll and large-memory are
+// Macrobenchmark metrics. --no-build uses the APKs kept in --out's apks/.
 // Writes android-<subject>-<scenario>-<n>.json and
 // metrics-android-<subject>.json to the results folder, and prints a summary.
 
@@ -81,6 +83,7 @@ function run(
         cwd?: string
         env?: Record<string, string>
         allowFailure?: boolean
+        timeoutMs?: number
     } = {},
 ) {
     const result = spawnSync(cmd, args, {
@@ -88,6 +91,8 @@ function run(
         env: { ...process.env, ...ENV, ...options.env },
         encoding: 'utf8',
         maxBuffer: 1 << 28,
+        // Builds included; a hung adb or gcloud fails instead of waiting.
+        timeout: options.timeoutMs ?? 30 * 60_000,
     })
     if (result.status !== 0 && !options.allowFailure) {
         throw new Error(
@@ -113,7 +118,7 @@ function build(subject: string) {
     const env = { BENCH_SUBJECT: subject }
     fs.writeFileSync(
         path.join(APP, 'src', 'subject.ts'),
-        `// Written by ../../scripts/run.ts: the subject this build is for.\nexport { default } from '../subjects/${subject}'\n`,
+        `// Written by ../../scripts/run-android.ts: the subject this build is for.\nexport { default } from '../subjects/${subject}'\n`,
     )
     run(
         'bunx',
@@ -151,9 +156,17 @@ const testArgs = (subject: string): Record<string, string> => ({
           }),
 })
 
-// Runs the tests on the adb device, and pulls their outputs into `into`.
+// Runs the tests on the adb device, and pulls their outputs into `into`. The
+// app is installed fresh (no caches from earlier runs), and no other
+// benchmark app keeps running.
 function runLocal(subject: string, into: string, apks: Apks) {
-    run(ADB, ['install', '-r', apks.app])
+    for (const other of Object.keys(subjects)) {
+        run(ADB, ['shell', 'am', 'force-stop', packageName(other)], {
+            allowFailure: true,
+        })
+    }
+    run(ADB, ['uninstall', packageName(subject)], { allowFailure: true })
+    run(ADB, ['install', apks.app])
     run(ADB, ['install', '-r', '-t', apks.test])
     run(ADB, ['shell', `rm -rf ${DEVICE_OUTPUT}/*`], { allowFailure: true })
     const args = Object.entries(testArgs(subject)).flatMap(([k, v]) => [
@@ -163,24 +176,31 @@ function runLocal(subject: string, into: string, apks: Apks) {
     ])
     // One instrumentation run, so Macrobenchmark's metrics file has them all.
     log(`  ${tests.join(', ')}`)
-    const output = run(ADB, [
-        'shell',
-        'am',
-        'instrument',
-        '-w',
-        '-r',
-        ...args,
-        '-e',
-        'class',
-        tests.map((t) => `${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`).join(','),
-        RUNNER,
-    ])
+    const output = run(
+        ADB,
+        [
+            'shell',
+            'am',
+            'instrument',
+            '-w',
+            '-r',
+            ...args,
+            '-e',
+            'class',
+            tests
+                .map((t) => `${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
+                .join(','),
+            RUNNER,
+        ],
+        { timeoutMs: 60 * 60_000 },
+    )
     if (!/\nOK \(\d+ tests?\)/.test(output)) {
-        for (const failure of output.matchAll(
-            /Error in (\w+)\(.*\):\n([^\n]*)/g,
-        )) {
-            failed(subject, failure[1], failure[2])
-        }
+        const failures = [
+            ...output.matchAll(/Error in (\w+)\(.*\):\n([^\n]*)/g),
+        ]
+        for (const failure of failures) failed(subject, failure[1], failure[2])
+        // e.g. "Process crashed."
+        if (!failures.length) failed(subject, 'tests', output.slice(-1000))
     }
     fs.mkdirSync(into, { recursive: true })
     run(ADB, ['pull', `${DEVICE_OUTPUT}/.`, into])
@@ -211,6 +231,10 @@ async function runFirebase(subject: string, into: string, apks: Apks) {
         apks.test,
         '--device',
         firebaseDevice,
+        // Test Lab's own screen recording and sampling would run alongside
+        // the measurements (and a second recorder).
+        '--no-record-video',
+        '--no-performance-metrics',
         '--test-targets',
         tests
             .map((t) => `class ${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
@@ -242,10 +266,14 @@ async function runFirebase(subject: string, into: string, apks: Apks) {
             `firebase test didn't report its results:\n${output.slice(-2000)}`,
         )
     }
-    if (status !== 0)
-        log(
-            `  ${subject}: gcloud exited with ${status}:\n${output.slice(-1500)}`,
+    // e.g. 10: a test failed (its other outputs are still analyzed).
+    if (status !== 0) {
+        failed(
+            subject,
+            'tests',
+            `gcloud exited with ${status}:\n${output.slice(-1500)}`,
         )
+    }
     fs.mkdirSync(into, { recursive: true })
     run('gcloud', [
         'storage',
@@ -300,6 +328,11 @@ type Apks = { app: string; test: string }
 // Analyzes a subject's pulled outputs: each recording with its run's results
 // (time to image), and Macrobenchmark's metrics.
 async function analyzeOutputs(subject: string, pulled: string) {
+    // Runs the test wrote off as failed (see BenchmarkTest.kt).
+    for (const file of findFiles(pulled, /^(grid|large|scroll)-\d+\.error$/)) {
+        const [, scenario] = path.basename(file).match(/^(\w+)-/)!
+        failed(subject, scenario, fs.readFileSync(file, 'utf8'))
+    }
     for (const json of findFiles(pulled, /^(grid|large|scroll)-\d+\.json$/)) {
         const [, scenario, n] = path
             .basename(json)
@@ -317,7 +350,7 @@ async function analyzeOutputs(subject: string, pulled: string) {
                 ),
             )
             log(
-                `  ${subject} ${scenario} #${n}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed), network ${Math.round(data.network?.before?.mbps)} / ${Math.round(data.network?.after?.mbps)} Mbps${analysis.error ? `: ${analysis.error}` : ''}`,
+                `  ${subject} ${scenario} #${n}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed), network ${Math.round(data.network?.mbps)} Mbps${analysis.error ? `: ${analysis.error}` : ''}`,
             )
         } catch (error) {
             failed(subject, scenario, error)
@@ -343,11 +376,12 @@ for (const subject of chosenSubjects) {
         test: path.join(apkDir, `${subject}-test.apk`),
     }
     if (flag('no-build')) {
-        // The last build's APKs (for the one subject it was).
-        apks.set(
-            subject,
-            fs.existsSync(kept.app) ? kept : { app: appApk, test: testApk },
-        )
+        if (!fs.existsSync(kept.app) || !fs.existsSync(kept.test)) {
+            throw new Error(
+                `--no-build: no APKs for ${subject} in ${path.relative(process.cwd(), apkDir)} (pass --out with an earlier results folder)`,
+            )
+        }
+        apks.set(subject, kept)
         continue
     }
     try {

@@ -13,24 +13,23 @@ import {
 } from 'react-native'
 import type { Adapter } from './adapter'
 
-// The scenarios (see ../README.md). Each shows a black marker bar, times the
-// network (`probe`), then turns the marker green, starts the clock and mounts
-// its images, records when each image's load event arrives, and once they've
-// all loaded (or after `fixedMs`) measures where each cell is on screen,
+// The scenarios (see ../README.md). Each shows a black marker bar, then turns
+// the marker green, starts the clock and mounts its images, records when each
+// image's load event arrives, and once they've all loaded (or after
+// `fixedMs`) measures where each cell is on screen and the network (`probe`),
 // writes the results to Documents/results-<run>.json (which run.ts copies
 // from the device over USB, no network permission needed) and turns the
 // marker blue.
 export type ScenarioName = 'grid' | 'scroll' | 'large'
 
 type Config = {
-    set: 'grid' | 'scroll' | 'large'
     columns: number
     list: boolean
     // For subjects without load events (Nitro Image), done after this long
-    // on each platform: about twice the longest it has taken to show every
-    // image from the image server on the phone (iOS on an iPhone 15 Pro Max:
-    // 4.6 s large, 0.5 s grid; Android on a Pixel 8: 5.4 s large, 1 s grid).
-    // The others are done at their last load event (or after SAFETY_MS).
+    // on each platform. With no bandwidth limit every subject shows every
+    // image within 1 s (iPhone 15 Pro Max, Pixel 8); with `--mbps 50`, within
+    // 0.5 s (grid) and 5.5 s (large). The others are done at their last load
+    // event (or after SAFETY_MS).
     fixedMs: { ios: number; android: number }
 }
 
@@ -50,24 +49,21 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
     // 60 photos (400 px) in a grid that's laid out at once: the ones on
     // screen are timed from the recording.
     grid: {
-        set: 'grid',
         columns: 4,
         list: false,
-        fixedMs: { ios: 1_000, android: 3_000 },
+        fixedMs: { ios: 2_000, android: 3_000 },
     },
     // 500 photos (300 px) in a FlashList, which the UI test scrolls.
     scroll: {
-        set: 'scroll',
         columns: 3,
         list: true,
         fixedMs: { ios: 1_000, android: 3_000 },
     },
     // 20 large photos (4000 × 3000) shown small: memory.
     large: {
-        set: 'large',
         columns: 4,
         list: false,
-        fixedMs: { ios: 10_000, android: 12_000 },
+        fixedMs: { ios: 8_000, android: 8_000 },
     },
 }
 
@@ -85,11 +81,7 @@ const MARKER_WIDTH = 96
 type Manifest = {
     sets: Record<
         string,
-        {
-            width: number
-            height: number
-            images: { key: string; color: string; bytes: number }[]
-        }
+        { images: { key: string; color: string; bytes: number }[] }
     >
 }
 
@@ -110,7 +102,6 @@ export type ScenarioProps = {
     adapter: Adapter
     run: string
     server: string
-    delay: number
 }
 
 const now = () => performance.now()
@@ -133,7 +124,10 @@ export type Probe = { bytes: number; ms: number; mbps: number }
 // Times downloading the probe images with fetch, `PROBE_COUNT` at a time, the
 // same way for every subject (not through the image library), so a run's
 // network speed shows next to its times. The bodies are read as blobs, which
-// stay on the native side, so it doesn't time copying them into JS.
+// stay on the native side, so it doesn't time copying them into JS. Only
+// after the run: on iOS fetch shares its connections with React Native's
+// Image, which would otherwise start with them open. (`close`: the image
+// server closes these connections, and the manifest's.)
 async function probe(urls: string[]): Promise<Probe> {
     const start = now()
     const sizes = await Promise.all(
@@ -149,7 +143,7 @@ async function probe(urls: string[]): Promise<Probe> {
     return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
 }
 
-export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
+export function Scenario({ name, adapter, run, server }: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
         'loading' | 'running' | 'measuring' | 'done' | 'failed'
@@ -157,9 +151,8 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
     const [cells, setCells] = useState<Cell[]>([])
     const [message, setMessage] = useState('')
     const started = useRef(0)
-    const loaded = useRef(0)
     const views = useRef(new Map<number, View>())
-    // Each image's load or error time, by cell index. Not state: the
+    // Each image's first load or error time, by cell index. Not state: the
     // results aren't shown, so a load doesn't render the cells again.
     const settled = useRef(new Map<number, Partial<Cell>>())
     const marker = useRef<View>(null)
@@ -174,8 +167,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             }),
         ),
     )
-    const probeUrls = useRef<(when: string) => string[]>(() => [])
-    const probeBefore = useRef<Probe | undefined>(undefined)
+    const probeUrls = useRef<string[]>([])
     const finished = useRef(false)
     const { width } = Dimensions.get('window')
     const cellSize = Math.floor(width / config.columns)
@@ -186,18 +178,12 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             const manifest: Manifest = await (
                 await fetch(`${server}/manifest.json`)
             ).json()
-            const images = manifest.sets[config.set].images
+            const images = manifest.sets[name].images
             const url = (key: string, runId: string) =>
-                `${server}/${key}?run=${encodeURIComponent(runId)}${delay ? `&delay=${delay}` : ''}`
-            const probeKeys = manifest.sets[PROBE_SET].images
+                `${server}/${key}?run=${encodeURIComponent(runId)}`
+            probeUrls.current = manifest.sets[PROBE_SET].images
                 .slice(0, PROBE_COUNT)
-                .map((image) => image.key)
-            if (cancelled) return
-            probeUrls.current = (when) =>
-                probeKeys.map((key) => url(key, `${run}-probe-${when}`))
-            probeBefore.current = await probe(
-                probeUrls.current('before'),
-            ).catch(() => undefined)
+                .map((image) => `${url(image.key, `${run}-probe`)}&close`)
             // A moment for the recording to show the marker before it changes.
             await new Promise((r) => setTimeout(r, 300))
             if (cancelled) return
@@ -225,7 +211,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [clock, config.set, delay, run, server])
+    }, [clock, name, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -238,9 +224,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
         )
         const markerRect = await measure(marker.current)
         const clockRect = await measure(clockView.current)
-        const probeAfter = await probe(probeUrls.current('after')).catch(
-            () => undefined,
-        )
+        const network = await probe(probeUrls.current).catch(() => undefined)
         const window = Dimensions.get('window')
         const results = {
             version: 1,
@@ -249,7 +233,6 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             scenario: name,
             run,
             server,
-            delay,
             platform: Platform.OS,
             osVersion: String(Platform.Version),
             scale: PixelRatio.get(),
@@ -263,9 +246,8 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             placeholder: PLACEHOLDER,
             loadEvents: adapter.loadEvents,
             durationMs: now() - started.current,
-            // Network speed just before the images mount and just after
-            // they've all loaded.
-            network: { before: probeBefore.current, after: probeAfter },
+            // Network speed once the images have loaded.
+            network,
             images: cells.map((cell, i) => ({
                 ...cell,
                 ...settled.current.get(cell.index),
@@ -292,7 +274,7 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             setMessage(`couldn't write the results: ${error}`)
             setPhase('failed')
         }
-    }, [adapter, cells, delay, name, run, server])
+    }, [adapter, cells, name, run, server])
 
     // Done when every mounted image has loaded or failed (a list only mounts
     // the ones near the screen); without load events, after fixedMs.
@@ -305,11 +287,12 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
         return () => clearTimeout(timer)
     }, [phase, finish, waitMs])
 
+    // An image's first load or error counts (a library can send more).
     const settle = (index: number, result: Partial<Cell>) => {
+        if (settled.current.has(index)) return
         settled.current.set(index, result)
-        loaded.current += 1
         const expected = config.list ? views.current.size : cells.length
-        if (adapter.loadEvents && loaded.current >= expected) finish()
+        if (adapter.loadEvents && settled.current.size >= expected) finish()
     }
 
     const renderCell = (cell: Cell) => (
@@ -409,11 +392,13 @@ const styles = StyleSheet.create({
         borderColor: '#ffffff',
     },
     image: { flex: 1 },
+    // Above the marker, so it isn't over a timed cell as it changes.
     status: {
         position: 'absolute',
-        bottom: 40,
+        top: TOP - 14,
         left: 16,
-        fontSize: 12,
+        fontSize: 10,
+        lineHeight: 12,
         color: '#888888',
     },
 })

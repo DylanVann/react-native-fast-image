@@ -2,7 +2,7 @@
 //
 //   bun benchmark/scripts/run.ts [--subjects fast-image,image] [--scenarios grid,large]
 //                                [--metrics scroll,large-memory] [--iterations 5]
-//                                [--latency 40] [--mbps 50]
+//                                [--latency 40] [--mbps 0]
 //                                [--no-build] [--keep-videos] [--out <results folder>]
 //
 // Needs BENCH_APPLE_TEAM_ID (your team, for signing). Builds the XCUITest
@@ -11,12 +11,13 @@
 // (app/subjects.js), in Release, installs it, starts the runner's image
 // server (testServe), and runs the app once unmeasured (a newly installed
 // app's first launch is slower). Then for each scenario, `iterations` times:
-// records the phone's screen (ios/capture/), launches the app with a new run id
-// (so nothing comes from an earlier run's caches; the process is new too),
-// waits for the app's results file (copied from the device over USB), stops
-// the recording, and finds when each image showed in it (analyze.ts). Then
-// stops the server and runs the XCTest metrics (hitches while scrolling,
-// memory), `iterations` measurements each. Writes
+// stops every benchmark app, records the phone's screen (ios/capture/),
+// launches the app with a new run id (so nothing comes from an earlier run's
+// caches; the process is new too), waits for the app's results file (copied
+// from the device over USB), stops the recording, and finds when each image
+// showed in it (analyze.ts); a run that fails counts as a failure, and the
+// next one goes on. Then stops the server and runs the XCTest metrics
+// (hitches while scrolling, memory), `iterations` measurements each. Writes
 // results/<time>/<subject>-<scenario>-<n>.json and metrics-<subject>.xcresult,
 // and prints a summary (also in summary.md).
 
@@ -24,7 +25,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { analyze, type Analysis, type Results } from './analyze'
+import { analyze, type Results } from './analyze'
 import { summarize } from './summarize'
 
 const BENCHMARK = path.join(import.meta.dir, '..')
@@ -36,9 +37,11 @@ const METRIC_TESTS: Record<string, string> = {
     scroll: 'testScroll',
     'large-memory': 'testLargeMemory',
 }
-// How long a run may take: the app's longest wait (the large scenario's) and
-// launch.
+// How long a run may take: the app's longest wait (30 s, for a subject that
+// doesn't send every load event) and launch.
 const RUN_TIMEOUT = 60_000
+// How long a devicectl command may take.
+const DEVICECTL_TIMEOUT = 60_000
 // The port the runner's image server listens on, on the phone.
 const PORT = 8099
 const SERVER = `http://127.0.0.1:${PORT}`
@@ -77,16 +80,35 @@ for (const subject of chosenSubjects) {
 
 const log = (line: string) => console.log(line)
 
+// The child processes that outlive a command (the recorder, the image
+// server's test), stopped if this script exits early.
+const children = new Set<ReturnType<typeof spawn>>()
+process.on('exit', () => {
+    for (const child of children) child.kill('SIGKILL')
+})
+process.on('SIGINT', () => process.exit(130))
+process.on('SIGTERM', () => process.exit(143))
+
 function run(
     cmd: string,
     args: string[],
-    options: { cwd?: string; env?: Record<string, string> } = {},
+    options: {
+        cwd?: string
+        env?: Record<string, string>
+        timeoutMs?: number
+    } = {},
 ) {
     const result = spawnSync(cmd, args, {
         cwd: options.cwd,
         env: { ...process.env, ...options.env },
         encoding: 'utf8',
         maxBuffer: 1 << 28,
+        // Builds included; a hung devicectl fails instead of waiting.
+        timeout:
+            options.timeoutMs ??
+            (cmd === 'xcrun' && args[0] === 'devicectl'
+                ? DEVICECTL_TIMEOUT
+                : 30 * 60_000),
     })
     if (result.status !== 0) {
         throw new Error(
@@ -198,6 +220,7 @@ async function recorder(binary: string, deviceName: string) {
     const child = spawn(binary, [deviceName], {
         stdio: ['pipe', 'pipe', 'pipe'],
     })
+    children.add(child)
     let stderr = ''
     child.stderr.on('data', (d) => (stderr += d))
     const exited = new Promise<void>((resolve) =>
@@ -234,22 +257,34 @@ async function recorder(binary: string, deviceName: string) {
     if ((await next(20_000)) !== 'ready') {
         throw new Error(`capture didn't start: ${stderr}`)
     }
+    // Sends "stop" and waits for its answer ("stopped", or "stopped <error>"),
+    // skipping a late "recording".
+    const stop = async (command: string) => {
+        child.stdin.write(command)
+        for (;;) {
+            const line = await next(30_000)
+            if (line.startsWith('stopped')) return line
+        }
+    }
     return {
         // Records to `file` until stop() resolves: at once, or once a frame
         // has arrived with the point `until` (fractions of the screen's size)
         // blue (the run's end).
         record: async (file: string) => {
             child.stdin.write(`start ${file}\n`)
-            const line = await next(20_000)
+            const line = await next(20_000).catch(async (error) => {
+                // So it isn't left recording.
+                await stop('stop\n').catch(() => undefined)
+                throw error
+            })
             if (line !== 'recording') {
                 throw new Error(`capture didn't record: ${line} ${stderr}`)
             }
             return {
                 stop: async (until?: { x: number; y: number }) => {
-                    child.stdin.write(
+                    const line = await stop(
                         until ? `stop ${until.x} ${until.y}\n` : 'stop\n',
                     )
-                    const line = await next(30_000)
                     // e.g. frames it couldn't write in time.
                     if (line !== 'stopped') log(`  capture: ${line.slice(8)}`)
                 },
@@ -316,6 +351,7 @@ async function serve(udid: string, subject: string) {
             stdio: ['ignore', 'pipe', 'pipe'],
         },
     )
+    children.add(child)
     let output = ''
     const exited = new Promise<void>((resolve) =>
         child.on('exit', () => resolve()),
@@ -345,7 +381,10 @@ async function serve(udid: string, subject: string) {
     return {
         stop: async () => {
             child.kill('SIGINT')
+            const timer = setTimeout(() => child.kill('SIGKILL'), 30_000)
             await exited
+            clearTimeout(timer)
+            children.delete(child)
         },
     }
 }
@@ -375,6 +414,7 @@ function runMetrics(subject: string, udid: string, out: string): MetricTest[] {
             encoding: 'utf8',
             maxBuffer: 1 << 28,
             env: runnerEnv(subject),
+            timeout: 45 * 60_000,
         },
     )
     if (!fs.existsSync(bundle)) {
@@ -406,33 +446,41 @@ async function results(udid: string, subject: string, runId: string) {
     const deadline = Date.now() + RUN_TIMEOUT
     while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 1000))
-        const copy = spawnSync('xcrun', [
-            'devicectl',
-            'device',
-            'copy',
-            'from',
-            '--device',
-            udid,
-            '--domain-type',
-            'appDataContainer',
-            '--domain-identifier',
-            bundleId(subject),
-            '--source',
-            `Documents/results-${runId}.json`,
-            '--destination',
-            file,
-        ])
+        const copy = spawnSync(
+            'xcrun',
+            [
+                'devicectl',
+                'device',
+                'copy',
+                'from',
+                '--device',
+                udid,
+                '--domain-type',
+                'appDataContainer',
+                '--domain-identifier',
+                bundleId(subject),
+                '--source',
+                `Documents/results-${runId}.json`,
+                '--destination',
+                file,
+            ],
+            { timeout: DEVICECTL_TIMEOUT },
+        )
         if (copy.status === 0 && fs.existsSync(file)) {
-            const data = JSON.parse(fs.readFileSync(file, 'utf8'))
-            fs.rmSync(file)
-            return data
+            // Copied while the app was still writing it: try again.
+            try {
+                const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+                fs.rmSync(file)
+                return data
+            } catch {}
         }
     }
     throw new Error(`no results for ${runId}`)
 }
 
 // The benchmark apps running on the phone (any subject's, e.g. suspended
-// after an earlier run).
+// after an earlier run): Bench<subject>.app, not the UI tests' runner
+// (BenchmarkUITests-Runner.app), which serves the images.
 function benchProcesses(udid: string) {
     const file = path.join(os.tmpdir(), `bench-processes-${process.pid}.json`)
     run('xcrun', [
@@ -451,7 +499,11 @@ function benchProcesses(udid: string) {
         processIdentifier: number
     }[]
     fs.rmSync(file, { force: true })
-    return processes.filter((p) => /\/Bench\w+\.app\//.test(p.executable ?? ''))
+    return processes.filter(
+        (p) =>
+            /\/Bench[a-z0-9]+\.app\//.test(p.executable ?? '') &&
+            !p.executable!.includes('/BenchmarkUITests-Runner.app/'),
+    )
 }
 
 // Stops every benchmark app and waits until they've exited, so none is in
@@ -463,29 +515,32 @@ async function stopApps(udid: string) {
         const running = benchProcesses(udid)
         if (!running.length) return
         for (const p of running) {
-            spawnSync('xcrun', [
-                'devicectl',
-                'device',
-                'process',
-                'terminate',
-                '--device',
-                udid,
-                '--pid',
-                String(p.processIdentifier),
-            ])
+            spawnSync(
+                'xcrun',
+                [
+                    'devicectl',
+                    'device',
+                    'process',
+                    'terminate',
+                    '--device',
+                    udid,
+                    '--pid',
+                    String(p.processIdentifier),
+                ],
+                { timeout: DEVICECTL_TIMEOUT },
+            )
         }
         await new Promise((r) => setTimeout(r, 500))
     }
     throw new Error("the benchmark apps on the phone didn't exit")
 }
 
-const launch = async (
+const launch = (
     udid: string,
     subject: string,
     scenario: string,
     runId: string,
-) => {
-    await stopApps(udid)
+) =>
     run('xcrun', [
         'devicectl',
         'device',
@@ -502,7 +557,6 @@ const launch = async (
         '-server',
         SERVER,
     ])
-}
 
 const median = (values: number[]) => {
     if (!values.length) return undefined
@@ -540,6 +594,42 @@ const failed = (subject: string, scenario: string, error: unknown) => {
     log(`  ${subject} ${scenario}: ${error}`)
 }
 
+// One timed run: records it, and writes its results and analysis.
+async function measure(subject: string, scenario: string, i: number) {
+    const runId = `${stamp}-${subject}-${scenario}-${i}`
+    const video = path.join(out, `${subject}-${scenario}-${i}.mov`)
+    await stopApps(device.udid)
+    const recording = await capture.record(video)
+    let data: Results & Record<string, unknown>
+    try {
+        launch(device.udid, subject, scenario, runId)
+        data = await results(device.udid, subject, runId)
+    } catch (error) {
+        await recording.stop()
+        throw error
+    }
+    // The marker's middle, as fractions of the screen's size.
+    const marker = data.marker!
+    await recording.stop({
+        x: (marker.x + marker.width / 2) / data.window.width,
+        y: (marker.y + marker.height / 2) / data.window.height,
+    })
+    const analysis = await analyze(data, video)
+    fs.writeFileSync(
+        path.join(out, `${subject}-${scenario}-${i}.json`),
+        JSON.stringify(
+            { device, ...data, imageServer: { latencyMs, mbps }, analysis },
+            null,
+            2,
+        ),
+    )
+    // A run whose analysis failed keeps its recording, to look into.
+    if (!flag('keep-videos') && !analysis.error) fs.rmSync(video)
+    log(
+        `  ${subject} ${scenario} #${i}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed${analysis.notShown ? `, ${analysis.notShown} not shown` : ''}), event gap ${median(analysis.images.flatMap((x) => (x.eventGapMs === undefined ? [] : [x.eventGapMs])))} ms${analysis.error ? `: ${analysis.error}` : ''}`,
+    )
+}
+
 for (const subject of chosenSubjects) {
     if (!flag('no-build')) {
         try {
@@ -556,60 +646,28 @@ for (const subject of chosenSubjects) {
         failed(subject, 'server', error)
         continue
     }
-    // An unmeasured first run.
-    const firstRun = `${stamp}-${subject}-first`
-    await launch(device.udid, subject, scenarios[0] ?? 'grid', firstRun)
-    await results(device.udid, subject, firstRun).catch((error) =>
-        log(`  first run: ${error}`),
-    )
-    for (const scenario of scenarios) {
-        for (let i = 1; i <= iterations; i++) {
-            const runId = `${stamp}-${subject}-${scenario}-${i}`
-            const video = path.join(out, `${subject}-${scenario}-${i}.mov`)
-            const recording = await capture.record(video)
-            await launch(device.udid, subject, scenario, runId)
-            let data: Results & Record<string, unknown>
-            try {
-                data = await results(device.udid, subject, runId)
-            } catch (error) {
-                await recording.stop()
-                failed(subject, scenario, error)
-                continue
-            }
-            // The marker's middle, as fractions of the screen's size.
-            const marker = data.marker!
-            await recording.stop({
-                x: (marker.x + marker.width / 2) / data.window.width,
-                y: (marker.y + marker.height / 2) / data.window.height,
-            })
-            let analysis: Analysis
-            try {
-                analysis = await analyze(data, video)
-            } catch (error) {
-                failed(subject, scenario, error)
-                continue
-            }
-            fs.writeFileSync(
-                path.join(out, `${subject}-${scenario}-${i}.json`),
-                JSON.stringify(
-                    {
-                        device,
-                        ...data,
-                        imageServer: { latencyMs, mbps },
-                        analysis,
-                    },
-                    null,
-                    2,
-                ),
-            )
-            // A run whose analysis failed keeps its recording, to look into.
-            if (!flag('keep-videos') && !analysis.error) fs.rmSync(video)
-            log(
-                `  ${subject} ${scenario} #${i}: first ${analysis.firstMs} ms, all ${analysis.allMs} ms (${analysis.timed} timed${analysis.notShown ? `, ${analysis.notShown} not shown` : ''}), event gap ${median(analysis.images.flatMap((x) => (x.eventGapMs === undefined ? [] : [x.eventGapMs])))} ms${analysis.error ? `: ${analysis.error}` : ''}`,
-            )
+    try {
+        // An unmeasured first run.
+        const firstRun = `${stamp}-${subject}-first`
+        try {
+            await stopApps(device.udid)
+            launch(device.udid, subject, scenarios[0] ?? 'grid', firstRun)
+            await results(device.udid, subject, firstRun)
+        } catch (error) {
+            log(`  first run: ${error}`)
         }
+        for (const scenario of scenarios) {
+            for (let i = 1; i <= iterations; i++) {
+                try {
+                    await measure(subject, scenario, i)
+                } catch (error) {
+                    failed(subject, scenario, error)
+                }
+            }
+        }
+    } finally {
+        await server.stop()
     }
-    await server.stop()
     try {
         await stopApps(device.udid)
         runMetrics(subject, device.udid, out)

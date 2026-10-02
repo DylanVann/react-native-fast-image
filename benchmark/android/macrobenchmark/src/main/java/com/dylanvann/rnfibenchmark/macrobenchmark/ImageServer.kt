@@ -17,14 +17,16 @@ import kotlin.concurrent.thread
 import kotlin.math.max
 
 // Serves the benchmark's images (../../images/out, in this APK's assets) on
-// the phone, at http://127.0.0.1:<port>, as the Cloudflare Worker does
-// (../../images/worker.ts): GET /<set>/<index>.jpg?run=<id>[&delay=<ms>] and
+// the phone, at http://127.0.0.1:<port>, as the iOS tests do
+// (../../ios/UITests/ImageServer.swift): GET /<set>/<index>.jpg?run=<id> and
 // /manifest.json, the query ignored for the lookup. The app loads them over
 // HTTP with each library's own networking, but every run gets the same
 // network: `latencyMs` before each response (and before a new connection's
 // first, for its handshake), and `mbps` shared by every response at once, as
-// on one real link (0 for no limit). The server runs in the test's process,
-// not the app's.
+// on one real link (0 for no limit). The manifest's and the network probe's
+// (`?…&close`) responses close their connection, so no library starts with
+// one open. The files are read when it starts, so every run is served from
+// memory. The server runs in the test's process, not the app's.
 class ImageServer(
     private val assets: AssetManager,
     private val latencyMs: Long,
@@ -38,6 +40,7 @@ class ImageServer(
     val url: String get() = "http://127.0.0.1:${socket.localPort}"
 
     init {
+        load("images")
         thread(name = "ImageServer") {
             while (!socket.isClosed) {
                 val client = try {
@@ -92,13 +95,10 @@ class ImageServer(
             }
             val target = request.split(' ').getOrNull(1) ?: return
             val path = target.substringBefore('?').trimStart('/')
-            val delay = target.substringAfter('?', "")
-                .split('&')
-                .firstOrNull { it.startsWith("delay=") }
-                ?.substringAfter('=')
-                ?.toLongOrNull() ?: 0
-            sleep(latencyMs + delay)
-            val body = file(path)
+            val closing = path == "manifest.json" ||
+                target.substringAfter('?', "").split('&').contains("close")
+            sleep(latencyMs)
+            val body = files[path]
             if (body == null) {
                 output.write(
                     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".toByteArray(),
@@ -112,6 +112,7 @@ class ImageServer(
                     "Content-Type: $type\r\n" +
                     "Content-Length: ${body.size}\r\n" +
                     "Cache-Control: public, max-age=31536000, immutable\r\n" +
+                    (if (closing) "Connection: close\r\n" else "") +
                     "\r\n").toByteArray(),
             )
             var offset = 0
@@ -122,15 +123,20 @@ class ImageServer(
                 output.flush()
                 offset += count
             }
+            if (closing) return
         }
     }
 
-    private fun file(path: String): ByteArray? {
-        files[path]?.let { return it }
-        return try {
-            assets.open("images/$path").use { it.readBytes() }.also { files[path] = it }
-        } catch (e: IOException) {
-            null
+    // Reads every file under `dir` in the assets, keyed by its path under
+    // images/.
+    private fun load(dir: String) {
+        for (name in assets.list(dir).orEmpty()) {
+            val path = "$dir/$name"
+            if (assets.list(path).isNullOrEmpty()) {
+                files[path.removePrefix("images/")] = assets.open(path).use { it.readBytes() }
+            } else {
+                load(path)
+            }
         }
     }
 

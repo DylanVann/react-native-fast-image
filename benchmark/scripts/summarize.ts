@@ -57,7 +57,7 @@ type Run = {
         images: { shownMs?: number; windowMs?: number; eventGapMs?: number }[]
     }
     images?: { error?: string }[]
-    network?: { before?: { mbps: number }; after?: { mbps: number } }
+    network?: { mbps: number }
     imageServer?: { latencyMs: number; mbps: number }
 }
 
@@ -101,9 +101,14 @@ export function summarize(dir: string) {
     const failures: Failure[] = fs.existsSync(failuresFile)
         ? JSON.parse(fs.readFileSync(failuresFile, 'utf8'))
         : []
+    const timedScenarios = new Set(runs.map((r) => r.scenario))
+    timedScenarios.add('grid').add('large')
     const keys = [
         ...new Set(
-            runs.map((r) => `${platformOf(r)}\t${r.subject}\t${r.scenario}`),
+            [
+                ...runs,
+                ...failures.filter((f) => timedScenarios.has(f.scenario)),
+            ].map((r) => `${platformOf(r)}\t${r.subject}\t${r.scenario}`),
         ),
     ].sort((a, b) => {
         const [pa, sa] = a.split('\t')
@@ -132,9 +137,9 @@ export function summarize(dir: string) {
         ),
     ]
     const lines = [
-        `Times in ms from the images being mounted, from screen recordings, timed by the clock the app draws in each frame (median / p90 over all runs). Frame window: how long before an image's first frame the previous frame was drawn (median / max): the image showed within that time. Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) just before the images mount and just after they load.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
+        `Times in ms from the start of the run (the frame its clock starts in, as the app renders the subject's views), from screen recordings, timed by the clock the app draws in each frame: median / p90 over the runs (with 5 runs, p90 is the slowest). All visible images: over the runs that showed every one; the others are counted in the next columns. Frame window: how long before an image's first frame the last earlier one was drawn (median / max): the image showed within that time. Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) once the images have loaded.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
         '',
-        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Frame window | Load event after pixels | Images not shown (load errors) | Network Mbps (before / after) | Failures |',
+        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Frame window | Load event after pixels | Images not shown (load errors) | Network Mbps | Failures |',
         '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ]
     for (const key of keys) {
@@ -176,13 +181,24 @@ export function summarize(dir: string) {
             (sum, r) => sum + (r.images ?? []).filter((i) => i.error).length,
             0,
         )
-        const before = pick((r) => r.network?.before?.mbps)
-        const after = pick((r) => r.network?.after?.mbps)
+        const network = pick((r) => r.network?.mbps)
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${before.length ? `${fmt(before, median)} / ${fmt(after, median)}` : '–'} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)}${all.length && all.length < timed.length ? ` (${all.length} runs)` : ''} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${network.length ? fmt(network, median) : '–'} | ${failed || ''} |`,
         )
+    }
+
+    // Failures outside a scenario's runs (a build, the image server, the
+    // metrics, a whole test).
+    const others = failures.filter((f) => !timedScenarios.has(f.scenario))
+    if (others.length) {
+        lines.push('', 'Other failures:', '')
+        for (const f of others) {
+            lines.push(
+                `- ${platformOf(f)} ${nameOf(f.subject)} ${f.scenario}: ${f.error.split('\n')[0].slice(0, 200)}`,
+            )
+        }
     }
 
     const bundles = files.filter((f) => /^metrics-.*\.xcresult$/.test(f))

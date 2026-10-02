@@ -88,12 +88,15 @@ class BenchmarkTest {
     // Time to image: records the screen while each scenario runs, and saves
     // the recording and the app's results in the test's output folder, which
     // ../../scripts/run-android.ts (or Firebase Test Lab) pulls and analyzes.
-    // The first run after installing isn't kept.
+    // The app is compiled as the Macrobenchmark tests leave it (with its
+    // profile), whichever ran first, and one unmeasured run comes first. A
+    // run that fails is written as <scenario>-<n>.error, and the next goes on.
     @Test
     fun timeToImage() {
         val scenarios = (arguments.getString("benchScenarios") ?: "grid,large")
             .split(",")
             .filter { it.isNotEmpty() }
+        shell("cmd package compile -f -m speed-profile $pkg")
         val out = Outputs.outputDirectory
         val first = "first-${System.nanoTime()}"
         launch(scenarios.firstOrNull() ?: "grid", first)
@@ -104,16 +107,23 @@ class BenchmarkTest {
                 val recorder = instrumentation.uiAutomation.executeShellCommand(
                     "screenrecord --bit-rate 20000000 ${video.absolutePath}",
                 )
-                Thread.sleep(1000)
-                val run = "android-$scenario-$i-${System.nanoTime()}"
-                launch(scenario, run)
-                val results = waitDone(scenario, run)
-                Thread.sleep(500)
-                shell("pkill -INT screenrecord")
-                recorder.close()
-                // screenrecord finishes the file after its signal.
-                Thread.sleep(1500)
-                File(out, "$scenario-$i.json").writeText(results)
+                var results: String? = null
+                try {
+                    Thread.sleep(1000)
+                    val run = "android-$scenario-$i-${System.nanoTime()}"
+                    launch(scenario, run)
+                    results = waitDone(scenario, run)
+                    Thread.sleep(500)
+                } catch (error: Throwable) {
+                    File(out, "$scenario-$i.error").writeText(error.toString())
+                } finally {
+                    // Only this recorder (Test Lab can run its own).
+                    shell("pkill -INT -f ${video.absolutePath}")
+                    recorder.close()
+                    // screenrecord finishes the file after its signal.
+                    Thread.sleep(1500)
+                }
+                results?.let { File(out, "$scenario-$i.json").writeText(it) }
             }
         }
     }
