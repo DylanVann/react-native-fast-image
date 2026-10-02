@@ -59,7 +59,9 @@ repositories {
 }
 
 // When changing the default, revisit the Glide rules in consumer-rules.pro.
-def glideVersion = safeExtGet('glideVersion', '5.0.9')
+// 5.0.7: Glide 5.0.9 needs apps to compile against API 37 (React Native 0.76's
+// compileSdk is 35).
+def glideVersion = safeExtGet('glideVersion', '5.0.7')
 
 dependencies {
     implementation 'com.facebook.react:react-android'

@@ -12,6 +12,11 @@
             "react": ["./node_modules/@types/react"],
             "react/*": ["./node_modules/@types/react/*"],
             "react-native": ["./node_modules/react-native/types_generated"],
+            // The library's Codegen specs import their types from this deep
+            // path (React Native 0.76's).
+            "react-native/Libraries/Types/CodegenTypes": [
+                "./node_modules/react-native/types_generated/Libraries/Types/CodegenTypes"
+            ],
             "react-native-safe-area-context": [
                 "./node_modules/react-native-safe-area-context"
             ]
