@@ -5,6 +5,8 @@ import android.content.res.Resources;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,23 +31,60 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 // Animated WebP and AVIF images, as views' own animations. Glide (4.15+)
 // decodes them to an AnimatedImageDrawable and keeps it in its memory cache,
 // giving the same drawable to every view that shows the image, so the views
 // would share its playback: one view's paused or loop would apply to all of
-// them. Here each view gets its own: the first the drawable Glide decoded, the
-// others one decoded again from the image's data (which the drawable keeps
-// anyway, to decode its frames from).
+// them. A view shows the drawable Glide gives it when no other view is showing
+// it (shownElsewhere), and otherwise one of its own (copy), decoded again from
+// the image's data (which the drawable keeps anyway, to decode its frames
+// from), off the main thread.
 //
 // Not animated (dontAnimate: blurRadius, resizeMode repeat), they're decoded
 // as their first frame, a bitmap, as GIFs are, and as Glide did before 4.15.
 // Glide's own decoder for them doesn't check that option.
 //
 // Built only with Glide 4.15 or later, which has the decoder this wraps; with
-// an older Glide, src/glide-older's stand-in registers nothing (build.gradle).
+// an older Glide, src/glide-older's stand-in does nothing (build.gradle).
 final class FastImageAnimated {
     private FastImageAnimated() {}
+
+    interface CopyCallback {
+        // On the main thread: the copy, or null if it couldn't be decoded.
+        void onCopy(@Nullable Drawable copy);
+    }
+
+    // What each drawable Glide decoded was decoded from, to decode copies
+    // (kept as long as the drawable is).
+    private static final Map<Drawable, Source> SOURCES = new WeakHashMap<>();
+    // Decodes copies, one at a time.
+    private static final Executor COPIES = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "FastImageAnimated");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+
+    private static final class Source {
+        final ResourceDecoder<ByteBuffer, Drawable> decoder;
+        final ByteBuffer data;
+        final int width;
+        final int height;
+        final Options options;
+
+        Source(ResourceDecoder<ByteBuffer, Drawable> decoder, ByteBuffer data, int width, int height, Options options) {
+            this.decoder = decoder;
+            this.data = data;
+            this.width = width;
+            this.height = height;
+            this.options = options;
+        }
+    }
 
     // Ahead of Glide's own decoder for them, which this uses.
     static void register(@NonNull Context context, @NonNull Glide glide, @NonNull Registry registry) {
@@ -63,6 +102,44 @@ final class FastImageAnimated {
                 AnimatedImageDecoder.streamDecoder(parsers, arrayPool),
                 new BitmapDrawableDecoder<>(resources, new StreamBitmapDecoder(downsampler, arrayPool)),
                 byteBufferDecoder));
+    }
+
+    // Whether the drawable is one decoded here that a view other than this
+    // one is showing (its callback is that view, or a drawable that view
+    // shows). A view that stops showing it clears its callback, so the next
+    // view can show it instead of a copy.
+    static boolean shownElsewhere(@NonNull Drawable drawable, @NonNull Drawable.Callback view) {
+        synchronized (SOURCES) {
+            if (!SOURCES.containsKey(drawable)) return false;
+        }
+        Drawable.Callback callback = drawable.getCallback();
+        return callback != null && callback != view;
+    }
+
+    // Decodes a drawable of its own for an image decoded here, off the main
+    // thread (its first frame: the drawable decodes the rest as it plays).
+    // The callback gets null if it isn't one, or it couldn't be decoded.
+    static void copy(@NonNull Drawable drawable, @NonNull CopyCallback callback) {
+        Source source;
+        synchronized (SOURCES) {
+            source = SOURCES.get(drawable);
+        }
+        if (source == null) {
+            callback.onCopy(null);
+            return;
+        }
+        COPIES.execute(() -> {
+            Drawable copy = null;
+            try {
+                Resource<Drawable> resource = source.decoder.decode(
+                        source.data.duplicate(), source.width, source.height, source.options);
+                if (resource != null) copy = resource.get();
+            } catch (IOException | RuntimeException ignored) {
+                // It decoded the first time; if it doesn't now, there's no copy.
+            }
+            Drawable result = copy;
+            MAIN.post(() -> callback.onCopy(result));
+        });
     }
 
     private static boolean animates(Options options) {
@@ -102,8 +179,12 @@ final class FastImageAnimated {
             // Its own position, for decoding it again.
             ByteBuffer data = source.duplicate();
             Resource<Drawable> decoded = glide.decode(source, width, height, options);
-            if (decoded == null) return null;
-            return new PerView(decoded, glide, data, width, height, options);
+            if (decoded != null) {
+                synchronized (SOURCES) {
+                    SOURCES.put(decoded.get(), new Source(glide, data, width, height, options));
+                }
+            }
+            return decoded;
         }
     }
 
@@ -132,64 +213,6 @@ final class FastImageAnimated {
                 throws IOException {
             if (!animates(options)) return still(stillDecoder, source, width, height, options);
             return byteBufferDecoder.decode(ByteBufferUtil.fromStream(source), width, height, options);
-        }
-    }
-
-    // What Glide keeps in its memory cache: the decoded drawable, for the
-    // first request that gets it, and the data to decode one for each later
-    // request. Those are decoded when a view gets them, on the main thread for
-    // one from the memory cache (the first frame: the drawable decodes the
-    // rest as it plays), and only the view keeps them.
-    @RequiresApi(Build.VERSION_CODES.P)
-    private static final class PerView implements Resource<Drawable> {
-        private final Resource<Drawable> decoded;
-        private final ResourceDecoder<ByteBuffer, Drawable> glide;
-        private final ByteBuffer data;
-        private final int width;
-        private final int height;
-        private final Options options;
-        private boolean given = false;
-
-        PerView(Resource<Drawable> decoded, ResourceDecoder<ByteBuffer, Drawable> glide, ByteBuffer data,
-                int width, int height, Options options) {
-            this.decoded = decoded;
-            this.glide = glide;
-            this.data = data;
-            this.width = width;
-            this.height = height;
-            this.options = options;
-        }
-
-        @NonNull
-        @Override
-        public Class<Drawable> getResourceClass() {
-            return Drawable.class;
-        }
-
-        @NonNull
-        @Override
-        public synchronized Drawable get() {
-            if (!given) {
-                given = true;
-                return decoded.get();
-            }
-            try {
-                Resource<Drawable> copy = glide.decode(data.duplicate(), width, height, options);
-                if (copy != null) return copy.get();
-            } catch (IOException ignored) {
-                // It decoded the first time; if it doesn't now, share that one.
-            }
-            return decoded.get();
-        }
-
-        @Override
-        public int getSize() {
-            return decoded.getSize();
-        }
-
-        @Override
-        public void recycle() {
-            decoded.recycle();
         }
     }
 }
