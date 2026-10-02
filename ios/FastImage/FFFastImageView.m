@@ -72,6 +72,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     if (self != [FFFastImageView class]) {
         return;
     }
+    FFFApplyCacheLimits();
     [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidEnterBackgroundNotification
                                                       object: nil
                                                        queue: [NSOperationQueue mainQueue]

@@ -1,9 +1,26 @@
 import path from 'node:path'
 import { defineConfig } from 'rolldown'
 
+// The Codegen specs (src/specs) aren't bundled: dist imports the published
+// files. React Native's Babel plugin turns codegenNativeComponent into the
+// component's view config only in a file named *NativeComponent that the
+// app's Metro transforms, and Codegen reads the same files.
+const specs = {
+    name: 'specs',
+    resolveId(id) {
+        if (id.startsWith('./specs/')) {
+            return {
+                id: `../src/specs/${id.slice('./specs/'.length)}`,
+                external: true,
+            }
+        }
+    },
+}
+
 const shared = {
     // Dependencies (react, react-native) come from the app.
     external: (id) => !id.startsWith('.') && !path.isAbsolute(id),
+    plugins: [specs],
     transform: {
         jsx: 'react',
         // The old Babel build targeted Node 12; keep newer syntax (such as

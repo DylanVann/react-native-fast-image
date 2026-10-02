@@ -10,8 +10,6 @@
 # App IDs:
 #   ReactNativeFastImageExample        iOS: org.reactjs.native.example.ReactNativeFastImageExample
 #                                      Android: com.reactnativefastimageexample
-#   ReactNativeFastImageExampleLegacy  iOS: org.reactjs.native.example.ReactNativeFastImageExampleLegacy
-#                                      Android: com.reactnativefastimageexamplelegacy
 #
 # Elements are selected by testID: on iOS, maestro-runner resolves those with
 # a WebDriverAgent lookup.

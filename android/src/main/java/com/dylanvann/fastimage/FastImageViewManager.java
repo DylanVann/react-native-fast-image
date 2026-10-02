@@ -14,17 +14,17 @@ import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.common.MapBuilder;
-import com.facebook.react.uimanager.LayoutShadowNode;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
-import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.uimanager.ViewManagerDelegate;
+import com.facebook.react.viewmanagers.FastImageViewManagerDelegate;
+import com.facebook.react.viewmanagers.FastImageViewManagerInterface;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.List;
@@ -33,17 +33,27 @@ import java.util.WeakHashMap;
 
 import javax.annotation.Nullable;
 
-class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> implements FastImageProgressListener {
+// The FastImageView component (src/specs), with the props Codegen generates
+// its interface from.
+class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
+        implements FastImageProgressListener, FastImageViewManagerInterface<FastImageViewWithUrl> {
 
     static final String REACT_CLASS = "FastImageView";
     static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new WeakHashMap<>();
 
+    private final ViewManagerDelegate<FastImageViewWithUrl> delegate = new FastImageViewManagerDelegate<>(this);
+
     @NonNull
     @Override
     public String getName() {
         return REACT_CLASS;
+    }
+
+    @Override
+    protected ViewManagerDelegate<FastImageViewWithUrl> getDelegate() {
+        return delegate;
     }
 
     @NonNull
@@ -65,24 +75,25 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         return new FastImageViewWithUrl(reactContext, requestManager);
     }
 
-    @ReactProp(name = "source")
-    public void setSource(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        view.setSource(source);
+    @Override
+    public void setSource(FastImageViewWithUrl view, Dynamic source) {
+        view.setSource(source.isNull() ? null : source.asMap());
     }
 
-    @ReactProp(name = "sources")
-    public void setSources(FastImageViewWithUrl view, @Nullable ReadableArray sources) {
-        view.setSources(sources);
+    @Override
+    public void setSources(FastImageViewWithUrl view, Dynamic sources) {
+        view.setSources(sources.isNull() ? null : sources.asArray());
     }
 
-    @ReactProp(name = "defaultSource")
-    public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
+    // The resolved asset's uri.
+    @Override
+    public void setDefaultSource(FastImageViewWithUrl view, Dynamic source) {
         view.setDefaultSource(
                 ResourceDrawableIdHelper.getInstance()
-                        .getResourceDrawable(view.getContext(), source));
+                        .getResourceDrawable(view.getContext(), source.isNull() ? null : source.asString()));
     }
 
-    @ReactProp(name = "tintColor", customType = "Color")
+    @Override
     public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
         if (color == null) {
             view.clearColorFilter();
@@ -91,48 +102,58 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         }
     }
 
-    @ReactProp(name = "recyclingKey")
+    @Override
     public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
         view.setRecyclingKey(recyclingKey);
     }
 
-    @ReactProp(name = "loopCount", defaultInt = -1)
+    @Override
     public void setLoopCount(FastImageViewWithUrl view, int loopCount) {
         view.setLoopCount(loopCount);
     }
 
-    @ReactProp(name = "imageRendering")
+    @Override
     public void setImageRendering(FastImageViewWithUrl view, @Nullable String imageRendering) {
         view.setImageRendering(imageRendering);
     }
 
-    @ReactProp(name = "blurRadius")
+    @Override
     public void setBlurRadius(FastImageViewWithUrl view, float blurRadius) {
         view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));
     }
 
-    @ReactProp(name = "transitionDuration")
-    public void setTransitionDuration(FastImageViewWithUrl view, int transitionDuration) {
-        view.setTransitionDuration(transitionDuration);
+    @Override
+    public void setTransitionDuration(FastImageViewWithUrl view, double transitionDuration) {
+        view.setTransitionDuration((int) transitionDuration);
     }
 
-    @ReactProp(name = "transitionBetweenImages")
+    @Override
     public void setTransitionBetweenImages(FastImageViewWithUrl view, boolean betweenImages) {
         view.setTransitionBetweenImages(betweenImages);
     }
 
-    @ReactProp(name = "transitionSkipOnCacheHit")
+    @Override
     public void setTransitionSkipOnCacheHit(FastImageViewWithUrl view, @Nullable String skipOnCacheHit) {
         view.setTransitionSkipOnCacheHit(skipOnCacheHit);
     }
 
-    @ReactProp(name = "paused")
+    @Override
     public void setPaused(FastImageViewWithUrl view, boolean paused) {
         view.setPaused(paused);
     }
 
-    @ReactProp(name = "resizeMode")
-    public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
+    // iOS only: Android always decodes images at about the view's size.
+    @Override
+    public void setDownsample(FastImageViewWithUrl view, boolean downsample) {
+    }
+
+    @Override
+    public void setTrackProgress(FastImageViewWithUrl view, boolean trackProgress) {
+        view.trackProgress = trackProgress;
+    }
+
+    @Override
+    public void setResizeMode(FastImageViewWithUrl view, @Nullable String resizeMode) {
         // repeat fills the view with the tiled image (see setImageDrawable).
         boolean repeat = "repeat".equals(resizeMode);
         final FastImageViewWithUrl.ScaleType scaleType =
@@ -168,6 +189,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
             for (FastImageViewWithUrl view : viewsForKey) {
+                // Only views with an onProgress handler.
+                if (!view.trackProgress) continue;
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
@@ -235,18 +258,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
             return activity.isFinishing() || activity.isChangingConfigurations();
         }
 
-    }
-
-    // Legacy architecture only; the New Architecture doesn't use shadow nodes.
-    @NonNull
-    @Override
-    public LayoutShadowNode createShadowNodeInstance() {
-        return new FastImageShadowNode();
-    }
-
-    @Override
-    public void updateExtraData(@NonNull FastImageViewWithUrl view, Object extraData) {
-        if (extraData == FastImageShadowNode.ZERO_LAYOUT) view.onZeroLayout();
     }
 
     @Override

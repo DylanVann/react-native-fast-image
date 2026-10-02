@@ -27,8 +27,8 @@ Steps:
      failure or a crash fails the run.
 
 Options:
-  --app main|legacy|expo
-                      Only this example app (default: main and legacy). The
+  --app main|expo
+                      Only this example app (default: main). The
                       Expo example (ReactNativeFastImageExampleExpo) runs only
                       when asked for: a few smoke cases on iOS and Android
                       (its native projects made by \`expo prebuild\`, with
@@ -90,7 +90,7 @@ Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
 emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
-type App = 'main' | 'legacy' | 'expo'
+type App = 'main' | 'expo'
 type Platform = 'ios' | 'android' | 'web'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
@@ -137,14 +137,13 @@ if (options.help) {
 if (
     options.app !== undefined &&
     options.app !== 'main' &&
-    options.app !== 'legacy' &&
     options.app !== 'expo'
 ) {
-    console.error(`Unknown app: ${options.app} (use main, legacy or expo)`)
+    console.error(`Unknown app: ${options.app} (use main or expo)`)
     process.exit(2)
 }
 // The Expo example only runs when asked for (--app expo).
-const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
+const APPS: App[] = options.app ? [options.app as App] : ['main']
 if (options.web && !APPS.includes('expo')) {
     console.error('--web is for the Expo example: use it with --app expo')
     process.exit(2)
@@ -466,13 +465,12 @@ const appDir = (app: App) =>
         ROOT,
         {
             main: 'ReactNativeFastImageExample',
-            legacy: 'ReactNativeFastImageExampleLegacy',
             expo: 'ReactNativeFastImageExampleExpo',
         }[app],
     )
 const appName = (app: App) => path.basename(appDir(app))
 const iosBundleId = (app: App) => `org.reactjs.native.example.${appName(app)}`
-// com.reactnativefastimageexample, …legacy and …expo.
+// com.reactnativefastimageexample and …expo.
 const androidPackage = (app: App) => `com.${appName(app).toLowerCase()}`
 
 async function ensureNodeModules(dir: string) {
@@ -2118,8 +2116,7 @@ async function buildAndroid(app: App) {
             `app:assemble${CONFIGURATION}`,
             ...(abi ? [`-PreactNativeArchitectures=${abi}`] : []),
             // React Native's bundle task only tracks the JS in the app's own
-            // folder, not the library's src/ or (for the legacy app) the main
-            // example's, so it would keep a stale bundle.
+            // folder, not the library's src/, so it would keep a stale bundle.
             ...(RELEASE
                 ? ['app:createBundleReleaseJsAndAssets', '--rerun']
                 : []),

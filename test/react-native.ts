@@ -36,6 +36,20 @@ export function requireNativeComponent(name: string) {
     return hostComponent(name)
 }
 
+// The Codegen component (react-native/Libraries/Utilities/codegenNativeComponent,
+// registered by test/setup.ts): the same host element.
+export const codegenNativeComponent = requireNativeComponent
+
+// TurboModules are looked up in NativeModules when they're called, so a test
+// can replace or spy on NativeModules[name] after FastImage has loaded.
+export const TurboModuleRegistry = {
+    getEnforcing: (name: string) =>
+        new Proxy(
+            {},
+            { get: (_target, method: string) => NativeModules[name]?.[method] },
+        ),
+}
+
 function flatten(style: any): any {
     if (style === null || typeof style !== 'object') return undefined
     if (!Array.isArray(style)) return style

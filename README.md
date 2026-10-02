@@ -64,7 +64,9 @@ and
 
 ## Usage
 
-Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
+Needs React Native 0.76 or later with the New Architecture (React Native's default since 0.76), iOS 15.1 and Android 7.0 (API 24) or later, and works with Expo (SDK 52 or later). It's tested on React Native 0.87 and Expo SDK 57.
+
+Apps on the legacy architecture can use FastImage 8 (`npm install react-native-fast-image@8`), which supports React Native 0.60 and later and gets fixes from the `8.x` branch.
 
 ```bash
 npm install react-native-fast-image
@@ -315,7 +317,7 @@ iOS only. Decodes a large image at about the size it's shown at, instead of at f
 - `true` **(Default)** - An image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
 - `false` - Images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
 
-It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size.
+It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size.
 
 If you control the images, serve them at the size they're shown (resized on your server or by an image CDN), which also saves bandwidth.
 
@@ -523,11 +525,11 @@ const result = await FastImage.writeToCache(
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
-| Limit                                                                                                             | iOS                                                                                        | Android                                                                                              |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
-| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
+| Limit                                                                                                             | iOS                                                                                | Android                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit. | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
+| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week.                                                                   | No age limit.                                                                                        |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).              | Sized from the screen by Glide.                                                                      |
 
 `0` means no limit.
 

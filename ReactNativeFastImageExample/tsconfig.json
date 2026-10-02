@@ -6,7 +6,12 @@
             // The library source would otherwise pick up the repo root's
             // older react/react-native types.
             "react": ["./node_modules/@types/react"],
-            "react-native": ["./node_modules/react-native/types_generated"]
+            "react-native": ["./node_modules/react-native/types_generated"],
+            // The library's Codegen specs import their types from this deep
+            // path (React Native 0.76's).
+            "react-native/Libraries/Types/CodegenTypes": [
+                "./node_modules/react-native/types_generated/Libraries/Types/CodegenTypes"
+            ]
         }
     },
     "include": ["**/*.ts", "**/*.tsx"],

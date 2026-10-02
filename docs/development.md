@@ -37,24 +37,9 @@ bun run android
 
 The examples load their remote images from a local server (`ReactNativeFastImageExampleServer`, run with Bun) instead of the internet, so they work offline and the flows don't depend on other servers. It serves `ReactNativeFastImageExampleServer/images` on port 8090; the app reaches it at `localhost` on iOS and `10.0.2.2` (the host machine) on the Android emulator. A path that doesn't exist returns 404, and query strings are ignored. The images were downloaded from their original URLs by `ReactNativeFastImageExampleServer/download.ts`, which lists each source; run it again to add one.
 
-## Testing on older React Native (legacy architecture)
+## The legacy architecture (FastImage 8)
 
-`ReactNativeFastImageExampleLegacy` runs the same screens (`ReactNativeFastImageExample/src`) on React Native 0.73 with the legacy architecture (Paper and the bridge). Use it to check that fixes still work for apps on older React Native versions.
-
-```bash
-cd ReactNativeFastImageExampleLegacy
-bun install
-bundle install
-bundle exec pod install --project-directory=ios
-
-# Stop the main example's packager first; both use port 8081.
-bun run start
-bun run images
-bun run ios
-bun run android
-```
-
-Its `metro.config.js` resolves every import from the shared screens and the library source to this app's `node_modules`. The Gemfile and Podfile carry a few workarounds so React Native 0.73 still builds with current Ruby and Xcode. `bun install` also applies `patches/react-native@0.73.11.patch` (Bun's `patchedDependencies`), which backports [facebook/react-native#51988](https://github.com/facebook/react-native/pull/51988): `RCTView` only builds its recursive accessibility label for views that are accessibility elements. Without it, every accessibility snapshot on iOS walks the whole view tree, which made each Maestro step on this app take about twice as long as on the main example.
+FastImage 9 is a New Architecture component (React Native 0.76+). FastImage 8, for apps on the legacy architecture, is maintained on the `8.x` branch, which has its own example for React Native 0.73 with the legacy architecture (`ReactNativeFastImageExampleLegacy`). Fixes for 8.x are made there, from that branch.
 
 ## Testing in an Expo app (iOS, Android and the web)
 
@@ -73,14 +58,14 @@ bun run web       # the web version, with react-native-web
 
 ## Verifying changes
 
-`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
+`scripts/verify.mts` checks the library and runs the example app on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
 2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
 
 ```bash
 node scripts/verify.mts                      # everything
-node scripts/verify.mts --app legacy --ios   # one app and platform
+node scripts/verify.mts --ios                # one platform
 node scripts/verify.mts --ref main           # the library code from main, for a "before" run
 node scripts/verify.mts --package            # the package as published (see below)
 node scripts/verify.mts --release            # release builds, minified with R8 on Android (see below)
@@ -93,7 +78,7 @@ With `--package`, the script builds the library, packs it with `npm pack`, and i
 
 With `--release`, the apps are built in their Release configuration, with the JavaScript bundled in and no packager, and on Android minified with R8 (the example apps turn it on for release). Use it for changes that R8 could affect: the ProGuard rules, reflection, or classes that are only created by name. The example's image server uses plain HTTP, which the apps allow in release for the emulator's host address and localhost only.
 
-`--app expo` runs the Expo example instead of the other two (it's not in the default run): its JS typecheck, `expo prebuild` (again when `app.config.js` or `package.json` changed), `pod install` with the installed CocoaPods (the app has no Gemfile), the iOS and Android builds, and its smoke cases through the runner, compared with reference screenshots like the other apps. It also runs them on the web: Expo's dev server (which serves the native bundles) also serves the web version, which the script opens in the installed Chrome, headless (`CHROME_BIN` to use another), and its runner reports each case's status through the image server's relay as the apps do; there are no screenshots on the web. `--ios`, `--android` and `--web` narrow it to one platform.
+`--app expo` runs the Expo example instead of the main one (it's not in the default run): its JS typecheck, `expo prebuild` (again when `app.config.js` or `package.json` changed), `pod install` with the installed CocoaPods (the app has no Gemfile), the iOS and Android builds, and its smoke cases through the runner, compared with reference screenshots like the other apps. It also runs them on the web: Expo's dev server (which serves the native bundles) also serves the web version, which the script opens in the installed Chrome, headless (`CHROME_BIN` to use another), and its runner reports each case's status through the image server's relay as the apps do; there are no screenshots on the web. `--ios`, `--android` and `--web` narrow it to one platform.
 
 `--background` also runs `maestro/background.yaml` (tagged `background`), which sends the app to the background while images load and brings it back 20 s later, past SDWebImage's 15 s download timeout. It takes about a minute more per app on iOS, so it's skipped by default; run it for changes to how images load or to app lifecycle handling. The example apps register their app IDs as URL schemes, which the flow opens to bring the app back.
 
@@ -113,7 +98,7 @@ Run `node scripts/verify.mts --help` for all options. The flows run on devices o
 
 The script runs the groups through the app's **regression runner** (`RegressionRunner.tsx`) rather than through a Maestro flow. It connects to the image server's WebSocket relay (`/regression`) and launches the app; on launch, the app asks the server whether a controller is connected, and if so shows the runner instead of the tabs. The runner shows one group at a time and sends every case's status over the relay. The script waits until a group is all OK (30 s at most), takes a screenshot of it with `simctl` or `adb`, and asks for the next group. Nothing goes through the accessibility tree, so a group takes about as long as its slowest case. To run it by hand, start the image server (`bun run images`), connect a WebSocket client to `ws://localhost:8090/regression?role=controller&platform=<ios|android>`, then launch the app and send `{"type":"next"}` (or `{"type":"show","index":2}`) from the client. The messages are listed at the top of `RegressionRunner.tsx`.
 
-**Screenshots** are compared with the references in `screenshots/<app>-<platform>/<group>.png` by [odiff](https://github.com/dmtrKovalenko/odiff) (the `odiff-bin` dev dependency; anti-aliasing is ignored); up to 0.1% of the pixels may differ. The references are committed, so a change to how something renders comes with its new references in the same PR (GitHub shows the image diff): run with `--update-screenshots`, look at the result, and commit it. A new group or case gets its reference seeded by the first run; look at it before committing it. A `--ref` "before" run never seeds, since it shows the library as it was. They're taken on the script's own devices (the "RNFI iPhone" simulator, the `rnfi` emulator), and the two apps have references of their own, since they lay the same screens out slightly differently. Each screenshot is cropped to the safe area, so the status bar and the system's bars at the bottom aren't in it. Areas that differ between runs (animated images, timings) are wrapped in `Masked` (`RunnerContext.tsx`) in the app, which reports them to leave out. The iOS status bar is overridden to the same time and battery for every run (`simctl status_bar`); on Android it's hidden. The run's screenshots, `regression.log`, `results.json` and any `*-diff.png` are in `verify-output/…/<app>-<platform>/regression/`.
+**Screenshots** are compared with the references in `screenshots/<app>-<platform>/<group>.png` by [odiff](https://github.com/dmtrKovalenko/odiff) (the `odiff-bin` dev dependency; anti-aliasing is ignored); up to 0.1% of the pixels may differ. The references are committed, so a change to how something renders comes with its new references in the same PR (GitHub shows the image diff): run with `--update-screenshots`, look at the result, and commit it. A new group or case gets its reference seeded by the first run; look at it before committing it. A `--ref` "before" run never seeds, since it shows the library as it was. They're taken on the script's own devices (the "RNFI iPhone" simulator, the `rnfi` emulator), and each app has references of its own. Each screenshot is cropped to the safe area, so the status bar and the system's bars at the bottom aren't in it. Areas that differ between runs (animated images, timings) are wrapped in `Masked` (`RunnerContext.tsx`) in the app, which reports them to leave out. The iOS status bar is overridden to the same time and battery for every run (`simctl status_bar`); on Android it's hidden. The run's screenshots, `regression.log`, `results.json` and any `*-diff.png` are in `verify-output/…/<app>-<platform>/regression/`.
 
 The **Regression** tab shows every case at once, for a look by hand, plus the cases that send the app to the background, which stay in a flow. The cases that need a real touch are the runner's last group, `touch`: while it's shown, the script taps them with `maestro/touch.yaml`, and they report their `OK` to the runner like the others.
 
