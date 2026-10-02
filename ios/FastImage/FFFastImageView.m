@@ -1036,7 +1036,7 @@ NSString *FFFErrorMessage(NSError *error)
     // there's a handler as the load starts. A handler added while loading is
     // used from the next load.
     SDImageLoaderProgressBlock progress = nil;
-    if (events && self.onFastImageProgress) {
+    if (events && self.trackProgress && self.onFastImageProgress) {
         progress = ^(NSInteger receivedSize, NSInteger expectedSize, NSURL* _Nullable targetURL) {
             // Without a Content-Length the total is unknown (-1 or 0), and a
             // percentage can't be worked out from it, so don't send those.

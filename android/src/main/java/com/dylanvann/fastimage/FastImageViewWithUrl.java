@@ -183,6 +183,8 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
+    // Whether to send progress events (the image has an onProgress).
+    boolean trackProgress = false;
 
     // The `transition` prop (from the next load): how long a loaded image
     // takes to fade in, in milliseconds (0 for no fade), whether it also fades

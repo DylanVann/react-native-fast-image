@@ -404,6 +404,19 @@ describe('onProgress', () => {
         image.props.onProgress({ nativeEvent: { loaded: 30, total: 40 } })
         expect(progress).toEqual([0, 0.75])
     })
+
+    it('asks the native view for progress events only with onProgress', () => {
+        const trackProgress = (element: React.ReactElement) =>
+            renderer
+                .create(element)
+                .root.findAll(
+                    (node) => node.type === ('FastImageView' as any),
+                )[0].props.trackProgress
+        expect(trackProgress(<FastImage source={source} />)).toBe(false)
+        expect(
+            trackProgress(<FastImage source={source} onProgress={() => {}} />),
+        ).toBe(true)
+    })
 })
 
 describe('source.memoryCache', () => {

@@ -131,6 +131,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setPaused(paused);
     }
 
+    // Set when the image has an onProgress (see onProgress).
+    @ReactProp(name = "trackProgress")
+    public void setTrackProgress(FastImageViewWithUrl view, boolean trackProgress) {
+        view.trackProgress = trackProgress;
+    }
+
     @ReactProp(name = "resizeMode")
     public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
         // repeat fills the view with the tiled image (see setImageDrawable).
@@ -163,11 +169,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 .build();
     }
 
+    // Sends the progress to the views loading the url that have an onProgress:
+    // the others would send an event to JS for every chunk, for nothing (and
+    // on the New Architecture each would log an unhandled event).
     @Override
     public void onProgress(String key, long bytesRead, long expectedLength) {
         List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
             for (FastImageViewWithUrl view : viewsForKey) {
+                if (!view.trackProgress) continue;
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
