@@ -527,6 +527,9 @@ function FastImageBase({
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
                 onFastImageProgress={withProgress(onProgress)}
+                // The native views only send progress events with this, so
+                // images without onProgress don't send one for every chunk.
+                trackProgress={!!onProgress}
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
                 onFastImageLoadEnd={
@@ -763,6 +766,7 @@ const FastImageView = (requireNativeComponent as any)(
             onFastImageLoad: true,
             onFastImageError: true,
             onFastImageLoadEnd: true,
+            trackProgress: true,
         },
     },
 )
