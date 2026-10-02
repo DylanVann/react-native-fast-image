@@ -46,3 +46,7 @@
 # (FastImageSvgRenderer), and doesn't ship. Without it, R8 would stop at the
 # missing classes.
 -dontwarn com.caverock.androidsvg.**
+
+# APNG4Android, which FastImage uses for animated PNGs when the app has it
+# (FastImageApngRenderer), and doesn't ship.
+-dontwarn com.github.penfeizhou.animation.**
