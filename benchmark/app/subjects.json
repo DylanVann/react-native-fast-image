@@ -6,7 +6,7 @@
     "fast-image": {
         "name": "FastImage",
         "packages": {
-            "react-native-fast-image": "8.27.0"
+            "react-native-fast-image": "8.28.0"
         }
     },
     "expo-image": {

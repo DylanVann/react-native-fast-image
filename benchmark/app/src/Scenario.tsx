@@ -28,9 +28,9 @@ type Config = {
     list: boolean
     // For subjects without load events (Nitro Image), done after this long
     // on each platform: about twice the longest it has taken to show every
-    // image (iOS: under 0.9 s large, 0.4 s grid; Android on a Pixel 8 Pro:
-    // 8.2 s large, 1.6 s grid). The others are done at their last load
-    // event (or after SAFETY_MS).
+    // image from the image server on the phone (iOS on an iPhone 15 Pro Max:
+    // 4.6 s large, 0.5 s grid; Android on a Pixel 8: 5.4 s large, 1 s grid).
+    // The others are done at their last load event (or after SAFETY_MS).
     fixedMs: { ios: number; android: number }
 }
 
@@ -39,9 +39,10 @@ const SAFETY_MS = 30_000
 
 // The clock next to the marker: CLOCK_BITS squares, white for a 1, showing
 // the time since the run started in CLOCK_UNIT_MS units, in binary (lowest
-// bit first). The native driver updates it every frame without JS, so each
-// frame of a recording says when it was drawn, whenever it reached the Mac.
-const CLOCK_BITS = 12
+// bit first), up to about a minute. The native driver updates it every frame
+// without JS, so each frame of a recording says when it was drawn, whenever
+// it reached the Mac.
+const CLOCK_BITS = 14
 const CLOCK_UNIT_MS = 4
 const CLOCK_UNITS = 2 ** CLOCK_BITS
 
@@ -66,7 +67,7 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
         set: 'large',
         columns: 4,
         list: false,
-        fixedMs: { ios: 2_000, android: 16_000 },
+        fixedMs: { ios: 10_000, android: 12_000 },
     },
 }
 
@@ -210,9 +211,10 @@ export function Scenario({ name, adapter, run, server, delay }: ScenarioProps) {
             )
             started.current = now()
             setPhase('running')
+            // It stops at its largest value rather than wrap to 0.
             Animated.timing(clock, {
-                toValue: CLOCK_UNITS,
-                duration: CLOCK_UNITS * CLOCK_UNIT_MS,
+                toValue: CLOCK_UNITS - 1,
+                duration: (CLOCK_UNITS - 1) * CLOCK_UNIT_MS,
                 easing: Easing.linear,
                 useNativeDriver: true,
             }).start()

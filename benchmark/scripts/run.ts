@@ -431,12 +431,61 @@ async function results(udid: string, subject: string, runId: string) {
     throw new Error(`no results for ${runId}`)
 }
 
-const launch = (
+// The benchmark apps running on the phone (any subject's, e.g. suspended
+// after an earlier run).
+function benchProcesses(udid: string) {
+    const file = path.join(os.tmpdir(), `bench-processes-${process.pid}.json`)
+    run('xcrun', [
+        'devicectl',
+        'device',
+        'info',
+        'processes',
+        '--device',
+        udid,
+        '--json-output',
+        file,
+    ])
+    const processes = JSON.parse(fs.readFileSync(file, 'utf8')).result
+        .runningProcesses as {
+        executable?: string
+        processIdentifier: number
+    }[]
+    fs.rmSync(file, { force: true })
+    return processes.filter((p) => /\/Bench\w+\.app\//.test(p.executable ?? ''))
+}
+
+// Stops every benchmark app and waits until they've exited, so none is in
+// memory during a measurement. (devicectl's --terminate-existing stopped the
+// subject and launched it again at once, and sometimes the new process didn't
+// start, after the old one had decoded the large photos.)
+async function stopApps(udid: string) {
+    for (let i = 0; i < 20; i++) {
+        const running = benchProcesses(udid)
+        if (!running.length) return
+        for (const p of running) {
+            spawnSync('xcrun', [
+                'devicectl',
+                'device',
+                'process',
+                'terminate',
+                '--device',
+                udid,
+                '--pid',
+                String(p.processIdentifier),
+            ])
+        }
+        await new Promise((r) => setTimeout(r, 500))
+    }
+    throw new Error("the benchmark apps on the phone didn't exit")
+}
+
+const launch = async (
     udid: string,
     subject: string,
     scenario: string,
     runId: string,
-) =>
+) => {
+    await stopApps(udid)
     run('xcrun', [
         'devicectl',
         'device',
@@ -444,7 +493,6 @@ const launch = (
         'launch',
         '--device',
         udid,
-        '--terminate-existing',
         bundleId(subject),
         '--',
         '-scenario',
@@ -454,6 +502,7 @@ const launch = (
         '-server',
         SERVER,
     ])
+}
 
 const median = (values: number[]) => {
     if (!values.length) return undefined
@@ -509,7 +558,7 @@ for (const subject of chosenSubjects) {
     }
     // An unmeasured first run.
     const firstRun = `${stamp}-${subject}-first`
-    launch(device.udid, subject, scenarios[0] ?? 'grid', firstRun)
+    await launch(device.udid, subject, scenarios[0] ?? 'grid', firstRun)
     await results(device.udid, subject, firstRun).catch((error) =>
         log(`  first run: ${error}`),
     )
@@ -518,7 +567,7 @@ for (const subject of chosenSubjects) {
             const runId = `${stamp}-${subject}-${scenario}-${i}`
             const video = path.join(out, `${subject}-${scenario}-${i}.mov`)
             const recording = await capture.record(video)
-            launch(device.udid, subject, scenario, runId)
+            await launch(device.udid, subject, scenario, runId)
             let data: Results & Record<string, unknown>
             try {
                 data = await results(device.udid, subject, runId)
@@ -562,6 +611,7 @@ for (const subject of chosenSubjects) {
     }
     await server.stop()
     try {
+        await stopApps(device.udid)
         runMetrics(subject, device.udid, out)
     } catch (error) {
         failed(subject, 'metrics', error)
