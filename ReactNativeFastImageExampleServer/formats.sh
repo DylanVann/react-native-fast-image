@@ -35,6 +35,10 @@ magick -size 80x80 xc:'#0000ff' "$TMP/blue.png"
 magick -delay 40 "$TMP/red.png" "$TMP/blue.png" -loop 0 animated.gif
 magick -delay 40 "$TMP/red.png" "$TMP/blue.png" -loop 0 APNG:animated.png
 img2webp -loop 0 -lossless -d 400 "$TMP/red.png" "$TMP/blue.png" -o animated.webp > /dev/null 2>&1
+# A large one, which a small view decodes smaller (downsample).
+magick -size 400x400 xc:'#ff0000' "$TMP/red-large.png"
+magick -size 400x400 xc:'#0000ff' "$TMP/blue-large.png"
+img2webp -loop 0 -lossless -d 400 "$TMP/red-large.png" "$TMP/blue-large.png" -o animated-large.webp > /dev/null 2>&1
 avifenc --timescale 10 --duration 4 --repetition-count infinite -q 90 \
     --creation-time 1 --modification-time 1 \
     "$TMP/red.png" "$TMP/blue.png" -o animated.avif > /dev/null
