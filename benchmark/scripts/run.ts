@@ -11,7 +11,7 @@
 // (app/subjects.js), in Release, installs it, starts the runner's image
 // server (testServe), and runs the app once unmeasured (a newly installed
 // app's first launch is slower). Then for each scenario, `iterations` times:
-// records the phone's screen (capture/), launches the app with a new run id
+// records the phone's screen (ios/capture/), launches the app with a new run id
 // (so nothing comes from an earlier run's caches; the process is new too),
 // waits for the app's results file (copied from the device over USB), stops
 // the recording, and finds when each image showed in it (analyze.ts). Then
@@ -29,8 +29,8 @@ import { summarize } from './summarize'
 
 const BENCHMARK = path.join(import.meta.dir, '..')
 const APP = path.join(BENCHMARK, 'app')
-const CAPTURE = path.join(BENCHMARK, 'capture')
 const IOS = path.join(BENCHMARK, 'ios')
+const CAPTURE = path.join(IOS, 'capture')
 // --metrics names, and their tests in ../ios/UITests.
 const METRIC_TESTS: Record<string, string> = {
     scroll: 'testScroll',

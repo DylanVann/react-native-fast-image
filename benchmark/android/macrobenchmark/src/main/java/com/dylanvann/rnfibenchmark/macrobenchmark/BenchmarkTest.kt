@@ -21,11 +21,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Measures the benchmark app (../../app) on Android, the same scenarios as
-// the iOS UI tests (../../ios) and recordings (../../capture). Instrumentation
-// arguments: benchPackage (the subject's app), benchIterations (default 5),
-// benchScenarios (for timeToImage, default "grid,large"), benchLatencyMs and
-// benchMbps (the image server's network, default 40 ms and 50 Mbps; 0 for
-// none).
+// the iOS UI tests (../../ios) and recordings (../../ios/capture).
+// Instrumentation arguments: benchPackage (the subject's app),
+// benchIterations (default 5), benchScenarios (for timeToImage, default
+// "grid,large"), benchLatencyMs and benchMbps (the image server's network,
+// default 40 ms and 50 Mbps; 0 for none).
 @RunWith(AndroidJUnit4::class)
 class BenchmarkTest {
     @get:Rule val rule = MacrobenchmarkRule()
