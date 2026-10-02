@@ -5,8 +5,7 @@ import starlight from '@astrojs/starlight'
 // docs for contributors), all generated into src/content/docs by
 // scripts/generate.mts.
 export default defineConfig({
-    site: 'https://dylanvann.github.io',
-    base: '/react-native-fast-image',
+    site: 'https://react-native-fast-image.dylanvann.workers.dev',
     integrations: [
         starlight({
             title: 'React Native Fast Image',

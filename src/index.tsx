@@ -43,13 +43,14 @@ export type Source = {
     /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */
     headers?: { [key: string]: string }
     /**
-     * Indicates the load order priority of an image. Images with priority
-     * `'high'` will load before images in a similar context with low or
-     * normal priority.
+     * A hint for which images to start loading first when several are
+     * waiting: `'high'` ones before `'normal'` ones, and `'low'` ones after.
+     * It's best effort, not an order: several images load at once, and when
+     * each finishes depends on its size and the network.
      *
-     * - `'low'` - Low Priority.
-     * - `'normal'` - Normal Priority.
-     * - `'high'` - High Priority.
+     * - `'low'`: e.g. images further down a list.
+     * - `'normal'`: the default.
+     * - `'high'`: e.g. the image the screen is about.
      *
      * @default 'normal'
      */
@@ -59,12 +60,13 @@ export type Source = {
      * [how caching is handled](docs/how-is-caching-handled.md) for how the
      * options fit together.
      *
-     * - `'immutable'` - Only updates if url changes.
-     * - `'web'` - Use headers and follow normal caching
-     *   procedures. These responses are kept in their own HTTP cache (50 MB on
-     *   each platform), which `clearDiskCache` also clears.
-     * - `'cacheOnly'` - Only show images from cache, do
-     *   not make any network requests.
+     * - `'immutable'`: loads the image once, then shows the cached copy until
+     *   its url (or `cacheKey`) changes.
+     * - `'web'`: follows the server's HTTP cache headers, as a browser does,
+     *   checking with the server when it loads. These responses are kept in
+     *   their own HTTP cache (50 MB on each platform), which `clearDiskCache`
+     *   also clears.
+     * - `'cacheOnly'`: only shows a cached image, without making a request.
      *
      * @default 'immutable'
      */
@@ -297,23 +299,20 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     defaultSource?: ImageRequireSource
     /**
-     * - `'contain'` - Scale the image uniformly (maintain
-     *   the image's aspect ratio) so that both dimensions (width and height)
-     *   of the image will be equal to or less than the corresponding
-     *   dimension of the view (minus padding).
-     * - `'cover'` - Scale the image uniformly (maintain the
-     *   image's aspect ratio) so that both dimensions (width and height) of
-     *   the image will be equal to or larger than the corresponding dimension
-     *   of the view (minus padding).
-     * - `'stretch'` - Scale width and height independently,
-     *   This may change the aspect ratio of the src.
-     * - `'center'` - Center the image at its own size,
-     *   scaled down uniformly to fit if it's larger than the view.
-     * - `'repeat'` - Repeat the image to cover the view,
-     *   from its top-left corner, at the image's own size in pixels (a bundled
-     *   image at its size in points), scaled down to fit if it's larger than
-     *   the view. An animated image repeats its first frame, and
-     *   `defaultSource` repeats too.
+     * How the image fills the view.
+     *
+     * - `'contain'`: scales it uniformly (keeping its aspect ratio) so all of
+     *   it fits in the view (minus padding).
+     * - `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers
+     *   the view (minus padding), cropping what doesn't fit.
+     * - `'stretch'`: scales its width and height separately to fill the view,
+     *   which can change its aspect ratio.
+     * - `'center'`: centers it at its own size, scaled down uniformly to fit
+     *   if it's larger than the view.
+     * - `'repeat'`: repeats it to cover the view, from its top-left corner, at
+     *   the image's own size in pixels (a bundled image at its size in
+     *   points), scaled down to fit if it's larger than the view. An animated
+     *   image repeats its first frame, and `defaultSource` repeats too.
      *
      * @default 'cover'
      */
@@ -341,10 +340,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * How many times an animated image (GIF, animated WebP) plays:
      *
-     * - Not set - As many times as the file says (like a browser).
-     * - `true` - Loop forever.
-     * - `false` - Play once.
-     * - A number - Play that many times.
+     * - Not set: as many times as the file says (like a browser).
+     * - `true`: forever.
+     * - `false`: once.
+     * - A number: that many times.
      *
      * Changing it restarts the animation.
      */
@@ -353,8 +352,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * How the image is filtered when it's drawn smaller or larger than its
      * size (like CSS's `image-rendering`):
      *
-     * - `'auto'` - The platform's usual filtering.
-     * - `'smooth'` - iOS only. Keeps a large image drawn much smaller than its
+     * - `'auto'`: the platform's usual filtering.
+     * - `'smooth'`: iOS only. Keeps a large image drawn much smaller than its
      *   size (e.g. a big photo as a thumbnail, or fine lines and text) from
      *   looking jagged or noisy. Such an image is already decoded at about the
      *   view's size by default (see `downsample`), so this is for images shown
@@ -363,7 +362,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   kept at smaller sizes for drawing, about a third more than the decoded
      *   image. On Android it's the same as `'auto'` (images are always decoded
      *   at about the view's size there).
-     * - `'pixelated'` - Sharp pixels, without smoothing, e.g. for pixel art
+     * - `'pixelated'`: sharp pixels, without smoothing, e.g. for pixel art
      *   drawn larger than its size. On Android, animated images are still
      *   smoothed.
      *
@@ -400,10 +399,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * Decodes a large image at about the size it's shown at, instead of at
      * full size, so it takes much less memory.
      *
-     * - `true` - An image at least twice the size its view needs is decoded
+     * - `true`: an image at least twice the size its view needs is decoded
      *   at about the view's size. If the view grows, the image is decoded
      *   again for its new size (from the disk cache).
-     * - `false` - Images are decoded at full size, e.g. for an image that's
+     * - `false`: images are decoded at full size, e.g. for an image that's
      *   zoomed in on with a transform (a pinch-to-zoom viewer), which would
      *   otherwise show the smaller copy enlarged.
      *

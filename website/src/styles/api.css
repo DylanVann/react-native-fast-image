@@ -43,11 +43,6 @@
     padding-top: 0;
 }
 
-/* The README's top (its tagline, badges and example app GIFs), which GitHub
-   shows centered, aligned left like the rest of the page. */
-.sl-markdown-content [align='center'] {
-    text-align: left;
-}
 /* The badges in a row (Starlight shows images as blocks): a paragraph of only
    linked images. */
 .sl-markdown-content p:has(> a > img):not(:has(> :not(a))) {

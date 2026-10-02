@@ -6,51 +6,18 @@ Performant React Native image component.
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
 
-<p align="center" >
-  <kbd>
-    <img
-      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/scroll.gif?raw=true"
-      title="Scroll Demo"
-      float="left"
-    >
-  </kbd>
-  <kbd>
-    <img
-      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/priority.gif?raw=true"
-      title="Priority Demo"
-      float="left"
-    >
-  </kbd>
-  <br>
-  <em>FastImage example app.</em>
-</p>
-
-React Native's `Image` component handles image caching like browsers
-for the most part.
-If the server is returning proper cache control
-headers for images you'll generally get the sort of built in
-caching behavior you'd have in a browser.
-Even so many people have noticed:
-
-- Flickering.
-- Cache misses.
-- Low performance loading from cache.
-- Low performance in general.
-
-`FastImage` is an `Image` replacement that solves these issues.
-`FastImage` is a wrapper around
-[SDWebImage (iOS)](https://github.com/rs/SDWebImage)
-and
-[Glide (Android)](https://github.com/bumptech/glide).
+It caches aggressively, and is built on [SDWebImage](https://github.com/SDWebImage/SDWebImage) on iOS and [Glide](https://github.com/bumptech/glide) on Android. Use it in place of React Native's `Image` where images flicker, miss the cache, or load slowly from it.
 
 ## Features
 
-- [x] Aggressively cache images.
-- [x] Add authorization headers.
-- [x] Prioritize images.
-- [x] Preload images.
-- [x] GIF support.
-- [x] Border radius.
+- **Caching** on disk and in memory, with control over how fresh images must be ([`cache`](#sourcecache)), keys for urls that change ([`cacheKey`](#sourcecachekey)), and the cache's size ([`configureCache`](#configurecachelimits)).
+- **Preloading** images before they're shown, with a result for each ([`preload`](#preloadsources)), and the cached file's path ([`getCachePath`](#getcachepathsource)).
+- **Headers** for images that need them, and [**priorities**](#sourcepriority) for which images to start loading first.
+- **Several sizes** of an image, loading the one that fits the view ([`source`](#source)), and large images [**downsampled**](#downsample) to the view's size.
+- **Animated images** (GIF, animated WebP) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
+- [**SVG**](#svg-images) and [**photo library**](#photo-library-images-ios) images.
+- [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
+- **Expo**, with a config plugin, and the [**web**](#web).
 
 ## Installation
 
@@ -145,11 +112,11 @@ Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
 **Type:** `Priority` · **Default:** `'normal'`
 
-Indicates the load order priority of an image. Images with priority `'high'` will load before images in a similar context with low or normal priority.
+A hint for which images to start loading first when several are waiting: `'high'` ones before `'normal'` ones, and `'low'` ones after. It's best effort, not an order: several images load at once, and when each finishes depends on its size and the network.
 
-- `'low'` - Low Priority.
-- `'normal'` - Normal Priority.
-- `'high'` - High Priority.
+- `'low'`: e.g. images further down a list.
+- `'normal'`: the default.
+- `'high'`: e.g. the image the screen is about.
 
 ---
 
@@ -159,9 +126,9 @@ Indicates the load order priority of an image. Images with priority `'high'` wil
 
 How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
 
-- `'immutable'` - Only updates if url changes.
-- `'web'` - Use headers and follow normal caching procedures. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
-- `'cacheOnly'` - Only show images from cache, do not make any network requests.
+- `'immutable'`: loads the image once, then shows the cached copy until its url (or `cacheKey`) changes.
+- `'web'`: follows the server's HTTP cache headers, as a browser does, checking with the server when it loads. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
+- `'cacheOnly'`: only shows a cached image, without making a request.
 
 ---
 
@@ -230,11 +197,13 @@ On Android, `defaultSource` doesn't show in debug builds: there the dev server s
 
 **Type:** `ResizeMode` · **Default:** `'cover'`
 
-- `'contain'` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `'cover'` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
-- `'stretch'` - Scale width and height independently, This may change the aspect ratio of the src.
-- `'center'` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
-- `'repeat'` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
+How the image fills the view.
+
+- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (minus padding).
+- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (minus padding), cropping what doesn't fit.
+- `'stretch'`: scales its width and height separately to fill the view, which can change its aspect ratio.
+- `'center'`: centers it at its own size, scaled down uniformly to fit if it's larger than the view.
+- `'repeat'`: repeats it to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
 
@@ -264,10 +233,10 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 How many times an animated image (GIF, animated WebP) plays:
 
-- Not set - As many times as the file says (like a browser).
-- `true` - Loop forever.
-- `false` - Play once.
-- A number - Play that many times.
+- Not set: as many times as the file says (like a browser).
+- `true`: forever.
+- `false`: once.
+- A number: that many times.
 
 Changing it restarts the animation.
 
@@ -279,9 +248,9 @@ Changing it restarts the animation.
 
 How the image is filtered when it's drawn smaller or larger than its size (like CSS's `image-rendering`):
 
-- `'auto'` - The platform's usual filtering.
-- `'smooth'` - iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are always decoded at about the view's size there).
-- `'pixelated'` - Sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
+- `'auto'`: the platform's usual filtering.
+- `'smooth'`: iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are always decoded at about the view's size there).
+- `'pixelated'`: sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
 
 ---
 
@@ -315,8 +284,8 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 
 Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
 
-- `true` - An image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
-- `false` - Images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
+- `true`: an image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
+- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
 
 It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size.
 
@@ -521,13 +490,13 @@ await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 
 **Returns:** `Promise<void>`
 
-Clear all images from memory cache.
+Removes every image from the memory cache, e.g. to free memory. They're decoded from the disk cache again when they're next shown.
 
 ### `clearDiskCache()`
 
 **Returns:** `Promise<void>`
 
-Clear all images from disk cache.
+Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey).
 
 ### `getCachePath(source)`
 
@@ -752,11 +721,11 @@ How the image fades in: see [`transition`](#transition).
 - `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over `defaultSource`) fades in, and a new source replaces the image showing at once, once it has loaded.
 - `skipOnCacheHit?` (`'none' | 'memory' | 'all' | null`, default `'memory'`): Skips the fade for an image from a cache, so images already loaded show at once, e.g. in a list scrolled back up or a reused row.
 
-  - `'memory'`: skips it for images from the memory cache.
-  - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
-  - `'none'`: always fades.
+    - `'memory'`: skips it for images from the memory cache.
+    - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
+    - `'none'`: always fades.
 
-  Downloads, local files and bundled images (`require()`) fade in.
+    Downloads, local files and bundled images (`require()`) fade in.
 
 <!-- api:types end -->
 

@@ -17,13 +17,15 @@ import TableOfContents from 'virtual:starlight/components/TableOfContents'
 <script>
     // The table of contents can be longer than the window. When the current
     // section (which Starlight marks with aria-current) goes out of its view,
-    // scroll it, not the page, to show it a third of the way down.
+    // scroll it, not the page, to show it a third of the way down. Not while
+    // the pointer is over it, so it doesn't move while it's being read or
+    // scrolled.
     const toc = document.querySelector('.right-sidebar-panel starlight-toc')
     const scroller = toc?.closest('.right-sidebar')
     if (toc && scroller) {
         new MutationObserver(() => {
             const current = toc.querySelector('a[aria-current="true"]')
-            if (!current) return
+            if (!current || scroller.matches(':hover')) return
             const box = scroller.getBoundingClientRect()
             // The column starts under the header.
             const top = box.top + parseFloat(getComputedStyle(scroller).paddingTop)

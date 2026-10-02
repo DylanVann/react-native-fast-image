@@ -60,11 +60,16 @@ const shouldRenderSearch =
         width: auto;
         height: auto;
         background: none;
-        color: var(--sl-color-text-accent);
         font-size: var(--sl-text-base);
     }
-    .end :global(button[data-open-modal]:hover) {
+    /* The icons (search and GitHub) in the text color, the accent on hover. */
+    .end :global(button[data-open-modal]),
+    .end :global(.social-icons a) {
         color: var(--sl-color-white);
+    }
+    .end :global(button[data-open-modal]:hover),
+    .end :global(.social-icons a:hover) {
+        color: var(--sl-color-text-accent);
     }
     .end :global(button[data-open-modal] > :not(svg)) {
         display: none;

@@ -247,7 +247,7 @@ const fieldList = (ms: Member[], site: boolean) =>
                 typed(m.type),
                 m.default && `default ${typed(m.default)}`,
             ].filter(Boolean)
-            const body = m.body.replace(/\n(?=.)/g, '\n  ')
+            const body = m.body.replace(/\n(?=.)/g, '\n    ')
             return `- ${code(m.name + (m.optional ? '?' : ''))} (${type.join(', ')})${body ? `: ${body}` : ''}`
         })
         .join('\n')
@@ -315,7 +315,11 @@ function collectTypes(t: J.SomeType | undefined) {
         case 'reference': {
             t.typeArguments?.forEach(collectTypes)
             const node = byName.get(t.name)
-            if (!node || DOCUMENTED_ELSEWHERE.has(t.name) || typeNames.has(t.name))
+            if (
+                !node ||
+                DOCUMENTED_ELSEWHERE.has(t.name) ||
+                typeNames.has(t.name)
+            )
                 return
             typeNames.add(t.name)
             node.children?.forEach((c) => collectTypes(c.type))
@@ -513,8 +517,7 @@ write(
         // The site's name alone, not "React Native Fast Image | React Native
         // Fast Image".
         head: [{ tag: 'title', content: 'React Native Fast Image' }],
-    }) +
-        rewriteLinks(readmePage, 'README.md'),
+    }) + rewriteLinks(readmePage, 'README.md'),
 )
 
 // A page per doc, titled with its first heading.
