@@ -6,6 +6,8 @@
 #import <SDWebImage/SDWebImageDownloaderOperation.h>
 #import <SDWebImage/NSData+ImageContentType.h>
 #import <SDWebImage/SDImageCodersManager.h>
+#import <SDWebImage/SDImageAWebPCoder.h>
+#import "FFFAnimatedWebPCoder.h"
 #import <objc/message.h>
 
 // In FFFastImageView.m.
@@ -243,7 +245,22 @@ static id<SDImageCoder> FFFSVGCoder;
     if (self != [FFFastImageSource class]) {
         return;
     }
-    // Registered with SDWebImage's coders, as the pod's setup does (unless
+    // Animated WebP: SDWebImage's own coders only decode a WebP's first frame
+    // (with ImageIO), so libwebp's coder decodes animated ones (still ones
+    // keep ImageIO's). Not if the app has registered a WebP coder (libwebp's,
+    // or ImageIO's animated one), which is its choice.
+    BOOL hasWebPCoder = NO;
+    for (id<SDImageCoder> registered in SDImageCodersManager.sharedManager.coders) {
+        if ([registered isKindOfClass:[SDImageWebPCoder class]] || [registered isKindOfClass:[SDImageAWebPCoder class]]) {
+            hasWebPCoder = YES;
+            break;
+        }
+    }
+    if (!hasWebPCoder) {
+        [SDImageCodersManager.sharedManager addCoder:FFFAnimatedWebPCoder.sharedCoder];
+    }
+
+    // SVG: registered with SDWebImage's coders, as the pod's setup does (unless
     // the app has already): SDWebImage then picks it for SVG data, including
     // for FastImage's animated and downsampled image classes. Giving the
     // coder per load instead (SDWebImageContextImageCoder) would make it the

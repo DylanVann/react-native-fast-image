@@ -2514,22 +2514,34 @@ function GifLoopCase({
 }
 
 // The paused prop, with the GIF that loops forever by itself (red, then
-// blue). Paused from the start, it stays on its first frame (red). Paused, then
-// resumed with loop={false}, it plays once and stops on its last frame (blue);
-// if resuming didn't play it, it would still be red.
-function GifPausedCase({ resume }: { resume?: boolean }) {
+// blue), or another image like it (`source`, e.g. an animated WebP, with
+// `name` for its ids and descriptions). Paused from the start, it stays on its
+// first frame (red). Paused, then resumed with loop={false}, it plays once and
+// stops on its last frame (blue); if resuming didn't play it, it would still
+// be red.
+function GifPausedCase({
+    resume,
+    source = 'loop-forever.gif',
+    name = 'gif',
+}: {
+    resume?: boolean
+    source?: string
+    name?: string
+}) {
     const [paused, setPaused] = useState(true)
     const [ok, setOk] = useState(false)
     const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
     useEffect(() => () => clearTimeout(timer.current), [])
-    const id = resume ? 'gif-resume' : 'gif-paused'
+    const id = `${name.toLowerCase()}-${resume ? 'resume' : 'paused'}`
+    // An animated WebP's descriptions name it; the GIF's are as they were.
+    const kind = name === 'gif' ? '' : ` (an animated ${name})`
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
                 paused={paused}
                 loop={resume ? false : undefined}
-                source={{ uri: imageUrl('loop-forever.gif') }}
+                source={{ uri: imageUrl(source) }}
                 onLoad={() => {
                     clearTimeout(timer.current)
                     // A play's worth of time paused, then (resume) one play.
@@ -2548,8 +2560,8 @@ function GifPausedCase({ resume }: { resume?: boolean }) {
                 status={ok ? 'OK' : 'waiting'}
                 description={
                     resume
-                        ? 'paused, then paused={false} with loop={false}: plays once and stops on blue'
-                        : 'paused: a GIF that loops forever by itself stays on its first frame (red)'
+                        ? `paused, then paused={false} with loop={false}${kind}: plays once and stops on blue`
+                        : `paused: ${kind ? `an image${kind}` : 'a GIF'} that loops forever by itself stays on its first frame (red)`
                 }
             />
         </View>
@@ -4882,9 +4894,41 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="format-animated-webp"
                 id="format-animated-webp"
                 file="animated.webp"
-                expected="first frame"
-                description="An animated WebP shows its first frame (red; masked)"
+                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
+                description="An animated WebP: animates on iOS, shows its first frame (red) on Android (masked)"
             />,
+            <FormatAnimationCase
+                key="format-animated-webp-downsampled"
+                id="format-animated-webp-downsampled"
+                file="animated-large.webp"
+                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
+                description="A large animated WebP, downsampled: animates on iOS, shows its first frame (red) on Android (masked)"
+            />,
+            // loop and paused with an animated WebP, which only animates on
+            // iOS.
+            ...(Platform.OS === 'ios'
+                ? [
+                      <GifLoopCase
+                          key="webp-loop-false"
+                          id="webp-loop-false"
+                          description="loop={false}: an animated WebP that loops forever by itself plays once and stops on blue"
+                          loop={false}
+                          plays={1}
+                          source="formats/animated.webp"
+                      />,
+                      <GifPausedCase
+                          key="webp-paused"
+                          name="WebP"
+                          source="formats/animated.webp"
+                      />,
+                      <GifPausedCase
+                          key="webp-resume"
+                          name="WebP"
+                          source="formats/animated.webp"
+                          resume
+                      />,
+                  ]
+                : []),
             <FormatAnimationCase
                 key="format-animated-avif"
                 id="format-animated-avif"
