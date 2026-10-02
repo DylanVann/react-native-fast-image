@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
 // Instrumentation arguments: benchPackage (the subject's app),
 // benchIterations (default 5), benchScenarios (for timeToImage, default
 // "grid,large"), benchLatencyMs and benchMbps (the image server's network,
-// default 40 ms and 50 Mbps; 0 for none).
+// default 40 ms and no limit).
 @RunWith(AndroidJUnit4::class)
 class BenchmarkTest {
     @get:Rule val rule = MacrobenchmarkRule()
@@ -37,7 +37,7 @@ class BenchmarkTest {
     private val device = UiDevice.getInstance(instrumentation)
 
     private val latencyMs = arguments.getString("benchLatencyMs")?.toLong() ?: 40
-    private val mbps = arguments.getString("benchMbps")?.toDouble() ?: 50.0
+    private val mbps = arguments.getString("benchMbps")?.toDouble() ?: 0.0
     private lateinit var server: ImageServer
 
     private fun shell(command: String): String = device.executeShellCommand(command)

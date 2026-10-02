@@ -56,9 +56,11 @@ const tests = list(option('tests', Object.keys(TESTS).join(',')))
 const iterations = Number(option('iterations', '5'))
 const firebase = flag('firebase')
 // The network of the image server the tests run on the phone: latency before
-// each response, and bandwidth shared by all of them (0 for none).
+// each response, and bandwidth shared by all of them (0, the default: no
+// limit, so the times are the libraries' own work rather than the link's;
+// e.g. 50 for a slow network).
 const latencyMs = Number(option('latency', '40'))
-const mbps = Number(option('mbps', '50'))
+const mbps = Number(option('mbps', '0'))
 // The Pixel 8 (Android 15): the same generation as the iPhone 15 Pro Max
 // the iOS runs use, and one Test Lab has many of (high capacity).
 const firebaseDevice = option('device', 'model=shiba,version=35')

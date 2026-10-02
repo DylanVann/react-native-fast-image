@@ -23,7 +23,7 @@ final class BenchmarkTests: XCTestCase {
             root: images,
             port: UInt16(environment["BENCH_PORT"] ?? "") ?? 8099,
             latencyMs: Int(environment["BENCH_LATENCY_MS"] ?? "") ?? 40,
-            mbps: Double(environment["BENCH_MBPS"] ?? "") ?? 50)
+            mbps: Double(environment["BENCH_MBPS"] ?? "") ?? 0)
         try server.start()
     }
 

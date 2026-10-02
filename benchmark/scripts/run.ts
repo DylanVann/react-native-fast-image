@@ -61,10 +61,10 @@ const metricNames = option('metrics', Object.keys(METRIC_TESTS).join(','))
     .split(',')
     .filter(Boolean)
 const iterations = Number(option('iterations', '5'))
-// The image server's network: latency before each response, and bandwidth
-// shared by all of them (0 for none), as on Android.
+// The image server's network, as on Android (see run-android.ts): latency
+// before each response, and bandwidth shared by all of them (0 for none).
 const latencyMs = Number(option('latency', '40'))
-const mbps = Number(option('mbps', '50'))
+const mbps = Number(option('mbps', '0'))
 if (!process.env.BENCH_APPLE_TEAM_ID) {
     throw new Error('Set BENCH_APPLE_TEAM_ID (your Apple team id, for signing)')
 }
