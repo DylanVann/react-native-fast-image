@@ -766,7 +766,25 @@ If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideM
 
 [^glide-memory]: Glide's default, which FastImage keeps: room for two screenfuls of decoded images (2 × the screen's width × height × 4 bytes, about 20 MB on a 1080 × 2400 screen), plus a pool of bitmaps to reuse (one screenful on Android 8 and later, four before). Together they're limited to 40% of the memory Android gives the app (33% on low-memory devices), and both shrink to fit.
 
-## Photo library images (iOS)
+## Image formats
+
+| Format         | iOS                                             | Android                                                           |
+| -------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| JPEG, PNG, BMP | Yes                                             | Yes                                                               |
+| GIF            | Animates                                        | Animates                                                          |
+| WebP           | Animates; still ones need iOS 14+               | Yes; an animated one shows its first frame                        |
+| APNG           | Animates                                        | Shows its first frame                                             |
+| HEIC           | Yes                                             | Android 8+                                                        |
+| AVIF           | iOS 16+; an animated one shows its first frame  | Android 14+[^android-avif]; an animated one shows its first frame |
+| ICO            | Yes                                             | Yes                                                               |
+| TIFF           | Yes                                             | No                                                                |
+| SVG            | With an SVG library ([SVG images](#svg-images)) | With an SVG library ([SVG images](#svg-images))                   |
+
+Tested on iOS 27 and Android 16 in both example apps (the regression runner's `formats` cases); the minimum versions are the ones Apple and Android give for decoding the format. An image in a format that doesn't load fails with `onError`. On iOS 13, a still WebP loads if the app registers libwebp's coder itself (from SDWebImageWebPCoder, which FastImage depends on), as FastImage's example app once did: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`. On the web, the browser shows the image, so it's the formats the browser supports.
+
+[^android-avif]: Android 14 is the first version that requires an AVIF decoder; many devices on Android 12 and 13 have one too.
+
+### Photo library images (iOS)
 
 A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads when the app has SDWebImagePhotosPlugin. Add it to the app's `ios/Podfile` and run `pod install`:
 
@@ -785,7 +803,7 @@ With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/la
 
 The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
 
-## SVG images
+### SVG images
 
 SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
 
