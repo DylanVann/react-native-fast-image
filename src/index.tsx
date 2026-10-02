@@ -337,7 +337,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     recyclingKey?: string | null
     /**
-     * How many times an animated image (GIF, animated WebP) plays:
+     * How many times an animated image (GIF, animated WebP, APNG, and animated
+     * AVIF on Android) plays:
      *
      * - Not set: as many times as the file says (like a browser).
      * - `true`: forever.
@@ -410,7 +411,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * are decoded at full size, and 5.19.0 to 5.19.6 show photos stored
      * sideways with an EXIF orientation (most phone photos) sideways. Photo
      * library images are always decoded this way, and on Android images are
-     * always decoded at about the view's size.
+     * always decoded at about the view's size (but Android 16 and later
+     * decode animated WebP at full size, and scale it as they draw it).
      *
      * If you control the images, serve them at the size they're shown
      * (resized on your server or by an image CDN), which also saves
@@ -431,8 +433,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * the CPU, so don't animate it.
      *
      * - Only the loaded image is blurred, not `defaultSource`.
-     * - An animated image (GIF, animated WebP) shows its first frame, blurred,
-     *   and doesn't animate.
+     * - An animated image (GIF, animated WebP, APNG or AVIF) shows its first frame,
+     *   blurred, and doesn't animate.
      * - With `tintColor`, the blurred image is tinted.
      * - The image is blurred at about the size it's shown at, off the main
      *   thread. The cached file stays the original image, so `getCachePath`

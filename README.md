@@ -235,7 +235,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 **Type:** `number | boolean`
 
-How many times an animated image (GIF, animated WebP) plays:
+How many times an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) plays:
 
 - Not set: as many times as the file says (like a browser).
 - `true`: forever.
@@ -262,7 +262,7 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 **Type:** `boolean`
 
-Pauses an animated image (GIF, and animated WebP on iOS) on the frame it's showing; `false` plays it again from there. Each image animates on its own, so pausing one doesn't pause others showing the same file.
+Pauses an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
 ---
 
@@ -291,7 +291,7 @@ Decodes a large image at about the size it's shown at, instead of at full size, 
 - `true`: an image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
 - `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
 
-It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size.
+It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size (but Android 16 and later decode animated WebP at full size, and scale it as they draw it).
 
 If you control the images, serve them at the size they're shown (resized on your server or by an image CDN), which also saves bandwidth.
 
@@ -306,7 +306,7 @@ Blurs the image by this radius, in points (the same radius looks about the same 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
 - Only the loaded image is blurred, not `defaultSource`.
-- An animated image (GIF, animated WebP) shows its first frame, blurred, and doesn't animate.
+- An animated image (GIF, animated WebP, APNG or AVIF) shows its first frame, blurred, and doesn't animate.
 - With `tintColor`, the blurred image is tinted.
 - The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
 - Changing it blurs the image that's showing again, without sending the load events again.
@@ -768,17 +768,17 @@ If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideM
 
 ## Image formats
 
-| Format         | iOS                                             | Android                                                           |
-| -------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
-| JPEG, PNG, BMP | Yes                                             | Yes                                                               |
-| GIF            | Animates                                        | Animates                                                          |
-| WebP           | Animates; still ones need iOS 14+               | Yes; an animated one shows its first frame                        |
-| APNG           | Animates                                        | Shows its first frame                                             |
-| HEIC           | Yes                                             | Android 8+                                                        |
-| AVIF           | iOS 16+; an animated one shows its first frame  | Android 14+[^android-avif]; an animated one shows its first frame |
-| ICO            | Yes                                             | Yes                                                               |
-| TIFF           | Yes                                             | No                                                                |
-| SVG            | With an SVG library ([SVG images](#svg-images)) | With an SVG library ([SVG images](#svg-images))                   |
+| Format         | iOS                                             | Android                                                            |
+| -------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
+| JPEG, PNG, BMP | Yes                                             | Yes                                                                |
+| GIF            | Animates                                        | Animates                                                           |
+| WebP           | Animates; still ones need iOS 14+               | Animates (an animated one needs Android 9+)                        |
+| APNG           | Animates                                        | Animates with APNG4Android ([Animated PNG](#animated-png-android)) |
+| HEIC           | Yes                                             | Android 8+                                                         |
+| AVIF           | iOS 16+; an animated one shows its first frame  | Android 14+[^android-avif]; animates                               |
+| ICO            | Yes                                             | Yes                                                                |
+| TIFF           | Yes                                             | No                                                                 |
+| SVG            | With an SVG library ([SVG images](#svg-images)) | With an SVG library ([SVG images](#svg-images))                    |
 
 Tested on iOS 27 and Android 16 in both example apps (the regression runner's `formats` cases); the minimum versions are the ones Apple and Android give for decoding the format. An image in a format that doesn't load fails with `onError`. On iOS 13, a still WebP loads if the app registers libwebp's coder itself (from SDWebImageWebPCoder, which FastImage depends on), as FastImage's example app once did: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`. On the web, the browser shows the image, so it's the formats the browser supports.
 
@@ -822,6 +822,18 @@ dependencies {
 On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
 
 An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
+
+### Animated PNG (Android)
+
+Android doesn't animate APNG (animated PNG) images itself: they show their first frame. They animate when the app has [APNG4Android](https://github.com/penfeizhou/APNG4Android) (Android 5+). Add it to `android/app/build.gradle`:
+
+```groovy
+dependencies {
+    implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
+}
+```
+
+An app with expo-image already has it (expo-image uses it). Then APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
 
 ## Web
 
