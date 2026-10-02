@@ -1,0 +1,43 @@
+// Macrobenchmark tests for the benchmark app (see ../../README.md), copied
+// into the app's generated Android project by
+// ../../app/plugins/withAndroidBenchmark.js. Self-instrumenting: the test APK
+// drives the app as a separate package, which is how Firebase Test Lab runs
+// it (an app APK and this test APK).
+apply plugin: 'com.android.test'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    namespace 'com.dylanvann.rnfibenchmark.macrobenchmark'
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        // MemoryUsageMetric needs 29.
+        minSdk 29
+        targetSdk rootProject.ext.targetSdkVersion
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildTypes {
+        // Measures the app's release build (signed with the debug key).
+        benchmark {
+            debuggable true
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
+    }
+
+    targetProjectPath = ':app'
+    experimentalProperties['android.experimental.self-instrumenting'] = true
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        variant.enable = variant.buildType == 'benchmark'
+    }
+}
+
+dependencies {
+    implementation 'androidx.benchmark:benchmark-macro-junit4:1.4.1'
+    implementation 'androidx.test.ext:junit:1.2.1'
+    implementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+}

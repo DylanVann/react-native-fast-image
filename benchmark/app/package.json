@@ -1,0 +1,28 @@
+{
+    "name": "app",
+    "version": "1.0.0",
+    "main": "index.ts",
+    "dependencies": {
+        "@shopify/flash-list": "2.3.2",
+        "expo": "~57.0.26",
+        "expo-file-system": "57.0.7",
+        "expo-image": "57.0.5",
+        "react": "19.2.3",
+        "react-native": "0.86.3",
+        "react-native-fast-image": "8.28.0",
+        "react-native-nitro-image": "0.15.2",
+        "react-native-nitro-modules": "0.37.1",
+        "react-native-nitro-web-image": "0.15.2",
+        "react-native-turbo-image": "1.24.3"
+    },
+    "devDependencies": {
+        "@types/react": "~19.2.2",
+        "typescript": "~6.0.3"
+    },
+    "scripts": {
+        "start": "expo start",
+        "android": "expo run:android",
+        "ios": "expo run:ios"
+    },
+    "private": true
+}
