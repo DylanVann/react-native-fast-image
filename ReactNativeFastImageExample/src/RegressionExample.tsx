@@ -4999,8 +4999,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="format-animated-apng"
                 id="format-animated-apng"
                 file="animated.png"
-                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
-                description="An APNG: animates on iOS, shows its first frame (red) on Android (masked)"
+                expected="animates"
+                description="An APNG animates (red and blue; on Android with APNG4Android, which the example apps have; masked)"
             />,
             <FormatAnimationCase
                 key="format-animated-webp"
@@ -5093,6 +5093,61 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected="first frame"
                 imageProps={{ resizeMode: 'repeat' }}
                 description="repeat with an animated WebP: its first frame (red), still, repeated (masked)"
+            />,
+        ],
+    },
+    {
+        // As webp-animation, for APNG (on Android, with APNG4Android).
+        name: 'apng-animation',
+        cases: [
+            <GifLoopCase
+                key="png-loop-false"
+                id="png-loop-false"
+                description="loop={false}: an APNG that loops forever by itself plays once and stops on blue"
+                loop={false}
+                plays={1}
+                source="formats/animated.png"
+            />,
+            <GifPausedCase
+                key="png-paused"
+                name="PNG"
+                source="formats/animated.png"
+            />,
+            <GifPausedCase
+                key="png-resume"
+                name="PNG"
+                source="formats/animated.png"
+                resume
+            />,
+            <FormatAnimationCase
+                key="format-animated-apng-twice-1"
+                id="format-animated-apng-twice-1"
+                file="animated.png"
+                expected="animates"
+                description="The same APNG in two views: this one animates (masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-apng-twice-2"
+                id="format-animated-apng-twice-2"
+                file="animated.png"
+                expected="animates"
+                description="...and so does this one (masked)"
+            />,
+            <FormatAnimationCase
+                key="blur-apng"
+                id="blur-apng"
+                file="animated.png"
+                expected="first frame"
+                imageProps={{ blurRadius: 6 }}
+                description="Blurred: an APNG shows its first frame (red), blurred and still (masked)"
+            />,
+            <FormatAnimationCase
+                key="repeat-apng"
+                id="repeat-apng"
+                file="animated.png"
+                expected="first frame"
+                imageProps={{ resizeMode: 'repeat' }}
+                description="repeat with an APNG: its first frame (red), still, repeated (masked)"
             />,
         ],
     },

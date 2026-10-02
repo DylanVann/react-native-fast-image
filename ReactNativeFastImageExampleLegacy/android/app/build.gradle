@@ -111,6 +111,8 @@ dependencies {
     // SVG images, which FastImage loads when the app has AndroidSVG (either
     // package: the main example uses com.caverock:androidsvg-aar).
     implementation("com.caverock:androidsvg:1.4")
+    // Animated PNGs (FastImage uses APNG4Android when the app has it).
+    implementation("com.github.penfeizhou.android.animation:apng:3.0.5")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

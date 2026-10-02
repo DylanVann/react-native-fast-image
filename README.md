@@ -154,6 +154,18 @@ An SVG is drawn at the size it's shown at, so it's sharp at any size, and then w
 
 ---
 
+#### Animated PNG (Android)
+
+Android doesn't animate APNG (animated PNG) images itself: they show their first frame. They animate when the app has [APNG4Android](https://github.com/penfeizhou/APNG4Android) (Android 5+). Add it to `android/app/build.gradle`:
+
+```groovy
+dependencies {
+    implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
+}
+```
+
+Then APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
+
 ### `source.headers?: object`
 
 Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
@@ -260,7 +272,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 ### `loop?: boolean | number`
 
-How many times an animated image (GIF, animated WebP, and animated AVIF on Android) plays:
+How many times an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) plays:
 
 - Not set **(Default)** - As many times as the file says (like a browser).
 - `true` - Loop forever.
@@ -283,7 +295,7 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 ### `paused?: boolean`
 
-Pauses an animated image (GIF, animated WebP, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
+Pauses an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
 ---
 
@@ -328,7 +340,7 @@ Blurs the image by this radius, in points (the same radius looks about the same 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
 - Only the loaded image is blurred, not `defaultSource`.
-- An animated image (GIF, animated WebP or AVIF) shows its first frame, blurred, and doesn't animate.
+- An animated image (GIF, animated WebP, APNG or AVIF) shows its first frame, blurred, and doesn't animate.
 - With `tintColor`, the blurred image is tinted.
 - The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
 - Changing it blurs the image that's showing again, without sending the load events again.

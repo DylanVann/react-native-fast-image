@@ -95,4 +95,7 @@ dependencies {
     // SVG images, when the app has AndroidSVG (either package): not shipped,
     // so there's never a second copy of it (see FastImageSvg).
     compileOnly 'com.caverock:androidsvg-aar:1.4'
+    // Animated PNGs, when the app has APNG4Android: not shipped either (see
+    // FastImageApng).
+    compileOnly 'com.github.penfeizhou.android.animation:apng:3.0.5'
 }

@@ -179,9 +179,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     recyclingKey?: string | null
     /**
-     * How many times an animated image (GIF, animated WebP, and animated AVIF
-     * on Android) plays: the file's own loop count by default, `true` to loop
-     * forever, `false` to play once, or a number of times. Changing it
+     * How many times an animated image (GIF, animated WebP, APNG, and animated
+     * AVIF on Android) plays: the file's own loop count by default, `true` to
+     * loop forever, `false` to play once, or a number of times. Changing it
      * restarts the animation.
      */
     loop?: boolean | number
@@ -194,7 +194,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
     /**
-     * Pauses an animated image (GIF, animated WebP, and animated AVIF on
+     * Pauses an animated image (GIF, animated WebP, APNG, and animated AVIF on
      * Android) on the frame it's showing; `false` plays it again from there
      * (on Android, an animated WebP or AVIF plays again from its first frame:
      * Android can't resume one). Each image animates on its own, so pausing
