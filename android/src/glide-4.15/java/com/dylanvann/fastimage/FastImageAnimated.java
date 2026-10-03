@@ -2,6 +2,7 @@ package com.dylanvann.fastimage;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -29,6 +30,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 // Animated WebP and AVIF images, as views' own animations. Glide (4.15+)
 // decodes them to an AnimatedImageDrawable and keeps it in its memory cache,
@@ -46,6 +49,32 @@ import java.util.List;
 // an older Glide, src/glide-older's stand-in registers nothing (build.gradle).
 final class FastImageAnimated {
     private FastImageAnimated() {}
+
+    // The repeat count each drawable decoded here had: the file's, which a
+    // view goes back to when loop isn't set (a view may have changed it with
+    // loop, this one or one that showed the drawable before).
+    private static final Map<Drawable, Integer> REPEAT_COUNTS = new WeakHashMap<>();
+
+    // The file's repeat count for a drawable decoded here, or null.
+    @Nullable
+    static Integer repeatCount(@NonNull Drawable drawable) {
+        synchronized (REPEAT_COUNTS) {
+            return REPEAT_COUNTS.get(drawable);
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    @Nullable
+    private static Resource<Drawable> remember(@Nullable Resource<Drawable> decoded) {
+        if (decoded == null) return null;
+        Drawable drawable = decoded.get();
+        if (drawable instanceof AnimatedImageDrawable) {
+            synchronized (REPEAT_COUNTS) {
+                REPEAT_COUNTS.put(drawable, ((AnimatedImageDrawable) drawable).getRepeatCount());
+            }
+        }
+        return decoded;
+    }
 
     // Ahead of Glide's own decoder for them, which this uses.
     static void register(@NonNull Context context, @NonNull Glide glide, @NonNull Registry registry) {
@@ -101,7 +130,7 @@ final class FastImageAnimated {
             if (!animates(options)) return still(stillDecoder, source, width, height, options);
             // Its own position, for decoding it again.
             ByteBuffer data = source.duplicate();
-            Resource<Drawable> decoded = glide.decode(source, width, height, options);
+            Resource<Drawable> decoded = remember(glide.decode(source, width, height, options));
             if (decoded == null) return null;
             return new PerView(decoded, glide, data, width, height, options);
         }
@@ -174,7 +203,7 @@ final class FastImageAnimated {
                 return decoded.get();
             }
             try {
-                Resource<Drawable> copy = glide.decode(data.duplicate(), width, height, options);
+                Resource<Drawable> copy = remember(glide.decode(data.duplicate(), width, height, options));
                 if (copy != null) return copy.get();
             } catch (IOException ignored) {
                 // It decoded the first time; if it doesn't now, share that one.

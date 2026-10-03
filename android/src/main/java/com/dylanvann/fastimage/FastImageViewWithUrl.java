@@ -478,10 +478,17 @@ class FastImageViewWithUrl extends AppCompatImageView {
     }
 
     // The loop prop for an animated WebP or AVIF: its repeat count is the
-    // plays after the first. Not set, it plays as many times as the file says.
+    // plays after the first. Not set, it plays as many times as the file says:
+    // the repeat count it was decoded with, which an earlier loop (this
+    // view's, or another view's that showed the same drawable) may have
+    // changed.
     @RequiresApi(Build.VERSION_CODES.P)
     private void applyRepeatCount(AnimatedImageDrawable animated) {
-        if (mLoopCount == -1) return;
+        if (mLoopCount == -1) {
+            Integer own = FastImageAnimated.repeatCount(animated);
+            if (own != null) animated.setRepeatCount(own);
+            return;
+        }
         animated.setRepeatCount(mLoopCount == 0 ? AnimatedImageDrawable.REPEAT_INFINITE : mLoopCount - 1);
     }
 

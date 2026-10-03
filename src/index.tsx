@@ -180,8 +180,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     recyclingKey?: string | null
     /**
      * How many times an animated image (GIF, animated WebP, and animated AVIF
-     * on Android) plays: the file's own loop count by default, `true` to loop forever, `false` to play once,
-     * or a number of times. Changing it restarts the animation.
+     * on Android) plays: the file's own loop count by default, `true` to loop
+     * forever, `false` to play once, or a number of times. Changing it
+     * restarts the animation.
      */
     loop?: boolean | number
     /**

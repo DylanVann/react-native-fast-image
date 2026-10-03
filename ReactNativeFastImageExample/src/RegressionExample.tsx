@@ -2644,6 +2644,97 @@ function GifLoopChangeCase() {
     )
 }
 
+// The animated WebP that loops forever by itself, with loop={false} first
+// (it plays once and stops on blue), then without loop: on the same view
+// (loop unset), or on another view once the first has switched to another
+// image (remount: on Android the second view can then show the drawable the
+// first one had, which a view that's gone keeps). Either way it loops forever
+// again, as the file says, rather than keeping the other loop: recorded once a
+// play has passed, it's still animating (red and blue), not stopped on blue.
+// Its own url, so no other case's view shows the same drawable. Masked: it's
+// animating.
+function WebpLoopUnsetCase({
+    id,
+    remount,
+    description,
+}: {
+    id: string
+    remount?: boolean
+    description: string
+}) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [stage, setStage] = useState<'first' | 'switched' | 'second'>('first')
+    const [status, setStatus] = useState('waiting')
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const record = () => {
+        timer.current = setTimeout(async () => {
+            const area = await measureView(view.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const { seen, detail } = await sample(
+                {
+                    name: id,
+                    area,
+                    durationMs: 3000,
+                    expect: [RED, BLUE],
+                    palette: [RED, BLUE, BLANK],
+                },
+                (done) => setTimeout(done, 2000),
+            )
+            setStatus(
+                seen.includes(RED) && seen.includes(BLUE)
+                    ? 'OK'
+                    : (detail ??
+                          `saw ${seen.join(', ') || 'nothing'}, expected it to keep looping`),
+            )
+        }, GIF_PLAY + GIF_MARGIN)
+    }
+    const onLoad = () => {
+        clearTimeout(timer.current)
+        if (stage === 'second') {
+            if (remount) record()
+            return
+        }
+        if (stage === 'switched') {
+            // It shows the other image now: then the second view.
+            timer.current = setTimeout(() => setStage('second'), 300)
+            return
+        }
+        timer.current = setTimeout(() => {
+            if (!remount) {
+                setStage('second')
+                record()
+                return
+            }
+            setStage('switched')
+        }, GIF_PLAY + GIF_MARGIN)
+    }
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <View ref={view} collapsable={false} style={styles.image}>
+                    <FastImage
+                        key={stage === 'second' && remount ? 'second' : 'first'}
+                        style={styles.image}
+                        loop={stage === 'second' ? undefined : false}
+                        source={{
+                            uri: imageUrl(
+                                stage === 'switched'
+                                    ? 'quadrants.png'
+                                    : `formats/animated.webp?${id}=${RUN}`,
+                            ),
+                        }}
+                        onLoad={onLoad}
+                    />
+                </View>
+            </Masked>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // Loads an image that 404s and passes when onError's message has the status
 // code. onError had no details (#200).
 function ErrorMessageCase() {
@@ -4945,6 +5036,17 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 loop={false}
                 plays={1}
                 source="formats/animated.webp"
+            />,
+            <WebpLoopUnsetCase
+                key="webp-loop-unset"
+                id="webp-loop-unset"
+                description="loop={false}, then not set: the animated WebP loops forever again, as the file says (masked)"
+            />,
+            <WebpLoopUnsetCase
+                key="webp-loop-remount"
+                id="webp-loop-remount"
+                remount
+                description="A view without loop, after another with loop={false} switched to another image: the animated WebP loops forever, as the file says (masked)"
             />,
             <GifPausedCase
                 key="webp-paused"
