@@ -458,8 +458,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
         @RequiresApi(Build.VERSION_CODES.P)
         private void showAnimated(AnimatedImageDrawable animated, @Nullable Transition<? super Drawable> transition) {
             applyRepeatCount(animated);
-            // The target starts it (from its first frame); paused, it waits
-            // on its first frame.
+            // From its first frame, with this view's repeat count: the target
+            // starts it, but a drawable another view showed can still be
+            // playing (start() does nothing then), and a repeat count set
+            // during a play doesn't always apply to that play. Paused, it
+            // waits on its first frame.
+            animated.stop();
             super.onResourceReady(animated, transition);
             mAnimated = animated;
             if (mPaused) animated.stop();
