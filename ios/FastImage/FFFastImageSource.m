@@ -17,7 +17,7 @@ static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
 
 // The photo's own size in pixels, looked up by its identifier (the url after
 // ph://), or zero. Through the runtime, as the Photos framework is only there
-// when the app links it (with SDWebImagePhotosPlugin). Kept once looked up.
+// with SDWebImagePhotosPlugin (on iOS, always). Kept once looked up.
 static CGSize FFFLookUpPhotoPixelSize(NSURL *url)
 {
     Class assetClass = NSClassFromString(@"PHAsset");
@@ -61,11 +61,11 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
 }
 
 // Loads photo library images (ph://<localIdentifier>) with
-// SDWebImagePhotosPlugin's loader when the app has it (the pod): FastImage
-// finds it at runtime, so it doesn't depend on it or on the Photos framework.
-// Its own instance, so the app's use of the plugin is left as it is. Without
-// the plugin, or for a source it can't load (assets-library://), the load
-// fails with `failure`.
+// SDWebImagePhotosPlugin's loader: a dependency on iOS (the podspec), found
+// at runtime so that tvOS builds without it (an app can add it there). Its
+// own instance, so the app's use of the plugin is left as it is. Without the
+// plugin, or for a source it can't load (assets-library://), the load fails
+// with `failure`.
 @interface FFFPhotosLoader : NSObject <SDImageLoader>
 @property (nonatomic, strong) id<SDImageLoader> plugin;
 @property (nonatomic, copy) NSString *failure;
