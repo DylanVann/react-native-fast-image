@@ -806,8 +806,10 @@ function CookiesCase() {
 
 // Counts an image's load events while the app goes to the background and
 // comes back (maestro/background.yaml does that). With `slow`, the image is
-// still loading when the app leaves (the slow server takes about 7 s), and has
-// to finish after it returns (#758), still sending the source's header (the
+// still loading when the app leaves, and has to finish after it returns
+// (#758): the slow server sends half of it, then holds the rest until the app
+// is back and releases it (or else a phone that keeps downloading in the
+// background could finish it while away), still sending the source's header (the
 // slow server needs it) and progress up to the total, with its tint (green,
 // check the screenshot). Otherwise it has loaded, and mustn't load again
 // (#1022). Passes 2 s after the app is back, if the image loaded exactly once.
@@ -823,13 +825,19 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     const [returned, setReturned] = useState(false)
     const [settled, setSettled] = useState(false)
     const wentAway = useRef(false)
+    const hold = `${id}-${RUN}`
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (state) => {
             if (state === 'background') wentAway.current = true
-            if (state === 'active' && wentAway.current) setReturned(true)
+            if (state === 'active' && wentAway.current) {
+                setReturned(true)
+                if (slow) {
+                    fetch(imageUrl(`release?hold=${hold}`)).catch(() => {})
+                }
+            }
         })
         return () => subscription.remove()
-    }, [])
+    }, [hold, slow])
     useEffect(() => {
         if (!returned) return
         const timer = setTimeout(() => setSettled(true), 2000)
@@ -857,7 +865,7 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 source={
                     slow
                         ? {
-                              uri: slowImageUrl(path),
+                              uri: slowImageUrl(`${path}&hold=${hold}`),
                               headers: BACKGROUND_SLOW_HEADERS,
                           }
                         : { uri: imageUrl(path) }

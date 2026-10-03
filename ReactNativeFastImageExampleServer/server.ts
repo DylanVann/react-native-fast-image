@@ -28,6 +28,9 @@
 // earlier runs don't count), and GET /cookies returns the request's Cookie
 // header: `{ "cookie": "…" }`.
 //
+// GET /release?hold=<name> lets the slow server send the rest of a response
+// it holds (see `hold` below), or one it gets later.
+//
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
 // GET /requests?group=<group> returns how many requests the slow server got
@@ -48,7 +51,10 @@
 // second (about 7 s in all; `?delay=<ms>` sets the pause between parts, 50 to
 // 5000), with a Content-Length (for progress), and only with `x-token:
 // fast-image`. A test can do something while they load (e.g. send the app to
-// the background). It's a node:http server because Bun.serve
+// the background). With `?hold=<name>`, it sends half the parts, then holds
+// the rest until GET /release?hold=<name> (at most 60 s), so the download is
+// still going on whenever the test is ready; once released, a name isn't
+// held again. It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
@@ -66,6 +72,31 @@ const groups = new Map<
     string,
     { count: number; active: number; peak: number }
 >()
+// Slow responses held until released (`hold`), and the names released: a
+// released name isn't held again (e.g. a download started again when the
+// app came back).
+const held = new Map<string, Set<() => void>>()
+const released = new Set<string>()
+const release = (name: string) => {
+    console.log(`release ${name}: ${held.get(name)?.size ?? 0} held`)
+    released.add(name)
+    for (const resume of held.get(name) ?? []) resume()
+}
+// Waits until the hold is released, or 60 s.
+const holdUntilReleased = (name: string) =>
+    new Promise<void>((resolve) => {
+        if (released.has(name)) return resolve()
+        console.log(`hold ${name}`)
+        const waiting = held.get(name) ?? new Set()
+        held.set(name, waiting)
+        const timer = setTimeout(done, 60_000)
+        function done() {
+            clearTimeout(timer)
+            waiting.delete(done)
+            resolve()
+        }
+        waiting.add(done)
+    })
 
 type Socket = ServerWebSocket<{ role: 'app' | 'controller'; platform: string }>
 const apps = new Map<string, Socket>()
@@ -99,6 +130,10 @@ const server = Bun.serve({
             return server.upgrade(request, { data: { role, platform } })
                 ? undefined
                 : new Response('WebSocket upgrade failed', { status: 400 })
+        }
+        if (url.pathname === '/release') {
+            release(url.searchParams.get('hold') ?? '')
+            return Response.json({ released: true })
         }
         if (url.pathname === '/requests') {
             const group = url.searchParams.get('group')
@@ -314,11 +349,16 @@ http.createServer(async (request, response) => {
         Math.max(50, Number(url.searchParams.get('delay')) || 1000),
     )
     const size = Math.ceil(bytes.length / parts)
+    const hold = url.searchParams.get('hold')
     for (let part = 0; part < parts; part++) {
         // The client went away (e.g. the app cancelled the load).
         if (response.destroyed) return
         response.write(bytes.subarray(part * size, (part + 1) * size))
-        if (part < parts - 1) await Bun.sleep(delay)
+        if (hold !== null && part === parts / 2 - 1) {
+            await holdUntilReleased(hold)
+        } else if (part < parts - 1) {
+            await Bun.sleep(delay)
+        }
     }
     response.end()
 }).listen(SLOW_PORT, () => {
