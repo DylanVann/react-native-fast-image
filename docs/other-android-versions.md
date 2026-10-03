@@ -23,3 +23,5 @@ ext {
     // glideVersion        = "4.7.1"
 }
 ```
+
+FastImage uses Glide 4.16.0 by default (it was 4.12.0 before). If your app uses Glide too, set `glideVersion` to your app's version. With a `glideVersion` before 4.15, animated WebP and AVIF images show their first frame: 4.15 added Glide's decoder for them, which uses Android's `ImageDecoder`.

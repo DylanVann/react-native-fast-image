@@ -19,6 +19,17 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// When changing the default, revisit the Glide rules in consumer-rules.pro.
+// 4.15+ animates animated WebP (Android 9+) and AVIF (Android 12+).
+def glideVersion = safeExtGet('glideVersion', '4.16.0')
+// Whether it's 4.15 or later, which FastImageAnimated (src/glide-4.15) builds
+// on; an older one gets a stand-in (src/glide-older). A version that isn't
+// numbered (e.g. "4.+") is taken to be recent.
+def glideVersionParts = glideVersion.toString() =~ /^(\d+)\.(\d+)/
+def glideHasAnimatedDecoder = !glideVersionParts.find() ||
+        glideVersionParts.group(1).toInteger() > 4 ||
+        (glideVersionParts.group(1).toInteger() == 4 && glideVersionParts.group(2).toInteger() >= 15)
+
 // Newer versions of the Android Gradle plugin (7.3+) take the namespace from
 // build.gradle and warn about the package attribute in AndroidManifest.xml;
 // older versions need that attribute.
@@ -44,9 +55,12 @@ android {
                 manifest.srcFile "src/main/AndroidManifestNew.xml"
             }
             java {
+                srcDir glideHasAnimatedDecoder ? "src/glide-4.15/java" : "src/glide-older/java"
                 if (safeExtGet('excludeAppGlideModule', false)) {
                     srcDir "src"
                     exclude "**/FastImageGlideModule.java"
+                    // Only the one chosen above.
+                    exclude "glide-*/**"
                 }
             }
         }
@@ -69,9 +83,6 @@ repositories {
     google()
     mavenCentral()
 }
-
-// When changing the default, revisit the Glide rules in consumer-rules.pro.
-def glideVersion = safeExtGet('glideVersion', '4.12.0')
 
 dependencies {
     //noinspection GradleDynamicVersion
