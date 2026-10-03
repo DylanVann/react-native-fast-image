@@ -158,7 +158,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             return new ModelLoader<GlideUrl, InputStream>() {
                 @Override
                 public LoadData<InputStream> buildLoadData(@NonNull GlideUrl model, int width, int height, @NonNull Options options) {
-                    return loader.buildLoadData(model, width, height, options);
+                    LoadData<InputStream> data = loader.buildLoadData(model, width, height, options);
+                    // A view loading an image that's being preloaded waits
+                    // for the preload's download.
+                    return data == null ? null : FastImageSharedDownloads.share(data, model, options);
                 }
 
                 @Override
