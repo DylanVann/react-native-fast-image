@@ -113,6 +113,14 @@ dependencies {
     // SVG images, which FastImage loads when the app has AndroidSVG (either
     // package: the legacy example uses com.caverock:androidsvg).
     implementation("com.caverock:androidsvg-aar:1.4")
+    // androidx.collection 1.4.0 to 1.4.2 (1.4.2 comes with appcompat) loses
+    // entries of React Native 0.87's view registry, a MutableIntObjectMap
+    // (https://issuetracker.google.com/issues/352560465). Fabric then drops
+    // events and mount instructions for those views: an onLoad that never
+    // reaches JS, "Unable to find viewState" soft exceptions, stale views.
+    // React Native 0.88 depends on 1.4.4 (react/react-native#58389): remove
+    // this after updating to it.
+    implementation("androidx.collection:collection:1.4.4")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
