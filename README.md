@@ -156,15 +156,9 @@ An SVG is drawn at the size it's shown at, so it's sharp at any size, and then w
 
 #### Animated PNG (Android)
 
-Android doesn't animate APNG (animated PNG) images itself: they show their first frame. They animate when the app has [APNG4Android](https://github.com/penfeizhou/APNG4Android) (Android 5+). Add it to `android/app/build.gradle`:
+APNG (animated PNG) images animate on Android with [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes when the app's `minSdkVersion` is 21 or later (React Native 0.64 and later by default). With an older `minSdkVersion` they show their first frame.
 
-```groovy
-dependencies {
-    implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
-}
-```
-
-Then APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
+APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
 
 ### `source.headers?: object`
 

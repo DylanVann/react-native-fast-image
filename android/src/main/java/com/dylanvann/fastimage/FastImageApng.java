@@ -18,11 +18,11 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-// Animated PNGs (APNG), animated with APNG4Android when the app has it
-// (com.github.penfeizhou.android.animation:apng). FastImage compiles against
-// it but doesn't ship it, as with AndroidSVG (FastImageSvg); without it, an
-// APNG shows its first frame, as Android shows it. Android and Glide don't
-// animate APNG themselves.
+// Animated PNGs (APNG), animated with APNG4Android
+// (com.github.penfeizhou.android.animation:apng), which FastImage ships when
+// the app's minSdkVersion is 21 or later, as APNG4Android needs (build.gradle).
+// Without it, an APNG shows its first frame, as Android shows it. Android and
+// Glide don't animate APNG themselves.
 //
 // The decoders come before Glide's own, and only take PNGs with an animation
 // control chunk (acTL), when the request animates (not with dontAnimate:

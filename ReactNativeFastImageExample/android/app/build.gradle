@@ -113,8 +113,6 @@ dependencies {
     // SVG images, which FastImage loads when the app has AndroidSVG (either
     // package: the legacy example uses com.caverock:androidsvg).
     implementation("com.caverock:androidsvg-aar:1.4")
-    // Animated PNGs (FastImage uses APNG4Android when the app has it).
-    implementation("com.github.penfeizhou.android.animation:apng:3.0.5")
     // androidx.collection 1.4.0 to 1.4.2 (1.4.2 comes with appcompat) loses
     // entries of React Native 0.87's view registry, a MutableIntObjectMap
     // (https://issuetracker.google.com/issues/352560465). Fabric then drops

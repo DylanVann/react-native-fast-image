@@ -95,7 +95,13 @@ dependencies {
     // SVG images, when the app has AndroidSVG (either package): not shipped,
     // so there's never a second copy of it (see FastImageSvg).
     compileOnly 'com.caverock:androidsvg-aar:1.4'
-    // Animated PNGs, when the app has APNG4Android: not shipped either (see
-    // FastImageApng).
-    compileOnly 'com.github.penfeizhou.android.animation:apng:3.0.5'
+    // Animated PNGs, with APNG4Android (see FastImageApng), which needs
+    // minSdkVersion 21: shipped when the app's is 21 or later. With an older
+    // one, FastImage only compiles against it, and APNGs show their first
+    // frame.
+    if (safeExtGet('minSdkVersion', 16).toString().toInteger() >= 21) {
+        implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
+    } else {
+        compileOnly 'com.github.penfeizhou.android.animation:apng:3.0.5'
+    }
 }

@@ -47,6 +47,6 @@
 # missing classes.
 -dontwarn com.caverock.androidsvg.**
 
-# APNG4Android, which FastImage uses for animated PNGs when the app has it
-# (FastImageApngRenderer), and doesn't ship.
+# APNG4Android, which FastImage uses for animated PNGs (FastImageApngRenderer),
+# and doesn't ship to apps with a minSdkVersion below 21 (build.gradle).
 -dontwarn com.github.penfeizhou.animation.**

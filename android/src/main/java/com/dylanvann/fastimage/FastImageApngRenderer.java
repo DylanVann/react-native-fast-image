@@ -14,8 +14,8 @@ import com.github.penfeizhou.animation.loader.Loader;
 
 import java.nio.ByteBuffer;
 
-// APNGs with APNG4Android (FastImageApng, which only uses this when the app
-// has it). Glide keeps the image's data in its memory cache, and each view
+// APNGs with APNG4Android (FastImageApng, which only uses this when it's
+// there). Glide keeps the image's data in its memory cache, and each view
 // gets a drawable of its own over it, so views don't share playback: making
 // one only reads the image's header, and it decodes its frames (at a sample
 // size from the size it's drawn at) on APNG4Android's threads as it plays.
