@@ -116,6 +116,20 @@ final class FastImageApngRenderer {
             }
         }
 
+        // From its first frame. The target starts it right after
+        // setVisible(true) has (auto play): APNG4Android's start() stops and
+        // starts a running decoder, and a stop made while the decoder is
+        // still starting can win over that start, leaving it stopped on its
+        // first frame. A running one is reset to its first frame instead.
+        @Override
+        public void start() {
+            if (isRunning()) {
+                getFrameSeqDecoder().reset();
+                return;
+            }
+            super.start();
+        }
+
         // On its decoder thread, once starting has drawn the first frame:
         // starting clears a pause made before it got there, so pause again.
         @Override
