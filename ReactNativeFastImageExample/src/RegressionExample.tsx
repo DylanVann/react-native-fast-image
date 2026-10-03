@@ -3631,7 +3631,10 @@ export type { RegressionGroup }
 // resizeMode repeat: the image repeated from the top-left at its own size, as
 // React Native's Image (right) does: a 20px tile of four colors (red, green,
 // blue, yellow), and a 200px photo larger than the view, scaled down to fit.
-// The image's own size is in pixels.
+// The image's own size is in pixels. On Android, React Native's Image is left
+// out of the screenshot: it tiles with one Matrix shared by every Image
+// (ReactImageView's tileMatrix) on Fresco's threads, so Images tiled at the
+// same time sometimes draw with each other's scale.
 const QUADRANTS = imageUrl('quadrants.png')
 function RepeatCase({
     id,
@@ -3645,6 +3648,14 @@ function RepeatCase({
     description: string
 }) {
     const [status, onLoad] = useLoadedThenOk(2)
+    const image = (
+        <Image
+            style={[repeatStyles.image, { tintColor }]}
+            resizeMode="repeat"
+            source={{ uri }}
+            onLoad={onLoad}
+        />
+    )
     return (
         <View style={styles.row}>
             <FastImage
@@ -3654,12 +3665,11 @@ function RepeatCase({
                 tintColor={tintColor}
                 onLoad={onLoad}
             />
-            <Image
-                style={[repeatStyles.image, styles.gap, { tintColor }]}
-                resizeMode="repeat"
-                source={{ uri }}
-                onLoad={onLoad}
-            />
+            {Platform.OS === 'android' ? (
+                <Masked style={styles.gap}>{image}</Masked>
+            ) : (
+                <View style={styles.gap}>{image}</View>
+            )}
             <CaseStatus id={id} status={status} description={description} />
         </View>
     )
