@@ -545,18 +545,21 @@ function SourceSizeCachedCase() {
 // Loads an image with `cache: 'web'` from a url the server marks as cacheable
 // for an hour, loads it again, then asks the server how many times it was
 // requested: once, if the second load came from the HTTP cache. Android sent
-// every request to the network (#280).
+// every request to the network (#280). `avif`: an AVIF, which iOS didn't keep
+// in the HTTP cache (SDWebImage's format check doesn't know AVIF).
 const WEB_PATH = `/max-age/picsum/1025-200x200.jpg?web=${RUN}`
-function WebCacheCase() {
+const WEB_AVIF_PATH = `/max-age/formats/quadrants.avif?web-avif=${RUN}`
+function WebCacheCase({ avif }: { avif?: boolean }) {
+    const path = avif ? WEB_AVIF_PATH : WEB_PATH
     const [loads, setLoads] = useState(0)
     const [requests, setRequests] = useState<number>()
     useEffect(() => {
         if (loads !== 2) return
-        fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_PATH)}`))
+        fetch(imageUrl(`requests?path=${encodeURIComponent(path)}`))
             .then((response) => response.json())
             .then((json) => setRequests(json.count))
             .catch(() => setRequests(-1))
-    }, [loads])
+    }, [loads, path])
     return (
         <View style={styles.row}>
             {loads < 2 ? (
@@ -564,7 +567,7 @@ function WebCacheCase() {
                     key={loads}
                     style={styles.image}
                     source={{
-                        uri: imageUrl(WEB_PATH.slice(1)),
+                        uri: imageUrl(path.slice(1)),
                         cache: FastImage.cacheControl.web,
                     }}
                     onLoad={() => setLoads((n) => n + 1)}
@@ -573,7 +576,7 @@ function WebCacheCase() {
                 <View style={styles.image} />
             )}
             <CaseStatus
-                id="web-cache"
+                id={avif ? 'web-cache-avif' : 'web-cache'}
                 status={
                     requests === undefined
                         ? 'waiting'
@@ -581,7 +584,11 @@ function WebCacheCase() {
                           ? 'OK'
                           : `requested ${requests} times`
                 }
-                description="#280: cache web follows the server's caching headers (Android requested it again)"
+                description={
+                    avif
+                        ? 'cache web keeps an AVIF in the HTTP cache (iOS requested it again)'
+                        : "#280: cache web follows the server's caching headers (Android requested it again)"
+                }
             />
         </View>
     )
@@ -1749,7 +1756,9 @@ function ConfigureCacheCase() {
 //   - keyOnly: stored with only the cacheKey (no uri yet), then shown by
 //     url and cacheKey;
 //   - cached: the url is in the cache already, so it isn't replaced;
-//   - missing: the file doesn't exist; web: a `cache: 'web'` source.
+//   - missing: the file doesn't exist; web: a `cache: 'web'` source;
+//   - avif: the file is an AVIF (the quadrants), which iOS rejected as not an
+//     image (SDWebImage's format check doesn't know AVIF).
 function WriteToCacheCase({
     id,
     description,
@@ -1758,6 +1767,7 @@ function WriteToCacheCase({
     cached,
     missing,
     web,
+    avif,
 }: {
     id: string
     description: string
@@ -1766,6 +1776,7 @@ function WriteToCacheCase({
     cached?: boolean
     missing?: boolean
     web?: boolean
+    avif?: boolean
 }) {
     const path = `/${web ? 'max-age/' : ''}picsum/1025-200x200.jpg?${id}=${RUN}`
     const source: Source = {
@@ -1785,7 +1796,9 @@ function WriteToCacheCase({
                 ? { ok: true as const, path: '/no/such/image.jpg' }
                 : await FastImage.getCachePath({
                       uri: imageUrl(
-                          `picsum/1022-120x120.jpg?${id}-file=${RUN}`,
+                          avif
+                              ? `formats/quadrants.avif?${id}-file=${RUN}`
+                              : `picsum/1022-120x120.jpg?${id}-file=${RUN}`,
                       ),
                   })
             if (!file.ok) return setStatus(`no file: ${file.error}`)
@@ -4548,6 +4561,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ProgressUnknownSizeCase key="progress-unknown-size" />,
             <ProgressGzipCase key="progress-gzip" />,
             <WebCacheCase key="web-cache" />,
+            <WebCacheCase key="web-cache-avif" avif />,
             <CookiesCase key="cookies" />,
         ],
     },
@@ -4695,6 +4709,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="write-to-cache"
                 id="write-to-cache"
                 description="writeToCache: a url shows the stored file (green), without a request"
+            />,
+            <WriteToCacheCase
+                key="write-to-cache-avif"
+                id="write-to-cache-avif"
+                avif
+                description="writeToCache with an AVIF file: the url shows it (the quadrants), without a request"
             />,
             <WriteToCacheCase
                 key="write-to-cache-key"

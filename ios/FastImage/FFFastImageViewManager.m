@@ -6,7 +6,6 @@
 #import <SDWebImage/SDWebImageManager.h>
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
-#import <SDWebImage/NSData+ImageContentType.h>
 
 // configureCache's limits, by their names in JS. Each is set in the app's
 // Info.plist (FastImageMaxDiskSize, ...) or changed at runtime, which is saved
@@ -405,7 +404,7 @@ RCT_EXPORT_METHOD(writeToCache:(FFFastImageSource *)source
                 resolve(FFFFailure(@"Can't read the file"));
                 return;
             }
-            if ([NSData sd_imageFormatForImageData:data] == SDImageFormatUndefined) {
+            if (![FFFastImageSource isImageData:data]) {
                 resolve(FFFFailure(@"Not an image"));
                 return;
             }
