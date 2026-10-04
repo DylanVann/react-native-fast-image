@@ -229,3 +229,12 @@ mobile-starlight-toc .dropdown {
         background-color: transparent;
     }
 }
+
+/* The top bar and the sidebar on layers of their own at every width: at the
+   72rem breakpoint the right sidebar becomes a fixed scrolling panel, and
+   without this, Chrome moves the top bar and sidebar to new layers there and
+   redraws their text, which flickers while the window is resized. */
+header.header,
+.sidebar-pane {
+    will-change: transform;
+}
