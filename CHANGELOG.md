@@ -1,3 +1,10 @@
+## [8.31.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.0...v8.31.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **android:** work in apps that have expo-image ([#1241](https://github.com/DylanVann/react-native-fast-image/issues/1241)) ([56f2d67](https://github.com/DylanVann/react-native-fast-image/commit/56f2d67969728bcd464d8dc6de4746cddd19c3eb))
+
 # [8.31.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.30.1...v8.31.0) (2026-10-04)
 
 
