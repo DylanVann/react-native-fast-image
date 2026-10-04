@@ -17,16 +17,17 @@ React Native's `Image` component handles image caching like browsers for the mos
 
 ## Features
 
-- **Performance:** large images are [decoded at the size they're shown](#downsample), so they use little memory. In [benchmarks](docs/benchmarks.md) against other React Native image components, FastImage shows images in about the same time as the others and uses among the least memory for large photos.
-- **Caching** on disk and in memory, with control over how fresh images must be ([`cache`](#sourcecache)), keys for urls that change ([`cacheKey`](#sourcecachekey)), and the cache's size ([`configureCache`](#configurecachelimits)).
-- **Preloading** images before they're shown, with a result for each ([`preload`](#preloadsources)), and the cached file's path ([`getCachePath`](#getcachepathsource)).
-- **Headers** for images that need them ([`headers`](#sourceheaders)).
-- **Priorities** for which images to start loading first ([`priority`](#sourcepriority)).
-- **Responsive images**: pass several sizes of an image, and the one that fits the view loads ([`source`](#source)).
-- **Animated images** (GIF, animated WebP, APNG, and animated AVIF on Android) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
+- **Performance**, with images [decoded at the size they're shown](#downsample): in [benchmarks](docs/benchmarks.md), FastImage shows images about as fast as other React Native image components and uses among the least memory for large photos.
+- **Caching** on disk and in memory, with [freshness control](#sourcecache), [cache keys](#sourcecachekey) and [size limits](#configurecachelimits).
+- **Preloading**, with a [result per image](#preloadsources) and the [cached file's path](#getcachepathsource).
+- **Headers**, e.g. for authentication ([`headers`](#sourceheaders)).
+- **Priorities** for which images load first ([`priority`](#sourcepriority)).
+- **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
+- **Animated images** (GIF, WebP, APNG, and AVIF on Android) that can [loop](#loop) and [pause](#paused).
+- **Fades** in and between images ([`transition`](#transition)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
-- [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
-- **Expo support**, with a [config plugin](#expo-config-plugin), and [**web support**](#web).
+- [**`FastImageBackground`**](#fastimagebackground) for content over an image.
+- **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
 
 ## Image formats
 
