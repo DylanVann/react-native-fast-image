@@ -222,3 +222,10 @@ mobile-starlight-toc .dropdown {
     content: '↑';
     font-size: var(--sl-text-sm);
 }
+
+/* The top bar without a background in the widest layout (both sidebars). */
+@media (min-width: 72rem) {
+    header.header {
+        background-color: transparent;
+    }
+}
