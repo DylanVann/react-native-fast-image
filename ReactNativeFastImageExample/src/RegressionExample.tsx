@@ -3523,8 +3523,8 @@ const downsampleStyles = StyleSheet.create({
     rotated: { width: 64, height: 96 },
 })
 
-// Photo library images (ph://, iOS, with SDWebImagePhotosPlugin, which the
-// example apps add): a photo from the simulator's library by its id, listed
+// Photo library images (ph://, iOS, with SDWebImagePhotosPlugin, which
+// FastImage includes): a photo from the simulator's library by its id, listed
 // by the example's ExamplePhotos module. It's decoded at about the view's
 // size, and onLoad reports the photo's own size.
 type LibraryPhoto = { id: string; width: number; height: number; type: string }

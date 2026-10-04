@@ -115,22 +115,9 @@ Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
 
 #### Photo library images (iOS)
 
-A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads when the app has SDWebImagePhotosPlugin. Add it to the app's `ios/Podfile` and run `pod install`:
+A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes on iOS.
 
-```ruby
-pod 'SDWebImagePhotosPlugin'
-```
-
-With Expo, add it with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/):
-
-```json
-[
-    "expo-build-properties",
-    { "ios": { "extraPods": [{ "name": "SDWebImagePhotosPlugin" }] } }
-]
-```
-
-The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. Without the plugin, a `ph://` source fails with `onError`, saying so. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
+The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
 
 #### SVG images
 

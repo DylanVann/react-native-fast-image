@@ -21,4 +21,7 @@ Pod::Spec.new do |s|
   # manifest Apple requires.
   s.dependency 'SDWebImage', '>= 5.11.1', '< 6.0'
   s.dependency 'SDWebImageWebPCoder', '>= 0.8.4', '< 1.0'
+  # Photo library images (ph://). iOS only: it needs tvOS 10, and FastImage
+  # finds it at runtime, so a tvOS app can still add it.
+  s.ios.dependency 'SDWebImagePhotosPlugin', '>= 1.2.0', '< 2.0'
 end
