@@ -1,6 +1,7 @@
 ---
 // Starlight's header, with search as an icon on the right, beside the GitHub
-// link, instead of a box in the middle.
+// link, instead of a box in the middle. The GitHub link stays in the header on
+// narrow screens too (instead of moving into the menu), beside the menu button.
 import config from 'virtual:starlight/user-config'
 import LanguageSelect from 'virtual:starlight/components/LanguageSelect'
 import Search from 'virtual:starlight/components/Search'
@@ -18,7 +19,7 @@ const shouldRenderSearch =
     </div>
     <div class="sl-flex end print:hidden">
         {shouldRenderSearch && <Search />}
-        <div class="sl-hidden md:sl-flex right-group">
+        <div class="sl-flex right-group">
             <div class="sl-flex social-icons">
                 <SocialIcons />
             </div>
