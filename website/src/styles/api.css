@@ -238,3 +238,10 @@ header.header,
 .sidebar-pane {
     will-change: transform;
 }
+
+/* Icons in table cells (the README's formats table) inline, centered on the
+   text, so a footnote's number stays beside them. */
+.sl-markdown-content td img {
+    display: inline-block;
+    vertical-align: middle;
+}

@@ -3987,11 +3987,14 @@ function FormatCase({
     id,
     file,
     expected,
+    size = 80,
     description,
 }: {
     id: string
     file: string
     expected: FormatResult
+    // The sample's size: 80x80, except where the format has fixed sizes.
+    size?: number
     description: string
 }) {
     const [status, setStatus] = useState('waiting')
@@ -4006,9 +4009,9 @@ function FormatCase({
                     setStatus(
                         expected === 'fails'
                             ? `loaded (${width}x${height}), expected it to fail`
-                            : width === 80 && height === 80
+                            : width === size && height === size
                               ? 'OK'
-                              : `loaded at ${width}x${height}, expected 80x80`,
+                              : `loaded at ${width}x${height}, expected ${size}x${size}`,
                     )
                 }}
                 onError={(e) =>
@@ -4997,6 +5000,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 file="quadrants.tiff"
                 expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
                 description="TIFF: loads on iOS, fails on Android"
+            />,
+            <FormatCase
+                key="format-icns"
+                id="format-icns"
+                file="quadrants.icns"
+                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
+                // An icon size (formats.sh).
+                size={128}
+                description="ICNS: loads on iOS, fails on Android"
+            />,
+            <FormatCase
+                key="format-psd"
+                id="format-psd"
+                file="quadrants.psd"
+                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
+                description="PSD: loads on iOS, fails on Android"
             />,
         ],
     },

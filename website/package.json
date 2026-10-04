@@ -3,6 +3,7 @@
     "private": true,
     "type": "module",
     "devDependencies": {
+        "@phosphor-icons/core": "2",
         "github-slugger": "2",
         "typedoc": "0.28",
         "typedoc-plugin-markdown": "4",

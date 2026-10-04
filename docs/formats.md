@@ -8,32 +8,43 @@ These are tested on iOS 27 and Android 16 in both example apps (the regression r
 
 FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImage), which decodes most formats with ImageIO, Apple's image decoder.
 
-| Format                    | Shows                                          | Decoded by                                                                                                                                     |
-| ------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| JPEG, PNG, BMP, ICO, TIFF | Yes                                            | ImageIO                                                                                                                                        |
-| HEIC                      | iOS 11+                                        | ImageIO                                                                                                                                        |
-| GIF                       | Animated                                       | ImageIO, animated by SDWebImage                                                                                                                |
-| APNG                      | Animated                                       | ImageIO, animated by SDWebImage                                                                                                                |
-| WebP                      | Animated; a still one iOS 14+                  | Still ones ImageIO; animated ones libwebp ([SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes) |
-| AVIF                      | iOS 16+; an animated one shows its first frame | ImageIO                                                                                                                                        |
-| SVG                       | iOS 13+, with an [SVG library](#svg-images)    | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer)                                                  |
+| Format | Shows                                          | Decoded by                                                                                    |
+| ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| JPEG   | Yes                                            | ImageIO                                                                                       |
+| PNG    | Yes                                            | ImageIO                                                                                       |
+| APNG   | Animated                                       | ImageIO, animated by SDWebImage                                                               |
+| GIF    | Animated                                       | ImageIO, animated by SDWebImage                                                               |
+| WebP   | Animated; a still one iOS 14+                  | Still ones ImageIO, animated ones libwebp                                                     |
+| AVIF   | iOS 16+; an animated one shows its first frame | ImageIO                                                                                       |
+| HEIC   | iOS 11+                                        | ImageIO                                                                                       |
+| SVG    | iOS 13+, with an [SVG library](#svg-images)    | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer) |
+| ICO    | Yes                                            | ImageIO                                                                                       |
+| BMP    | Yes                                            | ImageIO                                                                                       |
+| TIFF   | Yes                                            | ImageIO                                                                                       |
+| ICNS   | Yes                                            | ImageIO                                                                                       |
+| PSD    | Its composite image                            | ImageIO                                                                                       |
 
-FastImage registers libwebp's coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
+Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
 
 ## Android
 
 FastImage loads images with [Glide](https://github.com/bumptech/glide), which decodes most formats with Android's own decoders.
 
-| Format                          | Shows                                                                      | Decoded by                                                                           |
-| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| JPEG, PNG, BMP, ICO, still WebP | Yes                                                                        | Android's decoder                                                                    |
-| HEIC                            | Android 8+                                                                 | Android's decoder                                                                    |
-| GIF                             | Animated                                                                   | Glide's GIF decoder                                                                  |
-| Animated WebP                   | Animated, Android 9+                                                       | Android's `ImageDecoder` (an `AnimatedImageDrawable`)                                |
-| APNG                            | Animated, with `minSdkVersion` 21+ ([Animated PNG](#animated-png-android)) | [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes |
-| AVIF                            | Android 14+[^android-avif]; animated                                       | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
-| TIFF                            | No                                                                         |                                                                                      |
-| SVG                             | With an [SVG library](#svg-images)                                         | [AndroidSVG](https://bigbadaboom.github.io/androidsvg/)                              |
+| Format | Shows                                                                      | Decoded by                                                                           |
+| ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| JPEG   | Yes                                                                        | Android's decoder                                                                    |
+| PNG    | Yes                                                                        | Android's decoder                                                                    |
+| APNG   | Animated, with `minSdkVersion` 21+ ([Animated PNG](#animated-png-android)) | [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes |
+| GIF    | Animated                                                                   | Glide's GIF decoder                                                                  |
+| WebP   | Yes; animated ones Android 9+                                              | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
+| AVIF   | Android 14+[^android-avif]; animated                                       | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
+| HEIC   | Android 8+                                                                 | Android's decoder                                                                    |
+| SVG    | With an [SVG library](#svg-images)                                         | [AndroidSVG](https://bigbadaboom.github.io/androidsvg/)                              |
+| ICO    | Yes                                                                        | Android's decoder                                                                    |
+| BMP    | Yes                                                                        | Android's decoder                                                                    |
+| TIFF   | No                                                                         |                                                                                      |
+| ICNS   | No                                                                         |                                                                                      |
+| PSD    | No                                                                         |                                                                                      |
 
 Animated WebP and AVIF need Glide 4.15 or later (FastImage uses 4.16 unless the app sets an older `glideVersion`, see [Android build settings](android-build-settings.md#older-glide-versions)); with an older Glide they show their first frame.
 

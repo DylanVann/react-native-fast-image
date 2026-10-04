@@ -21,15 +21,32 @@ It caches aggressively, and is built on [SDWebImage](https://github.com/SDWebIma
 
 ## Image formats
 
-| Format                    | iOS                                               | Android                                           |
-| ------------------------- | ------------------------------------------------- | ------------------------------------------------- |
-| JPEG, PNG, HEIC, BMP, ICO | Yes                                               | Yes                                               |
-| GIF, WebP, APNG           | Yes, animated                                     | Yes, animated                                     |
-| AVIF                      | Yes (an animated one shows its first frame)       | Yes, animated                                     |
-| TIFF                      | Yes                                               | No                                                |
-| SVG                       | With an [SVG library](docs/formats.md#svg-images) | With an [SVG library](docs/formats.md#svg-images) |
+| Format |          iOS           |      Android      |
+| ------ | :--------------------: | :---------------: |
+| JPEG   |      ![Yes][yes]       |    ![Yes][yes]    |
+| PNG    |      ![Yes][yes]       |    ![Yes][yes]    |
+| APNG   |      ![Yes][yes]       |    ![Yes][yes]    |
+| GIF    |      ![Yes][yes]       |    ![Yes][yes]    |
+| WebP   |      ![Yes][yes]       |    ![Yes][yes]    |
+| AVIF   | ![Yes][yes][^avif-ios] |    ![Yes][yes]    |
+| HEIC   |      ![Yes][yes]       |    ![Yes][yes]    |
+| SVG    |   ![Yes][yes][^svg]    | ![Yes][yes][^svg] |
+| ICO    |      ![Yes][yes]       |    ![Yes][yes]    |
+| BMP    |      ![Yes][yes]       |    ![Yes][yes]    |
+| TIFF   |      ![Yes][yes]       |     ![No][no]     |
+| ICNS   |      ![Yes][yes]       |     ![No][no]     |
+| PSD    |   ![Yes][yes][^psd]    |     ![No][no]     |
 
-On iOS 16 and Android 14 and later, as FastImage is installed. See [Formats](docs/formats.md) for older versions, what decodes each format, and adding an SVG library.
+See [Formats](docs/formats.md) for the versions of iOS and Android each format needs, and what decodes it.
+
+[yes]: docs/assets/yes.svg
+[no]: docs/assets/no.svg
+
+[^avif-ios]: An animated AVIF shows its first frame on iOS.
+
+[^svg]: With an SVG library in the app: see [SVG images](docs/formats.md#svg-images).
+
+[^psd]: Its composite image (the layers as Photoshop saved them flattened).
 
 ## Installation
 
