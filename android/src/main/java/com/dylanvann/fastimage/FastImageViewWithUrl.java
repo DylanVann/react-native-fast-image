@@ -32,6 +32,7 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
+import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
@@ -397,6 +398,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
         // Shown instead of the placeholder while loading (see shownCopy).
         @Nullable
         private Drawable mMeanwhile;
+        // Counts images ready (a thumbnail, then the image), so a copy
+        // decoded for one isn't shown over a later one.
+        private int mReady = 0;
 
         OwnGifTarget(@Nullable Drawable meanwhile) {
             super(FastImageViewWithUrl.this);
@@ -412,6 +416,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         @Override
         public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+            int ready = ++mReady;
             if (resource instanceof BitmapDrawable) {
                 if (mPixelated) {
                     // Scaled by the view without filtering: sharp pixels.
@@ -432,15 +437,36 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && resource instanceof AnimatedImageDrawable) {
-                AnimatedImageDrawable animated = (AnimatedImageDrawable) resource;
-                applyRepeatCount(animated);
-                // The target starts it; paused, it waits on its first frame.
-                super.onResourceReady(animated, transition);
-                mAnimated = animated;
-                if (mPaused) animated.stop();
+                if (!FastImageAnimated.shownElsewhere(resource, FastImageViewWithUrl.this)) {
+                    showAnimated((AnimatedImageDrawable) resource, transition);
+                    return;
+                }
+                // Another view shows it: this one shows its own, once it's
+                // decoded (meanwhile, what it showed), if it's still this
+                // view's latest image. Failing that, it shares that view's.
+                Drawable shared = resource;
+                FastImageAnimated.copy(resource, copy -> {
+                    Request request = getRequest();
+                    if (ready != mReady || request == null || !request.isComplete()) return;
+                    showAnimated((AnimatedImageDrawable) (copy != null ? copy : shared), transition);
+                });
                 return;
             }
             super.onResourceReady(resource, transition);
+        }
+
+        @RequiresApi(Build.VERSION_CODES.P)
+        private void showAnimated(AnimatedImageDrawable animated, @Nullable Transition<? super Drawable> transition) {
+            applyRepeatCount(animated);
+            // From its first frame, with this view's repeat count: the target
+            // starts it, but a drawable another view showed can still be
+            // playing (start() does nothing then), and a repeat count set
+            // during a play doesn't always apply to that play. Paused, it
+            // waits on its first frame.
+            animated.stop();
+            super.onResourceReady(animated, transition);
+            mAnimated = animated;
+            if (mPaused) animated.stop();
         }
 
         // The target starts animations again when the Activity does: not a
