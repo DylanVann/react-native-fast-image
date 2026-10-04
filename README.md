@@ -22,7 +22,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Preloading** images before they're shown, with a result for each ([`preload`](#preloadsources)), and the cached file's path ([`getCachePath`](#getcachepathsource)).
 - **Headers** for images that need them ([`headers`](#sourceheaders)).
 - **Priorities** for which images to start loading first ([`priority`](#sourcepriority)).
-- **Several sizes** of an image, loading the one that fits the view ([`source`](#source)).
+- **Responsive images**: pass several sizes of an image, and the one that fits the view loads ([`source`](#source)).
 - **Animated images** (GIF, animated WebP, APNG, and animated AVIF on Android) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
