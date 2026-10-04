@@ -3976,12 +3976,12 @@ function SeveralSourcesEdgeCase() {
     )
 }
 
-// Image formats, for the README's table of them. The samples in the image
+// Image formats, for the tables in docs/formats.md. The samples in the image
 // server's images/formats/ are the same picture in each format (red, green,
 // blue and yellow quadrants, 80x80), and the animated ones are red, then blue,
 // 400 ms each, looping. A case passes when the format does what `expected`
 // says on this platform, so a change in what's supported fails it (and the
-// table needs updating). Check the screenshot: four flat quadrants.
+// tables need updating). Check the screenshot: four flat quadrants.
 type FormatResult = 'loads' | 'fails'
 function FormatCase({
     id,

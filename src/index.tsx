@@ -36,7 +36,7 @@ export type Source = {
      * Also loads local files (`file://`, and on Android `content://`), photo
      * library images on iOS (`ph://`, see
      * [Photo library images](#photo-library-images-ios)) and SVG images (see
-     * [SVG images](#svg-images)).
+     * [SVG images](docs/formats.md#svg-images)).
      */
     uri?: string
     /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */
