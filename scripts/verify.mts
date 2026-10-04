@@ -1803,7 +1803,23 @@ async function expoPrebuild(platform: 'ios' | 'android') {
 // Pods need reinstalling after node_modules is: on React Native 0.73,
 // `pod install` also generates files inside node_modules/react-native. And
 // after the Podfile changed (e.g. another branch's): the installed Pods record
-// the Podfile's SHA-1 they were installed for.
+// the Podfile's SHA-1 they were installed for. And after FastImage's podspec
+// changed (e.g. a dependency added), whose SHA-1 the source marker keeps.
+const podspecSha = (dir: string) =>
+    createHash('sha1')
+        .update(
+            fs.readFileSync(
+                FROM_PACKAGE
+                    ? path.join(
+                          dir,
+                          'node_modules',
+                          PACKAGE_NAME,
+                          'RNFastImage.podspec',
+                      )
+                    : path.join(ROOT, 'RNFastImage.podspec'),
+            ),
+        )
+        .digest('hex')
 function podsCurrent(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
@@ -1817,7 +1833,8 @@ function podsCurrent(dir: string) {
         )
         return (
             pods >= rn.mtimeMs &&
-            builtFrom(path.join(dir, 'ios/Pods')) === SOURCE &&
+            builtFrom(path.join(dir, 'ios/Pods')) ===
+                `${SOURCE} ${podspecSha(dir)}` &&
             manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
         )
     } catch {
@@ -1850,7 +1867,10 @@ async function iosPods(app: App) {
     else {
         const now = new Date()
         fs.utimesSync(path.join(dir, 'ios/Pods'), now, now)
-        fs.writeFileSync(sourceMarker(path.join(dir, 'ios/Pods')), SOURCE)
+        fs.writeFileSync(
+            sourceMarker(path.join(dir, 'ios/Pods')),
+            `${SOURCE} ${podspecSha(dir)}`,
+        )
     }
     return ok
 }
@@ -2103,6 +2123,20 @@ async function buildAndroid(app: App) {
         fs.mkdirSync(androidBuild, { recursive: true })
         fs.writeFileSync(sourceMarker(androidBuild), SOURCE)
     }
+    // The library's classes as bundled for the app (both apps' builds share
+    // android/build): Gradle can fail to update them after the library's
+    // source changed under it (another branch, or the other app's Android
+    // Gradle plugin version): "already exists, it cannot be overwritten", or
+    // "Error while dexing". Rebuilt from the compiled classes in seconds,
+    // instead of deleting android/build, which recompiles everything.
+    for (const output of [
+        'runtime_library_classes_dir',
+        'runtime_library_classes_jar',
+    ])
+        fs.rmSync(path.join(ROOT, 'android/build/intermediates', output), {
+            recursive: true,
+            force: true,
+        })
     // Native code (C++) for the emulator's CPU architecture only, rather than
     // all four.
     const abi = capture(ADB, [
