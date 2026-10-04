@@ -87,6 +87,8 @@ final class FastImageApngRenderer {
         // How many times the file says it plays (0: forever).
         private final int plays;
         private volatile boolean paused = false;
+        // Once a frame has been rendered (on the decoder's thread).
+        private volatile boolean rendered = false;
 
         ApngDrawable(Loader loader, int plays) {
             super(loader);
@@ -110,7 +112,10 @@ final class FastImageApngRenderer {
             // while paused.
             setAutoPlay(!paused);
             if (paused) {
-                pause();
+                // Before the first frame, onStart pauses once it's rendered:
+                // the decoder's start clears a pause, then skips rendering if
+                // one came in meanwhile, which left the view blank.
+                if (rendered) pause();
             } else {
                 resume();
             }
@@ -128,6 +133,12 @@ final class FastImageApngRenderer {
                 return;
             }
             super.start();
+        }
+
+        @Override
+        public void onRender(ByteBuffer byteBuffer) {
+            super.onRender(byteBuffer);
+            rendered = true;
         }
 
         // On its decoder thread, once starting has drawn the first frame:
