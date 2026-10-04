@@ -623,7 +623,7 @@ await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
 const { maxDiskSize, diskSize } = await FastImage.configureCache()
 ```
 
-On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported. Likewise in an app with [expo-image](docs/android-build-settings.md#with-expo-image), whose Glide setup sets the disk cache.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
@@ -659,7 +659,7 @@ How fresh an image must be: see [`source.cache`](#sourcecache).
 
 ### `CacheState`
 
-`configureCache`'s result: the limits in effect (0 for no limit), and the bytes the disk cache uses now. Android only has `maxDiskSize` and `diskSize`, and neither if the app has its own `AppGlideModule`.
+`configureCache`'s result: the limits in effect (0 for no limit), and the bytes the disk cache uses now. Android only has `maxDiskSize` and `diskSize`, and neither if the app has its own `AppGlideModule` (or expo-image, which has one).
 
 - `maxDiskSize?` (`number`)
 - `maxDiskAge?` (`number`)
@@ -800,7 +800,7 @@ In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
 <meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
 ```
 
-If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead.
+If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead. In an app with [expo-image](docs/android-build-settings.md#with-expo-image), expo-image's Glide setup sets it.
 
 [^glide-memory]: Glide's default, which FastImage keeps: room for two screenfuls of decoded images (2 × the screen's width × height × 4 bytes, about 20 MB on a 1080 × 2400 screen), plus a pool of bitmaps to reuse (one screenful on Android 8 and later, four before). Together they're limited to 40% of the memory Android gives the app (33% on low-memory devices), and both shrink to fit.
 

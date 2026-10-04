@@ -99,7 +99,7 @@ final class FastImageApng {
     private static final class BufferDecoder implements ResourceDecoder<ByteBuffer, Drawable> {
         @Override
         public boolean handles(@NonNull ByteBuffer source, @NonNull Options options) {
-            return animates(options) && plays(source) >= 0;
+            return FastImageGlide.isRequest(options) && animates(options) && plays(source) >= 0;
         }
 
         @Nullable
@@ -113,7 +113,7 @@ final class FastImageApng {
     private static final class StreamDecoder implements ResourceDecoder<InputStream, Drawable> {
         @Override
         public boolean handles(@NonNull InputStream source, @NonNull Options options) throws IOException {
-            if (!animates(options)) return false;
+            if (!FastImageGlide.isRequest(options) || !animates(options)) return false;
             byte[] head = new byte[HEAD_LENGTH];
             source.mark(HEAD_LENGTH);
             int read = 0;

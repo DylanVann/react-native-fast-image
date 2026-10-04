@@ -194,7 +194,7 @@ final class FastImageAnimated {
 
         @Override
         public boolean handles(@NonNull ByteBuffer source, @NonNull Options options) throws IOException {
-            return glide.handles(source, options);
+            return FastImageGlide.isRequest(options) && glide.handles(source, options);
         }
 
         @Nullable
@@ -229,7 +229,7 @@ final class FastImageAnimated {
 
         @Override
         public boolean handles(@NonNull InputStream source, @NonNull Options options) throws IOException {
-            return glide.handles(source, options);
+            return FastImageGlide.isRequest(options) && glide.handles(source, options);
         }
 
         // Read whole, as Glide's own does.

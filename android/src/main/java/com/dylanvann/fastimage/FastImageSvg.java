@@ -118,6 +118,7 @@ final class FastImageSvg {
 
         @Override
         public boolean handles(@NonNull InputStream source, @NonNull Options options) throws IOException {
+            if (!FastImageGlide.isRequest(options)) return false;
             // Glide rewinds the stream before decoding.
             byte[] head = new byte[HEAD_LENGTH];
             int length = 0;
@@ -145,6 +146,7 @@ final class FastImageSvg {
 
         @Override
         public boolean handles(@NonNull ByteBuffer source, @NonNull Options options) {
+            if (!FastImageGlide.isRequest(options)) return false;
             ByteBuffer copy = source.duplicate();
             byte[] head = new byte[Math.min(HEAD_LENGTH, copy.remaining())];
             copy.get(head);

@@ -87,7 +87,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         BitmapFactory.decodeFile(file.getPath(), bounds);
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
         int orientation = ImageHeaderParser.UNKNOWN_ORIENTATION;
-        Glide glide = Glide.get(context);
+        Glide glide = FastImageGlide.get(context);
         try (InputStream stream = new FileInputStream(file)) {
             orientation = ImageHeaderParserUtils.getOrientation(
                     glide.getRegistry().getImageHeaderParsers(), stream, glide.getArrayPool());
@@ -271,6 +271,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // wait for the download and read its file (FastImageSharedDownloads).
     private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
         final String key = shared && model instanceof GlideUrl ? ((GlideUrl) model).getCacheKey() : null;
+        FastImageGlide.get(context);
         Glide.with(context)
                 .asFile()
                 .load(model)
@@ -298,6 +299,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     @Nullable
     private static File cachedFile(Context context, Object model, RequestOptions options) {
         try {
+            FastImageGlide.get(context);
             return Glide.with(context)
                     .asFile()
                     .load(model)
@@ -377,7 +379,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 // On disk already: in Glide's cache (not for `web` images,
                 // which it doesn't cache), or in the HTTP cache of `web`
                 // images (set up by Glide, which is started first).
-                Glide.get(context);
+                FastImageGlide.get(context);
                 File file = imageSource.isWebCache() ? null : cachedFile(context, imageSource.getSourceForLoad(), options);
                 if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                 if (file != null) {
@@ -551,7 +553,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                Glide.get(context);
+                FastImageGlide.get(context);
                 WritableMap result = Arguments.createMap();
                 long maxDiskSize = FastImageCacheLimits.startedMaxDiskSize;
                 if (maxDiskSize >= 0) {
@@ -574,7 +576,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Glide.get(activity.getApplicationContext()).clearMemory();
+                FastImageGlide.get(activity.getApplicationContext()).clearMemory();
                 promise.resolve(null);
             }
         });
@@ -588,7 +590,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        Glide.get(activity.getApplicationContext()).clearDiskCache();
+        FastImageGlide.get(activity.getApplicationContext()).clearDiskCache();
         // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
         // cache.
         try {

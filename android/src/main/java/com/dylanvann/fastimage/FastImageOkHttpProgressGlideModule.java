@@ -137,6 +137,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // writeToCache: local files stored under a source's key.
         registry.prepend(FastImageCacheWrite.class, InputStream.class,
                 new FastImageCacheWrite.LoaderFactory(context.getApplicationContext()));
+        FastImageGlide.registered(glide);
     }
 
     // Loads GlideUrls with the given client, except `web` ones

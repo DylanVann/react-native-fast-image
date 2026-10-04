@@ -40,7 +40,7 @@ final class FastImageGif {
         ByteBuffer data = gif.getBuffer();
         GifHeader header = new GifHeaderParser().setData(data).parseHeader();
         if (header.getNumFrames() <= 0 || header.getStatus() != GifDecoder.STATUS_OK) return null;
-        Glide glide = Glide.get(context);
+        Glide glide = FastImageGlide.get(context);
         BitmapPool bitmapPool = glide.getBitmapPool();
         GifDecoder decoder = new StandardGifDecoder(
                 new GifBitmapProvider(bitmapPool, glide.getArrayPool()),
