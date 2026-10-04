@@ -1,0 +1,76 @@
+---
+// The menu button on narrow screens: two lines that turn into a cross while
+// the menu is open, in the text color like the header's other icons, instead
+// of Starlight's round button with a shadow.
+---
+
+<button
+    popovertarget="starlight__sidebar"
+    class="sl-menu-button sl-flex md:sl-hidden print:hidden"
+>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line class="top" x1="4" y1="9" x2="20" y2="9"></line>
+        <line class="bottom" x1="4" y1="15" x2="20" y2="15"></line>
+    </svg>
+    <span class="sr-only">{Astro.locals.t('menuButton.accessibleLabel')}</span>
+</button>
+
+<style>
+    /* The icon is the button's size (which the header leaves room for, so the
+       icon is as far from the GitHub link as the other icons are from each
+       other), and the space around it, for tapping, is padding taken back with
+       a negative margin, like the other icons'. */
+    button {
+        position: fixed;
+        top: calc((var(--sl-nav-height) - var(--sl-menu-button-size)) / 2);
+        inset-inline-end: var(--sl-nav-pad-x);
+        z-index: var(--sl-z-index-navbar);
+        border: 0;
+        padding: 0.5rem;
+        margin: -0.5rem;
+        background: none;
+        color: var(--sl-color-white);
+        cursor: pointer;
+    }
+    button:hover {
+        color: var(--sl-color-text-accent);
+    }
+
+    svg {
+        width: var(--sl-menu-button-size);
+        height: var(--sl-menu-button-size);
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+    }
+    line {
+        transform-origin: 12px 12px;
+        transition: transform 0.2s ease;
+    }
+    button:has(~ :popover-open) .top {
+        transform: rotate(45deg) translateY(3px);
+    }
+    button:has(~ :popover-open) .bottom {
+        transform: rotate(-45deg) translateY(-3px);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        line {
+            transition: none;
+        }
+    }
+</style>
+
+<style is:global>
+    :root {
+        --sl-menu-button-size: 1.25rem;
+    }
+    /* Starlight's: the page doesn't scroll behind the open menu. */
+    body:has(#starlight__sidebar:popover-open) {
+        overflow: hidden;
+    }
+    @media (min-width: 50rem) {
+        body:has(#starlight__sidebar:popover-open) {
+            overflow: auto;
+        }
+    }
+</style>

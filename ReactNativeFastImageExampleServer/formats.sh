@@ -8,7 +8,8 @@
 #   bash ReactNativeFastImageExampleServer/formats.sh
 #
 # Needs ImageMagick, libwebp (cwebp, img2webp), libavif (avifenc) and libheif
-# (heif-enc): `brew install imagemagick webp libavif libheif`.
+# (heif-enc): `brew install imagemagick webp libavif libheif`, and macOS (sips,
+# for PSD and ICNS).
 set -euo pipefail
 OUT="$(cd "$(dirname "$0")" && pwd)/images/formats"
 TMP="$(mktemp -d)"
@@ -29,6 +30,12 @@ heif-enc -q 90 "$TMP/quadrants.png" -o quadrants.heic > /dev/null
 magick "$TMP/quadrants.png" BMP3:quadrants.bmp
 magick "$TMP/quadrants.png" quadrants.ico
 magick "$TMP/quadrants.png" -compress none quadrants.tiff
+# PSD and ICNS with macOS's sips: ImageMagick's PSD is a palette one, which
+# ImageIO decodes wrongly (Photoshop's are RGB), and ICNS needs one of the icon
+# sizes (128x128).
+sips -s format psd "$TMP/quadrants.png" --out quadrants.psd > /dev/null
+magick "$TMP/quadrants.png" -filter point -resize 128x128 -define png:exclude-chunks=date,time "$TMP/quadrants-128.png"
+sips -s format icns "$TMP/quadrants-128.png" --out quadrants.icns > /dev/null
 
 magick -size 80x80 xc:'#ff0000' "$TMP/red.png"
 magick -size 80x80 xc:'#0000ff' "$TMP/blue.png"

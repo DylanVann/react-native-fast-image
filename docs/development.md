@@ -7,7 +7,7 @@ The example app in `ReactNativeFastImageExample` runs against the library source
 
 ## Requirements
 
-- Node 22.11 or later
+- Node 26 (`.node-version`, which [fnm](https://github.com/Schniz/fnm) picks with `fnm use`)
 - [Bun](https://bun.sh), which installs dependencies and runs package scripts (Node still runs the tools)
 - Xcode, CocoaPods (via Bundler), and an iOS simulator
 - JDK 17, the Android SDK, and an Android emulator
@@ -73,7 +73,7 @@ bun run web       # the web version, with react-native-web
 
 ## Verifying changes
 
-`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 24 (or 22.18+), which runs TypeScript directly:
+`scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 26, which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
 2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
@@ -105,7 +105,16 @@ The flows are [Maestro](https://maestro.dev) YAML, run with [maestro-runner](htt
 
 With `--record`, maestro-runner also records the screen while each flow runs (iOS simulators and Android emulators). The recording is saved in the report next to the screenshots, and a copy sized for a GitHub comment (at most 1080p, 30 fps, real time; needs [ffmpeg](https://ffmpeg.org)) is written to `recordings/<branch>/<app>-<platform>-<flow>.mp4`, named after the current branch, or the `--ref` for a "before" run. The folder is ignored by git; drag the files into a PR's description or a comment to show the fix running (GitHub plays mp4 files inline; the limit is 10 MB per file on a free plan).
 
-Run `node scripts/verify.mts --help` for all options. The flows run on devices of their own, so screenshots and recordings don't show other apps: an iOS simulator named "RNFI iPhone", created on first use from the newest iPhone simulator's device type and runtime, and the first Android emulator whose name starts with `rnfi` (create one, e.g. `rnfi_api36_aosp`, with the image described next). Use an Android emulator with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`, not Google APIs), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`; the script starts emulators with `-gpu host` and no window: macOS throttles the emulator while its window is hidden or behind the iOS Simulator, and the app stalls until the window is brought forward), and pick it with `ANDROID_AVD`. Google APIs images run Play services and other apps in the background; combined with the example's animated images they overload the emulator until system dialogs ("… isn't responding") cover the app and flows fail. ATD images are lighter still, but render a black screen, so screenshots are empty. The script also sets `hide_error_dialogs` on emulators. Builds and each app and platform's flows have time limits; raise them with `VERIFY_BUILD_TIMEOUT` or `VERIFY_FLOWS_TIMEOUT` (seconds) if one is hit. Logs, screenshots and crash reports go to `verify-output/`. It needs a free port 8081, an iOS simulator, an Android emulator (it starts one if none is running).
+Run `node scripts/verify.mts --help` for all options. Logs, screenshots and crash reports go to `verify-output/`. Builds and each app and platform's flows have time limits; raise them with `VERIFY_BUILD_TIMEOUT` or `VERIFY_FLOWS_TIMEOUT` (seconds) if one is hit.
+
+### Devices
+
+The flows run on devices of their own, so screenshots and recordings don't show other apps:
+
+- iOS: a simulator named "RNFI iPhone", created on first use from the newest iPhone simulator's device type and runtime.
+- Android: the first emulator whose name starts with `rnfi` (pick another with `ANDROID_AVD`); the script starts it if none is running. Create one (e.g. `rnfi_api36_aosp`) with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`).
+
+Google APIs images run Play services and other apps in the background; combined with the example's animated images they overload the emulator until system dialogs ("… isn't responding") cover the app and flows fail. ATD images are lighter still, but render a black screen, so screenshots are empty. The script starts emulators with `-gpu host` and no window (macOS throttles the emulator while its window is hidden or behind the iOS Simulator, and the app stalls until the window is brought forward), and sets `hide_error_dialogs` on them.
 
 ### Regression cases
 
@@ -142,6 +151,18 @@ The app IDs for each app and platform are listed at the top of `maestro/touch.ya
 - `metro.config.js` resolves `react-native-fast-image` to `../src/index.tsx` and makes the library source use the example's `react` and `react-native`, not the repo root's dev copies.
 - With `FAST_IMAGE_FROM_PACKAGE=1` (set by `verify.mts --package`), both use the package installed in the app's `node_modules` instead.
 - `tsconfig.json` does the same for TypeScript.
+
+## The README and the website
+
+The README's props section (between its `api:props` markers) is generated from the doc comments in `src/index.tsx`, on `FastImageProps` and `Source`: edit the comments, not the README, then run `bun run generate` in `website/` (`bun install` there first). CI fails if the README is out of date (`bun run check`). The comments are Markdown, with these tags:
+
+- `@default`: the default value.
+- `@platform ios`, `@platform android`, `@platform web`: for a prop that only works on some platforms.
+- `@example`: a code block shown after the description.
+
+Notes for maintainers go in `//` comments instead: they aren't in editor hovers, the README, the website or the published types.
+
+The website in `website/` ([Starlight](https://starlight.astro.build)) shows the README as its main page and each file in `docs/` as a page (`benchmarks.md` and `development.md` next to it in the sidebar, the others under Guides), each named after its title. `bun run dev` in `website/` generates the pages and serves them; `bun run build` writes the site to `website/dist/` (`bun run build:docs` from the repo's root does the same). The generator runs [TypeDoc](https://typedoc.org), which needs TypeScript 6 (the library uses TypeScript 7, which has no JavaScript API yet), so `website/` has its own dependencies. It warns about links to headings that don't exist in the README or `docs/`.
 
 ## Releasing
 

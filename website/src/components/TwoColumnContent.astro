@@ -1,0 +1,81 @@
+---
+// Starlight's two columns (the content, and the table of contents on wide
+// screens), with:
+// - the table of contents the sidebar's width, and the content centered
+//   between the sidebars (Starlight centers it on the window, which looks
+//   pushed right);
+// - on narrower screens, "On this page" at the top of the content, sticking
+//   under the header as the page scrolls (Starlight pins it to the header),
+//   instead of in PageSidebar.
+import MobileTableOfContents from 'virtual:starlight/components/MobileTableOfContents'
+---
+
+<div class="lg:sl-flex">
+    {
+        Astro.locals.starlightRoute.toc && (
+            <aside class="right-sidebar-container print:hidden">
+                <div class="right-sidebar">
+                    <slot name="right-sidebar" />
+                </div>
+            </aside>
+        )
+    }
+    <div class="main-pane">
+        {
+            Astro.locals.starlightRoute.toc && (
+                <div class="mobile-toc lg:sl-hidden print:hidden">
+                    <MobileTableOfContents />
+                </div>
+            )
+        }
+        <slot />
+    </div>
+</div>
+
+<style>
+    .main-pane {
+        isolation: isolate;
+    }
+
+    /* A child of the content's whole height, so it sticks all the way down. */
+    .mobile-toc {
+        position: sticky;
+        top: var(--sl-nav-height);
+        z-index: var(--sl-z-index-toc);
+        /* Level with the sidebar's first item until it sticks. */
+        margin-top: 2rem;
+        padding-inline: var(--sl-content-pad-x);
+        background-color: var(--sl-color-bg);
+    }
+    .mobile-toc > :global(*) {
+        display: block;
+        max-width: var(--sl-content-width);
+    }
+
+    @media (min-width: 72rem) {
+        .right-sidebar-container {
+            order: 2;
+            position: relative;
+            width: var(--sl-sidebar-width);
+        }
+
+        .right-sidebar {
+            position: fixed;
+            top: 0;
+            padding-top: var(--sl-nav-height);
+            width: 100%;
+            height: 100vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .main-pane {
+            width: 100%;
+        }
+
+        :global([data-has-sidebar][data-has-toc]) .main-pane {
+            order: 1;
+            width: calc(100% - var(--sl-sidebar-width));
+        }
+    }
+</style>

@@ -1,5 +1,5 @@
 // Checks the library and runs both example apps on iOS and Android. Run it with
-// Node 24 (or 22.18+), which runs TypeScript directly:
+// Node 26 (the repo's .node-version), which runs TypeScript directly:
 //
 //   node scripts/verify.mts [options]
 
@@ -564,7 +564,9 @@ async function startImageServer() {
 async function installPackage() {
     say('Packing the library')
     const log = path.join(OUT, 'package.log')
-    if (!(await run('bun', ['run', 'build'], { log, timeout: 120 })).ok) {
+    if (
+        !(await run('bun', ['run', 'build:package'], { log, timeout: 120 })).ok
+    ) {
         record('FAIL', 'package', `build failed; see ${rel(log)}`)
         return false
     }
@@ -2274,7 +2276,7 @@ async function main() {
             await jsCheck(
                 'library build',
                 'bun',
-                ['run', '--silent', 'build'],
+                ['run', '--silent', 'build:package'],
                 ROOT,
             )
             await jsCheck(
