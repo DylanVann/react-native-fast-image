@@ -6,6 +6,8 @@ Performant React Native image component.
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
 
+The docs, with guides, are also on the website: [react-native-fast-image.dylanvann.workers.dev](https://react-native-fast-image.dylanvann.workers.dev). <!-- Left out of the website. -->
+
 React Native's `Image` component handles image caching like browsers for the most part. If the server is returning proper cache control headers for images you'll generally get the sort of built in caching behavior you'd have in a browser. Even so, many people have noticed:
 
 - Flickering.
