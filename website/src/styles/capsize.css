@@ -7,22 +7,31 @@
    Capsize trims (ascent - cap height) plus the half leading above the text,
    and the descent plus the half leading below it, which for these metrics are
    the same: L / 2 - 0.355em. */
-:root {
-    --capsize-trim: calc(0.355 - var(--sl-line-height) / 2);
-    --capsize-trim-headings: calc(0.355 - var(--sl-line-height-headings) / 2);
-}
 
-/* The trimmed blocks: the page title, and the content's paragraphs, headings
-   and props' platforms/type/default lines. Lists, tables, code and anything
-   nested keep their line boxes, as do paragraphs with images (the badges). A
-   heading is trimmed through its wrapper (Starlight's .sl-heading-wrapper,
-   with the heading's size and line height): the heading itself is inline
-   there, next to its anchor link. */
+/* The trimmed blocks set --capsize-line-height to their line height. The
+   page title, and the content's paragraphs, headings and props'
+   platforms/type/default lines are trimmed above and below; lists, tables,
+   code and anything nested keep their line boxes, as do paragraphs with
+   images (the badges). A heading is trimmed through its wrapper (Starlight's
+   .sl-heading-wrapper, with the heading's size and line height): the heading
+   itself is inline there, next to its anchor link. The sidebars' first lines
+   are trimmed above (see below). */
+.sl-markdown-content > :is(p:not(:has(img)), .api-meta) {
+    --capsize-line-height: var(--sl-line-height);
+}
+.content-panel h1#_top,
+.sl-markdown-content > .sl-heading-wrapper {
+    --capsize-line-height: var(--sl-line-height-headings);
+}
 :is(
     .content-panel h1#_top,
     .sl-markdown-content > .sl-heading-wrapper,
     .sl-markdown-content > :is(p:not(:has(img)), .api-meta)
-)::before,
+)::before {
+    content: '';
+    display: table;
+    margin-bottom: calc((0.355 - var(--capsize-line-height) / 2) * 1em);
+}
 :is(
     .content-panel h1#_top,
     .sl-markdown-content > .sl-heading-wrapper,
@@ -30,21 +39,7 @@
 )::after {
     content: '';
     display: table;
-}
-.sl-markdown-content > :is(p:not(:has(img)), .api-meta)::before {
-    margin-bottom: calc(var(--capsize-trim) * 1em);
-}
-.sl-markdown-content > :is(p:not(:has(img)), .api-meta)::after {
-    margin-top: calc(var(--capsize-trim) * 1em);
-}
-:is(
-    .content-panel h1#_top,
-    .sl-markdown-content > .sl-heading-wrapper
-)::before {
-    margin-bottom: calc(var(--capsize-trim-headings) * 1em);
-}
-:is(.content-panel h1#_top, .sl-markdown-content > .sl-heading-wrapper)::after {
-    margin-top: calc(var(--capsize-trim-headings) * 1em);
+    margin-top: calc((0.355 - var(--capsize-line-height) / 2) * 1em);
 }
 
 /* The space between blocks, about what it looked like before trimming: 2rem
@@ -101,20 +96,37 @@
 }
 
 /* The sidebars' first lines with their capital letters level with the page
-   title's, where the sidebars show (Starlight's 50rem and 72rem breakpoints).
-   All three start below the header, where the title's capitals are 3.25rem
-   down (its panel's 1.5rem padding and its 1.75rem margin). The sidebars'
-   first lines aren't trimmed, so their padding leaves out the space above
-   their capitals: "Usage" (16px, line height 22.4px, 4.8px of padding) has
-   4.8 + 11.2 - 5.68 = 10.32px above its capitals, "On this page" (18px, line
-   height 21.6px) 10.8 - 6.39 = 4.41px. */
+   title's, where the sidebars show (Starlight's 50rem and 72rem breakpoints):
+   all three start below the header, so with their first lines trimmed above,
+   the sidebars' padding is the title's 3.25rem (its panel's 1.5rem padding
+   and its 1.75rem margin). Only the tops are trimmed, so what's below stays
+   where it was. */
 @media (min-width: 50rem) {
     .sidebar-content {
-        padding-top: calc(3.25rem - 10.32px);
+        padding-top: 3.25rem;
+    }
+    /* "Usage": a link with a line height of 1.4, and its top padding left
+       out (it has no background). */
+    .sidebar-content .top-level > li:first-child > a {
+        --capsize-line-height: 1.4;
+        padding-top: 0;
+    }
+    .sidebar-content .top-level > li:first-child > a::before {
+        content: '';
+        display: table;
+        margin-bottom: calc((0.355 - var(--capsize-line-height) / 2) * 1em);
     }
 }
 @media (min-width: 72rem) {
     .right-sidebar-panel {
-        padding-top: calc(3.25rem - 4.41px);
+        padding-top: 3.25rem;
+    }
+    #starlight__on-this-page {
+        --capsize-line-height: var(--sl-line-height-headings);
+    }
+    #starlight__on-this-page::before {
+        content: '';
+        display: table;
+        margin-bottom: calc((0.355 - var(--capsize-line-height) / 2) * 1em);
     }
 }
