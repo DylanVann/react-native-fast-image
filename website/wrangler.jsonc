@@ -1,0 +1,13 @@
+// The website, as static files on Cloudflare Workers:
+// https://react-native-fast-image.dylanvann.workers.dev
+// Build and deploy with `bun run deploy`.
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "name": "react-native-fast-image",
+    "compatibility_date": "2026-10-02",
+    "assets": {
+        "directory": "./dist",
+        // Missing pages get Starlight's 404 page.
+        "not_found_handling": "404-page",
+    },
+}

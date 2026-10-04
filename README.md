@@ -1,8 +1,4 @@
-<h1 align="center">
-  React Native Fast Image
-</h1>
-
-<div align="center">
+# React Native Fast Image
 
 Performant React Native image component.
 
@@ -10,61 +6,22 @@ Performant React Native image component.
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
 
-[![Watch on GitHub][github-watch-badge]][github-watch]
-[![Star on GitHub][github-star-badge]][github-star]
-[![Tweet][twitter-badge]][twitter]
-
-</div>
-
-<p align="center" >
-  <kbd>
-    <img
-      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/scroll.gif?raw=true"
-      title="Scroll Demo"
-      float="left"
-    >
-  </kbd>
-  <kbd>
-    <img
-      src="https://github.com/DylanVann/react-native-fast-image/blob/main/docs/assets/priority.gif?raw=true"
-      title="Priority Demo"
-      float="left"
-    >
-  </kbd>
-  <br>
-  <em>FastImage example app.</em>
-</p>
-
-React Native's `Image` component handles image caching like browsers
-for the most part.
-If the server is returning proper cache control
-headers for images you'll generally get the sort of built in
-caching behavior you'd have in a browser.
-Even so many people have noticed:
-
-- Flickering.
-- Cache misses.
-- Low performance loading from cache.
-- Low performance in general.
-
-`FastImage` is an `Image` replacement that solves these issues.
-`FastImage` is a wrapper around
-[SDWebImage (iOS)](https://github.com/rs/SDWebImage)
-and
-[Glide (Android)](https://github.com/bumptech/glide).
+It caches aggressively, and is built on [SDWebImage](https://github.com/SDWebImage/SDWebImage) on iOS and [Glide](https://github.com/bumptech/glide) on Android. Use it in place of React Native's `Image` where images flicker, miss the cache, or load slowly from it.
 
 ## Features
 
-- [x] Aggressively cache images.
-- [x] Add authorization headers.
-- [x] Prioritize images.
-- [x] Preload images.
-- [x] GIF support.
-- [x] Border radius.
+- **Caching** on disk and in memory, with control over how fresh images must be ([`cache`](#sourcecache)), keys for urls that change ([`cacheKey`](#sourcecachekey)), and the cache's size ([`configureCache`](#configurecachelimits)).
+- **Preloading** images before they're shown, with a result for each ([`preload`](#preloadsources)), and the cached file's path ([`getCachePath`](#getcachepathsource)).
+- **Headers** for images that need them, and [**priorities**](#sourcepriority) for which images to start loading first.
+- **Several sizes** of an image, loading the one that fits the view ([`source`](#source)), and large images [**downsampled**](#downsample) to the view's size.
+- **Animated images** (GIF, animated WebP, APNG, and animated AVIF on Android) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
+- [**SVG**](#svg-images) and [**photo library**](#photo-library-images-ios) images.
+- [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
+- **Expo**, with a [config plugin](#expo-config-plugin), and the [**web**](#web).
 
-## Usage
+## Installation
 
-Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for the next major version.
+Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for a future major version.
 
 ```bash
 npm install react-native-fast-image
@@ -79,6 +36,12 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
+To set the cache's size when the app starts, see [Native config](#native-config).
+
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
+
+## Usage
+
 ```jsx
 import FastImage from 'react-native-fast-image'
 
@@ -88,117 +51,30 @@ const YourImage = () => (
         source={{
             uri: 'https://example.com/image.jpg',
             headers: { Authorization: 'someAuthToken' },
-            priority: FastImage.priority.normal,
+            priority: 'normal',
         }}
-        resizeMode={FastImage.resizeMode.contain}
+        resizeMode="contain"
     />
 )
 ```
 
-## If your app already has an AppGlideModule
+## Components
 
-If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/app-glide-module.md) first, or FastImage may not work.
+### `FastImage`
 
-## Properties
+It also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout` and `pointerEvents`.
 
-### `source?: object`
+<!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
-Source for the remote image to load.
+#### `source`
+
+**Type:** `number | Source | Source[]`
+
+Source for the remote image to load: a `Source`, a `require()`d image, or an array of the same image at different sizes.
 
 When `source` changes, the image that's showing stays until the new one has loaded. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
 
----
-
-### `source.uri?: string`
-
-Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
-
-#### Photo library images (iOS)
-
-A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes on iOS.
-
-The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
-
-#### SVG images
-
-SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
-
-```ruby
-# ios/Podfile
-pod 'SDWebImageSVGCoder'
-```
-
-```groovy
-// android/app/build.gradle
-dependencies {
-    implementation 'com.caverock:androidsvg-aar:1.4'
-}
-```
-
-On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
-
-An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
-
----
-
-#### Animated PNG (Android)
-
-APNG (animated PNG) images animate on Android with [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes when the app's `minSdkVersion` is 21 or later (React Native 0.64 and later by default). With an older `minSdkVersion` they show their first frame.
-
-APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
-
-### `source.headers?: object`
-
-Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
-
----
-
-### `source.priority?: enum`
-
-Indicates the load order priority of an image. Images with `FastImage.priority.high` will load before images in a similar context with low or normal priority.
-
-- `FastImage.priority.low` - Low Priority.
-- `FastImage.priority.normal` **(Default)** - Normal Priority.
-- `FastImage.priority.high` - High Priority.
-
----
-
-### `source.cache?: enum`
-
-How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
-
-- `FastImage.cacheControl.immutable` - **(Default)** - Only updates if url changes.
-- `FastImage.cacheControl.web` - Use headers and follow normal caching procedures. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
-- `FastImage.cacheControl.cacheOnly` - Only show images from cache, do not make any network requests.
-
----
-
-### `source.cacheKey?: string`
-
-The key the image is cached under, instead of its uri. Use it for urls that change while the image stays the same, e.g. signed urls with a token or an expiry. Use something that identifies the image, and change it when the image changes (e.g. include a version or the time it was updated), or the old image keeps showing:
-
-```jsx
-<FastImage
-    source={{
-        uri: signedUrl,
-        cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
-    }}
-/>
-```
-
-Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
-
----
-
-### `source.memoryCache?: boolean`
-
-Whether the decoded image is kept in the memory cache. **Default: true.** With `false` it's only kept on disk: a view doesn't leave it in memory once it stops showing it, and `FastImage.preload` downloads it without decoding it. Use it for large images that are shown once or rarely, like a full-screen photo: a decoded photo can take tens of MB of memory. Images shown again, like a list scrolled back, are decoded from disk again.
-
----
-
-### Several sizes of an image
-
-`source` can also be an array of the same image at different sizes, each with its `width` and `height` in pixels (times `scale`, if it has one). The view loads the one whose size is closest to its own, in pixels, so a small view downloads a small image:
+**Several sizes of an image.** `source` can also be an array of the same image at different sizes, each with its `width` and `height` in pixels (times `scale`, if it has one). The view loads the one whose size is closest to its own, in pixels, so a small view downloads a small image:
 
 ```jsx
 <FastImage
@@ -206,11 +82,6 @@ Whether the decoded image is kept in the memory cache. **Default: true.** With `
     source={[
         { uri: 'https://example.com/photo-200.jpg', width: 200, height: 200 },
         { uri: 'https://example.com/photo-800.jpg', width: 800, height: 800 },
-        {
-            uri: 'https://example.com/photo-2000.jpg',
-            width: 2000,
-            height: 2000,
-        },
     ]}
 />
 ```
@@ -223,15 +94,134 @@ Whether the decoded image is kept in the memory cache. **Default: true.** With `
 
 ---
 
-### `defaultSource?: number`
+##### `source.uri`
 
-- An asset loaded with `require(...)`.
-- Shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
-- On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
+**Type:** `string`
+
+Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
+
+Also loads local files (`file://`, and on Android `content://`), photo library images on iOS (`ph://`, see [Photo library images](#photo-library-images-ios)) and SVG images (see [SVG images](#svg-images)).
 
 ---
 
-### `recyclingKey?: string`
+##### `source.headers`
+
+**Type:** `{ [key: string]: string }`
+
+Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
+
+---
+
+##### `source.priority`
+
+**Type:** `Priority` · **Default:** `'normal'`
+
+A hint for which images to start loading first when several are waiting: `'high'` ones before `'normal'` ones, and `'low'` ones after. It's best effort, not an order: several images load at once, and when each finishes depends on its size and the network.
+
+- `'low'`: e.g. images further down a list.
+- `'normal'`: the default.
+- `'high'`: e.g. the image the screen is about.
+
+---
+
+##### `source.cache`
+
+**Type:** `Cache` · **Default:** `'immutable'`
+
+How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
+
+- `'immutable'`: loads the image once, then shows the cached copy until its url (or `cacheKey`) changes.
+- `'web'`: follows the server's HTTP cache headers, as a browser does, checking with the server when it loads. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
+- `'cacheOnly'`: only shows a cached image, without making a request.
+
+---
+
+##### `source.cacheKey`
+
+**Type:** `string`
+
+The key the image is cached under, instead of its uri. Use it for urls that change while the image stays the same, e.g. signed urls with a token or an expiry. Use something that identifies the image, and change it when the image changes (e.g. include a version or the time it was updated), or the old image keeps showing.
+
+Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
+
+```jsx
+<FastImage
+    source={{
+        uri: signedUrl,
+        cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
+    }}
+/>
+```
+
+---
+
+##### `source.memoryCache`
+
+**Type:** `boolean` · **Default:** `true`
+
+Whether the decoded image is kept in the memory cache. With `false` it's only kept on disk: a view doesn't leave it in memory once it stops showing it, and `FastImage.preload` downloads it without decoding it. Use it for large images that are shown once or rarely, like a full-screen photo: a decoded photo can take tens of MB of memory. Images shown again, like a list scrolled back, are decoded from disk again.
+
+---
+
+##### `source.width`
+
+**Type:** `number`
+
+With several sources (`source` as an array), the image's width at this uri, in pixels (times `scale`, if given).
+
+---
+
+##### `source.height`
+
+**Type:** `number`
+
+With several sources (`source` as an array), the image's height at this uri, in pixels (times `scale`, if given).
+
+---
+
+##### `source.scale`
+
+**Type:** `number`
+
+With several sources, the scale `width` and `height` are multiplied by.
+
+---
+
+#### `defaultSource`
+
+**Type:** `number`
+
+An asset loaded with `require(...)`, shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
+
+On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
+
+---
+
+#### `resizeMode`
+
+**Type:** `ResizeMode` · **Default:** `'cover'`
+
+How the image fills the view.
+
+- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (minus padding).
+- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (minus padding), cropping what doesn't fit.
+- `'stretch'`: scales its width and height separately to fill the view, which can change its aspect ratio.
+- `'center'`: centers it at its own size, scaled down uniformly to fit if it's larger than the view.
+- `'repeat'`: repeats it to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
+
+---
+
+#### `fallback`
+
+**Type:** `boolean`
+
+If true, the image is shown with React Native's `Image` instead, styled and laid out the same way. FastImage's own features, such as its caching options, `priority` and `transition`, don't apply.
+
+---
+
+#### `recyclingKey`
+
+**Type:** `string | null`
 
 For views that get reused for other content, such as rows in FlashList or recyclerlistview. Set it to something that identifies the content, e.g. the item's id. When it changes, the image is cleared right away (to `defaultSource`, or blank) instead of staying until the new one has loaded. Unlike changing `key`, this keeps the view, which is what list recycling is for.
 
@@ -241,55 +231,46 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 ---
 
-### `resizeMode?: enum`
+#### `loop`
 
-- `FastImage.resizeMode.contain` - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or less than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.cover` **(Default)** - Scale the image uniformly (maintain the image's aspect ratio) so that both dimensions (width and height) of the image will be equal to or larger than the corresponding dimension of the view (minus padding).
-- `FastImage.resizeMode.stretch` - Scale width and height independently, This may change the aspect ratio of the src.
-- `FastImage.resizeMode.center` - Center the image at its own size, scaled down uniformly to fit if it's larger than the view.
-- `FastImage.resizeMode.repeat` - Repeat the image to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
-
----
-
-### `loop?: boolean | number`
+**Type:** `number | boolean`
 
 How many times an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) plays:
 
-- Not set **(Default)** - As many times as the file says (like a browser).
-- `true` - Loop forever.
-- `false` - Play once.
-- A number - Play that many times.
+- Not set: as many times as the file says (like a browser).
+- `true`: forever.
+- `false`: once.
+- A number: that many times.
 
 Changing it restarts the animation.
 
 ---
 
-### `imageRendering?: 'auto' | 'smooth' | 'pixelated'`
+#### `imageRendering`
+
+**Type:** `'auto' | 'smooth' | 'pixelated'` · **Default:** `'auto'`
 
 How the image is filtered when it's drawn smaller or larger than its size (like CSS's `image-rendering`):
 
-- `'auto'` **(Default)** - The platform's usual filtering.
-- `'smooth'` - iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are always decoded at about the view's size there).
-- `'pixelated'` - Sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
+- `'auto'`: the platform's usual filtering.
+- `'smooth'`: iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are always decoded at about the view's size there).
+- `'pixelated'`: sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
 
 ---
 
-### `paused?: boolean`
+#### `paused`
+
+**Type:** `boolean`
 
 Pauses an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
 ---
 
-### `transition?: boolean | number | Transition`
+#### `transition`
 
-Fades the image in when it loads. Off by default. `true` uses the platform's usual fade, a number is the duration in milliseconds, or pass an object:
+**Type:** `number | boolean | Transition | null` · **Default:** `false`
 
-- `duration`: milliseconds; 0 is no fade. Defaults to the platform's usual length: 300 ms on Android, 250 ms on iOS.
-- `betweenImages` (default `false`): also fade between images. By default an image fades in when it appears over nothing (or over `defaultSource`), and a new `source` replaces the image that's showing at once, once it has loaded. With `true`, the new image cross-dissolves from the one showing (for a gallery or an avatar that changes, say).
-- `skipOnCacheHit`: which images show at once, without the fade:
-    - `'memory'` (default): images from the memory cache, so a list scrolled back up shows images it already loaded at once. Images from the disk cache fade in.
-    - `'all'`: images from the memory or disk cache: images that download fade in, and local files and bundled images usually only the first time they load (the disk cache usually keeps them too).
-    - `'none'`: every image fades in.
+Fades the image in when it loads. `true` uses the platform's usual fade, a number is the duration in milliseconds, or pass a `Transition`.
 
 Downloads, local files (`file://`, `content://`) and bundled images (`require()`) fade in. In lists that reuse views (e.g. FlashList), set `recyclingKey`, so a reused view starts empty and its image fades in, instead of showing the previous item's image until it loads.
 
@@ -301,12 +282,14 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 
 ---
 
-### `downsample?: boolean`
+#### `downsample`
 
-iOS only. Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
+**Type:** `boolean` · **Default:** `true` · iOS only
 
-- `true` **(Default)** - An image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
-- `false` - Images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
+Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
+
+- `true`: an image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
+- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
 
 It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size (but Android 16 and later decode animated WebP at full size, and scale it as they draw it).
 
@@ -314,9 +297,11 @@ If you control the images, serve them at the size they're shown (resized on your
 
 ---
 
-### `blurRadius?: number`
+#### `blurRadius`
 
-Blurs the image by this radius, in points (the same radius looks about the same on iOS and Android). `0` **(Default)** is no blur.
+**Type:** `number` · **Default:** `0`
+
+Blurs the image by this radius, in points (the same radius looks about the same on iOS and Android). `0` is no blur.
 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
@@ -330,37 +315,53 @@ To animate a blur, or to blur an animated image, use React Native's `filter` sty
 
 ---
 
-### `onLoadStart?: () => void`
+#### `onLoadStart`
+
+**Type:** `() => void`
 
 Called when the image starts to load.
 
 ---
 
-### `onProgress?: (event) => void`
+#### `onProgress`
+
+**Type:** `(event: OnProgressEvent) => void`
 
 Called while the image downloads, with the bytes `loaded` so far, the `total`, and `progress` (`loaded / total`, from 0 to 1; the last event has 1). Not called while the total is unknown (a response without a `Content-Length`).
 
-e.g. `onProgress={e => console.log(e.nativeEvent.progress)}`
+```jsx
+onProgress={e => console.log(e.nativeEvent.progress)}
+```
 
 ---
 
-### `onLoad?: (event) => void`
+#### `onLoad`
+
+**Type:** `(event: OnLoadEvent) => void`
 
 Called on a successful image fetch. Called with the width and height of the image itself, not of the view (on iOS, in points: an `@2x` asset reports half its pixel size).
 
-e.g. `onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}`
+```jsx
+onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}
+```
 
 ---
 
-### `onError?: (event) => void`
+#### `onError`
+
+**Type:** `(event: OnErrorEvent) => void`
 
 Called on an image fetching error, with a message describing it (e.g. the HTTP status code).
 
-e.g. `onError={e => console.log(e.nativeEvent.error)}`
+```jsx
+onError={e => console.log(e.nativeEvent.error)}
+```
 
 ---
 
-### `onLoadEnd?: (result) => void`
+#### `onLoadEnd`
+
+**Type:** `(result: LoadResult) => void`
 
 Called when the image finishes loading, whether it was successful or an error, with the result: `{ ok: true, width, height }` (the image's size, as `onLoad` gets it) or `{ ok: false, error }` (as `onError` gets it). TypeScript makes you check `ok` before reading the size or the error.
 
@@ -376,23 +377,31 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 ---
 
-### `style`
+#### `style`
 
-A React Native style. Supports using `borderRadius`.
+**Type:** `StyleProp<ImageStyle>`
 
----
-
-### `fallback?: boolean`
-
-If true, the image is shown with React Native's `Image` instead, styled and laid out the same way. FastImage's own features, such as its caching options, `priority` and `transition`, don't apply.
+The image's style: View's style props (`borderRadius` clips the image), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
 
 ---
 
-### `tintColor?: number | string`
+#### `tintColor`
+
+**Type:** `ColorValue`
 
 If supplied, changes the color of all the non-transparent pixels to the given color.
 
-## `FastImageBackground`
+---
+
+#### `children`
+
+**Type:** `ReactNode`
+
+Render children within the image. In the next major version, `FastImage` won't render children: use `FastImageBackground`.
+
+<!-- api:props end -->
+
+### `FastImageBackground`
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
@@ -412,14 +421,47 @@ const Banner = () => (
 )
 ```
 
-- `style`: the view's style (it sizes the view, which the image fills).
-- `imageStyle`: the image's style.
-- `imageRef`: a ref to the image.
-- The other props are `FastImage`'s, for the image.
+Its own props are below; the others are `FastImage`'s and go to the image. Its ref is the view's (`imageRef` is the image's).
 
-## Static Methods
+<!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
 
-### `FastImage.preload: (source[]) => Promise<result[]>`
+#### `style`
+
+**Type:** `StyleProp<ViewStyle>`
+
+The container's style; the image fills it.
+
+---
+
+#### `imageStyle`
+
+**Type:** `StyleProp<ImageStyle>`
+
+The image's style.
+
+---
+
+#### `imageRef`
+
+**Type:** `Ref<any>`
+
+A ref to the image (the FastImage inside).
+
+---
+
+#### `children`
+
+**Type:** `ReactNode`
+
+Content shown on top of the image.
+
+<!-- api:background-props end -->
+
+## Methods
+
+### `preload(sources)`
+
+**Parameters:** `sources: Source[]` · **Returns:** `Promise<PreloadResult[]>`
 
 Preload images to display later. e.g.
 
@@ -457,15 +499,21 @@ A source with `memoryCache: false` is only downloaded to the disk cache, without
 await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 ```
 
-### `FastImage.clearMemoryCache: () => Promise<void>`
+### `clearMemoryCache()`
 
-Clear all images from memory cache.
+**Returns:** `Promise<void>`
 
-### `FastImage.clearDiskCache: () => Promise<void>`
+Removes every image from the memory cache, e.g. to free memory. They're decoded from the disk cache again when they're next shown.
 
-Clear all images from disk cache.
+### `clearDiskCache()`
 
-### `FastImage.getCachePath: (source: Source) => Promise<CachePathResult>`
+**Returns:** `Promise<void>`
+
+Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey).
+
+### `getCachePath(source)`
+
+**Parameters:** `source: Source` · **Returns:** `Promise<CachePathResult>`
 
 The path of the source's downloaded file in the disk cache, e.g. to share, save or upload an image without downloading it again. If the file isn't there, it's downloaded first, without decoding the image or keeping it in memory. Resolves with `{ ok: true, path }`, or `{ ok: false, error }` if it can't be downloaded. Never rejects.
 
@@ -481,7 +529,7 @@ With `cache: 'cacheOnly'` it doesn't download: use it to check whether an image 
 ```js
 const { ok } = await FastImage.getCachePath({
     uri: photo.url,
-    cache: FastImage.cacheControl.cacheOnly,
+    cache: 'cacheOnly',
 })
 ```
 
@@ -491,11 +539,13 @@ const { ok } = await FastImage.getCachePath({
 - A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.
 - With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.
 
-There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey-string).
+There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey).
 
-### `FastImage.writeToCache: (source: Source, file: string) => Promise<CachePathResult>`
+### `writeToCache(source, file)`
 
-Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey-string), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
+**Parameters:** `source: Source`, `file: string` · **Returns:** `Promise<CachePathResult>`
+
+Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
 
 ```js
 const result = await FastImage.writeToCache(
@@ -512,7 +562,9 @@ const result = await FastImage.writeToCache(
 - Not for `cache: 'web'` sources, which are kept in an HTTP cache.
 - Like any cached image, it can be removed from the cache later, and then it's downloaded from the source's url.
 
-### `FastImage.configureCache: (limits?: CacheLimits) => Promise<CacheState>`
+### `configureCache(limits)`
+
+**Parameters:** `limits?: CacheLimits` · **Returns:** `Promise<CacheState>`
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
@@ -520,30 +572,11 @@ How much the image cache keeps. Set the limits your app starts with in its nativ
 | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
 | `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | Sized from the screen by Glide.                                                                      |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | About two screenfuls of images.[^glide-memory]                                                       |
 
 `0` means no limit.
 
-**Starting limits.** With Expo, in `app.json`:
-
-```json
-"plugins": [["react-native-fast-image", { "maxDiskSize": 209715200, "maxDiskAge": 2592000 }]]
-```
-
-Without Expo, in `ios/<App>/Info.plist`:
-
-```xml
-<key>FastImageMaxDiskSize</key>
-<integer>209715200</integer>
-<key>FastImageMaxDiskAge</key>
-<integer>2592000</integer>
-```
-
-and in `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
-
-```xml
-<meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
-```
+**Starting limits.** Set them in the app's [native config](#native-config).
 
 **Changing them at runtime.** Pass the limits to change; `null` goes back to the native config's (or the default). It resolves with the limits in effect and `diskSize`, the bytes the image disk cache uses now. Call it without limits to see them.
 
@@ -552,9 +585,236 @@ await FastImage.configureCache({ maxDiskSize: 500 * 1024 * 1024 })
 const { maxDiskSize, diskSize } = await FastImage.configureCache()
 ```
 
-On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/app-glide-module.md)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
+On Android, if your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead: `maxDiskSize` isn't applied or reported.
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
+
+## Types
+
+<!-- api:types start (generated from src/ by website/scripts/generate.mts) -->
+
+### `Cache`
+
+**Type:** `'immutable' | 'web' | 'cacheOnly'`
+
+How fresh an image must be: see [`source.cache`](#sourcecache).
+
+---
+
+### `CacheLimits`
+
+`configureCache`'s changes: a number (0 for no limit), or `null` to go back to the app's native config (Info.plist, AndroidManifest.xml) or the platform's default. Leave one out to keep it. Changes are saved, and used on the next launches too. Android only has `maxDiskSize`.
+
+- `maxDiskSize?` (`number | null`): The most bytes of images kept on disk. When it's over, the least recently used are removed (on iOS, until it's half this size). Default: no limit on iOS, 250 MB on Android.
+- `maxDiskAge?` (`number | null`): iOS: the seconds an image is kept on disk after it was last used, or 0 to keep them until `maxDiskSize` removes them. Default: 1 week.
+- `maxMemorySize?` (`number | null`): iOS: the most bytes of decoded images kept in memory. Default: no limit (they're removed when the system is low on memory).
+
+---
+
+### `CachePathResult`
+
+**Type:** `{ ok: true; path: string } | { ok: false; error: string }`
+
+`getCachePath`'s and `writeToCache`'s result: `ok` with the file's path, or not `ok` with the error.
+
+---
+
+### `CacheState`
+
+`configureCache`'s result: the limits in effect (0 for no limit), and the bytes the disk cache uses now. Android only has `maxDiskSize` and `diskSize`, and neither if the app has its own `AppGlideModule`.
+
+- `maxDiskSize?` (`number`)
+- `maxDiskAge?` (`number`)
+- `maxMemorySize?` (`number`)
+- `diskSize?` (`number`): The bytes the disk cache uses now.
+
+---
+
+### `LoadResult`
+
+**Type:** `{ ok: true; width: number; height: number } | { ok: false; error: string }`
+
+A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not `ok` with the error (as `onLoad` and `onError` get them).
+
+---
+
+### `OnErrorEvent`
+
+`onError`'s event: `nativeEvent.error` says what went wrong, e.g. an HTTP status code or an image that can't be decoded.
+
+- `nativeEvent` (`{ error: string }`)
+
+---
+
+### `OnLoadEvent`
+
+`onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in pixels, and `target`, the view's React tag (missing on Android with the legacy architecture).
+
+- `nativeEvent` (`{ width: number; height: number; target?: number }`)
+
+---
+
+### `OnProgressEvent`
+
+`onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`, and `progress`, `loaded / total` from 0 to 1.
+
+- `nativeEvent` (`{ loaded: number; total: number; progress: number }`)
+
+---
+
+### `PreloadFailure`
+
+A preloaded source that failed to load.
+
+- `uri?` (`string`): The source's uri (none for a source without one, e.g. `null`).
+- `ok` (`false`)
+- `error` (`string`): What went wrong.
+
+---
+
+### `PreloadResult`
+
+**Type:** `PreloadSuccess | PreloadFailure`
+
+`preload`'s result for a source. Check `ok` to tell which it is: e.g. `if (result.ok)` narrows it to a `PreloadSuccess`, with its size. Reading `width` or `error` without checking is a type error.
+
+---
+
+### `PreloadSuccess`
+
+A preloaded source that loaded (and is now cached).
+
+- `uri` (`string`): The source's uri.
+- `ok` (`true`)
+- `width` (`number`): The image's width (as in `onLoad`).
+- `height` (`number`): The image's height (as in `onLoad`).
+
+---
+
+### `Priority`
+
+**Type:** `'low' | 'normal' | 'high'`
+
+An image's load priority: see [`source.priority`](#sourcepriority).
+
+---
+
+### `ResizeMode`
+
+**Type:** `'contain' | 'cover' | 'stretch' | 'center' | 'repeat'`
+
+How the image fits the view: see [`resizeMode`](#resizemode).
+
+---
+
+### `Transition`
+
+How the image fades in: see [`transition`](#transition).
+
+- `duration?` (`number`): How long the fade takes, in milliseconds; 0 means no fade. Defaults to the platform's usual length: 300 ms on Android, 250 ms on iOS.
+- `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over `defaultSource`) fades in, and a new source replaces the image showing at once, once it has loaded.
+- `skipOnCacheHit?` (`'none' | 'memory' | 'all' | null`, default `'memory'`): Skips the fade for an image from a cache, so images already loaded show at once, e.g. in a list scrolled back up or a reused row.
+
+    - `'memory'`: skips it for images from the memory cache.
+    - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
+    - `'none'`: always fades.
+
+    Downloads, local files and bundled images (`require()`) fade in.
+
+<!-- api:types end -->
+
+## Native config
+
+The cache's limits the app starts with, read from its native projects so they're in effect from the first image. [`configureCache`](#configurecachelimits) says what each one does and its default, and changes them while the app runs. `0` means no limit.
+
+| Limit           | Unit    | iOS (`Info.plist`)       | Android (`AndroidManifest.xml`)               |
+| --------------- | ------- | ------------------------ | --------------------------------------------- |
+| `maxDiskSize`   | bytes   | `FastImageMaxDiskSize`   | `fastimage.MAX_DISK_SIZE`                     |
+| `maxDiskAge`    | seconds | `FastImageMaxDiskAge`    | No age limit                                  |
+| `maxMemorySize` | bytes   | `FastImageMaxMemorySize` | About two screenfuls of images[^glide-memory] |
+
+### Expo config plugin
+
+With Expo, FastImage's config plugin sets them, from its options in `app.json` (or `app.config.js`):
+
+```json
+"plugins": [["react-native-fast-image", { "maxDiskSize": 209715200, "maxDiskAge": 2592000 }]]
+```
+
+It writes the native settings below when Expo generates the native projects (`npx expo prebuild`), so run that again after changing them. An app that keeps its own `ios/` and `android/` projects sets them there instead.
+
+### iOS
+
+In `ios/<App>/Info.plist`:
+
+```xml
+<key>FastImageMaxDiskSize</key>
+<integer>209715200</integer>
+<key>FastImageMaxDiskAge</key>
+<integer>2592000</integer>
+```
+
+### Android
+
+In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<meta-data android:name="fastimage.MAX_DISK_SIZE" android:value="209715200" />
+```
+
+If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule)), set the disk cache size there instead.
+
+[^glide-memory]: Glide's default, which FastImage keeps: room for two screenfuls of decoded images (2 × the screen's width × height × 4 bytes, about 20 MB on a 1080 × 2400 screen), plus a pool of bitmaps to reuse (one screenful on Android 8 and later, four before). Together they're limited to 40% of the memory Android gives the app (33% on low-memory devices), and both shrink to fit.
+
+## Image formats
+
+| Format         | iOS                                             | Android                                                                   |
+| -------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
+| JPEG, PNG, BMP | Yes                                             | Yes                                                                       |
+| GIF            | Animates                                        | Animates                                                                  |
+| WebP           | Animates; still ones need iOS 14+               | Animates (an animated one needs Android 9+)                               |
+| APNG           | Animates                                        | Animates with `minSdkVersion` 21+ ([Animated PNG](#animated-png-android)) |
+| HEIC           | Yes                                             | Android 8+                                                                |
+| AVIF           | iOS 16+; an animated one shows its first frame  | Android 14+[^android-avif]; animates                                      |
+| ICO            | Yes                                             | Yes                                                                       |
+| TIFF           | Yes                                             | No                                                                        |
+| SVG            | With an SVG library ([SVG images](#svg-images)) | With an SVG library ([SVG images](#svg-images))                           |
+
+Tested on iOS 27 and Android 16 in both example apps (the regression runner's `formats` cases); the minimum versions are the ones Apple and Android give for decoding the format. An image in a format that doesn't load fails with `onError`. On iOS 13, a still WebP loads if the app registers libwebp's coder itself (from SDWebImageWebPCoder, which FastImage depends on), as FastImage's example app once did: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`. On the web, the browser shows the image, so it's the formats the browser supports.
+
+[^android-avif]: Android 14 is the first version that requires an AVIF decoder; many devices on Android 12 and 13 have one too.
+
+### Photo library images (iOS)
+
+A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes on iOS.
+
+The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
+
+### SVG images
+
+SVG images (remote, bundled with `require()`, or local files) load when the app has an SVG library: SDWebImageSVGCoder on iOS and AndroidSVG on Android. Add them to the app:
+
+```ruby
+# ios/Podfile
+pod 'SDWebImageSVGCoder'
+```
+
+```groovy
+// android/app/build.gradle
+dependencies {
+    implementation 'com.caverock:androidsvg-aar:1.4'
+}
+```
+
+On Android either of AndroidSVG's packages works (`com.caverock:androidsvg-aar` or `com.caverock:androidsvg`), so an app that already has one needs nothing more. With Expo, add the pod with [expo-build-properties](https://docs.expo.dev/versions/latest/sdk/build-properties/) (`{ "ios": { "extraPods": [{ "name": "SDWebImageSVGCoder" }] } }`).
+
+An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state. On iOS, SVG images need iOS 13 or later. Without the SVG library, an SVG image fails with `onError`, saying what to add (on iOS, for a url that ends in `.svg`).
+
+### Animated PNG (Android)
+
+APNG (animated PNG) images animate on Android with [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes when the app's `minSdkVersion` is 21 or later (React Native 0.64 and later by default). With an older `minSdkVersion` they show their first frame.
+
+APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
 
 ## Web
 
@@ -597,9 +857,3 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
 [version-badge]: https://img.shields.io/npm/v/react-native-fast-image.svg
-[twitter]: https://twitter.com/home?status=Check%20out%20react-native-fast-image%20by%20%40atomarranger%20https%3A//github.com/DylanVann/react-native-fast-image
-[twitter-badge]: https://img.shields.io/twitter/url/https/github.com/DylanVann/react-native-fast-image.svg?style=social
-[github-watch-badge]: https://img.shields.io/github/watchers/dylanvann/react-native-fast-image.svg?style=social
-[github-watch]: https://github.com/dylanvann/react-native-fast-image/watchers
-[github-star-badge]: https://img.shields.io/github/stars/dylanvann/react-native-fast-image.svg?style=social
-[github-star]: https://github.com/dylanvann/react-native-fast-image/stargazers
