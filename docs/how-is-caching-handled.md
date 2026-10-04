@@ -1,4 +1,4 @@
-# How is caching handled?
+# Caching
 
 FastImage keeps the images it downloads, so an image it has shown before shows again without being downloaded. This page explains how, and how to control it. Each function and option is described in the [README](../README.md).
 

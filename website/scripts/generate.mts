@@ -452,13 +452,17 @@ const anchors = new Map(
     ]),
 )
 
-// The website's pages: the README, guides, and the docs for contributors.
-const CONTRIBUTING = ['docs/development.md']
+// The website's pages: the README, the benchmarks and development docs beside
+// it, and the guides, each doc's page named after its title (the files keep
+// their names, which links elsewhere point to).
+const TOP_LEVEL = ['docs/benchmarks.md', 'docs/development.md']
+const titleOf = (file: string) =>
+    sources.get(file)!.match(/^# (.*)$/m)?.[1] ?? file
 const pageOf = (file: string) =>
     file === 'README.md'
         ? ''
         : sources.has(file)
-          ? `${CONTRIBUTING.includes(file) ? 'contributing' : 'guides'}/${posix.basename(file, '.md')}`
+          ? `${TOP_LEVEL.includes(file) ? '' : 'guides/'}${slug(titleOf(file))}`
           : undefined
 
 // Links between the README and docs/ go to their pages on the website (and are
@@ -521,10 +525,9 @@ write(
 // A page per doc, titled with its first heading.
 for (const file of docs) {
     const markdown = sources.get(file)!
-    const title = markdown.match(/^# (.*)$/m)?.[1] ?? file
     write(
         pageOf(file)!,
-        frontmatter({ title }) +
+        frontmatter({ title: titleOf(file) }) +
             rewriteLinks(markdown.replace(/^# .*\n+/m, ''), file),
     )
 }

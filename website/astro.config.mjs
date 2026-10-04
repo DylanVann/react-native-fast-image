@@ -1,8 +1,8 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 
-// The README as the main page, and a page per doc in docs/ (guides, and the
-// docs for contributors), all generated into src/content/docs by
+// The README as the main page, and a page per doc in docs/ (the benchmarks,
+// guides, and development), all generated into src/content/docs by
 // scripts/generate.mts.
 export default defineConfig({
     site: 'https://react-native-fast-image.dylanvann.workers.dev',
@@ -40,14 +40,12 @@ export default defineConfig({
             pagination: false,
             sidebar: [
                 { label: 'Usage', link: '/' },
+                { label: 'Benchmarks', link: '/benchmarks/' },
                 {
                     label: 'Guides',
                     items: [{ autogenerate: { directory: 'guides' } }],
                 },
-                {
-                    label: 'Contributing',
-                    items: [{ autogenerate: { directory: 'contributing' } }],
-                },
+                { label: 'Development', link: '/development/' },
             ],
         }),
     ],
