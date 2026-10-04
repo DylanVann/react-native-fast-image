@@ -8,6 +8,7 @@
 #import <SDWebImage/SDImageCodersManager.h>
 #import <SDWebImage/SDImageAWebPCoder.h>
 #import "FFFAnimatedWebPCoder.h"
+#import "FFFAnimatedAVIFCoder.h"
 #import <objc/message.h>
 
 // In FFFastImageView.m.
@@ -258,6 +259,21 @@ static id<SDImageCoder> FFFSVGCoder;
     }
     if (!hasWebPCoder) {
         [SDImageCodersManager.sharedManager addCoder:FFFAnimatedWebPCoder.sharedCoder];
+    }
+
+    // Animated AVIF: likewise, SDWebImage's own coders only decode an AVIF's
+    // first frame, so ImageIO's animated decoding does (iOS 16 and later).
+    // Not if the app has registered libavif's coder (SDWebImageAVIFCoder).
+    Class avifCoderClass = NSClassFromString(@"SDImageAVIFCoder");
+    BOOL hasAVIFCoder = NO;
+    for (id<SDImageCoder> registered in SDImageCodersManager.sharedManager.coders) {
+        if (avifCoderClass && [registered isKindOfClass:avifCoderClass]) {
+            hasAVIFCoder = YES;
+            break;
+        }
+    }
+    if (!hasAVIFCoder) {
+        [SDImageCodersManager.sharedManager addCoder:FFFAnimatedAVIFCoder.sharedCoder];
     }
 
     // SVG: registered with SDWebImage's coders, as the pod's setup does (unless

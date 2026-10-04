@@ -2541,7 +2541,8 @@ function GifPausedCase({
     const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
     useEffect(() => () => clearTimeout(timer.current), [])
     const id = `${name.toLowerCase()}-${resume ? 'resume' : 'paused'}`
-    // An animated WebP's descriptions name it; the GIF's are as they were.
+    // An animated WebP's or AVIF's descriptions name it; the GIF's are as
+    // they were.
     const kind = name === 'gif' ? '' : ` (an animated ${name})`
     return (
         <View style={styles.row}>
@@ -5054,8 +5055,41 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="format-animated-avif"
                 id="format-animated-avif"
                 file="animated.avif"
-                expected={Platform.OS === 'ios' ? 'first frame' : 'animates'}
-                description="An animated AVIF: shows its first frame (red) on iOS, animates on Android (masked)"
+                expected="animates"
+                description="An animated AVIF animates (masked)"
+            />,
+        ],
+    },
+    {
+        // loop and paused with an animated AVIF (ImageIO's on iOS, Android's
+        // ImageDecoder on Android).
+        name: 'avif-animation',
+        cases: [
+            <GifLoopCase
+                key="avif-loop-false"
+                id="avif-loop-false"
+                description="loop={false}: an animated AVIF that loops forever by itself plays once and stops on blue"
+                loop={false}
+                plays={1}
+                source="formats/animated.avif"
+            />,
+            <GifLoopCase
+                key="avif-loop-file"
+                id="avif-loop-file"
+                description="loop not set: an animated AVIF that plays once by itself (no repetitions) stops on blue"
+                plays={1}
+                source="formats/animated-once.avif"
+            />,
+            <GifPausedCase
+                key="avif-paused"
+                name="AVIF"
+                source="formats/animated.avif"
+            />,
+            <GifPausedCase
+                key="avif-resume"
+                name="AVIF"
+                source="formats/animated.avif"
+                resume
             />,
         ],
     },

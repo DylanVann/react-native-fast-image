@@ -8,23 +8,23 @@ These are tested on iOS 27 and Android 16 in both example apps (the regression r
 
 FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImage), which decodes most formats with ImageIO, Apple's image decoder.
 
-| Format | Shows                                          | Decoded by                                                                                    |
-| ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| JPEG   | Yes                                            | ImageIO                                                                                       |
-| PNG    | Yes                                            | ImageIO                                                                                       |
-| APNG   | Animated                                       | ImageIO, animated by SDWebImage                                                               |
-| GIF    | Animated                                       | ImageIO, animated by SDWebImage                                                               |
-| WebP   | Animated; a still one iOS 14+                  | Still ones ImageIO, animated ones libwebp                                                     |
-| AVIF   | iOS 16+; an animated one shows its first frame | ImageIO                                                                                       |
-| HEIC   | iOS 11+                                        | ImageIO                                                                                       |
-| SVG    | iOS 13+, with an [SVG library](#svg-images)    | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer) |
-| ICO    | Yes                                            | ImageIO                                                                                       |
-| BMP    | Yes                                            | ImageIO                                                                                       |
-| TIFF   | Yes                                            | ImageIO                                                                                       |
-| ICNS   | Yes                                            | ImageIO                                                                                       |
-| PSD    | Its composite image                            | ImageIO                                                                                       |
+| Format | Shows                                       | Decoded by                                                                                    |
+| ------ | ------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| JPEG   | Yes                                         | ImageIO                                                                                       |
+| PNG    | Yes                                         | ImageIO                                                                                       |
+| APNG   | Animated                                    | ImageIO, animated by SDWebImage                                                               |
+| GIF    | Animated                                    | ImageIO, animated by SDWebImage                                                               |
+| WebP   | Animated; a still one iOS 14+               | Still ones ImageIO, animated ones libwebp                                                     |
+| AVIF   | iOS 16+; animated                           | ImageIO, animated by SDWebImage                                                               |
+| HEIC   | iOS 11+                                     | ImageIO                                                                                       |
+| SVG    | iOS 13+, with an [SVG library](#svg-images) | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer) |
+| ICO    | Yes                                         | ImageIO                                                                                       |
+| BMP    | Yes                                         | ImageIO                                                                                       |
+| TIFF   | Yes                                         | ImageIO                                                                                       |
+| ICNS   | Yes                                         | ImageIO                                                                                       |
+| PSD    | Its composite image                         | ImageIO                                                                                       |
 
-Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
+Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. Animated AVIFs are decoded with ImageIO too, by FastImage's coder for them (SDWebImage's own only decodes their first frame), unless the app has registered libavif's coder ([SDWebImageAVIFCoder](https://github.com/SDWebImage/SDWebImageAVIFCoder)), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
 
 ## Android
 
