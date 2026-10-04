@@ -25,7 +25,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Animated images** (GIF, animated WebP, APNG, and animated AVIF on Android) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
-- **Expo**, with a [config plugin](#expo-config-plugin), and the [**web**](#web).
+- **Expo support**, with a [config plugin](#expo-config-plugin), and [**web support**](#web).
 
 ## Image formats
 
