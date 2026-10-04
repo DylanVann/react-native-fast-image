@@ -5,6 +5,7 @@ Performant React Native image component.
 [![Version][version-badge]][package]
 [![Downloads][downloads-badge]][npmtrends]
 [![Build Status][build-badge]][build]
+[![Docs][docs-badge]][docs]
 
 React Native's `Image` component handles image caching like browsers for the most part. If the server is returning proper cache control headers for images you'll generally get the sort of built in caching behavior you'd have in a browser. Even so, many people have noticed:
 
@@ -846,6 +847,8 @@ Thanks to [@mobinni](https://github.com/mobinni) for helping with the conceptual
 
 [build-badge]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml/badge.svg
 [build]: https://github.com/DylanVann/react-native-fast-image/actions/workflows/ci.yml
+[docs-badge]: https://img.shields.io/badge/docs-website-blue.svg
+[docs]: https://react-native-fast-image.dylanvann.workers.dev
 [downloads-badge]: https://img.shields.io/npm/dm/react-native-fast-image.svg
 [npmtrends]: http://www.npmtrends.com/react-native-fast-image
 [package]: https://www.npmjs.com/package/react-native-fast-image
