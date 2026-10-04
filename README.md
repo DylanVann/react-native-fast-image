@@ -17,10 +17,11 @@ React Native's `Image` component handles image caching like browsers for the mos
 
 ## Features
 
+- **Performance:** large images are [decoded at the size they're shown](#downsample), so they use little memory. In [benchmarks](docs/benchmarks.md) against other React Native image components, FastImage shows images in about the same time as the others and uses among the least memory for large photos.
 - **Caching** on disk and in memory, with control over how fresh images must be ([`cache`](#sourcecache)), keys for urls that change ([`cacheKey`](#sourcecachekey)), and the cache's size ([`configureCache`](#configurecachelimits)).
 - **Preloading** images before they're shown, with a result for each ([`preload`](#preloadsources)), and the cached file's path ([`getCachePath`](#getcachepathsource)).
 - **Headers** for images that need them, and [**priorities**](#sourcepriority) for which images to start loading first.
-- **Several sizes** of an image, loading the one that fits the view ([`source`](#source)), and large images [**downsampled**](#downsample) to the view's size.
+- **Several sizes** of an image, loading the one that fits the view ([`source`](#source)).
 - **Animated images** (GIF, animated WebP, APNG, and animated AVIF on Android) that can [loop](#loop) and [pause](#paused), and [**fades**](#transition) in and between images.
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content on top of an image.
