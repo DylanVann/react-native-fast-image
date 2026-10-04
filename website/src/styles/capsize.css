@@ -99,3 +99,22 @@
     margin-top: 1.75rem;
     margin-bottom: 1.125rem;
 }
+
+/* The sidebars' first lines with their capital letters level with the page
+   title's, where the sidebars show (Starlight's 50rem and 72rem breakpoints).
+   All three start below the header, where the title's capitals are 3.25rem
+   down (its panel's 1.5rem padding and its 1.75rem margin). The sidebars'
+   first lines aren't trimmed, so their padding leaves out the space above
+   their capitals: "Usage" (16px, line height 22.4px, 4.8px of padding) has
+   4.8 + 11.2 - 5.68 = 10.32px above its capitals, "On this page" (18px, line
+   height 21.6px) 10.8 - 6.39 = 4.41px. */
+@media (min-width: 50rem) {
+    .sidebar-content {
+        padding-top: calc(3.25rem - 10.32px);
+    }
+}
+@media (min-width: 72rem) {
+    .right-sidebar-panel {
+        padding-top: calc(3.25rem - 4.41px);
+    }
+}
