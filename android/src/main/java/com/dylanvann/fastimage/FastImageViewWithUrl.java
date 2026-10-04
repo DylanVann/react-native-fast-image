@@ -183,6 +183,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 mOwnGif.startFromFirstFrame();
             }
         }
+        if (getDrawable() instanceof FastImageAnimatable) {
+            ((FastImageAnimatable) getDrawable()).setLoopCount(mLoopCount, !mPaused);
+        }
         if (mAnimated != null && getDrawable() == mAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             AnimatedImageDrawable animated = (AnimatedImageDrawable) mAnimated;
             applyRepeatCount(animated);
@@ -371,6 +374,9 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 FastImageGif.resume(mOwnGif);
             }
         }
+        if (getDrawable() instanceof FastImageAnimatable) {
+            ((FastImageAnimatable) getDrawable()).setPaused(paused);
+        }
         if (mAnimated != null && getDrawable() == mAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             if (paused) {
                 ((AnimatedImageDrawable) mAnimated).stop();
@@ -435,6 +441,15 @@ class FastImageViewWithUrl extends AppCompatImageView {
                     if (mPaused) own.stop();
                     return;
                 }
+            }
+            if (resource instanceof FastImageAnimatable) {
+                // An APNG: each view's is its own (FastImageApngRenderer).
+                FastImageAnimatable animatable = (FastImageAnimatable) resource;
+                animatable.setLoopCount(mLoopCount, false);
+                // The target starts it; paused, it stays on its first frame.
+                super.onResourceReady(resource, transition);
+                if (mPaused) animatable.setPaused(true);
+                return;
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && resource instanceof AnimatedImageDrawable) {
                 if (!FastImageAnimated.shownElsewhere(resource, FastImageViewWithUrl.this)) {

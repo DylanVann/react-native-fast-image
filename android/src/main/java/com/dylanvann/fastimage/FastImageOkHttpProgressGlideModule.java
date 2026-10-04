@@ -122,6 +122,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         registry.replace(GlideUrl.class, InputStream.class, new UrlLoaderFactory(client));
         FastImageSvg.register(registry, glide.getBitmapPool());
         FastImageAnimated.register(context, glide, registry);
+        FastImageApng.register(registry);
 
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
