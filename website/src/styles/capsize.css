@@ -1,0 +1,101 @@
+/* Capsize (https://seek-oss.github.io/capsize/): the page's text blocks are
+   trimmed to the top of their capital letters and their baseline, so the space
+   between two blocks is exactly the margin between them.
+
+   Geist and Geist Mono have the same metrics (@capsizecss/metrics): cap height
+   0.71em, ascent 1.005em, descent 0.295em, no line gap. With a line height L,
+   Capsize trims (ascent - cap height) plus the half leading above the text,
+   and the descent plus the half leading below it, which for these metrics are
+   the same: L / 2 - 0.355em. */
+:root {
+    --capsize-trim: calc(0.355 - var(--sl-line-height) / 2);
+    --capsize-trim-headings: calc(0.355 - var(--sl-line-height-headings) / 2);
+}
+
+/* The trimmed blocks: the page title, and the content's paragraphs, headings
+   and props' platforms/type/default lines. Lists, tables, code and anything
+   nested keep their line boxes, as do paragraphs with images (the badges). A
+   heading is trimmed through its wrapper (Starlight's .sl-heading-wrapper,
+   with the heading's size and line height): the heading itself is inline
+   there, next to its anchor link. */
+:is(
+    .content-panel h1#_top,
+    .sl-markdown-content > .sl-heading-wrapper,
+    .sl-markdown-content > :is(p:not(:has(img)), .api-meta)
+)::before,
+:is(
+    .content-panel h1#_top,
+    .sl-markdown-content > .sl-heading-wrapper,
+    .sl-markdown-content > :is(p:not(:has(img)), .api-meta)
+)::after {
+    content: '';
+    display: table;
+}
+.sl-markdown-content > :is(p:not(:has(img)), .api-meta)::before {
+    margin-bottom: calc(var(--capsize-trim) * 1em);
+}
+.sl-markdown-content > :is(p:not(:has(img)), .api-meta)::after {
+    margin-top: calc(var(--capsize-trim) * 1em);
+}
+:is(
+    .content-panel h1#_top,
+    .sl-markdown-content > .sl-heading-wrapper
+)::before {
+    margin-bottom: calc(var(--capsize-trim-headings) * 1em);
+}
+:is(.content-panel h1#_top, .sl-markdown-content > .sl-heading-wrapper)::after {
+    margin-top: calc(var(--capsize-trim-headings) * 1em);
+}
+
+/* The space between blocks, about what it looked like before trimming: 2rem
+   between two text blocks, 1.5rem between text and a block that keeps its
+   line boxes (a list's lines still have their leading, a table's cells and a
+   code block their padding), and 1rem (Starlight's) between two of those. */
+.sl-markdown-content
+    > :is(p:not(:has(img)), .api-meta, .sl-heading-wrapper)
+    + :is(p:not(:has(img)), .api-meta) {
+    margin-top: 2rem;
+}
+.sl-markdown-content
+    > :is(p:not(:has(img)), .api-meta, .sl-heading-wrapper)
+    + :not(p:not(:has(img)), .api-meta, .sl-heading-wrapper, hr),
+.sl-markdown-content
+    > :not(p:not(:has(img)), .api-meta, .sl-heading-wrapper, hr)
+    + :is(p:not(:has(img)), .api-meta) {
+    margin-top: 1.5rem;
+}
+
+/* Headings: 2em above (in the heading's size) after text, a little less after
+   a block that keeps its line boxes. */
+.sl-markdown-content
+    > :is(p:not(:has(img)), .api-meta, .sl-heading-wrapper)
+    + .sl-heading-wrapper {
+    margin-top: 2em;
+}
+.sl-markdown-content
+    > :not(p:not(:has(img)), .api-meta, .sl-heading-wrapper, hr)
+    + .sl-heading-wrapper {
+    margin-top: calc(2em - 0.5rem);
+}
+
+/* A heading right after another: as between two text blocks. */
+.sl-markdown-content > .sl-heading-wrapper + .sl-heading-wrapper {
+    margin-top: 2rem;
+}
+
+/* Horizontal rules (between props): 2.5rem on either side of text. */
+.sl-markdown-content
+    > :is(p:not(:has(img)), .api-meta, .sl-heading-wrapper)
+    + hr,
+.sl-markdown-content
+    > hr
+    + :is(p:not(:has(img)), .api-meta, .sl-heading-wrapper) {
+    margin-top: 2.5rem;
+}
+
+/* The page title, in a panel of its own: about the space it had around it
+   before trimming. */
+.content-panel h1#_top {
+    margin-top: 1.75rem;
+    margin-bottom: 1.125rem;
+}

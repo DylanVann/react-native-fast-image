@@ -22,6 +22,7 @@ export default defineConfig({
                 '@fontsource-variable/geist',
                 '@fontsource-variable/geist-mono',
                 './src/styles/api.css',
+                './src/styles/capsize.css',
             ],
             components: {
                 Header: './src/components/Header.astro',
