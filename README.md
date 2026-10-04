@@ -23,7 +23,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Headers**, e.g. for authentication ([`headers`](#sourceheaders)).
 - **Priorities** for which images load first ([`priority`](#sourcepriority)).
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
-- **Animated images** (GIF, WebP, APNG, and AVIF on Android) that can [loop](#loop) and [pause](#paused).
+- **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
@@ -31,28 +31,26 @@ React Native's `Image` component handles image caching like browsers for the mos
 
 ## Image formats
 
-| Format |          iOS           |      Android      |
-| ------ | :--------------------: | :---------------: |
-| JPEG   |      ![Yes][yes]       |    ![Yes][yes]    |
-| PNG    |      ![Yes][yes]       |    ![Yes][yes]    |
-| APNG   |      ![Yes][yes]       |    ![Yes][yes]    |
-| GIF    |      ![Yes][yes]       |    ![Yes][yes]    |
-| WebP   |      ![Yes][yes]       |    ![Yes][yes]    |
-| AVIF   | ![Yes][yes][^avif-ios] |    ![Yes][yes]    |
-| HEIC   |      ![Yes][yes]       |    ![Yes][yes]    |
-| SVG    |   ![Yes][yes][^svg]    | ![Yes][yes][^svg] |
-| ICO    |      ![Yes][yes]       |    ![Yes][yes]    |
-| BMP    |      ![Yes][yes]       |    ![Yes][yes]    |
-| TIFF   |      ![Yes][yes]       |     ![No][no]     |
-| ICNS   |      ![Yes][yes]       |     ![No][no]     |
-| PSD    |   ![Yes][yes][^psd]    |     ![No][no]     |
+| Format |        iOS        |      Android      |
+| ------ | :---------------: | :---------------: |
+| JPEG   |    ![Yes][yes]    |    ![Yes][yes]    |
+| PNG    |    ![Yes][yes]    |    ![Yes][yes]    |
+| APNG   |    ![Yes][yes]    |    ![Yes][yes]    |
+| GIF    |    ![Yes][yes]    |    ![Yes][yes]    |
+| WebP   |    ![Yes][yes]    |    ![Yes][yes]    |
+| AVIF   |    ![Yes][yes]    |    ![Yes][yes]    |
+| HEIC   |    ![Yes][yes]    |    ![Yes][yes]    |
+| SVG    | ![Yes][yes][^svg] | ![Yes][yes][^svg] |
+| ICO    |    ![Yes][yes]    |    ![Yes][yes]    |
+| BMP    |    ![Yes][yes]    |    ![Yes][yes]    |
+| TIFF   |    ![Yes][yes]    |     ![No][no]     |
+| ICNS   |    ![Yes][yes]    |     ![No][no]     |
+| PSD    | ![Yes][yes][^psd] |     ![No][no]     |
 
 See [Formats](docs/formats.md) for the versions of iOS and Android each format needs, and what decodes it.
 
 [yes]: docs/assets/yes.svg
 [no]: docs/assets/no.svg
-
-[^avif-ios]: An animated AVIF shows its first frame on iOS.
 
 [^svg]: With an SVG library in the app: see [SVG images](docs/formats.md#svg-images).
 
@@ -274,7 +272,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 **Type:** `number | boolean`
 
-How many times an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) plays:
+How many times an animated image (GIF, animated WebP, APNG, or animated AVIF) plays:
 
 - Not set: as many times as the file says (like a browser).
 - `true`: forever.
@@ -301,7 +299,7 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 
 **Type:** `boolean`
 
-Pauses an animated image (GIF, animated WebP, APNG, and animated AVIF on Android) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
+Pauses an animated image (GIF, animated WebP, APNG, or animated AVIF) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
 ---
 

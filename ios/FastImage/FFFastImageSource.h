@@ -72,6 +72,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // a cache, where the size it was decoded from isn't recorded), or zero.
 - (CGSize)photoPixelSize;
 
+// Whether the data is an image FastImage can show: a format SDWebImage
+// recognizes (an SVG only if its first element is <svg>), or one ImageIO
+// reads that SDWebImage's check doesn't know (AVIF, ICO, ICNS, PSD).
++ (BOOL)isImageData:(NSData *)data;
 // The HTTP cache of `cache: 'web'` images: their own rather than the app's
 // shared NSURLCache, so clearDiskCache can empty it without the app's other
 // responses. 50 MB, as on Android.

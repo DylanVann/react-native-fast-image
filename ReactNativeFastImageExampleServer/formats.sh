@@ -49,4 +49,8 @@ img2webp -loop 0 -lossless -d 400 "$TMP/red-large.png" "$TMP/blue-large.png" -o 
 avifenc --timescale 10 --duration 4 --repetition-count infinite -q 90 \
     --creation-time 1 --modification-time 1 \
     "$TMP/red.png" "$TMP/blue.png" -o animated.avif > /dev/null
+# One that plays once (no repetitions), for the file's own loop count.
+avifenc --timescale 10 --duration 4 --repetition-count 0 -q 90 \
+    --creation-time 1 --modification-time 1 \
+    "$TMP/red.png" "$TMP/blue.png" -o animated-once.avif > /dev/null
 chmod 644 ./*

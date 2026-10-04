@@ -8,7 +8,9 @@
 #import <SDWebImage/SDImageCodersManager.h>
 #import <SDWebImage/SDImageAWebPCoder.h>
 #import "FFFAnimatedWebPCoder.h"
+#import "FFFAnimatedAVIFCoder.h"
 #import <objc/message.h>
+#import <ImageIO/ImageIO.h>
 
 // In FFFastImageView.m.
 FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
@@ -224,8 +226,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
  willCacheResponse:(NSCachedURLResponse *)proposedResponse
  completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
 {
-    SDImageFormat format = [NSData sd_imageFormatForImageData:proposedResponse.data];
-    if (format == SDImageFormatUndefined || (format == SDImageFormatSVG && !FFFLooksLikeSVG(proposedResponse.data))) {
+    if (![FFFastImageSource isImageData:proposedResponse.data]) {
         completionHandler(nil);
         return;
     }
@@ -258,6 +259,21 @@ static id<SDImageCoder> FFFSVGCoder;
     }
     if (!hasWebPCoder) {
         [SDImageCodersManager.sharedManager addCoder:FFFAnimatedWebPCoder.sharedCoder];
+    }
+
+    // Animated AVIF: likewise, SDWebImage's own coders only decode an AVIF's
+    // first frame, so ImageIO's animated decoding does (iOS 16 and later).
+    // Not if the app has registered libavif's coder (SDWebImageAVIFCoder).
+    Class avifCoderClass = NSClassFromString(@"SDImageAVIFCoder");
+    BOOL hasAVIFCoder = NO;
+    for (id<SDImageCoder> registered in SDImageCodersManager.sharedManager.coders) {
+        if (avifCoderClass && [registered isKindOfClass:avifCoderClass]) {
+            hasAVIFCoder = YES;
+            break;
+        }
+    }
+    if (!hasAVIFCoder) {
+        [SDImageCodersManager.sharedManager addCoder:FFFAnimatedAVIFCoder.sharedCoder];
     }
 
     // SVG: registered with SDWebImage's coders, as the pod's setup does (unless
@@ -394,6 +410,24 @@ static id<SDImageCoder> FFFSVGCoder;
         return;
     }
     [[FFFastImageSource webURLCache] removeCachedResponseForRequest:[NSURLRequest requestWithURL:_url]];
+}
+
++ (BOOL)isImageData:(NSData *)data
+{
+    SDImageFormat format = [NSData sd_imageFormatForImageData:data];
+    if (format == SDImageFormatSVG) {
+        return FFFLooksLikeSVG(data);
+    }
+    if (format != SDImageFormatUndefined) {
+        return YES;
+    }
+    CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+    if (!source) {
+        return NO;
+    }
+    BOOL image = CGImageSourceGetType(source) != NULL && CGImageSourceGetCount(source) > 0;
+    CFRelease(source);
+    return image;
 }
 
 + (NSURLCache *)webURLCache
