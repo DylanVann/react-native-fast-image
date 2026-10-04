@@ -1,9 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { PixelRatio, Platform, View } from 'react-native'
 import FastImage, { LoadResult } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
-import type { RegressionGroup } from './RunnerContext'
+import {
+    Masked,
+    measureView,
+    SampleContext,
+    type RegressionGroup,
+} from './RunnerContext'
 
 // A few cases that check FastImage works at all in an app (the Expo example,
 // ReactNativeFastImageExampleExpo, on iOS, Android and the web): an image
@@ -181,7 +186,9 @@ function CachePathCase() {
 
 // The cache limits the app's config sets (app.config.js, through FastImage's
 // Expo config plugin), as configureCache reports them. Android only has the
-// disk size limit.
+// disk size limit, which FastImage's AppGlideModule applies: the Expo example
+// has expo-image, whose AppGlideModule the app uses instead (FastImage leaves
+// its own out), so there it reports none.
 export const EXPO_CACHE_LIMITS = {
     maxDiskSize: 150 * 1024 * 1024,
     maxDiskAge: 7 * 24 * 60 * 60,
@@ -192,13 +199,13 @@ function CacheLimitsCase() {
     const [status, setStatus] = useState('loading')
     useEffect(() => {
         FastImage.configureCache().then((state) => {
-            const expected =
+            const ok =
                 Platform.OS === 'ios'
-                    ? EXPO_CACHE_LIMITS
-                    : { maxDiskSize: EXPO_CACHE_LIMITS.maxDiskSize }
-            const ok = Object.entries(expected).every(
-                ([name, value]) => state[name as keyof typeof state] === value,
-            )
+                    ? Object.entries(EXPO_CACHE_LIMITS).every(
+                          ([name, value]) =>
+                              state[name as keyof typeof state] === value,
+                      )
+                    : Object.keys(state).length === 0
             setStatus(ok ? 'OK' : JSON.stringify(state))
         })
     }, [])
@@ -208,7 +215,11 @@ function CacheLimitsCase() {
             <CaseStatus
                 id="smoke-cache-limits"
                 status={status}
-                description="configureCache reports the limits the Expo config plugin set"
+                description={
+                    Platform.OS === 'ios'
+                        ? 'configureCache reports the limits the Expo config plugin set'
+                        : "configureCache reports no disk size limit (the app's AppGlideModule is expo-image's)"
+                }
             />
         </View>
     )
@@ -258,6 +269,222 @@ function SizesCase() {
     )
 }
 
+// FastImage's Glide components, which it registers itself on Android when
+// the app's AppGlideModule isn't its own (expo-image's, in the Expo example):
+// onProgress, `cache: 'web'`, writeToCache and SVG images.
+function ProgressCase() {
+    const [status, setStatus] = useState('loading')
+    const last = useRef<string>(undefined)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `picsum/1025-200x200.jpg?smoke-progress=${RUN}`,
+                    ),
+                }}
+                onProgress={(e) => {
+                    last.current = `${e.nativeEvent.loaded}/${e.nativeEvent.total}`
+                }}
+                onLoad={() => {
+                    const [loaded, total] = (last.current ?? '').split('/')
+                    setStatus(
+                        last.current && loaded === total
+                            ? 'OK'
+                            : `onProgress ${last.current ?? 'not sent'}`,
+                    )
+                }}
+            />
+            <CaseStatus
+                id="smoke-progress"
+                status={status}
+                description="onProgress comes before onLoad, ending with all of it loaded"
+            />
+        </View>
+    )
+}
+
+// Loaded twice from a url the server marks as cacheable: requested once, if
+// the second load came from the HTTP cache of `cache: 'web'` images.
+const WEB_PATH = `/max-age/picsum/1025-200x200.jpg?smoke-web=${RUN}`
+function WebCacheCase() {
+    const [loads, setLoads] = useState(0)
+    const [status, setStatus] = useState('loading')
+    useEffect(() => {
+        if (loads !== 2) return
+        fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_PATH)}`))
+            .then((response) => response.json())
+            .then((json: { count: number }) =>
+                setStatus(
+                    json.count === 1 ? 'OK' : `requested ${json.count} times`,
+                ),
+            )
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [loads])
+    return (
+        <View style={styles.row}>
+            {loads < 2 ? (
+                <FastImage
+                    key={loads}
+                    style={styles.image}
+                    source={{ uri: imageUrl(WEB_PATH.slice(1)), cache: 'web' }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus
+                id="smoke-web-cache"
+                status={status}
+                description="An image with cache 'web', loaded twice, is requested once (its HTTP cache)"
+            />
+        </View>
+    )
+}
+
+function WriteToCacheCase() {
+    const [status, setStatus] = useState('loading')
+    const [shown, setShown] = useState(false)
+    const source = {
+        uri: imageUrl(`picsum/1025-200x200.jpg?smoke-write=${RUN}`),
+    }
+    useEffect(() => {
+        const run = async () => {
+            const file = await FastImage.getCachePath({
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?smoke-write-file=${RUN}`,
+                ),
+            })
+            if (!file.ok) return setStatus(`no file: ${file.error}`)
+            const result = await FastImage.writeToCache(
+                source,
+                `file://${file.path}`,
+            )
+            if (!result.ok) return setStatus(`writeToCache: ${result.error}`)
+            setShown(true)
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return (
+        <View style={styles.row}>
+            {shown ? (
+                <FastImage
+                    style={styles.image}
+                    source={{ ...source, cache: 'cacheOnly' }}
+                    onLoad={(e) =>
+                        setStatus(
+                            e.nativeEvent.width === 120
+                                ? 'OK'
+                                : `shows ${e.nativeEvent.width}x${e.nativeEvent.height}, expected the stored 120x120`,
+                        )
+                    }
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus
+                id="smoke-write-to-cache"
+                status={status}
+                description="writeToCache stores a file as a url's image, which then shows from the cache"
+            />
+        </View>
+    )
+}
+
+// expo-image brings the SVG libraries (SDWebImageSVGCoder, AndroidSVG).
+function SvgCase() {
+    const [status, setStatus] = useState('loading')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: imageUrl(`svg-icon.svg?smoke=${RUN}`) }}
+                onLoad={() => setStatus('OK')}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="smoke-svg"
+                status={status}
+                description="An SVG image loads (the app has expo-image's SVG libraries)"
+            />
+        </View>
+    )
+}
+
+// An APNG (red, then blue, 400 ms each, looping) recorded for two plays: it
+// animates, or with blurRadius shows its first frame (red), blurred and still,
+// as Glide's "don't animate" option asks. In an app with expo-image, Glide
+// also has APNG4Android's plugin for APNGs, which ignores that option.
+const RED = '#ff0000'
+const BLUE = '#0000ff'
+const BLANK = '#eeeeee'
+function ApngCase({ blur }: { blur?: boolean }) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [status, setStatus] = useState('loading')
+    const started = useRef(false)
+    const id = blur ? 'smoke-apng-blur' : 'smoke-apng'
+    const expected = blur ? 'first frame' : 'animates'
+    const onLoad = async () => {
+        if (started.current) return
+        started.current = true
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 3000,
+                expect: [RED, BLUE],
+                palette: [RED, BLUE, BLANK],
+            },
+            (done) => setTimeout(done, 1600),
+        )
+        const { seen } = result
+        const got =
+            seen.includes(RED) && seen.includes(BLUE)
+                ? 'animates'
+                : seen.length === 1 && seen[0] === RED
+                  ? 'first frame'
+                  : (result.detail ?? `saw ${seen.join(', ') || 'nothing'}`)
+        setStatus(got === expected ? 'OK' : `${got}, expected: ${expected}`)
+    }
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <View ref={view} collapsable={false}>
+                    <FastImage
+                        style={styles.image}
+                        blurRadius={blur ? 4 : undefined}
+                        source={{
+                            uri: imageUrl(`formats/animated.png?${id}=${RUN}`),
+                        }}
+                        onLoad={onLoad}
+                        onError={(e) =>
+                            setStatus(`error: ${e.nativeEvent.error}`)
+                        }
+                    />
+                </View>
+            </Masked>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={
+                    blur
+                        ? 'An APNG with blurRadius shows its first frame (red), still (masked)'
+                        : 'An APNG animates (red and blue; masked)'
+                }
+            />
+        </View>
+    )
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -273,4 +500,19 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
+    ...(Platform.OS === 'web'
+        ? []
+        : [
+              {
+                  name: 'smoke-glide',
+                  cases: [
+                      <ProgressCase key="progress" />,
+                      <WebCacheCase key="web-cache" />,
+                      <WriteToCacheCase key="write-to-cache" />,
+                      <SvgCase key="svg" />,
+                      <ApngCase key="apng" />,
+                      <ApngCase key="apng-blur" blur />,
+                  ],
+              },
+          ]),
 ]

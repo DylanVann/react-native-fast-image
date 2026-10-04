@@ -122,7 +122,8 @@ class FastImageViewConverter {
                 // memoryCache false: only kept on disk.
                 .skipMemoryCache(skipMemoryCache || (imageSource != null && !imageSource.isMemoryCache()))
                 .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE);
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .set(FastImageGlide.REQUEST, true);
 
         // imageSource is null when only a defaultSource is shown.
         if (imageSource != null && imageSource.isResource()) {

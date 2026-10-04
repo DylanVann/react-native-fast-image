@@ -19,6 +19,18 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// Whether the app has expo-image (in a node_modules folder above the app's
+// android folder, as Node finds it), which ships its own AppGlideModule.
+def appHasExpoImage = {
+    for (def dir = rootProject.projectDir; dir != null; dir = dir.parentFile) {
+        if (new File(dir, "node_modules/expo-image/package.json").isFile()) return true
+    }
+    return false
+}
+// An app has one AppGlideModule: with expo-image, FastImage's is left out,
+// and FastImage registers its Glide components itself (FastImageGlide).
+def excludeAppGlideModule = safeExtGet('excludeAppGlideModule', appHasExpoImage())
+
 // When changing the default, revisit the Glide rules in consumer-rules.pro.
 // 4.15+ animates animated WebP (Android 9+) and AVIF (Android 12+).
 def glideVersion = safeExtGet('glideVersion', '4.16.0')
@@ -56,7 +68,7 @@ android {
             }
             java {
                 srcDir glideHasAnimatedDecoder ? "src/glide-4.15/java" : "src/glide-older/java"
-                if (safeExtGet('excludeAppGlideModule', false)) {
+                if (excludeAppGlideModule) {
                     srcDir "src"
                     exclude "**/FastImageGlideModule.java"
                     // Only the one chosen above.

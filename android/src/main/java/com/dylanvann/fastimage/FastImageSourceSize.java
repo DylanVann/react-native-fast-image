@@ -218,7 +218,7 @@ final class FastImageSourceSize {
             int orientation;
             stream = open(context, source);
             try {
-                Glide glide = Glide.get(context);
+                Glide glide = FastImageGlide.get(context);
                 orientation = ImageHeaderParserUtils.getOrientation(
                         glide.getRegistry().getImageHeaderParsers(), stream, glide.getArrayPool());
             } finally {

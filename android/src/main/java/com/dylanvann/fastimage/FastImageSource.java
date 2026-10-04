@@ -122,7 +122,7 @@ public class FastImageSource extends ImageSource {
         if (isLocalFile()) {
             return getUri().toString();
         }
-        return getGlideUrl();
+        return new FastImageUrl(getGlideUrl());
     }
 
     @Override

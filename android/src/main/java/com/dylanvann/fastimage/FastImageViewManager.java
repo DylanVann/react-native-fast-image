@@ -53,6 +53,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         // shared by all views kept the last view's Activity alive after it was
         // destroyed, and gave views another Activity's manager (#492).
         RequestManager requestManager = null;
+        FastImageGlide.get(reactContext);
         if (isValidContextForGlide(reactContext)) {
             requestManager = Glide.with(reactContext);
         } else if (getActivityFromContext(reactContext) == null) {

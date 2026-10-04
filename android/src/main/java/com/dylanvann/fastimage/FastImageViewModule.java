@@ -87,7 +87,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         BitmapFactory.decodeFile(file.getPath(), bounds);
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
         int orientation = ImageHeaderParser.UNKNOWN_ORIENTATION;
-        Glide glide = Glide.get(context);
+        Glide glide = FastImageGlide.get(context);
         try (InputStream stream = new FileInputStream(file)) {
             orientation = ImageHeaderParserUtils.getOrientation(
                     glide.getRegistry().getImageHeaderParsers(), stream, glide.getArrayPool());
@@ -119,6 +119,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                FastImageGlide.get(context);
                 final int count = sources.size();
                 final WritableMap[] results = new WritableMap[count];
                 // Sources of this call still to finish. It starts at the
@@ -270,7 +271,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // thread. For a preload (`shared`), views that load the image meanwhile
     // wait for the download and read its file (FastImageSharedDownloads).
     private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
-        final String key = shared && model instanceof GlideUrl ? ((GlideUrl) model).getCacheKey() : null;
+        final String key = shared && model instanceof FastImageUrl ? ((FastImageUrl) model).url.getCacheKey() : null;
+        FastImageGlide.get(context);
         Glide.with(context)
                 .asFile()
                 .load(model)
@@ -298,6 +300,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     @Nullable
     private static File cachedFile(Context context, Object model, RequestOptions options) {
         try {
+            FastImageGlide.get(context);
             return Glide.with(context)
                     .asFile()
                     .load(model)
@@ -348,7 +351,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             cachePathExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    File file = cachedFile(context, FastImageKeyedGlideUrl.forKey(cacheKey), new RequestOptions());
+                    File file = cachedFile(context, new FastImageUrl(FastImageKeyedGlideUrl.forKey(cacheKey)), new RequestOptions());
                     promise.resolve(file != null ? pathResult(file) : failure("Not in the disk cache"));
                 }
             });
@@ -376,8 +379,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 // On disk already: in Glide's cache (not for `web` images,
                 // which it doesn't cache), or in the HTTP cache of `web`
-                // images (set up by Glide, which is started first).
-                Glide.get(context);
+                // images (set up when FastImage's components are registered).
+                FastImageGlide.getRegistered(context);
                 File file = imageSource.isWebCache() ? null : cachedFile(context, imageSource.getSourceForLoad(), options);
                 if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                 if (file != null) {
@@ -486,7 +489,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         final GlideUrl key = imageSource != null && imageSource.isRemote()
                 ? imageSource.getGlideUrl()
                 : FastImageKeyedGlideUrl.forKey(cacheKey);
-        final Object lookUp = imageSource != null && imageSource.isRemote() ? imageSource.getSourceForLoad() : key;
+        final Object lookUp = imageSource != null && imageSource.isRemote() ? imageSource.getSourceForLoad() : new FastImageUrl(key);
         // A file:// or content:// uri, or a path.
         Uri parsed = Uri.parse(file);
         final Uri fileUri = parsed.getScheme() == null ? Uri.fromFile(new File(file)) : parsed;
@@ -551,7 +554,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                Glide.get(context);
+                FastImageGlide.get(context);
                 WritableMap result = Arguments.createMap();
                 long maxDiskSize = FastImageCacheLimits.startedMaxDiskSize;
                 if (maxDiskSize >= 0) {
@@ -574,7 +577,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Glide.get(activity.getApplicationContext()).clearMemory();
+                FastImageGlide.get(activity.getApplicationContext()).clearMemory();
                 promise.resolve(null);
             }
         });
@@ -588,9 +591,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        Glide.get(activity.getApplicationContext()).clearDiskCache();
+        FastImageGlide.getRegistered(activity.getApplicationContext()).clearDiskCache();
         // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
-        // cache.
+        // cache (set up when FastImage's components are registered).
         try {
             FastImageOkHttpProgressGlideModule.clearWebCache();
         } catch (IOException e) {

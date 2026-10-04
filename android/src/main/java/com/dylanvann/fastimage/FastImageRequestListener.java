@@ -4,7 +4,6 @@ import android.graphics.drawable.Drawable;
 
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
-import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestListener;
@@ -83,7 +82,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             view.applyLoopCount((GifDrawable) resource);
         }
         if (!events) return false;
-        boolean local = !(model instanceof GlideUrl);
+        boolean local = !(model instanceof FastImageUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,
                 dataSource == DataSource.RESOURCE_DISK_CACHE);
         if (size != null) {

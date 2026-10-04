@@ -207,7 +207,8 @@ export interface CacheLimits {
 /**
  * `configureCache`'s result: the limits in effect (0 for no limit), and the
  * bytes the disk cache uses now. Android only has `maxDiskSize` and
- * `diskSize`, and neither if the app has its own `AppGlideModule`.
+ * `diskSize`, and neither if the app has its own `AppGlideModule` (or
+ * expo-image, which has one).
  */
 export interface CacheState {
     maxDiskSize?: number
