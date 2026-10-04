@@ -119,6 +119,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                FastImageGlide.get(context);
                 final int count = sources.size();
                 final WritableMap[] results = new WritableMap[count];
                 // Sources of this call still to finish. It starts at the

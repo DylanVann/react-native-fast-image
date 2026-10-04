@@ -26,20 +26,29 @@ final class FastImageGlide {
     // were registered with.
     private static volatile Glide registered;
 
+    // Whether Glide started with FastImage's AppGlideModule (as the app's).
+    private static volatile boolean appModule;
+
+    static void appModuleStarted() {
+        appModule = true;
+    }
+
     static void registered(@NonNull Glide glide) {
         registered = glide;
     }
 
-    // Glide, with FastImage's components. Glide registers them when it starts
-    // if the app's generated Glide module lists FastImage's module, as it
-    // does with FastImage's AppGlideModule. Another library's (e.g.
-    // expo-image's, which ships one) only lists the modules it was built
-    // with, so then they're registered here, before FastImage's first request.
+    // Glide, with FastImage's components. Glide registers them if the app's
+    // generated Glide module lists FastImage's module, as FastImage's
+    // AppGlideModule's does. Another library's (e.g. expo-image's, which ships
+    // one) only lists the modules it was built with, so then they're
+    // registered here, before FastImage's first request.
     @NonNull
     static Glide get(@NonNull Context context) {
         Glide glide = Glide.get(context);
-        // Glide 4.15+ registers the modules' components when the registry is
-        // first used, so this registers them if the app's module lists
+        // Glide registers them itself, when its registry is first used (in
+        // the background, by the first load: Glide 4.15+ builds it lazily).
+        if (appModule) return glide;
+        // Builds the registry, which registers them if the app's module lists
         // FastImage's.
         Registry registry = glide.getRegistry();
         if (registered != glide) {

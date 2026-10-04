@@ -16,6 +16,7 @@ public final class FastImageGlideModule extends AppGlideModule {
     // FastImageCacheLimits), in Glide's default folder.
     @Override
     public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder) {
+        FastImageGlide.appModuleStarted();
         long maxDiskSize = FastImageCacheLimits.maxDiskSize(context);
         builder.setDiskCache(new InternalCacheDiskCacheFactory(context, maxDiskSize == 0 ? Long.MAX_VALUE : maxDiskSize));
         FastImageCacheLimits.startedMaxDiskSize = maxDiskSize;
