@@ -48,10 +48,10 @@
         transition: transform 0.2s ease;
     }
     button:has(~ :popover-open) .top {
-        transform: translateY(3px) rotate(45deg);
+        transform: rotate(45deg) translateY(3px);
     }
     button:has(~ :popover-open) .bottom {
-        transform: translateY(-3px) rotate(-45deg);
+        transform: rotate(-45deg) translateY(-3px);
     }
     @media (prefers-reduced-motion: reduce) {
         line {
