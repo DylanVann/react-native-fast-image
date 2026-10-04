@@ -1,3 +1,10 @@
+## [8.30.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.30.0...v8.30.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **android:** show a paused APNG's first frame ([#1237](https://github.com/DylanVann/react-native-fast-image/issues/1237)) ([19db372](https://github.com/DylanVann/react-native-fast-image/commit/19db3721809ff4abcc2dd0d22e6cc50635419384))
+
 # [8.30.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.29.0...v8.30.0) (2026-10-04)
 
 
