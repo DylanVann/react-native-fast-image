@@ -379,8 +379,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             public void run() {
                 // On disk already: in Glide's cache (not for `web` images,
                 // which it doesn't cache), or in the HTTP cache of `web`
-                // images (set up by Glide, which is started first).
-                FastImageGlide.get(context);
+                // images (set up when FastImage's components are registered).
+                FastImageGlide.getRegistered(context);
                 File file = imageSource.isWebCache() ? null : cachedFile(context, imageSource.getSourceForLoad(), options);
                 if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                 if (file != null) {
@@ -591,9 +591,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        FastImageGlide.get(activity.getApplicationContext()).clearDiskCache();
+        FastImageGlide.getRegistered(activity.getApplicationContext()).clearDiskCache();
         // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
-        // cache.
+        // cache (set up when FastImage's components are registered).
         try {
             FastImageOkHttpProgressGlideModule.clearWebCache();
         } catch (IOException e) {

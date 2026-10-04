@@ -4201,7 +4201,42 @@ function SvgSharpCase() {
     )
 }
 
+// getCachePath for a `cache: 'web'` image as the app's first FastImage call
+// (the runner's first group, without views): on Android the HTTP cache of
+// `web` images is set up when FastImage's Glide components are registered,
+// which Glide 4.15+ does when its registry is first used (by a load), so it
+// failed with "Glide isn't set up".
+const START_WEB_PATH = `/max-age/picsum/1025-200x200.jpg?start-web=${RUN}`
+function WebCachePathAtStartCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.getCachePath({
+            uri: imageUrl(START_WEB_PATH.slice(1)),
+            cache: FastImage.cacheControl.web,
+        })
+            .then((result) =>
+                setStatus(result.ok ? 'OK' : `error: ${result.error}`),
+            )
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="cache-path-web-at-start"
+                status={status}
+                description="getCachePath for a cache 'web' image before any image has loaded: downloads it into the HTTP cache"
+            />
+        </View>
+    )
+}
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
+    {
+        // First, before any view has loaded an image.
+        name: 'start',
+        cases: [<WebCachePathAtStartCase key="cache-path-web-at-start" />],
+    },
     {
         name: 'load-end',
         cases: [

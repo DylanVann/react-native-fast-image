@@ -61,4 +61,16 @@ final class FastImageGlide {
         }
         return glide;
     }
+
+    // Glide, with FastImage's components registered now, for callers in the
+    // background that use them directly rather than through a load (the HTTP
+    // cache of `cache: 'web'` images, which registering them sets up): with
+    // FastImage's AppGlideModule, Glide registers them only when its registry
+    // is first used, e.g. by FastImage's first load.
+    @NonNull
+    static Glide getRegistered(@NonNull Context context) {
+        Glide glide = get(context);
+        glide.getRegistry();
+        return glide;
+    }
 }
