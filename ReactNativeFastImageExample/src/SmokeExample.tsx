@@ -1,9 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { PixelRatio, Platform, View } from 'react-native'
 import FastImage, { LoadResult } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
-import type { RegressionGroup } from './RunnerContext'
+import {
+    Masked,
+    measureView,
+    SampleContext,
+    type RegressionGroup,
+} from './RunnerContext'
 
 // A few cases that check FastImage works at all in an app (the Expo example,
 // ReactNativeFastImageExampleExpo, on iOS, Android and the web): an image
@@ -411,6 +416,75 @@ function SvgCase() {
     )
 }
 
+// An APNG (red, then blue, 400 ms each, looping) recorded for two plays: it
+// animates, or with blurRadius shows its first frame (red), blurred and still,
+// as Glide's "don't animate" option asks. In an app with expo-image, Glide
+// also has APNG4Android's plugin for APNGs, which ignores that option.
+const RED = '#ff0000'
+const BLUE = '#0000ff'
+const BLANK = '#eeeeee'
+function ApngCase({ blur }: { blur?: boolean }) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [status, setStatus] = useState('loading')
+    const started = useRef(false)
+    const id = blur ? 'smoke-apng-blur' : 'smoke-apng'
+    const expected = blur ? 'first frame' : 'animates'
+    const onLoad = async () => {
+        if (started.current) return
+        started.current = true
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 3000,
+                expect: [RED, BLUE],
+                palette: [RED, BLUE, BLANK],
+            },
+            (done) => setTimeout(done, 1600),
+        )
+        const { seen } = result
+        const got =
+            seen.includes(RED) && seen.includes(BLUE)
+                ? 'animates'
+                : seen.length === 1 && seen[0] === RED
+                  ? 'first frame'
+                  : (result.detail ?? `saw ${seen.join(', ') || 'nothing'}`)
+        setStatus(got === expected ? 'OK' : `${got}, expected: ${expected}`)
+    }
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <View ref={view} collapsable={false}>
+                    <FastImage
+                        style={styles.image}
+                        blurRadius={blur ? 4 : undefined}
+                        source={{
+                            uri: imageUrl(`formats/animated.png?${id}=${RUN}`),
+                        }}
+                        onLoad={onLoad}
+                        onError={(e) =>
+                            setStatus(`error: ${e.nativeEvent.error}`)
+                        }
+                    />
+                </View>
+            </Masked>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={
+                    blur
+                        ? 'An APNG with blurRadius shows its first frame (red), still (masked)'
+                        : 'An APNG animates (red and blue; masked)'
+                }
+            />
+        </View>
+    )
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -436,6 +510,8 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                       <WebCacheCase key="web-cache" />,
                       <WriteToCacheCase key="write-to-cache" />,
                       <SvgCase key="svg" />,
+                      <ApngCase key="apng" />,
+                      <ApngCase key="apng-blur" blur />,
                   ],
               },
           ]),

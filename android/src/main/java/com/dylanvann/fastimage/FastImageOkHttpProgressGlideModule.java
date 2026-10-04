@@ -119,11 +119,6 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler(context)));
         }
         OkHttpClient client = builder.build();
-        registry.replace(GlideUrl.class, InputStream.class, new UrlLoaderFactory(client));
-        FastImageSvg.register(registry, glide.getBitmapPool());
-        FastImageAnimated.register(context, glide, registry);
-        FastImageApng.register(registry);
-
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
         // not the app's (if it gave React Native's shared client one), so
@@ -132,7 +127,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // store them twice).
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         webClient = client.newBuilder().cache(webCache).build();
-        registry.prepend(FastImageWebGlideUrl.class, InputStream.class, new WebUrlLoaderFactory(webClient));
+        registry.prepend(FastImageUrl.class, InputStream.class, new UrlLoaderFactory(client, webClient));
+        FastImageSvg.register(registry, glide.getBitmapPool());
+        FastImageAnimated.register(context, glide, registry);
+        FastImageApng.register(registry);
 
         // writeToCache: local files stored under a source's key.
         registry.prepend(FastImageCacheWrite.class, InputStream.class,
@@ -140,63 +138,38 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         FastImageGlide.registered(glide);
     }
 
-    // Loads GlideUrls with the given client, except `web` ones
-    // (FastImageWebGlideUrls): Glide gives a model to the loaders of its
-    // superclasses too, and tries the next one when a load fails, so a `web`
-    // image that failed (e.g. a 404) was requested again with this client,
-    // without the HTTP cache, which also hid the failure.
-    private static class UrlLoaderFactory implements ModelLoaderFactory<GlideUrl, InputStream> {
+    // Loads FastImage's remote images (FastImageUrls): `web` ones
+    // (FastImageWebGlideUrls) with the client with the HTTP cache, others with
+    // the other client, where a view loading an image that's being preloaded
+    // waits for the preload's download. FastImageUrl isn't a GlideUrl, so
+    // Glide doesn't also give these to other GlideUrl loaders, which it would
+    // try after a failed load (e.g. a 404, requested again).
+    private static class UrlLoaderFactory implements ModelLoaderFactory<FastImageUrl, InputStream> {
         private final OkHttpClient client;
+        private final OkHttpClient webClient;
 
-        UrlLoaderFactory(OkHttpClient client) {
+        UrlLoaderFactory(OkHttpClient client, OkHttpClient webClient) {
             this.client = client;
+            this.webClient = webClient;
         }
 
         @NonNull
         @Override
-        public ModelLoader<GlideUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
+        public ModelLoader<FastImageUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
             final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
-            return new ModelLoader<GlideUrl, InputStream>() {
+            final OkHttpUrlLoader webLoader = new OkHttpUrlLoader(webClient);
+            return new ModelLoader<FastImageUrl, InputStream>() {
                 @Override
-                public LoadData<InputStream> buildLoadData(@NonNull GlideUrl model, int width, int height, @NonNull Options options) {
-                    LoadData<InputStream> data = loader.buildLoadData(model, width, height, options);
-                    // A view loading an image that's being preloaded waits
-                    // for the preload's download.
-                    return data == null ? null : FastImageSharedDownloads.share(data, model, options);
+                public LoadData<InputStream> buildLoadData(@NonNull FastImageUrl model, int width, int height, @NonNull Options options) {
+                    if (model.url instanceof FastImageWebGlideUrl) {
+                        return webLoader.buildLoadData(model.url, width, height, options);
+                    }
+                    LoadData<InputStream> data = loader.buildLoadData(model.url, width, height, options);
+                    return data == null ? null : FastImageSharedDownloads.share(data, model.url, options);
                 }
 
                 @Override
-                public boolean handles(@NonNull GlideUrl model) {
-                    return !(model instanceof FastImageWebGlideUrl);
-                }
-            };
-        }
-
-        @Override
-        public void teardown() {
-        }
-    }
-
-    // Loads FastImageWebGlideUrls with the given client.
-    private static class WebUrlLoaderFactory implements ModelLoaderFactory<FastImageWebGlideUrl, InputStream> {
-        private final OkHttpClient client;
-
-        WebUrlLoaderFactory(OkHttpClient client) {
-            this.client = client;
-        }
-
-        @NonNull
-        @Override
-        public ModelLoader<FastImageWebGlideUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
-            final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
-            return new ModelLoader<FastImageWebGlideUrl, InputStream>() {
-                @Override
-                public LoadData<InputStream> buildLoadData(@NonNull FastImageWebGlideUrl model, int width, int height, @NonNull Options options) {
-                    return loader.buildLoadData(model, width, height, options);
-                }
-
-                @Override
-                public boolean handles(@NonNull FastImageWebGlideUrl model) {
+                public boolean handles(@NonNull FastImageUrl model) {
                     return true;
                 }
             };

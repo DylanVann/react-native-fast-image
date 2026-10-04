@@ -271,7 +271,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // thread. For a preload (`shared`), views that load the image meanwhile
     // wait for the download and read its file (FastImageSharedDownloads).
     private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
-        final String key = shared && model instanceof GlideUrl ? ((GlideUrl) model).getCacheKey() : null;
+        final String key = shared && model instanceof FastImageUrl ? ((FastImageUrl) model).url.getCacheKey() : null;
         FastImageGlide.get(context);
         Glide.with(context)
                 .asFile()
@@ -351,7 +351,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             cachePathExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    File file = cachedFile(context, FastImageKeyedGlideUrl.forKey(cacheKey), new RequestOptions());
+                    File file = cachedFile(context, new FastImageUrl(FastImageKeyedGlideUrl.forKey(cacheKey)), new RequestOptions());
                     promise.resolve(file != null ? pathResult(file) : failure("Not in the disk cache"));
                 }
             });
@@ -489,7 +489,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         final GlideUrl key = imageSource != null && imageSource.isRemote()
                 ? imageSource.getGlideUrl()
                 : FastImageKeyedGlideUrl.forKey(cacheKey);
-        final Object lookUp = imageSource != null && imageSource.isRemote() ? imageSource.getSourceForLoad() : key;
+        final Object lookUp = imageSource != null && imageSource.isRemote() ? imageSource.getSourceForLoad() : new FastImageUrl(key);
         // A file:// or content:// uri, or a path.
         Uri parsed = Uri.parse(file);
         final Uri fileUri = parsed.getScheme() == null ? Uri.fromFile(new File(file)) : parsed;
