@@ -9,11 +9,11 @@
 
 # The Glide rules below cover what Glide's own rules (its library's
 # proguard-rules.txt) didn't at the version FastImage uses by default
-# (glideVersion in build.gradle, 4.12.0) and older ones apps may pick. When
-# updating Glide, revisit which are still needed: whether Glide's rules now
-# keep modules' constructors, and whether its integrations still register
-# old-style modules in their manifests (the OkHttp integration's
-# OkHttpGlideModule still did in 5.0.9).
+# (glideVersion in build.gradle) and older ones apps may pick. When updating
+# Glide, revisit which are still needed: whether Glide's rules now keep
+# modules' constructors (4.16.0's still keep only the AppGlideModule's), and
+# whether its integrations still register old-style modules in their
+# manifests (the OkHttp integration's OkHttpGlideModule still did in 5.0.9).
 
 # Glide's modules and their constructors: FastImage's, the one Glide
 # generates from them, and old-style modules Glide finds in the app's manifest

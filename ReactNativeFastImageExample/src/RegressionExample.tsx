@@ -2644,6 +2644,97 @@ function GifLoopChangeCase() {
     )
 }
 
+// The animated WebP that loops forever by itself, with loop={false} first
+// (it plays once and stops on blue), then without loop: on the same view
+// (loop unset), or on another view once the first has switched to another
+// image (remount: on Android the second view can then show the drawable the
+// first one had, which a view that's gone keeps). Either way it loops forever
+// again, as the file says, rather than keeping the other loop: recorded once a
+// play has passed, it's still animating (red and blue), not stopped on blue.
+// Its own url, so no other case's view shows the same drawable. Masked: it's
+// animating.
+function WebpLoopUnsetCase({
+    id,
+    remount,
+    description,
+}: {
+    id: string
+    remount?: boolean
+    description: string
+}) {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const [stage, setStage] = useState<'first' | 'switched' | 'second'>('first')
+    const [status, setStatus] = useState('waiting')
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const record = () => {
+        timer.current = setTimeout(async () => {
+            const area = await measureView(view.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const { seen, detail } = await sample(
+                {
+                    name: id,
+                    area,
+                    durationMs: 3000,
+                    expect: [RED, BLUE],
+                    palette: [RED, BLUE, BLANK],
+                },
+                (done) => setTimeout(done, 2000),
+            )
+            setStatus(
+                seen.includes(RED) && seen.includes(BLUE)
+                    ? 'OK'
+                    : (detail ??
+                          `saw ${seen.join(', ') || 'nothing'}, expected it to keep looping`),
+            )
+        }, GIF_PLAY + GIF_MARGIN)
+    }
+    const onLoad = () => {
+        clearTimeout(timer.current)
+        if (stage === 'second') {
+            if (remount) record()
+            return
+        }
+        if (stage === 'switched') {
+            // It shows the other image now: then the second view.
+            timer.current = setTimeout(() => setStage('second'), 300)
+            return
+        }
+        timer.current = setTimeout(() => {
+            if (!remount) {
+                setStage('second')
+                record()
+                return
+            }
+            setStage('switched')
+        }, GIF_PLAY + GIF_MARGIN)
+    }
+    return (
+        <View style={styles.row}>
+            <Masked>
+                <View ref={view} collapsable={false} style={styles.image}>
+                    <FastImage
+                        key={stage === 'second' && remount ? 'second' : 'first'}
+                        style={styles.image}
+                        loop={stage === 'second' ? undefined : false}
+                        source={{
+                            uri: imageUrl(
+                                stage === 'switched'
+                                    ? 'quadrants.png'
+                                    : `formats/animated.webp?${id}=${RUN}`,
+                            ),
+                        }}
+                        onLoad={onLoad}
+                    />
+                </View>
+            </Masked>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // Loads an image that 404s and passes when onError's message has the status
 // code. onError had no details (#200).
 function ErrorMessageCase() {
@@ -3927,11 +4018,13 @@ function FormatAnimationCase({
     file,
     expected,
     description,
+    imageProps,
 }: {
     id: string
     file: string
     expected: AnimationResult
     description: string
+    imageProps?: Partial<FastImageProps>
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
@@ -3977,6 +4070,7 @@ function FormatAnimationCase({
                 <View ref={view} collapsable={false}>
                     <FastImage
                         style={styles.image}
+                        {...imageProps}
                         source={{ uri: imageUrl(`formats/${file}`) }}
                         onLoad={onLoad}
                         onError={(e) =>
@@ -4912,47 +5006,93 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="format-animated-webp"
                 id="format-animated-webp"
                 file="animated.webp"
-                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
-                description="An animated WebP: animates on iOS, shows its first frame (red) on Android (masked)"
+                expected="animates"
+                description="An animated WebP animates (red and blue; masked)"
             />,
             <FormatAnimationCase
                 key="format-animated-webp-downsampled"
                 id="format-animated-webp-downsampled"
                 file="animated-large.webp"
-                expected={Platform.OS === 'ios' ? 'animates' : 'first frame'}
-                description="A large animated WebP, downsampled: animates on iOS, shows its first frame (red) on Android (masked)"
+                expected="animates"
+                description="A large animated WebP, downsampled, animates (masked)"
             />,
-            // loop and paused with an animated WebP, which only animates on
-            // iOS.
-            ...(Platform.OS === 'ios'
-                ? [
-                      <GifLoopCase
-                          key="webp-loop-false"
-                          id="webp-loop-false"
-                          description="loop={false}: an animated WebP that loops forever by itself plays once and stops on blue"
-                          loop={false}
-                          plays={1}
-                          source="formats/animated.webp"
-                      />,
-                      <GifPausedCase
-                          key="webp-paused"
-                          name="WebP"
-                          source="formats/animated.webp"
-                      />,
-                      <GifPausedCase
-                          key="webp-resume"
-                          name="WebP"
-                          source="formats/animated.webp"
-                          resume
-                      />,
-                  ]
-                : []),
             <FormatAnimationCase
                 key="format-animated-avif"
                 id="format-animated-avif"
                 file="animated.avif"
+                expected={Platform.OS === 'ios' ? 'first frame' : 'animates'}
+                description="An animated AVIF: shows its first frame (red) on iOS, animates on Android (masked)"
+            />,
+        ],
+    },
+    {
+        // loop, paused and two views, with an animated WebP.
+        name: 'webp-animation',
+        cases: [
+            <GifLoopCase
+                key="webp-loop-false"
+                id="webp-loop-false"
+                description="loop={false}: an animated WebP that loops forever by itself plays once and stops on blue"
+                loop={false}
+                plays={1}
+                source="formats/animated.webp"
+            />,
+            <WebpLoopUnsetCase
+                key="webp-loop-unset"
+                id="webp-loop-unset"
+                description="loop={false}, then not set: the animated WebP loops forever again, as the file says (masked)"
+            />,
+            <WebpLoopUnsetCase
+                key="webp-loop-remount"
+                id="webp-loop-remount"
+                remount
+                description="A view without loop, after another with loop={false} switched to another image: the animated WebP loops forever, as the file says (masked)"
+            />,
+            <GifPausedCase
+                key="webp-paused"
+                name="WebP"
+                source="formats/animated.webp"
+            />,
+            <GifPausedCase
+                key="webp-resume"
+                name="WebP"
+                source="formats/animated.webp"
+                resume
+            />,
+            // Two views of the same animated WebP both animate. On Android,
+            // Glide would give every view of it the same drawable, so the
+            // views would share its playback (webp-paused would play, with
+            // the others): FastImageAnimated gives each its own.
+            <FormatAnimationCase
+                key="format-animated-webp-twice-1"
+                id="format-animated-webp-twice-1"
+                file="animated.webp"
+                expected="animates"
+                description="The same animated WebP in two views: this one animates (masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-webp-twice-2"
+                id="format-animated-webp-twice-2"
+                file="animated.webp"
+                expected="animates"
+                description="...and so does this one (masked)"
+            />,
+            // Not animated (as a GIF isn't): blurred, and repeated.
+            <FormatAnimationCase
+                key="blur-webp"
+                id="blur-webp"
+                file="animated.webp"
                 expected="first frame"
-                description="An animated AVIF shows its first frame (red; masked)"
+                imageProps={{ blurRadius: 6 }}
+                description="Blurred: an animated WebP shows its first frame (red), blurred and still (masked)"
+            />,
+            <FormatAnimationCase
+                key="repeat-webp"
+                id="repeat-webp"
+                file="animated.webp"
+                expected="first frame"
+                imageProps={{ resizeMode: 'repeat' }}
+                description="repeat with an animated WebP: its first frame (red), still, repeated (masked)"
             />,
         ],
     },
