@@ -1,3 +1,22 @@
+# [8.30.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.29.0...v8.30.0) (2026-10-04)
+
+
+### Bug Fixes
+
+* **android:** download an image once when a view loads it while it's being preloaded ([#1231](https://github.com/DylanVann/react-native-fast-image/issues/1231)) ([66a5f0e](https://github.com/DylanVann/react-native-fast-image/commit/66a5f0e34c5ec37563f0ed208e67fc75e67c7539))
+
+
+### Features
+
+* **android:** animate animated WebP and AVIF (Glide 4.16 by default) ([#1229](https://github.com/DylanVann/react-native-fast-image/issues/1229)) ([2a0130a](https://github.com/DylanVann/react-native-fast-image/commit/2a0130a932fa3dd4b1af6188b85b0756a653f6ef))
+* **android:** animate APNG images ([#1228](https://github.com/DylanVann/react-native-fast-image/issues/1228)) ([6cd5ece](https://github.com/DylanVann/react-native-fast-image/commit/6cd5ecef16435bd0ed21ec9deed57317fc0fec29))
+* **ios:** include SDWebImagePhotosPlugin, so photo library images load without installing it ([#1235](https://github.com/DylanVann/react-native-fast-image/issues/1235)) ([2c789c6](https://github.com/DylanVann/react-native-fast-image/commit/2c789c6e06f4a8971ac8a681a91e2a78116d68de))
+
+
+### Performance Improvements
+
+* **android:** decode animated WebP copies off the main thread, and reuse Glide's ([#1227](https://github.com/DylanVann/react-native-fast-image/issues/1227)) ([6d42e5d](https://github.com/DylanVann/react-native-fast-image/commit/6d42e5d1b93476a33bee32aee8073df2e9e531ab))
+
 # [8.29.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.28.1...v8.29.0) (2026-10-02)
 
 
