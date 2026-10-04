@@ -532,15 +532,10 @@ const frontmatter = (fields: Record<string, unknown>) =>
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
         .join('\n')}\n---\n\n`
 
-// The main page: the README, with the API docs as the website shows them,
-// without its title (the page's title is shown instead), and without the
-// lines marked as left out (e.g. its link to the website).
+// The main page: the README, with the API docs as the website shows them, and
+// without its title (the page's title is shown instead).
 const { description } = JSON.parse(readFileSync(`${root}package.json`, 'utf8'))
-const readmePage = withTypeLinks(
-    withApi(true)
-        .replace(/^# .*\n+/m, '')
-        .replace(/^.*<!-- Left out of the website\. -->\n+/gm, ''),
-)
+const readmePage = withTypeLinks(withApi(true).replace(/^# .*\n+/m, ''))
 write(
     '',
     frontmatter({
