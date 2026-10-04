@@ -1,3 +1,10 @@
+# [8.31.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.30.1...v8.31.0) (2026-10-04)
+
+
+### Features
+
+* **ios:** animate AVIF images ([#1239](https://github.com/DylanVann/react-native-fast-image/issues/1239)) ([ad0bc05](https://github.com/DylanVann/react-native-fast-image/commit/ad0bc05bced69274b047ce28e7986a6b889dc6db))
+
 ## [8.30.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.30.0...v8.30.1) (2026-10-04)
 
 
