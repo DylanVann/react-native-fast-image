@@ -31,9 +31,9 @@ export type Source = {
      *
      * Also loads local files (`file://`, and on Android `content://`), images
      * in the app by name (e.g. `'my_image'`: in its asset catalog on iOS, a
-     * drawable on Android), photo library images on iOS (`ph://`, see
-     * [Photo library images](#photo-library-images-ios)) and SVG images (see
-     * [SVG images](docs/formats.md#svg-images)).
+     * drawable on Android), photo library images on iOS and tvOS (`ph://`,
+     * see [Photo library images](#photo-library-images-ios-and-tvos)) and SVG
+     * images (see [SVG images](docs/formats.md#svg-images)).
      */
     uri?: string
     /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */

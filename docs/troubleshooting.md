@@ -3,7 +3,7 @@
 ## An image doesn't show
 
 - Check `onError`: it's called with a message saying what went wrong, e.g. the HTTP status code.
-- A photo library url (`ph://`) on iOS needs the app to have access to the photo library: see [photo library images](../README.md#photo-library-images-ios).
+- A photo library url (`ph://`) on iOS and tvOS needs the app to have access to the photo library: see [photo library images](../README.md#photo-library-images-ios-and-tvos).
 - On Android, `defaultSource` doesn't show in debug builds: see [`defaultSource`](../README.md#defaultsource).
 - If your Android app has its own Glide `AppGlideModule`, see [Android build settings](android-build-settings.md#if-your-app-has-its-own-appglidemodule).
 - An image that changed on the server keeps showing the cached one until its url or `cacheKey` changes: see [when an image changes](how-is-caching-handled.md#when-an-image-changes).
