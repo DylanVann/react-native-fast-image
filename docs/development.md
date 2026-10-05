@@ -183,6 +183,10 @@ Notes for maintainers go in `//` comments instead: they aren't in editor hovers,
 
 The website in `website/` ([Starlight](https://starlight.astro.build)) shows the README as its main page and each file in `docs/` as a page (`benchmarks.md` and `development.md` next to it in the sidebar, the others under Guides), each named after its title. `bun run dev` in `website/` generates the pages and serves them; `bun run build` writes the site to `website/dist/` (`bun run build:docs` from the repo's root does the same). The generator runs [TypeDoc](https://typedoc.org), which needs TypeScript 6 (the library uses TypeScript 7, which has no JavaScript API yet), so `website/` has its own dependencies. It warns about links to headings that don't exist in the README or `docs/`.
 
+## The `react-native` peer dependency
+
+`package.json`'s `react-native` peer is `*`, and the README's Installation section says which React Native versions FastImage works with. A range such as `>=0.65.0` would stop npm from installing FastImage next to React Native tvOS (`react-native-tvos`, whose versions, e.g. `0.87.1-1`, are semver prereleases) or a release candidate: npm only accepts a prerelease for a peer of `*`, and fails with `ERESOLVE` otherwise (yarn, pnpm and bun only warn). Most React Native libraries, and the `create-react-native-library` and `create-expo-module` templates, use `*` for this reason. Keep the README's minimum up to date instead.
+
 ## Releasing
 
 Releases are automatic from `main`, with an approval step:

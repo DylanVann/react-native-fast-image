@@ -57,7 +57,7 @@ See [Formats](docs/formats.md) for the versions of iOS and Android each format n
 
 ## Installation
 
-Works with React Native 0.65 and later (iOS 13 and later, Android `minSdkVersion` 21 and later), with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for a future major version.
+Works with React Native 0.65 and later (iOS 13 and later, Android `minSdkVersion` 21 and later), with the New Architecture (through React Native's interop layer) and the legacy architecture, with Expo, and on tvOS with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, Expo SDK 57, and React Native tvOS 0.87. A native New Architecture component is planned for a future major version.
 
 ```bash
 npm install react-native-fast-image
