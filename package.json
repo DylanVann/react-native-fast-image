@@ -28,8 +28,6 @@
         "android/build.gradle",
         "android/consumer-rules.pro",
         "android/src/main",
-        "android/src/glide-4.15",
-        "android/src/glide-older",
         "ios/FastImage",
         "app.plugin.js",
         "dist",
