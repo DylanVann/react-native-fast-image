@@ -27,14 +27,16 @@ Steps:
      failure or a crash fails the run.
 
 Options:
-  --app main|legacy|expo
+  --app main|legacy|expo|tv
                       Only this example app (default: main and legacy). The
                       Expo example (ReactNativeFastImageExampleExpo) runs only
                       when asked for: a few smoke cases on iOS and Android
                       (its native projects made by \`expo prebuild\`, with
                       FastImage's config plugin) and on the web (its web
                       version in headless Chrome, statuses only, no
-                      screenshots).
+                      screenshots). So does the tvOS example
+                      (ReactNativeFastImageExampleTV): the regression cases
+                      but the touch ones, on an Apple TV simulator.
   --ios, --android, --web
                       Only this platform (default: iOS and Android, and the
                       web for the Expo example; --web is for the Expo
@@ -72,7 +74,9 @@ Environment:
   IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
                   of the script's own so screenshots and recordings don't
                   show other apps; created on first use with the device type
-                  and runtime of the newest iPhone simulator).
+                  and runtime of the newest iPhone simulator). For the tvOS
+                  example, TVOS_SIMULATOR (default: "RNFI Apple TV", made
+                  from the newest Apple TV simulator).
   ANDROID_AVD     Emulator to start if no device is connected (default: the
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
@@ -90,7 +94,7 @@ Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
 emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
-type App = 'main' | 'legacy' | 'expo'
+type App = 'main' | 'legacy' | 'expo' | 'tv'
 type Platform = 'ios' | 'android' | 'web'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
@@ -138,26 +142,41 @@ if (
     options.app !== undefined &&
     options.app !== 'main' &&
     options.app !== 'legacy' &&
-    options.app !== 'expo'
+    options.app !== 'expo' &&
+    options.app !== 'tv'
 ) {
-    console.error(`Unknown app: ${options.app} (use main, legacy or expo)`)
+    console.error(`Unknown app: ${options.app} (use main, legacy, expo or tv)`)
     process.exit(2)
 }
-// The Expo example only runs when asked for (--app expo).
+// The Expo and tvOS examples only run when asked for (--app expo, --app tv).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
 if (options.web && !APPS.includes('expo')) {
     console.error('--web is for the Expo example: use it with --app expo')
     process.exit(2)
 }
-const PLATFORMS: Platform[] = options.ios
-    ? ['ios']
-    : options.android
-      ? ['android']
-      : options.web
-        ? ['web']
-        : APPS.includes('expo')
-          ? ['ios', 'android', 'web']
-          : ['ios', 'android']
+// tvOS is the iOS platform (React Native's Platform.OS is 'ios' there too).
+const TV = APPS.includes('tv')
+if (TV && options.android) {
+    console.error('The tvOS example has no Android app')
+    process.exit(2)
+}
+// Both are for the Maestro flows, which the tvOS example doesn't run.
+if (TV && (options.background || options.record)) {
+    console.error(
+        "--background and --record are for the Maestro flows, which the tvOS example doesn't run",
+    )
+    process.exit(2)
+}
+const PLATFORMS: Platform[] =
+    options.ios || TV
+        ? ['ios']
+        : options.android
+          ? ['android']
+          : options.web
+            ? ['web']
+            : APPS.includes('expo')
+              ? ['ios', 'android', 'web']
+              : ['ios', 'android']
 const RUN_JS = !options['no-js']
 const RUN_APPS = !options['js-only']
 const REF = options.ref
@@ -468,6 +487,7 @@ const appDir = (app: App) =>
             main: 'ReactNativeFastImageExample',
             legacy: 'ReactNativeFastImageExampleLegacy',
             expo: 'ReactNativeFastImageExampleExpo',
+            tv: 'ReactNativeFastImageExampleTV',
         }[app],
     )
 const appName = (app: App) => path.basename(appDir(app))
@@ -1225,7 +1245,7 @@ async function runRegression(
         shots.push(stopped)
     }
     const ws = new WebSocket(
-        `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${platform}`,
+        `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${TV && platform === 'ios' ? 'tvos' : platform}`,
     )
     ws.onopen = notify
     // The group on screen. If the app starts again (maestro-runner's iOS
@@ -1366,6 +1386,9 @@ async function runRegression(
         )
         return
     }
+    // tvOS zooms a launched app in for about a second, which the first
+    // group's screenshot could catch.
+    if (TV) await new Promise((resolve) => setTimeout(resolve, 2000))
     groups = hello.groups as string[]
     scale = Number(hello.scale) || 1
     windowWidth = Number((hello.window as { width?: number })?.width) || 0
@@ -1708,7 +1731,11 @@ let iosUdid = ''
 // The flows run on a simulator of their own by default, so screenshots and
 // recordings don't show other apps installed on a shared simulator. It's
 // created on first use, like the emulator is started when none is running.
-const IOS_SIMULATOR = env.IOS_SIMULATOR ?? 'RNFI iPhone'
+const IOS_SIMULATOR = TV
+    ? (env.TVOS_SIMULATOR ?? 'RNFI Apple TV')
+    : (env.IOS_SIMULATOR ?? 'RNFI iPhone')
+const SIMULATOR_OS = TV ? 'tvOS' : 'iOS'
+const SIMULATOR_SDK = TV ? 'appletvsimulator' : 'iphonesimulator'
 
 function iosDevice() {
     const list = capture('xcrun', [
@@ -1726,12 +1753,14 @@ function iosDevice() {
         deviceTypeIdentifier: string
     }
     const version = (runtime: string) =>
-        (runtime.match(/iOS-(\d+)-(\d+)/) ?? []).slice(1).map(Number)
+        (runtime.match(new RegExp(`${SIMULATOR_OS}-(\\d+)-(\\d+)`)) ?? [])
+            .slice(1)
+            .map(Number)
     const devices = Object.entries(
         JSON.parse(list).devices as Record<string, Device[]>,
     )
-        .filter(([runtime]) => runtime.includes('iOS'))
-        // Newest iOS first.
+        .filter(([runtime]) => runtime.includes(`SimRuntime.${SIMULATOR_OS}-`))
+        // Newest first.
         .sort(([a], [b]) => {
             const [am = 0, an = 0] = version(a)
             const [bm = 0, bn = 0] = version(b)
@@ -1740,9 +1769,12 @@ function iosDevice() {
         .flatMap(([runtime, list]) => list.map((d) => ({ ...d, runtime })))
         .filter((d) => d.isAvailable)
     let pick = devices.find((d) => d.name === IOS_SIMULATOR)
-    if (!pick && !env.IOS_SIMULATOR) {
-        // Create it with the newest iPhone's device type and runtime.
-        const template = devices.find((d) => d.name.startsWith('iPhone'))
+    if (!pick && !env[TV ? 'TVOS_SIMULATOR' : 'IOS_SIMULATOR']) {
+        // Create it with the newest iPhone's (or Apple TV's) device type and
+        // runtime.
+        const template = devices.find((d) =>
+            d.name.startsWith(TV ? 'Apple TV' : 'iPhone'),
+        )
         if (!template) return false
         say(`Creating simulator "${IOS_SIMULATOR}" (${template.name})`)
         const udid = capture('xcrun', [
@@ -1904,7 +1936,7 @@ function trimCompilationCache() {
 function syncPrebuiltMarkers(dir: string) {
     const pods = path.join(dir, 'ios/Pods')
     const rn = path.join(dir, 'node_modules/react-native')
-    const slice = 'ios-arm64_x86_64-simulator'
+    const slice = `${TV ? 'tvos' : 'ios'}-arm64_x86_64-simulator`
     const frameworks = [
         {
             script: 'scripts/replace-rncore-version.js',
@@ -1963,9 +1995,9 @@ async function buildIos(app: App) {
             '-configuration',
             CONFIGURATION,
             '-sdk',
-            'iphonesimulator',
+            SIMULATOR_SDK,
             '-destination',
-            `platform=iOS Simulator,id=${iosUdid}`,
+            `platform=${SIMULATOR_OS} Simulator,id=${iosUdid}`,
             '-derivedDataPath',
             'build',
             'COMPILATION_CACHE_ENABLE_CACHING=YES',
@@ -1989,7 +2021,7 @@ async function buildIos(app: App) {
     }
     const product = path.join(
         dir,
-        `ios/build/Build/Products/${CONFIGURATION}-iphonesimulator/${name}.app`,
+        `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
     )
     if (
         capture('xcrun', ['simctl', 'install', iosUdid, product], {
@@ -2009,42 +2041,50 @@ async function buildIos(app: App) {
         'photos',
         iosBundleId(app),
     ])
-    addLibraryGif()
+    addLibraryMedia()
     record('PASS', `${app} ios build`)
     return true
 }
 
 // A GIF in the simulator's photo library (its sample photos have none), for
-// the photo library GIF case: added once, as its files show.
-function addLibraryGif() {
+// the photo library GIF case, and on tvOS a JPEG and a HEIC photo too (an
+// Apple TV simulator has no sample photos): each added once, as its files
+// show.
+function addLibraryMedia() {
     const dcim = path.join(
         os.homedir(),
         'Library/Developer/CoreSimulator/Devices',
         iosUdid,
         'data/Media/DCIM',
     )
-    const hasGif = (dir: string): boolean =>
+    const has = (dir: string, extension: string): boolean =>
         fs.existsSync(dir) &&
         fs
             .readdirSync(dir, { withFileTypes: true })
             .some((entry) =>
                 entry.isDirectory()
-                    ? hasGif(path.join(dir, entry.name))
-                    : entry.name.toLowerCase().endsWith('.gif'),
+                    ? has(path.join(dir, entry.name), extension)
+                    : entry.name.toLowerCase().endsWith(extension),
             )
-    if (hasGif(dcim)) return
-    capture('xcrun', [
-        'simctl',
-        'addmedia',
-        iosUdid,
-        path.join(IMAGE_SERVER, 'images/loop-forever.gif'),
-    ])
+    const media = [
+        'loop-forever.gif',
+        ...(TV ? ['formats/quadrants.jpg', 'formats/quadrants.heic'] : []),
+    ]
+    for (const file of media) {
+        if (has(dcim, path.extname(file))) continue
+        capture('xcrun', [
+            'simctl',
+            'addmedia',
+            iosUdid,
+            path.join(IMAGE_SERVER, 'images', file),
+        ])
+    }
 }
 
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
-    if (options.background && app !== 'expo')
+    if (options.background && app !== 'expo' && app !== 'tv')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     // The banner again when the app is used by hand (see runRegression).
     capture('xcrun', [
@@ -2056,6 +2096,9 @@ async function flowsIos(app: App) {
         iosBundleId(app),
         'FastImageHideDevLoadingView',
     ])
+    // Stopped, as on Android: its runner would otherwise connect to a later
+    // run's relay (e.g. the tvOS example's, on another simulator).
+    capture('xcrun', ['simctl', 'terminate', iosUdid, iosBundleId(app)])
     const reports = path.join(os.homedir(), 'Library/Logs/DiagnosticReports')
     for (const file of fs.existsSync(reports) ? fs.readdirSync(reports) : []) {
         if (!file.startsWith(`${appName(app)}-`) || !file.endsWith('.ips'))
@@ -2360,6 +2403,13 @@ async function main() {
                     ['run', '--silent', 'typecheck'],
                     appDir('expo'),
                 )
+            if (TV && (await ensureNodeModules(appDir('tv'))))
+                await jsCheck(
+                    'tv example typecheck',
+                    'bun',
+                    ['run', '--silent', 'typecheck'],
+                    appDir('tv'),
+                )
             await jsCheck(
                 'verify script typecheck',
                 path.join(example, 'node_modules/.bin/tsc'),
@@ -2392,7 +2442,12 @@ async function main() {
                     record('FAIL', 'web', `no Chrome at ${CHROME} (CHROME_BIN)`)
             } else if (platform === 'ios') {
                 if (iosDevice()) ready.push('ios')
-                else record('FAIL', 'ios', 'no iPhone simulator found')
+                else
+                    record(
+                        'FAIL',
+                        'ios',
+                        `no ${TV ? 'Apple TV' : 'iPhone'} simulator found`,
+                    )
             } else {
                 ensureJava()
                 if (await androidDevice()) ready.push('android')

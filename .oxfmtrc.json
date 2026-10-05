@@ -12,6 +12,7 @@
         "ReactNativeFastImageExample/android",
         "ReactNativeFastImageExampleLegacy/ios",
         "ReactNativeFastImageExampleLegacy/android",
+        "ReactNativeFastImageExampleTV/ios",
         ".local"
     ],
     "overrides": [

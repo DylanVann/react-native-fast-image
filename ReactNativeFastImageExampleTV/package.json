@@ -1,0 +1,31 @@
+{
+    "name": "reactnativefastimageexampletv",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "ios": "react-native run-ios --simulator 'Apple TV 4K (3rd generation)'",
+        "start": "react-native start",
+        "images": "bun ../ReactNativeFastImageExampleServer/server.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "react": "19.2.3",
+        "react-native": "npm:react-native-tvos@0.87.1-1",
+        "react-native-safe-area-context": "^5.10.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.25.2",
+        "@babel/preset-env": "^7.25.3",
+        "@babel/runtime": "^7.25.0",
+        "@react-native-community/cli": "20.2.0",
+        "@react-native-community/cli-platform-ios": "20.2.0",
+        "@react-native/babel-preset": "0.87.1",
+        "@react-native/metro-config": "0.87.1",
+        "@react-native/typescript-config": "0.87.1",
+        "@types/react": "^19.2.0",
+        "typescript": "7.0.2"
+    },
+    "engines": {
+        "node": ">= 22.11.0"
+    }
+}

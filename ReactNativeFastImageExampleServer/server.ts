@@ -39,10 +39,11 @@
 //
 // /regression is a WebSocket relay for the example's regression runner
 // (ReactNativeFastImageExample/src/RegressionRunner.tsx): the app connects with
-// ?role=app&platform=<ios|android>, scripts/verify.mts with ?role=controller
-// &platform=<the same>. Messages from the app go to that platform's controllers
-// and the other way round, unchanged; controllers also get
-// `{ "type": "app", "connected": true|false }` when the app connects or goes.
+// ?role=app&platform=<ios|tvos|android|web>, scripts/verify.mts with
+// ?role=controller&platform=<the same>. Messages from the app go to that
+// platform's controllers and the other way round, unchanged; controllers also
+// get `{ "type": "app", "connected": true|false }` when the app connects or
+// goes.
 // A plain GET /regression?platform=<platform> answers whether a controller is
 // connected (`{ "controller": true }`): the app asks on launch, and shows the
 // runner instead of its tabs if one is.
