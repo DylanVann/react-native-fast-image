@@ -14,7 +14,10 @@ export const slowImageUrl = (path: string) => `http://${HOST}:8091/${path}`
 
 // The server also relays the regression runner's WebSocket (RegressionRunner.tsx)
 // to scripts/verify.mts, and says whether the script is waiting for the app.
+// An Apple TV app is on its own channel (tvos), so an iPhone app left open on
+// another simulator doesn't take its place (Platform.OS is ios on both).
+const RELAY_PLATFORM = Platform.isTV ? 'tvos' : Platform.OS
 export const regressionCheckUrl = () =>
-    `http://${HOST}:8090/regression?platform=${Platform.OS}`
+    `http://${HOST}:8090/regression?platform=${RELAY_PLATFORM}`
 export const regressionSocketUrl = () =>
-    `ws://${HOST}:8090/regression?role=app&platform=${Platform.OS}`
+    `ws://${HOST}:8090/regression?role=app&platform=${RELAY_PLATFORM}`

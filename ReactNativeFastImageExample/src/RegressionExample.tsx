@@ -5093,17 +5093,30 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="format-icns"
                 id="format-icns"
                 file="quadrants.icns"
-                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
+                // tvOS's ImageIO doesn't decode ICNS or PSD.
+                expected={
+                    Platform.OS === 'ios' && !Platform.isTV ? 'loads' : 'fails'
+                }
                 // An icon size (formats.sh).
                 size={128}
-                description="ICNS: loads on iOS, fails on Android"
+                description={
+                    Platform.isTV
+                        ? 'ICNS: fails on tvOS'
+                        : 'ICNS: loads on iOS, fails on Android'
+                }
             />,
             <FormatCase
                 key="format-psd"
                 id="format-psd"
                 file="quadrants.psd"
-                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
-                description="PSD: loads on iOS, fails on Android"
+                expected={
+                    Platform.OS === 'ios' && !Platform.isTV ? 'loads' : 'fails'
+                }
+                description={
+                    Platform.isTV
+                        ? 'PSD: fails on tvOS'
+                        : 'PSD: loads on iOS, fails on Android'
+                }
             />,
         ],
     },

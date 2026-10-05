@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.homepage = 'https://github.com/DylanVann/react-native-fast-image'
   s.license = 'MIT'
   s.author = 'react-native-fast-image'
-  s.platforms = { :ios => '13.4' }
+  s.platforms = { :ios => '13.4', :tvos => '13.4' }
   s.source = { :git => 'https://github.com/DylanVann/react-native-fast-image.git' }
   s.source_files = '*.{h,m}'
   s.frameworks = 'Photos'

@@ -24,6 +24,8 @@ FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImag
 | ICNS   | Yes                             | ImageIO                                                                                                                 |
 | PSD    | Its composite image             | ImageIO                                                                                                                 |
 
+On tvOS (tested on tvOS 27 in the tvOS example), the same formats show except ICNS and PSD, which tvOS's ImageIO doesn't decode.
+
 Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. Animated AVIFs are decoded with ImageIO too, by FastImage's coder for them (SDWebImage's own only decodes their first frame), unless the app has registered libavif's coder ([SDWebImageAVIFCoder](https://github.com/SDWebImage/SDWebImageAVIFCoder)), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
 
 ## Android
