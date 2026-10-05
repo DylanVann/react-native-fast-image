@@ -1,3 +1,10 @@
+## [8.31.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.1...v8.31.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ios:** load images in the app by name, e.g. from its asset catalog ([#1243](https://github.com/DylanVann/react-native-fast-image/issues/1243)) ([d436d41](https://github.com/DylanVann/react-native-fast-image/commit/d436d419ef4525520dcc065151ca2002413248be))
+
 ## [8.31.1](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.0...v8.31.1) (2026-10-04)
 
 
