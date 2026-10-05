@@ -1806,22 +1806,22 @@ async function expoPrebuild(platform: 'ios' | 'android') {
 // `pod install` also generates files inside node_modules/react-native. And
 // after the Podfile changed (e.g. another branch's): the installed Pods record
 // the Podfile's SHA-1 they were installed for. And after FastImage's podspec
-// changed (e.g. a dependency added), whose SHA-1 the source marker keeps.
-const podspecSha = (dir: string) =>
-    createHash('sha1')
-        .update(
-            fs.readFileSync(
-                FROM_PACKAGE
-                    ? path.join(
-                          dir,
-                          'node_modules',
-                          PACKAGE_NAME,
-                          'RNFastImage.podspec',
-                      )
-                    : path.join(ROOT, 'RNFastImage.podspec'),
-            ),
-        )
+// changed (e.g. a dependency added), or a file was added to or removed from
+// its ios folder (the podspec's `ios/**/*.{h,m}` is resolved by `pod
+// install`): the source marker keeps the SHA-1 of both.
+const podspecSha = (dir: string) => {
+    const lib = FROM_PACKAGE
+        ? path.join(dir, 'node_modules', PACKAGE_NAME)
+        : ROOT
+    const files = fs
+        .readdirSync(path.join(lib, 'ios'), { recursive: true })
+        .map(String)
+        .sort()
+    return createHash('sha1')
+        .update(fs.readFileSync(path.join(lib, 'RNFastImage.podspec')))
+        .update(files.join('\n'))
         .digest('hex')
+}
 function podsCurrent(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
