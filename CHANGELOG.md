@@ -1,3 +1,10 @@
+## [9.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.1...v9.0.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **types:** allow ref on FastImage and FastImageBackground ([#1254](https://github.com/DylanVann/react-native-fast-image/issues/1254)) ([8c9121e](https://github.com/DylanVann/react-native-fast-image/commit/8c9121ef013603a310db8fe076d83185e0ba5a91))
+
 ## [9.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.0...v9.0.1) (2026-10-05)
 
 
