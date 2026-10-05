@@ -1,5 +1,6 @@
 import React, { forwardRef, memo, useRef } from 'react'
 import {
+    ColorValue,
     View,
     Image,
     NativeModules,
@@ -13,11 +14,6 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-
-// React Native's ColorValue, which its types only export since 0.63. Taken
-// from ViewStyle so the types also work with older React Native types, where
-// it's string.
-type ColorValue = NonNullable<ViewStyle['backgroundColor']>
 
 /** How the image fits the view: see [`resizeMode`](#resizemode). */
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
@@ -244,8 +240,8 @@ export interface OnProgressEvent {
 // are added; the rest (radii, opacity, colors) come from ViewStyle, so they're
 // the app's React Native types (e.g. string radii, Animated values).
 export interface ImageStyle extends ViewStyle {
-    overlayColor?: ViewStyle['backgroundColor']
-    tintColor?: ViewStyle['backgroundColor']
+    overlayColor?: ColorValue
+    tintColor?: ColorValue
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {

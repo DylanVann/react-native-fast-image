@@ -54,7 +54,7 @@ android {
     compileSdkVersion safeExtGet('compileSdkVersion', 28)
     buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
     defaultConfig {
-        minSdkVersion safeExtGet('minSdkVersion', 16)
+        minSdkVersion safeExtGet('minSdkVersion', 21)
         targetSdkVersion safeExtGet('targetSdkVersion', 28)
         versionCode 1
         versionName "1.0"
@@ -104,16 +104,11 @@ dependencies {
     implementation "com.github.bumptech.glide:annotations:${glideVersion}"
     implementation "com.github.bumptech.glide:okhttp3-integration:${glideVersion}"
     annotationProcessor "com.github.bumptech.glide:compiler:${glideVersion}"
-    // SVG images, when the app has AndroidSVG (either package): not shipped,
-    // so there's never a second copy of it (see FastImageSvg).
-    compileOnly 'com.caverock:androidsvg-aar:1.4'
-    // Animated PNGs, with APNG4Android (see FastImageApng), which needs
-    // minSdkVersion 21: shipped when the app's is 21 or later. With an older
-    // one, FastImage only compiles against it, and APNGs show their first
-    // frame.
-    if (safeExtGet('minSdkVersion', 16).toString().toInteger() >= 21) {
-        implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
-    } else {
-        compileOnly 'com.github.penfeizhou.android.animation:apng:3.0.5'
-    }
+    // SVG images (see FastImageSvg). The package expo-image uses too, so
+    // apps with it get one copy. An app with the other package
+    // (com.caverock:androidsvg, the same classes) excludes this one (see
+    // docs/troubleshooting.md); FastImageSvg works with either.
+    implementation 'com.caverock:androidsvg-aar:1.4'
+    // Animated PNGs (see FastImageApng).
+    implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
 }

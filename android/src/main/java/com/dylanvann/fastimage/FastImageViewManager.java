@@ -8,7 +8,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
-import android.os.Build;
 
 import androidx.annotation.NonNull;
 
@@ -240,12 +239,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
     }
 
     private static boolean isActivityDestroyed(Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return activity.isDestroyed() || activity.isFinishing();
-        } else {
-            return activity.isFinishing() || activity.isChangingConfigurations();
-        }
-
+        return activity.isDestroyed() || activity.isFinishing();
     }
 
     // Legacy architecture only; the New Architecture doesn't use shadow nodes.

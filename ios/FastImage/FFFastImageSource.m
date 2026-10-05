@@ -9,6 +9,7 @@
 #import <SDWebImage/SDImageAWebPCoder.h>
 #import "FFFAnimatedWebPCoder.h"
 #import "FFFAnimatedAVIFCoder.h"
+#import <SDWebImageSVGCoder/SDImageSVGCoder.h>
 #import <objc/message.h>
 #import <ImageIO/ImageIO.h>
 
@@ -304,10 +305,6 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 @end
 
-// SDWebImageSVGCoder's coder, when the app has the pod (SVG images): found at
-// runtime, so FastImage doesn't depend on it. Nil otherwise.
-static id<SDImageCoder> FFFSVGCoder;
-
 @implementation FFFastImageSource
 
 + (void)initialize
@@ -345,28 +342,17 @@ static id<SDImageCoder> FFFSVGCoder;
         [SDImageCodersManager.sharedManager addCoder:FFFAnimatedAVIFCoder.sharedCoder];
     }
 
-    // SVG: registered with SDWebImage's coders, as the pod's setup does (unless
-    // the app has already): SDWebImage then picks it for SVG data, including
-    // for FastImage's animated and downsampled image classes. Giving the
-    // coder per load instead (SDWebImageContextImageCoder) would make it the
-    // only coder for everything in that load. So the app's own SDWebImage
-    // use can decode SVG too, which is what the pod is for.
-    Class coderClass = NSClassFromString(@"SDImageSVGCoder");
-    SEL shared = NSSelectorFromString(@"sharedCoder");
-    if (!coderClass || ![coderClass respondsToSelector:shared]) {
-        return;
-    }
-    id coder = ((id (*)(id, SEL))objc_msgSend)(coderClass, shared);
-    if (![coder conformsToProtocol:@protocol(SDImageCoder)]) {
-        return;
-    }
-    FFFSVGCoder = coder;
+    // SVG (SDWebImageSVGCoder): registered with SDWebImage's coders, as the
+    // pod's setup does (unless the app has already): SDWebImage then picks it
+    // for SVG data, including for FastImage's animated and downsampled image
+    // classes. Giving the coder per load instead (SDWebImageContextImageCoder)
+    // would make it the only coder for everything in that load.
     for (id<SDImageCoder> registered in SDImageCodersManager.sharedManager.coders) {
-        if ([registered isKindOfClass:coderClass]) {
+        if ([registered isKindOfClass:[SDImageSVGCoder class]]) {
             return;
         }
     }
-    [SDImageCodersManager.sharedManager addCoder:coder];
+    [SDImageCodersManager.sharedManager addCoder:SDImageSVGCoder.sharedCoder];
 }
 
 - (instancetype)initWithURL:(NSURL *)url
@@ -412,10 +398,6 @@ static id<SDImageCoder> FFFSVGCoder;
 
 - (NSString *)errorMessage:(NSError *)error
 {
-    if (!FFFSVGCoder && [error.domain isEqualToString:SDWebImageErrorDomain] && error.code == SDWebImageErrorBadImageData &&
-        [_url.path.lowercaseString hasSuffix:@".svg"]) {
-        return @"SVG images need SDWebImageSVGCoder: add pod 'SDWebImageSVGCoder' to the app's Podfile";
-    }
     return FFFErrorMessage(error);
 }
 
@@ -508,17 +490,10 @@ static id<SDImageCoder> FFFSVGCoder;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         NSString *name = @"fast-image-http-cache";
-        if (@available(iOS 13.0, tvOS 13.0, *)) {
-            NSURL *caches = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
-            cache = [[NSURLCache alloc] initWithMemoryCapacity:0
-                                                  diskCapacity:FFFWebCacheSize
-                                                  directoryURL:[caches URLByAppendingPathComponent:name]];
-        } else {
-            // In the app's caches directory.
-            cache = [[NSURLCache alloc] initWithMemoryCapacity:0
-                                                  diskCapacity:FFFWebCacheSize
-                                                      diskPath:name];
-        }
+        NSURL *caches = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
+        cache = [[NSURLCache alloc] initWithMemoryCapacity:0
+                                              diskCapacity:FFFWebCacheSize
+                                              directoryURL:[caches URLByAppendingPathComponent:name]];
     });
     return cache;
 }

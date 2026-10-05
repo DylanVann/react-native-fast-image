@@ -4,7 +4,6 @@
 
 - Check `onError`: it's called with a message saying what went wrong, e.g. the HTTP status code.
 - A photo library url (`ph://`) on iOS needs the app to have access to the photo library: see [photo library images](../README.md#photo-library-images-ios).
-- An SVG image needs an SVG library in the app: see [SVG images](formats.md#svg-images).
 - On Android, `defaultSource` doesn't show in debug builds: see [`defaultSource`](../README.md#defaultsource).
 - If your Android app has its own Glide `AppGlideModule`, see [Android build settings](android-build-settings.md#if-your-app-has-its-own-appglidemodule).
 - An image that changed on the server keeps showing the cached one until its url or `cacheKey` changes: see [when an image changes](how-is-caching-handled.md#when-an-image-changes).
@@ -20,3 +19,13 @@ After installing or updating FastImage, or when a build fails for no clear reaso
 - Metro's cache: `npx react-native start --reset-cache`, or with Expo `npx expo start --clear`.
 - Watchman: `watchman watch-del-all`.
 - Dependencies: delete `node_modules` and install them again.
+
+## Duplicate AndroidSVG classes
+
+FastImage includes AndroidSVG for SVG images as `com.caverock:androidsvg-aar`. If your app (or another library) has its other package, `com.caverock:androidsvg`, which has the same classes, the Android build fails with "Duplicate class com.caverock.androidsvg…". Leave FastImage's out in `android/app/build.gradle`; FastImage works with either package:
+
+```groovy
+configurations.all {
+    exclude group: 'com.caverock', module: 'androidsvg-aar'
+}
+```

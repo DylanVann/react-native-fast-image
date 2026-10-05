@@ -1,10 +1,7 @@
 package com.dylanvann.fastimage;
 
-import android.content.Context;
-import android.os.Build;
 import android.text.TextUtils;
 import android.webkit.CookieManager;
-import android.webkit.CookieSyncManager;
 
 import androidx.annotation.Nullable;
 
@@ -21,13 +18,8 @@ import java.util.Map;
 // without the ReactContext that one needs (up to at least 0.77). Used through
 // OkHttp's JavaNetCookieJar, which parses the cookies.
 final class FastImageCookieHandler extends CookieHandler {
-    private final Context context;
     @Nullable
     private CookieManager cookieManager;
-
-    FastImageCookieHandler(Context context) {
-        this.context = context.getApplicationContext();
-    }
 
     @Override
     public Map<String, List<String>> get(URI uri, Map<String, List<String>> requestHeaders) {
@@ -52,28 +44,15 @@ final class FastImageCookieHandler extends CookieHandler {
                 added = true;
             }
         }
-        if (added) flush(cookieManager);
-    }
-
-    @SuppressWarnings("deprecation")
-    private static void flush(CookieManager cookieManager) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            cookieManager.flush();
-        } else {
-            CookieSyncManager.getInstance().sync();
-        }
+        if (added) cookieManager.flush();
     }
 
     // null while the WebView isn't available (not installed, or being
     // updated): requests go without cookies then, instead of failing.
     @Nullable
-    @SuppressWarnings("deprecation")
     private synchronized CookieManager cookieManager() {
         if (cookieManager == null) {
             try {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                    CookieSyncManager.createInstance(context);
-                }
                 cookieManager = CookieManager.getInstance();
             } catch (Exception e) {
                 return null;

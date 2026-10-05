@@ -17,8 +17,6 @@ end
 target 'ReactNativeFastImageExample' do
   config = use_native_modules!
 
-  # SVG images, which FastImage loads when the app has this.
-  pod 'SDWebImageSVGCoder'
   # Lists the photo library for the regression cases (example only).
   pod 'ExamplePhotos', :path => './ExamplePhotos'
 

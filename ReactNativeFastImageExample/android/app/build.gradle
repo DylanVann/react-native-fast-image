@@ -110,9 +110,6 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    // SVG images, which FastImage loads when the app has AndroidSVG (either
-    // package: the legacy example uses com.caverock:androidsvg).
-    implementation("com.caverock:androidsvg-aar:1.4")
     // androidx.collection 1.4.0 to 1.4.2 (1.4.2 comes with appcompat) loses
     // entries of React Native 0.87's view registry, a MutableIntObjectMap
     // (https://issuetracker.google.com/issues/352560465). Fabric then drops

@@ -443,7 +443,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 }
             }
             if (resource instanceof FastImageAnimatable) {
-                // An APNG: each view's is its own (FastImageApngRenderer).
+                // An APNG: each view's is its own (FastImageApng).
                 FastImageAnimatable animatable = (FastImageAnimatable) resource;
                 animatable.setLoopCount(mLoopCount, false);
                 // The target starts it; paused, it stays on its first frame.
