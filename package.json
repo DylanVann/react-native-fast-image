@@ -31,8 +31,6 @@
         "android/src/glide-4.15",
         "android/src/glide-older",
         "ios/FastImage",
-        "ios/FastImage.xcodeproj/project.pbxproj",
-        "ios/FastImage.xcodeproj/xcshareddata",
         "app.plugin.js",
         "dist",
         "RNFastImage.podspec"
