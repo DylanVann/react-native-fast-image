@@ -50,9 +50,10 @@ Options:
                       (instead of using src/, ios/ and android/ directly).
   --release           Build the apps' Release configuration (Android minified
                       with R8) and run them without the packager.
-  --ref <git-ref>     Test the library code (src/, ios/, android/) from this ref
-                      instead of the working tree, e.g. \`--ref main\` for a
-                      "before" run. The working tree is restored afterwards.
+  --ref <git-ref>     Test the library code (src/, ios/, android/, package.json
+                      and the podspec) from this ref instead of the working
+                      tree, e.g. \`--ref main\` for a "before" run. The working
+                      tree is restored afterwards.
   --background        Also run the flows tagged \`background\`
                       (maestro/background.yaml), which send the app to the
                       background for 20 s. Slow, so they're skipped by
@@ -401,7 +402,13 @@ if (RUN_APPS && !fs.existsSync(MAESTRO_RUNNER)) {
 }
 
 // With --ref, swap in the library code from that ref and restore it on exit.
-const LIB_PATHS = ['src', 'ios', 'android']
+const LIB_PATHS = [
+    'src',
+    'ios',
+    'android',
+    'package.json',
+    'RNFastImage.podspec',
+]
 let backup = ''
 function restoreLibrary() {
     if (!backup) return
@@ -1840,11 +1847,17 @@ async function expoPrebuild(platform: 'ios' | 'android') {
 // the Podfile's SHA-1 they were installed for. And after FastImage's podspec
 // changed (e.g. a dependency added), or a file was added to or removed from
 // its ios folder (the podspec's `ios/**/*.{h,m}` is resolved by `pod
-// install`): the source marker keeps the SHA-1 of both.
+// install`), or its package.json changed (on the New Architecture, `pod
+// install` runs Codegen from its codegenConfig, which another branch can
+// have): the source marker keeps the SHA-1 of all three.
+const libraryDir = (dir: string) =>
+    FROM_PACKAGE ? path.join(dir, 'node_modules', PACKAGE_NAME) : ROOT
+const packageJsonSha = (dir: string) =>
+    createHash('sha1')
+        .update(fs.readFileSync(path.join(libraryDir(dir), 'package.json')))
+        .digest('hex')
 const podspecSha = (dir: string) => {
-    const lib = FROM_PACKAGE
-        ? path.join(dir, 'node_modules', PACKAGE_NAME)
-        : ROOT
+    const lib = libraryDir(dir)
     const files = fs
         .readdirSync(path.join(lib, 'ios'), { recursive: true })
         .map(String)
@@ -1852,6 +1865,7 @@ const podspecSha = (dir: string) => {
     return createHash('sha1')
         .update(fs.readFileSync(path.join(lib, 'RNFastImage.podspec')))
         .update(files.join('\n'))
+        .update(packageJsonSha(dir))
         .digest('hex')
 }
 function podsCurrent(dir: string) {
@@ -2213,16 +2227,21 @@ async function buildAndroid(app: App) {
     const dir = appDir(app)
     const log = path.join(OUT, `android-build-${app}.log`)
     if (app === 'expo' && !(await expoPrebuild('android'))) return false
-    // React Native 0.87 caches autolinking (the library's directory) here;
-    // 0.73 works it out on every build.
+    // React Native 0.87 caches autolinking (the library's directory, and on
+    // the New Architecture its Codegen library from package.json's
+    // codegenConfig) here, and only works it out again when the app's own
+    // files change: again after switching between the source and the
+    // package, or when the library's package.json changed (e.g. another
+    // branch's). 0.73 works it out on every build.
     const androidBuild = path.join(dir, 'android/build')
-    if (builtFrom(androidBuild) !== SOURCE) {
+    const autolinkedFrom = `${SOURCE} ${packageJsonSha(dir)}`
+    if (builtFrom(androidBuild) !== autolinkedFrom) {
         fs.rmSync(path.join(androidBuild, 'generated/autolinking'), {
             recursive: true,
             force: true,
         })
         fs.mkdirSync(androidBuild, { recursive: true })
-        fs.writeFileSync(sourceMarker(androidBuild), SOURCE)
+        fs.writeFileSync(sourceMarker(androidBuild), autolinkedFrom)
     }
     // The library's classes as bundled for the app (both apps' builds share
     // android/build): Gradle can fail to update them after the library's
