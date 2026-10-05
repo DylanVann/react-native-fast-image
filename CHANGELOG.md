@@ -1,3 +1,10 @@
+## [9.0.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.0...v9.0.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* install with npm next to React Native tvOS and release candidates ([#1253](https://github.com/DylanVann/react-native-fast-image/issues/1253)) ([e8fdcc1](https://github.com/DylanVann/react-native-fast-image/commit/e8fdcc1e2c2906177d6e2a113ebdb7d34c3e70d9))
+
 # [9.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.2...v9.0.0) (2026-10-05)
 
 
