@@ -1892,11 +1892,67 @@ function trimCompilationCache() {
     }
 }
 
+// React Native's prebuilt iOS frameworks (its core on recent versions, and
+// Hermes) come in a Debug and a Release build, swapped by a build phase that
+// compares the configuration with a marker file in Pods (no marker counts as
+// Debug). `pod install` can leave a framework from the other configuration
+// with a marker that says otherwise: after a --release run, Debug builds then
+// failed to link (react-native-screens) or crashed at launch (Hermes'
+// debugger). So before each build the markers say which build is on disk, read
+// from a symbol only the Debug one has, and the build phase swaps when needed.
+// The marker's path is the app's React Native's own (LAST_BUILD_FILENAME).
+function syncPrebuiltMarkers(dir: string) {
+    const pods = path.join(dir, 'ios/Pods')
+    const rn = path.join(dir, 'node_modules/react-native')
+    const slice = 'ios-arm64_x86_64-simulator'
+    const frameworks = [
+        {
+            script: 'scripts/replace-rncore-version.js',
+            binary: `React-Core-prebuilt/React.xcframework/${slice}/React.framework/React`,
+            debugSymbol: 'DebugStringConvertible',
+        },
+        ...['hermesvm', 'hermes'].map((name) => ({
+            script: 'sdks/hermes-engine/utils/replace_hermes_version.js',
+            binary: `hermes-engine/destroot/Library/Frameworks/universal/${name}.xcframework/${slice}/${name}.framework/${name}`,
+            // hermes::debugger
+            debugSymbol: 'hermes8debugger',
+        })),
+    ]
+    for (const { script, binary, debugSymbol } of frameworks) {
+        const file = path.join(pods, binary)
+        const source = path.join(rn, script)
+        if (!fs.existsSync(file) || !fs.existsSync(source)) continue
+        const marker = fs
+            .readFileSync(source, 'utf8')
+            .match(/LAST_BUILD_FILENAME\s*=\s*'([^']+)'/)?.[1]
+        if (!marker) continue
+        const built =
+            capture(
+                'sh',
+                [
+                    '-c',
+                    'nm -gU "$0" | grep -q "$1" && echo Debug',
+                    file,
+                    debugSymbol,
+                ],
+                { timeout: 60 },
+            ) === 'Debug'
+                ? 'Debug'
+                : 'Release'
+        const markerFile = path.join(pods, marker)
+        const current = fs.existsSync(markerFile)
+            ? fs.readFileSync(markerFile, 'utf8')
+            : 'Debug'
+        if (current !== built) fs.writeFileSync(markerFile, built)
+    }
+}
+
 async function buildIos(app: App) {
     const dir = appDir(app)
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
     trimCompilationCache()
+    syncPrebuiltMarkers(dir)
     const result = await run(
         'xcodebuild',
         [
