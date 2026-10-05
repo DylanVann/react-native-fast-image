@@ -283,6 +283,23 @@ describe('FastImage (iOS)', () => {
     })
 })
 
+describe('ref', () => {
+    it("is FastImage's view", () => {
+        const ref = React.createRef<View>()
+        const tree = renderer.create(
+            <FastImage
+                ref={ref}
+                source={{ uri: 'https://example.com/a.png' }}
+                style={style.image}
+            />,
+            // Host refs are null without a node.
+            { createNodeMock: (element) => ({ type: element.type }) },
+        )
+        expect(tree.toJSON()).not.toBeNull()
+        expect(ref.current).toEqual({ type: 'View' } as any)
+    })
+})
+
 describe('FastImageBackground', () => {
     it('shows the image filling a view, with the children on top', () => {
         const imageRef = React.createRef<any>()

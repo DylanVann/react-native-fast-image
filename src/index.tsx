@@ -808,11 +808,17 @@ function FastImageBase({
 
 const FastImageMemo = memo(FastImageBase)
 
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
-)
+// What a ref to FastImage or FastImageBackground gets: the view the image
+// fills (FastImage's wrapper, FastImageBackground's view). ElementRef, as
+// React Native's types declare View as a class up to 0.79 and as a function
+// component with a ref after.
+type ViewRef = React.ElementRef<typeof View>
+
+const FastImageComponent: React.ComponentType<
+    FastImageProps & React.RefAttributes<ViewRef>
+> = forwardRef((props: FastImageProps, ref: React.Ref<ViewRef>) => (
+    <FastImageMemo forwardedRef={ref} {...props} />
+))
 
 FastImageComponent.displayName = 'FastImage'
 
@@ -884,7 +890,9 @@ export interface FastImageStaticProperties {
     configureCache: (limits?: CacheLimits) => Promise<CacheState>
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
+const FastImage: React.ComponentType<
+    FastImageProps & React.RefAttributes<ViewRef>
+> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.resizeMode = resizeMode
@@ -976,11 +984,6 @@ export interface FastImageBackgroundProps extends Omit<
     children?: React.ReactNode
 }
 
-// FastImage forwards its ref, which its type doesn't say.
-const FastImageWithRef = FastImageComponent as React.ComponentType<
-    FastImageProps & { ref?: React.Ref<any> }
->
-
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
  * view that the image fills, with the children on top. Use it rather than
@@ -988,35 +991,36 @@ const FastImageWithRef = FastImageComponent as React.ComponentType<
  * (the image will be a single native view). The other props go to the image;
  * the ref is the view's.
  */
-export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> =
-    forwardRef(
-        (
-            {
-                style,
-                imageStyle,
-                imageRef,
-                children,
-                importantForAccessibility,
-                ...props
-            }: FastImageBackgroundProps,
-            ref: React.Ref<any>,
-        ) => (
-            <View
-                accessibilityIgnoresInvertColors
+export const FastImageBackground: React.ComponentType<
+    FastImageBackgroundProps & React.RefAttributes<ViewRef>
+> = forwardRef(
+    (
+        {
+            style,
+            imageStyle,
+            imageRef,
+            children,
+            importantForAccessibility,
+            ...props
+        }: FastImageBackgroundProps,
+        ref: React.Ref<ViewRef>,
+    ) => (
+        <View
+            accessibilityIgnoresInvertColors
+            importantForAccessibility={importantForAccessibility}
+            style={style}
+            ref={ref}
+        >
+            <FastImageComponent
+                {...props}
                 importantForAccessibility={importantForAccessibility}
-                style={style}
-                ref={ref}
-            >
-                <FastImageWithRef
-                    {...props}
-                    importantForAccessibility={importantForAccessibility}
-                    style={[StyleSheet.absoluteFill, imageStyle]}
-                    ref={imageRef}
-                />
-                {children}
-            </View>
-        ),
-    )
+                style={[StyleSheet.absoluteFill, imageStyle]}
+                ref={imageRef}
+            />
+            {children}
+        </View>
+    ),
+)
 
 FastImageBackground.displayName = 'FastImageBackground'
 
