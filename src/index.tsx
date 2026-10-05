@@ -33,8 +33,9 @@ export type Source = {
     /**
      * Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
      *
-     * Also loads local files (`file://`, and on Android `content://`), photo
-     * library images on iOS (`ph://`, see
+     * Also loads local files (`file://`, and on Android `content://`), images
+     * in the app by name (e.g. `'my_image'`: in its asset catalog on iOS, a
+     * drawable on Android), photo library images on iOS (`ph://`, see
      * [Photo library images](#photo-library-images-ios)) and SVG images (see
      * [SVG images](docs/formats.md#svg-images)).
      */

@@ -4231,6 +4231,36 @@ function WebCachePathAtStartCase() {
     )
 }
 
+// An image in the app by its name (#410): on iOS in the example apps' asset
+// catalogs, on Android a drawable (regression_quadrants, the 80x80
+// quadrants), as React Native's Image takes. iOS made the name a file in the
+// app's resources, which an asset catalog image isn't, so it didn't load.
+function AppImageNameCase() {
+    const [status, setStatus] = useState('loading')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: 'regression_quadrants' }}
+                onLoad={(e) => {
+                    const { width, height } = e.nativeEvent
+                    setStatus(
+                        width === 80 && height === 80
+                            ? 'OK'
+                            : `loaded at ${width}x${height}, expected 80x80`,
+                    )
+                }}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="app-image-name"
+                status={status}
+                description="#410: an image by its name in the app (the asset catalog on iOS, a drawable on Android) loads (the quadrants)"
+            />
+        </View>
+    )
+}
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // First, before any view has loaded an image.
@@ -4404,6 +4434,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <LayoutCase key="layout" id="layout" />,
             <LayoutCase key="layout-fallback" id="layout-fallback" fallback />,
+            <AppImageNameCase key="app-image-name" />,
             <EventCase
                 key="fallback-require"
                 id="fallback-require"

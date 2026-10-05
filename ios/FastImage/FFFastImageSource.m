@@ -62,6 +62,75 @@ static CGSize FFFPhotoPixelSize(NSURL *url)
     return size;
 }
 
+// An image in the app by its name (`uri: 'my_image'`), such as one in the
+// app's asset catalog, as React Native's Image takes: RCTConvert makes a uri
+// without a scheme a file in the app's resources, where such an image isn't a
+// file. The name, or nil if the url is a file that exists or isn't in the
+// app's resources.
+static NSString *FFFBundleAssetName(NSURL *url)
+{
+    if (!url.isFileURL) {
+        return nil;
+    }
+    NSString *resources = [NSBundle.mainBundle.resourcePath stringByAppendingString:@"/"];
+    NSString *path = url.path;
+    if (![path hasPrefix:resources] || path.length == resources.length ||
+        [NSFileManager.defaultManager fileExistsAtPath:path]) {
+        return nil;
+    }
+    return [path substringFromIndex:resources.length];
+}
+
+// Loads images in the app by name (FFFBundleAssetName) with UIImage
+// imageNamed:, which finds them in the asset catalog (and image files in the
+// app's resources, e.g. with @2x and @3x versions), as React Native's Image
+// does.
+@interface FFFBundleAssetLoader : NSObject <SDImageLoader>
+@end
+
+@implementation FFFBundleAssetLoader
+
++ (FFFBundleAssetLoader *)sharedLoader
+{
+    static FFFBundleAssetLoader *loader;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        loader = [FFFBundleAssetLoader new];
+    });
+    return loader;
+}
+
+- (BOOL)canRequestImageForURL:(NSURL *)url
+{
+    return YES;
+}
+
+- (id<SDWebImageOperation>)requestImageWithURL:(NSURL *)url
+                                        options:(SDWebImageOptions)options
+                                        context:(SDWebImageContext *)context
+                                       progress:(SDImageLoaderProgressBlock)progressBlock
+                                      completed:(SDImageLoaderCompletedBlock)completedBlock
+{
+    NSString *name = FFFBundleAssetName(url);
+    UIImage *image = name ? [UIImage imageNamed:name] : nil;
+    if (completedBlock) {
+        if (image) {
+            completedBlock(image, nil, nil, YES);
+        } else {
+            NSString *message = [NSString stringWithFormat:@"No image named %@ in the app", name ?: url.path];
+            completedBlock(nil, nil, [NSError errorWithDomain:SDWebImageErrorDomain code:SDWebImageErrorInvalidURL userInfo:@{NSLocalizedDescriptionKey: message}], YES);
+        }
+    }
+    return nil;
+}
+
+- (BOOL)shouldBlockFailedURLWithURL:(NSURL *)url error:(NSError *)error
+{
+    return NO;
+}
+
+@end
+
 // Loads photo library images (ph://<localIdentifier>) with
 // SDWebImagePhotosPlugin's loader: a dependency on iOS (the podspec), found
 // at runtime so that tvOS builds without it (an app can add it there). Its
@@ -367,6 +436,9 @@ static id<SDImageCoder> FFFSVGCoder;
     }
     if ([_url.scheme isEqualToString:@"assets-library"]) {
         return [FFFPhotosLoader assetsLibraryLoader];
+    }
+    if (FFFBundleAssetName(_url)) {
+        return [FFFBundleAssetLoader sharedLoader];
     }
     if (_cacheControl != FFFCacheControlWeb) {
         return nil;
