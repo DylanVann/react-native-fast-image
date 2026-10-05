@@ -1,3 +1,19 @@
+# [9.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.2...v9.0.0) (2026-10-05)
+
+
+### Features
+
+* **android:** require Glide 4.15 or later ([#1247](https://github.com/DylanVann/react-native-fast-image/issues/1247)) ([4a170ff](https://github.com/DylanVann/react-native-fast-image/commit/4a170ff584052401597406aa52923977390205a6))
+* deprecate FastImage's children in favor of FastImageBackground ([#1249](https://github.com/DylanVann/react-native-fast-image/issues/1249)) ([d2a6846](https://github.com/DylanVann/react-native-fast-image/commit/d2a6846d6b2447ede5a51e779c91e73f22f70d9b))
+* **ios:** include SDWebImagePhotosPlugin on tvOS too ([#1248](https://github.com/DylanVann/react-native-fast-image/issues/1248)) ([7b40d4b](https://github.com/DylanVann/react-native-fast-image/commit/7b40d4b8715e8ffb525b38590135e9b5f521e8b4))
+* raise the minimums to React Native 0.65, iOS 13 and Android API 21, and include SVG and APNG ([#1244](https://github.com/DylanVann/react-native-fast-image/issues/1244)) ([6cab34c](https://github.com/DylanVann/react-native-fast-image/commit/6cab34c82a51791f9792a04e7446c24f7450f6d6))
+
+
+### BREAKING CHANGES
+
+* **android:** FastImage needs Glide 4.15 or later: a glideVersion before 4.15 stops the build (the default is 4.16.0).
+* FastImage needs React Native 0.65 or later, iOS/tvOS 13 or later and Android minSdkVersion 21 or later. It includes SDWebImageSVGCoder and AndroidSVG (com.caverock:androidsvg-aar) for SVG images, and APNG4Android for animated PNGs; apps with AndroidSVG's other package (com.caverock:androidsvg) exclude FastImage's (see docs/troubleshooting.md).
+
 ## [8.31.2](https://github.com/DylanVann/react-native-fast-image/compare/v8.31.1...v8.31.2) (2026-10-05)
 
 
