@@ -1,6 +1,8 @@
 {
     "extends": "@react-native/typescript-config",
     "compilerOptions": {
+        // No Jest here (the base config adds its types).
+        "types": [],
         "paths": {
             "react-native-fast-image": ["../src/index"],
             // The library source would otherwise pick up the repo root's

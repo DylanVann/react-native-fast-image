@@ -162,6 +162,77 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
     )
 }
 
+// FastImage's and FastImageBackground's refs are the view the image fills
+// (#1254): measure and measureInWindow, called through them once the images
+// have loaded, report those views' sizes (48x48 and 96x48).
+function RefMeasureCase() {
+    const image = useRef<React.ElementRef<typeof FastImage>>(null)
+    const background =
+        useRef<React.ElementRef<typeof FastImageBackground>>(null)
+    const [loads, setLoads] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        if (loads < 2) return
+        const size = (width: number, height: number) =>
+            `${Math.round(width)}x${Math.round(height)}`
+        const measure = (ref: {
+            current: React.ElementRef<typeof FastImage> | null
+        }) =>
+            new Promise<string>((resolve) =>
+                ref.current
+                    ? ref.current.measure((_x, _y, width, height) =>
+                          resolve(size(width, height)),
+                      )
+                    : resolve('no ref'),
+            )
+        const measureInWindow = (ref: {
+            current: React.ElementRef<typeof FastImage> | null
+        }) =>
+            new Promise<string>((resolve) =>
+                ref.current
+                    ? ref.current.measureInWindow((_x, _y, width, height) =>
+                          resolve(size(width, height)),
+                      )
+                    : resolve('no ref'),
+            )
+        Promise.all([
+            measure(image),
+            measureInWindow(image),
+            measure(background),
+            measureInWindow(background),
+        ]).then((sizes) => {
+            const expected = ['48x48', '48x48', '96x48', '96x48']
+            setStatus(
+                sizes.every((s, i) => s === expected[i])
+                    ? 'OK'
+                    : `measured ${sizes.join(', ')}, expected ${expected.join(', ')}`,
+            )
+        })
+    }, [loads])
+    const onLoad = () => setLoads((n) => n + 1)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{ uri: LOGO }}
+                onLoad={onLoad}
+            />
+            <FastImageBackground
+                ref={background}
+                style={[styles.image, styles.gap, { width: 96 }]}
+                source={{ uri: LOGO }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="ref-measure"
+                status={status}
+                description="#1254: measure and measureInWindow through FastImage's and FastImageBackground's refs give their views' sizes"
+            />
+        </View>
+    )
+}
+
 // Loads a green-tinted image, then removes tintColor. The second image should
 // match the untinted first one; this is checked by screenshot, since the flow
 // can't read colors. It stayed tinted on iOS.
@@ -4435,6 +4506,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <LayoutCase key="layout" id="layout" />,
             <LayoutCase key="layout-fallback" id="layout-fallback" fallback />,
+            <RefMeasureCase key="ref-measure" />,
             <AppImageNameCase key="app-image-name" />,
             <EventCase
                 key="fallback-require"
