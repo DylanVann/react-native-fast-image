@@ -104,12 +104,17 @@ android {
     }
 }
 
+configurations.all {
+    exclude group: 'com.caverock', module: 'androidsvg-aar'
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:flipper-integration")
-    // SVG images, which FastImage loads when the app has AndroidSVG (either
-    // package: the main example uses com.caverock:androidsvg-aar).
+    // AndroidSVG's other package (FastImage includes androidsvg-aar, the same
+    // classes), as an app that has it would, with FastImage's left out (the
+    // workaround in docs/troubleshooting.md): SVG images load with this one.
     implementation("com.caverock:androidsvg:1.4")
 
     if (hermesEnabled.toBoolean()) {

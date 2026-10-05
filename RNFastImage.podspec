@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.authors       = { "Dylan Vann" => "dylan@dylanvann.com" }
   s.homepage      = "https://github.com/DylanVann/react-native-fast-image#readme"
   s.license       = "MIT"
-  s.platforms     = { :ios => "8.0", :tvos => "9.0" }
+  s.platforms     = { :ios => "13.0", :tvos => "13.0" }
   s.framework     = 'UIKit'
   s.requires_arc  = true
   s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git", :tag => "v#{s.version}" }
@@ -21,6 +21,9 @@ Pod::Spec.new do |s|
   # manifest Apple requires.
   s.dependency 'SDWebImage', '>= 5.11.1', '< 6.0'
   s.dependency 'SDWebImageWebPCoder', '>= 0.8.4', '< 1.0'
+  # SVG images. Every 1.x needs iOS 13 (Apple's SVG renderer). From 1.7, as
+  # expo-image's, so apps with it share one copy.
+  s.dependency 'SDWebImageSVGCoder', '>= 1.7.0', '< 2.0'
   # Photo library images (ph://). iOS only: it needs tvOS 10, and FastImage
   # finds it at runtime, so a tvOS app can still add it.
   s.ios.dependency 'SDWebImagePhotosPlugin', '>= 1.2.0', '< 2.0'

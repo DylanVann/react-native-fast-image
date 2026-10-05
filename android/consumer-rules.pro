@@ -34,19 +34,8 @@
   public *;
 }
 
-# React Native's event dispatcher, which FastImage looks up by name
-# (FastImageEvents), so it still compiles against React Native 0.60-0.62,
-# which don't have it. R8 would rename it, and on the New Architecture every
-# event (onLoad, onError, ...) would then be dropped.
--keep class com.facebook.react.uimanager.UIManagerHelper {
-  public static *** getEventDispatcherForReactTag(com.facebook.react.bridge.ReactContext, int);
-}
-
-# AndroidSVG, which FastImage uses for SVG images when the app has it
-# (FastImageSvgRenderer), and doesn't ship. Without it, R8 would stop at the
-# missing classes.
+# AndroidSVG, which FastImage includes, but an app with its other package
+# (com.caverock:androidsvg) leaves out (docs/troubleshooting.md), and may not
+# have at all: then SVG images fail with a message (FastImageSvg) instead of
+# the app's R8 build failing on the missing classes.
 -dontwarn com.caverock.androidsvg.**
-
-# APNG4Android, which FastImage uses for animated PNGs (FastImageApngRenderer),
-# and doesn't ship to apps with a minSdkVersion below 21 (build.gradle).
--dontwarn com.github.penfeizhou.animation.**

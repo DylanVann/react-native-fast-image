@@ -32,34 +32,32 @@ React Native's `Image` component handles image caching like browsers for the mos
 
 ## Image formats
 
-| Format |        iOS        |      Android      |
-| ------ | :---------------: | :---------------: |
-| JPEG   |    ![Yes][yes]    |    ![Yes][yes]    |
-| PNG    |    ![Yes][yes]    |    ![Yes][yes]    |
-| APNG   |    ![Yes][yes]    |    ![Yes][yes]    |
-| GIF    |    ![Yes][yes]    |    ![Yes][yes]    |
-| WebP   |    ![Yes][yes]    |    ![Yes][yes]    |
-| AVIF   |    ![Yes][yes]    |    ![Yes][yes]    |
-| HEIC   |    ![Yes][yes]    |    ![Yes][yes]    |
-| SVG    | ![Yes][yes][^svg] | ![Yes][yes][^svg] |
-| ICO    |    ![Yes][yes]    |    ![Yes][yes]    |
-| BMP    |    ![Yes][yes]    |    ![Yes][yes]    |
-| TIFF   |    ![Yes][yes]    |     ![No][no]     |
-| ICNS   |    ![Yes][yes]    |     ![No][no]     |
-| PSD    | ![Yes][yes][^psd] |     ![No][no]     |
+| Format |        iOS        |   Android   |
+| ------ | :---------------: | :---------: |
+| JPEG   |    ![Yes][yes]    | ![Yes][yes] |
+| PNG    |    ![Yes][yes]    | ![Yes][yes] |
+| APNG   |    ![Yes][yes]    | ![Yes][yes] |
+| GIF    |    ![Yes][yes]    | ![Yes][yes] |
+| WebP   |    ![Yes][yes]    | ![Yes][yes] |
+| AVIF   |    ![Yes][yes]    | ![Yes][yes] |
+| HEIC   |    ![Yes][yes]    | ![Yes][yes] |
+| SVG    |    ![Yes][yes]    | ![Yes][yes] |
+| ICO    |    ![Yes][yes]    | ![Yes][yes] |
+| BMP    |    ![Yes][yes]    | ![Yes][yes] |
+| TIFF   |    ![Yes][yes]    |  ![No][no]  |
+| ICNS   |    ![Yes][yes]    |  ![No][no]  |
+| PSD    | ![Yes][yes][^psd] |  ![No][no]  |
 
 See [Formats](docs/formats.md) for the versions of iOS and Android each format needs, and what decodes it.
 
 [yes]: docs/assets/yes.svg
 [no]: docs/assets/no.svg
 
-[^svg]: With an SVG library in the app: see [SVG images](docs/formats.md#svg-images).
-
 [^psd]: Its composite image (the layers as Photoshop saved them flattened).
 
 ## Installation
 
-Works with React Native 0.60 and later, with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for a future major version.
+Works with React Native 0.65 and later (iOS 13 and later, Android `minSdkVersion` 21 and later), with the New Architecture (through React Native's interop layer) and the legacy architecture, and with Expo. It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, and Expo SDK 57. A native New Architecture component is planned for a future major version.
 
 ```bash
 npm install react-native-fast-image

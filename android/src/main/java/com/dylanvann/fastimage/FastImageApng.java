@@ -1,7 +1,7 @@
 package com.dylanvann.fastimage;
 
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -12,6 +12,10 @@ import com.bumptech.glide.load.ResourceDecoder;
 import com.bumptech.glide.load.engine.Resource;
 import com.bumptech.glide.load.resource.gif.GifOptions;
 import com.bumptech.glide.util.ByteBufferUtil;
+import com.github.penfeizhou.animation.apng.APNGDrawable;
+import com.github.penfeizhou.animation.apng.decode.APNGDecoder;
+import com.github.penfeizhou.animation.loader.ByteBufferLoader;
+import com.github.penfeizhou.animation.loader.Loader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,41 +23,23 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 // Animated PNGs (APNG), animated with APNG4Android
-// (com.github.penfeizhou.android.animation:apng), which FastImage ships when
-// the app's minSdkVersion is 21 or later, as APNG4Android needs (build.gradle).
-// Without it, an APNG shows its first frame, as Android shows it. Android and
-// Glide don't animate APNG themselves.
+// (com.github.penfeizhou.android.animation:apng), which FastImage includes.
+// Android and Glide don't animate APNG themselves.
 //
 // The decoders come before Glide's own, and only take PNGs with an animation
 // control chunk (acTL), when the request animates (not with dontAnimate:
 // blurRadius, resizeMode repeat, which get the first frame from Glide's
-// decoder). This class doesn't use APNG4Android itself
-// (FastImageApngRenderer does), so it loads without it.
+// decoder).
 final class FastImageApng {
     // As much of the start of the file as is read to find acTL, which comes
     // before the image data.
     private static final int HEAD_LENGTH = 4096;
     private static final byte[] SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
-    @Nullable
-    private static Boolean available;
 
     private FastImageApng() {
     }
 
-    static synchronized boolean available() {
-        if (available == null) {
-            try {
-                // Android 5+, as APNG4Android needs.
-                available = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && FastImageApngRenderer.available();
-            } catch (Throwable e) {
-                available = false;
-            }
-        }
-        return available;
-    }
-
     static void register(@NonNull Registry registry) {
-        if (!available()) return;
         registry.prepend(InputStream.class, Drawable.class, new StreamDecoder())
                 .prepend(ByteBuffer.class, Drawable.class, new BufferDecoder());
     }
@@ -106,7 +92,7 @@ final class FastImageApng {
         @Override
         public Resource<Drawable> decode(@NonNull ByteBuffer source, int width, int height, @NonNull Options options)
                 throws IOException {
-            return FastImageApngRenderer.decode(source.duplicate(), plays(source));
+            return decodeApng(source.duplicate(), plays(source));
         }
     }
 
@@ -135,7 +121,136 @@ final class FastImageApng {
         public Resource<Drawable> decode(@NonNull InputStream source, int width, int height, @NonNull Options options)
                 throws IOException {
             ByteBuffer data = ByteBufferUtil.fromStream(source);
-            return FastImageApngRenderer.decode(data, plays(data));
+            return decodeApng(data, plays(data));
+        }
+    }
+
+    // APNG4Android: Glide keeps the image's data in its memory cache, and each
+    // view gets a drawable of its own over it, so views don't share playback:
+    // making one only reads the image's header, and it decodes its frames (at a
+    // sample size from the size it's drawn at) on APNG4Android's threads as it
+    // plays.
+    private static Loader loader(ByteBuffer data) {
+        return new ByteBufferLoader() {
+            @Override
+            public ByteBuffer getByteBuffer() {
+                ByteBuffer buffer = data.duplicate();
+                buffer.position(0);
+                return buffer;
+            }
+        };
+    }
+
+    // Null if APNG4Android can't read it (Glide then decodes it as a PNG).
+    @Nullable
+    private static Resource<Drawable> decodeApng(@NonNull ByteBuffer data, int plays) {
+        // Reads the header, waiting for APNG4Android's thread.
+        Rect bounds = new APNGDecoder(loader(data), null).getBounds();
+        if (bounds.isEmpty()) return null;
+        return new ApngResource(data, plays, bounds);
+    }
+
+    private static final class ApngResource implements Resource<Drawable> {
+        private final ByteBuffer data;
+        private final int plays;
+        private final Rect bounds;
+
+        ApngResource(ByteBuffer data, int plays, Rect bounds) {
+            this.data = data;
+            this.plays = plays;
+            this.bounds = bounds;
+        }
+
+        @NonNull
+        @Override
+        public Class<Drawable> getResourceClass() {
+            return Drawable.class;
+        }
+
+        @NonNull
+        @Override
+        public Drawable get() {
+            return new ApngDrawable(loader(data), plays);
+        }
+
+        // The data, and a frame at full size (each view's drawable has its
+        // own, at the size it's drawn at).
+        @Override
+        public int getSize() {
+            // As a long: a very large image's frame overflows an int.
+            long size = data.limit() + (long) bounds.width() * bounds.height() * 4;
+            return (int) Math.min(size, Integer.MAX_VALUE);
+        }
+
+        @Override
+        public void recycle() {
+        }
+    }
+
+    private static final class ApngDrawable extends APNGDrawable implements FastImageAnimatable {
+        // How many times the file says it plays (0: forever).
+        private final int plays;
+        private volatile boolean paused = false;
+        // Once a frame has been rendered (on the decoder's thread).
+        private volatile boolean rendered = false;
+
+        ApngDrawable(Loader loader, int plays) {
+            super(loader);
+            this.plays = plays;
+        }
+
+        @Override
+        public void setLoopCount(int loopCount, boolean restart) {
+            // Plays (0: forever), as APNG4Android counts them.
+            setLoopLimit(loopCount == -1 ? plays : loopCount);
+            if (restart) {
+                reset();
+                start();
+            }
+        }
+
+        @Override
+        public void setPaused(boolean paused) {
+            this.paused = paused;
+            // It starts and stops itself as it's shown and hidden, but not
+            // while paused.
+            setAutoPlay(!paused);
+            if (paused) {
+                // Before the first frame, onStart pauses once it's rendered:
+                // the decoder's start clears a pause, then skips rendering if
+                // one came in meanwhile, which left the view blank.
+                if (rendered) pause();
+            } else {
+                resume();
+            }
+        }
+
+        // From its first frame. The target starts it right after
+        // setVisible(true) has (auto play): APNG4Android's start() stops and
+        // starts a running decoder, and a stop made while the decoder is
+        // still starting can win over that start, leaving it stopped on its
+        // first frame. A running one is reset to its first frame instead.
+        @Override
+        public void start() {
+            if (isRunning()) {
+                getFrameSeqDecoder().reset();
+                return;
+            }
+            super.start();
+        }
+
+        @Override
+        public void onRender(ByteBuffer byteBuffer) {
+            super.onRender(byteBuffer);
+            rendered = true;
+        }
+
+        // On its decoder thread, once starting has drawn the first frame:
+        // starting clears a pause made before it got there, so pause again.
+        @Override
+        public void onStart() {
+            super.onStart();
+            if (paused) getFrameSeqDecoder().pause();
         }
     }
 }

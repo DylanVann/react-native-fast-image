@@ -4120,10 +4120,11 @@ function FormatAnimationCase({
     )
 }
 
-// SVG images (the example apps have SDWebImageSVGCoder on iOS and AndroidSVG
-// on Android: the main app's androidsvg-aar package, the legacy app's
-// androidsvg). onLoad has the SVG's own size (its width and height, or its
-// viewBox's). Check the screenshot: flat colors, sharp edges.
+// SVG images (SDWebImageSVGCoder on iOS and AndroidSVG on Android, which
+// FastImage includes; the legacy app has AndroidSVG's other package,
+// androidsvg, with FastImage's androidsvg-aar left out). onLoad has the SVG's
+// own size (its width and height, or its viewBox's). Check the screenshot:
+// flat colors, sharp edges.
 function SvgCase({
     id,
     source,

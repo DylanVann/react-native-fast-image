@@ -116,7 +116,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // images were loaded without the app's cookies, unlike on iOS. Use the
         // same cookie store. A cookie jar the app set up itself is kept.
         if (sharedClient.cookieJar() instanceof CookieJarContainer) {
-            builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler(context)));
+            builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler()));
         }
         OkHttpClient client = builder.build();
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so

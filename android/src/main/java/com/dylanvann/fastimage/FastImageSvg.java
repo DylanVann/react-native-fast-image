@@ -19,11 +19,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-// SVG images (static), drawn with AndroidSVG when the app has it: either of
-// its packages (com.caverock:androidsvg or com.caverock:androidsvg-aar).
-// FastImage compiles against it but doesn't ship it, so an app never gets a
-// second copy of it (from another library, or its own). Without it, an SVG
-// image fails with a message saying what to add.
+// SVG images (static), drawn with AndroidSVG, which FastImage includes
+// (com.caverock:androidsvg-aar). An app with its other package
+// (com.caverock:androidsvg, the same classes) leaves FastImage's out
+// (docs/troubleshooting.md), so it may be missing: then an SVG image fails
+// with a message saying what to do.
 //
 // The decoders come after Glide's own, so they're only asked about data
 // Glide couldn't decode, and only take data that starts like an SVG. This
@@ -31,7 +31,7 @@ import java.util.Locale;
 // loads without it.
 final class FastImageSvg {
     static final String MISSING =
-            "SVG images need AndroidSVG: add implementation 'com.caverock:androidsvg-aar:1.4' to the app's dependencies";
+            "SVG images need AndroidSVG: the app leaves FastImage's out (an exclude of com.caverock:androidsvg-aar), so add its other package (implementation 'com.caverock:androidsvg:1.4') or remove the exclude";
     private static final int HEAD_LENGTH = 1024;
     @Nullable
     private static Boolean available;
