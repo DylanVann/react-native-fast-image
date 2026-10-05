@@ -433,7 +433,9 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 **Type:** `ReactNode`
 
-Render children within the image. In the next major version, `FastImage` won't render children: use `FastImageBackground`.
+**Deprecated:** In the next major version, `FastImage` won't render children: use `FastImageBackground`.
+
+Render children within the image.
 
 <!-- api:props end -->
 
@@ -441,7 +443,7 @@ Render children within the image. In the next major version, `FastImage` won't r
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
-Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1137](https://github.com/DylanVann/react-native-fast-image/pull/1137)), which can't hold them. `FastImageBackground` works the same in both.
+Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1220](https://github.com/DylanVann/react-native-fast-image/pull/1220)), which can't hold them. `FastImageBackground` works the same in both.
 
 ```jsx
 import { FastImageBackground } from 'react-native-fast-image'
