@@ -20,7 +20,7 @@ const root = new URL('../../', import.meta.url).pathname
 const app = await Application.bootstrap({
     entryPoints: [`${root}src/index.tsx`],
     tsconfig: `${root}tsconfig.build.json`,
-    blockTags: ['@default', '@example', '@platform', '@see'],
+    blockTags: ['@default', '@deprecated', '@example', '@platform', '@see'],
     logLevel: 'Error',
 })
 const project = await app.convert()
@@ -158,6 +158,10 @@ function members(name: string, prefix = '', all = false): Member[] {
                             '$1',
                         ),
                     body: [
+                        ...tags(r, '@deprecated').map(
+                            (t) =>
+                                `**Deprecated:** ${partsToMarkdown(t.content)}`,
+                        ),
                         partsToMarkdown(r.comment?.summary),
                         ...tags(r, '@example').map((t) =>
                             partsToMarkdown(t.content),

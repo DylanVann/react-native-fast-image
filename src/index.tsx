@@ -523,8 +523,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     tintColor?: ColorValue
 
     /**
-     * Render children within the image. In the next major version,
-     * `FastImage` won't render children: use `FastImageBackground`.
+     * Render children within the image.
+     *
+     * @deprecated In the next major version, `FastImage` won't render
+     * children: use `FastImageBackground`.
      */
     children?: React.ReactNode
 }
