@@ -10,7 +10,8 @@
 #import "FFFAnimatedWebPCoder.h"
 #import "FFFAnimatedAVIFCoder.h"
 #import <SDWebImageSVGCoder/SDImageSVGCoder.h>
-#import <objc/message.h>
+#import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
+#import <Photos/Photos.h>
 #import <ImageIO/ImageIO.h>
 
 // In FFFastImageView.m.
@@ -19,24 +20,16 @@ FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
 static NSUInteger const FFFWebCacheSize = 50 * 1024 * 1024;
 
 // The photo's own size in pixels, looked up by its identifier (the url after
-// ph://), or zero. Through the runtime, as the Photos framework is only there
-// with SDWebImagePhotosPlugin (on iOS, always). Kept once looked up.
+// ph://), or zero.
 static CGSize FFFLookUpPhotoPixelSize(NSURL *url)
 {
-    Class assetClass = NSClassFromString(@"PHAsset");
-    SEL fetch = NSSelectorFromString(@"fetchAssetsWithLocalIdentifiers:options:");
     NSString *prefix = @"ph://";
     NSString *string = url.absoluteString;
-    if (!assetClass || ![assetClass respondsToSelector:fetch] || ![string hasPrefix:prefix]) {
+    if (![string hasPrefix:prefix]) {
         return CGSizeZero;
     }
-    id (*fetchAssets)(id, SEL, NSArray *, id) = (void *)objc_msgSend;
-    id result = fetchAssets(assetClass, fetch, @[[string substringFromIndex:prefix.length]], nil);
-    id asset = [result respondsToSelector:@selector(firstObject)] ? [result firstObject] : nil;
-    if (!asset) {
-        return CGSizeZero;
-    }
-    return CGSizeMake([[asset valueForKey:@"pixelWidth"] doubleValue], [[asset valueForKey:@"pixelHeight"] doubleValue]);
+    PHAsset *asset = [PHAsset fetchAssetsWithLocalIdentifiers:@[[string substringFromIndex:prefix.length]] options:nil].firstObject;
+    return asset ? CGSizeMake(asset.pixelWidth, asset.pixelHeight) : CGSizeZero;
 }
 
 static NSCache<NSString *, NSValue *> *FFFPhotoSizes(void)
@@ -133,13 +126,11 @@ static NSString *FFFBundleAssetName(NSURL *url)
 @end
 
 // Loads photo library images (ph://<localIdentifier>) with
-// SDWebImagePhotosPlugin's loader: a dependency on iOS (the podspec), found
-// at runtime so that tvOS builds without it (an app can add it there). Its
-// own instance, so the app's use of the plugin is left as it is. Without the
-// plugin, or for a source it can't load (assets-library://), the load fails
-// with `failure`.
+// SDWebImagePhotosPlugin's loader, its own instance, so the app's use of the
+// plugin is left as it is. For a source it can't load (assets-library://),
+// the load fails with `failure`.
 @interface FFFPhotosLoader : NSObject <SDImageLoader>
-@property (nonatomic, strong) id<SDImageLoader> plugin;
+@property (nonatomic, strong) SDImagePhotosLoader *plugin;
 @property (nonatomic, copy) NSString *failure;
 @end
 
@@ -151,24 +142,12 @@ static NSString *FFFBundleAssetName(NSURL *url)
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         loader = [FFFPhotosLoader new];
-        Class pluginClass = NSClassFromString(@"SDImagePhotosLoader");
-        id<SDImageLoader> plugin = pluginClass ? [pluginClass new] : nil;
-        if ([plugin conformsToProtocol:@protocol(SDImageLoader)]) {
-            // One image per load, at full quality. By default the plugin
-            // first sends a quick low quality one, which a view would show
-            // (and fade in) before the one it asked for.
-            // PHImageRequestOptionsDeliveryModeHighQualityFormat. Skipped if
-            // a later version of the plugin renames these.
-            NSObject *requestOptions = [(NSObject *)plugin respondsToSelector:NSSelectorFromString(@"imageRequestOptions")]
-                ? [(NSObject *)plugin valueForKey:@"imageRequestOptions"]
-                : nil;
-            if ([requestOptions respondsToSelector:NSSelectorFromString(@"setDeliveryMode:")]) {
-                [requestOptions setValue:@1 forKey:@"deliveryMode"];
-            }
-            loader.plugin = plugin;
-        } else {
-            loader.failure = @"Photo library images (ph://) need SDWebImagePhotosPlugin: add pod 'SDWebImagePhotosPlugin' to the app's Podfile";
-        }
+        SDImagePhotosLoader *plugin = [SDImagePhotosLoader new];
+        // One image per load, at full quality. By default the plugin first
+        // sends a quick low quality one, which a view would show (and fade
+        // in) before the one it asked for.
+        plugin.imageRequestOptions.deliveryMode = PHImageRequestOptionsDeliveryModeHighQualityFormat;
+        loader.plugin = plugin;
     });
     return loader;
 }

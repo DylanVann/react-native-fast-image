@@ -26,7 +26,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
-- [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios) images.
+- [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios-and-tvos) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
 - **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
 
@@ -136,7 +136,7 @@ When `source` changes, the image that's showing stays until the new one has load
 
 Remote url to load the image from. e.g. `'https://example.com/image.jpg'`.
 
-Also loads local files (`file://`, and on Android `content://`), images in the app by name (e.g. `'my_image'`: in its asset catalog on iOS, a drawable on Android), photo library images on iOS (`ph://`, see [Photo library images](#photo-library-images-ios)) and SVG images (see [SVG images](docs/formats.md#svg-images)).
+Also loads local files (`file://`, and on Android `content://`), images in the app by name (e.g. `'my_image'`: in its asset catalog on iOS, a drawable on Android), photo library images on iOS and tvOS (`ph://`, see [Photo library images](#photo-library-images-ios-and-tvos)) and SVG images (see [SVG images](docs/formats.md#svg-images)).
 
 ---
 
@@ -802,9 +802,9 @@ If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideM
 
 [^glide-memory]: Glide's default, which FastImage keeps: room for two screenfuls of decoded images (2 × the screen's width × height × 4 bytes, about 20 MB on a 1080 × 2400 screen), plus a pool of bitmaps to reuse (one screenful on Android 8 and later, four before). Together they're limited to 40% of the memory Android gives the app (33% on low-memory devices), and both shrink to fit.
 
-## Photo library images (iOS)
+## Photo library images (iOS and tvOS)
 
-A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes on iOS.
+A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes.
 
 The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
 

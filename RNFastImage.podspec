@@ -24,7 +24,6 @@ Pod::Spec.new do |s|
   # SVG images. Every 1.x needs iOS 13 (Apple's SVG renderer). From 1.7, as
   # expo-image's, so apps with it share one copy.
   s.dependency 'SDWebImageSVGCoder', '>= 1.7.0', '< 2.0'
-  # Photo library images (ph://). iOS only: it needs tvOS 10, and FastImage
-  # finds it at runtime, so a tvOS app can still add it.
-  s.ios.dependency 'SDWebImagePhotosPlugin', '>= 1.2.0', '< 2.0'
+  # Photo library images (ph://).
+  s.dependency 'SDWebImagePhotosPlugin', '>= 1.2.0', '< 2.0'
 end
