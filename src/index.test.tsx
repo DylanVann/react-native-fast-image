@@ -297,6 +297,11 @@ describe('ref', () => {
         )
         expect(tree.toJSON()).not.toBeNull()
         expect(ref.current).toEqual({ type: 'View' } as any)
+        // Typed as the view, with its methods (a type check: the view here
+        // is a stand-in).
+        const measure = (view: React.ElementRef<typeof FastImage>) =>
+            view.measure(() => {})
+        expect(typeof measure).toBe('function')
     })
 })
 

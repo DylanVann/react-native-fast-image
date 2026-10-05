@@ -814,7 +814,7 @@ const FastImageMemo = memo(FastImageBase)
 // component with a ref after.
 type ViewRef = React.ElementRef<typeof View>
 
-const FastImageComponent: React.ComponentType<
+const FastImageComponent: React.ForwardRefExoticComponent<
     FastImageProps & React.RefAttributes<ViewRef>
 > = forwardRef((props: FastImageProps, ref: React.Ref<ViewRef>) => (
     <FastImageMemo forwardedRef={ref} {...props} />
@@ -890,7 +890,7 @@ export interface FastImageStaticProperties {
     configureCache: (limits?: CacheLimits) => Promise<CacheState>
 }
 
-const FastImage: React.ComponentType<
+const FastImage: React.ForwardRefExoticComponent<
     FastImageProps & React.RefAttributes<ViewRef>
 > &
     FastImageStaticProperties = FastImageComponent as any
@@ -991,7 +991,7 @@ export interface FastImageBackgroundProps extends Omit<
  * (the image will be a single native view). The other props go to the image;
  * the ref is the view's.
  */
-export const FastImageBackground: React.ComponentType<
+export const FastImageBackground: React.ForwardRefExoticComponent<
     FastImageBackgroundProps & React.RefAttributes<ViewRef>
 > = forwardRef(
     (
