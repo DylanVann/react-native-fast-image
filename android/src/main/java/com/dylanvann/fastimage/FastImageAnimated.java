@@ -49,9 +49,6 @@ import java.util.concurrent.Executors;
 // Not animated (dontAnimate: blurRadius, resizeMode repeat), they're decoded
 // as their first frame, a bitmap, as GIFs are, and as Glide did before 4.15.
 // Glide's own decoder for them doesn't check that option.
-//
-// Built only with Glide 4.15 or later, which has the decoder this wraps; with
-// an older Glide, src/glide-older's stand-in does nothing (build.gradle).
 final class FastImageAnimated {
     private FastImageAnimated() {}
 

@@ -46,8 +46,6 @@ FastImage loads images with [Glide](https://github.com/bumptech/glide), which de
 | ICNS   | No                                               |                                                                                      |
 | PSD    | No                                               |                                                                                      |
 
-Animated WebP and AVIF need Glide 4.15 or later (FastImage uses 4.16 unless the app sets an older `glideVersion`, see [Android build settings](android-build-settings.md#older-glide-versions)); with an older Glide they show their first frame.
-
 ## SVG images
 
 SVG images (remote, bundled with `require()`, or local files) load with SDWebImageSVGCoder on iOS and AndroidSVG on Android, which FastImage includes. On Android, an app with AndroidSVG's other package (`com.caverock:androidsvg`) leaves FastImage's out: see [duplicate AndroidSVG classes](troubleshooting.md#duplicate-androidsvg-classes).
