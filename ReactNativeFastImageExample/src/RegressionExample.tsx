@@ -1027,6 +1027,7 @@ function ProgressAfterLoadCase() {
     const [secondLoaded, setSecondLoaded] = useState(false)
     const [late, setLate] = useState(0)
     const [secondProgress, setSecondProgress] = useState(0)
+    // The slow server only sends images with it.
     const headers = { 'x-token': 'fast-image' }
     return (
         <View style={styles.row}>
@@ -1061,6 +1062,41 @@ function ProgressAfterLoadCase() {
                             : 'OK'
                 }
                 description="an image gets no onProgress after its onLoad, from another image downloading its url"
+            />
+        </View>
+    )
+}
+
+// An image with onProgress loads a slow server url written with its scheme in
+// capitals (HTTP://). Passes when it gets onProgress, ending at 1. Android
+// looked images up by their url as written, while downloads reported it as
+// OkHttp writes it (a lowercase scheme and host, no default port), so these
+// urls got no onProgress.
+const UPPERCASE_SCHEME_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?url-form=${RUN}&delay=100`,
+).replace(/^http:/, 'HTTP:')
+function ProgressUrlFormCase() {
+    const check = useProgressCheck(true)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: UPPERCASE_SCHEME_URL,
+                    // The slow server only sends images with it.
+                    headers: { 'x-token': 'fast-image' },
+                }}
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
+                }}
+            />
+            <CaseStatus
+                id="progress-url-form"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress for a url with its scheme in capitals (HTTP://)"
             />
         </View>
     )
@@ -5055,8 +5091,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
     },
     {
-        name: 'progress-after-load',
-        cases: [<ProgressAfterLoadCase key="progress-after-load" />],
+        name: 'progress-by-url',
+        cases: [
+            <ProgressAfterLoadCase key="progress-after-load" />,
+            <ProgressUrlFormCase key="progress-url-form" />,
+        ],
     },
     {
         // Clears the caches, so on its own.
