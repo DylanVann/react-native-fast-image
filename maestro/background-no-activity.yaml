@@ -1,0 +1,53 @@
+# Calls clearMemoryCache and clearDiskCache from JS while the app has no
+# Activity (Android): the example's finish-on-leave link makes leaving the app
+# finish its Activity (see the example's MainActivity), as Android may for
+# one in the background, and the regression tab's clear-without-activity
+# case calls them from a download that ends while the app is away. Slow, so
+# scripts/verify.mts only runs it with --background. On iOS, the link does
+# nothing, and the case calls them when the app is back.
+#
+#   bunx maestro-runner --platform ios|android test -e APP_ID=<app id> maestro/background-no-activity.yaml
+#
+# App IDs are listed in touch.yaml.
+appId: ${APP_ID}
+tags:
+    - background
+# maestro-runner saves each screenshot in the run's report and also here,
+# relative to this file (ignored).
+env:
+    OUT: maestro-screenshots
+---
+- launchApp:
+      stopApp: true
+- extendedWaitUntil:
+      visible:
+          id: 'tab-regression'
+      timeout: 60000
+- tapOn:
+      id: 'tab-regression'
+- openLink: ${APP_ID}://finish-on-leave
+- tapOn:
+      id: 'regression-clear-no-activity-start'
+# The case's description says what it's waiting for (its status line only
+# shows OK or …).
+- extendedWaitUntil:
+      visible: '.*Now: send the app to the background.*'
+      timeout: 30000
+- pressKey: Home
+# The download takes about 2 s. The wait is one that never matches.
+- extendedWaitUntil:
+      visible: 'only here to wait 10 s'
+      timeout: 10000
+      optional: true
+- openLink: ${APP_ID}://
+# Android: the new Activity shows the app's first tab.
+- extendedWaitUntil:
+      visible:
+          id: 'tab-regression'
+      timeout: 30000
+- tapOn:
+      id: 'tab-regression'
+- extendedWaitUntil:
+      visible: 'clear-without-activity: OK'
+      timeout: 30000
+- takeScreenshot: ${OUT}/background-no-activity
