@@ -1,3 +1,15 @@
+# [9.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.3...v9.1.0) (2026-10-06)
+
+
+### Bug Fixes
+
+* **android:** clearMemoryCache and clearDiskCache work without an Activity ([#1267](https://github.com/DylanVann/react-native-fast-image/issues/1267)) ([4a79a55](https://github.com/DylanVann/react-native-fast-image/commit/4a79a5560c4344050af2960faccece189ab98f4a))
+
+
+### Features
+
+* clearMemoryCache and clearDiskCache resolve with { ok } ([#1268](https://github.com/DylanVann/react-native-fast-image/issues/1268)) ([1031413](https://github.com/DylanVann/react-native-fast-image/commit/10314130fe1293bd1eb51bedd973ba807b43f63b)), closes [#962](https://github.com/DylanVann/react-native-fast-image/issues/962)
+
 ## [9.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.2...v9.0.3) (2026-10-06)
 
 
