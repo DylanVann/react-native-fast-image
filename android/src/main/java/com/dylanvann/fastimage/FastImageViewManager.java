@@ -8,8 +8,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.PorterDuff;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -24,6 +22,7 @@ import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.LayoutShadowNode;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.PointerEvents;
@@ -32,9 +31,12 @@ import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nullable;
 
@@ -44,13 +46,26 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
     static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     static final String LOG_TAG = "FastImage";
-    // The views that get a url's download progress: those with an onProgress,
-    // from their load's onLoadStart to its onLoad or onError, keyed by the url
-    // as OkHttp requests it (FastImageOkHttpProgressGlideModule.progressKey).
-    // The UI thread adds and removes views, and downloads look urls up on
-    // their own threads: only used under its lock (see onDownloadProgress).
-    private static final Map<String, List<FastImageViewWithUrl>> VIEWS_FOR_URLS = new HashMap<>();
-    private static final Handler MAIN_THREAD = new Handler(Looper.getMainLooper());
+    // Download progress, by progress key (FastImageOkHttpProgressGlideModule's
+    // progressKey): the views that get it, those with an onProgress from
+    // their load's onLoadStart to its onLoad or onError, and the latest step a
+    // download reported, until the UI thread sends it. The UI thread adds and
+    // removes views, and downloads report steps on their own threads: only
+    // used under its lock.
+    private static final Map<String, Progress> PROGRESS = new HashMap<>();
+    // Counts the steps downloads report, so a view can tell those reported
+    // before its load started (see FastImageViewWithUrl.wantsProgressFrom).
+    private static final AtomicLong PROGRESS_STEPS = new AtomicLong();
+
+    private static final class Progress {
+        final Set<FastImageViewWithUrl> views = new LinkedHashSet<>();
+        // A step waits to be sent: later ones replace it meanwhile, so a url
+        // has at most one post to the UI thread at a time.
+        boolean posted;
+        long loaded;
+        long total;
+        long step;
+    }
 
     @NonNull
     @Override
@@ -171,11 +186,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
 
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
-        // This will cancel existing requests.
-        view.clearView(view.requestManager);
-
-        // No more progress: the view (and its Activity) isn't kept for it.
-        view.endProgress();
+        // Cancels its request, and nothing loads or tracks progress for it
+        // any more (the progress map doesn't keep it, or its Activity).
+        view.drop();
 
         super.onDropViewInstance(view);
     }
@@ -192,60 +205,84 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
     }
 
     // On the UI thread (FastImageViewWithUrl's updateProgressTracking).
-    static void trackProgress(String url, FastImageViewWithUrl view) {
-        synchronized (VIEWS_FOR_URLS) {
-            List<FastImageViewWithUrl> views = VIEWS_FOR_URLS.get(url);
-            if (views == null) {
-                views = new ArrayList<>();
-                VIEWS_FOR_URLS.put(url, views);
+    static void trackProgress(String key, FastImageViewWithUrl view) {
+        synchronized (PROGRESS) {
+            Progress progress = PROGRESS.get(key);
+            if (progress == null) {
+                progress = new Progress();
+                PROGRESS.put(key, progress);
             }
-            if (!views.contains(view)) views.add(view);
+            progress.views.add(view);
         }
     }
 
-    // On the UI thread. A url's list goes once it's empty.
-    static void untrackProgress(String url, FastImageViewWithUrl view) {
-        synchronized (VIEWS_FOR_URLS) {
-            List<FastImageViewWithUrl> views = VIEWS_FOR_URLS.get(url);
-            if (views == null) return;
-            views.remove(view);
-            if (views.isEmpty()) VIEWS_FOR_URLS.remove(url);
+    // On the UI thread. A key's entry goes once it has no views.
+    static void untrackProgress(String key, FastImageViewWithUrl view) {
+        synchronized (PROGRESS) {
+            Progress progress = PROGRESS.get(key);
+            if (progress == null) return;
+            progress.views.remove(view);
+            if (progress.views.isEmpty()) PROGRESS.remove(key);
         }
+    }
+
+    // The latest step downloads reported (for a load that starts now).
+    static long progressStep() {
+        return PROGRESS_STEPS.get();
     }
 
     // A download's progress (FastImageOkHttpProgressGlideModule), on its
-    // thread, which only checks that a view wants it (so downloads of images
+    // thread, which only notes it if a view wants it (so downloads of images
     // without an onProgress post nothing). It's sent from the UI thread, where
     // views start and end their loads: a view only gets it during its own load,
-    // not after its onLoad or once it loads another source, and progress
-    // posted during a download comes before the onLoad Glide posts after it.
-    static void onDownloadProgress(final String url, final long loaded, final long total) {
-        synchronized (VIEWS_FOR_URLS) {
-            if (!VIEWS_FOR_URLS.containsKey(url)) return;
+    // not after its onLoad or once it loads again, and progress posted during
+    // a download comes before the onLoad Glide posts after it.
+    static void onDownloadProgress(final String key, long loaded, long total) {
+        synchronized (PROGRESS) {
+            Progress progress = PROGRESS.get(key);
+            if (progress == null) return;
+            progress.loaded = loaded;
+            progress.total = total;
+            progress.step = PROGRESS_STEPS.incrementAndGet();
+            if (progress.posted) return;
+            progress.posted = true;
         }
-        MAIN_THREAD.post(new Runnable() {
+        UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                List<FastImageViewWithUrl> views;
-                synchronized (VIEWS_FOR_URLS) {
-                    List<FastImageViewWithUrl> current = VIEWS_FOR_URLS.get(url);
-                    if (current == null) return;
-                    views = new ArrayList<>(current);
-                }
-                for (FastImageViewWithUrl view : views) {
-                    WritableMap event = new WritableNativeMap();
-                    event.putInt("loaded", (int) loaded);
-                    event.putInt("total", (int) total);
-                    try {
-                        FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
-                    } catch (RuntimeException e) {
-                        // E.g. the view's React instance is gone: progress
-                        // isn't worth crashing the app for.
-                        Log.w(LOG_TAG, "Couldn't send onProgress for " + url, e);
-                    }
-                }
+                sendProgress(key);
             }
         });
+    }
+
+    private static void sendProgress(String key) {
+        List<FastImageViewWithUrl> views;
+        long loaded;
+        long total;
+        long step;
+        synchronized (PROGRESS) {
+            Progress progress = PROGRESS.get(key);
+            // Sent already, or no view wants it any more.
+            if (progress == null || !progress.posted) return;
+            progress.posted = false;
+            loaded = progress.loaded;
+            total = progress.total;
+            step = progress.step;
+            views = new ArrayList<>(progress.views);
+        }
+        for (FastImageViewWithUrl view : views) {
+            if (!view.wantsProgressFrom(step)) continue;
+            WritableMap event = new WritableNativeMap();
+            event.putInt("loaded", (int) loaded);
+            event.putInt("total", (int) total);
+            try {
+                FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
+            } catch (RuntimeException e) {
+                // E.g. the view's React instance is gone: progress isn't worth
+                // crashing the app for.
+                Log.w(LOG_TAG, "Couldn't send onProgress for " + key, e);
+            }
+        }
     }
 
     private static boolean isValidContextForGlide(final Context context) {

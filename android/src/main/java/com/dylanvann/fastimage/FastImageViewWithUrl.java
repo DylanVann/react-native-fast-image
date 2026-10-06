@@ -28,6 +28,7 @@ import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
@@ -206,14 +207,19 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
     // Progress (see FastImageViewManager.onDownloadProgress): whether the image
-    // has an onProgress, the url its current load downloads (progressKey;
-    // null for a local image, and once the load has ended), and the url the
-    // view gets progress for (the loading url while it has an onProgress).
+    // has an onProgress, the url its current load downloads (null for a local
+    // image, and once the load has ended), the progress key the view gets
+    // progress for (the loading url's, while it has an onProgress), and the
+    // last step downloads reported before the load started.
     private boolean mTrackProgress = false;
     @Nullable
-    private String mLoadingUrl;
+    private GlideUrl mLoadingUrl;
     @Nullable
-    private String mTrackedUrl;
+    private String mTrackedKey;
+    private long mProgressSince;
+    // Dropped by React (FastImageViewManager.onDropViewInstance): reloads it
+    // posted to itself don't load anything, or track progress, any more.
+    private boolean mDropped = false;
 
     void setTrackProgress(boolean trackProgress) {
         mTrackProgress = trackProgress;
@@ -228,12 +234,27 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateProgressTracking();
     }
 
+    void drop() {
+        mDropped = true;
+        clearView(requestManager);
+        endProgress();
+    }
+
+    // Whether a step a download reported is for the current load: one
+    // reported before it started is for an earlier load, e.g. of the same url
+    // before resizeMode changed, posted while that load still ran.
+    boolean wantsProgressFrom(long step) {
+        return step > mProgressSince;
+    }
+
     private void updateProgressTracking() {
-        String url = mTrackProgress ? mLoadingUrl : null;
-        if (url == null ? mTrackedUrl == null : url.equals(mTrackedUrl)) return;
-        if (mTrackedUrl != null) FastImageViewManager.untrackProgress(mTrackedUrl, this);
-        mTrackedUrl = url;
-        if (url != null) FastImageViewManager.trackProgress(url, this);
+        String key = mTrackProgress && mLoadingUrl != null && !mDropped
+                ? FastImageOkHttpProgressGlideModule.progressKey(mLoadingUrl)
+                : null;
+        if (key == null ? mTrackedKey == null : key.equals(mTrackedKey)) return;
+        if (mTrackedKey != null) FastImageViewManager.untrackProgress(mTrackedKey, this);
+        mTrackedKey = key;
+        if (key != null) FastImageViewManager.trackProgress(key, this);
     }
 
     // The `transition` prop (from the next load): how long a loaded image
@@ -754,7 +775,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean isResized() {
         int width = getWidth() - getPaddingLeft() - getPaddingRight();
         int height = getHeight() - getPaddingTop() - getPaddingBottom();
-        return requestManager != null && !mNeedsReload
+        return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
                 && (width != mShownWidth || height != mShownHeight);
@@ -885,6 +906,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
             @Nullable RequestManager requestManager) {
+        if (mDropped) return;
         mManager = manager;
         if (mBlurChanged && !mNeedsReload) {
             mBlurChanged = false;
@@ -979,8 +1001,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // The url this load downloads, for its progress: a remote image's
         // (without Glide, in a destroyed Activity, nothing loads).
         mLoadingUrl = requestManager != null && model instanceof FastImageUrl
-                ? FastImageOkHttpProgressGlideModule.progressKey(((FastImageUrl) model).url)
+                ? ((FastImageUrl) model).url
                 : null;
+        mProgressSince = FastImageViewManager.progressStep();
         updateProgressTracking();
 
         if (imageSource != null && !restarting) {
