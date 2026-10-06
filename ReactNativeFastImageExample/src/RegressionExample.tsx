@@ -922,11 +922,11 @@ function ProgressGzipCase() {
 
 // Many images with onProgress load one url from the slow server while more
 // of them, on the same url, mount and unmount every frame, for several rounds
-// (a new url each). Passes when every round loads with no onError. Android
-// sends progress from the download's thread to the views loading the url,
-// while the UI thread adds and removes views from that list: going through it
-// threw a ConcurrentModificationException, which failed the download (every
-// image on the url got onError).
+// (a new url each). A round ends once each of the images has loaded; passes
+// when every round does with no onError. Android went through the url's list
+// of views on the download's thread to send progress, while the UI thread
+// added and removed views: that threw a ConcurrentModificationException,
+// which failed the download (every image on the url got onError).
 const SHARED_URL_ROUNDS = 8
 const SHARED_URL_VIEWS = 40
 const SHARED_URL_CHURN = 10
@@ -934,7 +934,8 @@ function ProgressSharedUrlCase() {
     const [round, setRound] = useState(0)
     const [error, setError] = useState<string>()
     const [frame, setFrame] = useState(0)
-    const loads = useRef(0)
+    // The images that loaded this round.
+    const loaded = useRef(new Set<number>())
     const done = round >= SHARED_URL_ROUNDS || error !== undefined
     const source = useMemo(
         () => ({
@@ -953,10 +954,10 @@ function ProgressSharedUrlCase() {
         })
         return () => cancelAnimationFrame(id)
     }, [done])
-    const onLoad = () => {
-        loads.current++
-        if (loads.current === SHARED_URL_VIEWS) {
-            loads.current = 0
+    const onLoad = (view: number) => {
+        loaded.current.add(view)
+        if (loaded.current.size === SHARED_URL_VIEWS) {
+            loaded.current.clear()
             setRound((r) => r + 1)
         }
     }
@@ -974,7 +975,7 @@ function ProgressSharedUrlCase() {
                             style={sharedUrlStyles.image}
                             source={source}
                             onProgress={() => {}}
-                            onLoad={onLoad}
+                            onLoad={() => onLoad(i)}
                             onError={onError}
                         />
                     ))}
@@ -1010,6 +1011,60 @@ const sharedUrlStyles = StyleSheet.create({
     images: { width: 64, height: 64, flexDirection: 'row', flexWrap: 'wrap' },
     image: { width: 6, height: 6 },
 })
+
+// An image with onProgress loads a url from the slow server; once it has
+// loaded, another image downloads the same url again (`cache: 'web'`, and the
+// slow server's responses have no cache headers). Passes when the first image
+// gets no onProgress after its onLoad, and the second gets some. Android sent
+// a url's progress to every image that had loaded it, until it loaded another
+// source, so the first image got the second download's.
+const AFTER_LOAD_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?after-load=${RUN}&delay=100`,
+)
+function ProgressAfterLoadCase() {
+    const firstLoaded = useRef(false)
+    const [secondStarted, setSecondStarted] = useState(false)
+    const [secondLoaded, setSecondLoaded] = useState(false)
+    const [late, setLate] = useState(0)
+    const [secondProgress, setSecondProgress] = useState(0)
+    const headers = { 'x-token': 'fast-image' }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: AFTER_LOAD_URL, headers }}
+                onProgress={() => {
+                    if (firstLoaded.current) setLate((n) => n + 1)
+                }}
+                onLoad={() => {
+                    firstLoaded.current = true
+                    setSecondStarted(true)
+                }}
+            />
+            {secondStarted && (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: AFTER_LOAD_URL, headers, cache: 'web' }}
+                    onProgress={() => setSecondProgress((n) => n + 1)}
+                    onLoad={() => setSecondLoaded(true)}
+                />
+            )}
+            <CaseStatus
+                id="progress-after-load"
+                status={
+                    late > 0
+                        ? `onProgress after onLoad (${late} times)`
+                        : !secondLoaded
+                          ? 'waiting'
+                          : secondProgress === 0
+                            ? 'no onProgress for the second download'
+                            : 'OK'
+                }
+                description="an image gets no onProgress after its onLoad, from another image downloading its url"
+            />
+        </View>
+    )
+}
 
 // Gets two cookies with fetch, then loads an image the server only sends with
 // both (and which sets a cookie of its own), then checks the image's cookie
@@ -4998,6 +5053,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Loads many images and churns views, so on its own.
         name: 'progress-shared-url',
         cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
+    },
+    {
+        name: 'progress-after-load',
+        cases: [<ProgressAfterLoadCase key="progress-after-load" />],
     },
     {
         // Clears the caches, so on its own.
