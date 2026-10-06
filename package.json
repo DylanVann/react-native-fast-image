@@ -79,7 +79,7 @@
         "type": "all",
         "jsSrcsDir": "src/specs",
         "android": {
-            "javaPackageName": "com.dylanvann.fastimage"
+            "javaPackageName": "com.fastimage"
         },
         "ios": {
             "componentProvider": {

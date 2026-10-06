@@ -34,7 +34,7 @@ if (glideVersionParts.find() &&
 }
 
 android {
-    namespace = "com.dylanvann.fastimage"
+    namespace = "com.fastimage"
     // React Native 0.83's.
     compileSdkVersion safeExtGet('compileSdkVersion', 36)
     defaultConfig {
@@ -60,7 +60,7 @@ android {
 react {
     jsRootDir = file("../src/specs")
     libraryName = "RNFastImageSpec"
-    codegenJavaPackageName = "com.dylanvann.fastimage"
+    codegenJavaPackageName = "com.fastimage"
 }
 
 repositories {
