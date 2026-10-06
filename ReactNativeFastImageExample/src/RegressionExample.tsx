@@ -317,6 +317,35 @@ function PointerEventsCase() {
     )
 }
 
+// A FastImage with pointerEvents="box-none" over a Pressable. maestro/touch.yaml
+// taps the Pressable's position; passes when it gets the press. The image is
+// part of the box (FastImage gives it "none"), but on Android its view didn't
+// read pointerEvents, and took the touch.
+function PointerEventsBoxNoneCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <View>
+                <Pressable
+                    testID="regression-box-none-target"
+                    style={styles.image}
+                    onPress={() => setPressed(true)}
+                />
+                <FastImage
+                    pointerEvents="box-none"
+                    style={[styles.image, StyleSheet.absoluteFill]}
+                    source={{ uri: LOGO }}
+                />
+            </View>
+            <CaseStatus
+                id="pointer-events-box-none"
+                status={pressed ? 'OK' : 'tap the image'}
+                description='pointerEvents="box-none" lets touches through the image'
+            />
+        </View>
+    )
+}
+
 // A wide image in square boxes: the left one is contain; the right one loads
 // as cover, then switches to contain. Both should match (checked by
 // screenshot). Android kept showing the cover crop.
@@ -5541,6 +5570,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <TouchableCase key="touchable" />,
             <PointerEventsCase key="pointer-events" />,
+            <PointerEventsBoxNoneCase key="pointer-events-box-none" />,
         ],
     },
 ]
