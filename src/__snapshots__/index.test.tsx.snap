@@ -1,7 +1,20 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`FastImage (iOS) renders 1`] = `
-"<View
+"<FastImageView
+  defaultSource={null}
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={
+    {
+      "headers": {
+        "token": "someToken",
+      },
+      "priority": "high",
+      "uri": "https://facebook.github.io/react/img/logo_og.png",
+    }
+  }
   style={
     [
       {
@@ -13,39 +26,23 @@ exports[`FastImage (iOS) renders 1`] = `
       },
     ]
   }
->
-  <FastImageView
-    defaultSource={null}
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={
-      {
-        "headers": {
-          "token": "someToken",
-        },
-        "priority": "high",
-        "uri": "https://facebook.github.io/react/img/logo_og.png",
-      }
-    }
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={0}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={0}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;
 
 exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
-"<View
+"<FastImageView
+  defaultSource={null}
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={
+    {
+      "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
+    }
+  }
   style={
     [
       {
@@ -57,35 +54,23 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
       },
     ]
   }
->
-  <FastImageView
-    defaultSource={null}
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={
-      {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-      }
-    }
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={0}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={0}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;
 
 exports[`FastImage (iOS) renders defaultSource 1`] = `
-"<View
+"<FastImageView
+  defaultSource={
+    {
+      "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
+    }
+  }
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={null}
   style={
     [
       {
@@ -97,35 +82,18 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
       },
     ]
   }
->
-  <FastImageView
-    defaultSource={
-      {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-      }
-    }
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={0}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={0}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;
 
 exports[`FastImage (Android) renders a normal defaultSource 1`] = `
-"<View
+"<FastImageView
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={null}
   style={
     [
       {
@@ -137,30 +105,22 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
       },
     ]
   }
->
-  <FastImageView
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={300}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={300}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;
 
 exports[`FastImage (Android) renders a normal defaultSource when fails to load source 1`] = `
-"<View
+"<FastImageView
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={
+    {
+      "uri": "https://www.google.com/image_does_not_exist.png",
+    }
+  }
   style={
     [
       {
@@ -172,34 +132,19 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
       },
     ]
   }
->
-  <FastImageView
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={
-      {
-        "uri": "https://www.google.com/image_does_not_exist.png",
-      }
-    }
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={300}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={300}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;
 
 exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
-"<View
+"<FastImageView
+  defaultSource={null}
+  handledEvents={0}
+  loopCount={-1}
+  resizeMode="cover"
+  source={null}
   style={
     [
       {
@@ -211,25 +156,8 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
       },
     ]
   }
->
-  <FastImageView
-    defaultSource={null}
-    handledEvents={0}
-    loopCount={-1}
-    resizeMode="cover"
-    source={null}
-    style={
-      {
-        "bottom": 0,
-        "left": 0,
-        "position": "absolute",
-        "right": 0,
-        "top": 0,
-      }
-    }
-    transitionBetweenImages={false}
-    transitionDuration={300}
-    transitionSkipOnCacheHit="memory"
-  />
-</View>"
+  transitionBetweenImages={false}
+  transitionDuration={300}
+  transitionSkipOnCacheHit="memory"
+/>"
 `;

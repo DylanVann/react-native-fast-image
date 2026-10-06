@@ -10,7 +10,7 @@
 // the image as a CSS background, and tintColor is an SVG filter next to them.
 //
 // Works: source (uri, require(), or several sizes: see sizedSources),
-// defaultSource, objectFit, resizeMode, tintColor, blurRadius, style, children,
+// defaultSource, objectFit, resizeMode, tintColor, blurRadius, style,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -28,6 +28,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
+import { warnIfChildren } from './warnings'
 import type {
     CachePathResult,
     CacheState,
@@ -63,6 +64,10 @@ const useClientLayoutEffect =
         ? useEffect
         : useLayoutEffect
 
+// Metro's (and React Native's Jest preset's) development flag; other web
+// bundlers may not define it.
+declare const __DEV__: boolean | undefined
+
 function FastImageBase({
     source,
     defaultSource,
@@ -77,7 +82,8 @@ function FastImageBase({
     objectFit,
     resizeMode: mode = 'cover',
     forwardedRef,
-    // On the wrapper, as on native.
+    // On the wrapper, the view the layout and touches are for here (on
+    // native, FastImage's only view).
     onLayout,
     pointerEvents,
     // Native only.
@@ -90,6 +96,10 @@ function FastImageBase({
     onProgress: _onProgress,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
+    // As on native (a single view there): children aren't rendered.
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        warnIfChildren(children)
+    }
     // The label is the wrapper's aria-label, as react-native-web's Image gave
     // it (its View warns that accessibilityLabel is deprecated), and the
     // <img>'s alt text.
@@ -187,7 +197,6 @@ function FastImageBase({
                 />
             ) : null}
             {tintColor ? <TintFilter id={tintId} color={tintColor} /> : null}
-            {children}
         </View>
     )
 }

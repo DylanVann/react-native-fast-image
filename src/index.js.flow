@@ -137,6 +137,9 @@ export type FastImageProps = $ReadOnly<{|
     downsample?: ?boolean,
     blurRadius?: ?number,
     testID?: ?string,
+    // FastImage is a single native view, which doesn't take children (since
+    // 10.0): use FastImageBackground.
+    children?: "FastImage doesn't take children: use FastImageBackground for content over an image",
 |}>
 
 export type FastImageBackgroundProps = $ReadOnly<{|

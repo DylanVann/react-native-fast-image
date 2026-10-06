@@ -1,6 +1,6 @@
 // The native image view, from React Native's Codegen (the New Architecture's
-// component). FastImage (index.tsx) renders it inside a View, and turns its
-// props into these.
+// component). FastImage (index.tsx) renders it as its only view, and turns
+// its props into these.
 import type {
     CodegenTypes,
     ColorValue,
