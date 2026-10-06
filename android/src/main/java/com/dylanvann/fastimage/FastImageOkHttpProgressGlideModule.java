@@ -1,6 +1,7 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -23,10 +24,8 @@ import com.facebook.react.modules.network.OkHttpClientProvider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 import okhttp3.Cache;
 import okhttp3.HttpUrl;
@@ -46,7 +45,6 @@ import okio.Source;
 @GlideModule
 public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
-    private static final DispatchingProgressListener progressListener = new DispatchingProgressListener();
     private static final long WEB_CACHE_SIZE = 50 * 1024 * 1024;
     // The HTTP cache of `cache: 'web'` images, once Glide has set up.
     @Nullable
@@ -107,7 +105,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
         OkHttpClient.Builder builder = sharedClient
                 .newBuilder()
-                .addInterceptor(createInterceptor(progressListener))
+                .addInterceptor(createInterceptor())
                 // A network interceptor, so it runs before the HTTP cache of
                 // `web` images stores the response (checking it reads it).
                 .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()));
@@ -228,7 +226,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 || subtype.equalsIgnoreCase("javascript");
     }
 
-    private static Interceptor createInterceptor(final ResponseProgressListener listener) {
+    // Sends remote images' download progress to the views loading their url
+    // (FastImageViewManager.onDownloadProgress). An application interceptor,
+    // so the url is the one asked for, before any redirect.
+    private static Interceptor createInterceptor() {
         return new Interceptor() {
             @Override
             public Response intercept(Chain chain) throws IOException {
@@ -237,93 +238,33 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 final String key = request.url().toString();
                 return response
                         .newBuilder()
-                        .body(new OkHttpProgressResponseBody(key, response.body(), listener))
+                        .body(new OkHttpProgressResponseBody(key, response.body()))
                         .build();
             }
         };
     }
 
-    static void forget(String key) {
-        progressListener.forget(key);
-    }
-
-    static void expect(String key, FastImageProgressListener listener) {
-        progressListener.expect(key, listener);
-    }
-
-    private interface ResponseProgressListener {
-        void update(String key, long bytesRead, long contentLength);
-    }
-
-    // expect and forget are called on the UI thread, update on the downloads'
-    // threads (several at once): the maps are only used under this object's
-    // lock.
-    private static class DispatchingProgressListener implements ResponseProgressListener {
-        private final Map<String, FastImageProgressListener> LISTENERS = new WeakHashMap<>();
-        private final Map<String, Long> PROGRESSES = new HashMap<>();
-
-        synchronized void forget(String key) {
-            LISTENERS.remove(key);
-            PROGRESSES.remove(key);
-        }
-
-        synchronized void expect(String key, FastImageProgressListener listener) {
-            LISTENERS.put(key, listener);
-        }
-
-        @Override
-        public void update(final String key, final long bytesRead, final long contentLength) {
-            final FastImageProgressListener listener;
-            synchronized (this) {
-                listener = LISTENERS.get(key);
-                // Without a Content-Length the total is unknown (-1), and a
-                // percentage can't be worked out from it, so don't send those.
-                // (It also looked like the last update, which stopped all
-                // updates.)
-                if (listener == null || contentLength <= 0) {
-                    return;
-                }
-                if (contentLength <= bytesRead) {
-                    forget(key);
-                }
-                if (!needsDispatch(key, bytesRead, contentLength, listener.getGranularityPercentage())) {
-                    return;
-                }
-            }
-            // Outside the lock: it sends events.
-            listener.onProgress(key, bytesRead, contentLength);
-        }
-
-        private boolean needsDispatch(String key, long current, long total, float granularity) {
-            if (granularity == 0 || current == 0 || total == current) {
-                return true;
-            }
-            float percent = 100f * current / total;
-            long currentProgress = (long) (percent / granularity);
-            Long lastProgress = PROGRESSES.get(key);
-            if (lastProgress == null || currentProgress != lastProgress) {
-                PROGRESSES.put(key, currentProgress);
-                return true;
-            } else {
-                return false;
-            }
-        }
+    // The key a url's progress is sent and looked up by: the url as OkHttp
+    // requests it (the interceptor's request.url()), which can differ from the
+    // GlideUrl's string (e.g. a host in capitals, or a default port). Null for
+    // a url OkHttp can't load.
+    @Nullable
+    static String progressKey(GlideUrl url) {
+        HttpUrl httpUrl = HttpUrl.parse(url.toStringUrl());
+        return httpUrl == null ? null : httpUrl.toString();
     }
 
     private static class OkHttpProgressResponseBody extends ResponseBody {
+        // Progress is sent when a download has read another 0.5% (and at its
+        // start and end).
+        private static final long PROGRESS_STEPS = 200;
         private final String key;
         private final ResponseBody responseBody;
-        private final ResponseProgressListener progressListener;
         private BufferedSource bufferedSource;
 
-        OkHttpProgressResponseBody(
-                String key,
-                ResponseBody responseBody,
-                ResponseProgressListener progressListener
-        ) {
+        OkHttpProgressResponseBody(String key, ResponseBody responseBody) {
             this.key = key;
             this.responseBody = responseBody;
-            this.progressListener = progressListener;
         }
 
         @Override
@@ -347,6 +288,9 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         private Source source(Source source) {
             return new ForwardingSource(source) {
                 long totalBytesRead = 0L;
+                // The last step sent (of PROGRESS_STEPS), for this download:
+                // others of the same url count their own.
+                long lastStep = -1;
 
                 @Override
                 public long read(Buffer sink, long byteCount) throws IOException {
@@ -358,8 +302,24 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                     } else {
                         totalBytesRead += bytesRead;
                     }
-                    progressListener.update(key, totalBytesRead, fullLength);
+                    sendProgress(fullLength);
                     return bytesRead;
+                }
+
+                private void sendProgress(long total) {
+                    // Without a Content-Length the total is unknown (-1), and a
+                    // fraction can't be worked out from it, so don't send those.
+                    if (total <= 0) return;
+                    long loaded = Math.min(totalBytesRead, total);
+                    long step = loaded * PROGRESS_STEPS / total;
+                    if (step == lastStep) return;
+                    lastStep = step;
+                    try {
+                        FastImageViewManager.onDownloadProgress(key, loaded, total);
+                    } catch (RuntimeException e) {
+                        // Thrown from read(), it would fail the download.
+                        Log.w(FastImageViewManager.LOG_TAG, "Couldn't send the progress of " + key, e);
+                    }
                 }
             };
         }
