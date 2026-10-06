@@ -161,6 +161,18 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     };
     _setsAllProps = YES;
     self.contentView = _imageView;
+    _imageView.frame = RCTCGRectFromRect(_layoutMetrics.getPaddingFrame());
+}
+
+// Padding doesn't inset the image: it fills the view inside its borders (the
+// padding box), as on Android. React Native lays the content view out inside
+// the padding too; its clipping mask for an image view (the padding box's
+// corners, in the image view's bounds) then fits it exactly.
+- (void)updateLayoutMetrics:(const LayoutMetrics &)layoutMetrics
+           oldLayoutMetrics:(const LayoutMetrics &)oldLayoutMetrics
+{
+    [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:oldLayoutMetrics];
+    _imageView.frame = RCTCGRectFromRect(layoutMetrics.getPaddingFrame());
 }
 
 // The image view's event as it built it (not the generated event structs,
@@ -173,6 +185,17 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     if (_eventEmitter && (props.handledEvents & event)) {
         _eventEmitter->dispatchEvent(type, FFFDynamicFromObject(payload ?: @{}));
     }
+}
+
+// React Native sets the accessibility props on this view (its
+// accessibilityElement), but RCTViewComponentView answers isAccessibilityElement
+// with its content view's, which is NO for an image view: `accessible` did
+// nothing. (React Native's Image makes its image view the accessibilityElement
+// instead, which doesn't work here: a recycled view gets a new image view,
+// without the props that didn't change.)
+- (BOOL)isAccessibilityElement
+{
+    return std::static_pointer_cast<const FastImageViewProps>(_props)->accessible;
 }
 
 - (void)prepareForRecycle
@@ -260,6 +283,12 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 - (void)finalizeUpdates:(RNComponentViewUpdateMask)updateMask
 {
     [super finalizeUpdates:updateMask];
+    // RCTViewComponentView masks its image view subviews to the border radius
+    // while it clips (invalidateLayer), and leaves the mask when overflow
+    // becomes visible.
+    if (!std::static_pointer_cast<const FastImageViewProps>(_props)->getClipsContentToBounds()) {
+        _imageView.layer.mask = nil;
+    }
     if (_propsChanged) {
         _propsChanged = NO;
         [_imageView didSetProps];

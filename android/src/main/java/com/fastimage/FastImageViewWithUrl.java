@@ -14,6 +14,7 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.AnimatedImageDrawable;
@@ -45,12 +46,17 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.facebook.react.modules.i18nmanager.I18nUtil;
+import com.facebook.react.touch.ReactHitSlopView;
+import com.facebook.react.uimanager.BackgroundStyleApplicator;
+import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.ReactPointerEventsView;
+import com.facebook.react.uimanager.style.LogicalEdge;
 
 import javax.annotation.Nonnull;
 
-class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView {
+class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView, ReactHitSlopView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
@@ -62,16 +68,93 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     public FastImageViewWithUrl(Context context, @Nullable RequestManager requestManager) {
         super(context);
         this.requestManager = requestManager;
-        // An image larger than the view (objectFit none) is cropped to it,
-        // also when the view doesn't clip its content (overflow visible).
+        // Borders inset the image: its padding is their widths (see
+        // updateBorderPadding). An image larger than that (objectFit none) is
+        // cropped to it, also when the view doesn't clip its content
+        // (overflow visible).
         setCropToPadding(true);
     }
 
-    // FastImage sends "none" when it has pointerEvents="box-none" (the image
-    // is part of the box, which doesn't take touches). React Native's touch
-    // handling only reads pointerEvents from a ReactPointerEventsView.
-    private PointerEvents mPointerEvents = PointerEvents.AUTO;
+    // The image fills the view inside its borders, and padding doesn't inset
+    // it, as on iOS: the view's padding is the border widths, resolved as
+    // React Native draws the border (its BorderInsets, which isn't public).
+    // React Native passes the layout's padding and borders together, so
+    // FastImageViewManager.setPadding doesn't use them. Called when a border
+    // width or the layout direction changes.
+    void updateBorderPadding() {
+        LogicalEdge left = LogicalEdge.START;
+        LogicalEdge physicalLeft = LogicalEdge.LEFT;
+        LogicalEdge right = LogicalEdge.END;
+        LogicalEdge physicalRight = LogicalEdge.RIGHT;
+        if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) {
+            left = LogicalEdge.END;
+            right = LogicalEdge.START;
+            if (I18nUtil.getInstance().doLeftAndRightSwapInRTL(getContext())) {
+                physicalLeft = LogicalEdge.RIGHT;
+                physicalRight = LogicalEdge.LEFT;
+            }
+        }
+        int paddingLeft = borderWidth(left, physicalLeft, LogicalEdge.HORIZONTAL);
+        int paddingTop = borderWidth(LogicalEdge.BLOCK_START, LogicalEdge.TOP, LogicalEdge.BLOCK, LogicalEdge.VERTICAL);
+        int paddingRight = borderWidth(right, physicalRight, LogicalEdge.HORIZONTAL);
+        int paddingBottom = borderWidth(LogicalEdge.BLOCK_END, LogicalEdge.BOTTOM, LogicalEdge.BLOCK, LogicalEdge.VERTICAL);
+        // Compared with the padding last set here: getPaddingLeft() and the
+        // others resolve the padding, which calls onRtlPropertiesChanged.
+        if (paddingLeft == mBorderPaddingLeft && paddingTop == mBorderPaddingTop
+                && paddingRight == mBorderPaddingRight && paddingBottom == mBorderPaddingBottom) {
+            return;
+        }
+        mBorderPaddingLeft = paddingLeft;
+        mBorderPaddingTop = paddingTop;
+        mBorderPaddingRight = paddingRight;
+        mBorderPaddingBottom = paddingBottom;
+        setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
+        // The image was loaded for the box inside the borders: for the new
+        // one, switch to the source that fits it (several sources) or load it
+        // again, as when the view's size changes (the view's own size
+        // doesn't).
+        if (!switchSourceIfResized()) reloadIfResized();
+    }
 
+    // The padding updateBorderPadding last set. No initial values: it runs
+    // during View's constructor, before field initializers would.
+    private int mBorderPaddingLeft;
+    private int mBorderPaddingTop;
+    private int mBorderPaddingRight;
+    private int mBorderPaddingBottom;
+
+    // The first of these edges' border width that's set, else the one for
+    // every edge, in pixels (rounded down, as React Native's layout does).
+    private int borderWidth(LogicalEdge... edges) {
+        Float width = null;
+        for (LogicalEdge edge : edges) {
+            width = BackgroundStyleApplicator.getBorderWidth(this, edge);
+            if (width != null) break;
+        }
+        if (width == null) width = BackgroundStyleApplicator.getBorderWidth(this, LogicalEdge.ALL);
+        return width == null ? 0 : (int) Math.floor(PixelUtil.toPixelFromDIP(width));
+    }
+
+    @Override
+    public void onRtlPropertiesChanged(int layoutDirection) {
+        super.onRtlPropertiesChanged(layoutDirection);
+        updateBorderPadding();
+    }
+
+    // The View style props FastImage handles itself (FastImageViewManager):
+    // it's a single native view, so they're the image's.
+    private PointerEvents mPointerEvents = PointerEvents.AUTO;
+    @Nullable
+    private Rect mHitSlopRect;
+    // overflow: hidden (FastImage's default) or scroll clip the image to the
+    // padding box, with the border radius; visible only to the view.
+    private boolean mOverflowVisible = false;
+    // backfaceVisibility, as React Native's View does it: a view turned away
+    // (rotateX or rotateY past 90°) is hidden with an opacity of 0.
+    private boolean mBackfaceVisible = true;
+    private float mBackfaceOpacity = 1f;
+
+    @NonNull
     @Override
     public PointerEvents getPointerEvents() {
         return mPointerEvents;
@@ -79,6 +162,50 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     void setPointerEvents(PointerEvents pointerEvents) {
         mPointerEvents = pointerEvents;
+    }
+
+    @Nullable
+    @Override
+    public Rect getHitSlopRect() {
+        return mHitSlopRect;
+    }
+
+    void setHitSlopRect(@Nullable Rect hitSlopRect) {
+        mHitSlopRect = hitSlopRect;
+    }
+
+    void setOverflow(@Nullable String overflow) {
+        mOverflowVisible = "visible".equals(overflow);
+        invalidate();
+    }
+
+    void setOpacityIfPossible(float opacity) {
+        mBackfaceOpacity = opacity;
+        setBackfaceVisibilityDependantOpacity();
+    }
+
+    void setBackfaceVisibility(String backfaceVisibility) {
+        mBackfaceVisible = "visible".equals(backfaceVisibility);
+        setBackfaceVisibilityDependantOpacity();
+    }
+
+    void setBackfaceVisibilityDependantOpacity() {
+        if (mBackfaceVisible) {
+            setAlpha(mBackfaceOpacity);
+            return;
+        }
+        float rotationX = getRotationX();
+        float rotationY = getRotationY();
+        boolean frontFaceVisible =
+                rotationX >= -90f && rotationX < 90f && rotationY >= -90f && rotationY < 90f;
+        setAlpha(frontFaceVisible ? mBackfaceOpacity : 0f);
+    }
+
+    // As React Native's Image: opacity applies to the view and its border and
+    // background as one, without an offscreen layer.
+    @Override
+    public boolean hasOverlappingRendering() {
+        return false;
     }
 
     public void setSource(@Nullable ReadableMap source) {
@@ -115,13 +242,24 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mSources == null) mSource = mPropSource;
     }
 
+    // The box the image is drawn in: the view inside its padding, which is the
+    // border widths (see updateBorderPadding).
+    private int contentWidth() {
+        return getWidth() - getPaddingLeft() - getPaddingRight();
+    }
+
+    private int contentHeight() {
+        return getHeight() - getPaddingTop() - getPaddingBottom();
+    }
+
     // Of several sources, the index of the one whose size in pixels (width ×
-    // height × scale²) is closest to the view's (by pixel count), or of the
-    // largest while the view has no size (e.g. one sized from onLoad).
+    // height × scale²) is closest to the box the image is drawn in (by pixel
+    // count), or of the largest while it has no size (e.g. a view sized from
+    // onLoad).
     private int sourceIndexForSize() {
         ReadableArray sources = mSources;
         if (sources == null) return -1;
-        double viewPixels = (double) getWidth() * getHeight();
+        double viewPixels = (double) Math.max(0, contentWidth()) * Math.max(0, contentHeight());
         int best = -1;
         double bestFit = Double.MAX_VALUE;
         for (int i = 0; i < sources.size(); i++) {
@@ -148,10 +286,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return map.hasKey(key) && !map.isNull(key) ? map.getDouble(key) : fallback;
     }
 
-    // Several sources: another one fits the view's new size better. Loads it
-    // (after layout), keeping the image showing until then, without a fade.
+    // Several sources: another one fits the view's new size (or the box inside
+    // its new borders) better. Loads it (after layout), keeping the image
+    // showing until then, without a fade.
     private boolean switchSourceIfResized() {
-        if (mSources == null || mNeedsReload || mWaitsForSize || getWidth() <= 0 || getHeight() <= 0
+        if (mSources == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
                 || mManager == null || sourceIndexForSize() == mSourceIndex) {
             return false;
         }
@@ -452,6 +591,24 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // Clipped as React Native's Image (and the View it used to be in): to
+        // the padding box, with the border radius, unless overflow is visible.
+        int saved = canvas.save();
+        if (mOverflowVisible) {
+            Rect bounds = new Rect();
+            getDrawingRect(bounds);
+            canvas.clipRect(bounds);
+        } else {
+            BackgroundStyleApplicator.clipToPaddingBox(this, canvas);
+        }
+        try {
+            drawImage(canvas);
+        } finally {
+            canvas.restoreToCount(saved);
+        }
+    }
+
+    private void drawImage(Canvas canvas) {
         if (mFade == null) {
             super.onDraw(canvas);
             return;
@@ -1032,8 +1189,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Whether the image loaded, at a size the view doesn't have now.
     private boolean isResized() {
-        int width = getWidth() - getPaddingLeft() - getPaddingRight();
-        int height = getHeight() - getPaddingTop() - getPaddingBottom();
+        int width = contentWidth();
+        int height = contentHeight();
         return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0

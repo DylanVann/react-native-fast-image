@@ -15,7 +15,7 @@ import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
-import { warnOnce } from './warnings'
+import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -314,9 +314,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * How the image fits the view, as CSS's `object-fit` does.
      *
      * - `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers
-     *   the view (minus padding), cropping what doesn't fit.
+     *   the view (inside its borders), cropping what doesn't fit.
      * - `'contain'`: scales it uniformly (keeping its aspect ratio) so all of
-     *   it fits in the view (minus padding).
+     *   it fits in the view (inside its borders).
      * - `'fill'`: scales its width and height separately to fill the view,
      *   which can change its aspect ratio.
      * - `'none'`: shows it at its own size, centered, cropped if it's larger
@@ -548,9 +548,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     onLoadEnd?(result: LoadResult): void
 
     /**
-     * The image's style: View's style props (`borderRadius` clips the image),
-     * and `tintColor`, as with React Native's `Image` (the `tintColor` prop
-     * wins).
+     * The image's style: View's style props (`borderRadius` clips the image,
+     * and borders inset it, but padding doesn't), and `tintColor`, as with
+     * React Native's `Image` (the `tintColor` prop wins).
      */
     style?: StyleProp<ImageStyle>
 
@@ -561,12 +561,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     tintColor?: ColorValue
 
     /**
-     * Render children within the image.
+     * FastImage is a single native view, which doesn't take children (since
+     * 10.0): use `FastImageBackground` for content over an image.
      *
-     * @deprecated In a future major version, `FastImage` won't render
-     * children: use `FastImageBackground`.
+     * @hidden
      */
-    children?: React.ReactNode
+    children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
 }
 
 const resolveDefaultSource = (
@@ -713,44 +713,9 @@ function FastImageBase({
     loop,
     transition,
     forwardedRef,
-    // On the wrapper, so the layout is relative to the parent (the image view
-    // inside always has x and y of 0).
-    onLayout,
-    // On the wrapper, which would otherwise still take touches. With
-    // 'box-none' the image is part of the box, so it ignores touches too.
-    pointerEvents,
-    // On the wrapper too: a touch in the slop, outside the wrapper, only
-    // reaches the wrapper (hit testing doesn't look for its children there).
-    // Touchables pass their hitSlop to their child.
-    hitSlop,
-    // The responder and touch handlers (a Touchable's, or the app's): on the
-    // wrapper, so they get the touches its hitSlop takes. A touch on the image
-    // reaches them too, as an event from a child.
-    onStartShouldSetResponder,
-    onStartShouldSetResponderCapture,
-    onMoveShouldSetResponder,
-    onMoveShouldSetResponderCapture,
-    onResponderGrant,
-    onResponderReject,
-    onResponderStart,
-    onResponderMove,
-    onResponderEnd,
-    onResponderRelease,
-    onResponderTerminationRequest,
-    onResponderTerminate,
-    onTouchStart,
-    onTouchMove,
-    onTouchEnd,
-    onTouchCancel,
-    onTouchEndCapture,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    // Touchables pass onClick to their child (for accessibility clicks). It
-    // goes on the wrapper: the image view doesn't support it on iOS, which
-    // crashed (#1020). React Native's types up to 0.86 don't include it (only
-    // its Strict TypeScript API's, the default from 0.87, do).
-    const { onClick, fallback, ...props } = viewProps as typeof viewProps & {
-        onClick?: (event: any) => void
+    const { fallback, ...props } = viewProps as typeof viewProps & {
         // Removed in 10.0 (React Native's Image instead of FastImage's view).
         fallback?: unknown
     }
@@ -758,35 +723,13 @@ function FastImageBase({
         warnOnce(
             'fallback',
             "react-native-fast-image: `fallback` was removed in 10.0, and does nothing: images always load natively. Remove it, or use React Native's Image for those images.",
+            'warn',
         )
     }
-    const wrapperProps = {
-        onLayout,
-        onClick,
-        pointerEvents,
-        hitSlop,
-        onStartShouldSetResponder,
-        onStartShouldSetResponderCapture,
-        onMoveShouldSetResponder,
-        onMoveShouldSetResponderCapture,
-        onResponderGrant,
-        onResponderReject,
-        onResponderStart,
-        onResponderMove,
-        onResponderEnd,
-        onResponderRelease,
-        onResponderTerminationRequest,
-        onResponderTerminate,
-        onTouchStart,
-        onTouchMove,
-        onTouchEnd,
-        onTouchCancel,
-        onTouchEndCapture,
-    }
-    const imageProps = {
-        ...props,
-        pointerEvents:
-            pointerEvents === 'box-none' ? ('none' as const) : undefined,
+    // FastImage is a single native view: children aren't rendered (as with
+    // React Native's Image).
+    if (__DEV__) {
+        warnIfChildren(children)
     }
     // tintColor can also be set in style, as with React Native's Image. The
     // prop wins.
@@ -809,54 +752,53 @@ function FastImageBase({
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
-        <View
-            style={[styles.imageContainer, style]}
-            {...wrapperProps}
+        <FastImageView
+            {...props}
             ref={forwardedRef}
-        >
-            <FastImageView
-                {...imageProps}
-                // null (no key) as undefined, which the native prop takes.
-                recyclingKey={imageProps.recyclingKey ?? undefined}
-                tintColor={resolvedTintColor}
-                loopCount={loopCount(loop)}
-                {...resolveTransition(
-                    transition,
-                    defaultTransition ?? builtInTransition(),
-                )}
-                style={StyleSheet.absoluteFill}
-                source={resolvedSource}
-                sources={sources}
-                defaultSource={resolvedDefaultSource}
-                onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={onProgress}
-                // The native views only send the events with a handler (and
-                // only track progress with onProgress).
-                handledEvents={handledEvents({
-                    onLoadStart,
-                    onProgress,
-                    onLoad,
-                    onError,
-                    onLoadEnd,
-                })}
-                onFastImageLoad={onLoad}
-                onFastImageError={onError}
-                onFastImageLoadEnd={
-                    onLoadEnd &&
-                    ((event: { nativeEvent: any }) =>
-                        onLoadEnd(loadResult(event.nativeEvent)))
-                }
-                resizeMode={mode}
-            />
-            {children}
-        </View>
+            // Clips the image to borderRadius by default, as React Native's
+            // Image does.
+            style={[styles.image, style]}
+            // null (no key) as undefined, which the native prop takes.
+            recyclingKey={props.recyclingKey ?? undefined}
+            loopCount={loopCount(loop)}
+            {...resolveTransition(
+                transition,
+                defaultTransition ?? builtInTransition(),
+            )}
+            source={resolvedSource}
+            sources={sources}
+            defaultSource={resolvedDefaultSource}
+            onFastImageLoadStart={onLoadStart}
+            onFastImageProgress={onProgress}
+            // The native views only send the events with a handler (and only
+            // track progress with onProgress).
+            handledEvents={handledEvents({
+                onLoadStart,
+                onProgress,
+                onLoad,
+                onError,
+                onLoadEnd,
+            })}
+            onFastImageLoad={onLoad}
+            onFastImageError={onError}
+            onFastImageLoadEnd={
+                onLoadEnd &&
+                ((event: { nativeEvent: any }) =>
+                    onLoadEnd(loadResult(event.nativeEvent)))
+            }
+            // After style, whose tintColor and resizeMode reach the native
+            // view's props too: these win.
+            tintColor={resolvedTintColor}
+            resizeMode={mode}
+        />
     )
 }
 
 const FastImageMemo = memo(FastImageBase)
 
-// What a ref to FastImage or FastImageBackground gets: the view the image
-// fills (FastImage's wrapper, FastImageBackground's view). ComponentRef, as
+// What a ref to FastImage or FastImageBackground gets: FastImage's native
+// view, or FastImageBackground's view. Typed as a View's (they have the same
+// methods, e.g. measure). ComponentRef, as
 // React Native's types declare View as a class, and its Strict TypeScript API
 // (opt-in from 0.80, the default from 0.87) as a function component that takes
 // a ref.
@@ -1081,7 +1023,7 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
           )
 
 const styles = StyleSheet.create({
-    imageContainer: {
+    image: {
         overflow: 'hidden',
     },
 })
@@ -1102,9 +1044,8 @@ export interface FastImageBackgroundProps extends Omit<
 
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
- * view that the image fills, with the children on top. Use it rather than
- * giving `FastImage` children, which it won't render in a future major version
- * (the image will be a single native view). The other props go to the image;
+ * view that the image fills, with the children on top (`FastImage` is a single
+ * native view, which doesn't take children). The other props go to the image;
  * the ref is the view's.
  */
 export const FastImageBackground: React.ForwardRefExoticComponent<

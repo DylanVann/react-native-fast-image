@@ -1,7 +1,8 @@
 // Preloaded by `bun test` (bunfig.toml).
 import { plugin } from 'bun'
-import { mock } from 'bun:test'
+import { beforeEach, mock } from 'bun:test'
 import path from 'node:path'
+import { resetWarnings } from '../src/warnings'
 
 // React Native is Flow-typed source, which Bun can't parse; the tests use a
 // small stand-in instead.
@@ -15,6 +16,10 @@ mock.module('react-native-web/dist/modules/AssetRegistry', () => ({
     registerAsset: (asset: unknown) => assets.push(asset),
     getAssetByID: (id: number) => assets[id - 1],
 }))
+
+// Each test starts with no development warnings shown: they're once per app,
+// and the native and web versions' tests share src/warnings.ts in one run.
+beforeEach(() => resetWarnings())
 
 // Tests render inside act() (test/render.ts), as React 19 expects, in React
 // Native's test environment, as its Jest preset sets up (react-test-renderer

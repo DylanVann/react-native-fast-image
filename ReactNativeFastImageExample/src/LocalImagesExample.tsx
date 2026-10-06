@@ -6,7 +6,11 @@ import {
     TouchableOpacity,
     ViewProps,
 } from 'react-native'
-import FastImage, { FastImageProps, Source } from 'react-native-fast-image'
+import FastImage, {
+    FastImageBackground,
+    FastImageProps,
+    Source,
+} from 'react-native-fast-image'
 import Section from './Section'
 import FeatureText from './FeatureText'
 import FieldsBase64 from './images/fields'
@@ -91,9 +95,19 @@ class PhotoExample extends Component<{}, PhotoExampleState> {
             <Row>
                 <BulletText>photo library</BulletText>
                 <TouchableOpacity onPress={this.pick}>
-                    <Image source={this.state.image || 0}>
-                        <Text style={styles.pickPhoto}>Pick Photo</Text>
-                    </Image>
+                    <CompactContext.Consumer>
+                        {(compact) => (
+                            <FastImageBackground
+                                source={this.state.image || 0}
+                                style={[
+                                    styles.imageSquare,
+                                    compact && styles.imageCompact,
+                                ]}
+                            >
+                                <Text style={styles.pickPhoto}>Pick Photo</Text>
+                            </FastImageBackground>
+                        )}
+                    </CompactContext.Consumer>
                 </TouchableOpacity>
             </Row>
         )

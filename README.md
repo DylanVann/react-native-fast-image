@@ -107,7 +107,7 @@ const YourImage = () => (
 
 ### `FastImage`
 
-It also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout` and `pointerEvents`.
+It's a single native view, which also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
@@ -248,8 +248,8 @@ On Android, `defaultSource` doesn't show in debug builds: there the dev server s
 
 How the image fits the view, as CSS's `object-fit` does.
 
-- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (minus padding), cropping what doesn't fit.
-- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (minus padding).
+- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (inside its borders), cropping what doesn't fit.
+- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (inside its borders).
 - `'fill'`: scales its width and height separately to fill the view, which can change its aspect ratio.
 - `'none'`: shows it at its own size, centered, cropped if it's larger than the view.
 - `'scale-down'`: shows it at its own size, centered, or scaled down uniformly to fit if it's larger than the view (the smaller of `'none'` and `'contain'`).
@@ -440,7 +440,7 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 **Type:** `StyleProp<ImageStyle>`
 
-The image's style: View's style props (`borderRadius` clips the image), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
+The image's style: View's style props (`borderRadius` clips the image, and borders inset it, but padding doesn't), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
 
 ---
 
@@ -450,23 +450,13 @@ The image's style: View's style props (`borderRadius` clips the image), and `tin
 
 If supplied, changes the color of all the non-transparent pixels to the given color.
 
----
-
-#### `children`
-
-**Type:** `ReactNode`
-
-**Deprecated:** In a future major version, `FastImage` won't render children: use `FastImageBackground`.
-
-Render children within the image.
-
 <!-- api:props end -->
 
 ### `FastImageBackground`
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
-Use it rather than giving `FastImage` children: in a future major version, `FastImage` won't render children, since the image will be a single native view, which can't hold them. `FastImageBackground` works the same in both.
+`FastImage` is a single native view, which doesn't take children, so use `FastImageBackground` for content over an image.
 
 ```jsx
 import { FastImageBackground } from 'react-native-fast-image'
@@ -882,7 +872,7 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `resizeMode`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
 - Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` as its CSS `object-fit` (and `resizeMode`'s `stretch` as `fill`, `center` as `scale-down`). With `resizeMode="repeat"`, it's a repeated CSS background, with a transparent `<img>` over it. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width. `resizeMode="repeat"` shows them as `cover`.
