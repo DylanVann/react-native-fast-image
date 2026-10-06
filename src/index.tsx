@@ -1,4 +1,4 @@
-import React, { forwardRef, memo, useRef } from 'react'
+import React, { forwardRef, memo } from 'react'
 import {
     ColorValue,
     View,
@@ -15,6 +15,7 @@ import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
+import { warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -352,12 +353,6 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     resizeMode?: ResizeMode
     /**
-     * If true, the image is shown with React Native's `Image` instead, styled
-     * and laid out the same way. FastImage's own features, such as its
-     * caching options, `priority` and `transition`, don't apply.
-     */
-    fallback?: boolean
-    /**
      * For views that get reused for other content, such as rows in FlashList
      * or recyclerlistview. Set it to something that identifies the content,
      * e.g. the item's id. When it changes, the image is cleared right away (to
@@ -616,22 +611,6 @@ function loadResult(event: {
         : { ok: false, error: event.error ?? 'Failed to load the image' }
 }
 
-// Adds `progress` (loaded / total, 0 to 1) to onProgress's event. Worked out
-// here so it's the same on both platforms, and with
-// fallback (React Native's Image). The native views don't send events with an
-// unknown total; React Native's Image can, and those get 0.
-function withProgress(onProgress: FastImageProps['onProgress']) {
-    return (
-        onProgress &&
-        ((event: OnProgressEvent) => {
-            const { loaded, total } = event.nativeEvent
-            event.nativeEvent.progress =
-                total > 0 ? Math.min(1, Math.max(0, loaded / total)) : 0
-            onProgress(event)
-        })
-    )
-}
-
 // The native view's handledEvents (see specs/FastImageViewNativeComponent.ts):
 // the events with a handler, which are the only ones it sends.
 function handledEvents({
@@ -675,11 +654,9 @@ function transitionProps(transition: FastImageProps['transition']) {
     }
 }
 
-// A copy of the source without `cache`.
-function withoutCache(source: Source | undefined) {
-    const { cache: _cache, ...rest } = source || {}
-    return rest
-}
+// React Native's global: true in development (Metro and React Native's Jest
+// preset set it), false in release builds.
+declare const __DEV__: boolean
 
 function FastImageBase({
     source,
@@ -691,7 +668,6 @@ function FastImageBase({
     onError,
     onLoadEnd,
     style,
-    fallback,
     children,
     objectFit,
     resizeMode = 'cover',
@@ -734,12 +710,17 @@ function FastImageBase({
     // goes on the wrapper: the image view doesn't support it on iOS, which
     // crashed (#1020). React Native's types up to 0.86 don't include it (only
     // its Strict TypeScript API's, the default from 0.87, do).
-    const { onClick, ...props } = viewProps as typeof viewProps & {
+    const { onClick, fallback, ...props } = viewProps as typeof viewProps & {
         onClick?: (event: any) => void
+        // Removed in 10.0 (React Native's Image instead of FastImage's view).
+        fallback?: unknown
     }
-    // React Native's Image (fallback) calls onLoadEnd without the result: take
-    // it from the onLoad or onError just before.
-    const fallbackResult = useRef<LoadResult | undefined>(undefined)
+    if (__DEV__ && fallback !== undefined) {
+        warnOnce(
+            'fallback',
+            "react-native-fast-image: `fallback` was removed in 10.0, and does nothing: images always load natively. Remove it, or use React Native's Image for those images.",
+        )
+    }
     const wrapperProps = {
         onLayout,
         onClick,
@@ -774,81 +755,6 @@ function FastImageBase({
         tintColor != null ? tintColor : fromStyle(style, 'tintColor')
     const mode =
         NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
-    if (fallback) {
-        // Remove `cache`, which React Native's Image doesn't support. A
-        // require()d source is a number: pass it through (spreading it gave {}).
-        const cleanedSource =
-            typeof source === 'number'
-                ? source
-                : Array.isArray(source)
-                  ? source.map(withoutCache)
-                  : withoutCache(source)
-        const resolvedSource = Image.resolveAssetSource(cleanedSource)
-
-        return (
-            <View
-                style={[styles.imageContainer, style]}
-                {...wrapperProps}
-                ref={forwardedRef}
-            >
-                <Image
-                    {...imageProps}
-                    style={[
-                        styles.fallbackImage,
-                        { tintColor: resolvedTintColor },
-                    ]}
-                    source={resolvedSource}
-                    defaultSource={defaultSource}
-                    onLoadStart={onLoadStart}
-                    onProgress={withProgress(onProgress) as any}
-                    onLoad={
-                        onLoadEnd
-                            ? (event: any) => {
-                                  const { width, height } =
-                                      event.nativeEvent.source
-                                  fallbackResult.current = {
-                                      ok: true,
-                                      width,
-                                      height,
-                                  }
-                                  onLoad?.(event)
-                              }
-                            : (onLoad as any)
-                    }
-                    onError={
-                        onLoadEnd
-                            ? (event: any) => {
-                                  fallbackResult.current = {
-                                      ok: false,
-                                      error: String(event.nativeEvent.error),
-                                  }
-                                  onError?.(event)
-                              }
-                            : (onError as any)
-                    }
-                    onLoadEnd={
-                        onLoadEnd &&
-                        (() =>
-                            onLoadEnd(
-                                fallbackResult.current ?? {
-                                    ok: false,
-                                    error: 'Failed to load the image',
-                                },
-                            ))
-                    }
-                    // React Native's Image has no `none` before 0.77, and
-                    // there it's top-left: the nearest is center, as for
-                    // scale-down.
-                    resizeMode={
-                        mode === 'none' || mode === 'scale-down'
-                            ? 'center'
-                            : mode
-                    }
-                />
-                {children}
-            </View>
-        )
-    }
 
     // Several sources are picked from natively, for the view's size; one in
     // an array is a plain source.
@@ -881,8 +787,7 @@ function FastImageBase({
                 sources={sources}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
-                // Adds `progress` to the native event.
-                onFastImageProgress={withProgress(onProgress) as any}
+                onFastImageProgress={onProgress}
                 // The native views only send the events with a handler (and
                 // only track progress with onProgress).
                 handledEvents={handledEvents({
@@ -1109,15 +1014,6 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
           )
 
 const styles = StyleSheet.create({
-    // React Native's Image sizes itself from a require()d source's width and
-    // height unless the style sets them, which would override absoluteFill.
-    fallbackImage: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-    },
     imageContainer: {
         overflow: 'hidden',
     },

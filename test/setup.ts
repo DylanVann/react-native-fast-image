@@ -22,9 +22,12 @@ mock.module('react-native-web/dist/modules/AssetRegistry', () => ({
 const testGlobals = globalThis as {
     IS_REACT_ACT_ENVIRONMENT?: boolean
     IS_REACT_NATIVE_TEST_ENVIRONMENT?: boolean
+    __DEV__?: boolean
 }
 testGlobals.IS_REACT_ACT_ENVIRONMENT = true
 testGlobals.IS_REACT_NATIVE_TEST_ENVIRONMENT = true
+// React Native's development flag, as its Jest preset sets it.
+testGlobals.__DEV__ = true
 
 // require()d images become { testUri } objects, as with React Native's Jest
 // preset (jest/assetFileTransformer.js).

@@ -57,12 +57,6 @@ const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
 type EventName = 'onLoad' | 'onLoadEnd' | 'onError'
 
-// With `fallback`, FastImage renders React Native's Image, which fades an
-// image in over 300 ms on Android after it loads. The fallback cases turn that
-// off (FastImage passes other props on to Image), so the screenshot shows the
-// image, not the fade. Not a FastImage prop, hence the cast.
-const NO_FADE = { fadeDuration: 0 } as Partial<FastImageProps>
-
 // Passes when `event` fires. With `removeAfter`, the handler is removed after
 // it fires, which crashed on iOS before #1088.
 function EventCase({
@@ -85,7 +79,6 @@ function EventCase({
             <FastImage
                 style={styles.image}
                 resizeMode="contain"
-                {...(props.fallback ? NO_FADE : null)}
                 {...props}
                 {...handlers}
             />
@@ -134,7 +127,7 @@ function NoCrashCase({
 // Passes when onLayout reports the image's position in its parent (x = 10
 // from its margin), once the image has loaded. It reported 0 when it came
 // from the inner native view.
-function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
+function LayoutCase({ id }: { id: string }) {
     const [x, setX] = useState<number>()
     const [loaded, setLoaded] = useState(false)
     const ok = loaded && x !== undefined && Math.abs(x - 10) < 1
@@ -143,8 +136,6 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
             <FastImage
                 style={[styles.image, { marginLeft: 10 }]}
                 source={{ uri: LOGO }}
-                fallback={fallback}
-                {...(fallback ? NO_FADE : null)}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
                 onLoad={() => setLoaded(true)}
             />
@@ -157,9 +148,7 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
                           ? 'waiting'
                           : `x=${x}`
                 }
-                description={`#992: onLayout reports the position in the parent${
-                    fallback ? ' (fallback)' : ''
-                }`}
+                description="#992: onLayout reports the position in the parent"
             />
         </View>
     )
@@ -2427,6 +2416,31 @@ const sharedStyles = StyleSheet.create({
     small: { width: 30, height: 30 },
     large: { width: 60, height: 60 },
 })
+
+// A data: image with onProgress: iOS sends one event for it, which needs
+// progress too (loaded / total, which JS doesn't add); Android sends none.
+function ProgressDataUriCase() {
+    const check = useProgressCheck()
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: YELLOW_DATA_URI }}
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
+                }}
+            />
+            <CaseStatus
+                id="progress-data-uri"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress for a data: image: iOS's one event has progress 1 (Android sends none)"
+            />
+        </View>
+    )
+}
 
 // Gets two cookies with fetch, then loads an image the server only sends with
 // both (and which sets a cookie of its own), then checks the image's cookie
@@ -6691,17 +6705,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'layout',
         cases: [
             <LayoutCase key="layout" id="layout" />,
-            <LayoutCase key="layout-fallback" id="layout-fallback" fallback />,
             <RefMeasureCase key="ref-measure" />,
             <AppImageNameCase key="app-image-name" />,
-            <EventCase
-                key="fallback-require"
-                id="fallback-require"
-                description="#1044: fallback with a require()d image (should show the logo)"
-                event="onLoad"
-                source={require('./images/logo.png')}
-                fallback
-            />,
             <EventCase
                 key="tint-style"
                 id="tint-style"
@@ -6905,6 +6910,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <WebCacheCase key="web-cache-avif" avif />,
             <CookiesCase key="cookies" />,
         ],
+    },
+    {
+        name: 'progress-data-uri',
+        cases: [<ProgressDataUriCase key="progress-data-uri" />],
     },
     {
         // Loads many images and churns views, so on its own.

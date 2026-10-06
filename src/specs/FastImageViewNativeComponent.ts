@@ -13,9 +13,12 @@ import { codegenNativeComponent } from 'react-native'
 
 type LoadStartEvent = Readonly<{}>
 
+// progress is loaded / total, from 0 to 1 (the views don't send an unknown
+// total).
 type ProgressEvent = Readonly<{
     loaded: CodegenTypes.Double
     total: CodegenTypes.Double
+    progress: CodegenTypes.Double
 }>
 
 // The image's own size.

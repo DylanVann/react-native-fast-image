@@ -276,14 +276,6 @@ How the image fills the view.
 
 ---
 
-#### `fallback`
-
-**Type:** `boolean`
-
-If true, the image is shown with React Native's `Image` instead, styled and laid out the same way. FastImage's own features, such as its caching options, `priority` and `transition`, don't apply.
-
----
-
 #### `recyclingKey`
 
 **Type:** `string | null`
@@ -862,7 +854,7 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 Support is minimal:
 
 - Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
-- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample`, `fallback` and `onProgress`.
+- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` as its CSS `object-fit` (and `resizeMode`'s `stretch` as `fill`, `center` as `scale-down`). With `resizeMode="repeat"`, it's a repeated CSS background, with a transparent `<img>` over it. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width. `resizeMode="repeat"` shows them as `cover`.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
