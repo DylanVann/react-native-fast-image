@@ -16,6 +16,7 @@ exports[`FastImage (iOS) renders 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={
@@ -36,7 +37,6 @@ exports[`FastImage (iOS) renders 1`] = `
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
@@ -60,6 +60,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={
@@ -76,7 +77,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
@@ -143,6 +143,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
         "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
       }
     }
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={null}
@@ -155,7 +156,6 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
@@ -178,6 +178,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
   }
 >
   <FastImageView
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={null}
@@ -190,7 +191,6 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
@@ -213,6 +213,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
   }
 >
   <FastImageView
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={
@@ -229,7 +230,6 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"
@@ -253,6 +253,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 >
   <FastImageView
     defaultSource={null}
+    handledEvents={0}
     loopCount={-1}
     resizeMode="cover"
     source={null}
@@ -265,7 +266,6 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
         "top": 0,
       }
     }
-    trackProgress={false}
     transitionBetweenImages={false}
     transitionDuration={0}
     transitionSkipOnCacheHit="memory"

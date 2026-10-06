@@ -1,8 +1,15 @@
-import { Image, StyleSheet, Platform, NativeModules, View } from 'react-native'
+import {
+    Image,
+    StyleSheet,
+    Platform,
+    NativeModules,
+    TurboModuleRegistry,
+    View,
+} from 'react-native'
 import React from 'react'
-import { beforeAll, describe, expect, it, spyOn } from 'bun:test'
-import renderer from 'react-test-renderer'
-import FastImage, { FastImageBackground } from './index'
+import { beforeAll, describe, expect, it, mock, spyOn } from 'bun:test'
+import renderer from '../test/render'
+import FastImage, { FastImageBackground, FastImageProps } from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -19,7 +26,7 @@ function jsx(tree: unknown) {
 describe('FastImage (iOS)', () => {
     beforeAll(() => {
         Platform.OS = 'ios'
-        NativeModules.FastImageView = {
+        NativeModules.FastImageModule = {
             preload: Function.prototype,
             clearMemoryCache: () => Promise.resolve({ ok: true }),
             clearDiskCache: () =>
@@ -240,7 +247,7 @@ describe('FastImage (iOS)', () => {
 
     it('resolves preload with a result per source', async () => {
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async () => [
             { ok: true, width: 10, height: 20 },
@@ -290,7 +297,7 @@ describe('FastImage (iOS)', () => {
 
     it('fails a preloaded source without a uri even if native loaded it', async () => {
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async () => [{ ok: true, width: 10, height: 20 }])
         try {
@@ -343,7 +350,7 @@ describe('ref', () => {
         expect(ref.current).toEqual({ type: 'View' } as any)
         // Typed as the view, with its methods (a type check: the view here
         // is a stand-in).
-        const measure = (view: React.ElementRef<typeof FastImage>) =>
+        const measure = (view: React.ComponentRef<typeof FastImage>) =>
             view.measure(() => {})
         expect(typeof measure).toBe('function')
     })
@@ -470,18 +477,37 @@ describe('onProgress', () => {
         image.props.onProgress({ nativeEvent: { loaded: 30, total: 40 } })
         expect(progress).toEqual([0, 0.75])
     })
+})
 
-    it('asks the native view for progress events only with onProgress', () => {
-        const trackProgress = (element: React.ReactElement) =>
-            renderer
-                .create(element)
-                .root.findAll(
-                    (node) => node.type === ('FastImageView' as any),
-                )[0].props.trackProgress
-        expect(trackProgress(<FastImage source={source} />)).toBe(false)
+describe('handledEvents', () => {
+    const source = { uri: 'https://example.com/a.png' }
+    const handledEvents = (props: Partial<FastImageProps>) =>
+        renderer
+            .create(<FastImage source={source} {...props} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.handledEvents
+    const handler = () => {}
+
+    it('asks the native view only for the events with a handler', () => {
+        expect(handledEvents({})).toBe(0)
+        expect(handledEvents({ onLoadStart: handler })).toBe(1)
+        expect(handledEvents({ onProgress: handler })).toBe(2)
+        expect(handledEvents({ onLoad: handler })).toBe(4)
+        expect(handledEvents({ onError: handler })).toBe(8)
+        expect(handledEvents({ onLoadEnd: handler })).toBe(16)
         expect(
-            trackProgress(<FastImage source={source} onProgress={() => {}} />),
-        ).toBe(true)
+            handledEvents({
+                onLoadStart: handler,
+                onProgress: handler,
+                onLoad: handler,
+                onError: handler,
+                onLoadEnd: handler,
+            }),
+        ).toBe(31)
+    })
+
+    it("doesn't count a handler that's undefined", () => {
+        expect(handledEvents({ onLoad: undefined })).toBe(0)
     })
 })
 
@@ -540,7 +566,7 @@ describe('several sources', () => {
             await FastImage.writeToCache([small, large] as any, '/a.jpg'),
         ).toEqual({ ok: false, error })
         const preload = spyOn(
-            NativeModules.FastImageView,
+            NativeModules.FastImageModule,
             'preload',
         ).mockImplementation(async (sources: any[]) =>
             sources.map(() => ({ ok: true, width: 100, height: 100 })),
@@ -569,8 +595,8 @@ describe('getCachePath', () => {
             sources.push(source)
             return { ok: true, path: '/cache/a' }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, getCachePath }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, getCachePath }
         try {
             const source = { uri: 'https://example.com/a.jpg' }
             expect(await FastImage.getCachePath(source)).toEqual({
@@ -581,7 +607,7 @@ describe('getCachePath', () => {
             await FastImage.getCachePath(null as any)
             expect(sources).toEqual([source, {}])
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })
@@ -593,20 +619,32 @@ describe('configureCache', () => {
             calls.push(limits)
             return { maxDiskSize: limits.maxDiskSize, diskSize: 1024 }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, configureCache }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, configureCache }
         try {
             const limits = { maxDiskSize: 100 * 1024 * 1024 }
             expect(await FastImage.configureCache(limits)).toEqual({
                 ...limits,
                 diskSize: 1024,
             })
-            expect(calls).toEqual([limits])
+            expect(calls).toStrictEqual([{ ...limits, reset: [] }])
             // Without limits, {} (Android can't read a null map).
             await FastImage.configureCache()
-            expect(calls).toEqual([limits, {}])
+            expect(calls[1]).toStrictEqual({ reset: [] })
+            // A limit set to null is sent as its name in reset, not as null
+            // (iOS's TurboModule leaves out null values); undefined is left
+            // out (unchanged).
+            await FastImage.configureCache({
+                maxDiskSize: null,
+                maxDiskAge: 60,
+                maxMemorySize: undefined,
+            })
+            expect(calls[2]).toStrictEqual({
+                maxDiskAge: 60,
+                reset: ['maxDiskSize'],
+            })
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })
@@ -664,8 +702,8 @@ describe('writeToCache', () => {
             calls.push([source, file])
             return { ok: true, path: '/cache/a' }
         }
-        const saved = NativeModules.FastImageView
-        NativeModules.FastImageView = { ...saved, writeToCache }
+        const saved = NativeModules.FastImageModule
+        NativeModules.FastImageModule = { ...saved, writeToCache }
         try {
             const source = { uri: 'https://example.com/a.jpg' }
             expect(
@@ -678,7 +716,7 @@ describe('writeToCache', () => {
                 [{}, 'file:///tmp/a.jpg'],
             ])
         } finally {
-            NativeModules.FastImageView = saved
+            NativeModules.FastImageModule = saved
         }
     })
 })
@@ -1043,5 +1081,44 @@ describe('resizeMode', () => {
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
         expect(view.props.resizeMode).toBe('repeat')
+    })
+})
+
+describe('without the native module', () => {
+    it("renders, and its functions throw an error saying it's missing", () => {
+        // As TurboModuleRegistry.get returns in an app without it (Jest, Expo
+        // Go, an app not rebuilt): Bun updates the import in place.
+        mock.module('./specs/NativeFastImageModule', () => ({ default: null }))
+        try {
+            const [view] = renderer
+                .create(
+                    <FastImage source={{ uri: 'https://example.com/a.png' }} />,
+                )
+                .root.findAll((node) => node.type === ('FastImageView' as any))
+            expect(view).toBeDefined()
+            for (const call of [
+                () => FastImage.preload([{ uri: 'https://example.com/a.png' }]),
+                () => FastImage.clearMemoryCache(),
+                () => FastImage.clearDiskCache(),
+                () => FastImage.configureCache({ maxDiskSize: 1 }),
+                () =>
+                    FastImage.getCachePath({
+                        uri: 'https://example.com/a.png',
+                    }),
+                () =>
+                    FastImage.writeToCache(
+                        { uri: 'https://example.com/a.png' },
+                        '/a.png',
+                    ),
+            ]) {
+                expect(call).toThrow(
+                    "the native module FastImageModule isn't in this app",
+                )
+            }
+        } finally {
+            mock.module('./specs/NativeFastImageModule', () => ({
+                default: TurboModuleRegistry.get('FastImageModule'),
+            }))
+        }
     })
 })

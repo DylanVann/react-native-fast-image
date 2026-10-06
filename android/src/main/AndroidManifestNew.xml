@@ -1,3 +1,0 @@
-<!-- Used instead of AndroidManifest.xml when the namespace is set in build.gradle. -->
-<manifest>
-</manifest>

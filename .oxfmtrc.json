@@ -10,9 +10,9 @@
         "CHANGELOG.md",
         "ReactNativeFastImageExample/ios",
         "ReactNativeFastImageExample/android",
-        "ReactNativeFastImageExampleLegacy/ios",
-        "ReactNativeFastImageExampleLegacy/android",
         "ReactNativeFastImageExampleTV/ios",
+        "ReactNativeFastImageExampleMinimum/ios",
+        "ReactNativeFastImageExampleMinimum/android",
         ".local"
     ],
     "overrides": [

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
     AppState,
     Image,
+    LogBox,
     NativeModules,
     PixelRatio,
     Platform,
@@ -168,9 +169,9 @@ function LayoutCase({ id, fallback }: { id: string; fallback?: boolean }) {
 // (#1254): measure and measureInWindow, called through them once the images
 // have loaded, report those views' sizes (48x48 and 96x48).
 function RefMeasureCase() {
-    const image = useRef<React.ElementRef<typeof FastImage>>(null)
+    const image = useRef<React.ComponentRef<typeof FastImage>>(null)
     const background =
-        useRef<React.ElementRef<typeof FastImageBackground>>(null)
+        useRef<React.ComponentRef<typeof FastImageBackground>>(null)
     const [loads, setLoads] = useState(0)
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
@@ -178,7 +179,7 @@ function RefMeasureCase() {
         const size = (width: number, height: number) =>
             `${Math.round(width)}x${Math.round(height)}`
         const measure = (ref: {
-            current: React.ElementRef<typeof FastImage> | null
+            current: React.ComponentRef<typeof FastImage> | null
         }) =>
             new Promise<string>((resolve) =>
                 ref.current
@@ -188,7 +189,7 @@ function RefMeasureCase() {
                     : resolve('no ref'),
             )
         const measureInWindow = (ref: {
-            current: React.ElementRef<typeof FastImage> | null
+            current: React.ComponentRef<typeof FastImage> | null
         }) =>
             new Promise<string>((resolve) =>
                 ref.current
@@ -600,6 +601,89 @@ function PreloadHeadersCase() {
                 id="preload-headers"
                 status={result}
                 description="#571: preload headers aren't sent with other images (iOS sent them with every later request)"
+            />
+        </View>
+    )
+}
+
+// React Native's RawEventEmitter, which gets each native event before React
+// looks for its handler (it's there for performance monitoring). Not in React
+// Native's types. Its deep import logs a warning in development, which would
+// show in the screenshots.
+LogBox.ignoreLogs([
+    "Deep imports from the 'react-native' package are deprecated ('react-native/Libraries/Core/RawEventEmitter')",
+])
+const RawEventEmitter: {
+    addListener(
+        type: '*',
+        listener: (event: {
+            eventName: string
+            nativeEvent: { target?: number }
+        }) => void,
+    ): { remove(): void }
+} = require('react-native/Libraries/Core/RawEventEmitter').default
+
+type ViewRef = React.ComponentRef<typeof View>
+
+// The tag of the native image view in a FastImage (whose ref is its wrapper
+// View), which its events have as nativeEvent.target.
+function imageViewTag(wrapper: ViewRef | null): number | undefined {
+    return (wrapper as any)?.firstElementChild?.__nativeTag
+}
+
+// Counts the events that reach JS from two images without handlers, until a
+// third with the same source and onLoadEnd has loaded (and a moment after);
+// passes if there were none (and the third's onLoadEnd was seen, so the count
+// works). Images without handlers sent onLoadStart, onLoad and onLoadEnd.
+const NO_HANDLERS = imageUrl(`picsum/1025-200x200.jpg?no-handlers=${RUN}`)
+function NoHandlersCase() {
+    // The two images without handlers, then the one with onLoadEnd.
+    const wrappers = useRef<(ViewRef | null)[]>([])
+    const counts = useRef([0, 0, 0])
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const subscription = RawEventEmitter.addListener(
+            '*',
+            ({ eventName, nativeEvent }) => {
+                if (!eventName.startsWith('topFastImage')) return
+                const i = wrappers.current
+                    .map(imageViewTag)
+                    .indexOf(nativeEvent.target)
+                if (nativeEvent.target != null && i >= 0) counts.current[i]++
+            },
+        )
+        return () => subscription.remove()
+    }, [])
+    const onLoadEnd = () =>
+        setTimeout(() => {
+            const [a, b, handled] = counts.current
+            setStatus(
+                wrappers.current.map(imageViewTag).includes(undefined)
+                    ? "the image views' tags weren't found"
+                    : handled === 0
+                      ? "the third image's onLoadEnd wasn't seen"
+                      : a + b > 0
+                        ? `${a + b} events reached JS without a handler`
+                        : 'OK',
+            )
+        }, 500)
+    return (
+        <View style={styles.row}>
+            {[0, 1, 2].map((i) => (
+                <FastImage
+                    key={i}
+                    ref={(view) => {
+                        wrappers.current[i] = view
+                    }}
+                    style={[styles.image, i > 0 && styles.gap]}
+                    source={{ uri: NO_HANDLERS }}
+                    onLoadEnd={i === 2 ? onLoadEnd : undefined}
+                />
+            ))}
+            <CaseStatus
+                id="no-handlers"
+                status={status}
+                description="Images without event handlers send no events to JS"
             />
         </View>
     )
@@ -4127,9 +4211,7 @@ function PreloadDiskCase() {
 // Over black, so halfway is far from both ends. Each records until the fade's
 // length after its image loaded, so one that shouldn't fade has the time to.
 // Where the image comes from:
-// - download: the slow server (about 350 ms). On the legacy architecture, an
-//   image that loads before the new view is first drawn can show without the
-//   fade.
+// - download: the slow server (about 350 ms).
 // - memory: a view showing the same image (left) has loaded it.
 // - disk: a view showing it loaded it, then went away, and the memory cache
 //   was cleared.
@@ -5559,12 +5641,10 @@ function DownsampleGifCase() {
 
 // Images that are downsampled (so each view waits for its size) and not
 // cached, mounted together: they start loading in the order the views are
-// (left to right), which is the order they download in. On the New
-// Architecture iOS started them as UIKit laid the views out, last first. Only
-// checked there: on the legacy architecture the views have their size with
-// their props and start loading in the order React Native sets those, and
-// Android (which doesn't wait for the size) loads in another order too; with
-// or without downsample, in both.
+// (left to right), which is the order they download in. iOS started them as
+// UIKit laid the views out, last first. Only checked there: Android (which
+// doesn't wait for the size) loads in another order; with or without
+// downsample.
 const ORDER_COUNT = 6
 const CHECKS_ORDER =
     Platform.OS === 'ios' &&
@@ -6299,10 +6379,8 @@ function FormatAnimationCase({
 }
 
 // SVG images (SDWebImageSVGCoder on iOS and AndroidSVG on Android, which
-// FastImage includes; the legacy app has AndroidSVG's other package,
-// androidsvg, with FastImage's androidsvg-aar left out). onLoad has the SVG's
-// own size (its width and height, or its viewBox's). Check the screenshot:
-// flat colors, sharp edges.
+// FastImage includes). onLoad has the SVG's own size (its width and height,
+// or its viewBox's). Check the screenshot: flat colors, sharp edges.
 function SvgCase({
     id,
     source,
@@ -6506,6 +6584,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+            <NoHandlersCase key="no-handlers" />,
         ],
     },
     {

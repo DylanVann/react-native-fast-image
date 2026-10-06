@@ -1,0 +1,33 @@
+{
+    "name": "reactnativefastimageexampleminimum",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "android": "react-native run-android",
+        "ios": "react-native run-ios",
+        "start": "react-native start",
+        "images": "bun ../ReactNativeFastImageExampleServer/server.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "react": "19.2.0",
+        "react-native": "0.83.10",
+        "react-native-safe-area-context": "^5.10.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.25.2",
+        "@babel/preset-env": "^7.25.3",
+        "@babel/runtime": "^7.25.0",
+        "@react-native-community/cli": "20.0.0",
+        "@react-native-community/cli-platform-android": "20.0.0",
+        "@react-native-community/cli-platform-ios": "20.0.0",
+        "@react-native/babel-preset": "0.83.10",
+        "@react-native/metro-config": "0.83.10",
+        "@react-native/typescript-config": "0.83.10",
+        "@types/react": "^19.2.0",
+        "typescript": "7.0.2"
+    },
+    "engines": {
+        "node": ">= 20"
+    }
+}

@@ -2,7 +2,7 @@
 
 Which image formats FastImage shows on iOS and Android, from which versions, and what decodes each one. The [README](../README.md#image-formats) has the short version, for recent iOS and Android versions.
 
-These are tested on iOS 27 and Android 16 in both example apps (the regression runner's `formats` cases); the minimum versions are the ones Apple and Android give for decoding the format. An image in a format that doesn't load fails with `onError`. On the web, the browser shows the image, so it's the formats the browser supports.
+These are tested on iOS 27 and Android 16 in the example app (the regression runner's `formats` cases); the minimum versions are the ones Apple and Android give for decoding the format. An image in a format that doesn't load fails with `onError`. On the web, the browser shows the image, so it's the formats the browser supports.
 
 ## iOS
 
@@ -14,7 +14,7 @@ FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImag
 | PNG    | Yes                             | ImageIO                                                                                                                 |
 | APNG   | Animated                        | ImageIO, animated by SDWebImage                                                                                         |
 | GIF    | Animated                        | ImageIO, animated by SDWebImage                                                                                         |
-| WebP   | Animated; a still one iOS 14+   | Still ones ImageIO, animated ones libwebp                                                                               |
+| WebP   | Animated                        | Still ones ImageIO, animated ones libwebp                                                                               |
 | AVIF   | iOS 16+; animated               | ImageIO, animated by SDWebImage                                                                                         |
 | HEIC   | Yes                             | ImageIO                                                                                                                 |
 | SVG    | Yes ([SVG images](#svg-images)) | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer), which FastImage includes |
@@ -26,7 +26,7 @@ FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImag
 
 On tvOS (tested on tvOS 27 in the tvOS example), the same formats show except ICNS and PSD, which tvOS's ImageIO doesn't decode.
 
-Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. Animated AVIFs are decoded with ImageIO too, by FastImage's coder for them (SDWebImage's own only decodes their first frame), unless the app has registered libavif's coder ([SDWebImageAVIFCoder](https://github.com/SDWebImage/SDWebImageAVIFCoder)), which then decodes them instead. On iOS 13, a still WebP loads if the app registers libwebp's coder for all WebPs: `[[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];` in its `AppDelegate`.
+Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://github.com/SDWebImage/SDWebImageWebPCoder), which FastImage includes. FastImage registers its coder for animated WebPs, unless the app has registered a WebP coder itself (libwebp's, or SDWebImage's ImageIO one), which then decodes them instead. Animated AVIFs are decoded with ImageIO too, by FastImage's coder for them (SDWebImage's own only decodes their first frame), unless the app has registered libavif's coder ([SDWebImageAVIFCoder](https://github.com/SDWebImage/SDWebImageAVIFCoder)), which then decodes them instead.
 
 ## Android
 

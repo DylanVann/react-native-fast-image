@@ -38,9 +38,8 @@ export type Rect = { x: number; y: number; width: number; height: number }
 
 // Where a view is on screen (dp, from the top left), for masks and samples;
 // undefined if it isn't there. measure's page position (from the root view,
-// which starts at the top of the screen: both apps are edge to edge) is where
-// the screenshot shows it. On Android's legacy architecture, measureInWindow
-// leaves out the status bar (or display cutout) height.
+// which starts at the top of the screen: the apps are edge to edge) is where
+// the screenshot shows it.
 export function measureView(
     view: React.ComponentRef<typeof View> | null,
 ): Promise<Rect | undefined> {

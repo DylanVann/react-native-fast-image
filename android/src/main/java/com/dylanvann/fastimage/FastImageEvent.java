@@ -4,8 +4,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.Event;
 
 // An event for a FastImage view, sent with the EventDispatcher (see
-// FastImageEvents) instead of the RCTEventEmitter JS module, which the New
-// Architecture warns about on every event.
+// FastImageEvents).
 class FastImageEvent extends Event<FastImageEvent> {
     private final String name;
     private final WritableMap data;

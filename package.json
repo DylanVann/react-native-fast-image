@@ -21,7 +21,7 @@
     "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
     "main": "dist/index.cjs",
     "module": "dist/index",
-    "react-native": "dist/index.cjs",
+    "react-native": "src/index",
     "browser": "dist/index.web.js",
     "typings": "dist/index.d.ts",
     "files": [
@@ -30,6 +30,9 @@
         "android/src/main",
         "ios/FastImage",
         "app.plugin.js",
+        "src",
+        "!src/**/*.test.tsx",
+        "!src/__snapshots__",
         "dist",
         "RNFastImage.podspec"
     ],
@@ -46,29 +49,45 @@
     },
     "packageManager": "bun@1.4.2",
     "resolutions": {
-        "@types/react": "^17.0.14"
+        "@types/react": "^19.2.0"
     },
     "devDependencies": {
         "@semantic-release/changelog": "7.0.0",
         "@semantic-release/git": "11.0.1",
         "@types/bun": "^1.4.2",
-        "@types/react": "^17.0.14",
-        "@types/react-native": "^0.69.5",
-        "@types/react-test-renderer": "^17.0.1",
+        "@types/react": "^19.2.0",
+        "@types/react-test-renderer": "^19.1.0",
         "conventional-changelog-angular": "8.3.1",
         "maestro-runner": "1.1.27",
         "odiff-bin": "^4.5.0",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
         "pretty-format": "^30.5.1",
-        "react": "17.0.2",
-        "react-test-renderer": "17.0.2",
+        "react": "19.2.0",
+        "react-native": "0.83.10",
+        "react-test-renderer": "19.2.0",
         "rolldown": "1.2.11",
         "semantic-release": "25.0.9",
         "typescript": "7.0.2"
     },
     "peerDependencies": {
-        "react": "^17 || ^18 || ^19",
+        "react": "*",
         "react-native": "*"
+    },
+    "codegenConfig": {
+        "name": "RNFastImageSpec",
+        "type": "all",
+        "jsSrcsDir": "src/specs",
+        "android": {
+            "javaPackageName": "com.dylanvann.fastimage"
+        },
+        "ios": {
+            "componentProvider": {
+                "FastImageView": "FFFastImageViewComponentView"
+            },
+            "modulesProvider": {
+                "FastImageModule": "FFFastImageModule"
+            }
+        }
     }
 }

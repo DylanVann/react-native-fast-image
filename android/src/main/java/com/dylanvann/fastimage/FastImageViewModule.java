@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
@@ -22,10 +21,9 @@ import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
@@ -38,18 +36,12 @@ import java.util.ArrayDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-class FastImageViewModule extends ReactContextBaseJavaModule {
-
-    private static final String REACT_CLASS = "FastImageView";
+// FastImage's functions (preload, getCachePath, writeToCache and the caches'
+// settings): the FastImageModule TurboModule (src/specs).
+class FastImageViewModule extends NativeFastImageModuleSpec {
 
     FastImageViewModule(ReactApplicationContext reactContext) {
         super(reactContext);
-    }
-
-    @NonNull
-    @Override
-    public String getName() {
-        return REACT_CLASS;
     }
 
     // At most this many preloaded sources load at a time, across all preload
@@ -112,7 +104,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // failed: { ok, width, height } or { ok: false, error }. Never rejects.
     // A remote source with memoryCache false is only downloaded to the disk
     // cache, without decoding it (its size comes from the header).
-    @ReactMethod
+    @Override
     public void preload(final ReadableArray sources, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         UiThreadUtil.runOnUiThread(new Runnable() {
@@ -338,7 +330,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // preloads' queue): { ok, path } or { ok: false, error }. Never rejects.
     // With `cacheOnly`, or a cacheKey without a uri, it doesn't download. A
     // local file is its own path.
-    @ReactMethod
+    @Override
     public void getCachePath(final ReadableMap source, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         if (!FastImageViewConverter.hasUri(source)) {
@@ -470,7 +462,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // that's already cached (Glide can't: a new image should get a new
     // cacheKey), and doesn't store `web` sources (kept only in an HTTP cache,
     // which can't be added to).
-    @ReactMethod
+    @Override
     public void writeToCache(final ReadableMap source, final String file, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         if (FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB) {
@@ -537,21 +529,21 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
-    // Saves maxDiskSize (bytes, 0 for no limit; null goes back to the app's
-    // manifest or Glide's default), which FastImageGlideModule applies when
-    // Glide starts: now if it hasn't started yet (this starts it), or on the
-    // next launch. Resolves with the limit in effect and the
-    // bytes the disk cache uses now: { maxDiskSize, diskSize }, or {} if the
+    // Saves maxDiskSize (bytes, 0 for no limit; its name in `reset`, null in
+    // JS, goes back to the app's manifest or Glide's default), which
+    // FastImageGlideModule applies when Glide starts: now if it hasn't started
+    // yet (this starts it), or on the next launch. Resolves with the limit in
+    // effect and the bytes the disk cache uses now: { maxDiskSize, diskSize }, or {} if the
     // app starts Glide with its own AppGlideModule (its size and folder are
     // the app's). maxDiskAge and maxMemorySize are iOS only (Glide has no
     // age limit, and sizes its memory cache from the screen).
-    @ReactMethod
+    @Override
     public void configureCache(final ReadableMap limits, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
-        if (limits.hasKey("maxDiskSize")) {
-            FastImageCacheLimits.saveMaxDiskSize(context, limits.isNull("maxDiskSize")
-                    ? null
-                    : (Long) (long) Math.max(limits.getDouble("maxDiskSize"), 0));
+        if (isReset(limits, "maxDiskSize")) {
+            FastImageCacheLimits.saveMaxDiskSize(context, null);
+        } else if (limits.hasKey("maxDiskSize") && limits.getType("maxDiskSize") == ReadableType.Number) {
+            FastImageCacheLimits.saveMaxDiskSize(context, (long) Math.max(limits.getDouble("maxDiskSize"), 0));
         }
         cachePathExecutor.execute(new Runnable() {
             @Override
@@ -568,10 +560,21 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
+    // Whether JS reset the limit (set it to null): their names come in
+    // `reset`, as iOS's TurboModule leaves null values out.
+    private static boolean isReset(ReadableMap limits, String name) {
+        if (!limits.hasKey("reset") || limits.getType("reset") != ReadableType.Array) return false;
+        ReadableArray reset = limits.getArray("reset");
+        for (int i = 0; i < reset.size(); i++) {
+            if (reset.getType(i) == ReadableType.String && name.equals(reset.getString(i))) return true;
+        }
+        return false;
+    }
+
     // The cache functions use the app's context, not the current Activity's:
     // there may be no Activity while JS runs (e.g. after Android destroyed it
     // in the background). Glide clears its memory cache on the main thread.
-    @ReactMethod
+    @Override
     public void clearMemoryCache(final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
         UiThreadUtil.runOnUiThread(new Runnable() {
@@ -592,7 +595,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // On the native modules' thread: Glide clears its disk cache off the main
     // thread.
-    @ReactMethod
+    @Override
     public void clearDiskCache(Promise promise) {
         try {
             FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();

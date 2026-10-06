@@ -17,6 +17,7 @@ import com.bumptech.glide.load.model.ModelLoaderFactory;
 import com.bumptech.glide.load.model.MultiModelLoaderFactory;
 import com.bumptech.glide.module.LibraryGlideModule;
 import com.facebook.react.modules.network.CookieJarContainer;
+import com.facebook.react.modules.network.ForwardingCookieHandler;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import java.io.File;
@@ -104,9 +105,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // React Native's shared client comes with an empty cookie jar (React
         // Native only fills it in for its networking and Image clients), so
         // images were loaded without the app's cookies, unlike on iOS. Use the
-        // same cookie store. A cookie jar the app set up itself is kept.
+        // same cookie store (Android's CookieManager, through React Native's
+        // ForwardingCookieHandler). A cookie jar the app set up itself is kept.
         if (sharedClient.cookieJar() instanceof CookieJarContainer) {
-            builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler()));
+            builder.cookieJar(new JavaNetCookieJar(new ForwardingCookieHandler()));
         }
         // React Native's shared client has no timeouts, so a download that
         // stopped (e.g. on a connection that died) never ended, and every
