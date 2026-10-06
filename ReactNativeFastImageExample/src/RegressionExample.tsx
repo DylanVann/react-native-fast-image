@@ -923,20 +923,27 @@ function ProgressGzipCase() {
 // Many images with onProgress load one url from the slow server while more
 // of them, on the same url, mount and unmount every frame, for several rounds
 // (a new url each). A round ends once each of the images has loaded; passes
-// when every round does with no onError. Android went through the url's list
-// of views on the download's thread to send progress, while the UI thread
-// added and removed views: that threw a ConcurrentModificationException,
-// which failed the download (every image on the url got onError).
+// when every round does with no onError, and each image got onProgress before
+// its onLoad, never going back, and none after. Android went through the
+// url's list of views on the download's thread to send progress, while the UI
+// thread added and removed views: that threw a
+// ConcurrentModificationException, which failed the download (every image on
+// the url got onError).
 const SHARED_URL_ROUNDS = 8
 const SHARED_URL_VIEWS = 40
 const SHARED_URL_CHURN = 10
 function ProgressSharedUrlCase() {
     const [round, setRound] = useState(0)
     const [error, setError] = useState<string>()
+    const [problem, setProblem] = useState<string>()
     const [frame, setFrame] = useState(0)
-    // The images that loaded this round.
+    // This round: the images that loaded, and each image's last onProgress.
     const loaded = useRef(new Set<number>())
-    const done = round >= SHARED_URL_ROUNDS || error !== undefined
+    const progress = useRef(new Map<number, number>())
+    const done =
+        round >= SHARED_URL_ROUNDS ||
+        error !== undefined ||
+        problem !== undefined
     const source = useMemo(
         () => ({
             uri: slowImageUrl(
@@ -954,10 +961,25 @@ function ProgressSharedUrlCase() {
         })
         return () => cancelAnimationFrame(id)
     }, [done])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    const onProgress = (view: number, e: OnProgressEvent) => {
+        const last = progress.current.get(view)
+        if (loaded.current.has(view)) {
+            fail(`image ${view + 1}: onProgress after onLoad`)
+        } else if (last !== undefined && e.nativeEvent.loaded < last) {
+            fail(`image ${view + 1}: onProgress went back`)
+        }
+        progress.current.set(view, e.nativeEvent.loaded)
+    }
     const onLoad = (view: number) => {
+        if (!progress.current.has(view)) {
+            fail(`image ${view + 1}: no onProgress before onLoad`)
+        }
         loaded.current.add(view)
         if (loaded.current.size === SHARED_URL_VIEWS) {
             loaded.current.clear()
+            progress.current.clear()
             setRound((r) => r + 1)
         }
     }
@@ -974,7 +996,7 @@ function ProgressSharedUrlCase() {
                             key={`view-${i}`}
                             style={sharedUrlStyles.image}
                             source={source}
-                            onProgress={() => {}}
+                            onProgress={(e) => onProgress(i, e)}
                             onLoad={() => onLoad(i)}
                             onError={onError}
                         />
@@ -997,11 +1019,13 @@ function ProgressSharedUrlCase() {
                 status={
                     error !== undefined
                         ? `onError: ${error}`
-                        : done
-                          ? 'OK'
-                          : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
+                        : problem !== undefined
+                          ? problem
+                          : done
+                            ? 'OK'
+                            : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
                 }
-                description="onProgress for images on one url while others on it mount and unmount: every image loads"
+                description="onProgress for images on one url while others on it mount and unmount: every image loads, with onProgress only before its onLoad"
             />
         </View>
     )
@@ -1097,6 +1121,55 @@ function ProgressUrlFormCase() {
                 id="progress-url-form"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
                 description="onProgress for a url with its scheme in capitals (HTTP://)"
+            />
+        </View>
+    )
+}
+
+// Two images with onProgress load different urls with the same cacheKey (the
+// slow server ignores the query) at the same time: Glide loads them as one
+// image, so only one of the urls is downloaded. Passes when both get
+// onProgress before their onLoad. Android looked images up by their own url,
+// so the image whose url wasn't the one downloaded got none.
+const cacheKeyUrl = (token: string) =>
+    slowImageUrl(
+        `picsum/1025-200x200.jpg?cache-key=${RUN}&token=${token}&delay=100`,
+    )
+function ProgressCacheKeyCase() {
+    const progressed = useRef(new Set<number>())
+    const [loaded, setLoaded] = useState(0)
+    const [missing, setMissing] = useState<number>()
+    return (
+        <View style={styles.row}>
+            {['a', 'b'].map((token, i) => (
+                <FastImage
+                    key={token}
+                    style={styles.image}
+                    source={{
+                        uri: cacheKeyUrl(token),
+                        // The slow server only sends images with it.
+                        headers: { 'x-token': 'fast-image' },
+                        cacheKey: `progress-cache-key-${RUN}`,
+                    }}
+                    onProgress={() => progressed.current.add(i)}
+                    onLoad={() => {
+                        if (!progressed.current.has(i)) {
+                            setMissing((previous) => previous ?? i)
+                        }
+                        setLoaded((n) => n + 1)
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="progress-cache-key"
+                status={
+                    missing !== undefined
+                        ? `no onProgress for image ${missing + 1}`
+                        : loaded < 2
+                          ? 'waiting'
+                          : 'OK'
+                }
+                description="onProgress for two images with the same cacheKey and different urls, loaded as one"
             />
         </View>
     )
@@ -5095,6 +5168,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <ProgressAfterLoadCase key="progress-after-load" />,
             <ProgressUrlFormCase key="progress-url-form" />,
+            <ProgressCacheKeyCase key="progress-cache-key" />,
         ],
     },
     {
