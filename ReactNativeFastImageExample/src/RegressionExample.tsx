@@ -4498,6 +4498,7 @@ function FadeCase({
     skipOnCacheHit,
     betweenImages,
     blurRadius,
+    defaultTransition = false,
     image = 'cyan',
     tall = false,
     edge = false,
@@ -4518,6 +4519,9 @@ function FadeCase({
     skipOnCacheHit?: Transition['skipOnCacheHit']
     betweenImages?: boolean
     blurRadius?: number
+    // No transition prop: the built-in default (the runner turns fades off
+    // for the other cases), which fades for the platform's usual length.
+    defaultTransition?: boolean
     fades: boolean
     description: string
 }) {
@@ -4619,7 +4623,15 @@ function FadeCase({
                           : [BLACK, HALF_CYAN, CYAN],
             },
             (sampleDone) => {
-                done.current = sampleDone
+                done.current = () => {
+                    if (defaultTransition) {
+                        FastImage.setDefaults({ transition: false })
+                    }
+                    sampleDone()
+                }
+                if (defaultTransition) {
+                    FastImage.setDefaults({ transition: null })
+                }
                 if (fromMagenta) setChanged(true)
                 else setShown(true)
             },
@@ -4649,7 +4661,12 @@ function FadeCase({
         if (onMount) record()
         // Once defaultSource shows.
         const timer = placeholder ? setTimeout(record, 500) : undefined
-        return () => clearTimeout(timer)
+        // Back to the runner's default (no fades) if it unmounts while
+        // recording.
+        return () => {
+            clearTimeout(timer)
+            if (defaultTransition) FastImage.setDefaults({ transition: false })
+        }
         // Only on mount (the others record once the first view loads).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -4684,11 +4701,15 @@ function FadeCase({
                       // onLoad on a busy device.
                       () => setTimeout(() => done.current(), FADE_MS + 500)
             }
-            transition={{
-                duration: FADE_MS,
-                betweenImages,
-                skipOnCacheHit,
-            }}
+            transition={
+                defaultTransition
+                    ? undefined
+                    : {
+                          duration: FADE_MS,
+                          betweenImages,
+                          skipOnCacheHit,
+                      }
+            }
             blurRadius={blurRadius}
         />
     ) : null
@@ -7866,6 +7887,53 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         // Recorded (video samples).
+        name: 'fade-web',
+        cases: [
+            <FadeCase
+                key="fade-web"
+                id="fade-web"
+                from="web"
+                defaultTransition
+                fades={false}
+                description="without transition: a cache web image shown again, from its HTTP cache without a request, shows at once (recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+            />,
+            <FadeCase
+                key="fade-web-transition"
+                id="fade-web-transition"
+                from="web"
+                fades={false}
+                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+            />,
+            <FadeCase
+                key="fade-web-none"
+                id="fade-web-none"
+                from="web"
+                skipOnCacheHit="none"
+                fades
+                description="skipOnCacheHit 'none': a cache web image from its HTTP cache fades in (recorded: black, half cyan, cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-default',
+        cases: [
+            <FadeCase
+                key="fade-default"
+                id="fade-default"
+                from="download"
+                defaultTransition
+                fades={Platform.OS === 'android'}
+                description={
+                    Platform.OS === 'android'
+                        ? 'without transition: a downloaded image fades in by default on Android (300 ms; recorded: black, half cyan, cyan)'
+                        : "without transition: a downloaded image shows at once by default on iOS (recorded: black, then cyan; half cyan mustn't appear)"
+                }
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
         name: 'fade-source',
         cases: [
             <FadeCase
@@ -8058,27 +8126,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 skipOnCacheHit="all"
                 fades={false}
                 description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
-            />,
-        ],
-    },
-    {
-        // Recorded (video samples).
-        name: 'fade-web',
-        cases: [
-            <FadeCase
-                key="fade-web"
-                id="fade-web"
-                from="web"
-                fades={false}
-                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
-            />,
-            <FadeCase
-                key="fade-web-none"
-                id="fade-web-none"
-                from="web"
-                skipOnCacheHit="none"
-                fades
-                description="transition with skipOnCacheHit none: a cache web image shown again fades in (right; recorded: black, half cyan, cyan)"
             />,
         ],
     },

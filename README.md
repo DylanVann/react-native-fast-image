@@ -325,9 +325,11 @@ Pauses an animated image (GIF, animated WebP, APNG, or animated AVIF) on the fra
 
 #### `transition`
 
-**Type:** `number | boolean | Transition | null` · **Default:** `false`
+**Type:** `number | boolean | Transition | null`
 
-Fades the image in when it loads. `true` uses the platform's usual fade, a number is the duration in milliseconds, or pass a `Transition`.
+Fades the image in when it loads. `true` fades for the default's duration (see `FastImage.setDefaults`), or the platform's usual length if the default doesn't fade; a number is the duration in milliseconds, `false` (or 0) is no fade, or pass a `Transition`.
+
+By default, images fade in on Android (300 ms), and not on iOS. `FastImage.setDefaults` changes that for every image; an image's own `transition` wins, and the settings it leaves out come from the default. `null` is the default.
 
 Downloads, local files (`file://`, `content://`) and bundled images (`require()`) fade in. In lists that reuse views (e.g. FlashList), set `recyclingKey`, so a reused view starts empty and its image fades in, instead of showing the previous item's image until it loads.
 
@@ -648,6 +650,25 @@ On Android, if your app has its own `AppGlideModule` (see [using FastImage with 
 
 Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB on each platform, which these limits don't change.
 
+### `setDefaults(defaults)`
+
+**Parameters:** `defaults: FastImageDefaults` · **Returns:** `void`
+
+Changes the defaults of every image, including `FastImageBackground`'s. Pass the settings to change; `null` goes back to the built-in default.
+
+- `transition`: the [`transition`](#transition) of images that don't set one. Built in, images fade in on Android (300 ms) and not on iOS. An image's own `transition` wins, and the settings it leaves out come from the default.
+
+```js
+// In index.js, before images render.
+FastImage.setDefaults({ transition: false }) // no fades
+FastImage.setDefaults({ transition: true }) // fades on iOS too
+FastImage.setDefaults({ transition: Platform.select({ ios: 200 }) }) // 200 ms on iOS, Android's usual on Android
+FastImage.setDefaults({ transition: { duration: 200, betweenImages: true } })
+FastImage.setDefaults({ transition: null }) // the built-in default
+```
+
+It isn't saved: call it when the app starts. An image already showing uses a change once one of its props changes, for its next load. It's ignored on the web, where images don't fade.
+
 ## Types
 
 <!-- api:types start (generated from src/ by website/scripts/generate.mts) -->
@@ -694,6 +715,14 @@ How fresh an image must be: see [`source.cache`](#sourcecache).
 **Type:** `{ ok: true } | { ok: false; error: string }`
 
 `clearMemoryCache`'s and `clearDiskCache`'s result: `ok` once the cache is cleared, or not `ok` with the error.
+
+---
+
+### `FastImageDefaults`
+
+`FastImage.setDefaults`'s settings.
+
+- `transition?` (`number | boolean | Transition | null`): The `transition` of images that don't set one (an image's own settings win, and those it leaves out come from this). `null` goes back to the built-in default: images fade in on Android (300 ms), and not on iOS.
 
 ---
 
@@ -786,7 +815,7 @@ How the image fits the view: see [`resizeMode`](#resizemode).
 
 How the image fades in: see [`transition`](#transition).
 
-- `duration?` (`number`): How long the fade takes, in milliseconds; 0 means no fade. Defaults to the platform's usual length: 300 ms on Android, 250 ms on iOS.
+- `duration?` (`number`): How long the fade takes, in milliseconds; 0 means no fade. Defaults to the default transition's (see `FastImage.setDefaults`) if it fades, otherwise the platform's usual length: 300 ms on Android, 250 ms on iOS.
 - `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over `defaultSource`) fades in, and a new source replaces the image showing at once, once it has loaded.
 - `skipOnCacheHit?` (`'none' | 'memory' | 'all' | null`, default `'memory'`): Skips the fade for an image from a cache, so images already loaded show at once, e.g. in a list scrolled back up or a reused row.
 
