@@ -28,7 +28,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.RequestBuilder;
@@ -175,12 +174,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mDefaultSource = source;
     }
 
-    // Legacy architecture only (see FastImageShadowNode): the view's layout is
-    // 0×0 at its parent's origin, which React Native never applies. Lay it out
-    // at that size, as the New Architecture does, so Glide stops waiting for a
-    // size and loads it (#865).
-    void onZeroLayout() {
-        if (!ViewCompat.isLaidOut(this)) layout(0, 0, 0, 0);
+    // The events JS has a handler for (the handledEvents prop): the view only
+    // sends those (see FastImageEvents).
+    int handledEvents;
+
+    boolean handles(int events) {
+        return (handledEvents & events) != 0;
     }
 
     // How many times GIFs play: -1 for the file's own loop count (the `loop`
@@ -215,13 +214,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
-    // Progress (see FastImageViewManager.onDownloadProgress): whether the image
-    // has an onProgress, the url its current load downloads (null for a local
-    // image, and once the load has ended), the progress key the view gets
-    // progress for (the loading url's, while it has an onProgress), the last
-    // step downloads reported before the load started, and the fraction the
-    // load has had.
-    private boolean mTrackProgress = false;
+    // Progress (see FastImageViewManager.onDownloadProgress): the url its
+    // current load downloads (null for a local image, and once the load has
+    // ended), the progress key the view gets progress for (the loading url's,
+    // while it has an onProgress), the last step downloads reported before the
+    // load started, and the fraction the load has had.
     @Nullable
     private GlideUrl mLoadingUrl;
     @Nullable
@@ -232,8 +229,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // posted to itself don't load anything, or track progress, any more.
     private boolean mDropped = false;
 
-    void setTrackProgress(boolean trackProgress) {
-        mTrackProgress = trackProgress;
+    void setHandledEvents(int events) {
+        handledEvents = events;
         updateProgressTracking();
     }
 
@@ -265,7 +262,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     private void updateProgressTracking() {
-        String key = mTrackProgress && mLoadingUrl != null && !mDropped
+        String key = handles(FastImageEvents.PROGRESS) && mLoadingUrl != null && !mDropped
                 ? FastImageSharedDownloads.key(mLoadingUrl)
                 : null;
         if (key == null ? mTrackedKey == null : key.equals(mTrackedKey)) return;
@@ -462,7 +459,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         canvas.restoreToCount(count);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     protected void onDraw(Canvas canvas) {
         if (mFade == null) {
@@ -475,15 +471,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (drawFadeWithoutLayers(canvas, alpha)) return;
         if (mFadeFrom == null && mFadeFromDrawable == null) {
             // Fading in over nothing: one layer.
-            int count = canvas.saveLayerAlpha(0, 0, width, height, alpha, Canvas.ALL_SAVE_FLAG);
+            int count = canvas.saveLayerAlpha(0, 0, width, height, alpha);
             super.onDraw(canvas);
             canvas.restoreToCount(count);
             return;
         }
         // Two layers, which add up to the cross-dissolve whatever the image's
         // transparency.
-        // Canvas.ALL_SAVE_FLAG: the saveLayer without flags is API 21+.
-        int count = canvas.saveLayer(0, 0, width, height, null, Canvas.ALL_SAVE_FLAG);
+        int count = canvas.saveLayer(0, 0, width, height, null);
         if (mFadeFromDrawable != null) {
             drawFadeFrom(canvas, mFadeFromDrawable, 255 - alpha);
         } else {
@@ -491,7 +486,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
         }
         mFadeInPaint.setAlpha(alpha);
-        canvas.saveLayer(0, 0, width, height, mFadeInPaint, Canvas.ALL_SAVE_FLAG);
+        canvas.saveLayer(0, 0, width, height, mFadeInPaint);
         super.onDraw(canvas);
         canvas.restoreToCount(count);
     }
@@ -543,9 +538,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // an opacity can change during it.
     // Not the transition alpha, which only Android's Transition fades
     // (android.transition.Fade) set: getTransitionAlpha is public from API 29
-    // only (hidden on Android 5 to 9, and the library compiles against 28
-    // when an app doesn't set compileSdkVersion). React Native's opacity,
-    // Animated, LayoutAnimation and Reanimated set the view's alpha, and
+    // only (hidden on Android 7 to 9). React Native's opacity, Animated,
+    // LayoutAnimation and Reanimated set the view's alpha, and
     // react-native-screens' fragment animations run on a container with a
     // layer of its own.
     private boolean drawnWithAlpha() {

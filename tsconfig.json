@@ -22,7 +22,7 @@
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "resolveJsonModule": true,
-        "rootDir": "./src"
+        "rootDir": "."
     },
-    "include": ["./src"]
+    "include": ["./src", "./test"]
 }

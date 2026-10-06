@@ -54,41 +54,7 @@ static CGSize FFFPixelSize(NSData* data) {
 
 @implementation FFFDownsampledImage
 
-+ (BOOL) isSupported {
-    static BOOL supported = NO;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        // No animated image coder takes JPEG, so before SDWebImage 5.19
-        // SDAnimatedImage returned nil for one, and SDWebImage decoded it with
-        // its thumbnail options as they are (stretched to the box).
-        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-        CGContextRef context = CGBitmapContextCreate(NULL, 1, 1, 8, 4, colorSpace, kCGImageAlphaNoneSkipLast);
-        CGColorSpaceRelease(colorSpace);
-        CGImageRef pixel = context ? CGBitmapContextCreateImage(context) : NULL;
-        if (context) {
-            CGContextRelease(context);
-        }
-        if (!pixel) {
-            return;
-        }
-        NSMutableData* jpeg = [NSMutableData data];
-        CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef) jpeg, CFSTR("public.jpeg"), 1, NULL);
-        if (destination) {
-            CGImageDestinationAddImage(destination, pixel, NULL);
-            CGImageDestinationFinalize(destination);
-            CFRelease(destination);
-        }
-        CGImageRelease(pixel);
-        supported = jpeg.length > 0 && [[SDAnimatedImage alloc] initWithData: jpeg scale: 1 options: nil] != nil;
-    });
-    return supported;
-}
-
 + (void) addFullSizeToContext: (SDWebImageMutableContext*)context {
-    if (![self isSupported]) {
-        context[SDWebImageContextAnimatedImageClass] = [SDAnimatedImage class];
-        return;
-    }
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
     context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
 }

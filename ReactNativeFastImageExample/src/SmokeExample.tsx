@@ -397,8 +397,8 @@ function WriteToCacheCase() {
 }
 
 // SVG images. The Expo example's expo-image brings the SVG libraries too, so
-// this only checks that SVG images load here; the main and legacy examples,
-// which don't add them, check that FastImage includes them.
+// this only checks that SVG images load here; the main example, which doesn't
+// add them, checks that FastImage includes them.
 function SvgCase() {
     const [status, setStatus] = useState('loading')
     return (

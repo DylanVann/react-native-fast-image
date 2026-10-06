@@ -21,8 +21,10 @@ const notSource = [
         'android',
         'ios',
     ].map((d) => dir(path.join(root, d))),
-    dir(path.join(__dirname, 'android')),
-    dir(path.join(__dirname, 'ios')),
+    // Every example app's native projects, which its builds write into.
+    new RegExp(
+        `^${escape(root)}\\/ReactNativeFastImageExample[^/]*\\/(ios|android)\\/.*$`,
+    ),
     new RegExp(`^${escape(root)}\\/[^/]+\\.md$`),
 ]
 

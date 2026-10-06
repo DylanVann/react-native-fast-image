@@ -14,9 +14,14 @@ export const Platform: { OS: string; select: (spec: any) => any } = {
 export const NativeModules: Record<string, any> = {}
 
 function hostComponent(name: string) {
-    // With its ref, as React Native's components forward theirs.
+    // With its ref, as React Native's components forward theirs (left out
+    // without one, as with React Native's Jest preset).
     const Component: any = React.forwardRef((props: any, ref) =>
-        React.createElement(name, { ...props, ref }, props.children),
+        React.createElement(
+            name,
+            ref == null ? props : { ...props, ref },
+            props.children,
+        ),
     )
     Component.displayName = name
     return Component
@@ -34,6 +39,24 @@ Image.resolveAssetSource = (source: any) =>
 
 export function requireNativeComponent(name: string) {
     return hostComponent(name)
+}
+
+// The Codegen component (codegenNativeComponent, which the specs import from
+// react-native): the same host element.
+export const codegenNativeComponent = requireNativeComponent
+
+// TurboModules are looked up in NativeModules when they're called, so a test
+// can replace or spy on NativeModules[name] after FastImage has loaded.
+function turboModule(name: string) {
+    return new Proxy(
+        {},
+        { get: (_target, method: string) => NativeModules[name]?.[method] },
+    )
+}
+
+export const TurboModuleRegistry = {
+    get: turboModule,
+    getEnforcing: turboModule,
 }
 
 function flatten(style: any): any {

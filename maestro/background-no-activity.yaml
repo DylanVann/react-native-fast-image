@@ -19,12 +19,19 @@ env:
 ---
 - launchApp:
       stopApp: true
+# The main example opens on its tabs; the React Native 0.83 example on the
+# regression cases themselves.
 - extendedWaitUntil:
       visible:
-          id: 'tab-regression'
+          id: 'tab-regression|regression-clear-no-activity-start'
       timeout: 60000
-- tapOn:
-      id: 'tab-regression'
+- runFlow:
+      when:
+          visible:
+              id: 'tab-regression'
+      commands:
+          - tapOn:
+                id: 'tab-regression'
 - openLink: ${APP_ID}://finish-on-leave
 - tapOn:
       id: 'regression-clear-no-activity-start'
@@ -40,13 +47,18 @@ env:
       timeout: 10000
       optional: true
 - openLink: ${APP_ID}://
-# Android: the new Activity shows the app's first tab.
+# Android: the new Activity shows the app's first screen again.
 - extendedWaitUntil:
       visible:
-          id: 'tab-regression'
+          id: 'tab-regression|regression-clear-no-activity-start'
       timeout: 30000
-- tapOn:
-      id: 'tab-regression'
+- runFlow:
+      when:
+          visible:
+              id: 'tab-regression'
+      commands:
+          - tapOn:
+                id: 'tab-regression'
 - extendedWaitUntil:
       visible: 'clear-without-activity: OK'
       timeout: 30000

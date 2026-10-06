@@ -13,14 +13,13 @@ buildscript {
 }
 ```
 
-| Property                | Default    | Notes                                                                                                                                                                                   |
-| ----------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compileSdkVersion`     | `28`       | Set by React Native's template, so FastImage builds with your app's versions.                                                                                                           |
-| `targetSdkVersion`      | `28`       |                                                                                                                                                                                         |
-| `minSdkVersion`         | `21`       |                                                                                                                                                                                         |
-| `buildToolsVersion`     | `"28.0.3"` |                                                                                                                                                                                         |
-| `glideVersion`          | `"4.16.0"` | The version of Glide (and its OkHttp integration) that FastImage uses. If your app uses Glide too, set it to your app's version. FastImage needs 4.15 or later, and works with Glide 5. |
-| `excludeAppGlideModule` | `false`    | Leaves out FastImage's `AppGlideModule`, for an app that has its own (below). `true` by default when the app has [expo-image](#with-expo-image).                                        |
+| Property                | Default   | Notes                                                                                                                                                                                                              |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `compileSdkVersion`     | `36`      | Set by React Native's template, so FastImage builds with your app's versions.                                                                                                                                      |
+| `targetSdkVersion`      | `36`      |                                                                                                                                                                                                                    |
+| `minSdkVersion`         | `24`      |                                                                                                                                                                                                                    |
+| `glideVersion`          | `"5.0.7"` | The version of Glide (and its OkHttp integration) that FastImage uses. If your app uses Glide too, set it to your app's version. FastImage needs 4.15 or later. Glide 5.0.9 and later need `compileSdkVersion` 37. |
+| `excludeAppGlideModule` | `false`   | Leaves out FastImage's `AppGlideModule`, for an app that has its own (below). `true` by default when the app has [expo-image](#with-expo-image).                                                                   |
 
 ## If your app has its own AppGlideModule
 

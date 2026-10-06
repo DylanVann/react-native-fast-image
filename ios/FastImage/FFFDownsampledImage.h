@@ -14,8 +14,8 @@
 // or fit in.
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover;
 
-// Sets a load's context to decode the image at full size, through this class
-// when it's supported. Every FastImage load uses it, so loads of the same url
+// Sets a load's context to decode the image at full size, through this class.
+// Every FastImage load uses it, so loads of the same url
 // can share a download: SDWebImage's downloader decodes each load of a
 // download with the first load's image class (and each with its own size),
 // and SDWebImage's own thumbnail decoding can't cover a box.
@@ -32,9 +32,5 @@
 // find it: a blurry image, or a preload's size. Drops it there, so that load
 // decodes the file from the disk cache. Call it before a full-size load.
 + (void) forgetSmallerFullSizeImageForURL: (NSURL*)url context: (SDWebImageContext*)context;
-
-// Whether this version of SDWebImage can decode through this class: it
-// decodes static images through the animated image class since 5.19.
-+ (BOOL) isSupported;
 
 @end
