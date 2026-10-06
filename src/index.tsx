@@ -929,12 +929,14 @@ export interface FastImageStaticProperties {
     /**
      * Changes the cache's limits at runtime (only those given; 0 for no
      * limit, null to go back to the app's native config) and saves them, then
-     * resolves with the limits in effect and the disk cache's size. Without
-     * limits, only resolves. iOS applies changes at once. Android only has
-     * `maxDiskSize`, applied when Glide starts: at once if it hasn't started
-     * yet in this launch (FastImage starts it for its first image, `preload`,
-     * `getCachePath`, `writeToCache` or `clearDiskCache`), otherwise from the
-     * next launch.
+     * resolves with the limits in effect and the disk cache's size; without
+     * limits, it only resolves with them. iOS applies changes at once.
+     * Android only has `maxDiskSize`, applied when Glide starts: at once if
+     * it hasn't started yet in this launch, otherwise from the next launch.
+     * FastImage starts it when its first view is created (before the view has
+     * a source), and for `preload`, `getCachePath`, `writeToCache`,
+     * `clearDiskCache` and `configureCache` itself, even without limits (e.g.
+     * to read the disk cache's size).
      */
     configureCache: (limits?: CacheLimits) => Promise<CacheState>
 }
