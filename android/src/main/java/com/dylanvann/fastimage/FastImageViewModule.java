@@ -1,6 +1,5 @@
 package com.dylanvann.fastimage;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
@@ -566,32 +565,29 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
+    // The cache functions use the app's context, not the current Activity's:
+    // there may be no Activity while JS runs (e.g. after Android destroyed it
+    // in the background). Glide clears its memory cache on the main thread.
     @ReactMethod
     public void clearMemoryCache(final Promise promise) {
-        final Activity activity = getCurrentActivity();
-        if (activity == null) {
-            promise.resolve(null);
-            return;
-        }
-
-        activity.runOnUiThread(new Runnable() {
+        final ReactApplicationContext context = getReactApplicationContext();
+        UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                FastImageGlide.get(activity.getApplicationContext()).clearMemory();
+                // Not before FastImage has used Glide: there's nothing of
+                // its in memory, and starting Glide here would set its disk
+                // cache size before a configureCache could.
+                if (FastImageGlide.used()) Glide.get(context).clearMemory();
                 promise.resolve(null);
             }
         });
     }
 
+    // On the native modules' thread: Glide clears its disk cache off the main
+    // thread.
     @ReactMethod
     public void clearDiskCache(Promise promise) {
-        final Activity activity = getCurrentActivity();
-        if (activity == null) {
-            promise.resolve(null);
-            return;
-        }
-
-        FastImageGlide.getRegistered(activity.getApplicationContext()).clearDiskCache();
+        FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();
         // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
         // cache (set up when FastImage's components are registered).
         try {

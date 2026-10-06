@@ -1,5 +1,6 @@
 package com.reactnativefastimageexample
 
+import android.content.Intent
 import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -23,6 +24,22 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "ReactNativeFastImageExample"
+
+  // maestro/background-no-activity.yaml opens the app's
+  // <scheme>://finish-on-leave link: then leaving the app finishes this
+  // Activity, as Android may for one in the background, while the app's
+  // process and JS keep running.
+  private var finishOnLeave = false
+
+  override fun onNewIntent(intent: Intent) {
+    if (intent.data?.host == "finish-on-leave") finishOnLeave = true
+    super.onNewIntent(intent)
+  }
+
+  override fun onUserLeaveHint() {
+    super.onUserLeaveHint()
+    if (finishOnLeave) finish()
+  }
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

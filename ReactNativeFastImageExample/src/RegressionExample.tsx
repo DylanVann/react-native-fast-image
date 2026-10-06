@@ -1096,6 +1096,109 @@ function BackgroundCases() {
     )
 }
 
+// clearMemoryCache and clearDiskCache called from JS with no Activity
+// (Android): maestro/background-no-activity.yaml opens the example's
+// finish-on-leave link (leaving the app then finishes its Activity, see
+// MainActivity), starts this case, and sends the app to the background. A
+// download that ends while it's away calls them, from the XMLHttpRequest's
+// callback (timers don't run in the background), and the check is kept
+// outside the component, which the new Activity mounts again. Passes when the
+// disk cache is smaller after clearing. Android did nothing without an
+// Activity.
+type ClearCheck = { before: number; after?: number; error?: string }
+let clearCheck: ClearCheck | undefined
+const clearCheckListeners = new Set<() => void>()
+function setClearCheck(check: ClearCheck) {
+    clearCheck = check
+    clearCheckListeners.forEach((listener) => listener())
+}
+function startClearCheck() {
+    FastImage.preload([
+        { uri: imageUrl(`picsum/1018-600x300.jpg?clear=${RUN}`) },
+    ])
+        .then(() => FastImage.configureCache({}))
+        .then(({ diskSize }) => {
+            setClearCheck({ before: diskSize ?? 0 })
+            const subscription = AppState.addEventListener(
+                'change',
+                (state) => {
+                    if (state !== 'background') return
+                    subscription.remove()
+                    const request = new XMLHttpRequest()
+                    request.open(
+                        'GET',
+                        slowImageUrl(
+                            `picsum/1020-120x120.jpg?delay=300&clear=${RUN}`,
+                        ),
+                    )
+                    request.setRequestHeader('x-token', 'fast-image')
+                    request.onloadend = () => {
+                        const check = clearCheck as ClearCheck
+                        FastImage.clearMemoryCache()
+                            .then(() => FastImage.clearDiskCache())
+                            .then(() => FastImage.configureCache({}))
+                            .then((state) =>
+                                setClearCheck({
+                                    ...check,
+                                    after: state.diskSize ?? 0,
+                                }),
+                            )
+                            .catch((error) =>
+                                setClearCheck({
+                                    ...check,
+                                    error: String(error),
+                                }),
+                            )
+                    }
+                    request.send()
+                },
+            )
+        })
+}
+
+function ClearWithoutActivityCase() {
+    const [, rerender] = useState(0)
+    const started = useRef(false)
+    useEffect(() => {
+        const listener = () => rerender((n) => n + 1)
+        clearCheckListeners.add(listener)
+        return () => {
+            clearCheckListeners.delete(listener)
+        }
+    }, [])
+    const check = clearCheck
+    const status = !check
+        ? 'tap the box'
+        : check.error
+          ? check.error
+          : check.after === undefined
+            ? `send the app to the background (disk cache ${check.before} bytes)`
+            : check.after < check.before
+              ? 'OK'
+              : `disk cache ${check.before} -> ${check.after} bytes`
+    return (
+        <View style={styles.row}>
+            <Pressable
+                testID="regression-clear-no-activity-start"
+                style={styles.image}
+                onPress={() => {
+                    if (started.current || clearCheck) return
+                    started.current = true
+                    startClearCheck()
+                }}
+            />
+            <CaseStatus
+                id="clear-without-activity"
+                status={status}
+                description={
+                    'clearMemoryCache and clearDiskCache with no Activity (Android; run by maestro/background-no-activity.yaml): the disk cache is smaller after clearing.' +
+                    (check ? ` Now: ${status}.` : '')
+                }
+            />
+        </View>
+    )
+}
+
 // resizeMode center: a 600x300 image (red, with a blue border) is scaled down
 // to fit the view, so the border shows (iOS showed it at full size, cropped to
 // red); a 16x16 one (green) stays at its own size. Check the screenshot.
@@ -5631,6 +5734,7 @@ export default function RegressionExample() {
         >
             <Text style={styles.title}>Regression checks</Text>
             <BackgroundCases />
+            <ClearWithoutActivityCase />
             {REGRESSION_GROUPS.map((group) => (
                 <React.Fragment key={group.name}>
                     <Text style={styles.group}>{group.name}</Text>

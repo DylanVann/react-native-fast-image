@@ -37,6 +37,13 @@ final class FastImageGlide {
         registered = glide;
     }
 
+    // Whether Glide has started with FastImage's AppGlideModule or has
+    // FastImage's components: until then, none of FastImage's images are in
+    // its memory cache.
+    static boolean used() {
+        return appModule || registered != null;
+    }
+
     // Glide, with FastImage's components. Glide registers them if the app's
     // generated Glide module lists FastImage's module, as FastImage's
     // AppGlideModule's does. Another library's (e.g. expo-image's, which ships

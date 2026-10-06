@@ -55,9 +55,12 @@ Options:
                       tree, e.g. \`--ref main\` for a "before" run. The working
                       tree is restored afterwards.
   --background        Also run the flows tagged \`background\`
-                      (maestro/background.yaml), which send the app to the
-                      background for 20 s. Slow, so they're skipped by
-                      default; run them for changes to loading or lifecycle.
+                      (maestro/background.yaml and
+                      background-no-activity.yaml), which send the app to the
+                      background for 20 s and 10 s (the second one finishes
+                      its Android Activity, so the app restarts its UI). Slow,
+                      so they're skipped by default; run them for changes to
+                      loading or lifecycle.
   --update-screenshots
                       Replace the reference screenshots in screenshots/ with
                       this run's; a missing reference is always seeded from
@@ -84,7 +87,7 @@ Environment:
                   started with -gpu host and no window.
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
                   Time limits in seconds for each app and platform's flows
-                  (default 240, plus 120 with --background) and builds
+                  (default 240, plus 180 with --background) and builds
                   (default 900).
   MAESTRO_RUNNER_BIN
                   maestro-runner binary (default: the dev dependency).
@@ -1639,9 +1642,11 @@ async function runFlows(
 ) {
     const dir = path.join(OUT, `${app}-${platform}`)
     fs.mkdirSync(dir, { recursive: true })
-    // The background flow waits 20 s with the app away, which takes about a
-    // minute on iOS (maestro-runner polls slowly on the home screen).
-    const timeout = FLOWS_TIMEOUT + (options.background ? 120 : 0)
+    // The background flows wait 20 s and 10 s with the app away (the second
+    // one then restarts the app's UI on Android), about 2.5 minutes in all on
+    // iOS (maestro-runner polls slowly on the home screen) and 1.5 on
+    // Android.
+    const timeout = FLOWS_TIMEOUT + (options.background ? 180 : 0)
     const log = path.join(dir, 'flows.log')
     const result = await run(
         MAESTRO_RUNNER,
