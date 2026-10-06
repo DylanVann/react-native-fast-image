@@ -125,7 +125,6 @@ export type FastImageProps = $ReadOnly<{|
     objectFit?: ?ObjectFit,
     // Deprecated: use objectFit.
     resizeMode?: ?ResizeModes,
-    fallback?: ?boolean,
     recyclingKey?: ?string,
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),

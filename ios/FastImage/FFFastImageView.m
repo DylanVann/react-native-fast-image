@@ -864,7 +864,8 @@ NSString *FFFErrorMessage(NSError *error)
             if (self.onFastImageProgress) {
                 self.onFastImageProgress(@{
                         @"loaded": @(1),
-                        @"total": @(1)
+                        @"total": @(1),
+                        @"progress": @(1)
                 });
             }
             self.hasCompleted = YES;
@@ -1010,7 +1011,8 @@ NSString *FFFErrorMessage(NSError *error)
                 if (onProgress) {
                     onProgress(@{
                             @"loaded": @(receivedSize),
-                            @"total": @(expectedSize)
+                            @"total": @(expectedSize),
+                            @"progress": @(MAX(0.0, MIN(1.0, (double)receivedSize / expectedSize)))
                     });
                 }
             });
