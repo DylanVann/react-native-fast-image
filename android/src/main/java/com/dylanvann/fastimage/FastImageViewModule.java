@@ -574,7 +574,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                FastImageGlide.get(context).clearMemory();
+                // Not before FastImage has used Glide: there's nothing of
+                // its in memory, and starting Glide here would set its disk
+                // cache size before a configureCache could.
+                if (FastImageGlide.used()) Glide.get(context).clearMemory();
                 promise.resolve(null);
             }
         });
