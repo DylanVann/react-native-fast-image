@@ -1,0 +1,117 @@
+package com.fastimage;
+
+import android.graphics.drawable.Drawable;
+
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.resource.gif.GifDrawable;
+import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.ImageViewTarget;
+import com.bumptech.glide.request.target.Target;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
+
+public class FastImageRequestListener implements RequestListener<Drawable> {
+    static final String REACT_ON_ERROR_EVENT = "onFastImageError";
+    static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
+    static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
+    private final FastImageSource source;
+    // Whether the request shows the previous image as a thumbnail meanwhile.
+    private final boolean thumbnail;
+    // False when loading the image that's showing again at a new size: the
+    // view shows it at its old size if that fails.
+    private final boolean events;
+
+    FastImageRequestListener(FastImageSource source, boolean thumbnail, boolean events) {
+        this.source = source;
+        this.thumbnail = thumbnail;
+        this.events = events;
+    }
+
+    @Override
+    public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+        if (!events) {
+            if (target instanceof ImageViewTarget) {
+                ((FastImageViewWithUrl) ((ImageViewTarget) target).getView()).onQuietLoadFailed();
+            }
+            return false;
+        }
+        if (!(target instanceof ImageViewTarget)) {
+            return false;
+        }
+        FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageFailed(thumbnail);
+        String error = errorMessage(e);
+        WritableMap event = new WritableNativeMap();
+        event.putString("error", error);
+        FastImageEvents.send(view, REACT_ON_ERROR_EVENT, event);
+        FastImageEvents.sendLoadEnd(view, error);
+        return false;
+    }
+
+    // The first root cause's message, e.g. "Not Found, status code: 404" (also
+    // for preload results). For an SVG without AndroidSVG, what to add: other
+    // decoders (e.g. Glide's video one) also tried it, and failed first.
+    static String errorMessage(@androidx.annotation.Nullable GlideException e) {
+        if (e != null) {
+            for (Throwable cause : e.getRootCauses()) {
+                if (FastImageSvg.MISSING.equals(cause.getMessage())) return FastImageSvg.MISSING;
+            }
+            for (Throwable cause : e.getRootCauses()) {
+                if (cause.getMessage() != null) return cause.getMessage();
+            }
+            if (e.getMessage() != null) return e.getMessage();
+        }
+        return "Failed to load the image";
+    }
+
+    @Override
+    public boolean onResourceReady(Drawable resource, Object model, final Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+        if (!(target instanceof ImageViewTarget)) {
+            return false;
+        }
+        final FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
+        view.onImageLoaded();
+        if (resource instanceof GifDrawable) {
+            // The `loop` prop, or the file's own loop count as on iOS. Glide
+            // loops every GIF forever by default (#651).
+            view.applyLoopCount((GifDrawable) resource);
+        }
+        if (!events) return false;
+        boolean local = !(model instanceof FastImageUrl);
+        int[] size = FastImageSourceSize.get(resource, model, local,
+                dataSource == DataSource.RESOURCE_DISK_CACHE);
+        // Before the view shows it (the target does once this returns).
+        view.onImageSize(size);
+        // Only onLoad and onLoadEnd need a local image's size read from it:
+        // without them, don't (scale-down and none lay it out from the decoded
+        // image meanwhile). (After get, which also forgets a size that mustn't
+        // be reused.)
+        if (!view.handles(FastImageEvents.LOAD | FastImageEvents.LOAD_END)) return false;
+        if (size != null) {
+            sendLoad(view, size);
+            return false;
+        }
+        // A local image whose size isn't known: read it from the image first,
+        // unless the view starts another load meanwhile.
+        final Request request = target.getRequest();
+        FastImageSourceSize.readLocal(view.getContext(), source, resource, model, new FastImageSourceSize.Callback() {
+            @Override
+            public void onSize(int[] size) {
+                if (target.getRequest() != request) return;
+                view.onImageSize(size);
+                sendLoad(view, size);
+            }
+        });
+        return false;
+    }
+
+    private static void sendLoad(FastImageViewWithUrl view, int[] size) {
+        WritableMap event = new WritableNativeMap();
+        event.putInt("width", size[0]);
+        event.putInt("height", size[1]);
+        FastImageEvents.send(view, REACT_ON_LOAD_EVENT, event);
+        FastImageEvents.sendLoadEnd(view, size[0], size[1]);
+    }
+}

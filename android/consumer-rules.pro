@@ -4,8 +4,8 @@
 
 # FastImage's classes: its view manager, native module, Glide modules and
 # events.
--keep public class com.dylanvann.fastimage.* {*;}
--keep public class com.dylanvann.fastimage.** {*;}
+-keep public class com.fastimage.* {*;}
+-keep public class com.fastimage.** {*;}
 
 # The Glide rules below cover what Glide's own rules (its library's
 # proguard-rules.txt) didn't at the version FastImage uses by default
