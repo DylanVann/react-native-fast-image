@@ -346,6 +346,52 @@ function PointerEventsBoxNoneCase() {
     )
 }
 
+// A FastImage with hitSlop to its right and responder props. maestro/touch.yaml
+// taps the gray square beside it, which has pointerEvents="none" (the touch
+// goes to what's under it, the image's slop); passes when the image gets it.
+// Both went to the image view inside FastImage's wrapper, which touches
+// outside the wrapper didn't reach.
+function HitSlopCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <View style={touchStyles.hitSlopArea}>
+                <FastImage
+                    hitSlop={{ right: 40 }}
+                    onStartShouldSetResponder={() => true}
+                    onResponderRelease={() => setPressed(true)}
+                    style={styles.image}
+                    source={{ uri: LOGO }}
+                />
+                <View
+                    testID="regression-hit-slop-target"
+                    accessible
+                    pointerEvents="none"
+                    style={touchStyles.hitSlopMarker}
+                />
+            </View>
+            <CaseStatus
+                id="hit-slop"
+                status={pressed ? 'OK' : 'tap beside the image'}
+                description="hitSlop: a touch beside the image (the gray square, inside its slop) reaches it"
+            />
+        </View>
+    )
+}
+
+const touchStyles = StyleSheet.create({
+    // The image (48) and its slop (40).
+    hitSlopArea: { width: 88 },
+    hitSlopMarker: {
+        position: 'absolute',
+        left: 58,
+        top: 14,
+        width: 20,
+        height: 20,
+        backgroundColor: '#ddd',
+    },
+})
+
 // A wide image in square boxes: the left one is contain; the right one loads
 // as cover, then switches to contain. Both should match (checked by
 // screenshot). Android kept showing the cover crop.
@@ -5571,6 +5617,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <TouchableCase key="touchable" />,
             <PointerEventsCase key="pointer-events" />,
             <PointerEventsBoxNoneCase key="pointer-events-box-none" />,
+            <HitSlopCase key="hit-slop" />,
         ],
     },
 ]

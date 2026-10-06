@@ -164,6 +164,39 @@ describe('FastImage (iOS)', () => {
         expect(tree.children[0].props.pointerEvents).toBe('none')
     })
 
+    it('puts hitSlop and the touch handlers on the wrapper', () => {
+        const onStartShouldSetResponder = () => true
+        const onResponderRelease = () => {}
+        const onTouchStart = () => {}
+        const tree: any = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/image.png' }}
+                    hitSlop={{ right: 40 }}
+                    onStartShouldSetResponder={onStartShouldSetResponder}
+                    onResponderRelease={onResponderRelease}
+                    onTouchStart={onTouchStart}
+                    accessibilityLabel="a cat"
+                    style={style.image}
+                />,
+            )
+            .toJSON()
+
+        expect(tree.props.hitSlop).toEqual({ right: 40 })
+        expect(tree.props.onStartShouldSetResponder).toBe(
+            onStartShouldSetResponder,
+        )
+        expect(tree.props.onResponderRelease).toBe(onResponderRelease)
+        expect(tree.props.onTouchStart).toBe(onTouchStart)
+        const image = tree.children[0].props
+        expect(image.hitSlop).toBeUndefined()
+        expect(image.onStartShouldSetResponder).toBeUndefined()
+        expect(image.onResponderRelease).toBeUndefined()
+        expect(image.onTouchStart).toBeUndefined()
+        // Other View props stay on the image.
+        expect(image.accessibilityLabel).toBe('a cat')
+    })
+
     it('renders a normal Image when not passed a uri', () => {
         const tree = renderer
             .create(

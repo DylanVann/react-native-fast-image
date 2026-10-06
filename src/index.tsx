@@ -668,6 +668,30 @@ function FastImageBase({
     // On the wrapper, which would otherwise still take touches. With
     // 'box-none' the image is part of the box, so it ignores touches too.
     pointerEvents,
+    // On the wrapper too: a touch in the slop, outside the wrapper, only
+    // reaches the wrapper (hit testing doesn't look for its children there).
+    // Touchables pass their hitSlop to their child.
+    hitSlop,
+    // The responder and touch handlers (a Touchable's, or the app's): on the
+    // wrapper, so they get the touches its hitSlop takes. A touch on the image
+    // reaches them too, as an event from a child.
+    onStartShouldSetResponder,
+    onStartShouldSetResponderCapture,
+    onMoveShouldSetResponder,
+    onMoveShouldSetResponderCapture,
+    onResponderGrant,
+    onResponderReject,
+    onResponderStart,
+    onResponderMove,
+    onResponderEnd,
+    onResponderRelease,
+    onResponderTerminationRequest,
+    onResponderTerminate,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    onTouchCancel,
+    onTouchEndCapture,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
     // Touchables pass onClick to their child (React Native 0.73+, for
@@ -680,7 +704,29 @@ function FastImageBase({
     // React Native's Image (fallback) calls onLoadEnd without the result: take
     // it from the onLoad or onError just before.
     const fallbackResult = useRef<LoadResult | undefined>(undefined)
-    const wrapperProps = { onLayout, onClick, pointerEvents }
+    const wrapperProps = {
+        onLayout,
+        onClick,
+        pointerEvents,
+        hitSlop,
+        onStartShouldSetResponder,
+        onStartShouldSetResponderCapture,
+        onMoveShouldSetResponder,
+        onMoveShouldSetResponderCapture,
+        onResponderGrant,
+        onResponderReject,
+        onResponderStart,
+        onResponderMove,
+        onResponderEnd,
+        onResponderRelease,
+        onResponderTerminationRequest,
+        onResponderTerminate,
+        onTouchStart,
+        onTouchMove,
+        onTouchEnd,
+        onTouchCancel,
+        onTouchEndCapture,
+    }
     const imageProps = {
         ...props,
         pointerEvents:
