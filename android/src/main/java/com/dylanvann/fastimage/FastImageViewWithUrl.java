@@ -214,8 +214,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
-    // Whether to send progress events (the image has an onProgress).
-    boolean trackProgress = false;
+    // Whether to send progress events (the image has an onProgress). Read on
+    // the download's thread.
+    volatile boolean trackProgress = false;
 
     // The `transition` prop (from the next load): how long a loaded image
     // takes to fade in, in milliseconds (0 for no fade), whether it also fades
@@ -966,12 +967,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         if (glideUrl != null) {
             FastImageOkHttpProgressGlideModule.expect(key, manager);
-            List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
-            if (viewsForKey != null && !viewsForKey.contains(this)) {
-                viewsForKey.add(this);
-            } else if (viewsForKey == null) {
-                List<FastImageViewWithUrl> newViewsForKeys = new ArrayList<>(Collections.singletonList(this));
-                viewsForUrlsMap.put(key, newViewsForKeys);
+            // Locked: downloads read it from their own threads (see the
+            // manager's onProgress).
+            synchronized (viewsForUrlsMap) {
+                List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
+                if (viewsForKey != null && !viewsForKey.contains(this)) {
+                    viewsForKey.add(this);
+                } else if (viewsForKey == null) {
+                    List<FastImageViewWithUrl> newViewsForKeys = new ArrayList<>(Collections.singletonList(this));
+                    viewsForUrlsMap.put(key, newViewsForKeys);
+                }
             }
         }
 
@@ -1033,12 +1038,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void untrackUrl(@Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
         if (glideUrl == null) return;
         String key = glideUrl.toStringUrl();
-        List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
-        if (viewsForKey != null) {
-            viewsForKey.remove(this);
-            if (viewsForKey.isEmpty()) viewsForUrlsMap.remove(key);
+        boolean unused;
+        synchronized (viewsForUrlsMap) {
+            List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
+            if (viewsForKey != null) {
+                viewsForKey.remove(this);
+                if (viewsForKey.isEmpty()) viewsForUrlsMap.remove(key);
+            }
+            unused = viewsForKey == null || viewsForKey.isEmpty();
         }
-        if (viewsForKey == null || viewsForKey.isEmpty()) {
+        if (unused) {
             FastImageOkHttpProgressGlideModule.forget(key);
         }
         glideUrl = null;

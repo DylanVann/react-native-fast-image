@@ -255,34 +255,43 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         void update(String key, long bytesRead, long contentLength);
     }
 
+    // expect and forget are called on the UI thread, update on the downloads'
+    // threads (several at once): the maps are only used under this object's
+    // lock.
     private static class DispatchingProgressListener implements ResponseProgressListener {
         private final Map<String, FastImageProgressListener> LISTENERS = new WeakHashMap<>();
         private final Map<String, Long> PROGRESSES = new HashMap<>();
 
-        void forget(String key) {
+        synchronized void forget(String key) {
             LISTENERS.remove(key);
             PROGRESSES.remove(key);
         }
 
-        void expect(String key, FastImageProgressListener listener) {
+        synchronized void expect(String key, FastImageProgressListener listener) {
             LISTENERS.put(key, listener);
         }
 
         @Override
         public void update(final String key, final long bytesRead, final long contentLength) {
-            final FastImageProgressListener listener = LISTENERS.get(key);
-            // Without a Content-Length the total is unknown (-1), and a
-            // percentage can't be worked out from it, so don't send those. (It
-            // also looked like the last update, which stopped all updates.)
-            if (listener == null || contentLength <= 0) {
-                return;
+            final FastImageProgressListener listener;
+            synchronized (this) {
+                listener = LISTENERS.get(key);
+                // Without a Content-Length the total is unknown (-1), and a
+                // percentage can't be worked out from it, so don't send those.
+                // (It also looked like the last update, which stopped all
+                // updates.)
+                if (listener == null || contentLength <= 0) {
+                    return;
+                }
+                if (contentLength <= bytesRead) {
+                    forget(key);
+                }
+                if (!needsDispatch(key, bytesRead, contentLength, listener.getGranularityPercentage())) {
+                    return;
+                }
             }
-            if (contentLength <= bytesRead) {
-                forget(key);
-            }
-            if (needsDispatch(key, bytesRead, contentLength, listener.getGranularityPercentage())) {
-                listener.onProgress(key, bytesRead, contentLength);
-            }
+            // Outside the lock: it sends events.
+            listener.onProgress(key, bytesRead, contentLength);
         }
 
         private boolean needsDispatch(String key, long current, long total, float granularity) {

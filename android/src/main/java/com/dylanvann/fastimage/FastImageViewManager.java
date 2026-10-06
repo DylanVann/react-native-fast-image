@@ -27,6 +27,7 @@ import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -183,18 +184,24 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     // Sends the progress to the views loading the url that have an onProgress:
     // the others would send an event to JS for every chunk, for nothing (and
-    // on the New Architecture each would log an unhandled event).
+    // on the New Architecture each would log an unhandled event). Called on
+    // the download's thread, while the UI thread adds and removes views (see
+    // FastImageViewWithUrl's onAfterUpdate and untrackUrl): the url's views
+    // are copied under the map's lock, and the events sent from the copy.
     @Override
     public void onProgress(String key, long bytesRead, long expectedLength) {
-        List<FastImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
-        if (viewsForKey != null) {
-            for (FastImageViewWithUrl view : viewsForKey) {
-                if (!view.trackProgress) continue;
-                WritableMap event = new WritableNativeMap();
-                event.putInt("loaded", (int) bytesRead);
-                event.putInt("total", (int) expectedLength);
-                FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
-            }
+        List<FastImageViewWithUrl> viewsForKey;
+        synchronized (VIEWS_FOR_URLS) {
+            List<FastImageViewWithUrl> views = VIEWS_FOR_URLS.get(key);
+            if (views == null) return;
+            viewsForKey = new ArrayList<>(views);
+        }
+        for (FastImageViewWithUrl view : viewsForKey) {
+            if (!view.trackProgress) continue;
+            WritableMap event = new WritableNativeMap();
+            event.putInt("loaded", (int) bytesRead);
+            event.putInt("total", (int) expectedLength);
+            FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
         }
     }
 

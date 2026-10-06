@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
     AppState,
     Image,
@@ -18,6 +18,7 @@ import FastImage, {
     FastImageBackground,
     FastImageProps,
     LoadResult,
+    OnErrorEvent,
     OnProgressEvent,
     PreloadResult,
     Source,
@@ -918,6 +919,97 @@ function ProgressGzipCase() {
         </View>
     )
 }
+
+// Many images with onProgress load one url from the slow server while more
+// of them, on the same url, mount and unmount every frame, for several rounds
+// (a new url each). Passes when every round loads with no onError. Android
+// sends progress from the download's thread to the views loading the url,
+// while the UI thread adds and removes views from that list: going through it
+// threw a ConcurrentModificationException, which failed the download (every
+// image on the url got onError).
+const SHARED_URL_ROUNDS = 8
+const SHARED_URL_VIEWS = 40
+const SHARED_URL_CHURN = 10
+function ProgressSharedUrlCase() {
+    const [round, setRound] = useState(0)
+    const [error, setError] = useState<string>()
+    const [frame, setFrame] = useState(0)
+    const loads = useRef(0)
+    const done = round >= SHARED_URL_ROUNDS || error !== undefined
+    const source = useMemo(
+        () => ({
+            uri: slowImageUrl(
+                `picsum/1015-2048x2048.jpg?shared-url=${round}-${RUN}&delay=100`,
+            ),
+            headers: { 'x-token': 'fast-image' },
+        }),
+        [round],
+    )
+    useEffect(() => {
+        if (done) return
+        let id = requestAnimationFrame(function step() {
+            setFrame((f) => f + 1)
+            id = requestAnimationFrame(step)
+        })
+        return () => cancelAnimationFrame(id)
+    }, [done])
+    const onLoad = () => {
+        loads.current++
+        if (loads.current === SHARED_URL_VIEWS) {
+            loads.current = 0
+            setRound((r) => r + 1)
+        }
+    }
+    const onError = (e: OnErrorEvent) => {
+        const message = String(e.nativeEvent.error)
+        setError((previous) => previous ?? message)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedUrlStyles.images}>
+                {!done &&
+                    Array.from({ length: SHARED_URL_VIEWS }, (_, i) => (
+                        <FastImage
+                            key={`view-${i}`}
+                            style={sharedUrlStyles.image}
+                            source={source}
+                            onProgress={() => {}}
+                            onLoad={onLoad}
+                            onError={onError}
+                        />
+                    ))}
+                {/* Mounted every other frame. */}
+                {!done &&
+                    frame % 2 === 0 &&
+                    Array.from({ length: SHARED_URL_CHURN }, (_, i) => (
+                        <FastImage
+                            key={`churn-${i}`}
+                            style={sharedUrlStyles.image}
+                            source={source}
+                            onProgress={() => {}}
+                            onError={onError}
+                        />
+                    ))}
+            </View>
+            <CaseStatus
+                id="progress-shared-url"
+                status={
+                    error !== undefined
+                        ? `onError: ${error}`
+                        : done
+                          ? 'OK'
+                          : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
+                }
+                description="onProgress for images on one url while others on it mount and unmount: every image loads"
+            />
+        </View>
+    )
+}
+
+const sharedUrlStyles = StyleSheet.create({
+    images: { width: 64, height: 64, flexDirection: 'row', flexWrap: 'wrap' },
+    image: { width: 6, height: 6 },
+})
 
 // Gets two cookies with fetch, then loads an image the server only sends with
 // both (and which sets a cookie of its own), then checks the image's cookie
@@ -4901,6 +4993,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <WebCacheCase key="web-cache-avif" avif />,
             <CookiesCase key="cookies" />,
         ],
+    },
+    {
+        // Loads many images and churns views, so on its own.
+        name: 'progress-shared-url',
+        cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
     },
     {
         // Clears the caches, so on its own.
