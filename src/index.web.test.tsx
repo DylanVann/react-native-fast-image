@@ -224,8 +224,14 @@ describe('FastImage (web)', () => {
     })
 
     it('resolves the cache methods', async () => {
-        await expect(FastImage.clearMemoryCache()).resolves.toBeUndefined()
-        await expect(FastImage.clearDiskCache()).resolves.toBeUndefined()
+        await expect(FastImage.clearMemoryCache()).resolves.toEqual({
+            ok: false,
+            error: 'Not supported on the web',
+        })
+        await expect(FastImage.clearDiskCache()).resolves.toEqual({
+            ok: false,
+            error: 'Not supported on the web',
+        })
         await expect(
             FastImage.configureCache({ maxDiskSize: 1 }),
         ).resolves.toEqual({})

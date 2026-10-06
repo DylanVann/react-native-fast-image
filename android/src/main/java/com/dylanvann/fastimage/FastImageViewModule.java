@@ -574,11 +574,15 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                // Not before FastImage has used Glide: there's nothing of
-                // its in memory, and starting Glide here would set its disk
-                // cache size before a configureCache could.
-                if (FastImageGlide.used()) Glide.get(context).clearMemory();
-                promise.resolve(null);
+                try {
+                    // Not before FastImage has used Glide: there's nothing of
+                    // its in memory, and starting Glide here would set its
+                    // disk cache size before a configureCache could.
+                    if (FastImageGlide.used()) Glide.get(context).clearMemory();
+                    promise.resolve(cleared());
+                } catch (RuntimeException e) {
+                    promise.resolve(failure(e));
+                }
             }
         });
     }
@@ -587,7 +591,12 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // thread.
     @ReactMethod
     public void clearDiskCache(Promise promise) {
-        FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();
+        try {
+            FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();
+        } catch (RuntimeException e) {
+            promise.resolve(failure(e));
+            return;
+        }
         // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
         // cache (set up when FastImage's components are registered).
         try {
@@ -595,6 +604,20 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         } catch (IOException e) {
             // Cleared as far as it could.
         }
-        promise.resolve(null);
+        promise.resolve(cleared());
+    }
+
+    private static WritableMap cleared() {
+        WritableMap result = Arguments.createMap();
+        result.putBoolean("ok", true);
+        return result;
+    }
+
+    // Glide failing to start, e.g. when an app's Glide module calls
+    // Glide.get() from registerComponents (#962): resolved as an error, not
+    // thrown, which would crash the app (on the main thread) or leave the
+    // promise unsettled.
+    private static WritableMap failure(RuntimeException e) {
+        return failure(e.getMessage() != null ? e.getMessage() : e.toString());
     }
 }

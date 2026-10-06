@@ -467,7 +467,7 @@ RCT_EXPORT_METHOD(configureCache:(NSDictionary *)limits
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
 {
     [SDImageCache.sharedImageCache clearMemory];
-    resolve(NULL);
+    resolve(@{@"ok": @YES});
 }
 
 RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
@@ -475,7 +475,7 @@ RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTProm
     // And the HTTP cache of `cache: 'web'` images.
     [FFFastImageSource.webURLCache removeAllCachedResponses];
     [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){
-        resolve(NULL);
+        resolve(@{@"ok": @YES});
     }];
 }
 

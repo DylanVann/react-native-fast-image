@@ -21,8 +21,9 @@ describe('FastImage (iOS)', () => {
         Platform.OS = 'ios'
         NativeModules.FastImageView = {
             preload: Function.prototype,
-            clearMemoryCache: Function.prototype,
-            clearDiskCache: Function.prototype,
+            clearMemoryCache: () => Promise.resolve({ ok: true }),
+            clearDiskCache: () =>
+                Promise.resolve({ ok: false, error: 'Glide failed' }),
         }
     })
 
@@ -313,6 +314,16 @@ describe('FastImage (iOS)', () => {
         ])
         FastImage.clearMemoryCache()
         FastImage.clearDiskCache()
+    })
+
+    it("resolves the clear functions with native's result", async () => {
+        await expect(FastImage.clearMemoryCache()).resolves.toEqual({
+            ok: true,
+        })
+        await expect(FastImage.clearDiskCache()).resolves.toEqual({
+            ok: false,
+            error: 'Glide failed',
+        })
     })
 })
 

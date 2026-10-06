@@ -73,6 +73,8 @@ export type CachePathResult =
     | {| ok: true, path: string |}
     | {| ok: false, error: string |}
 
+export type ClearCacheResult = {| ok: true |} | {| ok: false, error: string |}
+
 export type Transition = $ReadOnly<{|
     duration?: ?number,
     betweenImages?: ?boolean,
@@ -147,8 +149,8 @@ declare export default class FastImage extends React$Component<FastImageProps> {
     static priority: Priority;
     static cacheControl: CacheControl;
     static preload: PreloadFn;
-    static clearMemoryCache: () => Promise<void>;
-    static clearDiskCache: () => Promise<void>;
+    static clearMemoryCache: () => Promise<ClearCacheResult>;
+    static clearDiskCache: () => Promise<ClearCacheResult>;
     static getCachePath: (source: FastImageSource) => Promise<CachePathResult>;
     static configureCache: (limits?: CacheLimits) => Promise<CacheState>;
     static writeToCache: (
