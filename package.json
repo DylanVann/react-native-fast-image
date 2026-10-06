@@ -1,6 +1,6 @@
 {
     "name": "react-native-fast-image",
-    "version": "9.0.2",
+    "version": "9.0.3",
     "description": "FastImage, performant React Native image component.",
     "keywords": [
         "cache",

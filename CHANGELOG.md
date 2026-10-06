@@ -1,3 +1,11 @@
+## [9.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.2...v9.0.3) (2026-10-06)
+
+
+### Bug Fixes
+
+* **android:** pointerEvents="box-none" lets touches through the image ([#1264](https://github.com/DylanVann/react-native-fast-image/issues/1264)) ([bc29332](https://github.com/DylanVann/react-native-fast-image/commit/bc293329abfcddca2473f17777de53764cd2ecac))
+* FastImage's hitSlop takes touches beside the image ([#1265](https://github.com/DylanVann/react-native-fast-image/issues/1265)) ([eae0c06](https://github.com/DylanVann/react-native-fast-image/commit/eae0c063e2356e5bde6407165491d2382e140269))
+
 ## [9.0.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.1...v9.0.2) (2026-10-05)
 
 
