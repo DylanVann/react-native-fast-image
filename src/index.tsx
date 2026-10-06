@@ -810,8 +810,9 @@ const FastImageMemo = memo(FastImageBase)
 
 // What a ref to FastImage or FastImageBackground gets: the view the image
 // fills (FastImage's wrapper, FastImageBackground's view). ElementRef, as
-// React Native's types declare View as a class up to 0.79 and as a function
-// component with a ref after.
+// React Native's types declare View as a class, and its Strict TypeScript API
+// (opt-in from 0.80, the default from 0.87) as a function component that takes
+// a ref.
 type ViewRef = React.ElementRef<typeof View>
 
 const FastImageComponent: React.ForwardRefExoticComponent<
