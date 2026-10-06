@@ -8,7 +8,7 @@
 
 ### Features
 
-* clearMemoryCache and clearDiskCache resolve with { ok } ([#1268](https://github.com/DylanVann/react-native-fast-image/issues/1268)) ([1031413](https://github.com/DylanVann/react-native-fast-image/commit/10314130fe1293bd1eb51bedd973ba807b43f63b)), closes [#962](https://github.com/DylanVann/react-native-fast-image/issues/962)
+* clearMemoryCache and clearDiskCache resolve with { ok } ([#1268](https://github.com/DylanVann/react-native-fast-image/issues/1268)) ([1031413](https://github.com/DylanVann/react-native-fast-image/commit/10314130fe1293bd1eb51bedd973ba807b43f63b))
 
 ## [9.0.3](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.2...v9.0.3) (2026-10-06)
 
