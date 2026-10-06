@@ -43,6 +43,8 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
+import com.facebook.react.uimanager.PointerEvents;
+import com.facebook.react.uimanager.ReactPointerEventsView;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +53,7 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-class FastImageViewWithUrl extends AppCompatImageView {
+class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
@@ -64,6 +66,20 @@ class FastImageViewWithUrl extends AppCompatImageView {
     public FastImageViewWithUrl(Context context, @Nullable RequestManager requestManager) {
         super(context);
         this.requestManager = requestManager;
+    }
+
+    // FastImage sends "none" when it has pointerEvents="box-none" (the image
+    // is part of the box, which doesn't take touches). React Native's touch
+    // handling only reads pointerEvents from a ReactPointerEventsView.
+    private PointerEvents mPointerEvents = PointerEvents.AUTO;
+
+    @Override
+    public PointerEvents getPointerEvents() {
+        return mPointerEvents;
+    }
+
+    void setPointerEvents(PointerEvents pointerEvents) {
+        mPointerEvents = pointerEvents;
     }
 
     public void setSource(@Nullable ReadableMap source) {

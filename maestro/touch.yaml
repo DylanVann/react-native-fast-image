@@ -24,3 +24,5 @@ tags:
       id: 'regression-touchable-image'
 - tapOn:
       id: 'regression-pointer-events-target'
+- tapOn:
+      id: 'regression-box-none-target'

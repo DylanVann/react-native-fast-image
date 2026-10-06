@@ -23,10 +23,12 @@ import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
+import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -80,6 +82,16 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
         view.setDefaultSource(
                 ResourceDrawableIdHelper.getInstance()
                         .getResourceDrawable(view.getContext(), source));
+    }
+
+    // React Native's View manager handles pointerEvents; a SimpleViewManager
+    // doesn't. Parsed here: PointerEvents.parsePointerEvents isn't in every
+    // supported React Native version.
+    @ReactProp(name = "pointerEvents")
+    public void setPointerEvents(FastImageViewWithUrl view, @Nullable String pointerEvents) {
+        view.setPointerEvents(pointerEvents == null
+                ? PointerEvents.AUTO
+                : PointerEvents.valueOf(pointerEvents.toUpperCase(Locale.US).replace('-', '_')));
     }
 
     @ReactProp(name = "tintColor", customType = "Color")
