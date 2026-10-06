@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import FastImage, {
     CachePathResult,
+    ClearCacheResult,
     FastImageBackground,
     FastImageProps,
     LoadResult,
@@ -743,11 +744,13 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
 // Loads an image with `cache: 'web'` that the server marks as cacheable for an
 // hour, clears the caches, and loads it again: the server should get a second
 // request. clearDiskCache left the HTTP cache of `web` images (Android's, and
-// on iOS the app's shared NSURLCache), so it came from there.
+// on iOS the app's shared NSURLCache), so it came from there. Both clear
+// functions must resolve ok.
 const WEB_CLEAR_PATH = `/max-age/picsum/1025-200x200.jpg?web-clear=${RUN}`
 function WebCacheClearCase() {
     const [step, setStep] = useState<'first' | 'cleared' | 'done'>('first')
     const [requests, setRequests] = useState<number>()
+    const [clearError, setClearError] = useState<string>()
     useEffect(() => {
         if (step !== 'done') return
         fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_CLEAR_PATH)}`))
@@ -771,18 +774,25 @@ function WebCacheClearCase() {
                         Promise.all([
                             FastImage.clearMemoryCache(),
                             FastImage.clearDiskCache(),
-                        ]).then(() => setStep('cleared'))
+                        ]).then((results) => {
+                            for (const result of results) {
+                                if (!result.ok) setClearError(result.error)
+                            }
+                            setStep('cleared')
+                        })
                     } else setStep('done')
                 }}
             />
             <CaseStatus
                 id="web-cache-clear"
                 status={
-                    requests === undefined
-                        ? step
-                        : requests === 2
-                          ? 'OK'
-                          : `requested ${requests} times`
+                    clearError
+                        ? `clear failed: ${clearError}`
+                        : requests === undefined
+                          ? step
+                          : requests === 2
+                            ? 'OK'
+                            : `requested ${requests} times`
                 }
                 description="clearDiskCache also clears the HTTP cache of cache web images (loaded again after clearing)"
             />
@@ -1102,9 +1112,9 @@ function BackgroundCases() {
 // MainActivity), starts this case, and sends the app to the background. A
 // download that ends while it's away calls them, from the XMLHttpRequest's
 // callback (timers don't run in the background), and the check is kept
-// outside the component, which the new Activity mounts again. Passes when the
-// disk cache is smaller after clearing. Android did nothing without an
-// Activity.
+// outside the component, which the new Activity mounts again. Passes when
+// both resolve ok and the disk cache is smaller after clearing. Android did
+// nothing without an Activity.
 type ClearCheck = { before: number; after?: number; error?: string }
 let clearCheck: ClearCheck | undefined
 const clearCheckListeners = new Set<() => void>()
@@ -1134,13 +1144,23 @@ function startClearCheck() {
                     request.setRequestHeader('x-token', 'fast-image')
                     request.onloadend = () => {
                         const check = clearCheck as ClearCheck
+                        let failed: string | undefined
+                        const note =
+                            (name: string) => (result: ClearCacheResult) => {
+                                if (!result.ok) {
+                                    failed = `${name}: ${result.error}`
+                                }
+                            }
                         FastImage.clearMemoryCache()
+                            .then(note('clearMemoryCache'))
                             .then(() => FastImage.clearDiskCache())
+                            .then(note('clearDiskCache'))
                             .then(() => FastImage.configureCache({}))
                             .then((state) =>
                                 setClearCheck({
                                     ...check,
                                     after: state.diskSize ?? 0,
+                                    error: failed,
                                 }),
                             )
                             .catch((error) =>
@@ -1191,7 +1211,7 @@ function ClearWithoutActivityCase() {
                 id="clear-without-activity"
                 status={status}
                 description={
-                    'clearMemoryCache and clearDiskCache with no Activity (Android; run by maestro/background-no-activity.yaml): the disk cache is smaller after clearing.' +
+                    'clearMemoryCache and clearDiskCache with no Activity (Android; run by maestro/background-no-activity.yaml): both resolve ok, and the disk cache is smaller after clearing.' +
                     (check ? ` Now: ${status}.` : '')
                 }
             />

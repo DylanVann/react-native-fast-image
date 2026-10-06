@@ -224,6 +224,12 @@ export type CachePathResult =
     | { ok: false; error: string }
 
 /**
+ * `clearMemoryCache`'s and `clearDiskCache`'s result: `ok` once the cache is
+ * cleared, or not `ok` with the error.
+ */
+export type ClearCacheResult = { ok: true } | { ok: false; error: string }
+
+/**
  * `onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`,
  * and `progress`, `loaded / total` from 0 to 1.
  */
@@ -908,8 +914,18 @@ export interface FastImageStaticProperties {
     priority: typeof priority
     cacheControl: typeof cacheControl
     preload: (sources: Source[]) => Promise<PreloadResult[]>
-    clearMemoryCache: () => Promise<void>
-    clearDiskCache: () => Promise<void>
+    /**
+     * Removes every image from the memory cache. Resolves once it's done, or
+     * not `ok` with the error if it couldn't (Android: Glide failed to
+     * start). Never rejects.
+     */
+    clearMemoryCache: () => Promise<ClearCacheResult>
+    /**
+     * Removes every image from the disk cache, and the HTTP cache of
+     * `cache: 'web'` images. Resolves once it's done, or not `ok` with the
+     * error if it couldn't (Android: Glide failed to start). Never rejects.
+     */
+    clearDiskCache: () => Promise<ClearCacheResult>
     /**
      * The path of the source's downloaded file in the disk cache, downloading
      * it first if it isn't there (without decoding it). With
@@ -979,10 +995,11 @@ FastImage.preload = (sources: Source[]) =>
         }),
     )
 
-FastImage.clearMemoryCache = () =>
-    NativeModules.FastImageView.clearMemoryCache()
+FastImage.clearMemoryCache = (): Promise<ClearCacheResult> =>
+    Promise.resolve(NativeModules.FastImageView.clearMemoryCache())
 
-FastImage.clearDiskCache = () => NativeModules.FastImageView.clearDiskCache()
+FastImage.clearDiskCache = (): Promise<ClearCacheResult> =>
+    Promise.resolve(NativeModules.FastImageView.clearDiskCache())
 
 FastImage.configureCache = (limits: CacheLimits = {}): Promise<CacheState> =>
     Promise.resolve(NativeModules.FastImageView.configureCache(limits))

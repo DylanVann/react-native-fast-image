@@ -318,10 +318,10 @@ FastImage.preload = (sources: Source[]) =>
         }),
     )
 
-// The browser manages its own cache.
-FastImage.clearMemoryCache = () => Promise.resolve()
+// The browser manages its own cache: these don't clear it.
+FastImage.clearMemoryCache = () => Promise.resolve(notSupported)
 
-FastImage.clearDiskCache = () => Promise.resolve()
+FastImage.clearDiskCache = () => Promise.resolve(notSupported)
 
 FastImage.configureCache = (): Promise<CacheState> => Promise.resolve({})
 

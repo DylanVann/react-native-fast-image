@@ -539,15 +539,15 @@ await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 
 ### `clearMemoryCache()`
 
-**Returns:** `Promise<void>`
+**Returns:** `Promise<ClearCacheResult>`
 
-Removes every image from the memory cache, e.g. to free memory. They're decoded from the disk cache again when they're next shown.
+Removes every image from the memory cache, e.g. to free memory. They're decoded from the disk cache again when they're next shown. Resolves with `{ ok: true }` once it's done, or `{ ok: false, error }` if it couldn't (Android: Glide failed to start). Never rejects. On the web, it does nothing (the browser manages its cache) and resolves with an error.
 
 ### `clearDiskCache()`
 
-**Returns:** `Promise<void>`
+**Returns:** `Promise<ClearCacheResult>`
 
-Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey).
+Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey). Resolves like `clearMemoryCache`.
 
 ### `getCachePath(source)`
 
@@ -665,6 +665,14 @@ How fresh an image must be: see [`source.cache`](#sourcecache).
 - `maxDiskAge?` (`number`)
 - `maxMemorySize?` (`number`)
 - `diskSize?` (`number`): The bytes the disk cache uses now.
+
+---
+
+### `ClearCacheResult`
+
+**Type:** `{ ok: true } | { ok: false; error: string }`
+
+`clearMemoryCache`'s and `clearDiskCache`'s result: `ok` once the cache is cleared, or not `ok` with the error.
 
 ---
 
