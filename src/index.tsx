@@ -487,7 +487,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * Called on an image fetching error, with a message describing it (e.g.
-     * the HTTP status code).
+     * the HTTP status code). A download that gets nothing from the server for
+     * 15 seconds fails too (on Android, unless the app's OkHttp client has
+     * timeouts of its own).
      *
      * @example
      * ```jsx
