@@ -1224,12 +1224,13 @@ function SharedDownloadSizesCase() {
                         }
                         setLoaded((n) => n + 1)
                     }}
-                    onError={(e) =>
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
                         setProblem(
-                            (previous) =>
-                                previous ?? `onError: ${e.nativeEvent.error}`,
+                            (previous) => previous ?? `onError: ${error}`,
                         )
-                    }
+                    }}
                 />
             ))}
             <CaseStatus
@@ -1280,8 +1281,11 @@ function SharedDownloadCancelCase() {
         progressed.current.add(image)
         if (progressed.current.size === 2) setFirstMounted(false)
     }
-    const onError = (e: OnErrorEvent) =>
-        setProblem((previous) => previous ?? `onError: ${e.nativeEvent.error}`)
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setProblem((previous) => previous ?? `onError: ${error}`)
+    }
     return (
         <View style={styles.row}>
             <View style={sharedStyles.small}>
@@ -1335,12 +1339,11 @@ function SharedDownloadErrorCase() {
                     style={style}
                     source={source}
                     onLoad={() => setLoaded(true)}
-                    onError={(e) =>
-                        setErrors((previous) => [
-                            ...previous,
-                            String(e.nativeEvent.error),
-                        ])
-                    }
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        setErrors((previous) => [...previous, error])
+                    }}
                 />
             ))}
             <CaseStatus
