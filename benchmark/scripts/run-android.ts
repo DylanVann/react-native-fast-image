@@ -6,7 +6,7 @@
 //                                        [--iterations 5] [--latency 40] [--mbps 0]
 //                                        [--no-build] [--out <results folder>]
 //                                        [--firebase --device model=…,version=…] [--project <id>]
-//                                        [--paired [--phones 5]]
+//                                        [--paired [--phones 5]] [--no-run]
 //
 // For each subject: builds the app with only that library (app/subjects.js)
 // and the Macrobenchmark test APK (android/macrobenchmark), in release
@@ -26,6 +26,9 @@
 // do; run by run on one phone, the subjects' differences show. Writes
 // android-<subject>-<scenario>-<phone>-<n>.json, and a paired comparison in
 // the summary.
+//
+// --no-run analyzes the outputs already in --out (e.g. after a change to the
+// analysis), without building or running anything.
 
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -385,6 +388,17 @@ function findFiles(dir: string, match: RegExp): string[] {
         .map((f) => path.join(dir, f))
 }
 
+// A folder named `name` anywhere under `dir`.
+function findDir(dir: string, name: string): string | undefined {
+    if (!fs.existsSync(dir)) return undefined
+    const found = (fs.readdirSync(dir, { recursive: true }) as string[]).find(
+        (f) =>
+            path.basename(f) === name &&
+            fs.statSync(path.join(dir, f)).isDirectory(),
+    )
+    return found && path.join(dir, found)
+}
+
 log(
     `results ${path.relative(process.cwd(), out)}; images served on the phone (${latencyMs} ms, ${mbps || 'unlimited'} Mbps)${firebase ? `; Firebase Test Lab (${firebaseDevice})` : '; adb device'}`,
 )
@@ -394,8 +408,8 @@ type Apks = { app: string; test: string }
 // (time to image), and Macrobenchmark's metrics. A paired run's outputs are in
 // a folder per app, and its files are named after the phone too.
 async function analyzeOutputs(subject: string, pulled: string, phone?: number) {
-    const dir = phone ? path.join(pulled, packageName(subject)) : pulled
-    if (phone && !fs.existsSync(dir)) {
+    const dir = phone ? findDir(pulled, packageName(subject)) : pulled
+    if (!dir) {
         failed(subject, 'tests', `phone ${phone}: no outputs`)
         return
     }
@@ -442,6 +456,24 @@ async function analyzeOutputs(subject: string, pulled: string, phone?: number) {
             path.join(out, `metrics-android-${subject}.json`),
         )
     }
+}
+
+if (flag('no-run')) {
+    for (let phone = 1; paired && phone <= phones; phone++) {
+        const pulled = path.join(out, `android-paired-${phone}-outputs`)
+        for (const subject of chosenSubjects) {
+            await analyzeOutputs(subject, pulled, phone)
+        }
+    }
+    for (const subject of paired ? [] : chosenSubjects) {
+        await analyzeOutputs(
+            subject,
+            path.join(out, `android-${subject}-outputs`),
+        )
+    }
+    log('')
+    log(summarize(out))
+    process.exit(0)
 }
 
 // Builds every subject first (they share the generated project), keeping
