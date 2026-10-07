@@ -2670,10 +2670,10 @@ function CachePathCase({
                   : !shown
                     ? 'showing the file'
                     : whileLoading
-                      ? // One download on iOS, where SDWebImage shares it;
-                        // Glide on Android downloads it again for a request
-                        // that isn't the same as the view's.
-                        requests === (Platform.OS === 'ios' ? 1 : 2)
+                      ? // One download: the view's and getCachePath's requests
+                        // share it (SDWebImage on iOS, FastImageSharedDownloads
+                        // on Android, where Glide downloaded it again).
+                        requests === 1
                           ? 'OK'
                           : `${requests} requests`
                       : requests === expected
