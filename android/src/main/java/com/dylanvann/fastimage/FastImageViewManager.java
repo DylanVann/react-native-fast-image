@@ -231,8 +231,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         return PROGRESS_STEPS.get();
     }
 
-    // A download's progress (FastImageSharedDownloads), on its thread, which only notes it if a view wants it (so downloads of images
-    // without an onProgress post nothing). It's sent from the UI thread, where
+    // A download's progress (FastImageSharedDownloads), on its thread, which
+    // only notes it if a view wants it (so downloads of images without an
+    // onProgress post nothing). It's sent from the UI thread, where
     // views start and end their loads: a view only gets it during its own load,
     // not after its onLoad or once it loads again, and progress posted during
     // a download comes before the onLoad Glide posts after it.

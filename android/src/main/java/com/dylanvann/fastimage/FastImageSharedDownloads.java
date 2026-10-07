@@ -1,5 +1,7 @@
 package com.dylanvann.fastimage;
 
+import android.os.SystemClock;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -22,11 +24,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -44,9 +49,8 @@ import okio.Source;
 // SDWebImage's downloader shares one per url (and Fresco one per encoded
 // image). Glide only shares a load between requests for the same size and
 // options, so views showing an image at different sizes, or one mounted while
-// a preload downloads it, downloaded it again. Downloads are keyed by the
-// url's cache key (key()), which progress is sent by too
-// (FastImageViewManager.onDownloadProgress).
+// a preload downloads it, downloaded it again. Downloads are keyed by key(),
+// which progress is sent by too (FastImageViewManager.onDownloadProgress).
 //
 // A download reads its response into memory itself, on a thread of its own
 // (not one of Glide's, so a request waiting for bytes never waits for another
@@ -57,7 +61,13 @@ import okio.Source;
 // are dropped once it has ended and every request has read what it needed.
 // A response of unknown length, or one that doesn't fit in BUDGET, isn't
 // shared: the first request reads it from OkHttp, as Glide's OkHttp fetcher
-// does, and the others download it themselves.
+// does, and the others download the image again, each on its own.
+//
+// React Native's client has no timeouts, so a download can stop without
+// failing. A request that has waited STALL_MS for a download's response
+// downloads the image again (once), and a new request doesn't join a
+// download that has had no response or bytes for that long. A request
+// reading a download's bytes waits for the rest, as for its own download.
 final class FastImageSharedDownloads {
     // The most bytes held for shared downloads at once: they're encoded
     // images (not decoded bitmaps, which Glide's memory cache holds), each
@@ -65,25 +75,46 @@ final class FastImageSharedDownloads {
     private static final long BUDGET = Runtime.getRuntime().maxMemory() / 16;
     // How long a preload's finished file is used (see finished()).
     private static final long KEEP_MS = 60_000;
+    // How long a download can go without its response or bytes before it's
+    // left (see above).
+    private static final long STALL_MS = 30_000;
     // Progress is sent when a download has read another 0.5% (and at its
     // start and end).
     private static final long PROGRESS_STEPS = 200;
 
-    // Downloads in progress, and finished ones still being read, by key.
-    // Guards the downloads' sharing (taken before a download's own lock).
+    // The download new requests for a key join: in progress, or finished and
+    // still being read. Guards the downloads' sharing and progress (taken
+    // before a download's own lock, and FastImageViewManager's progress lock).
     private static final Map<String, Download> downloads = new HashMap<>();
+    // The download whose progress is sent for a key (guarded by downloads):
+    // the first one in progress, so two downloads of a key don't mix theirs.
+    private static final Map<String, Download> reporting = new HashMap<>();
     // Bytes held for shared downloads (guarded by downloads).
     private static long held = 0;
 
-    private static final ExecutorService reading =
-            Executors.newCachedThreadPool(new ThreadFactory() {
-                @Override
-                public Thread newThread(@NonNull Runnable runnable) {
-                    Thread thread = new Thread(runnable, "FastImageDownload");
-                    thread.setDaemon(true);
-                    return thread;
-                }
-            });
+    private static ThreadFactory daemon(final String name) {
+        return new ThreadFactory() {
+            @Override
+            public Thread newThread(@NonNull Runnable runnable) {
+                Thread thread = new Thread(runnable, name);
+                thread.setDaemon(true);
+                return thread;
+            }
+        };
+    }
+
+    // Reads shared downloads' responses, eight at a time (Glide reads its
+    // downloads on at most four threads); the others wait for a thread.
+    private static final ThreadPoolExecutor reading = new ThreadPoolExecutor(
+            8, 8, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), daemon("FastImageDownload"));
+    // Stops requests waiting for stalled downloads (see STALL_MS).
+    private static final ScheduledThreadPoolExecutor timers =
+            new ScheduledThreadPoolExecutor(1, daemon("FastImageDownloadTimer"));
+
+    static {
+        reading.allowCoreThreadTimeOut(true);
+        timers.setRemoveOnCancelPolicy(true);
+    }
 
     private static final class Finished {
         final File file;
@@ -102,11 +133,15 @@ final class FastImageSharedDownloads {
     private FastImageSharedDownloads() {
     }
 
-    // The key downloads are shared, and their progress sent, by: the url's
-    // cache key (the url, or the source's cacheKey), which is also what Glide
-    // caches the image under, and shares loads of a keyed url by.
+    // The key downloads are shared, and their progress sent, by. A url with
+    // the source's cacheKey: the key (Glide caches it, and shares its loads,
+    // by the key too). Another url: the url and its headers (Glide's loads
+    // compare both). `web` images apart: they load with their own client, and
+    // its HTTP cache.
     static String key(GlideUrl url) {
-        return url.getCacheKey();
+        if (url instanceof FastImageKeyedGlideUrl) return "key " + url.getCacheKey();
+        String key = url.getCacheKey() + " " + new TreeMap<>(url.getHeaders());
+        return (url instanceof FastImageWebGlideUrl ? "web " : "url ") + key;
     }
 
     // A preload's download ended (FastImageViewModule.loadFile), with its file
@@ -147,6 +182,10 @@ final class FastImageSharedDownloads {
         return builder.build();
     }
 
+    private static boolean sameRequest(GlideUrl a, GlideUrl b) {
+        return a.toStringUrl().equals(b.toStringUrl()) && a.getHeaders().equals(b.getHeaders());
+    }
+
     private static void closeQuietly(InputStream stream) {
         try {
             stream.close();
@@ -155,30 +194,18 @@ final class FastImageSharedDownloads {
         }
     }
 
-    // A download's progress steps (see PROGRESS_STEPS), sent while it's the
-    // key's current download: once cancelled, it can still read bytes it had
-    // received, which a new load of the key mustn't get as its progress.
-    private abstract static class Progress {
-        private final String key;
+    // A download's progress steps (see PROGRESS_STEPS).
+    private static final class Progress {
         private long lastStep = -1;
 
-        Progress(String key) {
-            this.key = key;
-        }
-
-        abstract boolean isCurrent();
-
-        void report(long loaded, long total) {
-            // Without a Content-Length the total is unknown (-1), and a
-            // fraction can't be worked out from it, so don't send those.
-            if (total <= 0) return;
-            long sent = Math.min(loaded, total);
-            long step = sent * PROGRESS_STEPS / total;
-            if (step == lastStep || !isCurrent()) return;
+        // Whether `loaded` is another step. Without a Content-Length the total
+        // is unknown (-1), and a fraction can't be worked out from it.
+        boolean step(long loaded, long total) {
+            if (total <= 0) return false;
+            long step = Math.min(loaded, total) * PROGRESS_STEPS / total;
+            if (step == lastStep) return false;
             lastStep = step;
-            // Only notes it, under a lock, and posts it to the UI thread:
-            // nothing thrown from here fails the download.
-            FastImageViewManager.onDownloadProgress(key, sent, total);
+            return true;
         }
     }
 
@@ -187,10 +214,14 @@ final class FastImageSharedDownloads {
         final GlideUrl url;
         final OkHttpClient client;
         final String key;
-        private volatile boolean cancelled;
-        // The download it waits for, or reads.
+        volatile boolean cancelled;
+        // Set before it joins again: it stopped waiting for a stalled
+        // download, or a download for another url with its key failed.
+        boolean gaveUp;
+        boolean retried;
+        // The download it waits for, or reads (guarded by downloads).
         @Nullable
-        volatile Download download;
+        Download download;
         // What it gave Glide.
         @Nullable
         private volatile InputStream stream;
@@ -204,7 +235,8 @@ final class FastImageSharedDownloads {
 
         @Override
         public void loadData(@NonNull Priority priority, @NonNull DataCallback<? super InputStream> callback) {
-            File file = finishedFile(key);
+            // `web` images follow their HTTP cache, not a preload's file.
+            File file = url instanceof FastImageWebGlideUrl ? null : finishedFile(key);
             if (file != null) {
                 try {
                     InputStream opened = new FileInputStream(file);
@@ -216,10 +248,10 @@ final class FastImageSharedDownloads {
                     // Gone from the disk cache meanwhile: download it.
                 }
             }
-            Download.join(this, callback);
+            Download.join(this, callback, false);
         }
 
-        // From the download, outside its locks.
+        // From the download, outside its locks, off the main thread.
         void deliver(InputStream data, DataCallback<? super InputStream> callback) {
             stream = data;
             // Cancelled meanwhile: Glide won't read or close it.
@@ -230,19 +262,29 @@ final class FastImageSharedDownloads {
             callback.onDataReady(data);
         }
 
+        // On one of Glide's threads.
         @Override
         public void cleanup() {
             InputStream opened = stream;
             if (opened != null) closeQuietly(opened);
         }
 
+        // On the main thread. The request leaves its download, which cancels
+        // the call once no request is left (or at once, for a response this
+        // request reads from OkHttp, as Glide's OkHttp fetcher does), and a
+        // stream on shared bytes is closed, so a read waiting for bytes stops.
+        // OkHttp's response is closed in cleanup(): closing it reads the
+        // socket, which throws on the main thread.
         @Override
         public void cancel() {
             cancelled = true;
-            Download waitingFor = download;
-            if (waitingFor != null) waitingFor.leave(this);
+            Download joined;
+            synchronized (downloads) {
+                joined = download;
+            }
+            if (joined != null) joined.leave(this);
             InputStream opened = stream;
-            if (opened != null) closeQuietly(opened);
+            if (opened instanceof SharedStream) closeQuietly(opened);
         }
 
         @NonNull
@@ -262,18 +304,28 @@ final class FastImageSharedDownloads {
         }
     }
 
+    // A request waiting for a download's response.
     private static final class Waiter {
         final Fetcher fetcher;
         final DataFetcher.DataCallback<? super InputStream> callback;
+        // Stops the wait if the download stalls.
+        @Nullable
+        ScheduledFuture<?> timer;
 
         Waiter(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback) {
             this.fetcher = fetcher;
             this.callback = callback;
         }
+
+        void stopTimer() {
+            if (timer != null) timer.cancel(false);
+        }
     }
 
     private static final class Download implements Callback {
         private final String key;
+        // The request it downloads: its url and headers.
+        private final GlideUrl url;
         private final Call call;
         // Guarded by this. Requests waiting for the response.
         private final List<Waiter> waiting = new ArrayList<>();
@@ -284,26 +336,49 @@ final class FastImageSharedDownloads {
         @Nullable
         private byte[] data;
         private int size = 0;
-        // The response has ended: all of it read, or with an error.
+        // The response has ended (all of it read, or with an error), or gone
+        // to a request (not shared).
         private boolean ended = false;
         @Nullable
         private IOException error;
+        // Guarded by downloads. The budget the bytes hold.
+        private long reserved = 0;
+        // Not shared: the request reading the response from OkHttp, until it
+        // leaves or closes it.
+        @Nullable
+        private Fetcher reader;
+        // When it started, or last got its response or bytes.
+        private volatile long activeAt = SystemClock.elapsedRealtime();
 
-        private Download(String key, Call call) {
+        private Download(String key, GlideUrl url, Call call) {
             this.key = key;
+            this.url = url;
             this.call = call;
         }
 
-        // Joins the fetcher's key's download, or starts one.
-        static void join(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback) {
+        // Joins the fetcher's key's download, or starts one. `alone` starts
+        // one that other requests don't join.
+        static void join(final Fetcher fetcher, final DataFetcher.DataCallback<? super InputStream> callback, boolean alone) {
             Download download;
             boolean start = false;
             InputStream ready = null;
             synchronized (downloads) {
-                download = downloads.get(fetcher.key);
+                // Cancelled before it got here.
+                if (fetcher.cancelled) return;
+                download = alone ? null : downloads.get(fetcher.key);
+                if (download != null && download.isStalled()) {
+                    download.replace();
+                    download = null;
+                }
+                // A retry only joins a download of its own url and headers.
+                if (download != null && fetcher.retried && !sameRequest(download.url, fetcher.url)) {
+                    alone = true;
+                    download = null;
+                }
                 if (download == null) {
-                    download = new Download(fetcher.key, fetcher.client.newCall(request(fetcher.url)));
-                    downloads.put(fetcher.key, download);
+                    download = new Download(fetcher.key, fetcher.url, fetcher.client.newCall(request(fetcher.url)));
+                    if (!alone) downloads.put(fetcher.key, download);
+                    if (!reporting.containsKey(fetcher.key)) reporting.put(fetcher.key, download);
                     start = true;
                 }
                 fetcher.download = download;
@@ -312,7 +387,17 @@ final class FastImageSharedDownloads {
                         download.readers++;
                         ready = new SharedStream(download);
                     } else {
-                        download.waiting.add(new Waiter(fetcher, callback));
+                        final Download joined = download;
+                        final Waiter waiter = new Waiter(fetcher, callback);
+                        download.waiting.add(waiter);
+                        if (!fetcher.gaveUp) {
+                            waiter.timer = timers.schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    joined.giveUp(waiter);
+                                }
+                            }, STALL_MS, TimeUnit.MILLISECONDS);
+                        }
                     }
                 }
             }
@@ -320,21 +405,87 @@ final class FastImageSharedDownloads {
             if (start) download.call.enqueue(download);
         }
 
-        // With downloads and this locked: new requests start another download.
+        // No response or bytes for STALL_MS.
+        private synchronized boolean isStalled() {
+            return !ended && SystemClock.elapsedRealtime() - activeAt >= STALL_MS;
+        }
+
+        // With downloads locked: new requests start another download.
         private void unmap() {
             if (downloads.get(key) == this) downloads.remove(key);
         }
 
-        // A request was cancelled. With no one left, the download is too.
+        // With downloads locked: it sends no more progress.
+        private void stopReporting() {
+            if (reporting.get(key) == this) reporting.remove(key);
+        }
+
+        // With downloads and this locked: drops the bytes, and gives their
+        // budget back.
+        private void drop() {
+            held -= reserved;
+            reserved = 0;
+            data = null;
+        }
+
+        // With downloads locked: stalled, so new requests start another
+        // download, which sends the key's progress unless requests read
+        // this one's.
+        private void replace() {
+            unmap();
+            synchronized (this) {
+                if (readers == 0) stopReporting();
+            }
+        }
+
+        // With this locked: the requests waiting for the response, which stop
+        // waiting.
+        private List<Waiter> takeWaiting() {
+            List<Waiter> taken = new ArrayList<>(waiting);
+            waiting.clear();
+            for (Waiter waiter : taken) waiter.stopTimer();
+            return taken;
+        }
+
+        // A request waited STALL_MS for the response: unless it's coming, the
+        // request downloads the image again.
+        private void giveUp(Waiter waiter) {
+            boolean cancel = false;
+            synchronized (downloads) {
+                synchronized (this) {
+                    if (!isStalled() || !waiting.remove(waiter)) return;
+                    if (readers == 0 && waiting.isEmpty()) {
+                        unmap();
+                        stopReporting();
+                        cancel = true;
+                    }
+                }
+                waiter.fetcher.gaveUp = true;
+            }
+            if (cancel) call.cancel();
+            join(waiter.fetcher, waiter.callback, false);
+        }
+
+        // A request was cancelled (on the main thread). With no one left, the
+        // download is too; a request reading an unshared response cancels its
+        // call.
         void leave(Fetcher fetcher) {
             boolean cancel = false;
             synchronized (downloads) {
                 synchronized (this) {
                     for (int i = waiting.size() - 1; i >= 0; i--) {
-                        if (waiting.get(i).fetcher == fetcher) waiting.remove(i);
+                        Waiter waiter = waiting.get(i);
+                        if (waiter.fetcher != fetcher) continue;
+                        waiting.remove(i);
+                        waiter.stopTimer();
                     }
-                    if (!ended && readers == 0 && waiting.isEmpty()) {
+                    if (reader == fetcher) {
+                        reader = null;
+                        stopReporting();
+                        cancel = true;
+                    } else if (!ended && readers == 0 && waiting.isEmpty()) {
                         unmap();
+                        stopReporting();
                         cancel = true;
                     }
                 }
@@ -351,10 +502,10 @@ final class FastImageSharedDownloads {
                     if (readers > 0 || !waiting.isEmpty()) return;
                     unmap();
                     if (!ended) {
+                        stopReporting();
                         cancel = true;
-                    } else if (data != null) {
-                        held -= data.length;
-                        data = null;
+                    } else {
+                        drop();
                     }
                 }
             }
@@ -368,27 +519,36 @@ final class FastImageSharedDownloads {
 
         // The download failed: requests waiting for the response fail with
         // the error, and streams on the bytes throw it once they've read them.
+        // A request for another url with the key (e.g. a signed url with the
+        // same cacheKey) downloads its own url instead, once: this url can
+        // fail for reasons of its own, like an expired token.
         private void fail(IOException e) {
             List<Waiter> failed;
             synchronized (downloads) {
                 synchronized (this) {
                     unmap();
+                    stopReporting();
                     if (error == null) error = e;
                     ended = true;
-                    failed = new ArrayList<>(waiting);
-                    waiting.clear();
+                    failed = takeWaiting();
                     notifyAll();
-                    if (readers == 0 && data != null) {
-                        held -= data.length;
-                        data = null;
-                    }
+                    if (readers == 0) drop();
                 }
             }
-            for (Waiter waiter : failed) waiter.callback.onLoadFailed(e);
+            for (Waiter waiter : failed) {
+                Fetcher fetcher = waiter.fetcher;
+                if (!fetcher.retried && !sameRequest(fetcher.url, url)) {
+                    fetcher.retried = true;
+                    join(fetcher, waiter.callback, false);
+                } else {
+                    waiter.callback.onLoadFailed(e);
+                }
+            }
         }
 
         @Override
         public void onResponse(@NonNull Call call, @NonNull Response response) {
+            activeAt = SystemClock.elapsedRealtime();
             final ResponseBody body = response.body();
             if (!response.isSuccessful() || body == null) {
                 if (body != null) body.close();
@@ -396,66 +556,94 @@ final class FastImageSharedDownloads {
                 return;
             }
             final long length = body.contentLength();
-            List<Waiter> waiters;
-            boolean shared;
+            // Shared if a request still wants it, and its length is known and
+            // fits the budget, which is reserved first: the bytes are
+            // allocated outside the locks (cancels take them on the main
+            // thread), and if there isn't the memory, it isn't shared.
+            boolean share = false;
             synchronized (downloads) {
                 synchronized (this) {
-                    shared = !waiting.isEmpty() && length >= 0 && held + length <= BUDGET;
-                    waiters = new ArrayList<>(waiting);
-                    waiting.clear();
-                    if (shared) {
+                    if (!waiting.isEmpty() && length >= 0 && held + length <= BUDGET) {
                         held += length;
-                        data = new byte[(int) length];
+                        reserved = length;
+                        share = true;
+                    }
+                }
+                // No progress without a length.
+                if (length <= 0) stopReporting();
+            }
+            byte[] bytes = null;
+            if (share) {
+                try {
+                    bytes = new byte[(int) length];
+                } catch (OutOfMemoryError e) {
+                    // Read from OkHttp instead.
+                }
+            }
+            List<Waiter> waiters;
+            synchronized (downloads) {
+                synchronized (this) {
+                    waiters = takeWaiting();
+                    if (bytes != null && !waiters.isEmpty()) {
+                        data = bytes;
                         readers += waiters.size();
                     } else {
+                        bytes = null;
+                        drop();
                         unmap();
                         ended = true;
+                        if (waiters.isEmpty()) {
+                            stopReporting();
+                        } else {
+                            reader = waiters.get(0).fetcher;
+                        }
                     }
                 }
             }
-            if (!shared) {
+            if (bytes == null) {
                 readDirectly(body, length, waiters);
                 return;
             }
-            for (Waiter waiter : waiters) waiter.fetcher.deliver(new SharedStream(this), waiter.callback);
             reading.execute(new Runnable() {
                 @Override
                 public void run() {
                     readInto(body, (int) length);
                 }
             });
+            for (Waiter waiter : waiters) waiter.fetcher.deliver(new SharedStream(this), waiter.callback);
+        }
+
+        // Sends a progress step if it's still this download's to send: checked
+        // and sent with downloads locked, which a cancel takes to stop it, so
+        // a new load of the key never gets a cancelled download's steps.
+        private void report(Progress progress, long loaded, long total) {
+            if (!progress.step(loaded, total)) return;
+            synchronized (downloads) {
+                if (reporting.get(key) == this) {
+                    FastImageViewManager.onDownloadProgress(key, Math.min(loaded, total), total);
+                }
+            }
         }
 
         // Not shared: the first request reads the response from OkHttp, and
-        // the others download the image again (together, if they can).
+        // the others download the image again, each on its own (while this
+        // download sends the key's progress).
         private void readDirectly(ResponseBody body, long length, List<Waiter> waiters) {
             if (waiters.isEmpty()) {
                 body.close();
                 return;
             }
             Waiter first = waiters.get(0);
-            final AtomicBoolean open = new AtomicBoolean(true);
-            InputStream stream = new FilterInputStream(ContentLengthInputStream.obtain(
-                    Okio.buffer(withProgress(body.source(), length, open)).inputStream(), length)) {
-                @Override
-                public void close() throws IOException {
-                    open.set(false);
-                    super.close();
-                }
-            };
+            InputStream stream = new DirectStream(ContentLengthInputStream.obtain(
+                    Okio.buffer(withProgress(body.source(), length)).inputStream(), length));
             first.fetcher.deliver(stream, first.callback);
             for (int i = 1; i < waiters.size(); i++) {
-                join(waiters.get(i).fetcher, waiters.get(i).callback);
+                join(waiters.get(i).fetcher, waiters.get(i).callback, true);
             }
         }
 
-        private Source withProgress(Source source, final long length, final AtomicBoolean open) {
-            final Progress progress = new Progress(key) {
-                @Override
-                boolean isCurrent() {
-                    return open.get();
-                }
-            };
+        private Source withProgress(Source source, final long length) {
+            final Progress progress = new Progress();
             return new ForwardingSource(source) {
                 long read = 0;
 
@@ -463,56 +651,74 @@ final class FastImageSharedDownloads {
                 public long read(@NonNull Buffer sink, long byteCount) throws IOException {
                     long bytes = super.read(sink, byteCount);
                     read = bytes == -1 ? length : read + bytes;
-                    progress.report(read, length);
+                    report(progress, read, length);
                     return bytes;
                 }
             };
         }
 
-        // Whether new requests for the key join this download.
-        boolean isCurrent() {
-            synchronized (downloads) {
-                return downloads.get(key) == this;
+        // An unshared response, which one request reads from OkHttp. Closing
+        // it reads the socket, so Glide closes it on its own thread.
+        private final class DirectStream extends FilterInputStream {
+            DirectStream(InputStream stream) {
+                super(stream);
+            }
+
+            @Override
+            public void close() throws IOException {
+                synchronized (downloads) {
+                    reader = null;
+                    stopReporting();
+                }
+                super.close();
             }
         }
 
         // Reads the response into data, on a thread of `reading`.
         private void readInto(ResponseBody body, int length) {
-            Progress progress = new Progress(key) {
-                @Override
-                boolean isCurrent() {
-                    return Download.this.isCurrent();
-                }
-            };
+            Progress progress = new Progress();
             byte[] bytes;
             synchronized (this) {
                 bytes = data;
             }
             int read = 0;
             try (BufferedSource source = body.source()) {
-                while (read < length && bytes != null) {
+                while (read < length) {
                     int count = source.read(bytes, read, Math.min(length - read, 8192));
                     if (count == -1) throw new EOFException("The response ended early");
                     read += count;
+                    activeAt = SystemClock.elapsedRealtime();
                     synchronized (this) {
                         size = read;
                         notifyAll();
                     }
-                    progress.report(read, length);
+                    report(progress, read, length);
                 }
             } catch (IOException e) {
                 fail(e);
                 return;
+            } catch (RuntimeException e) {
+                fail(new IOException(e));
+                return;
             }
-            synchronized (this) {
-                ended = true;
-                notifyAll();
+            synchronized (downloads) {
+                synchronized (this) {
+                    ended = true;
+                    notifyAll();
+                    stopReporting();
+                    // Every request left while it downloaded.
+                    if (readers == 0) {
+                        unmap();
+                        drop();
+                    }
+                }
             }
         }
     }
 
     // A request's stream on a shared download's bytes, from the start: it
-    // waits for the ones still coming.
+    // waits for the ones still coming. Closing it holds no connection, so it
+    // can be done on the main thread.
     private static final class SharedStream extends InputStream {
         private final Download download;
         private int position = 0;

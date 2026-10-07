@@ -225,8 +225,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         }
                     };
                     // A remote image is downloaded to the disk cache first,
-                    // so views that load it meanwhile can wait for the file
-                    // (FastImageSharedDownloads), then decoded from there.
+                    // then decoded from there. Views that load it meanwhile
+                    // share the download (FastImageSharedDownloads), and those
+                    // that get to downloading just after it ended read its file.
                     final boolean download = !imageSource.isWebCache() && imageSource.isRemote();
                     pendingPreloads.add(!download ? decode : new Runnable() {
                         @Override
