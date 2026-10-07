@@ -920,13 +920,13 @@ function ProgressGzipCase() {
     )
 }
 
-// Many images with onProgress load one url from the slow server while more
-// of them, on the same url, mount and unmount every frame, for several rounds
-// (a new url each). A round ends once each of the images has loaded; passes
-// when every round does with no onError, and each image got onProgress before
-// its onLoad, never going back, and none after. Android went through the
-// url's list of views on the download's thread to send progress, while the UI
-// thread added and removed views: that threw a
+// Many images with onProgress load one url from the slow server while more of
+// them, on the same url, mount and unmount every frame, for several rounds (a
+// new url each). A round ends once each of the images has loaded; passes when
+// every round does with no onError, and each image got onProgress before its
+// onLoad, never going back, the last 1, and none after. Android went through
+// the url's list of views on the download's thread to send progress, while the
+// UI thread added and removed views: that threw a
 // ConcurrentModificationException, which failed the download (every image on
 // the url got onError).
 const SHARED_URL_ROUNDS = 8
@@ -967,14 +967,17 @@ function ProgressSharedUrlCase() {
         const last = progress.current.get(view)
         if (loaded.current.has(view)) {
             fail(`image ${view + 1}: onProgress after onLoad`)
-        } else if (last !== undefined && e.nativeEvent.loaded < last) {
+        } else if (last !== undefined && e.nativeEvent.progress < last) {
             fail(`image ${view + 1}: onProgress went back`)
         }
-        progress.current.set(view, e.nativeEvent.loaded)
+        progress.current.set(view, e.nativeEvent.progress)
     }
     const onLoad = (view: number) => {
-        if (!progress.current.has(view)) {
+        const last = progress.current.get(view)
+        if (last === undefined) {
             fail(`image ${view + 1}: no onProgress before onLoad`)
+        } else if (last !== 1) {
+            fail(`image ${view + 1}: last onProgress ${last}, not 1`)
         }
         loaded.current.add(view)
         if (loaded.current.size === SHARED_URL_VIEWS) {
@@ -1127,10 +1130,10 @@ function ProgressUrlFormCase() {
     )
 }
 
-// Two images with onProgress, at different sizes, load different urls with
-// the same cacheKey (the slow server ignores the query) at the same time.
-// Passes when each image got onProgress before its onLoad, never going back,
-// and none after, and the server got one request on Android, which shares
+// Two images with onProgress, at different sizes, load different urls with the
+// same cacheKey (the slow server ignores the query) at the same time. Passes
+// when each image got onProgress before its onLoad, never going back, the last
+// 1, and none after, and the server got one request on Android, which shares
 // downloads by cache key (two on iOS, where SDWebImage shares them by url).
 // Android looked images up by their own url, so the image whose url wasn't
 // downloaded got no progress, and it downloaded each size.
@@ -1167,7 +1170,7 @@ function ProgressCacheKeyCase() {
                         cacheKey: CACHE_KEY_GROUP,
                     }}
                     onProgress={(e) => {
-                        const value = e.nativeEvent.loaded
+                        const value = e.nativeEvent.progress
                         const last = progress.current.get(i)
                         if (loaded.current.has(i)) {
                             fail(`image ${i + 1}: onProgress after onLoad`)
@@ -1177,8 +1180,13 @@ function ProgressCacheKeyCase() {
                         progress.current.set(i, value)
                     }}
                     onLoad={() => {
-                        if (!progress.current.has(i)) {
+                        const last = progress.current.get(i)
+                        if (last === undefined) {
                             fail(`image ${i + 1}: no onProgress before onLoad`)
+                        } else if (last !== 1) {
+                            fail(
+                                `image ${i + 1}: last onProgress ${last}, not 1`,
+                            )
                         }
                         loaded.current.add(i)
                         setLoadedCount((n) => n + 1)
@@ -1216,12 +1224,13 @@ const groupRequests = (group: string) =>
         .then((stats: { count: number }) => stats.count)
 
 // Two images of one url from the slow server, at different sizes, load at the
-// same time. Passes when the server got one request for it, and both images
-// got onProgress before their onLoad. Glide only shares a download between
-// requests for the same size, so Android downloaded it twice.
+// same time. Passes when the server got one request for it, and both images got
+// onProgress before their onLoad, the last 1. Glide only shares a download
+// between requests for the same size, so Android downloaded it twice.
 const SHARED_SIZES_GROUP = `shared-sizes-${RUN}`
 function SharedDownloadSizesCase() {
-    const progressed = useRef(new Set<number>())
+    // Each image's last onProgress.
+    const progress = useRef(new Map<number, number>())
     const [loaded, setLoaded] = useState(0)
     const [problem, setProblem] = useState<string>()
     const [requests, setRequests] = useState<number>()
@@ -1244,14 +1253,17 @@ function SharedDownloadSizesCase() {
                     key={i}
                     style={style}
                     source={source}
-                    onProgress={() => progressed.current.add(i)}
+                    onProgress={(e) =>
+                        progress.current.set(i, e.nativeEvent.progress)
+                    }
                     onLoad={() => {
-                        if (!progressed.current.has(i)) {
-                            setProblem(
-                                (previous) =>
-                                    previous ??
-                                    `no onProgress for image ${i + 1}`,
-                            )
+                        const last = progress.current.get(i)
+                        if (last !== 1) {
+                            const problem =
+                                last === undefined
+                                    ? `no onProgress for image ${i + 1}`
+                                    : `image ${i + 1}: last onProgress ${last}, not 1`
+                            setProblem((previous) => previous ?? problem)
                         }
                         setLoaded((n) => n + 1)
                     }}
