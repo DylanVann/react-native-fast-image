@@ -249,7 +249,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     private void updateProgressTracking() {
         String key = mTrackProgress && mLoadingUrl != null && !mDropped
-                ? FastImageOkHttpProgressGlideModule.progressKey(mLoadingUrl)
+                ? FastImageSharedDownloads.key(mLoadingUrl)
                 : null;
         if (key == null ? mTrackedKey == null : key.equals(mTrackedKey)) return;
         if (mTrackedKey != null) FastImageViewManager.untrackProgress(mTrackedKey, this);

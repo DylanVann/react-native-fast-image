@@ -46,8 +46,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
     static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
     static final String LOG_TAG = "FastImage";
-    // Download progress, by progress key (FastImageOkHttpProgressGlideModule's
-    // progressKey): the views that get it, those with an onProgress from
+    // Download progress, by the key downloads are shared by
+    // (FastImageSharedDownloads.key): the views that get it, those with an onProgress from
     // their load's onLoadStart to its onLoad or onError, and the latest step a
     // download reported, until the UI thread sends it. The UI thread adds and
     // removes views, and downloads report steps on their own threads: only
@@ -231,8 +231,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         return PROGRESS_STEPS.get();
     }
 
-    // A download's progress (FastImageOkHttpProgressGlideModule), on its
-    // thread, which only notes it if a view wants it (so downloads of images
+    // A download's progress (FastImageSharedDownloads), on its thread, which only notes it if a view wants it (so downloads of images
     // without an onProgress post nothing). It's sent from the UI thread, where
     // views start and end their loads: a view only gets it during its own load,
     // not after its onLoad or once it loads again, and progress posted during

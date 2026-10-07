@@ -267,16 +267,18 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // Downloads the image into Glide's disk cache without decoding it (if it
     // isn't there), then calls back with its file or the error, on the UI
-    // thread. For a preload (`shared`), views that load the image meanwhile
-    // wait for the download and read its file (FastImageSharedDownloads).
+    // thread. Views that load the image meanwhile share its download
+    // (FastImageSharedDownloads); for a preload (`shared`), those whose
+    // request gets to downloading just after it finished read its file.
     private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
-        final String key = shared && model instanceof FastImageUrl ? ((FastImageUrl) model).url.getCacheKey() : null;
+        final String key = shared && model instanceof FastImageUrl
+                ? FastImageSharedDownloads.key(((FastImageUrl) model).url)
+                : null;
         FastImageGlide.get(context);
         Glide.with(context)
                 .asFile()
                 .load(model)
                 .apply(options)
-                .set(FastImageSharedDownloads.PRELOAD, shared)
                 .listener(new RequestListener<File>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {

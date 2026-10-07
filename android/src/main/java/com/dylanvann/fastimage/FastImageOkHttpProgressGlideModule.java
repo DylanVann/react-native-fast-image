@@ -1,7 +1,6 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
-import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -11,10 +10,8 @@ import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.load.ImageHeaderParser;
 import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
-import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.Options;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.ModelLoader;
 import com.bumptech.glide.load.model.ModelLoaderFactory;
 import com.bumptech.glide.load.model.MultiModelLoaderFactory;
@@ -25,7 +22,6 @@ import com.facebook.react.modules.network.OkHttpClientProvider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -40,9 +36,6 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.Buffer;
 import okio.BufferedSource;
-import okio.ForwardingSource;
-import okio.Okio;
-import okio.Source;
 
 @GlideModule
 public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
@@ -110,10 +103,6 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 // A network interceptor, so it runs before the HTTP cache of
                 // `web` images stores the response (checking it reads it).
                 .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()));
-        // Before the app's own interceptors (React Native's shared client can
-        // have some): it removes the progress key header before they, or the
-        // server, see it.
-        builder.interceptors().add(0, createInterceptor());
         // React Native's shared client comes with an empty cookie jar (React
         // Native only fills it in for its networking and Image clients), so
         // images were loaded without the app's cookies, unlike on iOS. Use the
@@ -141,12 +130,12 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         FastImageGlide.registered(glide);
     }
 
-    // Loads FastImage's remote images (FastImageUrls): `web` ones
-    // (FastImageWebGlideUrls) with the client with the HTTP cache, others with
-    // the other client, where a view loading an image that's being preloaded
-    // waits for the preload's download. FastImageUrl isn't a GlideUrl, so
-    // Glide doesn't also give these to other GlideUrl loaders, which it would
-    // try after a failed load (e.g. a 404, requested again).
+    // Loads FastImage's remote images (FastImageUrls), with one download of an
+    // image at a time, shared by its requests (FastImageSharedDownloads):
+    // `web` ones (FastImageWebGlideUrls) with the client with the HTTP cache,
+    // others with the other client. FastImageUrl isn't a GlideUrl, so Glide
+    // doesn't also give these to other GlideUrl loaders, which it would try
+    // after a failed load (e.g. a 404, requested again).
     private static class UrlLoaderFactory implements ModelLoaderFactory<FastImageUrl, InputStream> {
         private final OkHttpClient client;
         private final OkHttpClient webClient;
@@ -159,21 +148,11 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         @NonNull
         @Override
         public ModelLoader<FastImageUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
-            final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
-            final OkHttpUrlLoader webLoader = new OkHttpUrlLoader(webClient);
             return new ModelLoader<FastImageUrl, InputStream>() {
                 @Override
                 public LoadData<InputStream> buildLoadData(@NonNull FastImageUrl model, int width, int height, @NonNull Options options) {
-                    // Requested with its progress key (see createInterceptor),
-                    // and still cached under the model.
-                    GlideUrl request = withProgressKey(model.url);
-                    if (model.url instanceof FastImageWebGlideUrl) {
-                        LoadData<InputStream> data = webLoader.buildLoadData(request, width, height, options);
-                        return data == null ? null : new LoadData<>(model.url, data.fetcher);
-                    }
-                    LoadData<InputStream> data = loader.buildLoadData(request, width, height, options);
-                    return data == null ? null : FastImageSharedDownloads.share(
-                            new LoadData<>(model.url, data.fetcher), model.url, options);
+                    return FastImageSharedDownloads.loadData(
+                            model.url, model.url instanceof FastImageWebGlideUrl ? webClient : client);
                 }
 
                 @Override
@@ -234,117 +213,5 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 || subtype.equalsIgnoreCase("xml")
                 || subtype.equalsIgnoreCase("xhtml+xml")
                 || subtype.equalsIgnoreCase("javascript");
-    }
-
-    // Sends a download's progress (FastImageViewManager.onDownloadProgress)
-    // under the progress key FastImage's loader requested it with: images
-    // look their progress up by the same key, whatever form the url has, and
-    // whatever image's request Glide (or FastImageSharedDownloads) downloads
-    // it for. The header is removed before the request goes on.
-    private static Interceptor createInterceptor() {
-        return new Interceptor() {
-            @Override
-            public Response intercept(Chain chain) throws IOException {
-                Request request = chain.request();
-                final String key = request.header(PROGRESS_KEY_HEADER);
-                if (key == null) return chain.proceed(request);
-                Response response = chain.proceed(
-                        request.newBuilder().removeHeader(PROGRESS_KEY_HEADER).build());
-                return response
-                        .newBuilder()
-                        .body(new OkHttpProgressResponseBody(key, response.body()))
-                        .build();
-            }
-        };
-    }
-
-    private static final String PROGRESS_KEY_HEADER = "X-FastImage-Progress-Key";
-
-    // The key a url's progress is sent and looked up by: its cache key (the
-    // url, or the source's cacheKey), which is also what Glide shares loads
-    // and FastImageSharedDownloads shares downloads by. Encoded, as header
-    // values can only be ASCII.
-    static String progressKey(GlideUrl url) {
-        return Uri.encode(url.getCacheKey());
-    }
-
-    // The url with its progress key in a header, for the request only.
-    private static GlideUrl withProgressKey(GlideUrl url) {
-        final Map<String, String> headers = new HashMap<>(url.getHeaders());
-        headers.put(PROGRESS_KEY_HEADER, progressKey(url));
-        return new GlideUrl(url.toStringUrl(), new Headers() {
-            @Override
-            public Map<String, String> getHeaders() {
-                return headers;
-            }
-        });
-    }
-
-    private static class OkHttpProgressResponseBody extends ResponseBody {
-        // Progress is sent when a download has read another 0.5% (and at its
-        // start and end).
-        private static final long PROGRESS_STEPS = 200;
-        private final String key;
-        private final ResponseBody responseBody;
-        private BufferedSource bufferedSource;
-
-        OkHttpProgressResponseBody(String key, ResponseBody responseBody) {
-            this.key = key;
-            this.responseBody = responseBody;
-        }
-
-        @Override
-        public MediaType contentType() {
-            return responseBody.contentType();
-        }
-
-        @Override
-        public long contentLength() {
-            return responseBody.contentLength();
-        }
-
-        @Override
-        public BufferedSource source() {
-            if (bufferedSource == null) {
-                bufferedSource = Okio.buffer(source(responseBody.source()));
-            }
-            return bufferedSource;
-        }
-
-        private Source source(Source source) {
-            return new ForwardingSource(source) {
-                long totalBytesRead = 0L;
-                // The last step sent (of PROGRESS_STEPS), for this download:
-                // others of the same url count their own.
-                long lastStep = -1;
-
-                @Override
-                public long read(Buffer sink, long byteCount) throws IOException {
-                    long bytesRead = super.read(sink, byteCount);
-                    long fullLength = responseBody.contentLength();
-                    if (bytesRead == -1) {
-                        // this source is exhausted
-                        totalBytesRead = fullLength;
-                    } else {
-                        totalBytesRead += bytesRead;
-                    }
-                    sendProgress(fullLength);
-                    return bytesRead;
-                }
-
-                private void sendProgress(long total) {
-                    // Without a Content-Length the total is unknown (-1), and a
-                    // fraction can't be worked out from it, so don't send those.
-                    if (total <= 0) return;
-                    long loaded = Math.min(totalBytesRead, total);
-                    long step = loaded * PROGRESS_STEPS / total;
-                    if (step == lastStep) return;
-                    lastStep = step;
-                    // Only notes it, under a lock, and posts it to the UI
-                    // thread: nothing thrown from read() fails the download.
-                    FastImageViewManager.onDownloadProgress(key, loaded, total);
-                }
-            };
-        }
     }
 }
