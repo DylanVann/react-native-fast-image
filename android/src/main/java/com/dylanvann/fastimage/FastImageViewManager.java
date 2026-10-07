@@ -271,7 +271,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
             views = new ArrayList<>(progress.views);
         }
         for (FastImageViewWithUrl view : views) {
-            if (!view.wantsProgressFrom(step)) continue;
+            if (!view.takesProgress(step, loaded, total)) continue;
             WritableMap event = new WritableNativeMap();
             event.putInt("loaded", (int) loaded);
             event.putInt("total", (int) total);

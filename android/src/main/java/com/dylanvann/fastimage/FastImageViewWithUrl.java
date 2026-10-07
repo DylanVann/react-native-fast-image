@@ -209,14 +209,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Progress (see FastImageViewManager.onDownloadProgress): whether the image
     // has an onProgress, the url its current load downloads (null for a local
     // image, and once the load has ended), the progress key the view gets
-    // progress for (the loading url's, while it has an onProgress), and the
-    // last step downloads reported before the load started.
+    // progress for (the loading url's, while it has an onProgress), the last
+    // step downloads reported before the load started, and the fraction the
+    // load has had.
     private boolean mTrackProgress = false;
     @Nullable
     private GlideUrl mLoadingUrl;
     @Nullable
     private String mTrackedKey;
     private long mProgressSince;
+    private double mProgressFraction;
     // Dropped by React (FastImageViewManager.onDropViewInstance): reloads it
     // posted to itself don't load anything, or track progress, any more.
     private boolean mDropped = false;
@@ -240,11 +242,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         endProgress();
     }
 
-    // Whether a step a download reported is for the current load: one
-    // reported before it started is for an earlier load, e.g. of the same url
-    // before resizeMode changed, posted while that load still ran.
-    boolean wantsProgressFrom(long step) {
-        return step > mProgressSince;
+    // Whether a step a download reported is for the current load, and doesn't
+    // go back: one reported before it started is for an earlier load, e.g. of
+    // the same url before resizeMode changed, posted while that load still
+    // ran, and one below what the load has had is from another download of
+    // the key (e.g. one that started after the first had ended).
+    boolean takesProgress(long step, long loaded, long total) {
+        if (step <= mProgressSince) return false;
+        double fraction = (double) loaded / total;
+        if (fraction < mProgressFraction) return false;
+        mProgressFraction = fraction;
+        return true;
     }
 
     private void updateProgressTracking() {
@@ -1004,6 +1012,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 ? ((FastImageUrl) model).url
                 : null;
         mProgressSince = FastImageViewManager.progressStep();
+        mProgressFraction = 0;
         updateProgressTracking();
 
         if (imageSource != null && !restarting) {

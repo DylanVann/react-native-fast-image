@@ -23,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
 import okhttp3.HttpUrl;
@@ -41,6 +41,9 @@ import okio.BufferedSource;
 public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
     private static final long WEB_CACHE_SIZE = 50 * 1024 * 1024;
+    // How long a download can get nothing from the server (see
+    // registerComponents).
+    private static final long TIMEOUT_SECONDS = 15;
     // The HTTP cache of `cache: 'web'` images, once Glide has set up.
     @Nullable
     private static Cache webCache;
@@ -60,11 +63,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     static void downloadToWebCache(GlideUrl url) throws IOException {
         OkHttpClient client = webClient;
         if (client == null) throw new IOException("Glide isn't set up");
-        Request.Builder request = new Request.Builder().url(url.toStringUrl());
-        for (Map.Entry<String, String> header : url.getHeaders().entrySet()) {
-            request.addHeader(header.getKey(), header.getValue());
-        }
-        try (Response response = client.newCall(request.build()).execute()) {
+        try (Response response = client.newCall(FastImageSharedDownloads.request(url)).execute()) {
             if (!response.isSuccessful()) {
                 // As Glide's HttpException reports it.
                 throw new IOException(response.message() + ", status code: " + response.code());
@@ -110,6 +109,15 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         if (sharedClient.cookieJar() instanceof CookieJarContainer) {
             builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler()));
         }
+        // React Native's shared client has no timeouts, so a download that
+        // stopped (e.g. on a connection that died) never ended, and every
+        // request sharing it waited. As on iOS (SDWebImage's 15 s), one that
+        // gets nothing for TIMEOUT_SECONDS fails: connecting, or waiting for
+        // the response or the next of its bytes. Timeouts the app gave the
+        // client stay. No call timeout: a large image on a slow link can take
+        // longer than any.
+        if (sharedClient.connectTimeoutMillis() == 0) builder.connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        if (sharedClient.readTimeoutMillis() == 0) builder.readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         OkHttpClient client = builder.build();
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
