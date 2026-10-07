@@ -1488,26 +1488,27 @@ function SharedDownloadRetryCase() {
 
 // An image whose response has no Content-Length unmounts while it downloads
 // (the slow server holds the rest), then another image of the url loads.
-// Passes when it loads. Android doesn't share a response of unknown length:
-// one request reads it from OkHttp, and cancelling that request (on the main
-// thread) must only cancel the call, as closing the response there reads the
-// socket, which throws NetworkOnMainThreadException.
-const UNSHARED_CANCEL_GROUP = `unshared-cancel-${RUN}`
-function UnsharedDownloadCancelCase() {
+// Passes when it loads. Cancelling a request happens on the main thread, where
+// closing OkHttp's response would read the socket, which throws
+// NetworkOnMainThreadException: Android cancels the call, and closes the
+// request's stream on the download's bytes (in a temporary file, as the
+// length is unknown).
+const CHUNKED_CANCEL_GROUP = `chunked-cancel-${RUN}`
+function ChunkedDownloadCancelCase() {
     const [shown, setShown] = useState<'first' | 'none' | 'second'>('first')
     const [loaded, setLoaded] = useState(false)
     const [problem, setProblem] = useState<string>()
     useEffect(() => {
         let stopped = false
         const run = async () => {
-            await groupRequested(UNSHARED_CANCEL_GROUP, () => stopped)
+            await groupRequested(CHUNKED_CANCEL_GROUP, () => stopped)
             // The first half arrives (100 ms apart), then the server holds.
             await sleep(600)
             if (stopped) return
             setShown('none')
             await sleep(500)
             if (stopped) return
-            await fetch(imageUrl(`release?hold=${UNSHARED_CANCEL_GROUP}`))
+            await fetch(imageUrl(`release?hold=${CHUNKED_CANCEL_GROUP}`))
             setShown('second')
         }
         run().catch((e) => setProblem(String(e)))
@@ -1517,7 +1518,7 @@ function UnsharedDownloadCancelCase() {
     }, [])
     const source = {
         uri: slowImageUrl(
-            `picsum/1025-200x200.jpg?group=${UNSHARED_CANCEL_GROUP}&hold=${UNSHARED_CANCEL_GROUP}&chunked&delay=100`,
+            `picsum/1025-200x200.jpg?group=${CHUNKED_CANCEL_GROUP}&hold=${CHUNKED_CANCEL_GROUP}&chunked&delay=100`,
         ),
         headers: SLOW_HEADERS,
     }
@@ -1548,7 +1549,7 @@ function UnsharedDownloadCancelCase() {
                 )}
             </View>
             <CaseStatus
-                id="unshared-download-cancel"
+                id="chunked-download-cancel"
                 status={problem ?? (loaded ? 'OK' : 'waiting')}
                 description="an image downloading a response of unknown length unmounts"
             />
@@ -1556,13 +1557,69 @@ function UnsharedDownloadCancelCase() {
     )
 }
 
+// Two images of one url from the slow server, at different sizes, load at the
+// same time; its response has no Content-Length. Passes when both load, from
+// one request. Android didn't share a response of unknown length: the second
+// image downloaded it again once the first's response had arrived.
+const SHARED_CHUNKED_GROUP = `shared-chunked-${RUN}`
+function SharedDownloadChunkedCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loaded < 2) return
+        groupRequests(SHARED_CHUNKED_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_CHUNKED_GROUP}&chunked&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onLoad={() => setLoaded((n) => n + 1)}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        setProblem(
+                            (previous) => previous ?? `onError: ${error}`,
+                        )
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-chunked"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="two sizes of one url loading at the same time share one download without a Content-Length"
+            />
+        </View>
+    )
+}
+
 // An image whose download stalls: the slow server sends half of it, then
-// holds the rest (and is never told to send it). Passes when the image gets
-// onError. Android's client had no timeouts, so the image (and every request
-// sharing its download) waited forever; a download that gets nothing for 15 s
-// fails, as on iOS.
+// holds the rest until the image gets onError. Passes when it does. Android's
+// client had no timeouts, so the image (and every request sharing its
+// download) waited forever; a download that gets nothing for 15 s fails, as on
+// iOS. The hold is released then, so it doesn't stay held for the app's other
+// downloads (e.g. the Regression tab's, where maestro/background.yaml runs).
+const STALLED_HOLD = `stalled-${RUN}`
 const STALLED_URL = slowImageUrl(
-    `picsum/1025-200x200.jpg?stalled=${RUN}&hold=stalled-${RUN}&delay=100`,
+    `picsum/1025-200x200.jpg?stalled=${RUN}&hold=${STALLED_HOLD}&delay=100`,
 )
 function StalledDownloadCase() {
     const [status, setStatus] = useState('waiting')
@@ -1572,7 +1629,12 @@ function StalledDownloadCase() {
                 style={sharedStyles.large}
                 source={{ uri: STALLED_URL, headers: SLOW_HEADERS }}
                 onLoad={() => setStatus('onLoad for a download that stalled')}
-                onError={() => setStatus('OK')}
+                onError={() => {
+                    setStatus('OK')
+                    fetch(imageUrl(`release?hold=${STALLED_HOLD}`)).catch(
+                        () => {},
+                    )
+                }}
             />
             <CaseStatus
                 id="stalled-download"
@@ -1699,6 +1761,11 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                         ? {
                               uri: slowImageUrl(`${path}&hold=${hold}`),
                               headers: BACKGROUND_SLOW_HEADERS,
+                              // The tab loads every case at once, many from
+                              // the slow server: the download goes first (iOS
+                              // runs 6 at a time), also when it's retried on
+                              // return.
+                              priority: 'high',
                           }
                         : { uri: imageUrl(path) }
                 }
@@ -5591,7 +5658,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SharedDownloadCancelCase key="shared-download-cancel" />,
             <SharedDownloadErrorCase key="shared-download-error" />,
             <SharedDownloadRetryCase key="shared-download-retry" />,
-            <UnsharedDownloadCancelCase key="unshared-download-cancel" />,
+            <SharedDownloadChunkedCase key="shared-download-chunked" />,
+            <ChunkedDownloadCancelCase key="chunked-download-cancel" />,
             <StalledDownloadCase key="stalled-download" />,
         ],
     },
