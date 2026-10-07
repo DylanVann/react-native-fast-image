@@ -14,6 +14,7 @@ import com.bumptech.glide.util.ContentLengthInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -153,8 +155,10 @@ final class FastImageSharedDownloads {
         }
     }
 
-    // A download's progress steps (see PROGRESS_STEPS).
-    private static final class Progress {
+    // A download's progress steps (see PROGRESS_STEPS), sent while it's the
+    // key's current download: once cancelled, it can still read bytes it had
+    // received, which a new load of the key mustn't get as its progress.
+    private abstract static class Progress {
         private final String key;
         private long lastStep = -1;
 
@@ -162,13 +166,15 @@ final class FastImageSharedDownloads {
             this.key = key;
         }
 
+        abstract boolean isCurrent();
+
         void report(long loaded, long total) {
             // Without a Content-Length the total is unknown (-1), and a
             // fraction can't be worked out from it, so don't send those.
             if (total <= 0) return;
             long sent = Math.min(loaded, total);
             long step = sent * PROGRESS_STEPS / total;
-            if (step == lastStep) return;
+            if (step == lastStep || !isCurrent()) return;
             lastStep = step;
             // Only notes it, under a lock, and posts it to the UI thread:
             // nothing thrown from here fails the download.
@@ -428,16 +434,28 @@ final class FastImageSharedDownloads {
                 return;
             }
             Waiter first = waiters.get(0);
-            InputStream stream = ContentLengthInputStream.obtain(
-                    Okio.buffer(withProgress(body.source(), length)).inputStream(), length);
+            final AtomicBoolean open = new AtomicBoolean(true);
+            InputStream stream = new FilterInputStream(ContentLengthInputStream.obtain(
+                    Okio.buffer(withProgress(body.source(), length, open)).inputStream(), length)) {
+                @Override
+                public void close() throws IOException {
+                    open.set(false);
+                    super.close();
+                }
+            };
             first.fetcher.deliver(stream, first.callback);
             for (int i = 1; i < waiters.size(); i++) {
                 join(waiters.get(i).fetcher, waiters.get(i).callback);
             }
         }
 
-        private Source withProgress(Source source, final long length) {
-            final Progress progress = new Progress(key);
+        private Source withProgress(Source source, final long length, final AtomicBoolean open) {
+            final Progress progress = new Progress(key) {
+                @Override
+                boolean isCurrent() {
+                    return open.get();
+                }
+            };
             return new ForwardingSource(source) {
                 long read = 0;
 
@@ -451,9 +469,21 @@ final class FastImageSharedDownloads {
             };
         }
 
+        // Whether new requests for the key join this download.
+        boolean isCurrent() {
+            synchronized (downloads) {
+                return downloads.get(key) == this;
+            }
+        }
+
         // Reads the response into data, on a thread of `reading`.
         private void readInto(ResponseBody body, int length) {
-            Progress progress = new Progress(key);
+            Progress progress = new Progress(key) {
+                @Override
+                boolean isCurrent() {
+                    return Download.this.isCurrent();
+                }
+            };
             byte[] bytes;
             synchronized (this) {
                 bytes = data;
