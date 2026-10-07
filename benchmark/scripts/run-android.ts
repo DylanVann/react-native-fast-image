@@ -459,7 +459,16 @@ async function analyzeOutputs(subject: string, pulled: string, phone?: number) {
 }
 
 if (flag('no-run')) {
-    for (let phone = 1; paired && phone <= phones; phone++) {
+    // A paired run's phones: the folders it downloaded.
+    const pairedPhones = paired
+        ? fs
+              .readdirSync(out)
+              .map((name) => name.match(/^android-paired-(\d+)-outputs$/)?.[1])
+              .filter((phone) => phone !== undefined)
+              .map(Number)
+              .sort((a, b) => a - b)
+        : []
+    for (const phone of pairedPhones) {
         const pulled = path.join(out, `android-paired-${phone}-outputs`)
         for (const subject of chosenSubjects) {
             await analyzeOutputs(subject, pulled, phone)
