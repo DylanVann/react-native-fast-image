@@ -56,6 +56,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
     // Numbers the steps downloads report, so a view can tell those reported
     // before its load started (see FastImageViewWithUrl.takesProgress).
     private static final AtomicLong REPORTED_STEPS = new AtomicLong();
+    // Whether any view gets progress (set under PROGRESS's lock), so downloads
+    // can skip reporting without taking any lock.
+    private static volatile boolean tracking = false;
 
     private static final class Progress {
         final Set<FastImageViewWithUrl> views = new LinkedHashSet<>();
@@ -213,6 +216,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
                 PROGRESS.put(key, progress);
             }
             progress.views.add(view);
+            tracking = true;
         }
     }
 
@@ -223,7 +227,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
             if (progress == null) return;
             progress.views.remove(view);
             if (progress.views.isEmpty()) PROGRESS.remove(key);
+            tracking = !PROGRESS.isEmpty();
         }
+    }
+
+    // Whether any view gets progress now (a hint: a view can start loading
+    // just after).
+    static boolean wantsProgress() {
+        return tracking;
     }
 
     // The latest step downloads reported (for a load that starts now).
@@ -242,12 +253,14 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
             Progress progress = PROGRESS.get(key);
             if (progress == null) return;
             // While a post is waiting, it keeps the furthest step: another
-            // download of the key may report one behind it meanwhile.
+            // download of the key may report one behind it meanwhile. A step
+            // kept keeps its number, so a load that started after it (e.g. a
+            // reload, whose download reports behind it) doesn't take it.
             if (!progress.posted || (double) loaded / total >= (double) progress.loaded / progress.total) {
                 progress.loaded = loaded;
                 progress.total = total;
+                progress.step = REPORTED_STEPS.incrementAndGet();
             }
-            progress.step = REPORTED_STEPS.incrementAndGet();
             if (progress.posted) return;
             progress.posted = true;
         }

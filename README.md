@@ -387,7 +387,7 @@ onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}
 
 **Type:** `(event: OnErrorEvent) => void`
 
-Called on an image fetching error, with a message describing it (e.g. the HTTP status code). A download that gets nothing from the server for 15 seconds fails too (on Android, unless the app's OkHttp client has timeouts of its own).
+Called on an image fetching error, with a message describing it (e.g. the HTTP status code). On iOS and Android, a download that gets nothing from the server for 15 seconds fails too (on Android, unless the app's OkHttp client has timeouts of its own).
 
 ```jsx
 onError={e => console.log(e.nativeEvent.error)}
@@ -571,7 +571,7 @@ const { ok } = await FastImage.getCachePath({
 })
 ```
 
-- The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. If a view or a preload is downloading the same source, `getCachePath` shares that download instead of downloading the image again (on Android, except with `cache: 'web'`, and for a response without a `Content-Length` or too large to hold in memory).
+- The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. If a view or a preload is downloading the same source, `getCachePath` shares that download instead of downloading the image again (on Android, except with `cache: 'web'`).
 - The file belongs to the cache, which can remove it at any time: copy it to keep it.
 - Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
 - A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.

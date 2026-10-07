@@ -126,6 +126,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // store them twice).
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         webClient = client.newBuilder().cache(webCache).build();
+        FastImageSharedDownloads.setDirectory(new File(context.getCacheDir(), "fast-image-downloads"));
         registry.prepend(FastImageUrl.class, InputStream.class, new UrlLoaderFactory(client, webClient));
         FastImageSvg.register(registry, glide.getBitmapPool());
         FastImageAnimated.register(context, glide, registry);
