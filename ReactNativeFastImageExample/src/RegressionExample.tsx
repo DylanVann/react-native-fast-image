@@ -1126,50 +1126,80 @@ function ProgressUrlFormCase() {
     )
 }
 
-// Two images with onProgress load different urls with the same cacheKey (the
-// slow server ignores the query) at the same time: Glide loads them as one
-// image, so only one of the urls is downloaded. Passes when both get
-// onProgress before their onLoad. Android looked images up by their own url,
-// so the image whose url wasn't the one downloaded got none.
+// Two images with onProgress, at different sizes, load different urls with
+// the same cacheKey (the slow server ignores the query) at the same time.
+// Passes when each image got onProgress before its onLoad, never going back,
+// and none after, and the server got one request on Android, which shares
+// downloads by cache key (two on iOS, where SDWebImage shares them by url).
+// Android looked images up by their own url, so the image whose url wasn't
+// downloaded got no progress, and it downloaded each size.
+const CACHE_KEY_GROUP = `progress-cache-key-${RUN}`
 const cacheKeyUrl = (token: string) =>
     slowImageUrl(
-        `picsum/1025-200x200.jpg?cache-key=${RUN}&token=${token}&delay=100`,
+        `picsum/1025-200x200.jpg?group=${CACHE_KEY_GROUP}&token=${token}&delay=100`,
     )
 function ProgressCacheKeyCase() {
-    const progressed = useRef(new Set<number>())
-    const [loaded, setLoaded] = useState(0)
-    const [missing, setMissing] = useState<number>()
+    // Each image's last onProgress, and the images that loaded.
+    const progress = useRef(new Map<number, number>())
+    const loaded = useRef(new Set<number>())
+    const [loadedCount, setLoadedCount] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loadedCount < 2) return
+        groupRequests(CACHE_KEY_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loadedCount])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    const expected = Platform.OS === 'ios' ? 2 : 1
     return (
         <View style={styles.row}>
-            {['a', 'b'].map((token, i) => (
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
                 <FastImage
-                    key={token}
-                    style={styles.image}
+                    key={i}
+                    style={style}
                     source={{
-                        uri: cacheKeyUrl(token),
-                        // The slow server only sends images with it.
-                        headers: { 'x-token': 'fast-image' },
-                        cacheKey: `progress-cache-key-${RUN}`,
+                        uri: cacheKeyUrl(String(i)),
+                        headers: SLOW_HEADERS,
+                        cacheKey: CACHE_KEY_GROUP,
                     }}
-                    onProgress={() => progressed.current.add(i)}
-                    onLoad={() => {
-                        if (!progressed.current.has(i)) {
-                            setMissing((previous) => previous ?? i)
+                    onProgress={(e) => {
+                        const value = e.nativeEvent.loaded
+                        const last = progress.current.get(i)
+                        if (loaded.current.has(i)) {
+                            fail(`image ${i + 1}: onProgress after onLoad`)
+                        } else if (last !== undefined && value < last) {
+                            fail(`image ${i + 1}: onProgress went back`)
                         }
-                        setLoaded((n) => n + 1)
+                        progress.current.set(i, value)
+                    }}
+                    onLoad={() => {
+                        if (!progress.current.has(i)) {
+                            fail(`image ${i + 1}: no onProgress before onLoad`)
+                        }
+                        loaded.current.add(i)
+                        setLoadedCount((n) => n + 1)
+                    }}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        fail(`onError: ${error}`)
                     }}
                 />
             ))}
             <CaseStatus
                 id="progress-cache-key"
                 status={
-                    missing !== undefined
-                        ? `no onProgress for image ${missing + 1}`
-                        : loaded < 2
-                          ? 'waiting'
-                          : 'OK'
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === expected
+                          ? 'OK'
+                          : `requested ${requests} times, expected ${expected}`)
                 }
-                description="onProgress for two images with the same cacheKey and different urls, loaded as one"
+                description="onProgress for two sizes of two urls with the same cacheKey"
             />
         </View>
     )
