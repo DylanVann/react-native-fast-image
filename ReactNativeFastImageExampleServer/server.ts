@@ -54,8 +54,9 @@
 // fast-image`. A test can do something while they load (e.g. send the app to
 // the background). With `?hold=<name>`, it sends half the parts, then holds
 // the rest until GET /release?hold=<name> (at most 60 s), so the download is
-// still going on whenever the test is ready; once released, a name isn't
-// held again. It's a node:http server because Bun.serve
+// still going on whenever the test is ready (an error, like a 403 or 404, is
+// held whole); once released, a name isn't held again. With `?chunked`, it's
+// sent without a Content-Length. It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
@@ -329,20 +330,27 @@ http.createServer(async (request, response) => {
         response.once('finish', finish)
         response.once('close', finish)
     }
+    const hold = url.searchParams.get('hold')
+    const fail = async (status: number, message: string) => {
+        if (hold !== null) await holdUntilReleased(hold)
+        response.writeHead(status).end(message)
+    }
     if (request.headers['x-token'] !== 'fast-image') {
-        response.writeHead(403).end('Forbidden')
+        await fail(403, 'Forbidden')
         return
     }
     const file = path.join(IMAGES, decodeURIComponent(url.pathname))
     const image = Bun.file(file)
     if (!file.startsWith(IMAGES + path.sep) || !(await image.exists())) {
-        response.writeHead(404).end('Not found')
+        await fail(404, 'Not found')
         return
     }
     const bytes = new Uint8Array(await image.arrayBuffer())
     response.writeHead(200, {
         'Content-Type': image.type,
-        'Content-Length': String(bytes.length),
+        ...(url.searchParams.has('chunked')
+            ? {}
+            : { 'Content-Length': String(bytes.length) }),
     })
     const parts = 8
     const delay = Math.min(
@@ -350,7 +358,6 @@ http.createServer(async (request, response) => {
         Math.max(50, Number(url.searchParams.get('delay')) || 1000),
     )
     const size = Math.ceil(bytes.length / parts)
-    const hold = url.searchParams.get('hold')
     for (let part = 0; part < parts; part++) {
         // The client went away (e.g. the app cancelled the load).
         if (response.destroyed) return

@@ -1393,6 +1393,156 @@ function SharedDownloadErrorCase() {
     )
 }
 
+const sleep = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(() => resolve(), ms))
+
+// Waits until the slow server got a request in the group.
+const groupRequested = async (group: string, stopped: () => boolean) => {
+    while (!stopped() && (await groupRequests(group)) < 1) await sleep(100)
+}
+
+// Two images with the same cacheKey and different urls, at different sizes:
+// the first url 404s, which the slow server holds until the second image has
+// started loading, and the second loads. Passes when the first gets onError
+// and the second loads. Android shares downloads by cacheKey, so the second
+// image's request joins the first's download, and downloads its own url once
+// that one fails.
+const RETRY_GROUP = `shared-retry-${RUN}`
+function SharedDownloadRetryCase() {
+    const [second, setSecond] = useState(false)
+    const [failed, setFailed] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_GROUP, () => stopped)
+            if (stopped) return
+            setSecond(true)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_GROUP}`))
+        }
+        run().catch((e) => setProblem(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.small}
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?group=${RETRY_GROUP}&hold=${RETRY_GROUP}`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    cacheKey: RETRY_GROUP,
+                }}
+                onLoad={() => fail('onLoad for a url that 404s')}
+                onError={() => setFailed(true)}
+            />
+            <View style={sharedStyles.large}>
+                {second && (
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1025-200x200.jpg?retry=${RUN}&delay=100`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            cacheKey: RETRY_GROUP,
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={(e) => {
+                            // Read the event now: the updater runs later.
+                            const error = String(e.nativeEvent.error)
+                            fail(`image 2: onError: ${error}`)
+                        }}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="shared-download-retry"
+                status={problem ?? (failed && loaded ? 'OK' : 'waiting')}
+                description="an image whose url works loads when another url with its cacheKey 404s"
+            />
+        </View>
+    )
+}
+
+// An image whose response has no Content-Length unmounts while it downloads
+// (the slow server holds the rest), then another image of the url loads.
+// Passes when it loads. Android doesn't share a response of unknown length:
+// one request reads it from OkHttp, and cancelling that request (on the main
+// thread) must only cancel the call, as closing the response there reads the
+// socket, which throws NetworkOnMainThreadException.
+const UNSHARED_CANCEL_GROUP = `unshared-cancel-${RUN}`
+function UnsharedDownloadCancelCase() {
+    const [shown, setShown] = useState<'first' | 'none' | 'second'>('first')
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(UNSHARED_CANCEL_GROUP, () => stopped)
+            // The first half arrives (100 ms apart), then the server holds.
+            await sleep(600)
+            if (stopped) return
+            setShown('none')
+            await sleep(500)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${UNSHARED_CANCEL_GROUP}`))
+            setShown('second')
+        }
+        run().catch((e) => setProblem(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${UNSHARED_CANCEL_GROUP}&hold=${UNSHARED_CANCEL_GROUP}&chunked&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setProblem((previous) => previous ?? `onError: ${error}`)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedStyles.small}>
+                {shown === 'first' && (
+                    <FastImage
+                        style={sharedStyles.small}
+                        source={source}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <View style={sharedStyles.large}>
+                {shown === 'second' && (
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={source}
+                        onLoad={() => setLoaded(true)}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="unshared-download-cancel"
+                status={problem ?? (loaded ? 'OK' : 'waiting')}
+                description="an image downloading a response of unknown length unmounts"
+            />
+        </View>
+    )
+}
+
 const sharedStyles = StyleSheet.create({
     small: { width: 30, height: 30 },
     large: { width: 60, height: 60 },
@@ -5400,6 +5550,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SharedDownloadSizesCase key="shared-download-sizes" />,
             <SharedDownloadCancelCase key="shared-download-cancel" />,
             <SharedDownloadErrorCase key="shared-download-error" />,
+            <SharedDownloadRetryCase key="shared-download-retry" />,
+            <UnsharedDownloadCancelCase key="unshared-download-cancel" />,
         ],
     },
     {
