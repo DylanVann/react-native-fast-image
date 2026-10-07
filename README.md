@@ -571,7 +571,7 @@ const { ok } = await FastImage.getCachePath({
 })
 ```
 
-- The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. An image a view or a preload is downloading isn't downloaded again: `getCachePath` shares that download (on Android, except with `cache: 'web'`).
+- The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. If a view or a preload is downloading the same source, `getCachePath` shares that download instead of downloading the image again (on Android, except with `cache: 'web'`, and for a response without a `Content-Length` or too large to hold in memory).
 - The file belongs to the cache, which can remove it at any time: copy it to keep it.
 - Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
 - A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.

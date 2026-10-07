@@ -1012,7 +1012,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 ? ((FastImageUrl) model).url
                 : null;
         mProgressSince = FastImageViewManager.progressStep();
-        mProgressFraction = 0;
+        // A restart (reblur) is the same load: its progress doesn't go back.
+        if (!restarting) mProgressFraction = 0;
         updateProgressTracking();
 
         if (imageSource != null && !restarting) {

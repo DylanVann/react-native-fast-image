@@ -53,9 +53,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
     // removes views, and downloads report steps on their own threads: only
     // used under its lock.
     private static final Map<String, Progress> PROGRESS = new HashMap<>();
-    // Counts the steps downloads report, so a view can tell those reported
-    // before its load started (see FastImageViewWithUrl.wantsProgressFrom).
-    private static final AtomicLong PROGRESS_STEPS = new AtomicLong();
+    // Numbers the steps downloads report, so a view can tell those reported
+    // before its load started (see FastImageViewWithUrl.takesProgress).
+    private static final AtomicLong REPORTED_STEPS = new AtomicLong();
 
     private static final class Progress {
         final Set<FastImageViewWithUrl> views = new LinkedHashSet<>();
@@ -228,7 +228,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
 
     // The latest step downloads reported (for a load that starts now).
     static long progressStep() {
-        return PROGRESS_STEPS.get();
+        return REPORTED_STEPS.get();
     }
 
     // A download's progress (FastImageSharedDownloads), on its thread, which
@@ -241,9 +241,13 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         synchronized (PROGRESS) {
             Progress progress = PROGRESS.get(key);
             if (progress == null) return;
-            progress.loaded = loaded;
-            progress.total = total;
-            progress.step = PROGRESS_STEPS.incrementAndGet();
+            // While a post is waiting, it keeps the furthest step: another
+            // download of the key may report one behind it meanwhile.
+            if (!progress.posted || (double) loaded / total >= (double) progress.loaded / progress.total) {
+                progress.loaded = loaded;
+                progress.total = total;
+            }
+            progress.step = REPORTED_STEPS.incrementAndGet();
             if (progress.posted) return;
             progress.posted = true;
         }
@@ -280,7 +284,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
             } catch (RuntimeException e) {
                 // E.g. the view's React instance is gone: progress isn't worth
                 // crashing the app for.
-                Log.w(LOG_TAG, "Couldn't send onProgress for " + key, e);
+                // (Not the key: it has the request's headers.)
+                Log.w(LOG_TAG, "Couldn't send onProgress", e);
             }
         }
     }

@@ -74,11 +74,10 @@ final class FastImageSharedDownloads {
     // The download new requests for a key join: in progress, or finished and
     // still being read. Guards the downloads' sharing and progress (taken
     // before a download's own lock, and FastImageViewManager's progress lock).
+    // Every download of a key in progress sends the key's progress (when a
+    // response isn't shared, the other requests download it too); a view
+    // takes the furthest along (FastImageViewWithUrl.takesProgress).
     private static final Map<String, Download> downloads = new HashMap<>();
-    // The download whose progress is sent for a key (guarded by downloads),
-    // so two downloads of a key don't mix theirs: the first one in progress,
-    // then, once it has stopped, the next of them to read more.
-    private static final Map<String, Download> reporting = new HashMap<>();
     // Bytes held for shared downloads (guarded by downloads).
     private static long held = 0;
 
@@ -310,7 +309,11 @@ final class FastImageSharedDownloads {
         private final String key;
         // The request it downloads: its url and headers.
         private final GlideUrl url;
-        private final Call call;
+        // Guarded by this. The call, once started, and whether the download
+        // was cancelled (before it started, it doesn't).
+        @Nullable
+        private Call call;
+        private boolean cancelled = false;
         // Guarded by this. Requests waiting for the response.
         private final List<Waiter> waiting = new ArrayList<>();
         // Streams open on the bytes.
@@ -331,13 +334,34 @@ final class FastImageSharedDownloads {
         // leaves or closes it.
         @Nullable
         private Fetcher reader;
-        // It sends no more progress: it ended, or was cancelled.
+        // It sends no more progress: it ended, or was cancelled (it can still
+        // read bytes it had received).
         private boolean silent = false;
 
-        private Download(String key, GlideUrl url, Call call) {
+        private Download(String key, GlideUrl url) {
             this.key = key;
             this.url = url;
-            this.call = call;
+        }
+
+        // Starts the call, outside the locks: creating it runs the app's
+        // OkHttp EventListener.
+        private void start(OkHttpClient client, Request request) {
+            Call created = client.newCall(request);
+            synchronized (this) {
+                if (cancelled) return;
+                call = created;
+            }
+            created.enqueue(this);
+        }
+
+        // Cancels the call, or the start of it. Outside the locks.
+        private void cancel() {
+            Call started;
+            synchronized (this) {
+                cancelled = true;
+                started = call;
+            }
+            if (started != null) started.cancel();
         }
 
         // Joins the fetcher's key's download, or starts one. `alone` starts
@@ -363,10 +387,14 @@ final class FastImageSharedDownloads {
                     alone = true;
                     download = null;
                 }
+                // A `web` image follows its HTTP cache: it only joins a
+                // download in progress, not the bytes of one that has ended.
+                if (download != null && fetcher.url instanceof FastImageWebGlideUrl && download.hasEnded()) {
+                    download = null;
+                }
                 if (download == null) {
-                    download = new Download(fetcher.key, fetcher.url, fetcher.client.newCall(request));
+                    download = new Download(fetcher.key, fetcher.url);
                     if (!alone) downloads.put(fetcher.key, download);
-                    if (!reporting.containsKey(fetcher.key)) reporting.put(fetcher.key, download);
                     start = true;
                 }
                 fetcher.download = download;
@@ -380,7 +408,11 @@ final class FastImageSharedDownloads {
                 }
             }
             if (ready != null) fetcher.deliver(ready, callback);
-            if (start) download.call.enqueue(download);
+            if (start) download.start(fetcher.client, request);
+        }
+
+        private synchronized boolean hasEnded() {
+            return ended;
         }
 
         // With downloads locked: new requests start another download.
@@ -388,11 +420,9 @@ final class FastImageSharedDownloads {
             if (downloads.get(key) == this) downloads.remove(key);
         }
 
-        // With downloads locked: it sends no more progress (the key's next
-        // download to read more can).
+        // With downloads locked: it sends no more progress.
         private void stopReporting() {
             silent = true;
-            if (reporting.get(key) == this) reporting.remove(key);
         }
 
         // With downloads and this locked: drops the bytes, and gives their
@@ -431,7 +461,7 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
-            if (cancel) call.cancel();
+            if (cancel) cancel();
         }
 
         // A stream on the bytes was closed.
@@ -450,7 +480,7 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
-            if (cancel) call.cancel();
+            if (cancel) cancel();
         }
 
         @Override
@@ -553,22 +583,13 @@ final class FastImageSharedDownloads {
             for (Waiter waiter : waiters) waiter.fetcher.deliver(new SharedStream(this), waiter.callback);
         }
 
-        // Sends a progress step if it's this download's to send (it takes the
-        // key's progress over if no download sends it): checked and sent with
-        // downloads locked, which a cancel takes to stop it, so a new load of
-        // the key never gets a cancelled download's steps. A view never takes
-        // a step below one it had (FastImageViewWithUrl.takesProgress).
+        // Sends a progress step, unless the download has stopped: checked and
+        // sent with downloads locked, which a cancel takes to stop it, so a new
+        // load of the key never gets a cancelled download's steps.
         private void report(Progress progress, long loaded, long total) {
             if (!progress.step(loaded, total)) return;
             synchronized (downloads) {
-                if (silent) return;
-                Download current = reporting.get(key);
-                if (current == null) {
-                    reporting.put(key, this);
-                } else if (current != this) {
-                    return;
-                }
-                FastImageViewManager.onDownloadProgress(key, Math.min(loaded, total), total);
+                if (!silent) FastImageViewManager.onDownloadProgress(key, Math.min(loaded, total), total);
             }
         }
 
@@ -646,7 +667,9 @@ final class FastImageSharedDownloads {
             } catch (IOException e) {
                 fail(e);
                 return;
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | OutOfMemoryError e) {
+                // E.g. no memory for OkHttp's buffers: the requests reading it
+                // fail, and the next ones start another download.
                 fail(new IOException(e));
                 return;
             }
