@@ -9,6 +9,17 @@
             "react-native-fast-image": "8.28.0"
         }
     },
+    "fast-image-9": {
+        "name": "FastImage 9",
+        "packages": {
+            "react-native-fast-image-9": "npm:react-native-fast-image@9.1.0"
+        }
+    },
+    "fast-image-local": {
+        "name": "FastImage (this checkout)",
+        "packages": {},
+        "local": "react-native-fast-image-local"
+    },
     "expo-image": {
         "name": "expo-image",
         "packages": {

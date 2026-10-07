@@ -14,6 +14,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.io.File
 import java.net.URLEncoder
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -22,17 +23,24 @@ import org.junit.runner.RunWith
 
 // Measures the benchmark app (../../app) on Android, the same scenarios as
 // the iOS UI tests (../../ios) and recordings (../../ios/capture).
-// Instrumentation arguments: benchPackage (the subject's app),
-// benchIterations (default 5), benchScenarios (for timeToImage, default
-// "grid,large"), benchLatencyMs and benchMbps (the image server's network,
-// default 40 ms and no limit).
+// Instrumentation arguments: benchPackage (the subject's app), or
+// benchPackages (several subjects' apps, comma-separated, which timeToImage
+// runs in turns on this phone, to compare them without the differences
+// between phones), benchIterations (default 5), benchScenarios (for
+// timeToImage, default "grid,large"), benchLatencyMs and benchMbps (the image
+// server's network, default 40 ms and no limit).
 @RunWith(AndroidJUnit4::class)
 class BenchmarkTest {
     @get:Rule val rule = MacrobenchmarkRule()
 
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val arguments = InstrumentationRegistry.getArguments()
-    private val pkg = arguments.getString("benchPackage") ?: "com.dylanvann.rnfibenchmark.image"
+    private val packages = arguments.getString("benchPackages")
+        ?.split(",")
+        ?.filter { it.isNotEmpty() }
+        ?: listOf(arguments.getString("benchPackage") ?: "com.dylanvann.rnfibenchmark.image")
+    // scroll and largeMemory measure the first.
+    private val pkg = packages.first()
     private val iterations = arguments.getString("benchIterations")?.toInt() ?: 5
     private val device = UiDevice.getInstance(instrumentation)
 
@@ -54,13 +62,14 @@ class BenchmarkTest {
         server.close()
     }
 
-    // Starts the app on a scenario with a new run id (so no image comes from
-    // an earlier run's caches), in a new process, loading from the server here.
-    private fun launch(scenario: String, run: String) {
-        shell("am force-stop $pkg")
+    // Starts an app on a scenario with a new run id (so no image comes from
+    // an earlier run's caches), in a new process, loading from the server
+    // here, with none of the benchmark apps running.
+    private fun launch(scenario: String, run: String, app: String = pkg) {
+        for (other in packages) shell("am force-stop $other")
         val url = URLEncoder.encode(server.url, "UTF-8")
         // Not through a shell: `&` needs no escaping.
-        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run&server=$url $pkg")
+        shell("am start -W -a android.intent.action.VIEW -d rnfibench://run?scenario=$scenario&run=$run&server=$url $app")
     }
 
     // Waits for the scenario to finish; returns its results (JSON), which the
@@ -86,46 +95,62 @@ class BenchmarkTest {
     }
 
     // Time to image: records the screen while each scenario runs, and saves
-    // the recording and the app's results in the test's output folder, which
-    // ../../scripts/run-android.ts (or Firebase Test Lab) pulls and analyzes.
-    // The app is compiled as the Macrobenchmark tests leave it (with its
-    // profile), whichever ran first, and one unmeasured run comes first. A
-    // run that fails is written as <scenario>-<n>.error, and the next goes on.
+    // the recording and the app's results (with the image requests the server
+    // got) in the test's output folder, which ../../scripts/run-android.ts
+    // (or Firebase Test Lab) pulls and analyzes. Each app is compiled as the
+    // Macrobenchmark tests leave it (with its profile), whichever ran first,
+    // and one unmeasured run of each comes first. With several apps, each
+    // iteration runs them in turns, in the other order every time (A B, then
+    // B A), so neither always goes first or last as the phone warms, and each
+    // app's files are in a folder named after it. A run that fails is written
+    // as <scenario>-<n>.error, and the next goes on.
     @Test
     fun timeToImage() {
         val scenarios = (arguments.getString("benchScenarios") ?: "grid,large")
             .split(",")
             .filter { it.isNotEmpty() }
-        shell("cmd package compile -f -m speed-profile $pkg")
         val out = Outputs.outputDirectory
-        val first = "first-${System.nanoTime()}"
-        launch(scenarios.firstOrNull() ?: "grid", first)
-        waitDone("first run", first)
+        for (app in packages) {
+            shell("cmd package compile -f -m speed-profile $app")
+            val first = "first-${System.nanoTime()}"
+            launch(scenarios.firstOrNull() ?: "grid", first, app)
+            waitDone("first run", first)
+        }
         for (scenario in scenarios) {
             for (i in 1..iterations) {
-                val video = File(out, "$scenario-$i.mp4")
-                val recorder = instrumentation.uiAutomation.executeShellCommand(
-                    "screenrecord --bit-rate 20000000 ${video.absolutePath}",
-                )
-                var results: String? = null
-                try {
-                    Thread.sleep(1000)
-                    val run = "android-$scenario-$i-${System.nanoTime()}"
-                    launch(scenario, run)
-                    results = waitDone(scenario, run)
-                    Thread.sleep(500)
-                } catch (error: Throwable) {
-                    File(out, "$scenario-$i.error").writeText(error.toString())
-                } finally {
-                    // Only this recorder (Test Lab can run its own).
-                    shell("pkill -INT -f ${video.absolutePath}")
-                    recorder.close()
-                    // screenrecord finishes the file after its signal.
-                    Thread.sleep(1500)
+                val order = if (i % 2 == 1) packages else packages.reversed()
+                for (app in order) {
+                    val dir = if (packages.size > 1) File(out, app).apply { mkdirs() } else out
+                    measure(app, scenario, i, dir)
                 }
-                results?.let { File(out, "$scenario-$i.json").writeText(it) }
             }
         }
+    }
+
+    private fun measure(app: String, scenario: String, i: Int, dir: File) {
+        val video = File(dir, "$scenario-$i.mp4")
+        val recorder = instrumentation.uiAutomation.executeShellCommand(
+            "screenrecord --bit-rate 20000000 ${video.absolutePath}",
+        )
+        var results: String? = null
+        try {
+            Thread.sleep(1000)
+            val run = "android-$scenario-$i-${System.nanoTime()}"
+            launch(scenario, run, app)
+            results = JSONObject(waitDone(scenario, run))
+                .put("imageRequests", server.imageRequests(run))
+                .toString()
+            Thread.sleep(500)
+        } catch (error: Throwable) {
+            File(dir, "$scenario-$i.error").writeText(error.toString())
+        } finally {
+            // Only this recorder (Test Lab can run its own).
+            shell("pkill -INT -f ${video.absolutePath}")
+            recorder.close()
+            // screenrecord finishes the file after its signal.
+            Thread.sleep(1500)
+        }
+        results?.let { File(dir, "$scenario-$i.json").writeText(it) }
     }
 
     // Scrolling the 500-image list (the scroll scenario): frame timing. Each

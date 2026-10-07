@@ -59,6 +59,12 @@ type Run = {
     images?: { error?: string }[]
     network?: { mbps: number }
     imageServer?: { latencyMs: number; mbps: number }
+    // Paired runs (run-android.ts --paired): the phone and the iteration,
+    // which the other subjects ran next to on that phone.
+    phone?: number
+    iteration?: number
+    // The image requests the phone's server got (Android).
+    imageRequests?: number
 }
 
 type Failure = {
@@ -88,6 +94,76 @@ type AndroidMetrics = {
 }
 
 const platformOf = (r: { platform?: string }) => r.platform ?? 'ios'
+
+const percentile = (values: number[], p: number) => {
+    const sorted = [...values].sort((a, b) => a - b)
+    return sorted[
+        Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))
+    ]
+}
+
+// Paired runs (run-android.ts --paired): each subject against the first, run
+// by run, as they ran next to each other on the same phone. The median of
+// those differences, the middle half of them, and how often the subject was
+// faster, so phones' differences don't count.
+function pairedComparison(runs: Run[]): string[] {
+    const pairedRuns = runs.filter((r) => r.phone !== undefined)
+    if (pairedRuns.length === 0) return []
+    const inRuns = new Set(pairedRuns.map((r) => r.subject))
+    const subjectsInOrder = order.filter((s) => inRuns.has(s))
+    const [base, ...rest] = subjectsInOrder
+    if (!base || rest.length === 0) return []
+    const lines = [
+        '',
+        `Paired on each phone, against ${nameOf(base)} (ms; negative is faster): median difference, and the middle half of the differences, for time to the first and to the last image; how many runs were faster; image requests (median, each subject):`,
+        '',
+        '| Subject | Scenario | Pairs | First | All | Faster (all) | Requests |',
+        '| --- | --- | --- | --- | --- | --- | --- |',
+    ]
+    const scenarios = [...new Set(pairedRuns.map((r) => r.scenario))]
+    const key = (r: Run) => `${r.scenario}\t${r.phone}\t${r.iteration}`
+    const baseRuns = new Map(
+        pairedRuns.filter((r) => r.subject === base).map((r) => [key(r), r]),
+    )
+    const describe = (diffs: number[]) =>
+        diffs.length
+            ? `${Math.round(median(diffs)!)} (${Math.round(percentile(diffs, 0.25))} to ${Math.round(percentile(diffs, 0.75))})`
+            : '–'
+    for (const subject of rest) {
+        for (const scenario of scenarios) {
+            const first: number[] = []
+            const all: number[] = []
+            const requests: number[] = []
+            const baseRequests: number[] = []
+            for (const r of pairedRuns) {
+                if (r.subject !== subject || r.scenario !== scenario) continue
+                const b = baseRuns.get(key(r))
+                if (!b) continue
+                if (
+                    r.analysis.firstMs !== undefined &&
+                    b.analysis.firstMs !== undefined
+                ) {
+                    first.push(r.analysis.firstMs - b.analysis.firstMs)
+                }
+                if (
+                    r.analysis.allMs !== undefined &&
+                    b.analysis.allMs !== undefined
+                ) {
+                    all.push(r.analysis.allMs - b.analysis.allMs)
+                }
+                if (r.imageRequests !== undefined)
+                    requests.push(r.imageRequests)
+                if (b.imageRequests !== undefined)
+                    baseRequests.push(b.imageRequests)
+            }
+            const faster = all.filter((d) => d < 0).length
+            lines.push(
+                `| ${nameOf(subject)} | ${scenario} | ${Math.max(first.length, all.length)} | ${describe(first)} | ${describe(all)} | ${all.length ? `${faster} of ${all.length}` : '–'} | ${requests.length ? `${median(requests)} (${nameOf(base)}: ${median(baseRequests) ?? '–'})` : '–'} |`,
+            )
+        }
+    }
+    return lines
+}
 
 export function summarize(dir: string) {
     const files = fs.readdirSync(dir)
@@ -188,6 +264,8 @@ export function summarize(dir: string) {
             `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)}${all.length && all.length < timed.length ? ` (${all.length} runs)` : ''} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${network.length ? fmt(network, median) : '–'} | ${failed || ''} |`,
         )
     }
+
+    lines.push(...pairedComparison(runs))
 
     // Failures outside a scenario's runs (a build, the image server, the
     // metrics, a whole test).

@@ -2,6 +2,8 @@
 
 Measures how React Native image components load and show images, the same way for each, on real phones: FastImage, React Native's `Image`, expo-image, Nitro Image and Turbo Image (`app/subjects.json`). Results are distributions over several runs, from the screen as the user sees it where possible.
 
+Two more subjects compare FastImage versions: `fast-image-9` (the latest 9.x release) and `fast-image-local` (FastImage from this checkout: its `src/` through `app/metro.config.js`, its native code through `app/react-native.config.js`), e.g. a change against the release before it, with `--paired` on Android.
+
 ## Running it
 
 Needs a Mac with Xcode, an iPhone connected over USB (unlocked, Developer Mode on, and Settings → Developer → Enable UI Automation), Bun, ffmpeg (`brew install ffmpeg`) and XcodeGen (`brew install xcodegen`), and your Apple team id in `BENCH_APPLE_TEAM_ID` (for signing the apps). The first recording asks for camera access for the terminal (macOS treats the phone's screen as a camera).
@@ -23,9 +25,12 @@ Runs on a connected device or emulator (adb), or on Firebase Test Lab's physical
 bun benchmark/scripts/run-android.ts --firebase                     # every subject, on a Pixel 8
 bun benchmark/scripts/run-android.ts --firebase --device model=akita,version=35 --subjects fast-image
 bun benchmark/scripts/run-android.ts --subjects fast-image --iterations 2   # adb device (an emulator only checks the setup)
+bun benchmark/scripts/run-android.ts --firebase --paired --phones 5 --subjects fast-image-9,fast-image-local --scenarios grid,large,sizes
 ```
 
-Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`, `--latency` and `--mbps` (as on iOS). It needs JDK 17, the Android SDK, and the images in `images/out` (`bun make-images.ts` in `images/`). It builds every subject first (`--no-build` uses the APKs kept in `--out`'s `apks/`); on Test Lab the subjects then run at the same time, each on its own device, without Test Lab's own screen recording.
+`--paired` compares subjects on the same phones: each phone gets every subject's app, and runs them in turns (in the other order each iteration), on `--phones` phones at once (5 by default; one adb device locally). Phones of the same model differ by more than many changes do (see Limits); run by run on one phone, the subjects' differences show. The summary then has a paired table: each subject against the first, the median of the run-by-run differences and the middle half of them, how many runs were faster, and the image requests the phone's server got. It measures time to image only.
+
+Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`, `--latency` and `--mbps` (as on iOS), `--paired` and `--phones`. It needs JDK 17, the Android SDK, and the images in `images/out` (`bun make-images.ts` in `images/`). It builds every subject first (`--no-build` uses the APKs kept in `--out`'s `apks/`); on Test Lab the subjects then run at the same time, each on its own device, without Test Lab's own screen recording.
 
 Results go to `benchmark/results/<time>/`: a JSON file per run (the app's results, and when each image showed), the XCTest result bundles, and `summary.md`. The folders aren't committed (recordings and builds); summaries of reference runs are, next to them (`results/<date>-<platform>-<device>.md`), to compare later runs with. `docs/benchmarks.md` (published on the website) summarizes the latest reference results: update it with them.
 
@@ -39,11 +44,12 @@ Results go to `benchmark/results/<time>/`: a JSON file per run (the app's result
 
 ## Scenarios
 
-| Scenario | Images                                        | Measures                                        |
-| -------- | --------------------------------------------- | ----------------------------------------------- |
-| `grid`   | 60 photos (400 px) in a grid laid out at once | time to each image on screen, from a cold cache |
-| `large`  | 20 photos (4000 × 3000) in small views        | time to each image; memory (`large-memory`)     |
-| `scroll` | 500 photos (300 px) in a FlashList            | hitches and memory while scrolling (`scroll`)   |
+| Scenario | Images                                        | Measures                                                                                                                                 |
+| -------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `grid`   | 60 photos (400 px) in a grid laid out at once | time to each image on screen, from a cold cache                                                                                          |
+| `large`  | 20 photos (4000 × 3000) in small views        | time to each image; memory (`large-memory`)                                                                                              |
+| `scroll` | 500 photos (300 px) in a FlashList            | hitches and memory while scrolling (`scroll`)                                                                                            |
+| `sizes`  | 16 of the grid's photos at two sizes at once  | time to each image, and (Android) the image requests: a library that shares a download between its requests for one url makes 16, not 32 |
 
 Nitro Image's view sends no load events, so its scenarios end after a fixed time, long enough for every subject at no bandwidth limit and at `--mbps 50` (`fixedMs` in `app/src/Scenario.tsx`), and have no event gap. Turbo Image and React Native's `Image` are run with `fadeDuration={0}`: they fade remote images in over 300 ms by default (React Native's `Image` on Android only), and the others show them at once.
 

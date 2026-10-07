@@ -9,9 +9,11 @@ import java.io.InputStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 import kotlin.math.max
@@ -35,6 +37,10 @@ class ImageServer(
     private val socket = ServerSocket(0, 128, InetAddress.getByName("127.0.0.1"))
     private val link = Link(mbps)
     private val files = ConcurrentHashMap<String, ByteArray>()
+    // Image requests per run id (the probe's aren't counted): how many
+    // downloads a library made, e.g. one per photo shown at two sizes when it
+    // shares them.
+    private val requests = ConcurrentHashMap<String, AtomicInteger>()
     private val executor = Executors.newCachedThreadPool()
 
     val url: String get() = "http://127.0.0.1:${socket.localPort}"
@@ -56,6 +62,8 @@ class ImageServer(
             }
         }
     }
+
+    fun imageRequests(run: String): Int = requests[run]?.get() ?: 0
 
     override fun close() {
         socket.close()
@@ -95,8 +103,12 @@ class ImageServer(
             }
             val target = request.split(' ').getOrNull(1) ?: return
             val path = target.substringBefore('?').trimStart('/')
-            val closing = path == "manifest.json" ||
-                target.substringAfter('?', "").split('&').contains("close")
+            val query = target.substringAfter('?', "").split('&')
+            val closing = path == "manifest.json" || query.contains("close")
+            val run = query.firstOrNull { it.startsWith("run=") }?.removePrefix("run=")
+            if (run != null && !closing && path.endsWith(".jpg")) {
+                requests.getOrPut(URLDecoder.decode(run, "UTF-8")) { AtomicInteger() }.incrementAndGet()
+            }
             sleep(latencyMs)
             val body = files[path]
             if (body == null) {

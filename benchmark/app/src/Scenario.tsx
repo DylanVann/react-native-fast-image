@@ -20,11 +20,18 @@ import type { Adapter } from './adapter'
 // writes the results to Documents/results-<run>.json (which run.ts copies
 // from the device over USB, no network permission needed) and turns the
 // marker blue.
-export type ScenarioName = 'grid' | 'scroll' | 'large'
+export type ScenarioName = 'grid' | 'scroll' | 'large' | 'sizes'
 
 type Config = {
     columns: number
     list: boolean
+    // The manifest's set of photos (the scenario's own by default), and how
+    // many of them.
+    set?: string
+    count?: number
+    // Each photo once per entry, at that many columns: the same urls at
+    // several sizes at once.
+    sizes?: number[]
     // For subjects without load events (Nitro Image), done after this long
     // on each platform. With no bandwidth limit every subject shows every
     // image within 1 s (iPhone 15 Pro Max, Pixel 8); with `--mbps 50`, within
@@ -65,6 +72,17 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
         list: false,
         fixedMs: { ios: 8_000, android: 8_000 },
     },
+    // 16 of the grid's photos at two sizes at once (4 and 8 columns), with
+    // the same urls: a library that shares a download between its requests
+    // makes 16, not 32 (the image server counts them).
+    sizes: {
+        columns: 4,
+        list: false,
+        set: 'grid',
+        count: 16,
+        sizes: [4, 8],
+        fixedMs: { ios: 2_000, android: 3_000 },
+    },
 }
 
 // The cell background while an image hasn't shown: far from every tinted
@@ -90,6 +108,8 @@ type Cell = {
     key: string
     color: string
     uri: string
+    // Its size, in columns (the scenario's by default).
+    columns?: number
     loadMs?: number
     errorMs?: number
     error?: string
@@ -170,7 +190,6 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
     const probeUrls = useRef<string[]>([])
     const finished = useRef(false)
     const { width } = Dimensions.get('window')
-    const cellSize = Math.floor(width / config.columns)
 
     useEffect(() => {
         let cancelled = false
@@ -178,7 +197,10 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             const manifest: Manifest = await (
                 await fetch(`${server}/manifest.json`)
             ).json()
-            const images = manifest.sets[name].images
+            const images = manifest.sets[config.set ?? name].images.slice(
+                0,
+                config.count,
+            )
             const url = (key: string, runId: string) =>
                 `${server}/${key}?run=${encodeURIComponent(runId)}`
             probeUrls.current = manifest.sets[PROBE_SET].images
@@ -188,12 +210,15 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             await new Promise((r) => setTimeout(r, 300))
             if (cancelled) return
             setCells(
-                images.map((image, index) => ({
-                    index,
-                    key: image.key,
-                    color: image.color,
-                    uri: url(image.key, run),
-                })),
+                (config.sizes ?? [config.columns]).flatMap((columns, size) =>
+                    images.map((image, i) => ({
+                        index: size * images.length + i,
+                        key: image.key,
+                        color: image.color,
+                        uri: url(image.key, run),
+                        columns,
+                    })),
+                ),
             )
             started.current = now()
             setPhase('running')
@@ -211,7 +236,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [clock, name, run, server])
+    }, [clock, config, name, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -295,6 +320,11 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         if (adapter.loadEvents && settled.current.size >= expected) finish()
     }
 
+    const cellSize = (cell: Cell) => {
+        const size = Math.floor(width / (cell.columns ?? config.columns))
+        return { width: size, height: size }
+    }
+
     const renderCell = (cell: Cell) => (
         <View
             key={cell.index}
@@ -303,7 +333,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                 else views.current.delete(cell.index)
             }}
             collapsable={false}
-            style={[styles.cell, { width: cellSize, height: cellSize }]}
+            style={[styles.cell, cellSize(cell)]}
         >
             <adapter.Image
                 uri={cell.uri}
