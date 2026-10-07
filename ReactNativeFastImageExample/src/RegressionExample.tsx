@@ -1175,6 +1175,196 @@ function ProgressCacheKeyCase() {
     )
 }
 
+// The slow server only sends images with it.
+const SLOW_HEADERS = { 'x-token': 'fast-image' }
+
+// The slow server's requests in a group (see the image server).
+const groupRequests = (group: string) =>
+    fetch(imageUrl(`requests?group=${group}`))
+        .then((response) => response.json())
+        .then((stats: { count: number }) => stats.count)
+
+// Two images of one url from the slow server, at different sizes, load at the
+// same time. Passes when the server got one request for it, and both images
+// got onProgress before their onLoad. Glide only shares a download between
+// requests for the same size, so Android downloaded it twice.
+const SHARED_SIZES_GROUP = `shared-sizes-${RUN}`
+function SharedDownloadSizesCase() {
+    const progressed = useRef(new Set<number>())
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loaded < 2) return
+        groupRequests(SHARED_SIZES_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_SIZES_GROUP}&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onProgress={() => progressed.current.add(i)}
+                    onLoad={() => {
+                        if (!progressed.current.has(i)) {
+                            setProblem(
+                                (previous) =>
+                                    previous ??
+                                    `no onProgress for image ${i + 1}`,
+                            )
+                        }
+                        setLoaded((n) => n + 1)
+                    }}
+                    onError={(e) =>
+                        setProblem(
+                            (previous) =>
+                                previous ?? `onError: ${e.nativeEvent.error}`,
+                        )
+                    }
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-sizes"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="two sizes of one url loading at the same time share one download"
+            />
+        </View>
+    )
+}
+
+// Two images of one url at different sizes share its download, which the slow
+// server holds halfway; once both have some of it, the first unmounts, and the
+// server sends the rest. Passes when the second loads, from one request.
+const SHARED_CANCEL_GROUP = `shared-cancel-${RUN}`
+function SharedDownloadCancelCase() {
+    const progressed = useRef(new Set<number>())
+    const [firstMounted, setFirstMounted] = useState(true)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (firstMounted) return
+        fetch(imageUrl(`release?hold=${SHARED_CANCEL_GROUP}`)).catch((e) =>
+            setProblem(String(e)),
+        )
+    }, [firstMounted])
+    useEffect(() => {
+        if (!loaded) return
+        groupRequests(SHARED_CANCEL_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_CANCEL_GROUP}&hold=${SHARED_CANCEL_GROUP}&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    const onProgress = (image: number) => () => {
+        progressed.current.add(image)
+        if (progressed.current.size === 2) setFirstMounted(false)
+    }
+    const onError = (e: OnErrorEvent) =>
+        setProblem((previous) => previous ?? `onError: ${e.nativeEvent.error}`)
+    return (
+        <View style={styles.row}>
+            <View style={sharedStyles.small}>
+                {firstMounted && (
+                    <FastImage
+                        style={sharedStyles.small}
+                        source={source}
+                        onProgress={onProgress(0)}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <FastImage
+                style={sharedStyles.large}
+                source={source}
+                onProgress={onProgress(1)}
+                onLoad={() => setLoaded(true)}
+                onError={onError}
+            />
+            <CaseStatus
+                id="shared-download-cancel"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="a shared download goes on for the other image when one of them unmounts"
+            />
+        </View>
+    )
+}
+
+// Two images of one url that 404s, at different sizes, load at the same
+// time. Passes when both get onError with the status.
+const SHARED_ERROR_URL = slowImageUrl(
+    `does-not-exist.jpg?shared-error=${RUN}&delay=100`,
+)
+function SharedDownloadErrorCase() {
+    const [errors, setErrors] = useState<string[]>([])
+    const [loaded, setLoaded] = useState(false)
+    const source = { uri: SHARED_ERROR_URL, headers: SLOW_HEADERS }
+    const missing = errors.find((error) => !error.includes('404'))
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onLoad={() => setLoaded(true)}
+                    onError={(e) =>
+                        setErrors((previous) => [
+                            ...previous,
+                            String(e.nativeEvent.error),
+                        ])
+                    }
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-error"
+                status={
+                    loaded
+                        ? 'onLoad for a url that 404s'
+                        : missing !== undefined
+                          ? `onError without the status: ${missing}`
+                          : errors.length < 2
+                            ? 'waiting'
+                            : 'OK'
+                }
+                description="two sizes of a url that 404s both get onError with the status"
+            />
+        </View>
+    )
+}
+
+const sharedStyles = StyleSheet.create({
+    small: { width: 30, height: 30 },
+    large: { width: 60, height: 60 },
+})
+
 // Gets two cookies with fetch, then loads an image the server only sends with
 // both (and which sets a cookie of its own), then checks the image's cookie
 // was kept for later requests. Android sent no cookies with images (iOS did).
@@ -5169,6 +5359,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ProgressAfterLoadCase key="progress-after-load" />,
             <ProgressUrlFormCase key="progress-url-form" />,
             <ProgressCacheKeyCase key="progress-cache-key" />,
+        ],
+    },
+    {
+        name: 'shared-downloads',
+        cases: [
+            <SharedDownloadSizesCase key="shared-download-sizes" />,
+            <SharedDownloadCancelCase key="shared-download-cancel" />,
+            <SharedDownloadErrorCase key="shared-download-error" />,
         ],
     },
     {
