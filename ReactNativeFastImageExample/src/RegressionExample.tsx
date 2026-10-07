@@ -1037,11 +1037,12 @@ const sharedUrlStyles = StyleSheet.create({
 })
 
 // An image with onProgress loads a url from the slow server; once it has
-// loaded, another image downloads the same url again (`cache: 'web'`, and the
-// slow server's responses have no cache headers). Passes when the first image
-// gets no onProgress after its onLoad, and the second gets some. Android sent
-// a url's progress to every image that had loaded it, until it loaded another
-// source, so the first image got the second download's.
+// loaded, another image downloads the same url again (both with
+// `cache: 'web'`, and the slow server's responses have no cache headers, so
+// it isn't cached). Passes when the first image gets no onProgress after its
+// onLoad, and the second gets some. Android sent a url's progress to every
+// image that had loaded it, until it loaded another source, so the first
+// image got the second download's.
 const AFTER_LOAD_URL = slowImageUrl(
     `picsum/1025-200x200.jpg?after-load=${RUN}&delay=100`,
 )
@@ -1057,7 +1058,7 @@ function ProgressAfterLoadCase() {
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                source={{ uri: AFTER_LOAD_URL, headers }}
+                source={{ uri: AFTER_LOAD_URL, headers, cache: 'web' }}
                 onProgress={() => {
                     if (firstLoaded.current) setLate((n) => n + 1)
                 }}
@@ -1538,6 +1539,33 @@ function UnsharedDownloadCancelCase() {
                 id="unshared-download-cancel"
                 status={problem ?? (loaded ? 'OK' : 'waiting')}
                 description="an image downloading a response of unknown length unmounts"
+            />
+        </View>
+    )
+}
+
+// An image whose download stalls: the slow server sends half of it, then
+// holds the rest (and is never told to send it). Passes when the image gets
+// onError. Android's client had no timeouts, so the image (and every request
+// sharing its download) waited forever; a download that gets nothing for 15 s
+// fails, as on iOS.
+const STALLED_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?stalled=${RUN}&hold=stalled-${RUN}&delay=100`,
+)
+function StalledDownloadCase() {
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.large}
+                source={{ uri: STALLED_URL, headers: SLOW_HEADERS }}
+                onLoad={() => setStatus('onLoad for a download that stalled')}
+                onError={() => setStatus('OK')}
+            />
+            <CaseStatus
+                id="stalled-download"
+                status={status}
+                description="a download that gets nothing for 15 s fails"
             />
         </View>
     )
@@ -5552,6 +5580,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SharedDownloadErrorCase key="shared-download-error" />,
             <SharedDownloadRetryCase key="shared-download-retry" />,
             <UnsharedDownloadCancelCase key="unshared-download-cancel" />,
+            <StalledDownloadCase key="stalled-download" />,
         ],
     },
     {

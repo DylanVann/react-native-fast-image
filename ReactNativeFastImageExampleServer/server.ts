@@ -333,6 +333,8 @@ http.createServer(async (request, response) => {
     const hold = url.searchParams.get('hold')
     const fail = async (status: number, message: string) => {
         if (hold !== null) await holdUntilReleased(hold)
+        // The client went away while it was held.
+        if (response.destroyed) return
         response.writeHead(status).end(message)
     }
     if (request.headers['x-token'] !== 'fast-image') {
