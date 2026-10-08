@@ -16,7 +16,6 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     static final String REACT_ON_ERROR_EVENT = "onFastImageError";
     static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
     static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
-    private final String key;
     private final FastImageSource source;
     // Whether the request shows the previous image as a thumbnail meanwhile.
     private final boolean thumbnail;
@@ -24,8 +23,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     // view shows it at its old size if that fails.
     private final boolean events;
 
-    FastImageRequestListener(String key, FastImageSource source, boolean thumbnail, boolean events) {
-        this.key = key;
+    FastImageRequestListener(FastImageSource source, boolean thumbnail, boolean events) {
         this.source = source;
         this.thumbnail = thumbnail;
         this.events = events;
@@ -39,7 +37,6 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             }
             return false;
         }
-        FastImageOkHttpProgressGlideModule.forget(key);
         if (!(target instanceof ImageViewTarget)) {
             return false;
         }

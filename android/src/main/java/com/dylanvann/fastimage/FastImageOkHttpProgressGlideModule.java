@@ -10,7 +10,6 @@ import com.bumptech.glide.annotation.GlideModule;
 import com.bumptech.glide.load.ImageHeaderParser;
 import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
-import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.Options;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.ModelLoader;
@@ -23,10 +22,8 @@ import com.facebook.react.modules.network.OkHttpClientProvider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
 import okhttp3.HttpUrl;
@@ -34,20 +31,18 @@ import okhttp3.Interceptor;
 import okhttp3.JavaNetCookieJar;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.Buffer;
 import okio.BufferedSource;
-import okio.ForwardingSource;
-import okio.Okio;
-import okio.Source;
 
 @GlideModule
 public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
 
-    private static final DispatchingProgressListener progressListener = new DispatchingProgressListener();
     private static final long WEB_CACHE_SIZE = 50 * 1024 * 1024;
+    // How long a download can get nothing from the server (see
+    // registerComponents).
+    private static final long TIMEOUT_SECONDS = 15;
     // The HTTP cache of `cache: 'web'` images, once Glide has set up.
     @Nullable
     private static Cache webCache;
@@ -67,11 +62,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     static void downloadToWebCache(GlideUrl url) throws IOException {
         OkHttpClient client = webClient;
         if (client == null) throw new IOException("Glide isn't set up");
-        Request.Builder request = new Request.Builder().url(url.toStringUrl());
-        for (Map.Entry<String, String> header : url.getHeaders().entrySet()) {
-            request.addHeader(header.getKey(), header.getValue());
-        }
-        try (Response response = client.newCall(request.build()).execute()) {
+        try (Response response = client.newCall(FastImageSharedDownloads.request(url)).execute()) {
             if (!response.isSuccessful()) {
                 // As Glide's HttpException reports it.
                 throw new IOException(response.message() + ", status code: " + response.code());
@@ -107,7 +98,6 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
         OkHttpClient.Builder builder = sharedClient
                 .newBuilder()
-                .addInterceptor(createInterceptor(progressListener))
                 // A network interceptor, so it runs before the HTTP cache of
                 // `web` images stores the response (checking it reads it).
                 .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()));
@@ -118,6 +108,15 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         if (sharedClient.cookieJar() instanceof CookieJarContainer) {
             builder.cookieJar(new JavaNetCookieJar(new FastImageCookieHandler()));
         }
+        // React Native's shared client has no timeouts, so a download that
+        // stopped (e.g. on a connection that died) never ended, and every
+        // request sharing it waited. As on iOS (SDWebImage's 15 s), one that
+        // gets nothing for TIMEOUT_SECONDS fails: connecting, or waiting for
+        // the response or the next of its bytes. Timeouts the app gave the
+        // client stay. No call timeout: a large image on a slow link can take
+        // longer than any.
+        if (sharedClient.connectTimeoutMillis() == 0) builder.connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        if (sharedClient.readTimeoutMillis() == 0) builder.readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         OkHttpClient client = builder.build();
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
@@ -127,6 +126,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // store them twice).
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         webClient = client.newBuilder().cache(webCache).build();
+        FastImageSharedDownloads.setDirectory(new File(context.getCacheDir(), "fast-image-downloads"));
         registry.prepend(FastImageUrl.class, InputStream.class, new UrlLoaderFactory(client, webClient));
         FastImageSvg.register(registry, glide.getBitmapPool());
         FastImageAnimated.register(context, glide, registry);
@@ -138,12 +138,12 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         FastImageGlide.registered(glide);
     }
 
-    // Loads FastImage's remote images (FastImageUrls): `web` ones
-    // (FastImageWebGlideUrls) with the client with the HTTP cache, others with
-    // the other client, where a view loading an image that's being preloaded
-    // waits for the preload's download. FastImageUrl isn't a GlideUrl, so
-    // Glide doesn't also give these to other GlideUrl loaders, which it would
-    // try after a failed load (e.g. a 404, requested again).
+    // Loads FastImage's remote images (FastImageUrls), with one download of an
+    // image at a time, shared by its requests (FastImageSharedDownloads):
+    // `web` ones (FastImageWebGlideUrls) with the client with the HTTP cache,
+    // others with the other client. FastImageUrl isn't a GlideUrl, so Glide
+    // doesn't also give these to other GlideUrl loaders, which it would try
+    // after a failed load (e.g. a 404, requested again).
     private static class UrlLoaderFactory implements ModelLoaderFactory<FastImageUrl, InputStream> {
         private final OkHttpClient client;
         private final OkHttpClient webClient;
@@ -156,16 +156,11 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         @NonNull
         @Override
         public ModelLoader<FastImageUrl, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
-            final OkHttpUrlLoader loader = new OkHttpUrlLoader(client);
-            final OkHttpUrlLoader webLoader = new OkHttpUrlLoader(webClient);
             return new ModelLoader<FastImageUrl, InputStream>() {
                 @Override
                 public LoadData<InputStream> buildLoadData(@NonNull FastImageUrl model, int width, int height, @NonNull Options options) {
-                    if (model.url instanceof FastImageWebGlideUrl) {
-                        return webLoader.buildLoadData(model.url, width, height, options);
-                    }
-                    LoadData<InputStream> data = loader.buildLoadData(model.url, width, height, options);
-                    return data == null ? null : FastImageSharedDownloads.share(data, model.url, options);
+                    return FastImageSharedDownloads.loadData(
+                            model.url, model.url instanceof FastImageWebGlideUrl ? webClient : client);
                 }
 
                 @Override
@@ -226,133 +221,5 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                 || subtype.equalsIgnoreCase("xml")
                 || subtype.equalsIgnoreCase("xhtml+xml")
                 || subtype.equalsIgnoreCase("javascript");
-    }
-
-    private static Interceptor createInterceptor(final ResponseProgressListener listener) {
-        return new Interceptor() {
-            @Override
-            public Response intercept(Chain chain) throws IOException {
-                Request request = chain.request();
-                Response response = chain.proceed(request);
-                final String key = request.url().toString();
-                return response
-                        .newBuilder()
-                        .body(new OkHttpProgressResponseBody(key, response.body(), listener))
-                        .build();
-            }
-        };
-    }
-
-    static void forget(String key) {
-        progressListener.forget(key);
-    }
-
-    static void expect(String key, FastImageProgressListener listener) {
-        progressListener.expect(key, listener);
-    }
-
-    private interface ResponseProgressListener {
-        void update(String key, long bytesRead, long contentLength);
-    }
-
-    private static class DispatchingProgressListener implements ResponseProgressListener {
-        private final Map<String, FastImageProgressListener> LISTENERS = new WeakHashMap<>();
-        private final Map<String, Long> PROGRESSES = new HashMap<>();
-
-        void forget(String key) {
-            LISTENERS.remove(key);
-            PROGRESSES.remove(key);
-        }
-
-        void expect(String key, FastImageProgressListener listener) {
-            LISTENERS.put(key, listener);
-        }
-
-        @Override
-        public void update(final String key, final long bytesRead, final long contentLength) {
-            final FastImageProgressListener listener = LISTENERS.get(key);
-            // Without a Content-Length the total is unknown (-1), and a
-            // percentage can't be worked out from it, so don't send those. (It
-            // also looked like the last update, which stopped all updates.)
-            if (listener == null || contentLength <= 0) {
-                return;
-            }
-            if (contentLength <= bytesRead) {
-                forget(key);
-            }
-            if (needsDispatch(key, bytesRead, contentLength, listener.getGranularityPercentage())) {
-                listener.onProgress(key, bytesRead, contentLength);
-            }
-        }
-
-        private boolean needsDispatch(String key, long current, long total, float granularity) {
-            if (granularity == 0 || current == 0 || total == current) {
-                return true;
-            }
-            float percent = 100f * current / total;
-            long currentProgress = (long) (percent / granularity);
-            Long lastProgress = PROGRESSES.get(key);
-            if (lastProgress == null || currentProgress != lastProgress) {
-                PROGRESSES.put(key, currentProgress);
-                return true;
-            } else {
-                return false;
-            }
-        }
-    }
-
-    private static class OkHttpProgressResponseBody extends ResponseBody {
-        private final String key;
-        private final ResponseBody responseBody;
-        private final ResponseProgressListener progressListener;
-        private BufferedSource bufferedSource;
-
-        OkHttpProgressResponseBody(
-                String key,
-                ResponseBody responseBody,
-                ResponseProgressListener progressListener
-        ) {
-            this.key = key;
-            this.responseBody = responseBody;
-            this.progressListener = progressListener;
-        }
-
-        @Override
-        public MediaType contentType() {
-            return responseBody.contentType();
-        }
-
-        @Override
-        public long contentLength() {
-            return responseBody.contentLength();
-        }
-
-        @Override
-        public BufferedSource source() {
-            if (bufferedSource == null) {
-                bufferedSource = Okio.buffer(source(responseBody.source()));
-            }
-            return bufferedSource;
-        }
-
-        private Source source(Source source) {
-            return new ForwardingSource(source) {
-                long totalBytesRead = 0L;
-
-                @Override
-                public long read(Buffer sink, long byteCount) throws IOException {
-                    long bytesRead = super.read(sink, byteCount);
-                    long fullLength = responseBody.contentLength();
-                    if (bytesRead == -1) {
-                        // this source is exhausted
-                        totalBytesRead = fullLength;
-                    } else {
-                        totalBytesRead += bytesRead;
-                    }
-                    progressListener.update(key, totalBytesRead, fullLength);
-                    return bytesRead;
-                }
-            };
-        }
     }
 }

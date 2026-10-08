@@ -109,3 +109,15 @@ dependencies {
     // Animated PNGs (see FastImageApng).
     implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
 }
+
+// Unit tests of the downloads (src/test, with Robolectric, which gives them
+// Android's classes), run from an example app's android folder:
+// `./gradlew :react-native-fast-image:testDebugUnitTest`. The npm package
+// doesn't include src/test, so apps don't get these.
+if (file('src/test').exists()) {
+    android.testOptions.unitTests.includeAndroidResources = true
+    dependencies {
+        testImplementation 'junit:junit:4.13.2'
+        testImplementation 'org.robolectric:robolectric:4.15.1'
+    }
+}

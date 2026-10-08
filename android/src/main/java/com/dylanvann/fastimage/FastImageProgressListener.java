@@ -1,5 +1,9 @@
 package com.dylanvann.fastimage;
 
+// No longer used: FastImage sends progress through FastImageViewManager's
+// onDownloadProgress. Kept, as a public type, so code that refers to it still
+// compiles.
+@Deprecated
 public interface FastImageProgressListener {
 
     void onProgress(String key, long bytesRead, long expectedLength);

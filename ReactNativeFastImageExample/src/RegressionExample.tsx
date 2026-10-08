@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
     AppState,
     Image,
@@ -18,6 +18,7 @@ import FastImage, {
     FastImageBackground,
     FastImageProps,
     LoadResult,
+    OnErrorEvent,
     OnProgressEvent,
     PreloadResult,
     Source,
@@ -919,6 +920,1418 @@ function ProgressGzipCase() {
     )
 }
 
+// Many images with onProgress load one url from the slow server while more of
+// them, on the same url, mount and unmount every frame, for several rounds (a
+// new url each). A round ends once each of the images has loaded; passes when
+// every round does with no onError, and each image got onProgress before its
+// onLoad, never going back, the last 1, and none after. Android went through
+// the url's list of views on the download's thread to send progress, while the
+// UI thread added and removed views: that threw a
+// ConcurrentModificationException, which failed the download (every image on
+// the url got onError).
+const SHARED_URL_ROUNDS = 8
+const SHARED_URL_VIEWS = 40
+const SHARED_URL_CHURN = 10
+function ProgressSharedUrlCase() {
+    const [round, setRound] = useState(0)
+    const [error, setError] = useState<string>()
+    const [problem, setProblem] = useState<string>()
+    const [frame, setFrame] = useState(0)
+    // This round: the images that loaded, and each image's last onProgress.
+    const loaded = useRef(new Set<number>())
+    const progress = useRef(new Map<number, number>())
+    const done =
+        round >= SHARED_URL_ROUNDS ||
+        error !== undefined ||
+        problem !== undefined
+    const source = useMemo(
+        () => ({
+            uri: slowImageUrl(
+                `picsum/1015-2048x2048.jpg?shared-url=${round}-${RUN}&delay=100`,
+            ),
+            headers: { 'x-token': 'fast-image' },
+        }),
+        [round],
+    )
+    useEffect(() => {
+        if (done) return
+        let id = requestAnimationFrame(function step() {
+            setFrame((f) => f + 1)
+            id = requestAnimationFrame(step)
+        })
+        return () => cancelAnimationFrame(id)
+    }, [done])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    const onProgress = (view: number, e: OnProgressEvent) => {
+        const last = progress.current.get(view)
+        if (loaded.current.has(view)) {
+            fail(`image ${view + 1}: onProgress after onLoad`)
+        } else if (last !== undefined && e.nativeEvent.progress < last) {
+            fail(`image ${view + 1}: onProgress went back`)
+        }
+        progress.current.set(view, e.nativeEvent.progress)
+    }
+    const onLoad = (view: number) => {
+        const last = progress.current.get(view)
+        if (last === undefined) {
+            fail(`image ${view + 1}: no onProgress before onLoad`)
+        } else if (last !== 1) {
+            fail(`image ${view + 1}: last onProgress ${last}, not 1`)
+        }
+        loaded.current.add(view)
+        if (loaded.current.size === SHARED_URL_VIEWS) {
+            loaded.current.clear()
+            progress.current.clear()
+            setRound((r) => r + 1)
+        }
+    }
+    const onError = (e: OnErrorEvent) => {
+        const message = String(e.nativeEvent.error)
+        setError((previous) => previous ?? message)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedUrlStyles.images}>
+                {!done &&
+                    Array.from({ length: SHARED_URL_VIEWS }, (_, i) => (
+                        <FastImage
+                            key={`view-${i}`}
+                            style={sharedUrlStyles.image}
+                            source={source}
+                            onProgress={(e) => onProgress(i, e)}
+                            onLoad={() => onLoad(i)}
+                            onError={onError}
+                        />
+                    ))}
+                {/* Mounted every other frame. */}
+                {!done &&
+                    frame % 2 === 0 &&
+                    Array.from({ length: SHARED_URL_CHURN }, (_, i) => (
+                        <FastImage
+                            key={`churn-${i}`}
+                            style={sharedUrlStyles.image}
+                            source={source}
+                            onProgress={() => {}}
+                            onError={onError}
+                        />
+                    ))}
+            </View>
+            <CaseStatus
+                id="progress-shared-url"
+                status={
+                    error !== undefined
+                        ? `onError: ${error}`
+                        : problem !== undefined
+                          ? problem
+                          : done
+                            ? 'OK'
+                            : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
+                }
+                description="onProgress for images on one url while others on it mount and unmount: every image loads, with onProgress only before its onLoad"
+            />
+        </View>
+    )
+}
+
+const sharedUrlStyles = StyleSheet.create({
+    images: { width: 64, height: 64, flexDirection: 'row', flexWrap: 'wrap' },
+    image: { width: 6, height: 6 },
+})
+
+// An image with onProgress loads a url from the slow server; once it has
+// loaded, another image downloads the same url again (both with
+// `cache: 'web'`, and the slow server's responses have no cache headers, so
+// it isn't cached). Passes when the first image gets no onProgress after its
+// onLoad, and the second gets some. Android sent a url's progress to every
+// image that had loaded it, until it loaded another source, so the first
+// image got the second download's.
+const AFTER_LOAD_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?after-load=${RUN}&delay=100`,
+)
+function ProgressAfterLoadCase() {
+    const firstLoaded = useRef(false)
+    const [secondStarted, setSecondStarted] = useState(false)
+    const [secondLoaded, setSecondLoaded] = useState(false)
+    const [late, setLate] = useState(0)
+    const [secondProgress, setSecondProgress] = useState(0)
+    // The slow server only sends images with it.
+    const headers = { 'x-token': 'fast-image' }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: AFTER_LOAD_URL, headers, cache: 'web' }}
+                onProgress={() => {
+                    if (firstLoaded.current) setLate((n) => n + 1)
+                }}
+                onLoad={() => {
+                    firstLoaded.current = true
+                    setSecondStarted(true)
+                }}
+            />
+            {secondStarted && (
+                <FastImage
+                    style={styles.image}
+                    source={{ uri: AFTER_LOAD_URL, headers, cache: 'web' }}
+                    onProgress={() => setSecondProgress((n) => n + 1)}
+                    onLoad={() => setSecondLoaded(true)}
+                />
+            )}
+            <CaseStatus
+                id="progress-after-load"
+                status={
+                    late > 0
+                        ? `onProgress after onLoad (${late} times)`
+                        : !secondLoaded
+                          ? 'waiting'
+                          : secondProgress === 0
+                            ? 'no onProgress for the second download'
+                            : 'OK'
+                }
+                description="an image gets no onProgress after its onLoad, from another image downloading its url"
+            />
+        </View>
+    )
+}
+
+// An image with onProgress loads a slow server url written with its scheme in
+// capitals (HTTP://). Passes when it gets onProgress, ending at 1. Android
+// looked images up by their url as written, while downloads reported it as
+// OkHttp writes it (a lowercase scheme and host, no default port), so these
+// urls got no onProgress.
+const UPPERCASE_SCHEME_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?url-form=${RUN}&delay=100`,
+).replace(/^http:/, 'HTTP:')
+function ProgressUrlFormCase() {
+    const check = useProgressCheck(true)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: UPPERCASE_SCHEME_URL,
+                    // The slow server only sends images with it.
+                    headers: { 'x-token': 'fast-image' },
+                }}
+                onProgress={check.onProgress}
+                onLoad={() => {
+                    check.onLoad()
+                    setLoaded(true)
+                }}
+            />
+            <CaseStatus
+                id="progress-url-form"
+                status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
+                description="onProgress for a url with its scheme in capitals (HTTP://)"
+            />
+        </View>
+    )
+}
+
+// Two images with onProgress, at different sizes, load different urls with the
+// same cacheKey (the slow server ignores the query) at the same time. Passes
+// when each image got onProgress before its onLoad, never going back, the last
+// 1, and none after, and the server got one request on Android, which shares
+// downloads by cache key (two on iOS, where SDWebImage shares them by url).
+// Android looked images up by their own url, so the image whose url wasn't
+// downloaded got no progress, and it downloaded each size.
+const CACHE_KEY_GROUP = `progress-cache-key-${RUN}`
+const cacheKeyUrl = (token: string) =>
+    slowImageUrl(
+        `picsum/1025-200x200.jpg?group=${CACHE_KEY_GROUP}&token=${token}&delay=100`,
+    )
+function ProgressCacheKeyCase() {
+    // Each image's last onProgress, and the images that loaded.
+    const progress = useRef(new Map<number, number>())
+    const loaded = useRef(new Set<number>())
+    const [loadedCount, setLoadedCount] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loadedCount < 2) return
+        groupRequests(CACHE_KEY_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loadedCount])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    const expected = Platform.OS === 'ios' ? 2 : 1
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={{
+                        uri: cacheKeyUrl(String(i)),
+                        headers: SLOW_HEADERS,
+                        cacheKey: CACHE_KEY_GROUP,
+                    }}
+                    onProgress={(e) => {
+                        const value = e.nativeEvent.progress
+                        const last = progress.current.get(i)
+                        if (loaded.current.has(i)) {
+                            fail(`image ${i + 1}: onProgress after onLoad`)
+                        } else if (last !== undefined && value < last) {
+                            fail(`image ${i + 1}: onProgress went back`)
+                        }
+                        progress.current.set(i, value)
+                    }}
+                    onLoad={() => {
+                        const last = progress.current.get(i)
+                        if (last === undefined) {
+                            fail(`image ${i + 1}: no onProgress before onLoad`)
+                        } else if (last !== 1) {
+                            fail(
+                                `image ${i + 1}: last onProgress ${last}, not 1`,
+                            )
+                        }
+                        loaded.current.add(i)
+                        setLoadedCount((n) => n + 1)
+                    }}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        fail(`onError: ${error}`)
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="progress-cache-key"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === expected
+                          ? 'OK'
+                          : `requested ${requests} times, expected ${expected}`)
+                }
+                description="onProgress for two sizes of two urls with the same cacheKey"
+            />
+        </View>
+    )
+}
+
+// The slow server only sends images with it.
+const SLOW_HEADERS = { 'x-token': 'fast-image' }
+
+// An image with onProgress loads a url from the slow server, which sends the
+// first of its 8 parts, then holds the rest until the case releases it: once
+// onProgress came, or after 3 s. Passes when onProgress came while the rest
+// was held, and the image loads. Android handed the bytes to the requests
+// (and sent their progress) after the next ones arrived, so the first part's
+// progress waited for the rest.
+const HELD_PROGRESS_HOLD = `held-progress-${RUN}`
+function ProgressHeldBytesCase() {
+    const released = useRef(false)
+    const [progressed, setProgressed] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    const release = () => {
+        if (released.current) return
+        released.current = true
+        fetch(imageUrl(`release?hold=${HELD_PROGRESS_HOLD}`)).catch((e) =>
+            setProblem(String(e)),
+        )
+    }
+    useEffect(() => {
+        const timer = setTimeout(release, 3000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: slowImageUrl(
+                        `picsum/1025-200x200.jpg?held-progress=${RUN}&hold=${HELD_PROGRESS_HOLD}&holdAfter=1&delay=100`,
+                    ),
+                    headers: SLOW_HEADERS,
+                }}
+                onProgress={() => {
+                    if (released.current) return
+                    setProgressed(true)
+                    release()
+                }}
+                onLoad={() => setLoaded(true)}
+                onError={(e) => {
+                    // Read the event now: the updater runs later.
+                    const error = String(e.nativeEvent.error)
+                    setProblem((previous) => previous ?? `onError: ${error}`)
+                }}
+            />
+            <CaseStatus
+                id="progress-held-bytes"
+                status={
+                    problem ??
+                    (!loaded
+                        ? 'waiting'
+                        : progressed
+                          ? 'OK'
+                          : 'no onProgress while the rest was held')
+                }
+                description="onProgress for the bytes that arrived before the server held the rest"
+            />
+        </View>
+    )
+}
+
+// The order the slow server got a group's requests in, among all of its
+// requests (see the image server).
+const groupOrder = (group: string) =>
+    fetch(imageUrl(`requests?group=${group}`))
+        .then((response) => response.json())
+        .then((stats: { order: number[] }) => stats.order)
+
+// Android only (iOS's downloads are SDWebImage's, which waits for its disk
+// cache's queue before it queues a download, so the order there depends on
+// timing). Sixteen images from the slow server download and are held halfway,
+// so the next downloads wait to start (16 at a time). An image
+// of another url with priority 'low' (as a preload's) waits; a view of that
+// url with priority 'high' mounts and, a second later, unmounts; then a view
+// of a third url (normal priority) mounts. The sixteen are released one at a
+// time (so one waiting download starts at a time: several starting at once
+// could reach the server in any order). Passes when the server got the normal
+// view's request before the low one's.
+// Android raised a waiting download's priority when a more urgent request
+// joined it, and kept it once that request had gone, so the low one went
+// first.
+//
+// queued-latest-url, with the same sixteen: an image of a url with a
+// cacheKey waits; a second later, an image of another url with that cacheKey
+// (at another size) mounts. Passes when, once released, the server got the
+// second url's request and not the first's: a download that hasn't started
+// takes the latest url for its key (e.g. a signed url with a fresh token).
+// Android requested the first url.
+const LOWERED_HOLD = `lowered-${RUN}`
+// left-url-reverted, with the same sixteen: an image of a url with another
+// cacheKey waits; a view of another url with that cacheKey mounts with the
+// high-priority view, and unmounts with it. Passes when the server got the
+// first url's request and not the one of the view that left: a waiting
+// download goes back to the latest url of the requests left. Android kept
+// the url of the request that left.
+const LEFT_KEY = `left-url-${RUN}`
+const LEFT_STAYS = `left-stays-${RUN}`
+const LEFT_GONE = `left-gone-${RUN}`
+const QUEUED_KEY = `queued-latest-${RUN}`
+const QUEUED_OLD = `queued-old-${RUN}`
+const QUEUED_NEW = `queued-new-${RUN}`
+const LOWERED_RUNNING = `lowered-running-${RUN}`
+const LOWERED_LOW = `lowered-low-${RUN}`
+const LOWERED_NORMAL = `lowered-normal-${RUN}`
+const loweredUrl = (group: string, extra = '') =>
+    slowImageUrl(`picsum/1021-120x120.jpg?group=${group}${extra}&delay=50`)
+function PriorityLoweredCase() {
+    const [step, setStep] = useState<'running' | 'low' | 'high' | 'normal'>(
+        'running',
+    )
+    const [status, setStatus] = useState('waiting')
+    const [latestStatus, setLatestStatus] = useState('waiting')
+    const [latestLoaded, setLatestLoaded] = useState(0)
+    const [leftStatus, setLeftStatus] = useState('waiting')
+    const [leftLoaded, setLeftLoaded] = useState(false)
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            while (!stopped && (await groupRequests(LOWERED_RUNNING)) < 16) {
+                await sleep(100)
+            }
+            if (stopped) return
+            setStep('low')
+            await sleep(1000)
+            if (stopped) return
+            setStep('high')
+            await sleep(1000)
+            if (stopped) return
+            setStep('normal')
+            await sleep(1000)
+            if (stopped) return
+            for (let i = 0; i < 16 && !stopped; i++) {
+                await fetch(imageUrl(`release?hold=${LOWERED_HOLD}-${i}`))
+                await sleep(400)
+            }
+            let low: number[] = []
+            let normal: number[] = []
+            while (!stopped && (low.length === 0 || normal.length === 0)) {
+                await sleep(100)
+                ;[low, normal] = await Promise.all([
+                    groupOrder(LOWERED_LOW),
+                    groupOrder(LOWERED_NORMAL),
+                ])
+            }
+            if (stopped) return
+            setStatus(
+                normal[0] < low[0]
+                    ? 'OK'
+                    : 'the low-priority image was downloaded before the normal-priority one',
+            )
+        }
+        run().catch((e) => setStatus(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (latestLoaded < 2) return
+        Promise.all([groupRequests(QUEUED_OLD), groupRequests(QUEUED_NEW)])
+            .then(([old, latest]) =>
+                setLatestStatus(
+                    old === 0 && latest === 1
+                        ? 'OK'
+                        : `requested the first url ${old} times and the latest ${latest}`,
+                ),
+            )
+            .catch((e) => setLatestStatus(String(e)))
+    }, [latestLoaded])
+    useEffect(() => {
+        if (!leftLoaded) return
+        Promise.all([groupRequests(LEFT_STAYS), groupRequests(LEFT_GONE)])
+            .then(([stays, gone]) =>
+                setLeftStatus(
+                    stays === 1 && gone === 0
+                        ? 'OK'
+                        : `requested the url left ${stays} times and the url of the view that left ${gone}`,
+                ),
+            )
+            .catch((e) => setLeftStatus(String(e)))
+    }, [leftLoaded])
+    const leftSource = (group: string) => ({
+        uri: loweredUrl(group),
+        headers: SLOW_HEADERS,
+        cacheKey: LEFT_KEY,
+    })
+    const latestSource = (group: string) => ({
+        uri: loweredUrl(group),
+        headers: SLOW_HEADERS,
+        cacheKey: QUEUED_KEY,
+    })
+    const onLatestLoad = () => setLatestLoaded((n) => n + 1)
+    return (
+        <>
+            <View style={styles.row}>
+                <View style={sharedUrlStyles.images}>
+                    {Array.from({ length: 16 }, (_, i) => (
+                        <FastImage
+                            key={i}
+                            style={sharedUrlStyles.image}
+                            source={{
+                                uri: loweredUrl(
+                                    LOWERED_RUNNING,
+                                    `&n=${i}&hold=${LOWERED_HOLD}-${i}`,
+                                ),
+                                headers: SLOW_HEADERS,
+                            }}
+                        />
+                    ))}
+                    {step !== 'running' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={{
+                                uri: loweredUrl(LOWERED_LOW),
+                                headers: SLOW_HEADERS,
+                                priority: 'low',
+                            }}
+                        />
+                    )}
+                    {step === 'high' && (
+                        <View style={{ width: 12, height: 12 }}>
+                            <FastImage
+                                style={{ width: 12, height: 12 }}
+                                source={{
+                                    uri: loweredUrl(LOWERED_LOW),
+                                    headers: SLOW_HEADERS,
+                                    priority: 'high',
+                                }}
+                            />
+                        </View>
+                    )}
+                    {step === 'normal' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={{
+                                uri: loweredUrl(LOWERED_NORMAL),
+                                headers: SLOW_HEADERS,
+                            }}
+                        />
+                    )}
+                    {step !== 'running' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={latestSource(QUEUED_OLD)}
+                            onLoad={onLatestLoad}
+                        />
+                    )}
+                    {(step === 'high' || step === 'normal') && (
+                        <View style={{ width: 12, height: 12 }}>
+                            <FastImage
+                                style={{ width: 12, height: 12 }}
+                                source={latestSource(QUEUED_NEW)}
+                                onLoad={onLatestLoad}
+                            />
+                        </View>
+                    )}
+                    {step !== 'running' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={leftSource(LEFT_STAYS)}
+                            onLoad={() => setLeftLoaded(true)}
+                        />
+                    )}
+                    {step === 'high' && (
+                        <View style={{ width: 12, height: 12 }}>
+                            <FastImage
+                                style={{ width: 12, height: 12 }}
+                                source={leftSource(LEFT_GONE)}
+                            />
+                        </View>
+                    )}
+                </View>
+                <CaseStatus
+                    id="priority-lowered"
+                    status={status}
+                    description="a waiting low-priority image that a high-priority view joined and left goes after a normal-priority one"
+                />
+            </View>
+            <View style={styles.row}>
+                <View style={sharedUrlStyles.images} />
+                <CaseStatus
+                    id="queued-latest-url"
+                    status={latestStatus}
+                    description="a waiting download takes the latest url a request for its cacheKey asks for"
+                />
+            </View>
+            <View style={styles.row}>
+                <View style={sharedUrlStyles.images} />
+                <CaseStatus
+                    id="left-url-reverted"
+                    status={leftStatus}
+                    description="a waiting download goes back to the latest url left when the request that switched it leaves"
+                />
+            </View>
+        </>
+    )
+}
+
+// Three images share a cacheKey, at different sizes: the first url 404s (held
+// until the other two have started loading), the second is fast and the third
+// slow. Passes when each of the other two loads, gets onProgress 1 at most a
+// second before its onLoad, the first gets onError (failedUrlEvents), and
+// Android downloaded one of their urls (iOS, which shares downloads by url,
+// both). Android downloaded both urls once the first had failed, and sent both
+// downloads' progress to both images, so the slow one got 1 from the fast
+// one's download while its own still came.
+const RETRY_PROGRESS_KEY = `retry-progress-${RUN}`
+const RETRY_PROGRESS_GROUP = `retry-progress-group-${RUN}`
+function RetryProgressCase() {
+    const [others, setOthers] = useState(false)
+    const [firstDone, setFirstDone] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    // When each of the other two images first got onProgress 1.
+    const done = useRef(new Map<number, number>())
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_PROGRESS_GROUP, () => stopped)
+            if (stopped) return
+            setOthers(true)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_PROGRESS_KEY}`))
+        }
+        run().catch((e) => fail(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (loaded < 2) return
+        groupRequests(RETRY_PROGRESS_GROUP)
+            .then(setRequests)
+            .catch((e) => fail(String(e)))
+    }, [loaded])
+    const expected = Platform.OS === 'ios' ? 3 : 2
+    const other = (i: number, path: string, style: object) => (
+        <FastImage
+            key={i}
+            style={style}
+            source={{
+                uri: slowImageUrl(`${path}&group=${RETRY_PROGRESS_GROUP}`),
+                headers: SLOW_HEADERS,
+                cacheKey: RETRY_PROGRESS_KEY,
+            }}
+            onProgress={(e) => {
+                if (e.nativeEvent.progress === 1 && !done.current.has(i)) {
+                    done.current.set(i, Date.now())
+                }
+            }}
+            onLoad={() => {
+                const at = done.current.get(i)
+                if (at !== undefined && Date.now() - at > 1000) {
+                    fail(
+                        `image ${i + 1}: onProgress 1 ${Date.now() - at} ms before its onLoad`,
+                    )
+                }
+                setLoaded((n) => n + 1)
+            }}
+            onError={(e) => {
+                // Read the event now: the updater runs later.
+                const error = String(e.nativeEvent.error)
+                fail(`image ${i + 1}: onError: ${error}`)
+            }}
+        />
+    )
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.small}
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?group=${RETRY_PROGRESS_GROUP}&hold=${RETRY_PROGRESS_KEY}`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    cacheKey: RETRY_PROGRESS_KEY,
+                }}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
+            />
+            {others && [
+                other(
+                    1,
+                    `picsum/1025-200x200.jpg?fast=${RUN}&delay=50`,
+                    retryStyles.medium,
+                ),
+                other(
+                    2,
+                    `picsum/1025-200x200.jpg?slow=${RUN}&delay=500`,
+                    sharedStyles.large,
+                ),
+            ]}
+            <CaseStatus
+                id="retry-progress"
+                status={
+                    problem ??
+                    (!firstDone || requests === undefined
+                        ? 'waiting'
+                        : requests === expected
+                          ? 'OK'
+                          : `requested ${requests} times, expected ${expected}`)
+                }
+                description="after a cacheKey's first url fails, its other urls load from one download, with their own progress"
+            />
+        </View>
+    )
+}
+
+// Three images share a cacheKey, at different sizes: the first url 404s (held
+// until the others have started loading), then images of two other urls
+// mount, the second a moment after the first. Passes when the two load, the
+// first gets onError (failedUrlEvents), and, on Android, the server got the
+// latest url's request and not the other's: the retry of a failed download is
+// of the latest url asked for (they're the same image). iOS shares downloads by url, so it downloads both. Android
+// tried the other urls one at a time, the earliest first.
+const RETRY_LATEST_KEY = `retry-latest-${RUN}`
+const RETRY_LATEST_FAILS = `retry-latest-fails-${RUN}`
+const RETRY_LATEST_EARLIER = `retry-latest-earlier-${RUN}`
+const RETRY_LATEST_LATER = `retry-latest-later-${RUN}`
+function RetryLatestUrlCase() {
+    const [mounted, setMounted] = useState(0)
+    const [firstDone, setFirstDone] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<[number, number]>()
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_LATEST_FAILS, () => stopped)
+            if (stopped) return
+            setMounted(1)
+            await sleep(500)
+            if (stopped) return
+            setMounted(2)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_LATEST_FAILS}`))
+        }
+        run().catch((e) => fail(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (loaded < 2) return
+        Promise.all([
+            groupRequests(RETRY_LATEST_EARLIER),
+            groupRequests(RETRY_LATEST_LATER),
+        ])
+            .then(([earlier, later]) => setRequests([earlier, later]))
+            .catch((e) => fail(String(e)))
+    }, [loaded])
+    const image = (i: number, group: string, style: object) => (
+        <FastImage
+            key={i}
+            style={style}
+            source={{
+                uri: slowImageUrl(
+                    `picsum/1025-200x200.jpg?group=${group}&delay=50`,
+                ),
+                headers: SLOW_HEADERS,
+                cacheKey: RETRY_LATEST_KEY,
+            }}
+            onLoad={() => setLoaded((n) => n + 1)}
+            onError={(e) => {
+                // Read the event now: the updater runs later.
+                const error = String(e.nativeEvent.error)
+                fail(`image ${i + 1}: onError: ${error}`)
+            }}
+        />
+    )
+    const status =
+        problem ??
+        (requests === undefined || !firstDone
+            ? 'waiting'
+            : Platform.OS === 'ios' || (requests[0] === 0 && requests[1] === 1)
+              ? 'OK'
+              : `requested the earlier url ${requests[0]} times and the latest ${requests[1]}`)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.small}
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?group=${RETRY_LATEST_FAILS}&hold=${RETRY_LATEST_FAILS}`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    cacheKey: RETRY_LATEST_KEY,
+                }}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
+            />
+            {mounted >= 1 && image(1, RETRY_LATEST_EARLIER, retryStyles.medium)}
+            {mounted >= 2 && image(2, RETRY_LATEST_LATER, sharedStyles.large)}
+            <CaseStatus
+                id="retry-latest-url"
+                status={status}
+                description="after a cacheKey's url fails, the latest of its other urls is the one downloaded"
+            />
+        </View>
+    )
+}
+
+// Three images share a cacheKey, at different sizes: the first url 404s, and
+// so does the second, which the first's retry downloads (both held until the
+// next image has started loading); the third, a newer url that works, mounts
+// while that retry is held. Passes when the third loads, and the first two get
+// onError (their urls failed). Android retried a failed download once, so the
+// newer url that joined the retry was never requested.
+const RETRY_NEWER_KEY = `retry-newer-${RUN}`
+const RETRY_NEWER_FIRST = `retry-newer-first-${RUN}`
+const RETRY_NEWER_SECOND = `retry-newer-second-${RUN}`
+function RetryNewerUrlCase() {
+    const [mounted, setMounted] = useState(0)
+    const [errors, setErrors] = useState(0)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_NEWER_FIRST, () => stopped)
+            if (stopped) return
+            setMounted(1)
+            await sleep(500)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_NEWER_FIRST}`))
+            await groupRequested(RETRY_NEWER_SECOND, () => stopped)
+            if (stopped) return
+            setMounted(2)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_NEWER_SECOND}`))
+        }
+        run().catch((e) => fail(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    const failing = (i: number, group: string, style: object) => (
+        <FastImage
+            key={i}
+            style={style}
+            source={{
+                uri: slowImageUrl(
+                    `does-not-exist.jpg?group=${group}&hold=${group}`,
+                ),
+                headers: SLOW_HEADERS,
+                cacheKey: RETRY_NEWER_KEY,
+            }}
+            {...failedUrlEvents(() => setErrors((n) => n + 1), fail)}
+        />
+    )
+    return (
+        <View style={styles.row}>
+            {failing(0, RETRY_NEWER_FIRST, sharedStyles.small)}
+            {mounted >= 1 && failing(1, RETRY_NEWER_SECOND, retryStyles.medium)}
+            {mounted >= 2 && (
+                <FastImage
+                    style={sharedStyles.large}
+                    source={{
+                        uri: slowImageUrl(
+                            `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
+                        ),
+                        headers: SLOW_HEADERS,
+                        cacheKey: RETRY_NEWER_KEY,
+                    }}
+                    onLoad={() => setLoaded(true)}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        fail(`image 3: onError: ${error}`)
+                    }}
+                />
+            )}
+            <CaseStatus
+                id="retry-newer-url"
+                status={problem ?? (loaded && errors === 2 ? 'OK' : 'waiting')}
+                description="a newer url that joins a cacheKey's retry is downloaded when the retry fails"
+            />
+        </View>
+    )
+}
+
+const retryStyles = StyleSheet.create({
+    medium: { width: 45, height: 45 },
+})
+
+// Twenty images from the slow server, each its own url, load with normal
+// priority; once the server has their first request, one more loads with
+// priority 'high'. Passes when the server got the high one's request before
+// the last of the others: downloads wait to start most urgent first (Android
+// runs 16 at a time, iOS 6).
+const PRIORITY_NORMAL = `priority-normal-${RUN}`
+const PRIORITY_HIGH = `priority-high-${RUN}`
+const PRIORITY_COUNT = 20
+function DownloadPriorityCase() {
+    const [high, setHigh] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        let stopped = false
+        groupRequested(PRIORITY_NORMAL, () => stopped)
+            .then(() => {
+                if (!stopped) setHigh(true)
+            })
+            .catch((e) => setStatus(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (loaded < PRIORITY_COUNT + 1) return
+        Promise.all([groupOrder(PRIORITY_NORMAL), groupOrder(PRIORITY_HIGH)])
+            .then(([normal, urgent]) =>
+                setStatus(
+                    urgent[0] < Math.max(...normal)
+                        ? 'OK'
+                        : `the high-priority image was requested after all ${normal.length} others`,
+                ),
+            )
+            .catch((e) => setStatus(String(e)))
+    }, [loaded])
+    const onLoad = () => setLoaded((n) => n + 1)
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setStatus(`onError: ${error}`)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedUrlStyles.images}>
+                {Array.from({ length: PRIORITY_COUNT }, (_, i) => (
+                    <FastImage
+                        key={i}
+                        style={sharedUrlStyles.image}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_NORMAL}&n=${i}&delay=200`,
+                            ),
+                            headers: SLOW_HEADERS,
+                        }}
+                        onLoad={onLoad}
+                        onError={onError}
+                    />
+                ))}
+                {high && (
+                    <FastImage
+                        style={sharedUrlStyles.image}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_HIGH}&delay=200`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            priority: 'high',
+                        }}
+                        onLoad={onLoad}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="download-priority"
+                status={status}
+                description="a high-priority image loading after twenty others is downloaded before the last of them"
+            />
+        </View>
+    )
+}
+
+// The slow server's requests in a group (see the image server).
+const groupRequests = (group: string) =>
+    fetch(imageUrl(`requests?group=${group}`))
+        .then((response) => response.json())
+        .then((stats: { count: number }) => stats.count)
+
+// Two images of one url from the slow server, at different sizes, load at the
+// same time. Passes when the server got one request for it, and both images got
+// onProgress before their onLoad, the last 1. Glide only shares a download
+// between requests for the same size, so Android downloaded it twice.
+const SHARED_SIZES_GROUP = `shared-sizes-${RUN}`
+function SharedDownloadSizesCase() {
+    // Each image's last onProgress.
+    const progress = useRef(new Map<number, number>())
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loaded < 2) return
+        groupRequests(SHARED_SIZES_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_SIZES_GROUP}&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onProgress={(e) =>
+                        progress.current.set(i, e.nativeEvent.progress)
+                    }
+                    onLoad={() => {
+                        const last = progress.current.get(i)
+                        if (last !== 1) {
+                            const problem =
+                                last === undefined
+                                    ? `no onProgress for image ${i + 1}`
+                                    : `image ${i + 1}: last onProgress ${last}, not 1`
+                            setProblem((previous) => previous ?? problem)
+                        }
+                        setLoaded((n) => n + 1)
+                    }}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        setProblem(
+                            (previous) => previous ?? `onError: ${error}`,
+                        )
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-sizes"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="two sizes of one url loading at the same time share one download"
+            />
+        </View>
+    )
+}
+
+// Two images of one url at different sizes share its download, which the slow
+// server holds halfway; once both have some of it, the first unmounts, and the
+// server sends the rest. Passes when the second loads, from one request.
+const SHARED_CANCEL_GROUP = `shared-cancel-${RUN}`
+function SharedDownloadCancelCase() {
+    const progressed = useRef(new Set<number>())
+    const [firstMounted, setFirstMounted] = useState(true)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (firstMounted) return
+        fetch(imageUrl(`release?hold=${SHARED_CANCEL_GROUP}`)).catch((e) =>
+            setProblem(String(e)),
+        )
+    }, [firstMounted])
+    useEffect(() => {
+        if (!loaded) return
+        groupRequests(SHARED_CANCEL_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_CANCEL_GROUP}&hold=${SHARED_CANCEL_GROUP}&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    const onProgress = (image: number) => () => {
+        progressed.current.add(image)
+        if (progressed.current.size === 2) setFirstMounted(false)
+    }
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setProblem((previous) => previous ?? `onError: ${error}`)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedStyles.small}>
+                {firstMounted && (
+                    <FastImage
+                        style={sharedStyles.small}
+                        source={source}
+                        onProgress={onProgress(0)}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <FastImage
+                style={sharedStyles.large}
+                source={source}
+                onProgress={onProgress(1)}
+                onLoad={() => setLoaded(true)}
+                onError={onError}
+            />
+            <CaseStatus
+                id="shared-download-cancel"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="a shared download goes on for the other image when one of them unmounts"
+            />
+        </View>
+    )
+}
+
+// Two images of one url that 404s, at different sizes, load at the same
+// time. Passes when both get onError with the status.
+const SHARED_ERROR_URL = slowImageUrl(
+    `does-not-exist.jpg?shared-error=${RUN}&delay=100`,
+)
+function SharedDownloadErrorCase() {
+    const [errors, setErrors] = useState<string[]>([])
+    const [loaded, setLoaded] = useState(false)
+    const source = { uri: SHARED_ERROR_URL, headers: SLOW_HEADERS }
+    const missing = errors.find((error) => !error.includes('404'))
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onLoad={() => setLoaded(true)}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        setErrors((previous) => [...previous, error])
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-error"
+                status={
+                    loaded
+                        ? 'onLoad for a url that 404s'
+                        : missing !== undefined
+                          ? `onError without the status: ${missing}`
+                          : errors.length < 2
+                            ? 'waiting'
+                            : 'OK'
+                }
+                description="two sizes of a url that 404s both get onError with the status"
+            />
+        </View>
+    )
+}
+
+const sleep = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(() => resolve(), ms))
+
+// Waits until the slow server got a request in the group.
+const groupRequested = async (group: string, stopped: () => boolean) => {
+    while (!stopped() && (await groupRequests(group)) < 1) await sleep(100)
+}
+
+// The image of a cacheKey's url that 404s, while images of other urls with
+// that cacheKey load: it gets onError (its own url failed), on both
+// platforms. `done` once it did.
+const failedUrlEvents = (
+    done: () => void,
+    fail: (message: string) => void,
+) => ({
+    onLoad: () => fail('onLoad for a url that 404s'),
+    onError: done,
+})
+
+// Two images with the same cacheKey and different urls, at different sizes:
+// the first url 404s, which the slow server holds until the second image has
+// started loading, and the second loads. Passes when the second loads, and
+// the first gets onError (failedUrlEvents). Android shares
+// downloads by cacheKey, so the second image's request joins the first's
+// download, and is retried with its own url once that one fails.
+const RETRY_GROUP = `shared-retry-${RUN}`
+function SharedDownloadRetryCase() {
+    const [second, setSecond] = useState(false)
+    const [firstDone, setFirstDone] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_GROUP, () => stopped)
+            if (stopped) return
+            setSecond(true)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_GROUP}`))
+        }
+        run().catch((e) => setProblem(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.small}
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?group=${RETRY_GROUP}&hold=${RETRY_GROUP}`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    cacheKey: RETRY_GROUP,
+                }}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
+            />
+            <View style={sharedStyles.large}>
+                {second && (
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1025-200x200.jpg?retry=${RUN}&delay=100`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            cacheKey: RETRY_GROUP,
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={(e) => {
+                            // Read the event now: the updater runs later.
+                            const error = String(e.nativeEvent.error)
+                            fail(`image 2: onError: ${error}`)
+                        }}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="shared-download-retry"
+                status={problem ?? (firstDone && loaded ? 'OK' : 'waiting')}
+                description="an image whose url works loads when another url with its cacheKey 404s"
+            />
+        </View>
+    )
+}
+
+// An image whose response has no Content-Length unmounts while it downloads
+// (the slow server holds the rest), then another image of the url loads.
+// Passes when it loads. Cancelling a request happens on the main thread, where
+// closing OkHttp's response would read the socket, which throws
+// NetworkOnMainThreadException: Android cancels the call instead (the
+// response is read into a temporary file, as its length is unknown).
+const CHUNKED_CANCEL_GROUP = `chunked-cancel-${RUN}`
+function ChunkedDownloadCancelCase() {
+    const [shown, setShown] = useState<'first' | 'none' | 'second'>('first')
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(CHUNKED_CANCEL_GROUP, () => stopped)
+            // The first half arrives (100 ms apart), then the server holds.
+            await sleep(600)
+            if (stopped) return
+            setShown('none')
+            await sleep(500)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${CHUNKED_CANCEL_GROUP}`))
+            setShown('second')
+        }
+        run().catch((e) => setProblem(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${CHUNKED_CANCEL_GROUP}&hold=${CHUNKED_CANCEL_GROUP}&chunked&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setProblem((previous) => previous ?? `onError: ${error}`)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedStyles.small}>
+                {shown === 'first' && (
+                    <FastImage
+                        style={sharedStyles.small}
+                        source={source}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <View style={sharedStyles.large}>
+                {shown === 'second' && (
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={source}
+                        onLoad={() => setLoaded(true)}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="chunked-download-cancel"
+                status={problem ?? (loaded ? 'OK' : 'waiting')}
+                description="an image downloading a response of unknown length unmounts"
+            />
+        </View>
+    )
+}
+
+// Two images of one url from the slow server, at different sizes, load at the
+// same time; its response has no Content-Length. Passes when both load, from
+// one request. Android didn't share a response of unknown length: the second
+// image downloaded it again once the first's response had arrived.
+const SHARED_CHUNKED_GROUP = `shared-chunked-${RUN}`
+function SharedDownloadChunkedCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<number>()
+    useEffect(() => {
+        if (loaded < 2) return
+        groupRequests(SHARED_CHUNKED_GROUP)
+            .then(setRequests)
+            .catch((e) => setProblem(String(e)))
+    }, [loaded])
+    const source = {
+        uri: slowImageUrl(
+            `picsum/1025-200x200.jpg?group=${SHARED_CHUNKED_GROUP}&chunked&delay=100`,
+        ),
+        headers: SLOW_HEADERS,
+    }
+    return (
+        <View style={styles.row}>
+            {[sharedStyles.small, sharedStyles.large].map((style, i) => (
+                <FastImage
+                    key={i}
+                    style={style}
+                    source={source}
+                    onLoad={() => setLoaded((n) => n + 1)}
+                    onError={(e) => {
+                        // Read the event now: the updater runs later.
+                        const error = String(e.nativeEvent.error)
+                        setProblem(
+                            (previous) => previous ?? `onError: ${error}`,
+                        )
+                    }}
+                />
+            ))}
+            <CaseStatus
+                id="shared-download-chunked"
+                status={
+                    problem ??
+                    (requests === undefined
+                        ? 'waiting'
+                        : requests === 1
+                          ? 'OK'
+                          : `requested ${requests} times`)
+                }
+                description="two sizes of one url loading at the same time share one download without a Content-Length"
+            />
+        </View>
+    )
+}
+
+// An image whose download stalls: the slow server sends half of it, then
+// holds the rest until the image gets onError. Passes when it does. Android's
+// client had no timeouts, so the image (and every request sharing its
+// download) waited forever; a download that gets nothing for 15 s fails, as on
+// iOS. The hold is released then: nothing waits on it any more.
+const STALLED_HOLD = `stalled-${RUN}`
+const STALLED_URL = slowImageUrl(
+    `picsum/1025-200x200.jpg?stalled=${RUN}&hold=${STALLED_HOLD}&delay=100`,
+)
+function StalledDownloadCase() {
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.large}
+                source={{ uri: STALLED_URL, headers: SLOW_HEADERS }}
+                onLoad={() => setStatus('onLoad for a download that stalled')}
+                onError={() => {
+                    setStatus('OK')
+                    fetch(imageUrl(`release?hold=${STALLED_HOLD}`)).catch(
+                        () => {},
+                    )
+                }}
+            />
+            <CaseStatus
+                id="stalled-download"
+                status={status}
+                description="a download that gets nothing for 15 s fails"
+            />
+        </View>
+    )
+}
+
+const sharedStyles = StyleSheet.create({
+    small: { width: 30, height: 30 },
+    large: { width: 60, height: 60 },
+})
+
 // Gets two cookies with fetch, then loads an image the server only sends with
 // both (and which sets a cookie of its own), then checks the image's cookie
 // was kept for later requests. Android sent no cookies with images (iOS did).
@@ -1028,7 +2441,10 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 source={
                     slow
                         ? {
-                              uri: slowImageUrl(`${path}&hold=${hold}`),
+                              // A byte a second while held: the flow can take
+                              // more than 15 s to send the app away, and a
+                              // download that gets nothing for that long fails.
+                              uri: slowImageUrl(`${path}&hold=${hold}&trickle`),
                               headers: BACKGROUND_SLOW_HEADERS,
                           }
                         : { uri: imageUrl(path) }
@@ -2221,10 +3637,10 @@ function CachePathCase({
                   : !shown
                     ? 'showing the file'
                     : whileLoading
-                      ? // One download on iOS, where SDWebImage shares it;
-                        // Glide on Android downloads it again for a request
-                        // that isn't the same as the view's.
-                        requests === (Platform.OS === 'ios' ? 1 : 2)
+                      ? // One download: the view's and getCachePath's requests
+                        // share it (SDWebImage on iOS, FastImageSharedDownloads
+                        // on Android, where Glide downloaded it again).
+                        requests === 1
                           ? 'OK'
                           : `${requests} requests`
                       : requests === expected
@@ -4900,6 +6316,61 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <WebCacheCase key="web-cache" />,
             <WebCacheCase key="web-cache-avif" avif />,
             <CookiesCase key="cookies" />,
+        ],
+    },
+    {
+        // Loads many images and churns views, so on its own.
+        name: 'progress-shared-url',
+        cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
+    },
+    {
+        name: 'progress-by-url',
+        cases: [
+            <ProgressAfterLoadCase key="progress-after-load" />,
+            <ProgressUrlFormCase key="progress-url-form" />,
+            <ProgressCacheKeyCase key="progress-cache-key" />,
+            <ProgressHeldBytesCase key="progress-held-bytes" />,
+        ],
+    },
+    {
+        // Holds sixteen downloads, so on its own.
+        name: 'download-queue',
+        cases: [
+            Platform.OS === 'android' ? (
+                <PriorityLoweredCase key="priority-lowered" />
+            ) : (
+                <NoCrashCase
+                    key="priority-lowered"
+                    id="priority-lowered"
+                    description="a waiting download's priority after a more urgent request leaves, and its url (Android only)"
+                />
+            ),
+        ],
+    },
+    {
+        // Twenty-one downloads at once, so on its own.
+        name: 'download-priority',
+        cases: [<DownloadPriorityCase key="download-priority" />],
+    },
+    {
+        name: 'shared-downloads',
+        cases: [
+            <SharedDownloadSizesCase key="shared-download-sizes" />,
+            <SharedDownloadCancelCase key="shared-download-cancel" />,
+            <SharedDownloadErrorCase key="shared-download-error" />,
+            <SharedDownloadChunkedCase key="shared-download-chunked" />,
+            <ChunkedDownloadCancelCase key="chunked-download-cancel" />,
+            <StalledDownloadCase key="stalled-download" />,
+        ],
+    },
+    {
+        // A cacheKey's urls when one fails (the shared download's retry).
+        name: 'cachekey-retries',
+        cases: [
+            <SharedDownloadRetryCase key="shared-download-retry" />,
+            <RetryProgressCase key="retry-progress" />,
+            <RetryLatestUrlCase key="retry-latest-url" />,
+            <RetryNewerUrlCase key="retry-newer-url" />,
         ],
     },
     {

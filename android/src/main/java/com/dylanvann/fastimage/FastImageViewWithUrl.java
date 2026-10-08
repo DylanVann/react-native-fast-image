@@ -46,11 +46,6 @@ import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.ReactPointerEventsView;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import javax.annotation.Nonnull;
 
 class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView {
@@ -58,7 +53,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
 
-    public GlideUrl glideUrl;
     // Null when the view was created in a destroyed Activity (nothing loads).
     @Nullable
     final RequestManager requestManager;
@@ -108,8 +102,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // What the last update was called with, to load once the view has a size.
     @Nullable
     private FastImageViewManager mManager;
-    @Nullable
-    private Map<String, List<FastImageViewWithUrl>> mViewsForUrlsMap;
 
     public void setSources(@Nullable ReadableArray sources) {
         mNeedsReload = true;
@@ -163,7 +155,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         post(new Runnable() {
             @Override
             public void run() {
-                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager, mViewsForUrlsMap);
+                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
             }
         });
         return true;
@@ -214,8 +206,64 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
-    // Whether to send progress events (the image has an onProgress).
-    boolean trackProgress = false;
+    // Progress (see FastImageViewManager.onDownloadProgress): whether the image
+    // has an onProgress, the url its current load downloads (null for a local
+    // image, and once the load has ended), the progress key the view gets
+    // progress for (the loading url's, while it has an onProgress), the last
+    // step downloads reported before the load started, and the fraction the
+    // load has had.
+    private boolean mTrackProgress = false;
+    @Nullable
+    private GlideUrl mLoadingUrl;
+    @Nullable
+    private String mTrackedKey;
+    private long mProgressSince;
+    private double mProgressFraction;
+    // Dropped by React (FastImageViewManager.onDropViewInstance): reloads it
+    // posted to itself don't load anything, or track progress, any more.
+    private boolean mDropped = false;
+
+    void setTrackProgress(boolean trackProgress) {
+        mTrackProgress = trackProgress;
+        updateProgressTracking();
+    }
+
+    // The load ended (onLoad or onError), or the view no longer loads its
+    // source: no more progress, and the progress map no longer keeps the view
+    // (and its Activity) alive (#384).
+    void endProgress() {
+        mLoadingUrl = null;
+        updateProgressTracking();
+    }
+
+    void drop() {
+        mDropped = true;
+        clearView(requestManager);
+        endProgress();
+    }
+
+    // Whether a step a download reported is for the current load, and doesn't
+    // go back: one reported before it started is for an earlier load, e.g. of
+    // the same url before resizeMode changed, posted while that load still
+    // ran, and one below what the load has had is from another download of
+    // the key (e.g. one that started after the first had ended).
+    boolean takesProgress(long step, long loaded, long total) {
+        if (step <= mProgressSince) return false;
+        double fraction = (double) loaded / total;
+        if (fraction < mProgressFraction) return false;
+        mProgressFraction = fraction;
+        return true;
+    }
+
+    private void updateProgressTracking() {
+        String key = mTrackProgress && mLoadingUrl != null && !mDropped
+                ? FastImageSharedDownloads.key(mLoadingUrl)
+                : null;
+        if (key == null ? mTrackedKey == null : key.equals(mTrackedKey)) return;
+        if (mTrackedKey != null) FastImageViewManager.untrackProgress(mTrackedKey, this);
+        mTrackedKey = key;
+        if (key != null) FastImageViewManager.trackProgress(key, this);
+    }
 
     // The `transition` prop (from the next load): how long a loaded image
     // takes to fade in, in milliseconds (0 for no fade), whether it also fades
@@ -695,6 +743,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // The loading image loaded (FastImageRequestListener).
     void onImageLoaded() {
         mLoadEnded = true;
+        endProgress();
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -734,7 +783,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean isResized() {
         int width = getWidth() - getPaddingLeft() - getPaddingRight();
         int height = getHeight() - getPaddingTop() - getPaddingBottom();
-        return requestManager != null && !mNeedsReload
+        return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
                 && (width != mShownWidth || height != mShownHeight);
@@ -752,7 +801,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         clearView(requestManager);
         RequestBuilder<Drawable> builder = shown.clone()
                 .error(current.clone())
-                .listener(new FastImageRequestListener(null, null, true, false));
+                .listener(new FastImageRequestListener(null, true, false));
         if (meanwhile == null) builder = builder.thumbnail(current);
         into(shown, builder, meanwhile);
     }
@@ -776,7 +825,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             clearView(requestManager);
             RequestBuilder<Drawable> builder = request.clone()
                     .error(current.clone())
-                    .listener(new FastImageRequestListener(null, null, true, false));
+                    .listener(new FastImageRequestListener(null, true, false));
             if (meanwhile == null) builder = builder.thumbnail(current);
             into(request, builder, meanwhile);
         } else if (mLoadingRequest != null && !mLoadEnded) {
@@ -848,6 +897,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // defaultSource then, but not over a thumbnail: show it here, as iOS does.
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
+        endProgress();
         mShownRequest = null;
         if (!hadThumbnail) return;
         final int load = mLoadCount;
@@ -863,10 +913,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
             @Nonnull FastImageViewManager manager,
-            @Nullable RequestManager requestManager,
-            @Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
+            @Nullable RequestManager requestManager) {
+        if (mDropped) return;
         mManager = manager;
-        mViewsForUrlsMap = viewsForUrlsMap;
         if (mBlurChanged && !mNeedsReload) {
             mBlurChanged = false;
             reblur();
@@ -887,7 +936,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         if (!mWaitsForSize) return;
                         mWaitsForSize = false;
                         mWaitedForSize = true;
-                        onAfterUpdate(manager, requestManager, viewsForUrlsMap);
+                        onAfterUpdate(manager, requestManager);
                     }
                 });
                 return;
@@ -917,7 +966,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // Cancel existing requests.
             clearView(requestManager);
 
-            untrackUrl(viewsForUrlsMap);
+            endProgress();
 
             // Clear the image.
             setImageDrawable(null);
@@ -942,38 +991,33 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // Cancel existing requests.
             clearView(requestManager);
 
-            untrackUrl(viewsForUrlsMap);
+            endProgress();
             setImageDrawable(mDefaultSource);
             return;
         }
 
-        // `imageSource` may be null and we still continue, if `defaultSource` is not null
-        final GlideUrl glideUrl = imageSource == null ? null : imageSource.getGlideUrl();
-
-        String key = glideUrl == null ? null : glideUrl.toStringUrl();
-
-        // Loading a different url: stop tracking the old one.
-        if (this.glideUrl != null && !this.glideUrl.toStringUrl().equals(key)) {
-            untrackUrl(viewsForUrlsMap);
-        }
+        // `imageSource` may be null and we still continue, if `defaultSource` is not null.
+        // What Glide loads: a FastImageUrl for a remote image.
+        Object model = imageSource == null ? null : imageSource.getSourceForLoad();
 
         // Before the view clears (see shownCopy).
         Drawable meanwhile = shownRequest != null && imageSource != null ? shownCopy(shownRequest) : null;
 
         // Cancel existing request.
-        this.glideUrl = glideUrl;
         clearView(requestManager);
 
-        if (glideUrl != null) {
-            FastImageOkHttpProgressGlideModule.expect(key, manager);
-            List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
-            if (viewsForKey != null && !viewsForKey.contains(this)) {
-                viewsForKey.add(this);
-            } else if (viewsForKey == null) {
-                List<FastImageViewWithUrl> newViewsForKeys = new ArrayList<>(Collections.singletonList(this));
-                viewsForUrlsMap.put(key, newViewsForKeys);
-            }
+        // The url this load downloads, for its progress: a remote image's
+        // (without Glide, in a destroyed Activity, nothing loads).
+        mLoadingUrl = requestManager != null && model instanceof FastImageUrl
+                ? ((FastImageUrl) model).url
+                : null;
+        // A restart (reblur) is the same load: its progress doesn't go back,
+        // and steps already on their way to it still count.
+        if (!restarting) {
+            mProgressSince = FastImageViewManager.progressStep();
+            mProgressFraction = 0;
         }
+        updateProgressTracking();
 
         if (imageSource != null && !restarting) {
             // This is an orphan even without a load/loadend when only loading a placeholder
@@ -982,7 +1026,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         if (requestManager != null) {
             // Records the image's own size when Glide decodes it, for onLoad.
-            Object model = imageSource == null ? null : imageSource.getSourceForLoad();
             RequestBuilder<Drawable> base =
                     requestManager
                             // This will make this work for remote and local images. e.g.
@@ -1019,29 +1062,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 builder = builder.thumbnail(fromCache(shownRequest));
             }
 
-            if (key != null)
-                builder.listener(new FastImageRequestListener(key, imageSource, thumbnail, true));
+            if (imageSource != null)
+                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
 
             into(request, builder, meanwhile);
         }
-    }
-
-    // Removes this view from the list of views for its current url (used to send
-    // progress events), which otherwise kept it, and its Activity, alive after
-    // its source changed (#384). The url's progress listener is only forgotten
-    // when no other view uses it.
-    void untrackUrl(@Nonnull Map<String, List<FastImageViewWithUrl>> viewsForUrlsMap) {
-        if (glideUrl == null) return;
-        String key = glideUrl.toStringUrl();
-        List<FastImageViewWithUrl> viewsForKey = viewsForUrlsMap.get(key);
-        if (viewsForKey != null) {
-            viewsForKey.remove(this);
-            if (viewsForKey.isEmpty()) viewsForUrlsMap.remove(key);
-        }
-        if (viewsForKey == null || viewsForKey.isEmpty()) {
-            FastImageOkHttpProgressGlideModule.forget(key);
-        }
-        glideUrl = null;
     }
 
     public void clearView(@Nullable RequestManager requestManager) {

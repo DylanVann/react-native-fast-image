@@ -34,8 +34,10 @@
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
 // GET /requests?group=<group> returns how many requests the slow server got
-// with that `group` query parameter, and the most of them in flight at the
-// same time: `{ "count": 4, "peak": 3 }` (for checking a concurrency limit).
+// with that `group` query parameter, the most of them in flight at the same
+// time, and the order each arrived in among all the slow server's requests:
+// `{ "count": 4, "peak": 3, "order": [12, 13, 15, 16] }` (for checking a
+// concurrency limit, or which requests went first).
 //
 // /regression is a WebSocket relay for the example's regression runner
 // (ReactNativeFastImageExample/src/RegressionRunner.tsx): the app connects with
@@ -54,8 +56,11 @@
 // fast-image`. A test can do something while they load (e.g. send the app to
 // the background). With `?hold=<name>`, it sends half the parts, then holds
 // the rest until GET /release?hold=<name> (at most 60 s), so the download is
-// still going on whenever the test is ready; once released, a name isn't
-// held again. It's a node:http server because Bun.serve
+// still going on whenever the test is ready (an error, like a 403 or 404, is
+// held whole); once released, a name isn't held again. `?holdAfter=<n>` holds
+// after n parts instead, and with `?trickle` it sends a byte a second while
+// held, so the download is never idle long enough for a client's timeout (15 s
+// on both platforms). With `?chunked`, it's sent without a Content-Length. It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
@@ -71,8 +76,9 @@ const requests = new Map<string, number>()
 // flight now, and the most in flight at the same time.
 const groups = new Map<
     string,
-    { count: number; active: number; peak: number }
+    { count: number; active: number; peak: number; order: number[] }
 >()
+let slowRequests = 0
 // Slow responses held until released (`hold`), and the names released: a
 // released name isn't held again (e.g. a download started again when the
 // app came back).
@@ -143,6 +149,7 @@ const server = Bun.serve({
                 return Response.json({
                     count: stats?.count ?? 0,
                     peak: stats?.peak ?? 0,
+                    order: stats?.order ?? [],
                 })
             }
             const key = url.searchParams.get('path') ?? ''
@@ -312,11 +319,18 @@ http.createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost')
     const key = `slow:${url.pathname}${url.search}`
     requests.set(key, (requests.get(key) ?? 0) + 1)
+    slowRequests++
     const group = url.searchParams.get('group')
     if (group !== null) {
-        const stats = groups.get(group) ?? { count: 0, active: 0, peak: 0 }
+        const stats = groups.get(group) ?? {
+            count: 0,
+            active: 0,
+            peak: 0,
+            order: [],
+        }
         groups.set(group, stats)
         stats.count++
+        stats.order.push(slowRequests)
         stats.active++
         stats.peak = Math.max(stats.peak, stats.active)
         // In flight until the response ends or the client goes away.
@@ -329,20 +343,29 @@ http.createServer(async (request, response) => {
         response.once('finish', finish)
         response.once('close', finish)
     }
+    const hold = url.searchParams.get('hold')
+    const fail = async (status: number, message: string) => {
+        if (hold !== null) await holdUntilReleased(hold)
+        // The client went away while it was held.
+        if (response.destroyed) return
+        response.writeHead(status).end(message)
+    }
     if (request.headers['x-token'] !== 'fast-image') {
-        response.writeHead(403).end('Forbidden')
+        await fail(403, 'Forbidden')
         return
     }
     const file = path.join(IMAGES, decodeURIComponent(url.pathname))
     const image = Bun.file(file)
     if (!file.startsWith(IMAGES + path.sep) || !(await image.exists())) {
-        response.writeHead(404).end('Not found')
+        await fail(404, 'Not found')
         return
     }
     const bytes = new Uint8Array(await image.arrayBuffer())
     response.writeHead(200, {
         'Content-Type': image.type,
-        'Content-Length': String(bytes.length),
+        ...(url.searchParams.has('chunked')
+            ? {}
+            : { 'Content-Length': String(bytes.length) }),
     })
     const parts = 8
     const delay = Math.min(
@@ -350,13 +373,32 @@ http.createServer(async (request, response) => {
         Math.max(50, Number(url.searchParams.get('delay')) || 1000),
     )
     const size = Math.ceil(bytes.length / parts)
-    const hold = url.searchParams.get('hold')
+    const holdAfter = Number(url.searchParams.get('holdAfter')) || parts / 2
+    const trickle = url.searchParams.has('trickle')
+    // How far it has sent.
+    let sent = 0
     for (let part = 0; part < parts; part++) {
         // The client went away (e.g. the app cancelled the load).
         if (response.destroyed) return
-        response.write(bytes.subarray(part * size, (part + 1) * size))
-        if (hold !== null && part === parts / 2 - 1) {
-            await holdUntilReleased(hold)
+        const end = Math.min(bytes.length, (part + 1) * size)
+        response.write(bytes.subarray(sent, end))
+        sent = end
+        if (hold !== null && part === holdAfter - 1) {
+            if (trickle) {
+                const until = Date.now() + 60_000
+                while (
+                    !released.has(hold) &&
+                    Date.now() < until &&
+                    sent < bytes.length - 1 &&
+                    !response.destroyed
+                ) {
+                    await Bun.sleep(1000)
+                    response.write(bytes.subarray(sent, sent + 1))
+                    sent++
+                }
+            } else {
+                await holdUntilReleased(hold)
+            }
         } else if (part < parts - 1) {
             await Bun.sleep(delay)
         }
