@@ -2345,7 +2345,26 @@ async function buildAndroid(app: App) {
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
     record('PASS', `${app} android build`)
+    if (app === 'main' && !RELEASE && !FROM_PACKAGE) await androidUnitTests(dir)
     return true
+}
+
+// The library's unit tests (android/src/test, with Robolectric), with the
+// main example's Gradle project, which has just built the library.
+async function androidUnitTests(dir: string) {
+    const log = path.join(OUT, 'android-unit-tests.log')
+    const result = await run(
+        './gradlew',
+        [':react-native-fast-image:testDebugUnitTest', '--console=plain', '-q'],
+        { cwd: path.join(dir, 'android'), log, timeout: 600 },
+    )
+    record(
+        result.ok ? 'PASS' : 'FAIL',
+        'android unit tests',
+        result.ok
+            ? undefined
+            : `see ${rel(log)} and android/build/reports/tests/testDebugUnitTest`,
+    )
 }
 
 async function flowsAndroid(app: App) {

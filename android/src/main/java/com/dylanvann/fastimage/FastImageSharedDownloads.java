@@ -30,6 +30,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -100,6 +101,8 @@ final class FastImageSharedDownloads {
     private static long orders = 0;
     private static int running = 0;
     private static long held = 0;
+    // Stores not yet released (see busy()).
+    private static final AtomicInteger open = new AtomicInteger();
 
     // Where temporary files go (FastImageOkHttpProgressGlideModule sets it).
     @Nullable
@@ -144,6 +147,19 @@ final class FastImageSharedDownloads {
     private static final ConcurrentHashMap<String, Finished> finished = new ConcurrentHashMap<>();
 
     private FastImageSharedDownloads() {
+    }
+
+    // For tests: what downloads still hold, or null once none is left (none
+    // waiting or running), their memory has been given back, and every store
+    // released.
+    @Nullable
+    static String busy() {
+        synchronized (downloads) {
+            int stores = open.get();
+            if (downloads.isEmpty() && queue.isEmpty() && running == 0 && held == 0 && stores == 0) return null;
+            return downloads.size() + " downloads, " + queue.size() + " waiting, " + running + " running, "
+                    + held + " bytes in memory, " + stores + " stores open";
+        }
     }
 
     // Also removes files left in it (one is unlinked once open, but the app
@@ -633,7 +649,9 @@ final class FastImageSharedDownloads {
         }
 
         private static void release(@Nullable Store store) {
-            if (store != null) store.release();
+            if (store == null) return;
+            store.release();
+            open.decrementAndGet();
         }
 
         // With this locked: the requests waiting for it to end.
@@ -802,7 +820,9 @@ final class FastImageSharedDownloads {
                 }
                 if (fits) {
                     try {
-                        return new MemoryStore((int) length);
+                        MemoryStore created = new MemoryStore((int) length);
+                        open.incrementAndGet();
+                        return created;
                     } catch (OutOfMemoryError e) {
                         synchronized (downloads) {
                             held -= reserved;
@@ -811,7 +831,9 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
-            return new FileStore();
+            FileStore created = new FileStore();
+            open.incrementAndGet();
+            return created;
         }
 
         // Reads the response into its store, on a thread of `reading`, then

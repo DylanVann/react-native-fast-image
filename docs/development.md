@@ -92,7 +92,7 @@ bun run ios   # on the "Apple TV 4K (3rd generation)" simulator; add -- --simula
 `scripts/verify.mts` checks the library and runs both example apps on iOS and Android. Run it with Node 26, which runs TypeScript directly:
 
 1. Builds the library, runs its tests, and type-checks the example, the script and the image server.
-2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
+2. Starts the image server and builds every app for iOS and Android (the platforms in parallel), so no build runs while cases are timed. After the main example's Android build, runs the library's Android unit tests (below). Then for each app, starts its packager and runs the Maestro flows on both platforms at once. A failed flow or a crash fails the run.
 
 ```bash
 node scripts/verify.mts                      # everything
@@ -146,6 +146,17 @@ The script runs the groups through the app's **regression runner** (`RegressionR
 The **Regression** tab shows every case at once, for a look by hand, plus the cases that send the app to the background, which stay in a flow. The cases that need a real touch are the runner's last group, `touch`: while it's shown, the script taps them with `maestro/touch.yaml`, and they report their `OK` to the runner like the others.
 
 **Video samples** check how an area changes over time, which one screenshot can't reliably catch (e.g. an image fading in, or a source change that must never show a blank view). A case asks for one with `SampleContext` (`RunnerContext.tsx`): the area (from `measureView`), the longest it may take, the colors it should show in order (`expect`), and colors that mustn't appear (`palette`). The script records the screen (`simctl io recordVideo`, `adb shell screenrecord`; needs ffmpeg), the case makes its change once the recording has started and says when it's done (e.g. once an image has loaded), and each frame's color at the middle of the area is matched to the nearest listed color (perceptually, in CIE Lab, with some tolerance for video compression). A group's samples share one recording, so they run at the same time; each is checked in its own part of it, from the last frame before its change until it was done. The area is measured before the recording starts, so a case keeps it in place: its row shouldn't change height while it records (the runner's summary line and each case's status are one line for this). Repeats are collapsed, so how long each color lasts doesn't matter, only the order. The result comes back to the case as its status. The keep-previous cases use them: magenta, then cyan, never blank. Recordings are kept in `verify-output/…/regression/`.
+
+### Android unit tests
+
+`android/src/test` tests the shared downloads (`FastImageSharedDownloads`) the way Glide uses them: each request is a fetcher from the loader, started with a priority, cancelled, and cleaned up after it reads its stream, and the downloads are real requests to a small HTTP server in the tests (`TestServer`), which holds responses where a test says. So a test checks what the server was asked for, in what order, and what each request got, rather than how the downloads work inside; after each test, it checks the downloads hold nothing more (no memory, temporary file, or download waiting or running). They run on the JVM with [Robolectric](https://robolectric.org) (for Android's classes), in seconds, so they suit cases that depend on the order of events, which are slow to set up in the app. They don't load images through Glide or show them, which the regression cases do.
+
+```bash
+cd ReactNativeFastImageExample/android
+./gradlew :react-native-fast-image:testDebugUnitTest
+```
+
+The results are in `android/build/reports/tests/testDebugUnitTest/`. The npm package doesn't include `android/src/test`, so apps don't get the tests or their dependencies.
 
 ### Maestro flows
 
