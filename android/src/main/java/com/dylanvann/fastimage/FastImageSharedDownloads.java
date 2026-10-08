@@ -240,6 +240,7 @@ final class FastImageSharedDownloads {
                 running++;
                 starting.add(download);
                 requests.add(download.request);
+                download.tried.add(download.url);
             }
         }
         for (int i = 0; i < starting.size(); i++) starting.get(i).start(requests.get(i));
@@ -356,10 +357,13 @@ final class FastImageSharedDownloads {
     private static final class Waiter {
         final Fetcher fetcher;
         final DataFetcher.DataCallback<? super InputStream> callback;
+        // Its url's request (with its headers).
+        final Request request;
 
-        Waiter(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback) {
+        Waiter(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback, Request request) {
             this.fetcher = fetcher;
             this.callback = callback;
+            this.request = request;
         }
     }
 
@@ -453,9 +457,10 @@ final class FastImageSharedDownloads {
         private GlideUrl url;
         private OkHttpClient client;
         private Request request;
-        // It's the retry of a download that failed (see fail()), which isn't
-        // retried again.
-        private boolean retry = false;
+        // Guarded by downloads. The urls requested for its key so far: its own
+        // once it starts, and those of the downloads it's a retry of (see
+        // fail()).
+        private final List<GlideUrl> tried = new ArrayList<>();
         // Guarded by downloads. In the queue (most urgent first, then in
         // order), or running.
         private Priority priority;
@@ -542,7 +547,7 @@ final class FastImageSharedDownloads {
                         download.readers++;
                         ready = download.stream();
                     } else {
-                        download.waiting.add(new Waiter(fetcher, callback));
+                        download.waiting.add(new Waiter(fetcher, callback, request));
                     }
                 }
             }
@@ -590,6 +595,14 @@ final class FastImageSharedDownloads {
             return ended;
         }
 
+        // With downloads locked.
+        private boolean wasTried(GlideUrl other) {
+            for (GlideUrl requested : tried) {
+                if (sameRequest(requested, other)) return true;
+            }
+            return false;
+        }
+
         // With downloads locked, while it's queued.
         private void reprioritize(Priority urgency) {
             queue.remove(this);
@@ -632,10 +645,12 @@ final class FastImageSharedDownloads {
 
         // A request was cancelled (on the main thread). With no one left, the
         // download is too (or, waiting to start, leaves the queue); waiting to
-        // start, it's as urgent as the most urgent request left.
+        // start, it's as urgent as the most urgent request left, and of the
+        // latest url left (the url of a request that left isn't asked for).
         void leave(Fetcher fetcher) {
             boolean cancel = false;
             Priority urgency = null;
+            Waiter latest = null;
             synchronized (downloads) {
                 synchronized (this) {
                     for (int i = waiting.size() - 1; i >= 0; i--) {
@@ -649,13 +664,19 @@ final class FastImageSharedDownloads {
                     for (Waiter waiter : waiting) {
                         Priority asked = waiter.fetcher.priority;
                         if (urgency == null || asked.compareTo(urgency) < 0) urgency = asked;
+                        latest = waiter;
                     }
                 }
                 if (cancel && queued) {
                     queue.remove(this);
                     queued = false;
-                } else if (queued && urgency != null && urgency != priority) {
-                    reprioritize(urgency);
+                } else if (queued && urgency != null) {
+                    if (urgency != priority) reprioritize(urgency);
+                    if (!sameRequest(url, latest.fetcher.url)) {
+                        url = latest.fetcher.url;
+                        client = latest.fetcher.client;
+                        request = latest.request;
+                    }
                 }
             }
             if (cancel) cancel();
@@ -681,11 +702,13 @@ final class FastImageSharedDownloads {
         }
 
         // The download failed: the requests waiting for it fail with the
-        // error, unless one of them asked for another url (a cacheKey's, e.g.
-        // a signed url with a fresh token): this url can fail for reasons of
-        // its own, like an expired token. Then they all wait for one retry,
-        // of the latest of those urls (they're the same image), which isn't
-        // retried again.
+        // error, but those that asked for another url (a cacheKey's, e.g. a
+        // signed url with a fresh token) wait for a retry, of the latest of
+        // those urls (they're the same image), if it hasn't been tried for the
+        // key yet: this url can fail for reasons of its own, like an expired
+        // token. So a newer url that joins a retry gets a retry of its own,
+        // and an older one doesn't. As on iOS, where each url downloads on its
+        // own, an image gets onError when its own url fails.
         private void fail(IOException e) {
             List<Waiter> failed;
             Store dropped;
@@ -701,39 +724,35 @@ final class FastImageSharedDownloads {
                 Waiter latest = null;
                 Priority urgency = null;
                 for (Waiter waiter : failed) {
-                    if (waiter.fetcher.cancelled) continue;
-                    if (!sameRequest(waiter.fetcher.url, url)) latest = waiter;
+                    if (waiter.fetcher.cancelled || sameRequest(waiter.fetcher.url, url)) continue;
+                    latest = waiter;
                     Priority asked = waiter.fetcher.priority;
                     if (urgency == null || asked.compareTo(urgency) < 0) urgency = asked;
                 }
-                if (!retry && latest != null) {
-                    try {
-                        again = new Download(key, latest.fetcher.url, latest.fetcher.client,
-                                request(latest.fetcher.url), urgency);
-                    } catch (IOException invalid) {
-                        // No retry: they fail with the error.
-                    }
-                }
-                if (again != null) {
-                    again.retry = true;
+                if (latest != null && !wasTried(latest.fetcher.url)) {
+                    again = new Download(key, latest.fetcher.url, latest.fetcher.client, latest.request, urgency);
+                    again.tried.addAll(tried);
                     downloads.put(key, again);
                     again.queued = true;
                     queue.add(again);
+                    List<Waiter> failing = new ArrayList<>();
                     synchronized (again) {
                         for (Waiter waiter : failed) {
                             if (waiter.fetcher.cancelled) continue;
-                            waiter.fetcher.download = again;
-                            again.waiting.add(waiter);
+                            if (sameRequest(waiter.fetcher.url, url)) {
+                                failing.add(waiter);
+                            } else {
+                                waiter.fetcher.download = again;
+                                again.waiting.add(waiter);
+                            }
                         }
                     }
+                    failed = failing;
                 }
             }
             release(dropped);
             stopped();
-            if (again != null) {
-                startQueued();
-                return;
-            }
+            if (again != null) startQueued();
             for (Waiter waiter : failed) waiter.callback.onLoadFailed(e);
         }
 
