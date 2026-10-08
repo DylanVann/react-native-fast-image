@@ -1,3 +1,10 @@
+# [9.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.1.0...v9.2.0) (2026-10-08)
+
+
+### Features
+
+* **android:** an image's sizes share one download, and onProgress doesn't fail downloads, stop early or come after onLoad ([98d322e](https://github.com/DylanVann/react-native-fast-image/commit/98d322e74a033c0b3380a9967a442887971c53cd))
+
 # [9.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.0.3...v9.1.0) (2026-10-06)
 
 
