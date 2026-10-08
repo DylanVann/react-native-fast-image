@@ -1217,6 +1217,156 @@ function ProgressCacheKeyCase() {
 // The slow server only sends images with it.
 const SLOW_HEADERS = { 'x-token': 'fast-image' }
 
+// An image with onProgress loads a url from the slow server, which sends the
+// first of its 8 parts, then holds the rest until the case releases it: once
+// onProgress came, or after 3 s. Passes when onProgress came while the rest
+// was held, and the image loads. Android handed the bytes to the requests
+// (and sent their progress) after the next ones arrived, so the first part's
+// progress waited for the rest.
+const HELD_PROGRESS_HOLD = `held-progress-${RUN}`
+function ProgressHeldBytesCase() {
+    const released = useRef(false)
+    const [progressed, setProgressed] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [problem, setProblem] = useState<string>()
+    const release = () => {
+        if (released.current) return
+        released.current = true
+        fetch(imageUrl(`release?hold=${HELD_PROGRESS_HOLD}`)).catch((e) =>
+            setProblem(String(e)),
+        )
+    }
+    useEffect(() => {
+        const timer = setTimeout(release, 3000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: slowImageUrl(
+                        `picsum/1025-200x200.jpg?held-progress=${RUN}&hold=${HELD_PROGRESS_HOLD}&holdAfter=1&delay=100`,
+                    ),
+                    headers: SLOW_HEADERS,
+                }}
+                onProgress={() => {
+                    if (released.current) return
+                    setProgressed(true)
+                    release()
+                }}
+                onLoad={() => setLoaded(true)}
+                onError={(e) => {
+                    // Read the event now: the updater runs later.
+                    const error = String(e.nativeEvent.error)
+                    setProblem((previous) => previous ?? `onError: ${error}`)
+                }}
+            />
+            <CaseStatus
+                id="progress-held-bytes"
+                status={
+                    problem ??
+                    (!loaded
+                        ? 'waiting'
+                        : progressed
+                          ? 'OK'
+                          : 'no onProgress while the rest was held')
+                }
+                description="onProgress for the bytes that arrived before the server held the rest"
+            />
+        </View>
+    )
+}
+
+// The order the slow server got a group's requests in, among all of its
+// requests (see the image server).
+const groupOrder = (group: string) =>
+    fetch(imageUrl(`requests?group=${group}`))
+        .then((response) => response.json())
+        .then((stats: { order: number[] }) => stats.order)
+
+// Twenty images from the slow server, each its own url, load with normal
+// priority; once the server has their first request, one more loads with
+// priority 'high'. Passes when the server got the high one's request before
+// the last of the others: downloads wait to start most urgent first (Android
+// runs 16 at a time, iOS 6).
+const PRIORITY_NORMAL = `priority-normal-${RUN}`
+const PRIORITY_HIGH = `priority-high-${RUN}`
+const PRIORITY_COUNT = 20
+function DownloadPriorityCase() {
+    const [high, setHigh] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        let stopped = false
+        groupRequested(PRIORITY_NORMAL, () => stopped)
+            .then(() => {
+                if (!stopped) setHigh(true)
+            })
+            .catch((e) => setStatus(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (loaded < PRIORITY_COUNT + 1) return
+        Promise.all([groupOrder(PRIORITY_NORMAL), groupOrder(PRIORITY_HIGH)])
+            .then(([normal, urgent]) =>
+                setStatus(
+                    urgent[0] < Math.max(...normal)
+                        ? 'OK'
+                        : `the high-priority image was requested after all ${normal.length} others`,
+                ),
+            )
+            .catch((e) => setStatus(String(e)))
+    }, [loaded])
+    const onLoad = () => setLoaded((n) => n + 1)
+    const onError = (e: OnErrorEvent) => {
+        // Read the event now: the updater runs later.
+        const error = String(e.nativeEvent.error)
+        setStatus(`onError: ${error}`)
+    }
+    return (
+        <View style={styles.row}>
+            <View style={sharedUrlStyles.images}>
+                {Array.from({ length: PRIORITY_COUNT }, (_, i) => (
+                    <FastImage
+                        key={i}
+                        style={sharedUrlStyles.image}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_NORMAL}&n=${i}&delay=200`,
+                            ),
+                            headers: SLOW_HEADERS,
+                        }}
+                        onLoad={onLoad}
+                        onError={onError}
+                    />
+                ))}
+                {high && (
+                    <FastImage
+                        style={sharedUrlStyles.image}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_HIGH}&delay=200`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            priority: 'high',
+                        }}
+                        onLoad={onLoad}
+                        onError={onError}
+                    />
+                )}
+            </View>
+            <CaseStatus
+                id="download-priority"
+                status={status}
+                description="a high-priority image loading after twenty others is downloaded before the last of them"
+            />
+        </View>
+    )
+}
+
 // The slow server's requests in a group (see the image server).
 const groupRequests = (group: string) =>
     fetch(imageUrl(`requests?group=${group}`))
@@ -1490,9 +1640,8 @@ function SharedDownloadRetryCase() {
 // (the slow server holds the rest), then another image of the url loads.
 // Passes when it loads. Cancelling a request happens on the main thread, where
 // closing OkHttp's response would read the socket, which throws
-// NetworkOnMainThreadException: Android cancels the call, and closes the
-// request's stream on the download's bytes (in a temporary file, as the
-// length is unknown).
+// NetworkOnMainThreadException: Android cancels the call instead (the
+// response is read into a temporary file, as its length is unknown).
 const CHUNKED_CANCEL_GROUP = `chunked-cancel-${RUN}`
 function ChunkedDownloadCancelCase() {
     const [shown, setShown] = useState<'first' | 'none' | 'second'>('first')
@@ -1615,8 +1764,7 @@ function SharedDownloadChunkedCase() {
 // holds the rest until the image gets onError. Passes when it does. Android's
 // client had no timeouts, so the image (and every request sharing its
 // download) waited forever; a download that gets nothing for 15 s fails, as on
-// iOS. The hold is released then, so it doesn't stay held for the app's other
-// downloads (e.g. the Regression tab's, where maestro/background.yaml runs).
+// iOS. The hold is released then: nothing waits on it any more.
 const STALLED_HOLD = `stalled-${RUN}`
 const STALLED_URL = slowImageUrl(
     `picsum/1025-200x200.jpg?stalled=${RUN}&hold=${STALLED_HOLD}&delay=100`,
@@ -1759,13 +1907,11 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 source={
                     slow
                         ? {
-                              uri: slowImageUrl(`${path}&hold=${hold}`),
+                              // A byte a second while held: the flow can take
+                              // more than 15 s to send the app away, and a
+                              // download that gets nothing for that long fails.
+                              uri: slowImageUrl(`${path}&hold=${hold}&trickle`),
                               headers: BACKGROUND_SLOW_HEADERS,
-                              // The tab loads every case at once, many from
-                              // the slow server: the download goes first (iOS
-                              // runs 6 at a time), also when it's retried on
-                              // return.
-                              priority: 'high',
                           }
                         : { uri: imageUrl(path) }
                 }
@@ -5649,7 +5795,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ProgressAfterLoadCase key="progress-after-load" />,
             <ProgressUrlFormCase key="progress-url-form" />,
             <ProgressCacheKeyCase key="progress-cache-key" />,
+            <ProgressHeldBytesCase key="progress-held-bytes" />,
         ],
+    },
+    {
+        // Twenty-one downloads at once, so on its own.
+        name: 'download-priority',
+        cases: [<DownloadPriorityCase key="download-priority" />],
     },
     {
         name: 'shared-downloads',
