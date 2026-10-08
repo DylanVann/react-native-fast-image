@@ -267,9 +267,10 @@ final class FastImageSharedDownloads {
         String key;
         Priority priority;
         volatile boolean cancelled;
-        // Set before it joins again, once a download for another url with its
-        // key failed.
-        boolean retried;
+        // It has started, or joined, a download of its own url and headers
+        // (guarded by downloads): until then, a failed download of another
+        // url with its key doesn't fail it.
+        boolean triedOwnUrl;
         // The download it waits for, or reads (guarded by downloads).
         @Nullable
         Download download;
@@ -300,7 +301,7 @@ final class FastImageSharedDownloads {
                     // Gone from the disk cache meanwhile: download it.
                 }
             }
-            Download.join(this, callback, false);
+            Download.join(this, callback);
         }
 
         // From the download, outside its locks, off the main thread.
@@ -490,10 +491,9 @@ final class FastImageSharedDownloads {
             this.order = orders++;
         }
 
-        // Joins the fetcher's key's download, or queues one. `alone` queues one
-        // that other requests don't join.
-        static void join(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback, boolean alone) {
-            // Its own request, which a retry, or a download on its own, sends.
+        // Joins the fetcher's key's download, or queues one of its url.
+        static void join(Fetcher fetcher, DataFetcher.DataCallback<? super InputStream> callback) {
+            // Its own request, which it sends if it starts the download.
             Request request;
             try {
                 request = request(fetcher.url);
@@ -507,12 +507,7 @@ final class FastImageSharedDownloads {
             synchronized (downloads) {
                 // Cancelled before it got here.
                 if (fetcher.cancelled) return;
-                download = alone ? null : downloads.get(fetcher.key);
-                // A retry only joins a download of its own url and headers.
-                if (download != null && fetcher.retried && !sameRequest(download.url, fetcher.url)) {
-                    alone = true;
-                    download = null;
-                }
+                download = downloads.get(fetcher.key);
                 // A `web` image follows its HTTP cache: it only joins a
                 // download in progress, not the bytes of one that has ended.
                 if (download != null && fetcher.url instanceof FastImageWebGlideUrl && download.hasEnded()) {
@@ -520,16 +515,15 @@ final class FastImageSharedDownloads {
                 }
                 if (download == null) {
                     download = new Download(fetcher.key, fetcher.url, fetcher.client, request, fetcher.priority);
-                    if (!alone) downloads.put(fetcher.key, download);
+                    downloads.put(fetcher.key, download);
                     download.queued = true;
                     queue.add(download);
                     queuedOne = true;
                 } else if (download.queued && fetcher.priority.compareTo(download.priority) < 0) {
-                    // A more urgent request moves it up.
-                    queue.remove(download);
-                    download.priority = fetcher.priority;
-                    queue.add(download);
+                    // A more urgent request moves it up (until it leaves).
+                    download.reprioritize(fetcher.priority);
                 }
+                if (sameRequest(download.url, fetcher.url)) fetcher.triedOwnUrl = true;
                 fetcher.download = download;
                 synchronized (download) {
                     // An ended download in the map has its bytes (a failed one
@@ -586,6 +580,13 @@ final class FastImageSharedDownloads {
             return ended;
         }
 
+        // With downloads locked, while it's queued.
+        private void reprioritize(Priority urgency) {
+            queue.remove(this);
+            priority = urgency;
+            queue.add(this);
+        }
+
         // With this locked, once it has ended: a stream over all of its bytes.
         private SharedStream stream() {
             return new SharedStream(this, store, size);
@@ -620,9 +621,11 @@ final class FastImageSharedDownloads {
         }
 
         // A request was cancelled (on the main thread). With no one left, the
-        // download is too (or, waiting to start, leaves the queue).
+        // download is too (or, waiting to start, leaves the queue); waiting to
+        // start, it's as urgent as the most urgent request left.
         void leave(Fetcher fetcher) {
             boolean cancel = false;
+            Priority urgency = null;
             synchronized (downloads) {
                 synchronized (this) {
                     for (int i = waiting.size() - 1; i >= 0; i--) {
@@ -633,10 +636,16 @@ final class FastImageSharedDownloads {
                         silent = true;
                         cancel = true;
                     }
+                    for (Waiter waiter : waiting) {
+                        Priority asked = waiter.fetcher.priority;
+                        if (urgency == null || asked.compareTo(urgency) < 0) urgency = asked;
+                    }
                 }
                 if (cancel && queued) {
                     queue.remove(this);
                     queued = false;
+                } else if (queued && urgency != null && urgency != priority) {
+                    reprioritize(urgency);
                 }
             }
             if (cancel) cancel();
@@ -663,8 +672,11 @@ final class FastImageSharedDownloads {
 
         // The download failed: the requests waiting for it fail with the
         // error. A request for another url with the key (e.g. a signed url
-        // with the same cacheKey) downloads its own url instead, once: this
-        // url can fail for reasons of its own, like an expired token.
+        // with the same cacheKey) that hasn't tried its own url joins the
+        // key's download again instead: this url can fail for reasons of its
+        // own, like an expired token. The first of them starts a download of
+        // its url, which the others join (one download of the key at a time),
+        // and tries another url's only until its own has been tried.
         private void fail(IOException e) {
             List<Waiter> failed;
             Store dropped;
@@ -680,10 +692,12 @@ final class FastImageSharedDownloads {
             release(dropped);
             stopped();
             for (Waiter waiter : failed) {
-                Fetcher fetcher = waiter.fetcher;
-                if (!fetcher.retried && !sameRequest(fetcher.url, url)) {
-                    fetcher.retried = true;
-                    join(fetcher, waiter.callback, false);
+                boolean retry;
+                synchronized (downloads) {
+                    retry = !waiter.fetcher.triedOwnUrl;
+                }
+                if (retry) {
+                    join(waiter.fetcher, waiter.callback);
                 } else {
                     waiter.callback.onLoadFailed(e);
                 }
