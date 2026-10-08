@@ -1,5 +1,7 @@
 package com.dylanvann.fastimage;
 
+import android.os.SystemClock;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -73,6 +75,11 @@ final class FastImageSharedDownloads {
     private static final long MEMORY_BUDGET = Runtime.getRuntime().maxMemory() / 16;
     // The most downloads running at once (see above).
     private static final int MAX_RUNNING = 16;
+    // A download hands bytes to its requests this many at a time, or after
+    // HAND_OFF_MS (a slow link): each hand-off writes the store, locks the
+    // download and wakes its readers.
+    private static final int HAND_OFF_BYTES = 64 * 1024;
+    private static final long HAND_OFF_MS = 16;
     // How long a preload's finished file is used (see finished()).
     private static final long KEEP_MS = 60_000;
     // Progress is sent when a download has read another 0.5% (and at its
@@ -736,7 +743,8 @@ final class FastImageSharedDownloads {
             return new FileStore();
         }
 
-        // Reads the response into its store, on a thread of `reading`.
+        // Reads the response into its store, on a thread of `reading`, and
+        // hands the bytes to the requests (see HAND_OFF_BYTES).
         private void readInto(ResponseBody body, long length) {
             Progress progress = new Progress();
             long read = 0;
@@ -745,22 +753,34 @@ final class FastImageSharedDownloads {
                 synchronized (this) {
                     store = kept;
                 }
-                byte[] buffer = new byte[8192];
-                while (length < 0 || read < length) {
-                    int count = source.read(buffer, 0, (int) (length < 0 ? buffer.length : Math.min(buffer.length, length - read)));
+                byte[] buffer = new byte[HAND_OFF_BYTES];
+                int pending = 0;
+                long handedAt = SystemClock.uptimeMillis();
+                boolean done = false;
+                while (!done) {
+                    long left = length < 0 ? Long.MAX_VALUE : length - read;
+                    int count = left == 0 ? -1 : source.read(buffer, pending, (int) Math.min(buffer.length - pending, left));
                     if (count == -1) {
-                        if (length < 0) break;
-                        throw new EOFException("The response ended early");
+                        if (left > 0 && length >= 0) throw new EOFException("The response ended early");
+                        done = true;
+                    } else {
+                        pending += count;
+                        read += count;
                     }
-                    kept.write(read, buffer, count);
-                    read += count;
-                    // Before the streams get the bytes: a request can decode
-                    // from them and post its onLoad, which the step's post
-                    // must come before (a small image arrives in one read).
-                    report(progress, read, length);
-                    synchronized (this) {
-                        size = read;
-                        notifyAll();
+                    long now = SystemClock.uptimeMillis();
+                    if (pending > 0 && (done || pending == buffer.length || now - handedAt >= HAND_OFF_MS)) {
+                        kept.write(read - pending, buffer, pending);
+                        // Before the streams get the bytes: a request can
+                        // decode from them and post its onLoad, which the
+                        // step's post must come before (a small image arrives
+                        // in one hand-off).
+                        report(progress, read, length);
+                        synchronized (this) {
+                            size = read;
+                            notifyAll();
+                        }
+                        pending = 0;
+                        handedAt = now;
                     }
                 }
             } catch (IOException e) {
