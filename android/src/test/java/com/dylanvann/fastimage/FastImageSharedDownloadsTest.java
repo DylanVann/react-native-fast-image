@@ -183,6 +183,37 @@ public class FastImageSharedDownloadsTest {
         assertEquals(1, server.count("/large"));
     }
 
+    // Responses kept in a temporary file (over 1 MB, or without a length)
+    // when the file can't be made, as when the device's storage is full (a
+    // file where the folder should be): kept in memory up to 5 MB instead, as
+    // Glide's own fetcher decoded from the network stream when it couldn't
+    // write its disk cache.
+
+    @Test
+    public void imagesStillLoadWhenTheirTemporaryFileCantBeMade() throws Exception {
+        FastImageSharedDownloads.setDirectory(folder.newFile("not-a-folder"));
+        TestServer.Route large = server.route("/large").body(TestServer.bytes(1_500_000, 3)).holdAfter(1000);
+        TestServer.Route chunked = server.route("/chunked").chunked();
+        TestServer.Route largeChunked = server.route("/large-chunked").chunked().body(TestServer.bytes(3_000_000, 4));
+        Load small = load(url("/large"));
+        Load big = load(url("/large"));
+        server.awaitRequest("/large");
+        large.release();
+        assertArrayEquals(large.body, small.bytes());
+        assertArrayEquals(large.body, big.bytes());
+        assertArrayEquals(chunked.body, load(url("/chunked")).bytes());
+        assertArrayEquals(largeChunked.body, load(url("/large-chunked")).bytes());
+    }
+
+    @Test
+    public void imagesOver5MbFailWhenTheirTemporaryFileCantBeMade() throws Exception {
+        FastImageSharedDownloads.setDirectory(folder.newFile("not-a-folder"));
+        server.route("/huge").body(TestServer.bytes(6_000_000, 5));
+        server.route("/huge-chunked").chunked().body(TestServer.bytes(6_000_000, 6));
+        assertTrue(load(url("/huge")).error() instanceof IOException);
+        assertTrue(load(url("/huge-chunked")).error() instanceof IOException);
+    }
+
     // A cacheKey's urls are one image, and the url asked for last wins.
 
     @Test
