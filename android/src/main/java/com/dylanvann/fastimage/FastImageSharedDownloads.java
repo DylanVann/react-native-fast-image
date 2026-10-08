@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +52,9 @@ import okio.BufferedSource;
 // in memory if the response is small (a known length up to MEMORY_MAX, while
 // MEMORY_BUDGET has room), otherwise in a temporary file (Glide streams a
 // download to its disk cache, and decodes at the view's size, so a large image
-// never needs its bytes in the heap; the file keeps it that way). The requests
+// never needs its bytes in the heap; the file keeps it that way; if the file
+// can't be made or written, e.g. on a full disk, they're kept in memory up to
+// FALLBACK_MAX). The requests
 // for it wait without holding a thread, and once it has ended, each gets a
 // stream over all of the bytes, as SDWebImage and Fresco decode a download
 // once it has arrived. Glide's threads (4) never wait for the network, so a
@@ -75,6 +78,12 @@ final class FastImageSharedDownloads {
     // Others are kept in a temporary file.
     private static final long MEMORY_MAX = 1024 * 1024;
     private static final long MEMORY_BUDGET = Runtime.getRuntime().maxMemory() / 16;
+    // The longest response kept in memory, still within MEMORY_BUDGET, when
+    // its temporary file can't be made or written (e.g. the device's storage
+    // is full): Glide's own fetcher decoded a download from its network
+    // stream, which it buffers up to 5 MB, when it couldn't write its disk
+    // cache.
+    private static final int FALLBACK_MAX = 5 * 1024 * 1024;
     // The most downloads running at once (see above).
     private static final int MAX_RUNNING = 16;
     // How long a preload's finished file is used (see finished()).
@@ -465,6 +474,46 @@ final class FastImageSharedDownloads {
         }
     }
 
+    // The bytes in memory, for a response whose temporary file can't be used
+    // (see FALLBACK_MAX), growing as they arrive, with the memory reserved
+    // first.
+    private static final class GrowingStore implements Store {
+        private final Download download;
+        // Why the file couldn't be used.
+        private final IOException cause;
+        private byte[] bytes;
+
+        GrowingStore(Download download, byte[] bytes, IOException cause) {
+            this.download = download;
+            this.bytes = bytes;
+            this.cause = cause;
+        }
+
+        @Override
+        public void write(long at, byte[] buffer, int count) throws IOException {
+            long end = at + count;
+            if (end > bytes.length) {
+                if (end > FALLBACK_MAX) {
+                    throw new IOException("The download is too large to keep in memory, and its temporary file couldn't be written", cause);
+                }
+                int length = (int) Math.min(FALLBACK_MAX, Math.max(end, 2L * bytes.length));
+                download.reserve(length - bytes.length, cause);
+                bytes = Arrays.copyOf(bytes, length);
+            }
+            System.arraycopy(buffer, 0, bytes, (int) at, count);
+        }
+
+        @Override
+        public int read(long at, byte[] buffer, int offset, int count) {
+            System.arraycopy(bytes, (int) at, buffer, offset, count);
+            return count;
+        }
+
+        @Override
+        public void release() {
+        }
+    }
+
     private static final class Download implements Callback {
         private final String key;
         // Guarded by downloads. The request it downloads (its url and
@@ -750,9 +799,6 @@ final class FastImageSharedDownloads {
                 if (latest != null && !wasTried(latest.fetcher.url)) {
                     again = new Download(key, latest.fetcher.url, latest.fetcher.client, latest.request, urgency);
                     again.tried.addAll(tried);
-                    downloads.put(key, again);
-                    again.queued = true;
-                    queue.add(again);
                     List<Waiter> failing = new ArrayList<>();
                     synchronized (again) {
                         for (Waiter waiter : failed) {
@@ -766,6 +812,16 @@ final class FastImageSharedDownloads {
                         }
                     }
                     failed = failing;
+                    // Not yet in the map, so no one else has it. The requests
+                    // for the other urls can have left meanwhile (a cancel
+                    // marks its request before it takes the lock): no retry.
+                    if (again.waiting.isEmpty()) {
+                        again = null;
+                    } else {
+                        downloads.put(key, again);
+                        again.queued = true;
+                        queue.add(again);
+                    }
                 }
             }
             release(dropped);
@@ -831,9 +887,46 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
-            FileStore created = new FileStore();
+            try {
+                FileStore created = new FileStore();
+                open.incrementAndGet();
+                return created;
+            } catch (IOException e) {
+                return inMemory(null, 0, length, e);
+            }
+        }
+
+        // Memory for `more` of its bytes, from MEMORY_BUDGET (see
+        // GrowingStore), given back when they're dropped; without room, the
+        // download fails with why its file couldn't be used.
+        private void reserve(long more, IOException cause) throws IOException {
+            synchronized (downloads) {
+                if (held + more > MEMORY_BUDGET) {
+                    throw new IOException("No memory left for downloads, and the temporary file couldn't be written", cause);
+                }
+                held += more;
+                reserved += more;
+            }
+        }
+
+        // Its temporary file couldn't be made, or written (`failed`): the
+        // bytes go to memory instead (see FALLBACK_MAX), with the `read` of
+        // them already in `file`.
+        private Store inMemory(@Nullable Store file, long read, long length, IOException failed) throws IOException {
+            if (length > FALLBACK_MAX) throw failed;
+            int capacity = (int) (length >= 0 ? length : Math.max(read, 64 * 1024));
+            reserve(capacity, failed);
+            byte[] bytes = new byte[capacity];
+            if (file != null) {
+                for (long at = 0; at < read; ) at += file.read(at, bytes, (int) at, (int) (read - at));
+            }
+            GrowingStore memory = new GrowingStore(this, bytes, failed);
             open.incrementAndGet();
-            return created;
+            synchronized (this) {
+                store = memory;
+            }
+            release(file);
+            return memory;
         }
 
         // Reads the response into its store, on a thread of `reading`, then
@@ -853,7 +946,15 @@ final class FastImageSharedDownloads {
                         if (length < 0) break;
                         throw new EOFException("The response ended early");
                     }
-                    kept.write(read, buffer, count);
+                    try {
+                        kept.write(read, buffer, count);
+                    } catch (IOException e) {
+                        // The temporary file can't be written (e.g. a full
+                        // disk): the bytes go to memory.
+                        if (!(kept instanceof FileStore)) throw e;
+                        kept = inMemory(kept, read, length, e);
+                        kept.write(read, buffer, count);
+                    }
                     read += count;
                     report(progress, read, length);
                 }
