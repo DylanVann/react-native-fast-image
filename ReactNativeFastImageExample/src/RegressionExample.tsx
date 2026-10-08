@@ -1291,12 +1291,24 @@ const groupOrder = (group: string) =>
 // so the next downloads wait to start (16 at a time). An image
 // of another url with priority 'low' (as a preload's) waits; a view of that
 // url with priority 'high' mounts and, a second later, unmounts; then a view
-// of a third url (normal priority) mounts. Once the sixteen are released,
-// passes when the server got the normal view's request before the low one's.
+// of a third url (normal priority) mounts. The sixteen are released one at a
+// time (so one waiting download starts at a time: several starting at once
+// could reach the server in any order). Passes when the server got the normal
+// view's request before the low one's.
 // Android raised a waiting download's priority when a more urgent request
 // joined it, and kept it once that request had gone, so the low one went
 // first.
+//
+// queued-latest-url, with the same sixteen: an image of a url with a
+// cacheKey waits; a second later, an image of another url with that cacheKey
+// (at another size) mounts. Passes when, once released, the server got the
+// second url's request and not the first's: a download that hasn't started
+// takes the latest url for its key (e.g. a signed url with a fresh token).
+// Android requested the first url.
 const LOWERED_HOLD = `lowered-${RUN}`
+const QUEUED_KEY = `queued-latest-${RUN}`
+const QUEUED_OLD = `queued-old-${RUN}`
+const QUEUED_NEW = `queued-new-${RUN}`
 const LOWERED_RUNNING = `lowered-running-${RUN}`
 const LOWERED_LOW = `lowered-low-${RUN}`
 const LOWERED_NORMAL = `lowered-normal-${RUN}`
@@ -1307,6 +1319,8 @@ function PriorityLoweredCase() {
         'running',
     )
     const [status, setStatus] = useState('waiting')
+    const [latestStatus, setLatestStatus] = useState('waiting')
+    const [latestLoaded, setLatestLoaded] = useState(0)
     useEffect(() => {
         let stopped = false
         const run = async () => {
@@ -1323,7 +1337,10 @@ function PriorityLoweredCase() {
             setStep('normal')
             await sleep(1000)
             if (stopped) return
-            await fetch(imageUrl(`release?hold=${LOWERED_HOLD}`))
+            for (let i = 0; i < 16 && !stopped; i++) {
+                await fetch(imageUrl(`release?hold=${LOWERED_HOLD}-${i}`))
+                await sleep(400)
+            }
             let low: number[] = []
             let normal: number[] = []
             while (!stopped && (low.length === 0 || normal.length === 0)) {
@@ -1345,75 +1362,120 @@ function PriorityLoweredCase() {
             stopped = true
         }
     }, [])
+    useEffect(() => {
+        if (latestLoaded < 2) return
+        Promise.all([groupRequests(QUEUED_OLD), groupRequests(QUEUED_NEW)])
+            .then(([old, latest]) =>
+                setLatestStatus(
+                    old === 0 && latest === 1
+                        ? 'OK'
+                        : `requested the first url ${old} times and the latest ${latest}`,
+                ),
+            )
+            .catch((e) => setLatestStatus(String(e)))
+    }, [latestLoaded])
+    const latestSource = (group: string) => ({
+        uri: loweredUrl(group),
+        headers: SLOW_HEADERS,
+        cacheKey: QUEUED_KEY,
+    })
+    const onLatestLoad = () => setLatestLoaded((n) => n + 1)
     return (
-        <View style={styles.row}>
-            <View style={sharedUrlStyles.images}>
-                {Array.from({ length: 16 }, (_, i) => (
-                    <FastImage
-                        key={i}
-                        style={sharedUrlStyles.image}
-                        source={{
-                            uri: loweredUrl(
-                                LOWERED_RUNNING,
-                                `&n=${i}&hold=${LOWERED_HOLD}`,
-                            ),
-                            headers: SLOW_HEADERS,
-                        }}
-                    />
-                ))}
-                {step !== 'running' && (
-                    <FastImage
-                        style={sharedUrlStyles.image}
-                        source={{
-                            uri: loweredUrl(LOWERED_LOW),
-                            headers: SLOW_HEADERS,
-                            priority: 'low',
-                        }}
-                    />
-                )}
-                {step === 'high' && (
-                    <View style={{ width: 12, height: 12 }}>
+        <>
+            <View style={styles.row}>
+                <View style={sharedUrlStyles.images}>
+                    {Array.from({ length: 16 }, (_, i) => (
                         <FastImage
-                            style={{ width: 12, height: 12 }}
+                            key={i}
+                            style={sharedUrlStyles.image}
+                            source={{
+                                uri: loweredUrl(
+                                    LOWERED_RUNNING,
+                                    `&n=${i}&hold=${LOWERED_HOLD}-${i}`,
+                                ),
+                                headers: SLOW_HEADERS,
+                            }}
+                        />
+                    ))}
+                    {step !== 'running' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
                             source={{
                                 uri: loweredUrl(LOWERED_LOW),
                                 headers: SLOW_HEADERS,
-                                priority: 'high',
+                                priority: 'low',
                             }}
                         />
-                    </View>
-                )}
-                {step === 'normal' && (
-                    <FastImage
-                        style={sharedUrlStyles.image}
-                        source={{
-                            uri: loweredUrl(LOWERED_NORMAL),
-                            headers: SLOW_HEADERS,
-                        }}
-                    />
-                )}
+                    )}
+                    {step === 'high' && (
+                        <View style={{ width: 12, height: 12 }}>
+                            <FastImage
+                                style={{ width: 12, height: 12 }}
+                                source={{
+                                    uri: loweredUrl(LOWERED_LOW),
+                                    headers: SLOW_HEADERS,
+                                    priority: 'high',
+                                }}
+                            />
+                        </View>
+                    )}
+                    {step === 'normal' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={{
+                                uri: loweredUrl(LOWERED_NORMAL),
+                                headers: SLOW_HEADERS,
+                            }}
+                        />
+                    )}
+                    {step !== 'running' && (
+                        <FastImage
+                            style={sharedUrlStyles.image}
+                            source={latestSource(QUEUED_OLD)}
+                            onLoad={onLatestLoad}
+                        />
+                    )}
+                    {(step === 'high' || step === 'normal') && (
+                        <View style={{ width: 12, height: 12 }}>
+                            <FastImage
+                                style={{ width: 12, height: 12 }}
+                                source={latestSource(QUEUED_NEW)}
+                                onLoad={onLatestLoad}
+                            />
+                        </View>
+                    )}
+                </View>
+                <CaseStatus
+                    id="priority-lowered"
+                    status={status}
+                    description="a waiting low-priority image that a high-priority view joined and left goes after a normal-priority one"
+                />
             </View>
-            <CaseStatus
-                id="priority-lowered"
-                status={status}
-                description="a waiting low-priority image that a high-priority view joined and left goes after a normal-priority one"
-            />
-        </View>
+            <View style={styles.row}>
+                <View style={sharedUrlStyles.images} />
+                <CaseStatus
+                    id="queued-latest-url"
+                    status={latestStatus}
+                    description="a waiting download takes the latest url a request for its cacheKey asks for"
+                />
+            </View>
+        </>
     )
 }
 
 // Three images share a cacheKey, at different sizes: the first url 404s (held
 // until the other two have started loading), the second is fast and the third
 // slow. Passes when each of the other two loads, gets onProgress 1 at most a
-// second before its onLoad, and Android downloaded one of their urls (iOS,
-// which shares downloads by url, both). Android downloaded both urls once the
+// second before its onLoad, the first gets what its platform gives
+// (failedUrlEvents), and Android downloaded one of their urls (iOS, which
+// shares downloads by url, both). Android downloaded both urls once the
 // first had failed, and sent both downloads' progress to both images, so the
 // slow one got 1 from the fast one's download while its own still came.
 const RETRY_PROGRESS_KEY = `retry-progress-${RUN}`
 const RETRY_PROGRESS_GROUP = `retry-progress-group-${RUN}`
 function RetryProgressCase() {
     const [others, setOthers] = useState(false)
-    const [failed, setFailed] = useState(false)
+    const [firstDone, setFirstDone] = useState(false)
     const [loaded, setLoaded] = useState(0)
     const [problem, setProblem] = useState<string>()
     const [requests, setRequests] = useState<number>()
@@ -1484,8 +1546,7 @@ function RetryProgressCase() {
                     headers: SLOW_HEADERS,
                     cacheKey: RETRY_PROGRESS_KEY,
                 }}
-                onLoad={() => fail('onLoad for a url that 404s')}
-                onError={() => setFailed(true)}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
             />
             {others && [
                 other(
@@ -1503,13 +1564,110 @@ function RetryProgressCase() {
                 id="retry-progress"
                 status={
                     problem ??
-                    (!failed || requests === undefined
+                    (!firstDone || requests === undefined
                         ? 'waiting'
                         : requests === expected
                           ? 'OK'
                           : `requested ${requests} times, expected ${expected}`)
                 }
                 description="after a cacheKey's first url fails, its other urls load from one download, with their own progress"
+            />
+        </View>
+    )
+}
+
+// Three images share a cacheKey, at different sizes: the first url 404s (held
+// until the others have started loading), then images of two other urls
+// mount, the second a moment after the first. Passes when the two load, the
+// first gets what its platform gives (failedUrlEvents), and, on Android, the
+// server got the latest url's request and not the other's:
+// the retry of a failed download is of the latest url asked for (they're the
+// same image). iOS shares downloads by url, so it downloads both. Android
+// tried the other urls one at a time, the earliest first.
+const RETRY_LATEST_KEY = `retry-latest-${RUN}`
+const RETRY_LATEST_FAILS = `retry-latest-fails-${RUN}`
+const RETRY_LATEST_EARLIER = `retry-latest-earlier-${RUN}`
+const RETRY_LATEST_LATER = `retry-latest-later-${RUN}`
+function RetryLatestUrlCase() {
+    const [mounted, setMounted] = useState(0)
+    const [firstDone, setFirstDone] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [problem, setProblem] = useState<string>()
+    const [requests, setRequests] = useState<[number, number]>()
+    const fail = (message: string) =>
+        setProblem((previous) => previous ?? message)
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            await groupRequested(RETRY_LATEST_FAILS, () => stopped)
+            if (stopped) return
+            setMounted(1)
+            await sleep(500)
+            if (stopped) return
+            setMounted(2)
+            await sleep(1000)
+            if (stopped) return
+            await fetch(imageUrl(`release?hold=${RETRY_LATEST_FAILS}`))
+        }
+        run().catch((e) => fail(String(e)))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    useEffect(() => {
+        if (loaded < 2) return
+        Promise.all([
+            groupRequests(RETRY_LATEST_EARLIER),
+            groupRequests(RETRY_LATEST_LATER),
+        ])
+            .then(([earlier, later]) => setRequests([earlier, later]))
+            .catch((e) => fail(String(e)))
+    }, [loaded])
+    const image = (i: number, group: string, style: object) => (
+        <FastImage
+            key={i}
+            style={style}
+            source={{
+                uri: slowImageUrl(
+                    `picsum/1025-200x200.jpg?group=${group}&delay=50`,
+                ),
+                headers: SLOW_HEADERS,
+                cacheKey: RETRY_LATEST_KEY,
+            }}
+            onLoad={() => setLoaded((n) => n + 1)}
+            onError={(e) => {
+                // Read the event now: the updater runs later.
+                const error = String(e.nativeEvent.error)
+                fail(`image ${i + 1}: onError: ${error}`)
+            }}
+        />
+    )
+    const status =
+        problem ??
+        (requests === undefined || !firstDone
+            ? 'waiting'
+            : Platform.OS === 'ios' || (requests[0] === 0 && requests[1] === 1)
+              ? 'OK'
+              : `requested the earlier url ${requests[0]} times and the latest ${requests[1]}`)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={sharedStyles.small}
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?group=${RETRY_LATEST_FAILS}&hold=${RETRY_LATEST_FAILS}`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    cacheKey: RETRY_LATEST_KEY,
+                }}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
+            />
+            {mounted >= 1 && image(1, RETRY_LATEST_EARLIER, retryStyles.medium)}
+            {mounted >= 2 && image(2, RETRY_LATEST_LATER, sharedStyles.large)}
+            <CaseStatus
+                id="retry-latest-url"
+                status={status}
+                description="after a cacheKey's url fails, the latest of its other urls is the one downloaded"
             />
         </View>
     )
@@ -1798,16 +1956,32 @@ const groupRequested = async (group: string, stopped: () => boolean) => {
     while (!stopped() && (await groupRequests(group)) < 1) await sleep(100)
 }
 
+// The image of a cacheKey's url that 404s, while images of other urls with
+// that cacheKey load: Android retries the failed download with the latest of
+// their urls, for every image waiting for it (the same image), so it loads
+// too; iOS shares downloads by url, so it gets onError. `done` once it got
+// that.
+const failedUrlEvents = (done: () => void, fail: (message: string) => void) =>
+    Platform.OS === 'android'
+        ? {
+              onLoad: done,
+              onError: () =>
+                  fail(
+                      "onError for the url that 404s (its cacheKey's retry loads)",
+                  ),
+          }
+        : { onLoad: () => fail('onLoad for a url that 404s'), onError: done }
+
 // Two images with the same cacheKey and different urls, at different sizes:
 // the first url 404s, which the slow server holds until the second image has
-// started loading, and the second loads. Passes when the first gets onError
-// and the second loads. Android shares downloads by cacheKey, so the second
-// image's request joins the first's download, and downloads its own url once
-// that one fails.
+// started loading, and the second loads. Passes when the second loads, and
+// the first gets what its platform gives (failedUrlEvents). Android shares
+// downloads by cacheKey, so the second image's request joins the first's
+// download, and is retried with its own url once that one fails.
 const RETRY_GROUP = `shared-retry-${RUN}`
 function SharedDownloadRetryCase() {
     const [second, setSecond] = useState(false)
-    const [failed, setFailed] = useState(false)
+    const [firstDone, setFirstDone] = useState(false)
     const [loaded, setLoaded] = useState(false)
     const [problem, setProblem] = useState<string>()
     useEffect(() => {
@@ -1838,8 +2012,7 @@ function SharedDownloadRetryCase() {
                     headers: SLOW_HEADERS,
                     cacheKey: RETRY_GROUP,
                 }}
-                onLoad={() => fail('onLoad for a url that 404s')}
-                onError={() => setFailed(true)}
+                {...failedUrlEvents(() => setFirstDone(true), fail)}
             />
             <View style={sharedStyles.large}>
                 {second && (
@@ -1863,7 +2036,7 @@ function SharedDownloadRetryCase() {
             </View>
             <CaseStatus
                 id="shared-download-retry"
-                status={problem ?? (failed && loaded ? 'OK' : 'waiting')}
+                status={problem ?? (firstDone && loaded ? 'OK' : 'waiting')}
                 description="an image whose url works loads when another url with its cacheKey 404s"
             />
         </View>
@@ -6042,7 +6215,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 <NoCrashCase
                     key="priority-lowered"
                     id="priority-lowered"
-                    description="a waiting download's priority after a more urgent request leaves (Android only)"
+                    description="a waiting download's priority after a more urgent request leaves, and its url (Android only)"
                 />
             ),
         ],
@@ -6060,6 +6233,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SharedDownloadErrorCase key="shared-download-error" />,
             <SharedDownloadRetryCase key="shared-download-retry" />,
             <RetryProgressCase key="retry-progress" />,
+            <RetryLatestUrlCase key="retry-latest-url" />,
             <SharedDownloadChunkedCase key="shared-download-chunked" />,
             <ChunkedDownloadCancelCase key="chunked-download-cancel" />,
             <StalledDownloadCase key="stalled-download" />,
