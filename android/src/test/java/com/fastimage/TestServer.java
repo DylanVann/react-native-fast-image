@@ -11,7 +11,9 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -88,8 +90,10 @@ final class TestServer implements Closeable {
     private final ServerSocket socket;
     private final ExecutorService threads = Executors.newCachedThreadPool();
     private final Map<String, Route> routes = new ConcurrentHashMap<>();
-    // Guarded by this. The paths requested, in the order they arrived.
+    // Guarded by this. The paths requested, in the order they arrived, and
+    // each request's headers (names in lower case).
     private final List<String> requests = new ArrayList<>();
+    private final List<Map<String, String>> requestHeaders = new ArrayList<>();
 
     TestServer() throws IOException {
         socket = new ServerSocket(0, 64, InetAddress.getByName("127.0.0.1"));
@@ -115,6 +119,13 @@ final class TestServer implements Closeable {
         Route route = new Route(path);
         routes.put(path, route);
         return route;
+    }
+
+    // The headers of the first request for `path`.
+    synchronized Map<String, String> headers(String path) {
+        int i = requests.indexOf(path);
+        if (i < 0) throw new AssertionError(path + " wasn't requested");
+        return requestHeaders.get(i);
     }
 
     synchronized List<String> requests() {
@@ -183,12 +194,17 @@ final class TestServer implements Closeable {
             String requestLine = readLine(in);
             if (requestLine == null) return;
             String path = requestLine.split(" ")[1];
+            Map<String, String> headers = new HashMap<>();
             String header;
-            do {
-                header = readLine(in);
-            } while (header != null && !header.isEmpty());
+            while ((header = readLine(in)) != null && !header.isEmpty()) {
+                int colon = header.indexOf(':');
+                if (colon > 0) {
+                    headers.put(header.substring(0, colon).trim().toLowerCase(Locale.ROOT), header.substring(colon + 1).trim());
+                }
+            }
             synchronized (this) {
                 requests.add(path);
+                requestHeaders.add(headers);
                 notifyAll();
             }
             route = routes.get(path);

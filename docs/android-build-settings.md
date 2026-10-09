@@ -21,6 +21,10 @@ buildscript {
 | `glideVersion`          | `"5.0.7"` | The version of Glide (and its OkHttp integration) that FastImage uses. If your app uses Glide too, set it to your app's version. FastImage needs 4.15 or later. Glide 5.0.9 and later need `compileSdkVersion` 37. |
 | `excludeAppGlideModule` | `false`   | Leaves out FastImage's `AppGlideModule`, for an app that has its own (below). `true` by default when the app has [expo-image](#with-expo-image).                                                                   |
 
+## Images your app loads with Glide
+
+FastImage loads its images with React Native's OkHttp client, so your app's interceptors and cookies apply to them. Images your app loads with Glide itself (a `GlideUrl`, from its own native code or another library) use the same client, with 15 s connect and read timeouts where it has none. Your own `AppGlideModule` (below) can register another client for them in its `registerComponents`: FastImage doesn't replace it.
+
 ## If your app has its own AppGlideModule
 
 An app has one Glide `AppGlideModule`. FastImage has one (`FastImageGlideModule`), so if your app has its own, leave FastImage's out with `excludeAppGlideModule = true` (above). FastImage then adds its Glide components (for `onProgress`, `cache: 'web'`, `writeToCache`, SVG images and cookies) to your app's Glide setup itself, when it first loads an image.
