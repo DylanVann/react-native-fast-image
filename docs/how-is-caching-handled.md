@@ -27,7 +27,7 @@ There's no way to remove a single image from the cache: Glide can't remove one i
 
 ## Loading images ahead
 
-[`FastImage.preload`](../README.md#preloadsources) downloads images before they're shown, a few at a time so it doesn't hold up the images on screen, and resolves with a result for each. By default they're also decoded into memory, to show at once; with `memoryCache: false` they're only downloaded, which uses much less memory for many or large images.
+[`FastImage.preload`](../README.md#preloadsources) downloads images before they're shown, a few at a time so it doesn't hold up the images on screen, and resolves with a result for each. By default they're also decoded into memory; with `memoryCache: false` they're only downloaded, which uses much less memory for many or large images. A view showing a preloaded image loads it from the disk cache for its own size, so it doesn't wait for the network.
 
 ## Files
 
