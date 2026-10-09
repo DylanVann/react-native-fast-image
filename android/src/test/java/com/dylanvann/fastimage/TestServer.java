@@ -34,7 +34,10 @@ final class TestServer implements Closeable {
         boolean holdHeaders = false;
         long holdAfter = -1;
         final CountDownLatch released = new CountDownLatch(1);
-        // The client hung up while the response was held.
+        // The client hung up before the whole response was sent: while it was
+        // held, or as the server wrote it (a write fails once the client has
+        // gone, e.g. a download cancelled just after the server read its
+        // request).
         final CountDownLatch hungUp = new CountDownLatch(1);
 
         Route(String path) {
@@ -165,6 +168,7 @@ final class TestServer implements Closeable {
     }
 
     private void serve(Socket client) {
+        Route route = null;
         try (Socket connection = client) {
             InputStream in = connection.getInputStream();
             String requestLine = readLine(in);
@@ -178,7 +182,7 @@ final class TestServer implements Closeable {
                 requests.add(path);
                 notifyAll();
             }
-            Route route = routes.get(path);
+            route = routes.get(path);
             if (route == null) route = new Route(path).status(404);
             if (route.holdHeaders && !hold(route, connection, in)) return;
             OutputStream out = connection.getOutputStream();
@@ -199,6 +203,7 @@ final class TestServer implements Closeable {
             out.flush();
         } catch (IOException e) {
             // The client went away, or the server closed.
+            if (route != null) route.hungUp.countDown();
         }
     }
 
