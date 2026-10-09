@@ -1,3 +1,10 @@
+## [9.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.0...v9.2.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **android:** cache 'web' images shown again from the HTTP cache don't fade in ([#1276](https://github.com/DylanVann/react-native-fast-image/issues/1276)) ([0c9eaff](https://github.com/DylanVann/react-native-fast-image/commit/0c9eaff310bbec0c61922ed1fae2a785767ab4dc))
+
 # [9.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.1.0...v9.2.0) (2026-10-08)
 
 
