@@ -288,14 +288,20 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Fades a loaded image in, unless it's from a cache that skipOnCacheHit
     // skips, as Glide's and Coil's cross-fades and Fresco decide: from the
     // memory cache it shows at once (by default), and from the disk cache
-    // too with 'all'. Downloads, local files and bundled images fade.
+    // too with 'all'. Downloads, local files and bundled images fade. A `web`
+    // image isn't kept in the memory cache, so one from its HTTP cache
+    // without the network (a disk cache hit, see FastImageSharedDownloads)
+    // counts as one from memory: shown again, e.g. in a list scrolled back
+    // up, it shows at once.
     private final class FadeFactory implements TransitionFactory<Drawable> {
         private final int duration;
         private final String skipOnCacheHit;
+        private final boolean webCache;
 
-        FadeFactory(int duration, String skipOnCacheHit) {
+        FadeFactory(int duration, String skipOnCacheHit, boolean webCache) {
             this.duration = duration;
             this.skipOnCacheHit = skipOnCacheHit;
+            this.webCache = webCache;
         }
 
         @Override
@@ -314,6 +320,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         private boolean skips(DataSource dataSource) {
             if (skipOnCacheHit.equals("none")) return false;
             if (dataSource == DataSource.MEMORY_CACHE) return true;
+            if (webCache && dataSource == DataSource.DATA_DISK_CACHE) return true;
             // Glide also keeps a local file's or bundled image's decoded
             // image in its disk cache (at the size it was decoded at, and not
             // for GIFs), so with 'all' they usually only fade the first time.
@@ -1056,7 +1063,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             boolean replacing = shownRequest != null && model != null;
             if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
                 builder = builder.transition(DrawableTransitionOptions.with(
-                        new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit)));
+                        new FadeFactory(
+                                mTransitionDuration,
+                                mTransitionSkipOnCacheHit,
+                                imageSource != null && imageSource.isWebCache())));
             }
             if (thumbnail) {
                 builder = builder.thumbnail(fromCache(shownRequest));

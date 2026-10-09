@@ -3750,6 +3750,10 @@ function PreloadDiskCase() {
 //   a `file://` source: a local file, not a memory cache hit.
 // - bundled: a require()d image (from Metro in debug builds, from the app in
 //   release builds).
+// - web: a cache 'web' image (cacheable for an hour) that a view (left)
+//   loaded: on Android from its HTTP cache, without a request (Android doesn't
+//   keep cache 'web' images in the memory cache), on iOS from the memory cache
+//   (SDWebImage keeps them in its caches too).
 const FADE_MS = 1000
 const BLACK = '#000000'
 // Cyan at half opacity over black.
@@ -3764,6 +3768,7 @@ type FadeFrom =
     | 'change-download'
     | 'file'
     | 'bundled'
+    | 'web'
 function FadeCase({
     id,
     from,
@@ -3790,7 +3795,12 @@ function FadeCase({
                   uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=50`),
                   headers: BACKGROUND_SLOW_HEADERS,
               }
-            : { uri: imageUrl(`cyan.png?${id}=${RUN}`) }
+            : from === 'web'
+              ? {
+                    uri: imageUrl(`max-age/cyan.png?${id}=${RUN}`),
+                    cache: FastImage.cacheControl.web,
+                }
+              : { uri: imageUrl(`cyan.png?${id}=${RUN}`) }
     const magenta = { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
     const [file, setFile] = useState<Source>()
     // Recorded as the view mounts (download, bundled), or once the view that
@@ -3852,7 +3862,7 @@ function FadeCase({
             await new Promise<void>((resolve) => setTimeout(resolve, 500))
             await FastImage.clearMemoryCache()
             record()
-        } else if (from === 'memory') {
+        } else if (from === 'memory' || from === 'web') {
             record()
         } else if (from === 'file') {
             const result = await FastImage.getCachePath(source)
@@ -6690,6 +6700,27 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 skipOnCacheHit="all"
                 fades={false}
                 description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-web',
+        cases: [
+            <FadeCase
+                key="fade-web"
+                id="fade-web"
+                from="web"
+                fades={false}
+                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+            />,
+            <FadeCase
+                key="fade-web-none"
+                id="fade-web-none"
+                from="web"
+                skipOnCacheHit="none"
+                fades
+                description="transition with skipOnCacheHit none: a cache web image shown again fades in (right; recorded: black, half cyan, cyan)"
             />,
         ],
     },
