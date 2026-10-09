@@ -11,6 +11,7 @@ import com.bumptech.glide.load.ImageHeaderParser;
 import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
 import com.bumptech.glide.load.Options;
+import com.bumptech.glide.integration.okhttp3.OkHttpUrlLoader;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.ModelLoader;
 import com.bumptech.glide.load.model.ModelLoaderFactory;
@@ -27,6 +28,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
+import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.JavaNetCookieJar;
@@ -96,12 +98,16 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             @NonNull Glide glide,
             @NonNull Registry registry
     ) {
+        register(context, glide, registry, true);
+    }
+
+    // `otherLoads`: as part of Glide's setup, where an app's own AppGlideModule
+    // runs after. Not when FastImageGlide.get registers FastImage's components
+    // itself, after the app's setup, which keeps what it registered for the
+    // app's other loads.
+    void register(Context context, Glide glide, Registry registry, boolean otherLoads) {
         OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
-        OkHttpClient.Builder builder = sharedClient
-                .newBuilder()
-                // A network interceptor, so it runs before the HTTP cache of
-                // `web` images stores the response (checking it reads it).
-                .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()));
+        OkHttpClient.Builder builder = sharedClient.newBuilder();
         // React Native's shared client comes with an empty cookie jar (React
         // Native only fills it in for its networking and Image clients), so
         // images were loaded without the app's cookies, unlike on iOS. Use the
@@ -119,7 +125,26 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         // longer than any.
         if (sharedClient.connectTimeoutMillis() == 0) builder.connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         if (sharedClient.readTimeoutMillis() == 0) builder.readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        OkHttpClient client = builder.build();
+        OkHttpClient appClient = builder.build();
+        // Images the app loads with Glide itself (a GlideUrl, from its own
+        // native code or another library) go through the same client, as
+        // expo-image does, instead of the default one Glide's OkHttp
+        // integration registers: the app's interceptors and cookies, these
+        // timeouts, and one connection pool. Not FastImage's check that a
+        // response is an image (below), which other loads, like a video's
+        // frame, can't pass. An app's own AppGlideModule runs after, and can
+        // register another.
+        // With a dispatcher of their own: FastImage's downloads count on
+        // having the client's requests per host to themselves
+        // (FastImageSharedDownloads), so the app's loads mustn't take them.
+        if (otherLoads) registry.replace(GlideUrl.class, InputStream.class,
+                new OkHttpUrlLoader.Factory(appClient.newBuilder().dispatcher(new Dispatcher()).build()));
+        OkHttpClient client = appClient
+                .newBuilder()
+                // A network interceptor, so it runs before the HTTP cache of
+                // `web` images stores the response (checking it reads it).
+                .addNetworkInterceptor(createNonImageInterceptor(registry, glide.getArrayPool()))
+                .build();
         // `cache: 'web'` skips Glide's caches and relies on HTTP caching, so
         // those urls get a client with an HTTP cache (#280): one of their own,
         // not the app's (if it gave React Native's shared client one), so
