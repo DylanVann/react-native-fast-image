@@ -1048,6 +1048,11 @@ NSString *FFFErrorMessage(NSError *error)
             // queue. Read and call it there, so it can't change or be released
             // in between (EXC_BAD_ACCESS).
             dispatch_async(dispatch_get_main_queue(), ^{
+                // Sent before the load was cancelled (the source changed) but
+                // run after: it's not the current load's progress.
+                if (weakSelf.loadCount != load) {
+                    return;
+                }
                 RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
                 if (onProgress) {
                     onProgress(@{
