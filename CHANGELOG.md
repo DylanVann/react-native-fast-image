@@ -1,3 +1,10 @@
+## [9.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.1...v9.2.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ios:** onProgress doesn't come from a load the source replaced ([#1272](https://github.com/DylanVann/react-native-fast-image/issues/1272)) ([2a9c4df](https://github.com/DylanVann/react-native-fast-image/commit/2a9c4df2f215f5cbc96497506611b86b50c50c5e))
+
 ## [9.2.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.0...v9.2.1) (2026-10-09)
 
 
