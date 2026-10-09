@@ -765,7 +765,7 @@ How the image fades in: see [`transition`](#transition).
     - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
     - `'none'`: always fades.
 
-    Downloads, local files and bundled images (`require()`) fade in.
+    Downloads, local files and bundled images (`require()`) fade in. On Android, a `cache: 'web'` image from its HTTP cache, without a request, counts as one from the memory cache (these images aren't kept there).
 
 <!-- api:types end -->
 

@@ -138,7 +138,9 @@ export type Transition = {
      *   usually only the first time (the disk cache usually keeps them too).
      * - `'none'`: always fades.
      *
-     * Downloads, local files and bundled images (`require()`) fade in.
+     * Downloads, local files and bundled images (`require()`) fade in. On
+     * Android, a `cache: 'web'` image from its HTTP cache, without a request,
+     * counts as one from the memory cache (these images aren't kept there).
      * @default 'memory'
      */
     skipOnCacheHit?: 'none' | 'memory' | 'all' | null

@@ -370,11 +370,18 @@ final class FastImageSharedDownloads {
         // A preload's file is from Glide's disk cache. A download is remote
         // for every request reading it: Glide stores it in its disk cache once
         // (a request that finds it there already reads it from there), and
-        // fades the image in as for any download.
+        // fades the image in as for any download. A `web` image's response
+        // from its HTTP cache, without the network, is from a disk cache too
+        // (OkHttp's; Glide doesn't store `web` images in its own).
         @NonNull
         @Override
         public DataSource getDataSource() {
-            return fromFile ? DataSource.DATA_DISK_CACHE : DataSource.REMOTE;
+            if (fromFile) return DataSource.DATA_DISK_CACHE;
+            Download joined;
+            synchronized (downloads) {
+                joined = download;
+            }
+            return joined != null && joined.fromHttpCache ? DataSource.DATA_DISK_CACHE : DataSource.REMOTE;
         }
     }
 
@@ -553,6 +560,9 @@ final class FastImageSharedDownloads {
         // bytes it had received).
         private long reserved = 0;
         private boolean silent = false;
+        // Whether the response came from the HTTP cache of `web` images
+        // without the network (set before its bytes are read).
+        private volatile boolean fromHttpCache = false;
 
         // With downloads locked.
         private Download(String key, GlideUrl url, OkHttpClient client, Request request, Priority priority) {
@@ -838,6 +848,9 @@ final class FastImageSharedDownloads {
                 fail(new HttpException(response.message(), response.code()));
                 return;
             }
+            // OkHttp has no network response for one it served from the
+            // cache without checking with the server.
+            fromHttpCache = response.networkResponse() == null && response.cacheResponse() != null;
             final long length = body.contentLength();
             synchronized (downloads) {
                 // No progress without a length.
