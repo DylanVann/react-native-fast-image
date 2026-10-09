@@ -13,7 +13,8 @@ import adapter from './src/subject'
 
 // The benchmark app. On iOS it's launched with arguments, e.g. `-scenario
 // grid -run <id>`, which iOS puts in the app's user defaults; on Android with
-// a link, rnfibench://run?scenario=grid&run=<id>&server=<url>. Both pass
+// a link, rnfibench://run?scenario=grid&run=<id>&server=<url>, which can add
+// hold=1, fade=1 and placeholder=1 (the burst test's: see Scenario). Both pass
 // `server`, the image server the tests run on the phone. Without a scenario it
 // shows a menu, for trying one by hand (still with a `server`).
 
@@ -70,6 +71,9 @@ export default function App() {
                 adapter={adapter}
                 run={args.run ?? manualRun}
                 server={args.server}
+                hold={args.hold === '1'}
+                fade={args.fade === '1'}
+                placeholder={args.placeholder === '1'}
             />
         )
     }

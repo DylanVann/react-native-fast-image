@@ -2,7 +2,8 @@
 // emulator (adb), or on Firebase Test Lab's physical devices (--firebase).
 //
 //   bun benchmark/scripts/run-android.ts [--subjects fast-image,image] [--scenarios grid,large]
-//                                        [--tests time-to-image,scroll,large-memory]
+//                                        [--tests time-to-image,scroll,large-memory,burst]
+//                                        [--burst plain,fade,placeholder,fade+placeholder]
 //                                        [--iterations 5] [--latency 40] [--mbps 0]
 //                                        [--no-build] [--out <results folder>]
 //                                        [--firebase --device model=…,version=…] [--project <id>]
@@ -13,19 +14,22 @@
 // (keeping both in the results folder's apks/), then runs the tests, on
 // Firebase Test Lab all subjects at once: time-to-image records the screen
 // while each scenario runs and saves the recordings and the app's results,
-// which are analyzed here as on iOS (analyze.ts); scroll and large-memory are
-// Macrobenchmark metrics. --no-build uses the APKs kept in --out's apks/.
-// Writes android-<subject>-<scenario>-<n>.json and
-// metrics-android-<subject>.json to the results folder, and prints a summary.
+// which are analyzed here as on iOS (analyze.ts); scroll, large-memory and
+// burst (frame timing as the grid's images load at once, with the variants in
+// --burst: see BurstTest in BenchmarkTest.kt) are Macrobenchmark metrics.
+// --no-build uses the APKs kept in --out's apks/. Writes
+// android-<subject>-<scenario>-<n>.json and metrics-android-<subject>.json to
+// the results folder, and prints a summary.
 //
 // --paired compares the subjects on the same phone (e.g. fast-image-9 and
-// fast-image-local, this checkout's FastImage), time to image only: every
-// subject's app is installed on each phone, which runs them in turns
-// (BenchmarkTest.kt), on --phones phones at once on Test Lab (one locally).
-// Phones of the same model differ by hundreds of ms, more than many changes
-// do; run by run on one phone, the subjects' differences show. Writes
-// android-<subject>-<scenario>-<phone>-<n>.json, and a paired comparison in
-// the summary.
+// fast-image-local, this checkout's FastImage), with time-to-image (the
+// default) and burst: every subject's app is installed on each phone, which
+// runs them in turns (BenchmarkTest.kt), on --phones phones at once on Test
+// Lab (one locally). Phones of the same model differ by hundreds of ms, more
+// than many changes do; run by run on one phone, the subjects' differences
+// show. Writes android-<subject>-<scenario>-<phone>-<n>.json,
+// metrics-android-phone-<phone>.json, and a paired comparison in the
+// summary.
 //
 // --no-run analyzes the outputs already in --out (e.g. after a change to the
 // analysis), without building or running anything.
@@ -46,9 +50,12 @@ const RUNNER = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner`
 // Where the tests write their outputs (Macrobenchmark's output folder).
 const DEVICE_OUTPUT = `/sdcard/Android/media/${TEST_PACKAGE}`
 const TESTS: Record<string, string> = {
-    'time-to-image': 'timeToImage',
-    scroll: 'scroll',
-    'large-memory': 'largeMemory',
+    'time-to-image': 'BenchmarkTest#timeToImage',
+    scroll: 'BenchmarkTest#scroll',
+    'large-memory': 'BenchmarkTest#largeMemory',
+    // The class: a method filter doesn't match its parameterized tests'
+    // names (burst[<variant>,<package>]).
+    burst: 'BurstTest',
 }
 const ENV = {
     JAVA_HOME: '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
@@ -68,11 +75,12 @@ const list = (value: string) => value.split(',').filter(Boolean)
 const chosenSubjects = list(option('subjects', Object.keys(subjects).join(',')))
 const scenarios = list(option('scenarios', 'grid,large'))
 const paired = flag('paired')
-// Paired runs measure time to image only (BenchmarkTest.kt runs the apps in
-// turns there; scroll and large-memory measure one app).
-const tests = paired
-    ? ['time-to-image']
-    : list(option('tests', Object.keys(TESTS).join(',')))
+// Paired runs measure time to image and burst (BenchmarkTest.kt runs the apps
+// in turns there; scroll and large-memory measure one app).
+const tests = list(
+    option('tests', paired ? 'time-to-image' : Object.keys(TESTS).join(',')),
+)
+const burst = option('burst', '')
 const iterations = Number(option('iterations', '5'))
 const firebase = flag('firebase')
 const phones = paired && firebase ? Number(option('phones', '5')) : 1
@@ -94,6 +102,9 @@ for (const test of tests) {
 }
 if (paired && chosenSubjects.length < 2) {
     throw new Error('--paired needs two subjects or more (--subjects)')
+}
+if (paired && tests.some((t) => t !== 'time-to-image' && t !== 'burst')) {
+    throw new Error('--paired runs time-to-image and burst only (--tests)')
 }
 
 const log = (line: string) => console.log(line)
@@ -191,6 +202,7 @@ const testArgs = (subject: string | string[]): Record<string, string> => ({
         : { benchPackage: packageName(subject) }),
     benchIterations: String(iterations),
     benchScenarios: scenarios.join(','),
+    ...(burst ? { benchBurst: burst } : {}),
     benchLatencyMs: String(latencyMs),
     benchMbps: String(mbps),
     ...(firebase
@@ -243,9 +255,7 @@ function runLocal(
             ...args,
             '-e',
             'class',
-            tests
-                .map((t) => `${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
-                .join(','),
+            tests.map((t) => `${TEST_PACKAGE}.${TESTS[t]}`).join(','),
             RUNNER,
         ],
         { timeoutMs: 60 * 60_000 },
@@ -304,9 +314,7 @@ async function runFirebase(
         '--no-record-video',
         '--no-performance-metrics',
         '--test-targets',
-        tests
-            .map((t) => `class ${TEST_PACKAGE}.BenchmarkTest#${TESTS[t]}`)
-            .join(','),
+        tests.map((t) => `class ${TEST_PACKAGE}.${TESTS[t]}`).join(','),
         '--environment-variables',
         env,
         '--directories-to-pull',
@@ -408,9 +416,23 @@ type Apks = { app: string; test: string }
 // (time to image), and Macrobenchmark's metrics. A paired run's outputs are in
 // a folder per app, and its files are named after the phone too.
 async function analyzeOutputs(subject: string, pulled: string, phone?: number) {
+    // A paired run's: the phone's, for all its apps.
+    const metrics = findFiles(pulled, /benchmarkData\.json$/)[0]
+    if (metrics) {
+        fs.copyFileSync(
+            metrics,
+            path.join(
+                out,
+                `metrics-android-${phone ? `phone-${phone}` : subject}.json`,
+            ),
+        )
+    }
     const dir = phone ? findDir(pulled, packageName(subject)) : pulled
     if (!dir) {
-        failed(subject, 'tests', `phone ${phone}: no outputs`)
+        // Only time-to-image writes a paired run's app folders.
+        if (tests.includes('time-to-image')) {
+            failed(subject, 'tests', `phone ${phone}: no outputs`)
+        }
         return
     }
     // Runs the test wrote off as failed (see BenchmarkTest.kt).
@@ -448,13 +470,6 @@ async function analyzeOutputs(subject: string, pulled: string, phone?: number) {
         } catch (error) {
             failed(subject, scenario, error)
         }
-    }
-    const metrics = findFiles(pulled, /benchmarkData\.json$/)[0]
-    if (metrics) {
-        fs.copyFileSync(
-            metrics,
-            path.join(out, `metrics-android-${subject}.json`),
-        )
     }
 }
 

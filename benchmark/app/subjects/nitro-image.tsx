@@ -3,7 +3,8 @@ import { NitroImage } from 'react-native-nitro-image'
 import 'react-native-nitro-web-image'
 import type { Adapter } from '../src/adapter'
 
-// <NitroImage> loads through an ImageLoader and sends no load or error events.
+// <NitroImage> loads through an ImageLoader and sends no load or error events,
+// and has no fade or placeholder.
 const adapter: Adapter = {
     id: 'nitro-image',
     version: require('react-native-nitro-web-image/package.json').version,
