@@ -7,6 +7,7 @@ type FastImageLike = ComponentType<{
     source: { uri: string }
     style?: unknown
     resizeMode?: 'cover'
+    defaultSource?: number
     transition?: boolean
     onLoad?: () => void
     onError?: (e: { nativeEvent: { error?: unknown } }) => void
@@ -20,16 +21,16 @@ export const fastImageAdapter = (
     id,
     version,
     loadEvents: true,
-    Image: ({ uri, style, onLoad, onError }) => (
+    Image: ({ uri, style, fade, placeholder, onLoad, onError }) => (
         <FastImage
             source={{ uri }}
             style={style}
             resizeMode="cover"
-            // FastImage 10 fades images in on Android by default (300 ms), as
-            // React Native's Image does (run with fadeDuration={0}): off, so
-            // the times are its own work. Earlier versions don't fade by
-            // default.
-            transition={false}
+            defaultSource={placeholder}
+            // Always set: FastImage 10 fades images in on Android by default,
+            // and the scenarios don't fade unless they ask to. FastImage 8
+            // has no transition, and never fades.
+            transition={fade}
             onLoad={onLoad}
             onError={(e) => onError(String(e.nativeEvent.error))}
         />

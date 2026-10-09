@@ -6,11 +6,14 @@ const adapter: Adapter = {
     id: 'expo-image',
     version: require('expo-image/package.json').version,
     loadEvents: true,
-    Image: ({ uri, style, onLoad, onError }) => (
+    Image: ({ uri, style, fade, placeholder, onLoad, onError }) => (
         <Image
             source={{ uri }}
             style={style}
             contentFit="cover"
+            placeholder={placeholder}
+            placeholderContentFit="cover"
+            transition={fade ? 300 : undefined}
             onLoad={onLoad}
             onError={(e) => onError(e.error)}
         />

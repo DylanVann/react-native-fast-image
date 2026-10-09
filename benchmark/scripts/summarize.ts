@@ -16,6 +16,16 @@ const subjects: Record<string, { name: string }> = JSON.parse(
     ),
 )
 const nameOf = (subject: string) => subjects[subject]?.name ?? subject
+// A Macrobenchmark test's name, with its app's package as the subject's id
+// (BurstTest's are named `burst[<variant>,<package>]`).
+const testName = (name: string) =>
+    name.replace(
+        /com\.dylanvann\.rnfibenchmark\.(\w+)/g,
+        (match, id: string) =>
+            Object.keys(subjects).find(
+                (s) => s.replace(/[^a-z0-9]/gi, '') === id,
+            ) ?? match,
+    )
 const order = Object.keys(subjects)
 
 // The XCTest metrics in the summary (the result bundles have them all).
@@ -89,7 +99,10 @@ type AndroidMetrics = {
     benchmarks: {
         name: string
         metrics?: Record<string, { median: number }>
-        sampledMetrics?: Record<string, { P50: number; P90: number }>
+        sampledMetrics?: Record<
+            string,
+            { P50: number; P90: number; P99: number }
+        >
     }[]
 }
 
@@ -168,7 +181,8 @@ function pairedComparison(runs: Run[]): string[] {
 export function summarize(dir: string) {
     const files = fs.readdirSync(dir)
     const runs = files
-        .filter((f) => /-\d+\.json$/.test(f))
+        // Not a paired run's metrics (metrics-android-phone-<n>.json).
+        .filter((f) => /-\d+\.json$/.test(f) && !f.startsWith('metrics-'))
         .map(
             (f) =>
                 JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as Run,
@@ -328,7 +342,7 @@ export function summarize(dir: string) {
     if (android.length > 0) {
         lines.push(
             '',
-            'Android Macrobenchmark metrics (median, or p50 / p90 for sampled metrics):',
+            "Android Macrobenchmark metrics (median, or p50 / p90 / p99 for sampled metrics; a paired run's by phone, with each app in its test's name):",
             '',
             '| Subject | Test | Metric | Value |',
             '| --- | --- | --- | --- |',
@@ -344,14 +358,14 @@ export function summarize(dir: string) {
                 benchmark.metrics ?? {},
             )) {
                 lines.push(
-                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${Math.round(metric.median)} |`,
+                    `| ${nameOf(subject)} | ${testName(benchmark.name)} | ${name} | ${Math.round(metric.median)} |`,
                 )
             }
             for (const [name, metric] of Object.entries(
                 benchmark.sampledMetrics ?? {},
             )) {
                 lines.push(
-                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} |`,
+                    `| ${nameOf(subject)} | ${testName(benchmark.name)} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} / ${metric.P99.toFixed(1)} |`,
                 )
             }
         }

@@ -7,6 +7,7 @@ import {
     Easing,
     PixelRatio,
     Platform,
+    Pressable,
     StyleSheet,
     Text,
     View,
@@ -88,6 +89,8 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
 // The cell background while an image hasn't shown: far from every tinted
 // photo's average color, so the recording tells them apart.
 export const PLACEHOLDER = '#d9d9d9'
+// The same color as an image, for libraries' placeholders (`placeholder`).
+const PLACEHOLDER_IMAGE: number = require('./placeholder.png')
 const MARKER_WAITING = '#000000'
 const MARKER_STARTED = '#00ff00'
 const MARKER_DONE = '#0000ff'
@@ -122,6 +125,13 @@ export type ScenarioProps = {
     adapter: Adapter
     run: string
     server: string
+    // The burst test's (BenchmarkTest.kt): wait for a tap on `start` before
+    // mounting the images, so the measured frames start there, and no clock
+    // (nothing records the screen, and the clock draws a frame every vsync);
+    // fade the images in; show a placeholder image until each loads.
+    hold?: boolean
+    fade?: boolean
+    placeholder?: boolean
 }
 
 const now = () => performance.now()
@@ -163,11 +173,21 @@ async function probe(urls: string[]): Promise<Probe> {
     return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
 }
 
-export function Scenario({ name, adapter, run, server }: ScenarioProps) {
+export function Scenario({
+    name,
+    adapter,
+    run,
+    server,
+    hold = false,
+    fade = false,
+    placeholder = false,
+}: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
-        'loading' | 'running' | 'measuring' | 'done' | 'failed'
+        'loading' | 'ready' | 'running' | 'measuring' | 'done' | 'failed'
     >('loading')
+    // hold: mounts the images.
+    const start = useRef<() => void>(undefined)
     const [cells, setCells] = useState<Cell[]>([])
     const [message, setMessage] = useState('')
     const started = useRef(0)
@@ -209,6 +229,13 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             // A moment for the recording to show the marker before it changes.
             await new Promise((r) => setTimeout(r, 300))
             if (cancelled) return
+            if (hold) {
+                await new Promise<void>((resolve) => {
+                    start.current = resolve
+                    setPhase('ready')
+                })
+                if (cancelled) return
+            }
             setCells(
                 (config.sizes ?? [config.columns]).flatMap((columns, size) =>
                     images.map((image, i) => ({
@@ -223,12 +250,14 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             started.current = now()
             setPhase('running')
             // It stops at its largest value rather than wrap to 0.
-            Animated.timing(clock, {
-                toValue: CLOCK_UNITS - 1,
-                duration: (CLOCK_UNITS - 1) * CLOCK_UNIT_MS,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            }).start()
+            if (!hold) {
+                Animated.timing(clock, {
+                    toValue: CLOCK_UNITS - 1,
+                    duration: (CLOCK_UNITS - 1) * CLOCK_UNIT_MS,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }).start()
+            }
         })().catch((error) => {
             setMessage(String(error))
             setPhase('failed')
@@ -236,7 +265,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [clock, config, name, run, server])
+    }, [clock, config, hold, name, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -338,6 +367,8 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             <adapter.Image
                 uri={cell.uri}
                 style={styles.image}
+                fade={fade}
+                placeholder={placeholder ? PLACEHOLDER_IMAGE : undefined}
                 onLoad={() =>
                     settle(cell.index, { loadMs: now() - started.current })
                 }
@@ -351,7 +382,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         </View>
     )
 
-    const running = phase !== 'loading'
+    const running = phase !== 'loading' && phase !== 'ready'
     return (
         <View style={styles.screen}>
             <View style={styles.markerRow}>
@@ -371,7 +402,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                     ]}
                 />
                 {/* Not in the list scenario, which is only scrolled. */}
-                {!config.list && (
+                {!config.list && !hold && (
                     <View
                         ref={clockView}
                         collapsable={false}
@@ -398,6 +429,13 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                 ) : (
                     <View style={styles.grid}>{cells.map(renderCell)}</View>
                 ))}
+            {phase === 'ready' && (
+                <Pressable
+                    testID="start"
+                    style={styles.start}
+                    onPress={() => start.current?.()}
+                />
+            )}
             <Text
                 testID={phase === 'done' ? 'done' : 'status'}
                 style={styles.status}
@@ -422,6 +460,7 @@ const styles = StyleSheet.create({
         borderColor: '#ffffff',
     },
     image: { flex: 1 },
+    start: { flex: 1 },
     // Above the marker, so it isn't over a timed cell as it changes.
     status: {
         position: 'absolute',
