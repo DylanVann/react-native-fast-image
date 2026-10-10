@@ -17,6 +17,7 @@ Scenarios:
 - **Grid:** 60 photos of 400 × 400 px in a grid, all mounted at once; the time until every one on screen (28 on the iPhone, 32 on the Pixel) has shown.
 - **Large:** 20 photos of 4000 × 3000 px shown in small views; the time until all have shown, and the app's memory once they have.
 - **Sizes:** 16 of the grid's photos at two sizes at once (4 and 8 columns), with the same urls; the time until all 32 have shown, and on Android how many requests the server got (16 when a library downloads each photo once for both sizes).
+- **Detail:** the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
 - **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
@@ -44,9 +45,25 @@ Scenarios:
 | Nitro Image        | 796 / 832 | 848 / 932         | 564 / 580  | 32              | 93 MB         |
 | Turbo Image        | 596 / 764 | 864 / 916         | 564 / 596  | 32              | 95 MB         |
 
-- FastImage 10 and React Native's `Image` download a photo shown at two sizes once; the others download it for each size, and take longer to show both.
+- FastImage 10 and React Native's `Image` download a photo shown at two sizes once; the others download it for each size, and showed both 168–216 ms later (medians).
 - React Native's `Image` decodes the large photos at full size and fails the last ones (Fresco's `Pool hard cap violation`). Memory is the app's anonymous resident memory.
 - Scrolling, frames past their deadline per pass through the list (median of 5): FastImage 10 0.9%, React Native's `Image` 0.7%, expo-image 1.5%, Nitro Image 6.9%, Turbo Image 10.5%.
+
+## Opening a photo while others load (Android)
+
+The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with `priority="high"` (FastImage, expo-image; the others have no priority). The time until it showed, from the grid's start (median / p90 of 20 runs on 4 phones, ms), and the image requests for all 61 images.
+
+| Library            | Time      | Requests |
+| ------------------ | --------- | -------- |
+| FastImage 10       | 380 / 432 | 60       |
+| React Native Image | 764 / 780 | 60       |
+| expo-image         | 532 / 816 | 61       |
+| Nitro Image        | 816 / 864 | 61       |
+| Turbo Image        | 816 / 880 | 61       |
+
+- FastImage moves the grid's download of the photo, still waiting to start, ahead of the others, and uses it for both sizes.
+- expo-image downloads the photo again; in 9 of 20 runs it showed it within 332–480 ms, in the others within 532–816 ms.
+- React Native's `Image`, Nitro Image and Turbo Image have no priority, and mostly showed it about when the grid's last photos loaded.
 
 ## Many images loading at once (Android)
 
