@@ -1,3 +1,17 @@
+# [9.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.2...v9.3.0) (2026-10-10)
+
+
+### Bug Fixes
+
+* **android:** the image stays when the source changes again before the new one loads ([#1286](https://github.com/DylanVann/react-native-fast-image/issues/1286)) ([a9102e7](https://github.com/DylanVann/react-native-fast-image/commit/a9102e7efbb39a7c442aa8798a084208a3f6ed8e))
+* **ios:** a full-size image isn't blurry after a smaller one of the same url ([#1280](https://github.com/DylanVann/react-native-fast-image/issues/1280)) ([bde53f6](https://github.com/DylanVann/react-native-fast-image/commit/bde53f6525188d7e3cf740d460622c6a757e87b2))
+* **web:** every image is an <img>, so several sizes take tintColor and defaultSource ([#1281](https://github.com/DylanVann/react-native-fast-image/issues/1281)) ([d8f26b4](https://github.com/DylanVann/react-native-fast-image/commit/d8f26b45371c4eb96bae9f78e8d6e6d688d11492))
+
+
+### Features
+
+* objectFit prop (CSS object-fit) ([#1282](https://github.com/DylanVann/react-native-fast-image/issues/1282)) ([2c34230](https://github.com/DylanVann/react-native-fast-image/commit/2c3423097ebb9fc20aa946a3b8454f366a91bac6))
+
 ## [9.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.1...v9.2.2) (2026-10-09)
 
 
