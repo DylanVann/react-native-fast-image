@@ -708,12 +708,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // have).
     private boolean mRestarting = false;
 
-    // The request for the image the view shows once it has loaded, and the one
-    // loading. A new source starts with the shown one as a thumbnail, from the
-    // cache only, so the image stays until the new one has loaded instead of
-    // flashing blank (#747). This is Glide's safe way to do that: the previous
-    // bitmap can't be kept in the view itself, since Glide reuses it once its
-    // request is cleared.
+    // The request for the image the view shows (from when it has loaded until
+    // another image or defaultSource replaces it), and the one loading. A new
+    // source starts with the shown one as a thumbnail, from the cache only, so
+    // the image stays until the new one has loaded instead of flashing blank
+    // (#747), also if the source changes again meanwhile. This is Glide's safe
+    // way to do that: the previous bitmap can't be kept in the view itself,
+    // since Glide reuses it once its request is cleared.
     @Nullable
     private RequestBuilder<Drawable> mShownRequest;
     @Nullable
@@ -961,15 +962,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mRestarting = false;
         mLoadCount++;
         // A fade in progress carries on, as on iOS: into the next image if it
-        // shows at once, and a next image that fades starts from it.
+        // shows at once, and a next image that fades starts from it. The
+        // image on screen stays the shown one while the next loads (as its
+        // thumbnail, or a copy), so a change before then keeps it too.
         RequestBuilder<Drawable> shownRequest = mShownRequest;
-        mShownRequest = null;
         mLoadingRequest = null;
         mBaseRequest = null;
         mModel = null;
 
         // Nothing to show.
         if (mSource == null && mDefaultSource == null) {
+            mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
 
@@ -995,6 +998,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
             FastImageEvents.sendLoadEnd(this, error);
 
+            mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
 
@@ -1053,7 +1057,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
             RequestBuilder<Drawable> request = builder.clone();
 
-            if (model == null) meanwhile = null;
+            // Only defaultSource: it replaces the image.
+            if (model == null) {
+                meanwhile = null;
+                mShownRequest = null;
+            }
             boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
             // After the clone: loading the image that's showing again (at a
             // new size, or with another blur) doesn't fade it in again. Over a
