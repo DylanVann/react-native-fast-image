@@ -98,10 +98,10 @@ type MetricTest = {
 type AndroidMetrics = {
     benchmarks: {
         name: string
-        metrics?: Record<string, { median: number }>
+        metrics?: Record<string, { median: number; runs: number[] }>
         sampledMetrics?: Record<
             string,
-            { P50: number; P90: number; P99: number }
+            { P50: number; P90: number; P99: number; runs: number[][] }
         >
     }[]
 }
@@ -339,16 +339,21 @@ export function summarize(dir: string) {
     }
 
     const android = files.filter((f) => /^metrics-android-.*\.json$/.test(f))
-    if (android.length > 0) {
+    // A paired run's metrics, one file per phone: pooled below.
+    const phoneFiles = android.filter((f) =>
+        /^metrics-android-phone-\d+\.json$/.test(f),
+    )
+    const subjectFiles = android.filter((f) => !phoneFiles.includes(f))
+    if (subjectFiles.length > 0) {
         lines.push(
             '',
-            "Android Macrobenchmark metrics (median, or p50 / p90 / p99 for sampled metrics; a paired run's by phone, with each app in its test's name):",
+            'Android Macrobenchmark metrics (median, or p50 / p90 / p99 for sampled metrics):',
             '',
             '| Subject | Test | Metric | Value |',
             '| --- | --- | --- | --- |',
         )
     }
-    for (const file of android) {
+    for (const file of subjectFiles) {
         const subject = file.replace(/^metrics-android-|\.json$/g, '')
         const data = JSON.parse(
             fs.readFileSync(path.join(dir, file), 'utf8'),
@@ -366,6 +371,71 @@ export function summarize(dir: string) {
             )) {
                 lines.push(
                     `| ${nameOf(subject)} | ${testName(benchmark.name)} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} / ${metric.P99.toFixed(1)} |`,
+                )
+            }
+        }
+    }
+
+    // Every phone's runs of each test together. allFramesMs: each run's UI
+    // thread and RenderThread frame time added up (the burst test's sums),
+    // which counts frames FrameTimingMetric leaves out.
+    const pooled = new Map<
+        string,
+        { metrics: Map<string, number[]>; sampled: Map<string, number[]> }
+    >()
+    const add = (map: Map<string, number[]>, name: string, values: number[]) =>
+        map.set(name, [...(map.get(name) ?? []), ...values])
+    for (const file of phoneFiles) {
+        const data = JSON.parse(
+            fs.readFileSync(path.join(dir, file), 'utf8'),
+        ) as AndroidMetrics
+        for (const benchmark of data.benchmarks) {
+            const entry = pooled.get(benchmark.name) ?? {
+                metrics: new Map(),
+                sampled: new Map(),
+            }
+            pooled.set(benchmark.name, entry)
+            const metrics = benchmark.metrics ?? {}
+            for (const [name, metric] of Object.entries(metrics)) {
+                add(entry.metrics, name, metric.runs)
+            }
+            const ui = metrics.uiThreadFramesSumMs?.runs
+            const rt = metrics.renderThreadFramesSumMs?.runs
+            if (ui && rt) {
+                add(
+                    entry.metrics,
+                    'allFramesMs',
+                    ui.map((v, i) => v + rt[i]),
+                )
+            }
+            for (const [name, metric] of Object.entries(
+                benchmark.sampledMetrics ?? {},
+            )) {
+                add(entry.sampled, name, metric.runs.flat())
+            }
+        }
+    }
+    if (pooled.size > 0) {
+        lines.push(
+            '',
+            `Android Macrobenchmark metrics over every run on the ${phoneFiles.length} phones (median, or p50 / p90 / p99 of every sample; allFramesMs: each run's UI thread and RenderThread frame time added up):`,
+            '',
+            '| Test | Metric | Value |',
+            '| --- | --- | --- |',
+        )
+        for (const [name, entry] of [...pooled].sort(([a], [b]) =>
+            a.localeCompare(b),
+        )) {
+            for (const [metric, values] of [...entry.metrics].sort(([a], [b]) =>
+                a.localeCompare(b),
+            )) {
+                lines.push(
+                    `| ${testName(name)} | ${metric} | ${fmt(values, median)} |`,
+                )
+            }
+            for (const [metric, values] of entry.sampled) {
+                lines.push(
+                    `| ${testName(name)} | ${metric} | ${[0.5, 0.9, 0.99].map((p) => percentile(values, p).toFixed(1)).join(' / ')} |`,
                 )
             }
         }

@@ -29,11 +29,27 @@ bun benchmark/scripts/run-android.ts --firebase --paired --phones 5 --subjects f
 bun benchmark/scripts/run-android.ts --firebase --paired --phones 3 --tests burst --subjects fast-image-local,expo-image,image
 ```
 
-`--paired` compares subjects on the same phones: each phone gets every subject's app, and runs them in turns (in the other order each iteration), on `--phones` phones at once (5 by default; one adb device locally). Phones of the same model differ by more than many changes do (see Limits); run by run on one phone, the subjects' differences show. The summary then has a paired table: each subject against the first, the median of the run-by-run differences and the middle half of them, how many runs were faster, and the image requests the phone's server got. It measures time to image, and with `--tests burst` the burst test (each phone's metrics in the summary).
+`--paired` compares subjects on the same phones: each phone gets every subject's app, and runs them in turns (in the other order each iteration), on `--phones` phones at once (5 by default; one adb device locally). Phones of the same model differ by more than many changes do (see Limits); run by run on one phone, the subjects' differences show. The summary then has a paired table: each subject against the first, the median of the run-by-run differences and the middle half of them, how many runs were faster, and the image requests the phone's server got. It measures time to image, and with `--tests` the other tests too (each phone's metrics in the summary).
 
-Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`, `burst`), `--burst` (the burst test's variants, default `plain,fade,placeholder,fade+placeholder`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`, `--latency` and `--mbps` (as on iOS), `--paired` and `--phones`. It needs JDK 17, the Android SDK, and the images in `images/out` (`bun make-images.ts` in `images/`). It builds every subject first (`--no-build` uses the APKs kept in `--out`'s `apks/`); on Test Lab the subjects then run at the same time, each on its own device, without Test Lab's own screen recording.
+Options: `--subjects`, `--scenarios`, `--tests` (`time-to-image`, `scroll`, `large-memory`, `burst`), `--burst` (the burst test's variants, default `plain,fade,placeholder,fade+placeholder`), `--iterations`, `--no-build`, `--out`, `--device` (`gcloud firebase test android models list`), `--project`, `--latency` and `--mbps` (as on iOS), `--paired`, `--phones` and `--both-orders` (every other phone runs the subjects in the opposite order), `--apks` (another results folder's APKs, without building). It needs JDK 17, the Android SDK, and the images in `images/out` (`bun make-images.ts` in `images/`). It builds every subject first (`--no-build` uses the APKs kept in `--out`'s `apks/`); on Test Lab the subjects then run at the same time, each on its own device, without Test Lab's own screen recording.
 
 Results go to `benchmark/results/<time>/`: a JSON file per run (the app's results, and when each image showed), the XCTest result bundles, and `summary.md`. The folders aren't committed (recordings and builds); summaries of reference runs are, next to them (`results/<date>-<platform>-<device>.md`), to compare later runs with. `docs/benchmarks.md` (published on the website) summarizes the latest reference results: update it with them.
+
+### Reference runs
+
+The reference results (`results/<date>-<platform>-<device>.md`, summarized on the benchmarks page, `docs/benchmarks.md`) compare FastImage from this checkout with the other libraries, with these commands, so later runs compare:
+
+```sh
+S=fast-image-local,image,expo-image,nitro-image,turbo-image
+# Android: time to image, scrolling and memory, every library on each of 4 phones (2 in each order)
+bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 4 --subjects $S --scenarios grid,large,sizes --tests time-to-image,scroll,large-memory --out benchmark/results/<date>-android
+# Android: the burst test on 2 more phones (one in each order), with the APKs the first command built
+bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 2 --subjects $S --tests burst --burst plain,fade,fade+placeholder --iterations 10 --apks benchmark/results/<date>-android --out benchmark/results/<date>-android-burst
+# iOS: the iPhone over USB
+bun benchmark/scripts/run.ts --subjects $S --scenarios grid,large,sizes --out benchmark/results/<date>-ios
+```
+
+A Test Lab phone runs for at most 45 minutes, so the burst test runs on its own phones. Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
 
 ## How it works
 
@@ -59,4 +75,4 @@ Nitro Image's view sends no load events, so its scenarios end after a fixed time
 - On Test Lab each subject runs on its own phone, so differences between the phones (and their temperature) count as differences between the subjects: between two rounds, subjects' times moved by up to 450 ms, in both directions, and the network probe measured 87–144 Mbps depending on the phone. The device isn't recorded per run. Running every subject on one phone, in turns, would fix this.
 - On iOS the subjects run one after another in the same order, each after the previous one's XCTest metrics, so later subjects can run on a warmer phone.
 - The phone's screen recording and the app's clock cost every subject the same, but they do cost something.
-- The burst test runs each variant's iterations of one app in a row, then the next app's, then the next variant, so a phone warming up during the test counts against the later ones.
+- The scroll, memory and burst tests run one app's iterations in a row, then the next app's (the burst test then goes on to the next variant), so a phone warming up during a test counts against the later apps: run them twice with `--subjects` in opposite orders to even it out. Time to image runs the apps in turns, in the other order each iteration.

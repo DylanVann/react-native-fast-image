@@ -5,9 +5,9 @@
 //                                        [--tests time-to-image,scroll,large-memory,burst]
 //                                        [--burst plain,fade,placeholder,fade+placeholder]
 //                                        [--iterations 5] [--latency 40] [--mbps 0]
-//                                        [--no-build] [--out <results folder>]
+//                                        [--no-build | --apks <results folder>] [--out <results folder>]
 //                                        [--firebase --device model=…,version=…] [--project <id>]
-//                                        [--paired [--phones 5]] [--no-run]
+//                                        [--paired [--phones 5] [--both-orders]] [--no-run]
 //
 // For each subject: builds the app with only that library (app/subjects.js)
 // and the Macrobenchmark test APK (android/macrobenchmark), in release
@@ -17,17 +17,21 @@
 // which are analyzed here as on iOS (analyze.ts); scroll, large-memory and
 // burst (frame timing as the grid's images load at once, with the variants in
 // --burst: see BurstTest in BenchmarkTest.kt) are Macrobenchmark metrics.
-// --no-build uses the APKs kept in --out's apks/. Writes
+// --no-build uses the APKs kept in --out's apks/, --apks those of another
+// results folder. Writes
 // android-<subject>-<scenario>-<n>.json and metrics-android-<subject>.json to
 // the results folder, and prints a summary.
 //
 // --paired compares the subjects on the same phone (e.g. fast-image-9 and
 // fast-image-local, this checkout's FastImage), with time-to-image (the
-// default) and burst: every subject's app is installed on each phone, which
-// runs them in turns (BenchmarkTest.kt), on --phones phones at once on Test
-// Lab (one locally). Phones of the same model differ by hundreds of ms, more
+// default) or any of the tests: every subject's app is installed on each
+// phone, which runs them in turns (BenchmarkTest.kt), on --phones phones at
+// once on Test Lab (one locally). Phones of the same model differ by hundreds of ms, more
 // than many changes do; run by run on one phone, the subjects' differences
-// show. Writes android-<subject>-<scenario>-<phone>-<n>.json,
+// show. With --both-orders, every other phone runs the subjects in the
+// opposite order, for the tests that run one subject's iterations in a row
+// (scroll, large-memory, burst; time-to-image alternates on each phone).
+// Writes android-<subject>-<scenario>-<phone>-<n>.json,
 // metrics-android-phone-<phone>.json, and a paired comparison in the
 // summary.
 //
@@ -49,12 +53,12 @@ const TEST_PACKAGE = 'com.dylanvann.rnfibenchmark.macrobenchmark'
 const RUNNER = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner`
 // Where the tests write their outputs (Macrobenchmark's output folder).
 const DEVICE_OUTPUT = `/sdcard/Android/media/${TEST_PACKAGE}`
+// The parameterized tests by class: a method filter doesn't match their
+// names (e.g. burst[<variant>,<package>]).
 const TESTS: Record<string, string> = {
     'time-to-image': 'BenchmarkTest#timeToImage',
-    scroll: 'BenchmarkTest#scroll',
-    'large-memory': 'BenchmarkTest#largeMemory',
-    // The class: a method filter doesn't match its parameterized tests'
-    // names (burst[<variant>,<package>]).
+    scroll: 'ScrollTest',
+    'large-memory': 'LargeMemoryTest',
     burst: 'BurstTest',
 }
 const ENV = {
@@ -75,8 +79,6 @@ const list = (value: string) => value.split(',').filter(Boolean)
 const chosenSubjects = list(option('subjects', Object.keys(subjects).join(',')))
 const scenarios = list(option('scenarios', 'grid,large'))
 const paired = flag('paired')
-// Paired runs measure time to image and burst (BenchmarkTest.kt runs the apps
-// in turns there; scroll and large-memory measure one app).
 const tests = list(
     option('tests', paired ? 'time-to-image' : Object.keys(TESTS).join(',')),
 )
@@ -84,6 +86,7 @@ const burst = option('burst', '')
 const iterations = Number(option('iterations', '5'))
 const firebase = flag('firebase')
 const phones = paired && firebase ? Number(option('phones', '5')) : 1
+const bothOrders = flag('both-orders')
 // The network of the image server the tests run on the phone: latency before
 // each response, and bandwidth shared by all of them (0, the default: no
 // limit, so the times are the libraries' own work rather than the link's;
@@ -102,9 +105,6 @@ for (const test of tests) {
 }
 if (paired && chosenSubjects.length < 2) {
     throw new Error('--paired needs two subjects or more (--subjects)')
-}
-if (paired && tests.some((t) => t !== 'time-to-image' && t !== 'burst')) {
-    throw new Error('--paired runs time-to-image and burst only (--tests)')
 }
 
 const log = (line: string) => console.log(line)
@@ -503,14 +503,19 @@ if (flag('no-run')) {
 // Builds every subject first (they share the generated project), keeping
 // each one's APKs.
 const apks = new Map<string, Apks>()
-const apkDir = path.join(out, 'apks')
+// --apks: an earlier results folder's APKs, without building (as --no-build
+// with that folder as --out, but writing to a new one).
+const apksFrom = option('apks', '')
+const apkDir = apksFrom
+    ? path.join(path.resolve(apksFrom), 'apks')
+    : path.join(out, 'apks')
 fs.mkdirSync(apkDir, { recursive: true })
 for (const subject of chosenSubjects) {
     const kept = {
         app: path.join(apkDir, `${subject}-app.apk`),
         test: path.join(apkDir, `${subject}-test.apk`),
     }
-    if (flag('no-build')) {
+    if (flag('no-build') || apksFrom) {
         if (!fs.existsSync(kept.app) || !fs.existsSync(kept.test)) {
             throw new Error(
                 `--no-build: no APKs for ${subject} in ${path.relative(process.cwd(), apkDir)} (pass --out with an earlier results folder)`,
@@ -545,12 +550,13 @@ const runSubject = async (subject: string, subjectApks: Apks) => {
 // the same test).
 const runPhone = async (phone: number) => {
     const built = chosenSubjects.filter((s) => apks.has(s))
+    const order = bothOrders && phone % 2 === 0 ? [...built].reverse() : built
     const pulled = path.join(out, `android-paired-${phone}-outputs`)
     fs.rmSync(pulled, { recursive: true, force: true })
-    const [first, ...rest] = built.map((s) => apks.get(s)!)
+    const [first, ...rest] = order.map((s) => apks.get(s)!)
     try {
-        if (firebase) await runFirebase(built, pulled, first, rest, phone)
-        else runLocal(built, pulled, first, rest)
+        if (firebase) await runFirebase(order, pulled, first, rest, phone)
+        else runLocal(order, pulled, first, rest)
     } catch (error) {
         failed(built.join('+'), 'tests', error)
         return
