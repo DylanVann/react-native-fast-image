@@ -5,9 +5,9 @@
 //
 // The View (a div) has FastImage's style, ref and View props. The <img> fills
 // it inside its borders, with object-fit for resizeMode (see Picture).
-// defaultSource is a second <img> under it while it shows, resizeMode="repeat"
-// tiles the image as a CSS background, and tintColor is an SVG filter next to
-// them.
+// defaultSource is a second <img> under it until the image has loaded (the
+// browser draws the image over it as it arrives), resizeMode="repeat" tiles
+// the image as a CSS background, and tintColor is an SVG filter next to them.
 //
 // Works: source (uri, require(), or several sizes: see sizedSources),
 // defaultSource, resizeMode, tintColor, blurRadius, style, children,
@@ -46,15 +46,21 @@ const notSupported: CachePathResult = {
     error: 'Not supported on the web',
 }
 
+// An id that's the same on the server and in the browser: React's useId,
+// from React 18 (this package's React types are older), without the
+// characters an SVG id can't have (:r0: in React 18, «r0» in React 19). On
+// React 17, a counter's (which can differ from the server's).
+let ids = 0
+const useCounterId = () => useState(() => `${++ids}`)[0]
+const useSvgId: () => string =
+    (React as unknown as { useId?: () => string }).useId ?? useCounterId
+
 // A layout effect in the browser (it runs before the image can show), and an
 // effect when rendering on a server, where layout effects warn.
 const useClientLayoutEffect =
     (globalThis as { document?: unknown }).document === undefined
         ? useEffect
         : useLayoutEffect
-
-// For the tint filters' ids.
-let tintFilters = 0
 
 function FastImageBase({
     source,
@@ -105,7 +111,9 @@ function FastImageBase({
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
-    const [tintId] = useState(() => `fast-image-tint-${++tintFilters}`)
+    // The same on the server and in the browser. React's ids have characters
+    // an SVG id can't (:r0: in React 18, «r0» in React 19).
+    const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
     // Tiles are of one image: several sizes are shown as cover.
     const fit = several && mode === 'repeat' ? 'cover' : mode
     const filter =
@@ -151,10 +159,9 @@ function FastImageBase({
                     lazy={!!several}
                     mode={fit}
                     filter={filter}
-                    // Shown once it has loaded while defaultSource shows (or
-                    // else as it loads), and not if it failed (no broken
-                    // image icon or alt text).
-                    hidden={showDefault || ok === false}
+                    // Shown as it loads, over defaultSource, and not if it
+                    // failed (no broken image icon or alt text).
+                    hidden={ok === false}
                     alt={label ?? ''}
                     onLoad={(image) => {
                         const { width, height } = loadedSize(image, sized)
@@ -329,18 +336,28 @@ function Picture({
     const image = useRef<HTMLImageElement>(null)
     const tiles = useRef<HTMLDivElement>(null)
     const mounted = useRef(true)
-    // The file whose load was handled. The image can have loaded when this
-    // mounts: from the memory cache (it also gets a load event), or before
-    // the page's JavaScript ran, in a page rendered on a server (it doesn't).
-    // With a srcset, the browser can load another size later.
-    const handled = useRef<string | undefined>(undefined)
+    // The load that was handled: the file, for these sources. The image can
+    // have loaded when this mounts: from the memory cache (it also gets a load
+    // event), or before the page's JavaScript ran, in a page rendered on a
+    // server (it doesn't). The browser fires load for each new srcset, also
+    // when it keeps the same file, and can load another size later.
+    const handled = useRef<{ sources: string; file: string } | undefined>(
+        undefined,
+    )
     const [natural, setNatural] = useState<Size>()
     const [box, setBox] = useState<Size>()
 
     const loaded = (target: LoadedImage) => {
         const file = target.currentSrc || src
-        if (!mounted.current || handled.current === file) return
-        handled.current = file
+        const sources = srcSet ?? src
+        if (
+            !mounted.current ||
+            (handled.current?.sources === sources &&
+                handled.current.file === file)
+        ) {
+            return
+        }
+        handled.current = { sources, file }
         // For the tiles.
         setNatural({ width: target.naturalWidth, height: target.naturalHeight })
         // Once it's decoded, as react-native-web's Image did, so it shows at
@@ -359,9 +376,20 @@ function Picture({
         }
     }, [])
 
+    // An image that loaded or failed before this mounted (in a page rendered
+    // on a server, before the page's JavaScript ran) had its event then. A
+    // broken image is complete with no size; so can an SVG without one be in
+    // some browsers, which decodes.
     useClientLayoutEffect(() => {
         const target = image.current as unknown as LoadedImage | null
-        if (target?.complete && target.naturalWidth > 0) loaded(target)
+        if (!target?.complete) return
+        if (target.naturalWidth > 0) return loaded(target)
+        Promise.resolve(target.decode?.()).then(
+            () => loaded(target),
+            () => {
+                if (mounted.current) onError?.(target.currentSrc || src)
+            },
+        )
         // When it mounts.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -388,8 +416,6 @@ function Picture({
             loading={lazy ? 'lazy' : undefined}
             alt={alt}
             draggable={false}
-            // The tint filter's id can differ from the server's.
-            suppressHydrationWarning
             style={{
                 ...fill,
                 objectFit: OBJECT_FIT[mode] ?? 'cover',
@@ -412,7 +438,6 @@ function Picture({
             {repeat ? (
                 <div
                     ref={tiles}
-                    suppressHydrationWarning
                     style={{
                         ...fill,
                         backgroundImage: `url("${src}")`,
@@ -451,11 +476,7 @@ function TintFilter({ id, color }: { id: string; color: unknown }) {
     return (
         <svg style={tintStyle}>
             <defs>
-                <filter
-                    id={id}
-                    // The id can differ from the server's.
-                    {...({ suppressHydrationWarning: true } as {})}
-                >
+                <filter id={id}>
                     {/* A new element for a new color, which browsers apply. */}
                     <feFlood floodColor={String(color)} key={String(color)} />
                     <feComposite in2="SourceAlpha" operator="in" />

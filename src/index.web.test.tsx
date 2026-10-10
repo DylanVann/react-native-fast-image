@@ -168,9 +168,10 @@ describe('FastImage (web)', () => {
         // The image has the label.
         expect(placeholder.props.alt).toBe('')
         expect(image.props.alt).toBe('An image')
-        // Under the image, which shows once it has loaded.
+        // Under the image, which shows as it loads (the browser draws it over
+        // defaultSource), and replaces it once it has loaded.
         expect(image.props.src).toBe(A.uri)
-        expect(image.props.style.opacity).toBe(0)
+        expect(image.props.style.opacity).toBeUndefined()
         act(() => {
             image.props.onLoad({
                 currentTarget: { naturalWidth: 4, naturalHeight: 3 },
@@ -444,6 +445,95 @@ describe('FastImage (web)', () => {
         })
         await act(settled)
         expect(onLoad).toHaveBeenCalledTimes(1)
+    })
+
+    it('sends onLoad for new sizes when the browser keeps the same file', async () => {
+        // The browser fires load for each new srcset, also when it picks the
+        // file it already shows (e.g. a larger size added to the list).
+        const onLoad = mock()
+        const onLoadEnd = mock()
+        const tree = render(
+            <FastImage source={sizes} onLoad={onLoad} onLoadEnd={onLoadEnd} />,
+        )
+        const picked = {
+            naturalWidth: 300,
+            naturalHeight: 300,
+            currentSrc: 'https://example.com/300.png',
+        }
+        act(() => {
+            images(tree)[0].props.onLoad({ currentTarget: picked })
+        })
+        await act(settled)
+        act(() => {
+            tree.update(
+                <FastImage
+                    source={[
+                        ...sizes,
+                        { uri: 'https://example.com/900.png', width: 900 },
+                    ]}
+                    onLoad={onLoad}
+                    onLoadEnd={onLoadEnd}
+                />,
+            )
+        })
+        act(() => {
+            images(tree)[0].props.onLoad({ currentTarget: picked })
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(2)
+        expect(onLoadEnd).toHaveBeenCalledTimes(2)
+    })
+
+    it('sends onError for an image that failed before it mounted', async () => {
+        // In a page rendered on a server: a broken image is complete with no
+        // size, and doesn't decode.
+        const onError = mock()
+        const onLoadEnd = mock()
+        const tree = render(
+            <FastImage
+                source={A}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                onError={onError}
+                onLoadEnd={onLoadEnd}
+            />,
+            {
+                createNodeMock: () => ({
+                    complete: true,
+                    naturalWidth: 0,
+                    naturalHeight: 0,
+                    currentSrc: A.uri,
+                    decode: () => Promise.reject(new Error('EncodingError')),
+                }),
+            },
+        )
+        await act(settled)
+        expect(onError).toHaveBeenCalledTimes(1)
+        expect(onLoadEnd).toHaveBeenCalledWith({
+            ok: false,
+            error: `Failed to load resource ${A.uri}`,
+        })
+        // Hidden, over defaultSource.
+        const [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe('/assets/placeholder.png')
+        expect(image.props.style.opacity).toBe(0)
+    })
+
+    it('sends onLoad for an SVG without a size that loaded before it mounted', async () => {
+        // Some browsers give it no natural size; it decodes.
+        const onLoad = mock()
+        const onError = mock()
+        render(<FastImage source={A} onLoad={onLoad} onError={onError} />, {
+            createNodeMock: () => ({
+                complete: true,
+                naturalWidth: 0,
+                naturalHeight: 0,
+                currentSrc: A.uri,
+                decode: () => Promise.resolve(),
+            }),
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(1)
+        expect(onError).not.toHaveBeenCalled()
     })
 
     it('preloads each source into the browser cache, with a result per source', async () => {
