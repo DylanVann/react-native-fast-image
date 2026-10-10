@@ -2736,19 +2736,25 @@ const BLANK = '#eeeeee'
 // with `recycle`, recyclingKey changes too, and it should be blank while cyan
 // loads (for views reused for other content). With `memoryCache` false the
 // images aren't kept in memory, so the one shown comes from the disk cache
-// while cyan loads (Android shows it from its cache).
+// while cyan loads (Android shows it from its cache). With `twice`, the source
+// changes to another slow image first, then 150 ms later to cyan, before the
+// first change has loaded: magenta should still stay (Android went blank).
 function KeepPreviousCase({
     id,
     recycle,
     memoryCache,
+    twice,
 }: {
     id: string
     recycle?: boolean
     memoryCache?: boolean
+    twice?: boolean
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const [second, setSecond] = useState(false)
+    // With `twice`: the first change, before cyan.
+    const [between, setBetween] = useState(false)
     const done = useRef(() => {})
     const [status, setStatus] = useState('loading the first image')
     const expect = recycle ? [MAGENTA, BLANK, CYAN] : [MAGENTA, CYAN]
@@ -2766,7 +2772,9 @@ function KeepPreviousCase({
             },
             (sampleDone) => {
                 done.current = sampleDone
-                setSecond(true)
+                if (!twice) return setSecond(true)
+                setBetween(true)
+                setTimeout(() => setSecond(true), 150)
             },
         )
         setStatus(sampleStatus(result, expect))
@@ -2785,10 +2793,19 @@ function KeepPreviousCase({
                                   headers: BACKGROUND_SLOW_HEADERS,
                                   memoryCache,
                               }
-                            : {
-                                  uri: imageUrl(`magenta.png?${id}=${RUN}`),
-                                  memoryCache,
-                              }
+                            : between
+                              ? {
+                                    // About 7 s: replaced before it loads.
+                                    uri: slowImageUrl(
+                                        `quadrants.png?${id}=${RUN}&delay=1000`,
+                                    ),
+                                    headers: BACKGROUND_SLOW_HEADERS,
+                                    memoryCache,
+                                }
+                              : {
+                                    uri: imageUrl(`magenta.png?${id}=${RUN}`),
+                                    memoryCache,
+                                }
                     }
                     recyclingKey={
                         recycle ? (second ? 'second' : 'first') : null
@@ -2802,7 +2819,9 @@ function KeepPreviousCase({
                 description={
                     recycle
                         ? 'recyclingKey: changing it with the source clears the image (magenta) while the new one (cyan) loads (recorded: magenta, blank, cyan)'
-                        : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
+                        : twice
+                          ? 'Changing the source twice quickly keeps the image (magenta) until the last one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
+                          : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
                 }
             />
         </View>
@@ -6734,6 +6753,17 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="keep-previous-no-memory"
                 id="keep-previous-no-memory"
                 memoryCache={false}
+            />,
+            <KeepPreviousCase
+                key="keep-previous-twice"
+                id="keep-previous-twice"
+                twice
+            />,
+            <KeepPreviousCase
+                key="keep-previous-twice-no-memory"
+                id="keep-previous-twice-no-memory"
+                memoryCache={false}
+                twice
             />,
         ],
     },
