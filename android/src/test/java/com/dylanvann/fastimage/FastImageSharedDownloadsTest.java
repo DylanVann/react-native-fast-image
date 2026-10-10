@@ -334,6 +334,42 @@ public class FastImageSharedDownloadsTest {
         assertEquals(Arrays.asList("/other", "/preload"), server.requests().subList(16, 18));
     }
 
+    // At most as many wait for their response from a host as OkHttp sends to
+    // a host at once (5); the others wait here, where priority applies.
+
+    @Test
+    public void aMoreUrgentRequestMovesUpADownloadWaitingForItsHost() throws Exception {
+        List<TestServer.Route> sent = sendFive();
+        load(url("/grid"), Priority.NORMAL);
+        load(url("/photo"), Priority.NORMAL);
+        // The photo opens.
+        load(url("/photo"), Priority.IMMEDIATE);
+        sent.get(0).release();
+        server.awaitRequests(6);
+        assertEquals("/photo", server.requests().get(5));
+    }
+
+    @Test
+    public void aDownloadFromAnotherHostDoesntWaitForAFullOne() throws Exception {
+        sendFive();
+        load(url("/waiting"));
+        load(new GlideUrl(server.url("/other").replace("127.0.0.1", "localhost"), Headers.DEFAULT));
+        server.awaitRequest("/other");
+        assertEquals(0, server.count("/waiting"));
+    }
+
+    // Five downloads to the server's host, each held before its response, so
+    // the next ones to it wait.
+    private List<TestServer.Route> sendFive() throws InterruptedException {
+        List<TestServer.Route> sent = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            sent.add(server.route("/sent-" + i).holdHeaders());
+            load(url("/sent-" + i));
+        }
+        server.awaitRequests(5);
+        return sent;
+    }
+
     // Sixteen downloads (as many as run at once), each held after its first
     // byte, so the next ones wait.
     private List<TestServer.Route> runSixteen() throws InterruptedException {
