@@ -257,7 +257,7 @@ It can also be set in `style`; the prop wins. Either one overrides `resizeMode`.
 
 **Type:** `ResizeMode` · **Default:** `'cover'`
 
-**Deprecated:** Use `objectFit` instead, except for `'repeat'`, which has no `objectFit` value and isn't deprecated.
+**Deprecated:** Use `objectFit` instead. `'repeat'` has no `objectFit` value yet, so it can still be used.
 
 How the image fills the view.
 
