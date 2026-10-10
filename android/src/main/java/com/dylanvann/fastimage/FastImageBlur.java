@@ -32,9 +32,9 @@ final class FastImageBlur extends BitmapTransformation {
     // In pixels on screen.
     private final float radius;
     private final ImageView.ScaleType scaleType;
-    // Pixels on screen per pixel of the image at its own size (resizeMode
-    // center and none show it at that size: see
-    // FastImageViewWithUrl.updateImageMatrix).
+    // Pixels on screen per pixel of the image at its own size (scale-down and
+    // none show it at that size: see FastImageViewWithUrl.updateImageMatrix;
+    // 1 for resizeMode center).
     private final float density;
 
     FastImageBlur(float radius, ImageView.ScaleType scaleType, float density) {

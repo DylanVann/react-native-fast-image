@@ -29,12 +29,14 @@ export function fromStyle<K extends 'tintColor' | 'objectFit'>(
         : undefined
 }
 
-// resizeMode as objectFit, and repeat, which objectFit doesn't have.
+// resizeMode as objectFit, and the two objectFit doesn't have: repeat, and
+// center, which is scale-down except that Android shows an image smaller than
+// the view at its size in pixels on the screen (scale-down: in dp).
 const RESIZE_MODE_FIT = {
     contain: 'contain',
     cover: 'cover',
     stretch: 'fill',
-    center: 'scale-down',
+    center: 'center',
     repeat: 'repeat',
 } as const
 
@@ -52,7 +54,7 @@ export function resolveObjectFit(
     objectFit: ObjectFit | undefined,
     style: unknown,
     resizeMode: ResizeMode,
-): ObjectFit | 'repeat' {
+): ObjectFit | 'repeat' | 'center' {
     const fit =
         objectFit !== undefined ? objectFit : fromStyle(style, 'objectFit')
     if (fit && FITS[fit] === true) return fit

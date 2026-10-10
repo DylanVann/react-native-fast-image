@@ -339,7 +339,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - `'contain'`: as `objectFit="contain"`.
      * - `'cover'`: as `objectFit="cover"`.
      * - `'stretch'`: as `objectFit="fill"`.
-     * - `'center'`: as `objectFit="scale-down"`.
+     * - `'center'`: as `objectFit="scale-down"`, except that on Android an
+     *   image smaller than the view is shown at its size in pixels on the
+     *   screen, so smaller than on iOS and the web.
      * - `'repeat'`: repeats it to cover the view, from its top-left corner, at
      *   the image's own size in pixels (a bundled image at its size in
      *   points), scaled down to fit if it's larger than the view. An animated
@@ -592,13 +594,15 @@ const resolveDefaultSource = (
     return defaultSource
 }
 
-// objectFit as the native resizeMode (`none` is FastImage's own).
+// objectFit as the native resizeMode (`none` and `scale-down` are FastImage's
+// own; iOS shows `scale-down` as `center`).
 const NATIVE_RESIZE_MODE = {
     fill: 'stretch',
     contain: 'contain',
     cover: 'cover',
     none: 'none',
-    'scale-down': 'center',
+    'scale-down': 'scale-down',
+    center: 'center',
     repeat: 'repeat',
 } as const
 
@@ -827,8 +831,13 @@ function FastImageBase({
                             ))
                     }
                     // React Native's Image has no `none` before 0.77, and
-                    // there it's top-left: the nearest is center (scale-down).
-                    resizeMode={mode === 'none' ? 'center' : mode}
+                    // there it's top-left: the nearest is center, as for
+                    // scale-down.
+                    resizeMode={
+                        mode === 'none' || mode === 'scale-down'
+                            ? 'center'
+                            : mode
+                    }
                 />
                 {children}
             </View>

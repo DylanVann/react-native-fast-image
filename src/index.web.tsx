@@ -116,10 +116,16 @@ function FastImageBase({
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
     const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
-    // objectFit (the prop, then style's), or resizeMode. Tiles are of one
-    // image: several sizes are shown as cover.
+    // objectFit (the prop, then style's), or resizeMode, whose center is
+    // scale-down here. Tiles are of one image: several sizes are shown as
+    // cover.
     const resolved = resolveObjectFit(objectFit, style, mode)
-    const fit = several && resolved === 'repeat' ? 'cover' : resolved
+    const fit =
+        resolved === 'center'
+            ? 'scale-down'
+            : several && resolved === 'repeat'
+              ? 'cover'
+              : resolved
     const filter =
         [
             blurRadius ? `blur(${blurRadius}px)` : '',

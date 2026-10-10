@@ -8,6 +8,8 @@ RCT_ENUM_CONVERTER(FFFResizeMode, (@{
                                      @"contain": @(RCTResizeModeContain),
                                      @"stretch": @(RCTResizeModeStretch),
                                      @"center": @(RCTResizeModeCenter),
+                                     // objectFit="scale-down": as center on iOS.
+                                     @"scale-down": @(RCTResizeModeCenter),
                                      @"repeat": @(RCTResizeModeRepeat),
                                      @"none": @(FFFResizeModeNone),
                                      }), RCTResizeModeCover, integerValue);

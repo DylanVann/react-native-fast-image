@@ -184,7 +184,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         boolean repeat = "repeat".equals(resizeMode);
         final FastImageViewWithUrl.ScaleType scaleType =
                 repeat ? FastImageViewWithUrl.ScaleType.FIT_XY : FastImageViewConverter.getScaleType(resizeMode);
-        view.setResizeMode(scaleType, repeat);
+        view.setResizeMode(scaleType, repeat, "center".equals(resizeMode));
     }
 
     @Override

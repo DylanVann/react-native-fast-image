@@ -908,7 +908,7 @@ describe('objectFit', () => {
             contain: 'contain',
             cover: 'cover',
             none: 'none',
-            'scale-down': 'center',
+            'scale-down': 'scale-down',
         } as const
         for (const [fit, mode] of Object.entries(modes)) {
             expect(
@@ -957,7 +957,26 @@ describe('objectFit', () => {
                     style={{ objectFit: 'contain' }}
                 />,
             ),
-        ).toBe('center')
+        ).toBe('scale-down')
+        // Also over center, which Android shows differently.
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    resizeMode="center"
+                    objectFit="scale-down"
+                />,
+            ),
+        ).toBe('scale-down')
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    resizeMode="center"
+                    style={{ objectFit: 'scale-down' }}
+                />,
+            ),
+        ).toBe('scale-down')
         // An unknown value leaves resizeMode.
         expect(
             nativeResizeMode(
@@ -985,6 +1004,20 @@ describe('objectFit', () => {
         expect(resizeMode('scale-down')).toBe('center')
         // Its `none` is top-left (and only from 0.77).
         expect(resizeMode('none')).toBe('center')
+    })
+})
+
+describe('resizeMode center', () => {
+    it('is sent as center, not as scale-down', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.png' }}
+                    resizeMode="center"
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.resizeMode).toBe('center')
     })
 })
 

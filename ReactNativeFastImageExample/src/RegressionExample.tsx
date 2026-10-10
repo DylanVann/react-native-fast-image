@@ -2637,9 +2637,7 @@ function ClearWithoutActivityCase() {
 
 // resizeMode center: a 600x300 image (red, with a blue border) is scaled down
 // to fit the view, so the border shows (iOS showed it at full size, cropped to
-// red); a 40x40 one (green) stays at its own size, 40 points (Android showed
-// it at 40 pixels); so does a bundled 120x120 @3x one (blue), 40 points. The
-// outlines are just outside 40 points. Check the screenshot.
+// red); a 16x16 one (green) stays at its own size. Check the screenshot.
 function CenterCase() {
     const [loaded, setLoaded] = useState(0)
     const onLoad = () => setLoaded((n) => n + 1)
@@ -2651,28 +2649,16 @@ function CenterCase() {
                 source={{ uri: imageUrl('center-large.png') }}
                 onLoad={onLoad}
             />
-            <View style={styles.gap}>
-                <FastImage
-                    style={styles.image}
-                    resizeMode="center"
-                    source={{ uri: imageUrl('center-medium.png') }}
-                    onLoad={onLoad}
-                />
-                <View style={centerStyles.outline} pointerEvents="none" />
-            </View>
-            <View style={styles.gap}>
-                <FastImage
-                    style={styles.image}
-                    resizeMode="center"
-                    source={require('./images/center-dot.png')}
-                    onLoad={onLoad}
-                />
-                <View style={centerStyles.outline} pointerEvents="none" />
-            </View>
+            <FastImage
+                style={[styles.image, styles.gap]}
+                resizeMode="center"
+                source={{ uri: imageUrl('center-small.png') }}
+                onLoad={onLoad}
+            />
             <CaseStatus
                 id="resize-center"
-                status={loaded === 3 ? 'OK' : 'waiting'}
-                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps smaller ones at their size in points (inside the outlines)"
+                status={loaded === 2 ? 'OK' : 'waiting'}
+                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps a smaller one at its size"
             />
         </View>
     )
@@ -2759,6 +2745,86 @@ function ObjectFitSizeCase() {
                 id="object-fit-size"
                 status={status}
                 description="objectFit none and scale-down: smaller images at their size in points (inside the outlines); a larger one with none and overflow visible cropped to the view (red only)"
+            />
+        </View>
+    )
+}
+
+// resizeMode center and objectFit scale-down: the same, except that Android
+// shows an image smaller than the view at its size in pixels with center
+// (about 15 dp for this 40x40 image, inside the outline with a gap), and at
+// its size in dp with scale-down (filling the outline), as iOS shows both.
+// objectFit wins over resizeMode. Check the screenshot.
+function ObjectFitCenterCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    const source = { uri: imageUrl('center-medium.png') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <View>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        resizeMode="center"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        objectFit="scale-down"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        resizeMode="center"
+                        objectFit="scale-down"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+            </View>
+            <CaseStatus
+                id="object-fit-center"
+                status={status}
+                description="resizeMode center, objectFit scale-down, and both: the same on iOS; on Android the first is its size in pixels (smaller), the others fill the outlines"
+            />
+        </View>
+    )
+}
+
+// objectFit scale-down with blurRadius: a 120x120 image at its size, 120
+// points (dp), blurred the same size as the sharp one next to it.
+function ObjectFitBlurCase() {
+    const [status, onLoad] = useLoadedThenOk(2)
+    const source = { uri: imageUrl('picsum/1020-120x120.jpg') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={blurStyles.large}
+                    objectFit="scale-down"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[blurStyles.large, blurStyles.next]}
+                    objectFit="scale-down"
+                    source={source}
+                    blurRadius={30}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-blur"
+                status={status}
+                description="objectFit scale-down with blurRadius={30}: a 120 point image at its size, blurred the same size as the sharp one"
             />
         </View>
     )
@@ -6552,6 +6618,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <ObjectFitCase key="object-fit" />,
             <ObjectFitSizeCase key="object-fit-size" />,
+            <ObjectFitCenterCase key="object-fit-center" />,
+            <ObjectFitBlurCase key="object-fit-blur" />,
             <ObjectFitStyleCase key="object-fit-style" />,
             <ObjectFitChangeCase key="object-fit-change" />,
         ],

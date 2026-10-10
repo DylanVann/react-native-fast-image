@@ -49,6 +49,9 @@ class FastImageViewConverter {
                 put("cover", ScaleType.CENTER_CROP);
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER_INSIDE);
+                // objectFit="scale-down": as center, laid out in dp (see
+                // FastImageViewWithUrl.setResizeMode).
+                put("scale-down", ScaleType.CENTER_INSIDE);
                 // objectFit="none": the image at its own size, centered.
                 put("none", ScaleType.CENTER);
             }};

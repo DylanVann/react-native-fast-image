@@ -614,17 +614,22 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean mRepeat = false;
 
     // The scale type for resizeMode, which Glide decodes the image for and the
-    // blur scales with. For center (CENTER_INSIDE) and none (CENTER) the view
-    // is MATRIX: it lays the image out itself (see updateImageMatrix). Starts
-    // as ImageView's.
+    // blur scales with. For scale-down (CENTER_INSIDE) and none (CENTER) the
+    // view is MATRIX: it lays the image out itself (see updateImageMatrix).
+    // Starts as ImageView's.
     private ScaleType mResizeScaleType = ScaleType.FIT_CENTER;
+
+    // resizeMode center: CENTER_INSIDE as ImageView draws it, an image smaller
+    // than the view at its size in pixels on the screen (scale-down: in dp).
+    private boolean mInPixels = false;
 
     // Glide crops or fits the bitmap for the scale type when it loads, so a
     // new resizeMode needs a reload to take effect (#762).
-    public void setResizeMode(ScaleType scaleType, boolean repeat) {
-        if (scaleType == mResizeScaleType && repeat == mRepeat) return;
+    public void setResizeMode(ScaleType scaleType, boolean repeat, boolean inPixels) {
+        if (scaleType == mResizeScaleType && repeat == mRepeat && inPixels == mInPixels) return;
         mResizeScaleType = scaleType;
-        setScaleType(scaleType == ScaleType.CENTER_INSIDE || scaleType == ScaleType.CENTER
+        mInPixels = inPixels;
+        setScaleType(!inPixels && (scaleType == ScaleType.CENTER_INSIDE || scaleType == ScaleType.CENTER)
                 ? ScaleType.MATRIX
                 : scaleType);
         mRepeat = repeat;
@@ -648,7 +653,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // The loaded image's own size in pixels (as onLoad has it), and its scale
     // (a bundled image's, so it's its size in points; 1 for others, as on
-    // iOS), for resizeMode center. 0 until it's known.
+    // iOS), for scale-down and none. 0 until it's known.
     private int mImageWidth = 0;
     private int mImageHeight = 0;
     private double mImageScale = 1;
@@ -678,7 +683,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return (float) (getResources().getDisplayMetrics().density / mLoadingScale);
     }
 
-    // resizeMode center: the image at its own size, centered, or scaled down
+    // scale-down: the image at its own size, centered, or scaled down
     // uniformly to fit if that's larger than the view. Glide decodes it no
     // larger than that (CenterInside), and it's drawn at this size. none: the
     // image at its own size, centered, whatever its size (cropped by the view;
@@ -769,7 +774,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
         FastImageBlur blur = mBlurRadius > 0
-                ? new FastImageBlur(mBlurRadius, mRepeat ? null : mResizeScaleType, loadingDensity())
+                ? new FastImageBlur(mBlurRadius, mRepeat ? null : mResizeScaleType, mInPixels ? 1 : loadingDensity())
                 : null;
         RequestOptions options;
         if (mRepeat) {

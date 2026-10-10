@@ -264,7 +264,7 @@ How the image fills the view.
 - `'contain'`: as `objectFit="contain"`.
 - `'cover'`: as `objectFit="cover"`.
 - `'stretch'`: as `objectFit="fill"`.
-- `'center'`: as `objectFit="scale-down"`.
+- `'center'`: as `objectFit="scale-down"`, except that on Android an image smaller than the view is shown at its size in pixels on the screen, so smaller than on iOS and the web.
 - `'repeat'`: repeats it to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
