@@ -1,3 +1,10 @@
+## [9.3.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.0...v9.3.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **android:** images download in priority order when many wait for the same server ([#1285](https://github.com/DylanVann/react-native-fast-image/issues/1285)) ([8b5613e](https://github.com/DylanVann/react-native-fast-image/commit/8b5613e4425f7e9e24014106cd8803e2ddeab38e)), closes [hi#priority](https://github.com/hi/issues/priority)
+
 # [9.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.2...v9.3.0) (2026-10-10)
 
 
