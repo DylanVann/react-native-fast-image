@@ -14,6 +14,9 @@ export type ImageProps = {
     // A local image (require()) to show until the image loads, if the library
     // takes one.
     placeholder?: number
+    // High for an image the app needs first (the detail scenario's photo),
+    // if the library takes a priority.
+    priority?: 'high'
     onLoad: () => void
     onError: (error: string) => void
 }

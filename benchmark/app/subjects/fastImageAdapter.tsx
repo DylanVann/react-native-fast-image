@@ -4,7 +4,7 @@ import type { Adapter } from '../src/adapter'
 // The FastImage subjects' adapter, for whichever FastImage package a subject
 // imports (each build bundles only its own).
 type FastImageLike = ComponentType<{
-    source: { uri: string }
+    source: { uri: string; priority?: 'high' }
     style?: unknown
     resizeMode?: 'cover'
     defaultSource?: number
@@ -21,9 +21,9 @@ export const fastImageAdapter = (
     id,
     version,
     loadEvents: true,
-    Image: ({ uri, style, fade, placeholder, onLoad, onError }) => (
+    Image: ({ uri, style, fade, placeholder, priority, onLoad, onError }) => (
         <FastImage
-            source={{ uri }}
+            source={{ uri, priority }}
             style={style}
             resizeMode="cover"
             defaultSource={placeholder}
