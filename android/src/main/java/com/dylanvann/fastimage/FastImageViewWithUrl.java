@@ -623,17 +623,31 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // than the view at its size in pixels on the screen (scale-down: in dp).
     private boolean mInPixels = false;
 
+    // The scale type the image on screen is laid out for (see
+    // applyResizeMode).
+    private ScaleType mLayoutScaleType = ScaleType.FIT_CENTER;
+
     // Glide crops or fits the bitmap for the scale type when it loads, so a
     // new resizeMode needs a reload to take effect (#762).
     public void setResizeMode(ScaleType scaleType, boolean repeat, boolean inPixels) {
         if (scaleType == mResizeScaleType && repeat == mRepeat && inPixels == mInPixels) return;
         mResizeScaleType = scaleType;
         mInPixels = inPixels;
-        setScaleType(!inPixels && (scaleType == ScaleType.CENTER_INSIDE || scaleType == ScaleType.CENTER)
-                ? ScaleType.MATRIX
-                : scaleType);
         mRepeat = repeat;
         mNeedsReload = true;
+        // A loaded image on screen was cropped or fitted for the old scale
+        // type: it keeps its layout until the image for the new one is ready
+        // (onImageLoaded), or the load fails. Laid out for the new one, a
+        // cover crop would be stretched to the image's own size.
+        if (mShownRequest == null) applyResizeMode();
+    }
+
+    // Lays the view out for resizeMode.
+    private void applyResizeMode() {
+        mLayoutScaleType = mResizeScaleType;
+        setScaleType(!mInPixels && (mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER)
+                ? ScaleType.MATRIX
+                : mResizeScaleType);
         updateImageMatrix();
     }
 
@@ -719,7 +733,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             width = drawableWidth * imageDensity();
             height = drawableHeight * imageDensity();
         }
-        float fit = mResizeScaleType == ScaleType.CENTER
+        float fit = mLayoutScaleType == ScaleType.CENTER
                 ? 1
                 : Math.min(1, Math.min(viewWidth / width, viewHeight / height));
         width *= fit;
@@ -798,6 +812,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         } else {
             options = FastImageSourceSize.scaleTypeOptions(
                     mResizeScaleType, FastImageSourceSize.capture(mResizeScaleType, model), blur);
+            boolean ownSize = mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER;
+            // scale-down and none show it at its own size in dp: an SVG is
+            // drawn at that size, so it's sharp (not with a blur, which hides
+            // the difference).
+            if (ownSize && !mInPixels && blur == null) {
+                options = options.set(FastImageSvg.DENSITY, loadingDensity())
+                        .set(FastImageSvg.FITS, mResizeScaleType == ScaleType.CENTER_INSIDE);
+            }
         }
         return blur != null ? options.dontAnimate() : options;
     }
@@ -859,6 +881,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void onImageLoaded() {
         mLoadEnded = true;
         endProgress();
+        // Before the view shows it (the target does once this returns).
+        applyResizeMode();
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -1013,6 +1037,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
         endProgress();
+        applyResizeMode();
         mShownRequest = null;
         if (!hadThumbnail) return;
         final int load = mLoadCount;

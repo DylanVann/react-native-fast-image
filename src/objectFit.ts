@@ -48,15 +48,14 @@ const FITS: Record<ObjectFit, true> = {
     'scale-down': true,
 }
 
-// The objectFit prop, then style's, then resizeMode (a value that isn't one
-// of objectFit's counts as not set).
+// The objectFit prop, then style's, then resizeMode (null, or a value that
+// isn't one of objectFit's, counts as not set).
 export function resolveObjectFit(
-    objectFit: ObjectFit | undefined,
+    objectFit: ObjectFit | null | undefined,
     style: unknown,
     resizeMode: ResizeMode,
 ): ObjectFit | 'repeat' | 'center' {
-    const fit =
-        objectFit !== undefined ? objectFit : fromStyle(style, 'objectFit')
+    const fit = objectFit != null ? objectFit : fromStyle(style, 'objectFit')
     if (fit && FITS[fit] === true) return fit
     return RESIZE_MODE_FIT[resizeMode] ?? 'cover'
 }

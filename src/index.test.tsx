@@ -987,6 +987,16 @@ describe('objectFit', () => {
                 />,
             ),
         ).toBe('repeat')
+        // So does null (Flow's types allow it), and style's then applies.
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    objectFit={null as any}
+                    style={{ objectFit: 'contain' }}
+                />,
+            ),
+        ).toBe('contain')
     })
 
     it("is React Native Image's resizeMode with fallback", () => {

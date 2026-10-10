@@ -2799,6 +2799,89 @@ function ObjectFitCenterCase() {
     )
 }
 
+// objectFit scale-down and none with an SVG of 60x60 black and white stripes,
+// one unit wide: drawn at its size in points (dp), as sharp as with contain in
+// a 60 point view (right). Android drew it at its size in pixels and enlarged
+// it, soft and gray.
+function ObjectFitSvgCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    const source = { uri: imageUrl('svg-stripes.svg?case=object-fit-svg') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={objectFitStyles.svg}
+                    objectFit="scale-down"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.svg, styles.gap]}
+                    objectFit="none"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.svgReference, styles.gap]}
+                    objectFit="contain"
+                    source={source}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-svg"
+                status={status}
+                description="An SVG (60x60 stripes) with scale-down and none is as sharp as with contain at 60 points (right)"
+            />
+        </View>
+    )
+}
+
+// objectFit changed from cover to scale-down and none after load, while the
+// image for the new fit loads (slowly, from the slow server, with cache
+// 'web' so it isn't on disk): Android keeps the cover image as it was until
+// then (it showed the crop stretched to the image's own size: squashed with
+// scale-down, enlarged about 12 times with none); iOS shows the new fit at
+// once. The screenshot is taken while the new image loads.
+function ObjectFitFromCoverCase() {
+    const [loads, setLoads] = useState(0)
+    // Once both have loaded with cover.
+    const changed = loads >= 2
+    const [status, setStatus] = useState('loading')
+    useEffect(() => {
+        if (!changed) return
+        const timer = setTimeout(() => setStatus('OK'), 800)
+        return () => clearTimeout(timer)
+    }, [changed])
+    const source = (fit: string) => ({
+        uri: slowImageUrl(`text-page.png?case=object-fit-from-cover-${fit}`),
+        headers: SLOW_HEADERS,
+        cache: FastImage.cacheControl.web,
+    })
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                {(['scale-down', 'none'] as const).map((fit, i) => (
+                    <FastImage
+                        key={fit}
+                        style={[objectFitStyles.large, i > 0 && styles.gap]}
+                        objectFit={changed ? fit : 'cover'}
+                        source={source(fit)}
+                        onLoad={
+                            changed ? undefined : () => setLoads((n) => n + 1)
+                        }
+                    />
+                ))}
+            </View>
+            <CaseStatus
+                id="object-fit-from-cover"
+                status={status}
+                description="cover changed to scale-down and none while the new image loads: Android keeps the cover image as it was (iOS: the new fit at once)"
+            />
+        </View>
+    )
+}
+
 // objectFit scale-down with blurRadius: a 120x120 image at its size, 120
 // points (dp), blurred the same size as the sharp one next to it.
 function ObjectFitBlurCase() {
@@ -2906,6 +2989,9 @@ function ObjectFitChangeCase() {
 
 const objectFitStyles = StyleSheet.create({
     image: { width: 48, height: 48, backgroundColor: '#eee' },
+    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    svg: { width: 72, height: 72, backgroundColor: '#eee' },
+    svgReference: { width: 60, height: 60 },
     visible: { overflow: 'visible' },
     // The images, then the status under them (CaseStatus's text is indented).
     stacked: { marginBottom: 12 },
@@ -6620,6 +6706,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ObjectFitSizeCase key="object-fit-size" />,
             <ObjectFitCenterCase key="object-fit-center" />,
             <ObjectFitBlurCase key="object-fit-blur" />,
+            <ObjectFitSvgCase key="object-fit-svg" />,
+            <ObjectFitFromCoverCase key="object-fit-from-cover" />,
             <ObjectFitStyleCase key="object-fit-style" />,
             <ObjectFitChangeCase key="object-fit-change" />,
         ],
