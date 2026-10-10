@@ -45,11 +45,13 @@ S=fast-image-local,image,expo-image,nitro-image,turbo-image
 bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 4 --subjects $S --scenarios grid,large,sizes --tests time-to-image,scroll,large-memory --out benchmark/results/<date>-android
 # Android: the burst test on 2 more phones (one in each order), with the APKs the first command built
 bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 2 --subjects $S --tests burst --burst plain,fade,fade+placeholder --iterations 10 --apks benchmark/results/<date>-android --out benchmark/results/<date>-android-burst
-# iOS: the iPhone over USB
-bun benchmark/scripts/run.ts --subjects $S --scenarios grid,large,sizes --out benchmark/results/<date>-ios
+# iOS: the iPhone over USB, keeping the recordings
+bun benchmark/scripts/run.ts --subjects $S --scenarios grid,large,sizes --keep-videos --out benchmark/results/<date>-ios
+# Side-by-side videos of a scenario: each library's median run, timed by its clock, 4× slower
+bun benchmark/scripts/compare-videos.ts benchmark/results/<date>-ios --scenario grid --names fast-image-local='FastImage 10'
 ```
 
-A Test Lab phone runs for at most 45 minutes, so the burst test runs on its own phones. Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
+A Test Lab phone runs for at most 45 minutes, so the burst test runs on its own phones. `compare-videos.ts` writes `compare-<scenario>.mp4` in the results folder (Android's recordings are in the pulled outputs; it needs ffmpeg and ImageMagick). Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
 
 ## How it works
 
