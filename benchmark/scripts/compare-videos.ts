@@ -130,13 +130,11 @@ const bottom = Math.max(
     ...chosen.map((r) =>
         Math.min(
             r.data.window.height,
-            ...[
-                Math.max(
-                    ...(r.data.images as { rect?: Rect }[]).flatMap((image) =>
-                        image.rect ? [image.rect.y + image.rect.height] : [],
-                    ),
+            Math.max(
+                ...(r.data.images as { rect?: Rect }[]).flatMap((image) =>
+                    image.rect ? [image.rect.y + image.rect.height] : [],
                 ),
-            ],
+            ),
         ),
     ),
 )
