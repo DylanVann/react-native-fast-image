@@ -2637,7 +2637,9 @@ function ClearWithoutActivityCase() {
 
 // resizeMode center: a 600x300 image (red, with a blue border) is scaled down
 // to fit the view, so the border shows (iOS showed it at full size, cropped to
-// red); a 16x16 one (green) stays at its own size. Check the screenshot.
+// red); a 40x40 one (green) stays at its own size, 40 points (Android showed
+// it at 40 pixels); so does a bundled 120x120 @3x one (blue), 40 points. The
+// outlines are just outside 40 points. Check the screenshot.
 function CenterCase() {
     const [loaded, setLoaded] = useState(0)
     const onLoad = () => setLoaded((n) => n + 1)
@@ -2649,20 +2651,45 @@ function CenterCase() {
                 source={{ uri: imageUrl('center-large.png') }}
                 onLoad={onLoad}
             />
-            <FastImage
-                style={[styles.image, styles.gap]}
-                resizeMode="center"
-                source={{ uri: imageUrl('center-small.png') }}
-                onLoad={onLoad}
-            />
+            <View style={styles.gap}>
+                <FastImage
+                    style={styles.image}
+                    resizeMode="center"
+                    source={{ uri: imageUrl('center-medium.png') }}
+                    onLoad={onLoad}
+                />
+                <View style={centerStyles.outline} pointerEvents="none" />
+            </View>
+            <View style={styles.gap}>
+                <FastImage
+                    style={styles.image}
+                    resizeMode="center"
+                    source={require('./images/center-dot.png')}
+                    onLoad={onLoad}
+                />
+                <View style={centerStyles.outline} pointerEvents="none" />
+            </View>
             <CaseStatus
                 id="resize-center"
-                status={loaded === 2 ? 'OK' : 'waiting'}
-                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps a smaller one at its size"
+                status={loaded === 3 ? 'OK' : 'waiting'}
+                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps smaller ones at their size in points (inside the outlines)"
             />
         </View>
     )
 }
+
+// Just outside a 40-point image centered in a 48-point view.
+const centerStyles = StyleSheet.create({
+    outline: {
+        position: 'absolute',
+        left: 3,
+        top: 3,
+        width: 42,
+        height: 42,
+        borderWidth: 1,
+        borderColor: '#f0f',
+    },
+})
 
 // Preloads an image at a url that's new each launch (so the disk cache from an
 // earlier run doesn't count), shows it once the preload has resolved, and asks

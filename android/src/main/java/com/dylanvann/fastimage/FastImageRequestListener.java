@@ -82,6 +82,8 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         boolean local = !(model instanceof FastImageUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,
                 dataSource == DataSource.RESOURCE_DISK_CACHE);
+        // Before the view shows it (the target does once this returns).
+        view.onImageSize(size);
         if (size != null) {
             sendLoad(view, size);
             return false;
@@ -92,7 +94,9 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageSourceSize.readLocal(view.getContext(), source, resource, model, new FastImageSourceSize.Callback() {
             @Override
             public void onSize(int[] size) {
-                if (target.getRequest() == request) sendLoad(view, size);
+                if (target.getRequest() != request) return;
+                view.onImageSize(size);
+                sendLoad(view, size);
             }
         });
         return false;
