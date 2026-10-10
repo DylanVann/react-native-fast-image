@@ -5287,6 +5287,51 @@ function DownsampleMemoryCase() {
     )
 }
 
+// The same for a preload after a view that downsamples loaded the image from
+// the disk cache: the preload resolves with the image's own size, 1600x1000
+// (iOS resolved with the smaller copy's).
+function DownsamplePreloadCase() {
+    const uri = imageUrl('text-page.png?case=downsample-preload')
+    const [step, setStep] = useState(0)
+    const [status, setStatus] = useState('step 0')
+    const next = (to: number) => () => {
+        // After the full-size image has been written to the disk cache.
+        setTimeout(() => setStep((s) => Math.max(s, to)), 300)
+    }
+    useEffect(() => {
+        if (step < 2) return
+        FastImage.preload([{ uri }]).then(([result]) =>
+            setStatus(
+                result.ok && result.width === 1600 && result.height === 1000
+                    ? 'OK'
+                    : `preload resolved ${JSON.stringify(result)}`,
+            ),
+        )
+    }, [step, uri])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={downsampleStyles.page}
+                source={{ uri }}
+                downsample={false}
+                onLoad={next(1)}
+            />
+            {step >= 1 && (
+                <FastImage
+                    style={[downsampleStyles.small, styles.gap]}
+                    source={{ uri }}
+                    onLoad={next(2)}
+                />
+            )}
+            <CaseStatus
+                id="downsample-preload"
+                status={status}
+                description="Full size (left), smaller (right), then a preload: it resolves with the image's own size"
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -6367,6 +6412,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 resizeMode="contain"
             />,
             <DownsampleMemoryCase key="downsample-memory" />,
+            <DownsamplePreloadCase key="downsample-preload" />,
         ],
     },
     {
