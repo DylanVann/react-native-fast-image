@@ -1,6 +1,6 @@
 # Benchmarks
 
-How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for FastImage and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-02.
+How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for FastImage and other React Native image components, measured the same way for each. These are the latest reference results: from 2026-10-02 for FastImage 8.28.0, and for many images loading at once on Android from 2026-10-10, with FastImage 10.
 
 ## How it's measured
 
@@ -15,6 +15,7 @@ Scenarios:
 - **Grid:** 60 photos of 400 × 400 px in a grid, all mounted at once; the time until every one on screen (28 on the iPhone, 32 on the Pixel) has shown.
 - **Large:** 20 photos of 4000 × 3000 px shown in small views; the time until all have shown, and the app's memory once they have.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
+- **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
 ## iOS
 
@@ -49,6 +50,22 @@ Pixel 8, Android 15, on Firebase Test Lab.
 
 - React Native's `Image` decodes the large photos at full size and fails the last ones (Fresco's `Pool hard cap violation`). Memory is the app's anonymous resident memory.
 - Scrolling: no frames over their deadline for any library.
+
+## Many images loading at once (Android)
+
+The grid's 60 photos mounted at once from a cold cache, on four Pixel 8s (Android 15, Firebase Test Lab), with FastImage 10, expo-image 57.0.5 and React Native's `Image` (0.86.3). Each phone ran every library in turns, two of them in the opposite order, 10 times each. Each library was run four ways: as it is (no fade), with its fade-in over 300 ms (FastImage's `transition`, expo-image's `transition={300}`, React Native's `fadeDuration`), with a gray placeholder image until each photo loads (`defaultSource`, expo-image's `placeholder`), and with both. Android's animations were on.
+
+Time spent drawing frames, from when the photos mount until the run ends shortly after the last one loads, on the UI thread and the RenderThread over all frames (median of 40 runs, ms), and the most memory used:
+
+| Library            | No fade | Fade | Placeholder | Fade over the placeholder | Memory     |
+| ------------------ | ------- | ---- | ----------- | ------------------------- | ---------- |
+| FastImage          | 398     | 551  | 466         | 615                       | 119–123 MB |
+| expo-image         | 429     | 574  | 459         | 650                       | 125–130 MB |
+| React Native Image | 512     | 633  | 557         | 680                       | 134–140 MB |
+
+- The fade adds 153 ms for FastImage, 145 ms for expo-image and 121 ms for React Native's `Image`; over the placeholder 149, 191 (expo-image also fades the placeholder in) and 123 ms.
+- Every library missed one or two frame deadlines per run, as the 60 views mounted; fades didn't add any.
+- These are every frame's time: Macrobenchmark's frame timing only counts the frames Android's frame timeline shows presented, which left out a fifth to a third of expo-image's frames and almost none of the others'.
 
 ## Running it
 
