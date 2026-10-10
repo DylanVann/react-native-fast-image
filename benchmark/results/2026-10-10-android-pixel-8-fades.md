@@ -1,4 +1,6 @@
-# Android, Pixel 8, burst, 2026-10-10
+# Android, Pixel 8, fades, 2026-10-10
+
+The burst test's runs while working on FastImage 10's fades, with FastImage 10, expo-image and React Native Image; the reference burst results, with all five libraries, are in `2026-10-10-android-pixel-8.md`.
 
 Firebase Test Lab (`model=shiba,version=35`, Android 15), `--paired --phones 2 --tests burst --iterations 10`, twice, with the subjects in opposite orders (`--subjects` reversed), so the order's effect cancels out: four phones, each running every subject's variants (10 runs each). The benchmark app on Expo SDK 57 (React Native 0.86.3, New Architecture), Release. Subjects: FastImage 10 (the 10.0 stack's top), expo-image 57.0.5, React Native Image (React Native 0.86.3). Images served on the phone with 40 ms latency and no bandwidth limit. Android's animations on (the test turns them on; Test Lab's phones have them off).
 

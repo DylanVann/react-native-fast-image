@@ -41,17 +41,20 @@ The reference results (`results/<date>-<platform>-<device>.md`, summarized on th
 
 ```sh
 S=fast-image-local,image,expo-image,nitro-image,turbo-image
-# Android: time to image, scrolling and memory, every library on each of 4 phones (2 in each order)
-bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 4 --subjects $S --scenarios grid,large,sizes --tests time-to-image,scroll,large-memory --out benchmark/results/<date>-android
-# Android: the burst test on 2 more phones (one in each order), with the APKs the first command built
+# Android: time to image, every library on each of 4 phones (in turns, in the other order each iteration)
+bun benchmark/scripts/run-android.ts --firebase --paired --phones 4 --subjects $S --scenarios grid,large,sizes --out benchmark/results/<date>-android
+# Android: memory, and the burst test, on 2 phones each (one in each order), with the APKs the first command built
+bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 2 --subjects $S --tests large-memory --apks benchmark/results/<date>-android --out benchmark/results/<date>-android-memory
 bun benchmark/scripts/run-android.ts --firebase --paired --both-orders --phones 2 --subjects $S --tests burst --burst plain,fade,fade+placeholder --iterations 10 --apks benchmark/results/<date>-android --out benchmark/results/<date>-android-burst
+# Android: scrolling, each library on its own phone (8–9 minutes each)
+bun benchmark/scripts/run-android.ts --firebase --subjects $S --tests scroll --apks benchmark/results/<date>-android --out benchmark/results/<date>-android-scroll
 # iOS: the iPhone over USB, keeping the recordings
 bun benchmark/scripts/run.ts --subjects $S --scenarios grid,large,sizes --keep-videos --out benchmark/results/<date>-ios
 # Side-by-side videos of a scenario: each library's median run, timed by its clock, 4× slower
 bun benchmark/scripts/compare-videos.ts benchmark/results/<date>-ios --scenario grid --names fast-image-local='FastImage 10'
 ```
 
-A Test Lab phone runs for at most 45 minutes, so the burst test runs on its own phones. `compare-videos.ts` writes `compare-<scenario>.mp4` in the results folder (Android's recordings are in the pulled outputs; it needs ffmpeg and ImageMagick). Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
+A Test Lab phone runs for at most 45 minutes, and is billed by the minute, so the tests are split over several runs at once (scrolling five subjects on one phone takes about that long). `compare-videos.ts` writes `compare-<scenario>.mp4` in the results folder (Android's recordings are in the pulled outputs; it needs ffmpeg and ImageMagick). Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
 
 ## How it works
 
