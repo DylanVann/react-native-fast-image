@@ -487,6 +487,101 @@ function ApngCase({ blur }: { blur?: boolean }) {
     )
 }
 
+// Web: several sizes, then the same sizes with a larger one added, where the
+// browser keeps the file it shows (a 96 px view): the browser fires load
+// again for the new sources, so onLoad and onLoadEnd come again.
+function SizesChangeCase() {
+    const [changed, setChanged] = useState(false)
+    const [loads, setLoads] = useState(0)
+    const [ends, setEnds] = useState(0)
+    const [timedOut, setTimedOut] = useState(false)
+    const sized = (size: number) => ({
+        uri: imageUrl(`sized-${size}.png?smoke-sizes-change=${RUN}`),
+        width: size,
+        height: size,
+    })
+    const first = [sized(100), sized(300)]
+    useEffect(() => {
+        if (loads < 1 || changed) return
+        const timer = setTimeout(() => setChanged(true), 300)
+        return () => clearTimeout(timer)
+    }, [loads, changed])
+    useEffect(() => {
+        if (!changed) return
+        const timer = setTimeout(() => setTimedOut(true), 4000)
+        return () => clearTimeout(timer)
+    }, [changed])
+    const status =
+        loads >= 2 && ends >= 2
+            ? 'OK'
+            : timedOut
+              ? `after the change: ${loads} onLoad, ${ends} onLoadEnd (expected 2 of each)`
+              : 'loading'
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={changed ? [...first, sized(900)] : first}
+                onLoad={() => setLoads((n) => n + 1)}
+                onLoadEnd={() => setEnds((n) => n + 1)}
+            />
+            <CaseStatus
+                id="smoke-sizes-change"
+                status={status}
+                description="Several sizes, then with a larger one added (the same file shown): onLoad and onLoadEnd again"
+            />
+        </View>
+    )
+}
+
+// Web: with defaultSource, the image isn't hidden while it loads (the browser
+// draws it over defaultSource as it arrives), and defaultSource goes once it
+// has loaded. The <img>s are in the view's element (the ref).
+function DefaultSourceCase() {
+    const view = useRef<any>(null)
+    const [status, setStatus] = useState('loading')
+    const whileLoading = useRef<string>(undefined)
+    useEffect(() => {
+        const images = view.current?.querySelectorAll?.('img') ?? []
+        const image = images[images.length - 1]
+        whileLoading.current =
+            images.length === 2 && image
+                ? (globalThis as any).getComputedStyle(image).opacity
+                : `${images.length} images`
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={view}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `picsum/1025-200x200.jpg?smoke-default=${RUN}`,
+                    ),
+                }}
+                defaultSource={require('./images/logo.png')}
+                onLoad={() =>
+                    // After React has removed defaultSource.
+                    setTimeout(() => {
+                        const left =
+                            view.current?.querySelectorAll?.('img').length
+                        setStatus(
+                            whileLoading.current === '1' && left === 1
+                                ? 'OK'
+                                : `opacity while loading: ${whileLoading.current}, images after: ${left}`,
+                        )
+                    }, 100)
+                }
+            />
+            <CaseStatus
+                id="smoke-default-source"
+                status={status}
+                description="With defaultSource, the image shows as it loads, and defaultSource goes once it has"
+            />
+        </View>
+    )
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -498,7 +593,10 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
             <PreloadCase key="preload" />,
             <CachePathCase key="cache-path" />,
             ...(Platform.OS === 'web'
-                ? []
+                ? [
+                      <SizesChangeCase key="sizes-change" />,
+                      <DefaultSourceCase key="default-source" />,
+                  ]
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
