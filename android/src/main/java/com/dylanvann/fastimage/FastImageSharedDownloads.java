@@ -611,7 +611,9 @@ final class FastImageSharedDownloads {
                 return;
             }
             Download download;
-            boolean queuedOne = false;
+            // Queued one, or moved a waiting one to another url (whose host
+            // can have room).
+            boolean queueChanged = false;
             InputStream ready = null;
             synchronized (downloads) {
                 // Cancelled before it got here.
@@ -627,7 +629,7 @@ final class FastImageSharedDownloads {
                     downloads.put(fetcher.key, download);
                     download.queued = true;
                     queue.add(download);
-                    queuedOne = true;
+                    queueChanged = true;
                 } else if (download.queued) {
                     // A more urgent request moves it up (until it leaves).
                     if (fetcher.priority.compareTo(download.priority) < 0) download.reprioritize(fetcher.priority);
@@ -638,6 +640,7 @@ final class FastImageSharedDownloads {
                         download.url = fetcher.url;
                         download.client = fetcher.client;
                         download.request = request;
+                        queueChanged = true;
                     }
                 }
                 fetcher.download = download;
@@ -653,7 +656,7 @@ final class FastImageSharedDownloads {
                 }
             }
             if (ready != null) fetcher.deliver(ready, callback);
-            if (queuedOne) startQueued();
+            if (queueChanged) startQueued();
         }
 
         // Sends the request (off the main thread, and outside the locks:

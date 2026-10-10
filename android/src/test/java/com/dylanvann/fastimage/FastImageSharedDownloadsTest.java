@@ -405,6 +405,16 @@ public class FastImageSharedDownloadsTest {
         server.awaitRequest("/next");
     }
 
+    @Test
+    public void aWaitingDownloadWhoseNewestUrlIsOnAHostWithRoomStarts() throws Exception {
+        sendFive();
+        load(keyed("/first"));
+        load(new FastImageKeyedGlideUrl(server.url("/moved").replace("127.0.0.1", "localhost"), Headers.DEFAULT,
+                name.getMethodName()));
+        server.awaitRequest("/moved");
+        assertEquals(0, server.count("/first"));
+    }
+
     // Five downloads to the server's host, each held before its response, so
     // the next ones to it wait.
     private List<TestServer.Route> sendFive() throws InterruptedException {
