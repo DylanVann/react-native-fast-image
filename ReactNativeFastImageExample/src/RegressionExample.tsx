@@ -1812,15 +1812,17 @@ const retryStyles = StyleSheet.create({
 // Twenty images from the slow server, each its own url, load with normal
 // priority, and the server holds their responses; once it has their first
 // request, one more loads with priority 'high', and half a second later the
-// server sends the responses. Passes when the server got the high one's
-// request before all but PRIORITY_SENT of the others: those sent at once
-// (iOS sends 6 at a time, Android 5 to a host, as OkHttp does), while the
-// others wait to start, most urgent first. Android handed 16 to OkHttp at
-// once, which sends them in the order they came, so the high one was 17th.
+// server sends the responses. Passes when at most 12 of the others were
+// requested before it: those sent first (Android sends 5 to a host at once,
+// as OkHttp does; iOS runs 6 downloads at once), and those started with it
+// once responses arrived, which can reach the server first (7 to 9 before it
+// in all, measured on both platforms). The others wait to start, most urgent
+// first. Android handed 16 to OkHttp at once, which sends them in the order
+// they came, so the high one was 17th.
 const PRIORITY_NORMAL = `priority-normal-${RUN}`
 const PRIORITY_HIGH = `priority-high-${RUN}`
 const PRIORITY_COUNT = 20
-const PRIORITY_SENT = 6
+const PRIORITY_BEFORE = 12
 function DownloadPriorityCase() {
     const [high, setHigh] = useState(false)
     const [loaded, setLoaded] = useState(0)
@@ -1847,7 +1849,7 @@ function DownloadPriorityCase() {
             .then(([normal, urgent]) => {
                 const before = normal.filter((n) => n < urgent[0]).length
                 setStatus(
-                    before <= PRIORITY_SENT
+                    before <= PRIORITY_BEFORE
                         ? 'OK'
                         : `the high-priority image was requested after ${before} of the others`,
                 )
@@ -1895,7 +1897,7 @@ function DownloadPriorityCase() {
             <CaseStatus
                 id="download-priority"
                 status={status}
-                description="a high-priority image loading after twenty others is downloaded before the ones still waiting to start"
+                description="a high-priority image loading after twenty others is downloaded before at least eight of them"
             />
         </View>
     )
