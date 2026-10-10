@@ -12,6 +12,10 @@
 
 * objectFit prop (CSS object-fit) ([#1282](https://github.com/DylanVann/react-native-fast-image/issues/1282)) ([2c34230](https://github.com/DylanVann/react-native-fast-image/commit/2c3423097ebb9fc20aa946a3b8454f366a91bac6))
 
+### Notes
+
+`resizeMode` is deprecated: use `objectFit`. On Android, `objectFit="scale-down"` shows an image smaller than the view at its size in dp, as on iOS and the web, while `resizeMode="center"` keeps showing it at its size in pixels until 10.0.
+
 ## [9.2.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.2.1...v9.2.2) (2026-10-09)
 
 

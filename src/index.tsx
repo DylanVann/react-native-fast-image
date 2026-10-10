@@ -348,8 +348,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   image repeats its first frame, and `defaultSource` repeats too.
      *
      * @default 'cover'
-     * @deprecated Use `objectFit` instead, except for `'repeat'`, which has no
-     * `objectFit` value and isn't deprecated.
+     * @deprecated Use `objectFit` instead.
      */
     resizeMode?: ResizeMode
     /**
@@ -944,8 +943,7 @@ const noResult: NativePreloadResult = { ok: false, error: 'No result' }
 
 export interface FastImageStaticProperties {
     /**
-     * @deprecated Use the `objectFit` prop instead of `resizeMode`, except for
-     * `'repeat'`.
+     * @deprecated Use the `objectFit` prop instead of `resizeMode`.
      */
     resizeMode: typeof resizeMode
     priority: typeof priority
