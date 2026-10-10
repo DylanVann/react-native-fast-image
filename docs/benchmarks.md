@@ -1,6 +1,6 @@
 # Benchmarks
 
-How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for FastImage and other React Native image components, measured the same way for each. These are the latest reference results: from 2026-10-02 for FastImage 8.28.0, and for many images loading at once on Android from 2026-10-10, with FastImage 10.
+How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for FastImage and other React Native image components, measured the same way for each. These are the latest reference results: from 2026-10-02 for FastImage 8.28.0, for the same photos at two sizes on Android from 2026-10-09 (FastImage 9.1.0 and 9.2.0), and for many images loading at once on Android from 2026-10-10, with FastImage 10.
 
 ## How it's measured
 
@@ -15,6 +15,7 @@ Scenarios:
 - **Grid:** 60 photos of 400 × 400 px in a grid, all mounted at once; the time until every one on screen (28 on the iPhone, 32 on the Pixel) has shown.
 - **Large:** 20 photos of 4000 × 3000 px shown in small views; the time until all have shown, and the app's memory once they have.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
+- **Sizes** (Android): 16 of the grid's photos at two sizes at once, with the same urls; the time until all 32 have shown, and how many requests the phone's server got.
 - **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
 ## iOS
@@ -50,6 +51,19 @@ Pixel 8, Android 15, on Firebase Test Lab.
 
 - React Native's `Image` decodes the large photos at full size and fails the last ones (Fresco's `Pool hard cap violation`). Memory is the app's anonymous resident memory.
 - Scrolling: no frames over their deadline for any library.
+
+## The same photos at two sizes (Android)
+
+16 of the grid's photos at two sizes at once (4 and 8 columns), with the same urls, on five Pixel 8s (Android 15, Firebase Test Lab). Each phone ran FastImage 9.1.0 and the change released in 9.2.0 in turns, 5 times each (25 runs of each), with no bandwidth limit and with 50 Mbps.
+
+| Library         | Requests | All shown, no limit (ms) | All shown, 50 Mbps (ms) |
+| --------------- | -------- | ------------------------ | ----------------------- |
+| FastImage 9.1.0 | 32       | 532 / 564                | 564 / 596               |
+| FastImage 9.2.0 | 16       | 364 / 396                | 396 / 432               |
+
+- Since 9.2.0, an image shown at several sizes is downloaded once on Android, and each size is decoded from that download. All the images were on screen 168 ms sooner (the median of the run-by-run differences on the same phone), in all 25 pairs of runs.
+- The grid and the large photos took as long to show with both versions.
+- FastImage 10 makes the same 16 requests, in the same time as 9.2.2.
 
 ## Many images loading at once (Android)
 
