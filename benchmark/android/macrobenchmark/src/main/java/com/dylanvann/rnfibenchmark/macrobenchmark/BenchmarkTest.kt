@@ -5,6 +5,7 @@ import androidx.benchmark.macro.ExperimentalMetricApi
 import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.MemoryUsageMetric
 import androidx.benchmark.macro.StartupMode
+import androidx.benchmark.macro.TraceSectionMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -268,7 +269,17 @@ class BurstTest(private val variant: String, private val app: String) : Scenario
         }
         rule.measureRepeated(
             packageName = app,
-            metrics = listOf(FrameTimingMetric(), MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
+            metrics = listOf(
+                FrameTimingMetric(),
+                // Every frame's work: FrameTimingMetric only counts frames
+                // that the frame timeline shows presented, and leaves out
+                // frames drawn without one (about 12 of expo-image's 56 per
+                // run with fades).
+                TraceSectionMetric("Choreographer#doFrame%", TraceSectionMetric.Mode.Sum, "uiThreadFrames"),
+                // (Sum also gives the count: the frames drawn.)
+                TraceSectionMetric("DrawFrame%", TraceSectionMetric.Mode.Sum, "renderThreadFrames"),
+                MemoryUsageMetric(MemoryUsageMetric.Mode.Max),
+            ),
             iterations = iterations,
             // As scroll: setupBlock starts a new process.
             startupMode = null,
