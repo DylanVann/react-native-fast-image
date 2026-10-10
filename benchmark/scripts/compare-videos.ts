@@ -93,27 +93,35 @@ for (const file of fs.readdirSync(dir)) {
     }
     if (!subject || !video || !subjects[subject]) continue
     const data = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
-    if (data.analysis?.allMs === undefined) continue
+    if (!data.analysis || data.analysis.error) continue
     runs.push({ subject, data, video })
 }
 
-// Each subject's median run, this checkout's FastImage first.
+// Each subject's median run, this checkout's FastImage first; for a subject
+// none of whose runs showed every image, the one that showed the most.
 const order = Object.keys(subjects).sort(
     (a, b) =>
         Number(b === 'fast-image-local') - Number(a === 'fast-image-local'),
 )
 const chosen = order.flatMap((subject) => {
-    const own = runs
-        .filter((r) => r.subject === subject)
+    const own = runs.filter((r) => r.subject === subject)
+    const complete = own
+        .filter((r) => r.data.analysis.allMs !== undefined)
         .sort((a, b) => a.data.analysis.allMs! - b.data.analysis.allMs!)
-    return own.length ? [own[Math.floor((own.length - 1) / 2)]] : []
+    if (complete.length)
+        return [complete[Math.floor((complete.length - 1) / 2)]]
+    const most = own.sort(
+        (a, b) => a.data.analysis.notShown - b.data.analysis.notShown,
+    )
+    return most.length ? [most[0]] : []
 })
 if (chosen.length < 2) {
     throw new Error(`fewer than two subjects with ${scenario} recordings`)
 }
 
 // Until the slowest has shown every image, and a little longer.
-const endMs = Math.max(...chosen.map((r) => r.data.analysis.allMs!)) + 400
+const endMs =
+    Math.max(...chosen.flatMap((r) => r.data.analysis.allMs ?? [])) + 400
 // The screen from the marker to the bottom of the last image on it (in dp;
 // the runs are on one model of phone).
 type Rect = { x: number; y: number; width: number; height: number }
@@ -185,7 +193,7 @@ for (const [i, r] of chosen.entries()) {
         '/System/Library/Fonts/Helvetica.ttc',
         '-pointsize',
         '16',
-        `label:${names[r.subject] ?? subjects[r.subject].name}\n${r.data.analysis.allMs} ms`,
+        `label:${names[r.subject] ?? subjects[r.subject].name}\n${r.data.analysis.allMs !== undefined ? `${r.data.analysis.allMs} ms` : `${r.data.analysis.notShown} not shown`}`,
         label,
     ])
     inputs.push(
@@ -222,5 +230,5 @@ run('ffmpeg', [
 ])
 fs.rmSync(tmp, { recursive: true, force: true })
 console.log(
-    `${path.relative(process.cwd(), output)}: ${chosen.map((r) => `${r.subject} ${r.data.analysis.allMs} ms`).join(', ')}; ${slow}× slower`,
+    `${path.relative(process.cwd(), output)}: ${chosen.map((r) => `${r.subject} ${r.data.analysis.allMs !== undefined ? `${r.data.analysis.allMs} ms` : `${r.data.analysis.notShown} not shown`}`).join(', ')}; ${slow}× slower`,
 )
