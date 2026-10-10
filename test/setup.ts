@@ -7,6 +7,15 @@ import path from 'node:path'
 // small stand-in instead.
 mock.module('react-native', () => require('./react-native'))
 
+// react-native-web's asset registry, where the web version looks up a
+// require()d image's number (react-native-web isn't installed here). The
+// tests register their own.
+const assets: unknown[] = []
+mock.module('react-native-web/dist/modules/AssetRegistry', () => ({
+    registerAsset: (asset: unknown) => assets.push(asset),
+    getAssetByID: (id: number) => assets[id - 1],
+}))
+
 // require()d images become { testUri } objects, as with React Native's Jest
 // preset (jest/assetFileTransformer.js).
 plugin({
