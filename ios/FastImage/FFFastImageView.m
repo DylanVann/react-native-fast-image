@@ -66,6 +66,26 @@ static CFTimeInterval FFFEnteredBackgroundAt = 0;
 
 static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, BOOL downscale);
 
+// SDWebImage puts an image it decoded smaller from the disk cache, for a view
+// that downsamples, into the memory cache under the full-size image's key too
+// (SDWebImageManager writes what its original cache query finds back there),
+// where a full-size load (no downsample, repeat, a view without a size) would
+// find it and show it blurry. Drops it there, so that load decodes the file
+// from the disk cache.
+static void FFFForgetSmallerFullSizeImage(NSURL* url, SDWebImageContext* context) {
+    SDWebImageManager* manager = [SDWebImageManager sharedManager];
+    if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
+        return;
+    }
+    SDImageCache* cache = (SDImageCache*) manager.imageCache;
+    NSString* key = [manager cacheKeyForURL: url context: context];
+    UIImage* image = [cache imageFromMemoryCacheForKey: key];
+    CGSize fullSize = [FFFDownsampledImage sourceSizeOfImage: image];
+    if (image && fullSize.width > 0 && fullSize.height > 0 && !CGSizeEqualToSize(image.size, fullSize)) {
+        [cache removeImageFromMemoryForKey: key];
+    }
+}
+
 @implementation FFFastImageView
 
 + (void) initialize {
@@ -1009,6 +1029,7 @@ NSString *FFFErrorMessage(NSError *error)
             // Only on disk, also when it comes from there.
             context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
         }
+        FFFForgetSmallerFullSizeImage(source.url, context);
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];

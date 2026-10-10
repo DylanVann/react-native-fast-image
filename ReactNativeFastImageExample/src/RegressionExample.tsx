@@ -5242,7 +5242,53 @@ function DownsampleOrderCase() {
     )
 }
 
+// A view that downsamples an image from the disk cache, after a view showed
+// it at full size, doesn't leave its smaller copy where full-size views look
+// (iOS: it was in the memory cache under the full-size image's key). A page of
+// text at full size (left), the same smaller (middle), then at full size
+// again (right), which should be as sharp as the left one.
+function DownsampleMemoryCase() {
+    // Not shared with other cases, so this case decides what's cached.
+    const uri = imageUrl('text-page.png?case=downsample-memory')
+    const [step, setStep] = useState(0)
+    const next = (to: number) => () => {
+        // After the full-size image has been written to the disk cache.
+        setTimeout(() => setStep((s) => Math.max(s, to)), 300)
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={downsampleStyles.page}
+                source={{ uri }}
+                downsample={false}
+                onLoad={next(1)}
+            />
+            {step >= 1 && (
+                <FastImage
+                    style={[downsampleStyles.small, styles.gap]}
+                    source={{ uri }}
+                    onLoad={next(2)}
+                />
+            )}
+            {step >= 2 && (
+                <FastImage
+                    style={[downsampleStyles.page, styles.gap]}
+                    source={{ uri }}
+                    downsample={false}
+                    onLoad={next(3)}
+                />
+            )}
+            <CaseStatus
+                id="downsample-memory"
+                status={step >= 3 ? 'OK' : `step ${step}`}
+                description="Full size (left), smaller (middle), full size again (right): the right one is as sharp as the left"
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
+    page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
     stripes: { width: 48, height: 48 },
     small: { width: 32, height: 32, backgroundColor: '#eee' },
@@ -6320,6 +6366,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={downsampleStyles.rotated}
                 resizeMode="contain"
             />,
+            <DownsampleMemoryCase key="downsample-memory" />,
         ],
     },
     {
