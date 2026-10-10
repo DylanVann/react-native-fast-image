@@ -27,8 +27,8 @@ import org.junit.runners.Parameterized
 // the iOS UI tests (../../ios) and recordings (../../ios/capture), and the
 // burst test (BurstTest). Instrumentation arguments: benchPackage (the
 // subject's app), or benchPackages (several subjects' apps, comma-separated,
-// which timeToImage and BurstTest run in turns on this phone, to compare them
-// without the differences between phones), benchIterations (default 5),
+// which every test runs in turns on this phone, to compare them without the
+// differences between phones), benchIterations (default 5),
 // benchScenarios (for timeToImage, default "grid,large"), benchBurst (for
 // BurstTest), benchLatencyMs and benchMbps (the image server's network,
 // default 40 ms and no limit).
@@ -45,8 +45,6 @@ abstract class ScenarioTest {
     @get:Rule val rule = MacrobenchmarkRule()
 
     protected val instrumentation = InstrumentationRegistry.getInstrumentation()
-    // scroll and largeMemory measure the first.
-    protected val pkg = packages.first()
     protected val iterations = arguments.getString("benchIterations")?.toInt() ?: 5
     protected val device = UiDevice.getInstance(instrumentation)
 
@@ -72,7 +70,7 @@ abstract class ScenarioTest {
     // an earlier run's caches), in a new process, loading from the server
     // here, with none of the benchmark apps running. `options`: more of the
     // link's parameters (see ../../app/App.tsx).
-    protected fun launch(scenario: String, run: String, app: String = pkg, options: String = "") {
+    protected fun launch(scenario: String, run: String, app: String, options: String = "") {
         for (other in packages) shell("am force-stop $other")
         val url = URLEncoder.encode(server.url, "UTF-8")
         // Not through a shell: `&` needs no escaping.
@@ -163,6 +161,16 @@ class BenchmarkTest : ScenarioTest() {
         }
         results?.let { File(dir, "$scenario-$i.json").writeText(it) }
     }
+}
+
+// Scrolling, for each app (benchPackages), on this phone.
+@RunWith(Parameterized::class)
+class ScrollTest(private val app: String) : ScenarioTest() {
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun apps(): List<Array<String>> = packages.map { arrayOf(it) }
+    }
 
     // Scrolling the 500-image list (the scroll scenario): frame timing. Each
     // iteration starts the app, scrolls through once to load the images, then
@@ -170,7 +178,7 @@ class BenchmarkTest : ScenarioTest() {
     @Test
     fun scroll() {
         rule.measureRepeated(
-            packageName = pkg,
+            packageName = app,
             metrics = listOf(FrameTimingMetric()),
             iterations = iterations,
             // No startup mode: COLD kills the app between setupBlock and the
@@ -178,7 +186,7 @@ class BenchmarkTest : ScenarioTest() {
             startupMode = null,
             setupBlock = {
                 val run = "scroll-${System.nanoTime()}"
-                launch("scroll", run)
+                launch("scroll", run, app)
                 waitDone("scroll", run)
                 pass()
             },
@@ -199,6 +207,16 @@ class BenchmarkTest : ScenarioTest() {
             device.waitForIdle()
         }
     }
+}
+
+// Memory, for each app (benchPackages), on this phone.
+@RunWith(Parameterized::class)
+class LargeMemoryTest(private val app: String) : ScenarioTest() {
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun apps(): List<Array<String>> = packages.map { arrayOf(it) }
+    }
 
     // The large scenario (20 photos of 4000 × 3000 in small views): memory
     // once they're shown.
@@ -206,13 +224,13 @@ class BenchmarkTest : ScenarioTest() {
     @Test
     fun largeMemory() {
         rule.measureRepeated(
-            packageName = pkg,
+            packageName = app,
             metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Last)),
             iterations = iterations,
             startupMode = StartupMode.COLD,
         ) {
             val run = "memory-${System.nanoTime()}"
-            launch("large", run)
+            launch("large", run, app)
             waitDone("large", run)
         }
     }
