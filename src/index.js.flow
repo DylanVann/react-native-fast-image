@@ -125,7 +125,7 @@ export type FastImageProps = $ReadOnly<{|
 
     tintColor?: number | string,
     objectFit?: ?ObjectFit,
-    // Deprecated: use objectFit ('repeat' has no objectFit value yet).
+    // Deprecated: use objectFit.
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
     recyclingKey?: ?string,
