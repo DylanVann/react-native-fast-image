@@ -34,6 +34,8 @@ final class TestServer implements Closeable {
         boolean holdHeaders = false;
         long holdAfter = -1;
         final CountDownLatch released = new CountDownLatch(1);
+        // With holdHeaders, holdAfter's hold ends on its own release.
+        final CountDownLatch bodyReleased = new CountDownLatch(1);
         // The client hung up before the whole response was sent: while it was
         // held, or as the server wrote it (a write fails once the client has
         // gone, e.g. a download cancelled just after the server read its
@@ -68,7 +70,7 @@ final class TestServer implements Closeable {
         }
 
         // The headers and the body's first `bytes` are sent, then the rest
-        // on release().
+        // on release() (on releaseBody() with holdHeaders).
         Route holdAfter(long bytes) {
             holdAfter = bytes;
             return this;
@@ -76,6 +78,10 @@ final class TestServer implements Closeable {
 
         void release() {
             released.countDown();
+        }
+
+        void releaseBody() {
+            bodyReleased.countDown();
         }
     }
 
@@ -145,7 +151,10 @@ final class TestServer implements Closeable {
 
     @Override
     public void close() throws IOException {
-        for (Route route : routes.values()) route.release();
+        for (Route route : routes.values()) {
+            route.release();
+            route.releaseBody();
+        }
         socket.close();
         threads.shutdownNow();
     }
@@ -184,7 +193,7 @@ final class TestServer implements Closeable {
             }
             route = routes.get(path);
             if (route == null) route = new Route(path).status(404);
-            if (route.holdHeaders && !hold(route, connection, in)) return;
+            if (route.holdHeaders && !hold(route, route.released, connection, in)) return;
             OutputStream out = connection.getOutputStream();
             String head = "HTTP/1.1 " + route.status + (route.status == 200 ? " OK" : " Not Found") + "\r\n"
                     + "Content-Type: image/jpeg\r\n"
@@ -196,7 +205,7 @@ final class TestServer implements Closeable {
             write(out, route, 0, split);
             out.flush();
             if (split < route.body.length) {
-                if (!hold(route, connection, in)) return;
+                if (!hold(route, route.holdHeaders ? route.bodyReleased : route.released, connection, in)) return;
                 write(out, route, split, route.body.length);
             }
             if (route.chunked) out.write("0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
@@ -207,10 +216,11 @@ final class TestServer implements Closeable {
         }
     }
 
-    // Waits for the route's release, or for the client to hang up (false).
-    private static boolean hold(Route route, Socket connection, InputStream in) throws IOException {
+    // Waits for the release, or for the client to hang up (false).
+    private static boolean hold(Route route, CountDownLatch release, Socket connection, InputStream in)
+            throws IOException {
         connection.setSoTimeout(20);
-        while (route.released.getCount() > 0) {
+        while (release.getCount() > 0) {
             try {
                 if (in.read() == -1) {
                     route.hungUp.countDown();

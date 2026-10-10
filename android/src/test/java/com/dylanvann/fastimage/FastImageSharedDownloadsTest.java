@@ -334,6 +334,99 @@ public class FastImageSharedDownloadsTest {
         assertEquals(Arrays.asList("/other", "/preload"), server.requests().subList(16, 18));
     }
 
+    // At most as many wait for their response from a host as OkHttp sends to
+    // a host at once (5); the others wait here, where priority applies.
+
+    @Test
+    public void aMoreUrgentRequestMovesUpADownloadWaitingForItsHost() throws Exception {
+        List<TestServer.Route> sent = sendFive();
+        load(url("/grid"), Priority.NORMAL);
+        load(url("/photo"), Priority.NORMAL);
+        // The photo opens.
+        load(url("/photo"), Priority.IMMEDIATE);
+        sent.get(0).release();
+        server.awaitRequests(6);
+        assertEquals("/photo", server.requests().get(5));
+    }
+
+    @Test
+    public void aDownloadFromAnotherHostDoesntWaitForAFullOne() throws Exception {
+        sendFive();
+        load(url("/waiting"));
+        load(otherHost("/other"));
+        server.awaitRequest("/other");
+        assertEquals(0, server.count("/waiting"));
+    }
+
+    // Less urgent downloads to other hosts don't take every running slot
+    // while it waits: it's sent once its host has room.
+    @Test
+    public void aDownloadWaitingForItsHostIsSentOnceItHasRoom() throws Exception {
+        // The bodies stay held for the whole test.
+        client = client.newBuilder().readTimeout(60, TimeUnit.SECONDS).build();
+        // Six read their bodies, and five wait for their response.
+        for (int i = 0; i < 6; i++) {
+            server.route("/reading-" + i).holdAfter(1);
+            load(url("/reading-" + i));
+        }
+        server.awaitRequests(6);
+        List<TestServer.Route> sent = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            sent.add(server.route("/sent-" + i).holdHeaders().holdAfter(1));
+            load(url("/sent-" + i));
+        }
+        server.awaitRequests(11);
+        // The photo opens, then avatars from another host load.
+        load(url("/photo"), Priority.IMMEDIATE);
+        for (int i = 0; i < 5; i++) {
+            server.route("/avatar-" + i).holdHeaders();
+            load(otherHost("/avatar-" + i));
+        }
+        server.awaitRequests(15);
+        // A response arrives; its body is still read.
+        sent.get(0).release();
+        server.awaitRequest("/photo");
+        assertEquals(0, server.count("/avatar-4"));
+    }
+
+    // A response frees its host's room while its body is read.
+    @Test
+    public void theNextDownloadToAHostIsSentOnceAResponseArrives() throws Exception {
+        // The bodies stay held for the whole test.
+        client = client.newBuilder().readTimeout(60, TimeUnit.SECONDS).build();
+        List<TestServer.Route> sent = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            sent.add(server.route("/sent-" + i).holdHeaders().holdAfter(1));
+            load(url("/sent-" + i));
+        }
+        server.awaitRequests(5);
+        load(url("/next"));
+        for (TestServer.Route route : sent) route.release();
+        server.awaitRequest("/next");
+    }
+
+    @Test
+    public void aWaitingDownloadWhoseNewestUrlIsOnAHostWithRoomStarts() throws Exception {
+        sendFive();
+        load(keyed("/first"));
+        load(new FastImageKeyedGlideUrl(server.url("/moved").replace("127.0.0.1", "localhost"), Headers.DEFAULT,
+                name.getMethodName()));
+        server.awaitRequest("/moved");
+        assertEquals(0, server.count("/first"));
+    }
+
+    // Five downloads to the server's host, each held before its response, so
+    // the next ones to it wait.
+    private List<TestServer.Route> sendFive() throws InterruptedException {
+        List<TestServer.Route> sent = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            sent.add(server.route("/sent-" + i).holdHeaders());
+            load(url("/sent-" + i));
+        }
+        server.awaitRequests(5);
+        return sent;
+    }
+
     // Sixteen downloads (as many as run at once), each held after its first
     // byte, so the next ones wait.
     private List<TestServer.Route> runSixteen() throws InterruptedException {
@@ -356,6 +449,11 @@ public class FastImageSharedDownloadsTest {
 
     private GlideUrl url(String path) {
         return new GlideUrl(server.url(path), Headers.DEFAULT);
+    }
+
+    // The same server by another host name.
+    private GlideUrl otherHost(String path) {
+        return new GlideUrl(server.url(path).replace("127.0.0.1", "localhost"), Headers.DEFAULT);
     }
 
     // A source with a cacheKey (the test's).

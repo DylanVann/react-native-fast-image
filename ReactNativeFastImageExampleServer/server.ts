@@ -58,9 +58,10 @@
 // the rest until GET /release?hold=<name> (at most 60 s), so the download is
 // still going on whenever the test is ready (an error, like a 403 or 404, is
 // held whole); once released, a name isn't held again. `?holdAfter=<n>` holds
-// after n parts instead, and with `?trickle` it sends a byte a second while
-// held, so the download is never idle long enough for a client's timeout (15 s
-// on both platforms). With `?chunked`, it's sent without a Content-Length. It's a node:http server because Bun.serve
+// after n parts instead (0: before the headers), and with `?trickle` it sends
+// a byte a second while held, so the download is never idle long enough for a
+// client's timeout (15 s on both platforms). With `?chunked`, it's sent
+// without a Content-Length. It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
 
@@ -361,19 +362,23 @@ http.createServer(async (request, response) => {
         return
     }
     const bytes = new Uint8Array(await image.arrayBuffer())
+    const parts = 8
+    const holdAfter = Number(url.searchParams.get('holdAfter') ?? parts / 2)
+    if (hold !== null && holdAfter === 0) {
+        await holdUntilReleased(hold)
+        if (response.destroyed) return
+    }
     response.writeHead(200, {
         'Content-Type': image.type,
         ...(url.searchParams.has('chunked')
             ? {}
             : { 'Content-Length': String(bytes.length) }),
     })
-    const parts = 8
     const delay = Math.min(
         5000,
         Math.max(50, Number(url.searchParams.get('delay')) || 1000),
     )
     const size = Math.ceil(bytes.length / parts)
-    const holdAfter = Number(url.searchParams.get('holdAfter')) || parts / 2
     const trickle = url.searchParams.has('trickle')
     // How far it has sent.
     let sent = 0

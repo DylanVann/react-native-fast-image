@@ -1810,38 +1810,50 @@ const retryStyles = StyleSheet.create({
 })
 
 // Twenty images from the slow server, each its own url, load with normal
-// priority; once the server has their first request, one more loads with
-// priority 'high'. Passes when the server got the high one's request before
-// the last of the others: downloads wait to start most urgent first (Android
-// runs 16 at a time, iOS 6).
+// priority, and the server holds their responses; once it has their first
+// request, one more loads with priority 'high', and half a second later the
+// server sends the responses. Passes when at most 12 of the others were
+// requested before it: those sent first (Android sends 5 to a host at once,
+// as OkHttp does; iOS runs 6 downloads at once), and those started with it
+// once responses arrived, which can reach the server first (7 to 9 before it
+// in all, measured on both platforms). The others wait to start, most urgent
+// first. Android handed 16 to OkHttp at once, which sends them in the order
+// they came, so the high one was 17th.
 const PRIORITY_NORMAL = `priority-normal-${RUN}`
 const PRIORITY_HIGH = `priority-high-${RUN}`
 const PRIORITY_COUNT = 20
+const PRIORITY_BEFORE = 12
 function DownloadPriorityCase() {
     const [high, setHigh] = useState(false)
     const [loaded, setLoaded] = useState(0)
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         let stopped = false
+        const release = () => fetch(imageUrl(`release?hold=${PRIORITY_NORMAL}`))
         groupRequested(PRIORITY_NORMAL, () => stopped)
-            .then(() => {
-                if (!stopped) setHigh(true)
+            .then(async () => {
+                if (stopped) return
+                setHigh(true)
+                await sleep(500)
+                await release()
             })
             .catch((e) => setStatus(String(e)))
         return () => {
             stopped = true
+            release().catch(() => {})
         }
     }, [])
     useEffect(() => {
         if (loaded < PRIORITY_COUNT + 1) return
         Promise.all([groupOrder(PRIORITY_NORMAL), groupOrder(PRIORITY_HIGH)])
-            .then(([normal, urgent]) =>
+            .then(([normal, urgent]) => {
+                const before = normal.filter((n) => n < urgent[0]).length
                 setStatus(
-                    urgent[0] < Math.max(...normal)
+                    before <= PRIORITY_BEFORE
                         ? 'OK'
-                        : `the high-priority image was requested after all ${normal.length} others`,
-                ),
-            )
+                        : `the high-priority image was requested after ${before} of the others`,
+                )
+            })
             .catch((e) => setStatus(String(e)))
     }, [loaded])
     const onLoad = () => setLoaded((n) => n + 1)
@@ -1859,7 +1871,7 @@ function DownloadPriorityCase() {
                         style={sharedUrlStyles.image}
                         source={{
                             uri: slowImageUrl(
-                                `picsum/1020-120x120.jpg?group=${PRIORITY_NORMAL}&n=${i}&delay=200`,
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_NORMAL}&n=${i}&hold=${PRIORITY_NORMAL}&holdAfter=0&delay=50`,
                             ),
                             headers: SLOW_HEADERS,
                         }}
@@ -1872,7 +1884,7 @@ function DownloadPriorityCase() {
                         style={sharedUrlStyles.image}
                         source={{
                             uri: slowImageUrl(
-                                `picsum/1020-120x120.jpg?group=${PRIORITY_HIGH}&delay=200`,
+                                `picsum/1020-120x120.jpg?group=${PRIORITY_HIGH}&delay=50`,
                             ),
                             headers: SLOW_HEADERS,
                             priority: 'high',
@@ -1885,7 +1897,7 @@ function DownloadPriorityCase() {
             <CaseStatus
                 id="download-priority"
                 status={status}
-                description="a high-priority image loading after twenty others is downloaded before the last of them"
+                description="a high-priority image loading after twenty others is downloaded before at least eight of them"
             />
         </View>
     )

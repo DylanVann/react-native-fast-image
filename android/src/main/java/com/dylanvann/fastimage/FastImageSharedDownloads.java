@@ -22,10 +22,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -64,13 +67,18 @@ import okio.BufferedSource;
 // once every request has read what it needed.
 //
 // At most MAX_RUNNING downloads run at once, as SDWebImage's downloader limits
-// them; the others wait to send their request, most urgent first (Glide's
-// priority: views before preloads). A running download's response is read as
-// soon as it arrives (not on OkHttp's dispatcher, which React Native's
-// networking shares): a response left unread on an HTTP/2 connection would
-// hold back the others on it. A download that stalls fails like any other,
-// with the timeouts of the clients (FastImageOkHttpProgressGlideModule), which
-// only count once it has started.
+// them, and at most as many wait for their response from a host as the
+// client's dispatcher sends to a host at once (5 by default): OkHttp would
+// hold the others in the order they came, where a more urgent request can't
+// move them up. The others wait to send their request, most urgent first
+// (Glide's priority: views before preloads), and the most urgent one waiting
+// for a host's room keeps a running slot, so less urgent downloads to other
+// hosts can't take them all. A running download's response is read as soon
+// as it arrives, on its own thread (OkHttp counts a request to its host until
+// its callback returns): a response left unread on an HTTP/2 connection
+// would hold back the others on it. A download that stalls fails like any
+// other, with the timeouts of the clients (FastImageOkHttpProgressGlideModule),
+// which only count once it has started.
 final class FastImageSharedDownloads {
     // The longest response kept in memory, and the most bytes held in memory
     // for downloads at once: encoded images (not decoded bitmaps, which
@@ -98,9 +106,9 @@ final class FastImageSharedDownloads {
     // lock).
     private static final Map<String, Download> downloads = new HashMap<>();
     // Guarded by downloads: downloads waiting to start, most urgent first, then
-    // in the order they were asked for; how many are running; and the bytes
-    // held in memory.
-    private static final PriorityQueue<Download> queue = new PriorityQueue<>(11, new Comparator<Download>() {
+    // in the order they were asked for; how many are running, and how many
+    // wait for their response from each host; and the bytes held in memory.
+    private static final TreeSet<Download> queue = new TreeSet<>(new Comparator<Download>() {
         @Override
         public int compare(Download a, Download b) {
             int byPriority = a.priority.compareTo(b.priority);
@@ -109,6 +117,7 @@ final class FastImageSharedDownloads {
     });
     private static long orders = 0;
     private static int running = 0;
+    private static final Map<String, Integer> sentTo = new HashMap<>();
     private static long held = 0;
     // Stores not yet released (see busy()).
     private static final AtomicInteger open = new AtomicInteger();
@@ -165,9 +174,10 @@ final class FastImageSharedDownloads {
     static String busy() {
         synchronized (downloads) {
             int stores = open.get();
-            if (downloads.isEmpty() && queue.isEmpty() && running == 0 && held == 0 && stores == 0) return null;
+            if (downloads.isEmpty() && queue.isEmpty() && running == 0 && sentTo.isEmpty() && held == 0
+                    && stores == 0) return null;
             return downloads.size() + " downloads, " + queue.size() + " waiting, " + running + " running, "
-                    + held + " bytes in memory, " + stores + " stores open";
+                    + sentTo + " waiting for a response, " + held + " bytes in memory, " + stores + " stores open";
         }
     }
 
@@ -253,13 +263,25 @@ final class FastImageSharedDownloads {
         }
     }
 
-    // Starts the downloads waiting that can run now.
+    // Starts the downloads waiting that can run now, most urgent first: those
+    // whose host has room, leaving a slot for each host without (see above).
     private static void startQueued() {
         List<Download> starting = new ArrayList<>();
         List<Request> requests = new ArrayList<>();
         synchronized (downloads) {
-            while (running < MAX_RUNNING && !queue.isEmpty()) {
-                Download download = queue.poll();
+            Set<String> full = new HashSet<>();
+            Iterator<Download> waiting = queue.iterator();
+            while (running + full.size() < MAX_RUNNING && waiting.hasNext()) {
+                Download download = waiting.next();
+                String host = download.request.url().host();
+                Integer sent = sentTo.get(host);
+                if (sent != null && sent >= download.client.dispatcher().getMaxRequestsPerHost()) {
+                    full.add(host);
+                    continue;
+                }
+                waiting.remove();
+                sentTo.put(host, sent == null ? 1 : sent + 1);
+                download.host = host;
                 download.queued = false;
                 download.running = true;
                 running++;
@@ -539,6 +561,10 @@ final class FastImageSharedDownloads {
         private final long order;
         private boolean queued = false;
         private boolean running = false;
+        // Guarded by downloads. The host its request was sent to, until its
+        // response (or failure) arrives.
+        @Nullable
+        private String host;
         // Guarded by this. The call, once started, and whether the download
         // was cancelled (before it started, it doesn't).
         @Nullable
@@ -585,7 +611,9 @@ final class FastImageSharedDownloads {
                 return;
             }
             Download download;
-            boolean queuedOne = false;
+            // Queued one, or moved a waiting one to another url (whose host
+            // can have room).
+            boolean queueChanged = false;
             InputStream ready = null;
             synchronized (downloads) {
                 // Cancelled before it got here.
@@ -601,7 +629,7 @@ final class FastImageSharedDownloads {
                     downloads.put(fetcher.key, download);
                     download.queued = true;
                     queue.add(download);
-                    queuedOne = true;
+                    queueChanged = true;
                 } else if (download.queued) {
                     // A more urgent request moves it up (until it leaves).
                     if (fetcher.priority.compareTo(download.priority) < 0) download.reprioritize(fetcher.priority);
@@ -612,6 +640,7 @@ final class FastImageSharedDownloads {
                         download.url = fetcher.url;
                         download.client = fetcher.client;
                         download.request = request;
+                        queueChanged = true;
                     }
                 }
                 fetcher.download = download;
@@ -627,7 +656,7 @@ final class FastImageSharedDownloads {
                 }
             }
             if (ready != null) fetcher.deliver(ready, callback);
-            if (queuedOne) startQueued();
+            if (queueChanged) startQueued();
         }
 
         // Sends the request (off the main thread, and outside the locks:
@@ -656,10 +685,24 @@ final class FastImageSharedDownloads {
             if (started != null) started.cancel();
         }
 
+        // With downloads locked: its request has its response, failed, or
+        // wasn't sent, so another can be sent to its host.
+        private void responded() {
+            if (host == null) return;
+            int sent = sentTo.get(host) - 1;
+            if (sent == 0) {
+                sentTo.remove(host);
+            } else {
+                sentTo.put(host, sent);
+            }
+            host = null;
+        }
+
         // It no longer runs: the next download waiting can start.
         private void stopped() {
             synchronized (downloads) {
                 if (!running) return;
+                responded();
                 running = false;
                 FastImageSharedDownloads.running--;
             }
@@ -853,6 +896,7 @@ final class FastImageSharedDownloads {
             fromHttpCache = response.networkResponse() == null && response.cacheResponse() != null;
             final long length = body.contentLength();
             synchronized (downloads) {
+                responded();
                 // No progress without a length.
                 if (length <= 0) silent = true;
             }
@@ -862,6 +906,7 @@ final class FastImageSharedDownloads {
                     readInto(body, length);
                 }
             });
+            startQueued();
         }
 
         // Sends a progress step, unless the download has stopped: checked and
