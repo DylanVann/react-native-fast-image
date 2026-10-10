@@ -48,21 +48,21 @@ export const TintColorExample = () => {
                     style={styles.image}
                     tintColor={'green'}
                     source={{ uri: REMOTE_LOGO }}
-                    resizeMode="contain"
+                    objectFit="contain"
                     onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'#9324c3'}
                     source={{ uri: REMOTE_LOGO }}
-                    resizeMode="contain"
+                    objectFit="contain"
                     onLoad={onLoad}
                 />
                 <FastImage
                     style={styles.image}
                     tintColor={'rgba(0,0,0,0.5)'}
                     source={{ uri: REMOTE_LOGO }}
-                    resizeMode="contain"
+                    objectFit="contain"
                     onLoad={onLoad}
                 />
             </SectionFlex>

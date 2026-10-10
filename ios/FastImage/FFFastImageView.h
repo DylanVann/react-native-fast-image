@@ -8,6 +8,12 @@
 
 #import "FFFastImageSource.h"
 
+// resizeMode: React Native's, and `none` (objectFit="none": the image at its
+// own size, centered, not scaled), which React Native's own resize modes only
+// have from 0.77, with another meaning (top-left).
+typedef RCTResizeMode FFFResizeMode;
+static const FFFResizeMode FFFResizeModeNone = (FFFResizeMode) -2;
+
 @interface FFFastImageView : SDAnimatedImageView
 
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadStart;
@@ -17,7 +23,7 @@
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
-@property (nonatomic, assign) RCTResizeMode resizeMode;
+@property (nonatomic, assign) FFFResizeMode resizeMode;
 @property (nonatomic, strong) FFFastImageSource *source;
 // Several sources (2 or more) of the same image at different sizes: the view
 // loads the one whose size is closest to its own.

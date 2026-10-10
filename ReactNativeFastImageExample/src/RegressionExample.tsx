@@ -2664,6 +2664,367 @@ function CenterCase() {
     )
 }
 
+// objectFit, as CSS's object-fit: a 600x300 image (red, with a blue border)
+// in a square view. fill: stretched, the border all around; contain: the whole
+// image, half the view's height; cover: the middle, the border only at the top
+// and bottom; none: the middle at its own size, red only; scale-down: as
+// contain, since it's larger than the view. Check the screenshot.
+function ObjectFitCase() {
+    const [status, onLoad] = useLoadedThenOk(5)
+    const fits = ['fill', 'contain', 'cover', 'none', 'scale-down'] as const
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                {fits.map((fit, i) => (
+                    <FastImage
+                        key={fit}
+                        style={[objectFitStyles.image, i > 0 && styles.gap]}
+                        objectFit={fit}
+                        source={{ uri: imageUrl('center-large.png') }}
+                        onLoad={onLoad}
+                    />
+                ))}
+            </View>
+            <CaseStatus
+                id="object-fit"
+                status={status}
+                description="objectFit fill, contain, cover, none (red only: the middle at its own size) and scale-down (as contain)"
+            />
+        </View>
+    )
+}
+
+// objectFit none and scale-down show a smaller image at its own size in
+// points: a 40x40 image (green) and a bundled 120x120 @3x one (blue) are 40
+// points, inside the outlines. A larger image with none is cropped to the view
+// also with overflow visible.
+function ObjectFitSizeCase() {
+    const [status, onLoad] = useLoadedThenOk(4)
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <View>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        objectFit="none"
+                        source={{ uri: imageUrl('center-medium.png') }}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        objectFit="scale-down"
+                        source={{ uri: imageUrl('center-medium.png') }}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        objectFit="none"
+                        source={require('./images/center-dot.png')}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <FastImage
+                    style={[
+                        objectFitStyles.image,
+                        styles.gap,
+                        objectFitStyles.visible,
+                    ]}
+                    objectFit="none"
+                    source={{ uri: imageUrl('center-large.png') }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-size"
+                status={status}
+                description="objectFit none and scale-down: smaller images at their size in points (inside the outlines); a larger one with none and overflow visible cropped to the view (red only)"
+            />
+        </View>
+    )
+}
+
+// resizeMode center and objectFit scale-down: the same, except that Android
+// shows an image smaller than the view at its size in pixels with center
+// (about 15 dp for this 40x40 image, inside the outline with a gap), and at
+// its size in dp with scale-down (filling the outline), as iOS shows both.
+// objectFit wins over resizeMode. Check the screenshot.
+function ObjectFitCenterCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    const source = { uri: imageUrl('center-medium.png') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <View>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        resizeMode="center"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        objectFit="scale-down"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+                <View style={styles.gap}>
+                    <FastImage
+                        style={objectFitStyles.image}
+                        resizeMode="center"
+                        objectFit="scale-down"
+                        source={source}
+                        onLoad={onLoad}
+                    />
+                    <View style={centerStyles.outline} pointerEvents="none" />
+                </View>
+            </View>
+            <CaseStatus
+                id="object-fit-center"
+                status={status}
+                description="resizeMode center, objectFit scale-down, and both: the same on iOS; on Android the first is its size in pixels (smaller), the others fill the outlines"
+            />
+        </View>
+    )
+}
+
+// objectFit scale-down and none with an SVG of 60x60 black and white stripes,
+// one unit wide: drawn at its size in points (dp), as sharp as with contain in
+// a 60 point view (right). Android drew it at its size in pixels and enlarged
+// it, soft and gray.
+function ObjectFitSvgCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    const source = { uri: imageUrl('svg-stripes.svg?case=object-fit-svg') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={objectFitStyles.svg}
+                    objectFit="scale-down"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.svg, styles.gap]}
+                    objectFit="none"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.svgReference, styles.gap]}
+                    objectFit="contain"
+                    source={source}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-svg"
+                status={status}
+                description="An SVG (60x60 stripes) with scale-down and none is as sharp as with contain at 60 points (right)"
+            />
+        </View>
+    )
+}
+
+// objectFit changed from cover to scale-down and none after load, while the
+// image for the new fit loads (slowly, from the slow server, with cache
+// 'web' so it isn't on disk): Android keeps the cover image as it was until
+// then (it showed the crop stretched to the image's own size: squashed with
+// scale-down, enlarged about 12 times with none); iOS shows the new fit at
+// once. The third changes twice, to scale-down then 150 ms later to none,
+// before the first change has loaded: Android keeps the cover image too (it
+// went blank). The screenshot is taken while the new images load.
+function ObjectFitFromCoverCase() {
+    const [loads, setLoads] = useState(0)
+    // Once all three have loaded with cover.
+    const changed = loads >= 3
+    const [again, setAgain] = useState(false)
+    const [status, setStatus] = useState('loading')
+    useEffect(() => {
+        if (!changed) return
+        const second = setTimeout(() => setAgain(true), 150)
+        const timer = setTimeout(() => setStatus('OK'), 800)
+        return () => {
+            clearTimeout(second)
+            clearTimeout(timer)
+        }
+    }, [changed])
+    const onLoad = changed ? undefined : () => setLoads((n) => n + 1)
+    const source = (fit: string) => ({
+        uri: slowImageUrl(`text-page.png?case=object-fit-from-cover-${fit}`),
+        headers: SLOW_HEADERS,
+        cache: FastImage.cacheControl.web,
+    })
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                {(['scale-down', 'none'] as const).map((fit, i) => (
+                    <FastImage
+                        key={fit}
+                        style={[objectFitStyles.large, i > 0 && styles.gap]}
+                        objectFit={changed ? fit : 'cover'}
+                        source={source(fit)}
+                        onLoad={onLoad}
+                    />
+                ))}
+                <FastImage
+                    style={[objectFitStyles.large, styles.gap]}
+                    objectFit={
+                        changed ? (again ? 'none' : 'scale-down') : 'cover'
+                    }
+                    source={source('twice')}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-from-cover"
+                status={status}
+                description="cover changed to scale-down, to none, and to scale-down then none (right) while the new images load: Android keeps the cover images as they were (iOS: the new fit at once)"
+            />
+        </View>
+    )
+}
+
+// objectFit scale-down with blurRadius: a 120x120 image at its size, 120
+// points (dp), blurred the same size as the sharp one next to it.
+function ObjectFitBlurCase() {
+    const [status, onLoad] = useLoadedThenOk(2)
+    const source = { uri: imageUrl('picsum/1020-120x120.jpg') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={blurStyles.large}
+                    objectFit="scale-down"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[blurStyles.large, blurStyles.next]}
+                    objectFit="scale-down"
+                    source={source}
+                    blurRadius={30}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-blur"
+                status={status}
+                description="objectFit scale-down with blurRadius={30}: a 120 point image at its size, blurred the same size as the sharp one"
+            />
+        </View>
+    )
+}
+
+// objectFit in style, and which wins: style's contain; the prop's none over
+// style's contain; objectFit contain over resizeMode cover.
+function ObjectFitStyleCase() {
+    const [status, onLoad] = useLoadedThenOk(3)
+    const source = { uri: imageUrl('center-large.png') }
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={[objectFitStyles.image, { objectFit: 'contain' }]}
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[
+                        objectFitStyles.image,
+                        styles.gap,
+                        { objectFit: 'contain' },
+                    ]}
+                    objectFit="none"
+                    source={source}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.image, styles.gap]}
+                    objectFit="contain"
+                    resizeMode="cover"
+                    source={source}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-style"
+                status={status}
+                description="objectFit in style (contain), the prop over style (none), objectFit over resizeMode cover (contain)"
+            />
+        </View>
+    )
+}
+
+// objectFit changed after load, from contain to none: a 1600x1000 page of
+// text, whose middle at its own size needs the full-size image, not the one
+// decoded for contain. Should match the left image.
+function ObjectFitChangeCase() {
+    const [fit, setFit] = useState<'contain' | 'none'>('contain')
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (fit === 'contain') return
+        const timer = setTimeout(() => setDone(true), 750)
+        return () => clearTimeout(timer)
+    }, [fit])
+    const source = { uri: imageUrl('text-page.png') }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={objectFitStyles.image}
+                objectFit="none"
+                source={source}
+            />
+            <FastImage
+                style={[objectFitStyles.image, styles.gap]}
+                objectFit={fit}
+                source={source}
+                onLoad={() => setFit('none')}
+            />
+            <CaseStatus
+                id="object-fit-change"
+                status={done ? 'OK' : 'waiting'}
+                description="objectFit changed from contain to none after load (should match the left image)"
+            />
+        </View>
+    )
+}
+
+const objectFitStyles = StyleSheet.create({
+    image: { width: 48, height: 48, backgroundColor: '#eee' },
+    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    svg: { width: 72, height: 72, backgroundColor: '#eee' },
+    svgReference: { width: 60, height: 60 },
+    visible: { overflow: 'visible' },
+    // The images, then the status under them (CaseStatus's text is indented).
+    stacked: { marginBottom: 12 },
+    images: { flexDirection: 'row', marginBottom: 4 },
+})
+
+// Just outside a 40-point image centered in a 48-point view.
+const centerStyles = StyleSheet.create({
+    outline: {
+        position: 'absolute',
+        left: 3,
+        top: 3,
+        width: 42,
+        height: 42,
+        borderWidth: 1,
+        borderColor: '#f0f',
+    },
+})
+
 // Preloads an image at a url that's new each launch (so the disk cache from an
 // earlier run doesn't count), shows it once the preload has resolved, and asks
 // the server how many times it was requested: once, if the shown image came
@@ -6349,6 +6710,20 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <BlurCenterCase key="blur-center" />,
             <BlurTintChangeCase key="blur-tint-change" />,
+        ],
+    },
+    {
+        // Checked by screenshot.
+        name: 'object-fit',
+        cases: [
+            <ObjectFitCase key="object-fit" />,
+            <ObjectFitSizeCase key="object-fit-size" />,
+            <ObjectFitCenterCase key="object-fit-center" />,
+            <ObjectFitBlurCase key="object-fit-blur" />,
+            <ObjectFitSvgCase key="object-fit-svg" />,
+            <ObjectFitFromCoverCase key="object-fit-from-cover" />,
+            <ObjectFitStyleCase key="object-fit-style" />,
+            <ObjectFitChangeCase key="object-fit-change" />,
         ],
     },
     {

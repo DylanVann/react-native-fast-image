@@ -224,7 +224,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-- (void) setResizeMode: (RCTResizeMode)resizeMode {
+- (void) setResizeMode: (FFFResizeMode)resizeMode {
     if (_resizeMode != resizeMode) {
         BOOL repeated = _resizeMode == RCTResizeModeRepeat;
         _resizeMode = resizeMode;
@@ -242,10 +242,13 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // view down to fit, as React Native's Image and Android do (#866); only a
 // smaller one is shown at its own size. UIViewContentModeCenter alone showed
 // large images at full size, cropped. So it depends on the image and the
-// view's size.
+// view's size. `none` is the image at its own size, centered, whatever its
+// size (cropped by the view).
 - (void) updateContentMode {
     UIViewContentMode contentMode = (UIViewContentMode) _resizeMode;
-    if (_resizeMode == RCTResizeModeRepeat) {
+    if (_resizeMode == FFFResizeModeNone) {
+        contentMode = UIViewContentModeCenter;
+    } else if (_resizeMode == RCTResizeModeRepeat) {
         // The tiled image (see tiledImage:) fills the view.
         contentMode = UIViewContentModeScaleToFill;
     } else if (_resizeMode == RCTResizeModeCenter) {
@@ -803,9 +806,10 @@ NSString *FFFErrorMessage(NSError *error)
 // Whether images are decoded at about the view's size (downsample, from
 // SDWebImage 5.19, and always for photo library images, which are large and
 // usually shown small: Photos makes them at the size asked for, on any
-// version). Not for `repeat`, which tiles the image at its own size.
+// version). Not for `repeat`, which tiles the image at its own size, or
+// `none`, which shows it at its own size.
 - (BOOL) downsamples {
-    if (_resizeMode == RCTResizeModeRepeat) {
+    if (_resizeMode == RCTResizeModeRepeat || _resizeMode == FFFResizeModeNone) {
         return NO;
     }
     return [_source isPhotoLibrary] || (_downsample && [FFFDownsampledImage isSupported]);

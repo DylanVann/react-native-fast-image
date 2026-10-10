@@ -96,6 +96,35 @@ describe('FastImage (web)', () => {
         expect(fit('center')).toBe('scale-down')
     })
 
+    it('fits the image as objectFit says, CSS object-fit', () => {
+        const fit = (props: object) =>
+            images(render(<FastImage source={A} {...props} />))[0].props.style
+                .objectFit
+        for (const value of [
+            'fill',
+            'contain',
+            'cover',
+            'none',
+            'scale-down',
+        ]) {
+            expect(fit({ objectFit: value })).toBe(value)
+        }
+        // In style, where the prop wins; either one wins over resizeMode.
+        expect(
+            fit({ style: [{ objectFit: 'contain' }, { objectFit: 'none' }] }),
+        ).toBe('none')
+        expect(fit({ objectFit: 'fill', style: { objectFit: 'none' } })).toBe(
+            'fill',
+        )
+        expect(fit({ objectFit: 'contain', resizeMode: 'repeat' })).toBe(
+            'contain',
+        )
+        // An unknown value leaves resizeMode.
+        expect(fit({ objectFit: 'tile', resizeMode: 'center' })).toBe(
+            'scale-down',
+        )
+    })
+
     it('tints the image with an SVG filter, after the blur', () => {
         const tree = render(
             <FastImage source={A} tintColor="red" blurRadius={2} />,

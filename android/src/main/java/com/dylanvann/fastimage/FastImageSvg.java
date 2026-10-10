@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Registry;
+import com.bumptech.glide.load.Option;
 import com.bumptech.glide.load.Options;
 import com.bumptech.glide.load.ResourceDecoder;
 import com.bumptech.glide.load.engine.Resource;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Locale;
 
 // SVG images (static), drawn with AndroidSVG, which FastImage includes
@@ -35,6 +37,31 @@ final class FastImageSvg {
     private static final int HEAD_LENGTH = 1024;
     @Nullable
     private static Boolean available;
+
+    // objectFit scale-down and none show an image at its own size in dp
+    // (FastImageViewWithUrl.updateImageMatrix): an SVG is drawn at that size,
+    // the screen's pixels per dp (DENSITY) times its own, rather than at its
+    // size in pixels and then enlarged. With scale-down (FITS), no larger than
+    // the view. Part of the disk cache key, since the bitmap's size depends on
+    // them. Unset (0) for the other fits, which draw it for the view's size.
+    static final Option<Float> DENSITY = Option.disk(
+            "com.dylanvann.fastimage.FastImageSvg.Density", 0f,
+            new Option.CacheKeyUpdater<Float>() {
+                @Override
+                public void update(@NonNull byte[] keyBytes, @NonNull Float value, @NonNull MessageDigest messageDigest) {
+                    messageDigest.update(keyBytes);
+                    messageDigest.update(ByteBuffer.allocate(4).putFloat(value).array());
+                }
+            });
+    static final Option<Boolean> FITS = Option.disk(
+            "com.dylanvann.fastimage.FastImageSvg.Fits", false,
+            new Option.CacheKeyUpdater<Boolean>() {
+                @Override
+                public void update(@NonNull byte[] keyBytes, @NonNull Boolean value, @NonNull MessageDigest messageDigest) {
+                    messageDigest.update(keyBytes);
+                    messageDigest.update((byte) (value ? 1 : 0));
+                }
+            });
 
     private FastImageSvg() {
     }

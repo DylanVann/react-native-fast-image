@@ -70,6 +70,16 @@ final class FastImageSvgRenderer {
         float scale = strategy != null
                 ? strategy.getScaleFactor(sourceWidth, sourceHeight, targetWidth, targetHeight)
                 : 1f;
+        // objectFit scale-down and none: at its own size in dp (see
+        // FastImageSvg.DENSITY), and for scale-down no larger than the view.
+        Float density = options.get(FastImageSvg.DENSITY);
+        if (density != null && density > 0) {
+            scale = density;
+            if (Boolean.TRUE.equals(options.get(FastImageSvg.FITS))) {
+                scale = Math.min(scale, Math.min(
+                        targetWidth / (float) sourceWidth, targetHeight / (float) sourceHeight));
+            }
+        }
         if (Float.isNaN(scale) || Float.isInfinite(scale) || scale <= 0) scale = 1f;
         float pixels = sourceWidth * scale * sourceHeight * scale;
         if (pixels > MAX_PIXELS) scale *= (float) Math.sqrt(MAX_PIXELS / pixels);

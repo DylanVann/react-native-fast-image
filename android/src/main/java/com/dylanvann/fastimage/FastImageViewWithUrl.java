@@ -9,6 +9,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
@@ -60,6 +61,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     public FastImageViewWithUrl(Context context, @Nullable RequestManager requestManager) {
         super(context);
         this.requestManager = requestManager;
+        // An image larger than the view (objectFit none) is cropped to it,
+        // also when the view doesn't clip its content (overflow visible).
+        setCropToPadding(true);
     }
 
     // FastImage sends "none" when it has pointerEvents="box-none" (the image
@@ -609,19 +613,134 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // as React Native's Image does. The view fills with it (FIT_XY).
     private boolean mRepeat = false;
 
+    // The scale type for resizeMode, which Glide decodes the image for and the
+    // blur scales with. For scale-down (CENTER_INSIDE) and none (CENTER) the
+    // view is MATRIX: it lays the image out itself (see updateImageMatrix).
+    // Starts as ImageView's.
+    private ScaleType mResizeScaleType = ScaleType.FIT_CENTER;
+
+    // resizeMode center: CENTER_INSIDE as ImageView draws it, an image smaller
+    // than the view at its size in pixels on the screen (scale-down: in dp).
+    private boolean mInPixels = false;
+
+    // The scale type the image on screen is laid out for (see
+    // applyResizeMode).
+    private ScaleType mLayoutScaleType = ScaleType.FIT_CENTER;
+
     // Glide crops or fits the bitmap for the scale type when it loads, so a
     // new resizeMode needs a reload to take effect (#762).
-    public void setResizeMode(ScaleType scaleType, boolean repeat) {
-        if (scaleType == getScaleType() && repeat == mRepeat) return;
-        setScaleType(scaleType);
+    public void setResizeMode(ScaleType scaleType, boolean repeat, boolean inPixels) {
+        if (scaleType == mResizeScaleType && repeat == mRepeat && inPixels == mInPixels) return;
+        mResizeScaleType = scaleType;
+        mInPixels = inPixels;
         mRepeat = repeat;
         mNeedsReload = true;
+        // A loaded image on screen was cropped or fitted for the old scale
+        // type: it keeps its layout until the image for the new one is ready
+        // (onImageLoaded), or the load fails. Laid out for the new one, a
+        // cover crop would be stretched to the image's own size.
+        if (mShownRequest == null) applyResizeMode();
+    }
+
+    // Lays the view out for resizeMode.
+    private void applyResizeMode() {
+        mLayoutScaleType = mResizeScaleType;
+        setScaleType(!mInPixels && (mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER)
+                ? ScaleType.MATRIX
+                : mResizeScaleType);
+        updateImageMatrix();
     }
 
     // Repeats what the view shows (the loaded image, and defaultSource).
     @Override
     public void setImageDrawable(@Nullable Drawable drawable) {
         super.setImageDrawable(mRepeat ? tiled(drawable) : drawable);
+        updateImageMatrix();
+    }
+
+    @Override
+    protected boolean setFrame(int l, int t, int r, int b) {
+        boolean changed = super.setFrame(l, t, r, b);
+        updateImageMatrix();
+        return changed;
+    }
+
+    // The loaded image's own size in pixels (as onLoad has it), and its scale
+    // (a bundled image's, so it's its size in points; 1 for others, as on
+    // iOS), for scale-down and none. 0 until it's known.
+    private int mImageWidth = 0;
+    private int mImageHeight = 0;
+    private double mImageScale = 1;
+    // The loading source's scale.
+    private double mLoadingScale = 1;
+    @Nullable
+    private Matrix mImageMatrix;
+
+    // The loading image's own size, from FastImageRequestListener as it's
+    // ready (null until a local image's has been read).
+    void onImageSize(@Nullable int[] size) {
+        mImageWidth = size != null ? size[0] : 0;
+        mImageHeight = size != null ? size[1] : 0;
+        mImageScale = mLoadingScale;
+        updateImageMatrix();
+    }
+
+    // Pixels on screen per pixel of the loaded image at its own size: an image
+    // is its size in pixels in dp (a bundled one in points, its pixels divided
+    // by its scale), as on iOS.
+    private float imageDensity() {
+        return (float) (getResources().getDisplayMetrics().density / mImageScale);
+    }
+
+    // The same for the loading image.
+    private float loadingDensity() {
+        return (float) (getResources().getDisplayMetrics().density / mLoadingScale);
+    }
+
+    // scale-down: the image at its own size, centered, or scaled down
+    // uniformly to fit if that's larger than the view. Glide decodes it no
+    // larger than that (CenterInside), and it's drawn at this size. none: the
+    // image at its own size, centered, whatever its size (cropped by the view;
+    // Glide decodes it at its size). defaultSource (a resource) is already at
+    // its size on screen.
+    private void updateImageMatrix() {
+        if (getScaleType() != ScaleType.MATRIX) return;
+        Drawable drawable = getDrawable();
+        if (drawable == null) return;
+        int drawableWidth = drawable.getIntrinsicWidth();
+        int drawableHeight = drawable.getIntrinsicHeight();
+        float viewWidth = getWidth() - getPaddingLeft() - getPaddingRight();
+        float viewHeight = getHeight() - getPaddingTop() - getPaddingBottom();
+        if (mImageMatrix == null) mImageMatrix = new Matrix();
+        Matrix matrix = mImageMatrix;
+        if (drawableWidth <= 0 || drawableHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) {
+            matrix.reset();
+            setImageMatrix(matrix);
+            return;
+        }
+        float width;
+        float height;
+        if (drawable == mDefaultSource) {
+            width = drawableWidth;
+            height = drawableHeight;
+        } else if (mImageWidth > 0 && mImageHeight > 0) {
+            width = mImageWidth * imageDensity();
+            height = mImageHeight * imageDensity();
+        } else {
+            // Its size isn't known yet (a local image's is read after it
+            // loads): Glide decoded it at its size unless it's larger than
+            // the view, which shows it scaled down to fit either way.
+            width = drawableWidth * imageDensity();
+            height = drawableHeight * imageDensity();
+        }
+        float fit = mLayoutScaleType == ScaleType.CENTER
+                ? 1
+                : Math.min(1, Math.min(viewWidth / width, viewHeight / height));
+        width *= fit;
+        height *= fit;
+        matrix.setScale(width / drawableWidth, height / drawableHeight);
+        matrix.postTranslate(Math.round((viewWidth - width) / 2), Math.round((viewHeight - height) / 2));
+        setImageMatrix(matrix);
     }
 
     @Nullable
@@ -668,7 +787,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // pixelated, and the blur. A blurred animated image shows its first frame,
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
-        FastImageBlur blur = mBlurRadius > 0 ? new FastImageBlur(mBlurRadius, mRepeat ? null : getScaleType()) : null;
+        FastImageBlur blur = mBlurRadius > 0
+                ? new FastImageBlur(mBlurRadius, mRepeat ? null : mResizeScaleType, mInPixels ? 1 : loadingDensity())
+                : null;
         RequestOptions options;
         if (mRepeat) {
             // Decoded at its own size, or scaled down to fit the view if it's
@@ -690,7 +811,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (blur != null) options = options.optionalTransform(blur);
         } else {
             options = FastImageSourceSize.scaleTypeOptions(
-                    getScaleType(), FastImageSourceSize.capture(getScaleType(), model), blur);
+                    mResizeScaleType, FastImageSourceSize.capture(mResizeScaleType, model), blur);
+            boolean ownSize = mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER;
+            // scale-down and none show it at its own size in dp: an SVG is
+            // drawn at that size, so it's sharp (not with a blur, which hides
+            // the difference).
+            if (ownSize && !mInPixels && blur == null) {
+                options = options.set(FastImageSvg.DENSITY, loadingDensity())
+                        .set(FastImageSvg.FITS, mResizeScaleType == ScaleType.CENTER_INSIDE);
+            }
         }
         return blur != null ? options.dontAnimate() : options;
     }
@@ -752,6 +881,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void onImageLoaded() {
         mLoadEnded = true;
         endProgress();
+        // Before the view shows it (the target does once this returns).
+        applyResizeMode();
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -906,6 +1037,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
         endProgress();
+        applyResizeMode();
         mShownRequest = null;
         if (!hadThumbnail) return;
         final int load = mLoadCount;
@@ -983,6 +1115,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             return;
         }
 
+        mLoadingScale = mSource != null && mSource.hasKey("__packager_asset")
+                ? Math.max(number(mSource, "scale", 1), 0.01)
+                : 1;
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
         final FastImageSource imageSource = FastImageViewConverter.hasUri(mSource)
                 ? FastImageViewConverter.getImageSource(getContext(), mSource)

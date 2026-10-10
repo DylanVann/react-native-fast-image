@@ -32,10 +32,17 @@ final class FastImageBlur extends BitmapTransformation {
     // In pixels on screen.
     private final float radius;
     private final ImageView.ScaleType scaleType;
+    // Pixels on screen per pixel of the image at its own size (scale-down and
+    // none show it at that size: see FastImageViewWithUrl.updateImageMatrix;
+    // 1 for resizeMode center).
+    private final float density;
 
-    FastImageBlur(float radius, ImageView.ScaleType scaleType) {
+    FastImageBlur(float radius, ImageView.ScaleType scaleType, float density) {
         this.radius = radius;
         this.scaleType = scaleType;
+        this.density = scaleType == ImageView.ScaleType.CENTER_INSIDE || scaleType == ImageView.ScaleType.CENTER
+                ? density
+                : 1;
     }
 
     @Override
@@ -80,7 +87,9 @@ final class FastImageBlur extends BitmapTransformation {
             case FIT_XY:
                 return (float) Math.sqrt(x * y);
             case CENTER_INSIDE:
-                return Math.min(Math.min(x, y), 1);
+                return Math.min(Math.min(x, y), density);
+            case CENTER:
+                return density;
             default:
                 return 1;
         }
@@ -197,17 +206,21 @@ final class FastImageBlur extends BitmapTransformation {
     public boolean equals(Object o) {
         return o instanceof FastImageBlur
                 && ((FastImageBlur) o).radius == radius
-                && ((FastImageBlur) o).scaleType == scaleType;
+                && ((FastImageBlur) o).scaleType == scaleType
+                && ((FastImageBlur) o).density == density;
     }
 
     @Override
     public int hashCode() {
-        return ID.hashCode() * 31 + Float.floatToIntBits(radius) * 31 + (scaleType == null ? 0 : scaleType.ordinal());
+        return (ID.hashCode() * 31 + Float.floatToIntBits(radius) * 31 + (scaleType == null ? 0 : scaleType.ordinal())) * 31
+                + Float.floatToIntBits(density);
     }
 
     @Override
     public void updateDiskCacheKey(@NonNull MessageDigest messageDigest) {
         messageDigest.update(ID_BYTES);
-        messageDigest.update((radius + "," + scaleType).getBytes(Charset.forName("UTF-8")));
+        String key = radius + "," + scaleType;
+        if (density != 1) key += "," + density;
+        messageDigest.update(key.getBytes(Charset.forName("UTF-8")));
     }
 }

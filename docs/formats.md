@@ -52,7 +52,7 @@ FastImage loads images with [Glide](https://github.com/bumptech/glide), which de
 
 SVG images (remote, bundled with `require()`, or local files) load with SDWebImageSVGCoder on iOS and AndroidSVG on Android, which FastImage includes. On Android, an app with AndroidSVG's other package (`com.caverock:androidsvg`) leaves FastImage's out: see [duplicate AndroidSVG classes](troubleshooting.md#duplicate-androidsvg-classes).
 
-An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `resizeMode`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state.
+An SVG is drawn at the size it's shown at, so it's sharp at any size, and then works like any other image: `objectFit`, `tintColor`, `blurRadius`, `transition` and caching. `onLoad` reports the SVG's own size: its `width` and `height`, or its `viewBox`'s (300x150 if it has neither). Animated SVGs (SMIL or CSS animations) show their first state.
 
 ## Animated PNG (Android)
 

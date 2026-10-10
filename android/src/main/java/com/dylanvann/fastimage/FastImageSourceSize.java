@@ -128,6 +128,8 @@ final class FastImageSourceSize {
     private static DownsampleStrategy strategy(@Nullable ImageView.ScaleType scaleType) {
         if (scaleType == null) return DownsampleStrategy.DEFAULT;
         switch (scaleType) {
+            case CENTER:
+                return FULL_SIZE;
             case CENTER_CROP:
                 return DownsampleStrategy.CENTER_OUTSIDE;
             case CENTER_INSIDE:
@@ -139,6 +141,26 @@ final class FastImageSourceSize {
                 return DownsampleStrategy.FIT_CENTER;
             default:
                 return DownsampleStrategy.DEFAULT;
+        }
+    }
+
+    // At the image's own size (objectFit none shows it at that size, whatever
+    // the view's), or scaled down to at most MAX_PIXELS pixels, which a
+    // bitmap can be drawn at (Android won't draw one over 100 MB).
+    static final DownsampleStrategy FULL_SIZE = new FullSize();
+
+    private static final float MAX_PIXELS = 4096f * 4096f;
+
+    private static final class FullSize extends DownsampleStrategy {
+        @Override
+        public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+            float pixels = (float) sourceWidth * sourceHeight;
+            return pixels > MAX_PIXELS ? (float) Math.sqrt(MAX_PIXELS / pixels) : 1;
+        }
+
+        @Override
+        public SampleSizeRounding getSampleSizeRounding(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+            return SampleSizeRounding.QUALITY;
         }
     }
 
