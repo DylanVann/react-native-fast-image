@@ -9,7 +9,11 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.facebook.react.views.imagehelper.ImageSource;
 
+import java.io.File;
+
 import javax.annotation.Nullable;
+
+import androidx.core.content.FileProvider;
 
 public class FastImageSource extends ImageSource {
     private static final String DATA_SCHEME = "data";
@@ -63,6 +67,13 @@ public class FastImageSource extends ImageSource {
             // ImageSource only looks for drawables.
             Uri raw = rawResourceUri(context, source);
             if (raw != null) mUri = raw;
+        }
+
+        if (mUri == null || TextUtils.isEmpty(mUri.toString())) {
+            Uri localUri = FileProvider.getUriForFile(context,
+                    context.getApplicationContext().getPackageName() + ".provider",
+                    new File(source));
+            mUri = localUri;
         }
 
         if (isResource() && TextUtils.isEmpty(mUri.toString())) {
