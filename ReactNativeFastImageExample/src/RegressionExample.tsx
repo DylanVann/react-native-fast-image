@@ -2842,17 +2842,25 @@ function ObjectFitSvgCase() {
 // 'web' so it isn't on disk): Android keeps the cover image as it was until
 // then (it showed the crop stretched to the image's own size: squashed with
 // scale-down, enlarged about 12 times with none); iOS shows the new fit at
-// once. The screenshot is taken while the new image loads.
+// once. The third changes twice, to scale-down then 150 ms later to none,
+// before the first change has loaded: Android keeps the cover image too (it
+// went blank). The screenshot is taken while the new images load.
 function ObjectFitFromCoverCase() {
     const [loads, setLoads] = useState(0)
-    // Once both have loaded with cover.
-    const changed = loads >= 2
+    // Once all three have loaded with cover.
+    const changed = loads >= 3
+    const [again, setAgain] = useState(false)
     const [status, setStatus] = useState('loading')
     useEffect(() => {
         if (!changed) return
+        const second = setTimeout(() => setAgain(true), 150)
         const timer = setTimeout(() => setStatus('OK'), 800)
-        return () => clearTimeout(timer)
+        return () => {
+            clearTimeout(second)
+            clearTimeout(timer)
+        }
     }, [changed])
+    const onLoad = changed ? undefined : () => setLoads((n) => n + 1)
     const source = (fit: string) => ({
         uri: slowImageUrl(`text-page.png?case=object-fit-from-cover-${fit}`),
         headers: SLOW_HEADERS,
@@ -2867,16 +2875,22 @@ function ObjectFitFromCoverCase() {
                         style={[objectFitStyles.large, i > 0 && styles.gap]}
                         objectFit={changed ? fit : 'cover'}
                         source={source(fit)}
-                        onLoad={
-                            changed ? undefined : () => setLoads((n) => n + 1)
-                        }
+                        onLoad={onLoad}
                     />
                 ))}
+                <FastImage
+                    style={[objectFitStyles.large, styles.gap]}
+                    objectFit={
+                        changed ? (again ? 'none' : 'scale-down') : 'cover'
+                    }
+                    source={source('twice')}
+                    onLoad={onLoad}
+                />
             </View>
             <CaseStatus
                 id="object-fit-from-cover"
                 status={status}
-                description="cover changed to scale-down and none while the new image loads: Android keeps the cover image as it was (iOS: the new fit at once)"
+                description="cover changed to scale-down, to none, and to scale-down then none (right) while the new images load: Android keeps the cover images as they were (iOS: the new fit at once)"
             />
         </View>
     )
