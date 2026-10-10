@@ -15,7 +15,6 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.io.File
 import java.net.URLEncoder
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -104,11 +103,11 @@ abstract class ScenarioTest {
 class BenchmarkTest : ScenarioTest() {
 
     // Time to image: records the screen while each scenario runs, and saves
-    // the recording and the app's results (with the image requests the server
-    // got) in the test's output folder, which ../../scripts/run-android.ts
-    // (or Firebase Test Lab) pulls and analyzes. Each app is compiled as the
-    // Macrobenchmark tests leave it (with its profile), whichever ran first,
-    // and one unmeasured run of each comes first. With several apps, each
+    // the recording and the app's results in the test's output folder, which
+    // ../../scripts/run-android.ts (or Firebase Test Lab) pulls and analyzes.
+    // Each app is compiled as the Macrobenchmark tests leave it (with its
+    // profile), whichever ran first, and one unmeasured run of each comes
+    // first. With several apps, each
     // iteration runs them in turns, in the other order every time (A B, then
     // B A), so neither always goes first or last as the phone warms, and each
     // app's files are in a folder named after it. A run that fails is written
@@ -146,9 +145,7 @@ class BenchmarkTest : ScenarioTest() {
             Thread.sleep(1000)
             val run = "android-$scenario-$i-${System.nanoTime()}"
             launch(scenario, run, app)
-            results = JSONObject(waitDone(scenario, run))
-                .put("imageRequests", server.imageRequests(run))
-                .toString()
+            results = waitDone(scenario, run)
             Thread.sleep(500)
         } catch (error: Throwable) {
             File(dir, "$scenario-$i.error").writeText(error.toString())

@@ -1,7 +1,10 @@
 // Serves the benchmark's images (../../images/out, in this test bundle) on
 // the phone, at http://127.0.0.1:<port>, as the Android tests do
 // (ImageServer.kt): GET /<set>/<index>.jpg?run=<id> and /manifest.json, the
-// query ignored for the lookup. The app loads them over HTTP with each
+// query ignored for the lookup, and /requests?run=<id>, how many image
+// requests it got for that run id (the probe's aren't counted): how many
+// downloads a library made, e.g. one per photo shown at two sizes when it
+// shares them. The app loads them over HTTP with each
 // library's own networking, but every run gets the same network: `latencyMs`
 // before each response (and before a new connection's first, for its
 // handshake), and `mbps` shared by every response at once, as on one real
@@ -19,6 +22,9 @@ final class ImageServer {
     private var listener: Int32 = -1
     // By path under `root`, e.g. "grid/0.jpg"; only read after start().
     private var files: [String: Data] = [:]
+    // Image requests by run id.
+    private var requests: [String: Int] = [:]
+    private let requestsLock = NSLock()
 
     var url: String { "http://127.0.0.1:\(port)" }
 
@@ -90,9 +96,25 @@ final class ImageServer {
             }
             let parts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
             let path = String(parts[0].drop(while: { $0 == "/" }))
-            let closing = path == "manifest.json"
-                || (parts.count > 1 && parts[1].split(separator: "&").contains("close"))
+            let query = parts.count > 1 ? parts[1].split(separator: "&") : []
+            let closing = path == "manifest.json" || query.contains("close")
+            let run = query.first { $0.hasPrefix("run=") }
+                .flatMap { $0.dropFirst(4).removingPercentEncoding }
+            if let run, !closing, path.hasSuffix(".jpg") {
+                requestsLock.lock()
+                requests[run, default: 0] += 1
+                requestsLock.unlock()
+            }
             sleep(milliseconds: latencyMs)
+            if path == "requests" {
+                requestsLock.lock()
+                let count = run.flatMap { requests[$0] } ?? 0
+                requestsLock.unlock()
+                let body = Data(String(count).utf8)
+                let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: \(body.count)\r\n\r\n"
+                guard write(client, Data(headers.utf8) + body) else { return }
+                continue
+            }
             guard let body = files[path] else {
                 guard write(client, Data("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".utf8)) else { return }
                 continue
