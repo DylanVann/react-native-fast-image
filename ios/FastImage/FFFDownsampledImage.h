@@ -25,6 +25,14 @@
 // loaded this way was decoded from, for onLoad, or zero for other images.
 + (CGSize) sourceSizeOfImage: (UIImage*)image;
 
+// SDWebImage puts an image it decoded smaller from the disk cache, for a view
+// that downsamples, into the memory cache under the full-size image's key too
+// (SDWebImageManager writes what its original cache query finds back there),
+// where a full-size load (a view that doesn't downsample, or a preload) would
+// find it: a blurry image, or a preload's size. Drops it there, so that load
+// decodes the file from the disk cache. Call it before a full-size load.
++ (void) forgetSmallerFullSizeImageForURL: (NSURL*)url context: (SDWebImageContext*)context;
+
 // Whether this version of SDWebImage can decode through this class: it
 // decodes static images through the animated image class since 5.19.
 + (BOOL) isSupported;

@@ -1009,6 +1009,7 @@ NSString *FFFErrorMessage(NSError *error)
             // Only on disk, also when it comes from there.
             context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
         }
+        [FFFDownsampledImage forgetSmallerFullSizeImageForURL: source.url context: context];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];

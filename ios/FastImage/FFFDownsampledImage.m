@@ -5,6 +5,8 @@
 #import <SDWebImage/UIImage+Metadata.h>
 #import <SDWebImage/NSData+ImageContentType.h>
 #import <SDWebImage/SDImageCodersManager.h>
+#import <SDWebImage/SDImageCache.h>
+#import <SDWebImage/SDWebImageManager.h>
 
 // The decode option that carries the full image's size to the view.
 static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
@@ -107,6 +109,20 @@ static CGSize FFFPixelSize(NSData* data) {
 + (CGSize) sourceSizeOfImage: (UIImage*)image {
     id sourceSize = image.sd_decodeOptions[FFFDecodeSourceSize];
     return [sourceSize isKindOfClass: [FFFSourceSize class]] ? ((FFFSourceSize*) sourceSize).size : CGSizeZero;
+}
+
++ (void) forgetSmallerFullSizeImageForURL: (NSURL*)url context: (SDWebImageContext*)context {
+    SDWebImageManager* manager = [SDWebImageManager sharedManager];
+    if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
+        return;
+    }
+    SDImageCache* cache = (SDImageCache*) manager.imageCache;
+    NSString* key = [manager cacheKeyForURL: url context: context];
+    UIImage* image = [cache imageFromMemoryCacheForKey: key];
+    CGSize fullSize = [self sourceSizeOfImage: image];
+    if (image && fullSize.width > 0 && fullSize.height > 0 && !CGSizeEqualToSize(image.size, fullSize)) {
+        [cache removeImageFromMemoryForKey: key];
+    }
 }
 
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {
