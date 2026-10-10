@@ -22,9 +22,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -69,12 +71,14 @@ import okio.BufferedSource;
 // client's dispatcher sends to a host at once (5 by default): OkHttp would
 // hold the others in the order they came, where a more urgent request can't
 // move them up. The others wait to send their request, most urgent first
-// (Glide's priority: views before preloads). A running download's response
-// is read as soon as it arrives (not on OkHttp's dispatcher, which React
-// Native's networking shares): a response left unread on an HTTP/2
-// connection would hold back the others on it. A download that stalls fails
-// like any other, with the timeouts of the clients
-// (FastImageOkHttpProgressGlideModule), which only count once it has started.
+// (Glide's priority: views before preloads), and the most urgent one waiting
+// for a host's room keeps a running slot, so less urgent downloads to other
+// hosts can't take them all. A running download's response is read as soon
+// as it arrives, on its own thread (OkHttp counts a request to its host until
+// its callback returns): a response left unread on an HTTP/2 connection
+// would hold back the others on it. A download that stalls fails like any
+// other, with the timeouts of the clients (FastImageOkHttpProgressGlideModule),
+// which only count once it has started.
 final class FastImageSharedDownloads {
     // The longest response kept in memory, and the most bytes held in memory
     // for downloads at once: encoded images (not decoded bitmaps, which
@@ -260,17 +264,21 @@ final class FastImageSharedDownloads {
     }
 
     // Starts the downloads waiting that can run now, most urgent first: those
-    // whose host has room (see above).
+    // whose host has room, leaving a slot for each host without (see above).
     private static void startQueued() {
         List<Download> starting = new ArrayList<>();
         List<Request> requests = new ArrayList<>();
         synchronized (downloads) {
+            Set<String> full = new HashSet<>();
             Iterator<Download> waiting = queue.iterator();
-            while (running < MAX_RUNNING && waiting.hasNext()) {
+            while (running + full.size() < MAX_RUNNING && waiting.hasNext()) {
                 Download download = waiting.next();
                 String host = download.request.url().host();
                 Integer sent = sentTo.get(host);
-                if (sent != null && sent >= download.client.dispatcher().getMaxRequestsPerHost()) continue;
+                if (sent != null && sent >= download.client.dispatcher().getMaxRequestsPerHost()) {
+                    full.add(host);
+                    continue;
+                }
                 waiting.remove();
                 sentTo.put(host, sent == null ? 1 : sent + 1);
                 download.host = host;
