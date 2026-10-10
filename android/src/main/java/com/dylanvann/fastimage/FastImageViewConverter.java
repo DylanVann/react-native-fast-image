@@ -49,6 +49,8 @@ class FastImageViewConverter {
                 put("cover", ScaleType.CENTER_CROP);
                 put("stretch", ScaleType.FIT_XY);
                 put("center", ScaleType.CENTER_INSIDE);
+                // objectFit="none": the image at its own size, centered.
+                put("none", ScaleType.CENTER);
             }};
 
     // Whether the source has a uri to load (not null, missing or blank).

@@ -17,13 +17,13 @@ export const ResizeModeExample = () => {
     return (
         <View>
             <Section>
-                <FeatureText text="• resizeMode." />
+                <FeatureText text="• objectFit." />
             </Section>
             <SectionFlex style={styles.container}>
                 <Col>
                     <FastImage
                         style={styles.image}
-                        resizeMode={FastImage.resizeMode.contain}
+                        objectFit="contain"
                         source={{ uri: IMAGE_URL }}
                         onLoad={onLoad}
                     />
@@ -32,25 +32,25 @@ export const ResizeModeExample = () => {
                 <Col>
                     <FastImage
                         style={styles.image}
-                        resizeMode={FastImage.resizeMode.center}
+                        objectFit="scale-down"
                         source={{ uri: IMAGE_URL }}
                         onLoad={onLoad}
                     />
-                    <BulletText>center</BulletText>
+                    <BulletText>scale-down</BulletText>
                 </Col>
                 <Col>
                     <FastImage
                         style={styles.image}
-                        resizeMode={FastImage.resizeMode.stretch}
+                        objectFit="fill"
                         source={{ uri: IMAGE_URL }}
                         onLoad={onLoad}
                     />
-                    <BulletText>stretch</BulletText>
+                    <BulletText>fill</BulletText>
                 </Col>
                 <Col>
                     <FastImage
                         style={styles.image}
-                        resizeMode={FastImage.resizeMode.cover}
+                        objectFit="cover"
                         source={{ uri: IMAGE_URL }}
                         onLoad={onLoad}
                     />

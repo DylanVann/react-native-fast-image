@@ -893,6 +893,101 @@ describe('FastImage (Android)', () => {
     })
 })
 
+describe('objectFit', () => {
+    const nativeResizeMode = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.resizeMode
+    const source = { uri: 'https://example.com/a.png' }
+
+    it('is sent as the native resizeMode', () => {
+        expect(nativeResizeMode(<FastImage source={source} />)).toBe('cover')
+        const modes = {
+            fill: 'stretch',
+            contain: 'contain',
+            cover: 'cover',
+            none: 'none',
+            'scale-down': 'center',
+        } as const
+        for (const [fit, mode] of Object.entries(modes)) {
+            expect(
+                nativeResizeMode(
+                    <FastImage source={source} objectFit={fit as any} />,
+                ),
+            ).toBe(mode)
+        }
+    })
+
+    it('can be set in style, where the last style that sets it wins', () => {
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    style={[{ objectFit: 'contain' }, [{ objectFit: 'none' }]]}
+                />,
+            ),
+        ).toBe('none')
+        // React Native's types have objectFit from 0.72 (these are 0.69's).
+        const registered = StyleSheet.create({
+            fit: { objectFit: 'fill' } as any,
+        })
+        expect(
+            nativeResizeMode(
+                <FastImage source={source} style={registered.fit} />,
+            ),
+        ).toBe('stretch')
+    })
+
+    it('wins over resizeMode, and the prop over style', () => {
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    resizeMode="repeat"
+                    style={{ objectFit: 'contain' }}
+                />,
+            ),
+        ).toBe('contain')
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    objectFit="scale-down"
+                    style={{ objectFit: 'contain' }}
+                />,
+            ),
+        ).toBe('center')
+        // An unknown value leaves resizeMode.
+        expect(
+            nativeResizeMode(
+                <FastImage
+                    source={source}
+                    resizeMode="repeat"
+                    objectFit={'tile' as any}
+                />,
+            ),
+        ).toBe('repeat')
+    })
+
+    it("is React Native Image's resizeMode with fallback", () => {
+        const resizeMode = (objectFit: any) =>
+            renderer
+                .create(
+                    <FastImage
+                        source={source}
+                        objectFit={objectFit}
+                        fallback
+                    />,
+                )
+                .root.findByType(Image).props.resizeMode
+        expect(resizeMode('fill')).toBe('stretch')
+        expect(resizeMode('scale-down')).toBe('center')
+        // Its `none` is top-left (and only from 0.77).
+        expect(resizeMode('none')).toBe('center')
+    })
+})
+
 describe('resizeMode', () => {
     it('passes repeat to the native view', () => {
         expect(FastImage.resizeMode.repeat).toBe('repeat')

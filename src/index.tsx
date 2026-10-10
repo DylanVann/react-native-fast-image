@@ -14,6 +14,10 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
+import { fromStyle, resolveObjectFit } from './objectFit'
+
+/** How the image fits the view: see [`objectFit`](#objectfit). */
+export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
 
 /** How the image fits the view: see [`resizeMode`](#resizemode). */
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
@@ -250,6 +254,7 @@ export interface OnProgressEvent {
 export interface ImageStyle extends ViewStyle {
     overlayColor?: ColorValue
     tintColor?: ColorValue
+    objectFit?: ObjectFit
 }
 
 export interface FastImageProps extends AccessibilityProps, ViewProps {
@@ -304,22 +309,45 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     defaultSource?: ImageRequireSource
     /**
-     * How the image fills the view.
+     * How the image fits the view, as CSS's `object-fit` does.
      *
-     * - `'contain'`: scales it uniformly (keeping its aspect ratio) so all of
-     *   it fits in the view (minus padding).
      * - `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers
      *   the view (minus padding), cropping what doesn't fit.
-     * - `'stretch'`: scales its width and height separately to fill the view,
+     * - `'contain'`: scales it uniformly (keeping its aspect ratio) so all of
+     *   it fits in the view (minus padding).
+     * - `'fill'`: scales its width and height separately to fill the view,
      *   which can change its aspect ratio.
-     * - `'center'`: centers it at its own size, scaled down uniformly to fit
-     *   if it's larger than the view.
+     * - `'none'`: shows it at its own size, centered, cropped if it's larger
+     *   than the view.
+     * - `'scale-down'`: shows it at its own size, centered, or scaled down
+     *   uniformly to fit if it's larger than the view (the smaller of `'none'`
+     *   and `'contain'`).
+     *
+     * An image's own size is its size in pixels, as points (dp on Android),
+     * as CSS counts an image's pixels: a 300 × 200 image is 300 × 200 points.
+     * A bundled image (`require()`) is its size in points.
+     *
+     * It can also be set in `style`; the prop wins. Either one overrides
+     * `resizeMode`.
+     *
+     * @default 'cover'
+     */
+    objectFit?: ObjectFit
+    /**
+     * How the image fills the view.
+     *
+     * - `'contain'`: as `objectFit="contain"`.
+     * - `'cover'`: as `objectFit="cover"`.
+     * - `'stretch'`: as `objectFit="fill"`.
+     * - `'center'`: as `objectFit="scale-down"`.
      * - `'repeat'`: repeats it to cover the view, from its top-left corner, at
      *   the image's own size in pixels (a bundled image at its size in
      *   points), scaled down to fit if it's larger than the view. An animated
      *   image repeats its first frame, and `defaultSource` repeats too.
      *
      * @default 'cover'
+     * @deprecated Use `objectFit` instead, except for `'repeat'`, which has no
+     * `objectFit` value and isn't deprecated.
      */
     resizeMode?: ResizeMode
     /**
@@ -564,28 +592,15 @@ const resolveDefaultSource = (
     return defaultSource
 }
 
-// Finds tintColor in a style prop, where the last style that sets it wins, as
-// with StyleSheet.flatten, but without flattening (which allocates a merged
-// object for an array style on every render).
-function tintColorFromStyle(style: unknown): ImageStyle['tintColor'] {
-    if (Array.isArray(style)) {
-        for (let i = style.length - 1; i >= 0; i--) {
-            const found = tintColorFromStyle(style[i])
-            if (found !== undefined) return found
-        }
-        return undefined
-    }
-    if (typeof style === 'number') {
-        // A registered style from StyleSheet.create on older React Native.
-        const flattened = StyleSheet.flatten(style as any) as
-            | ImageStyle
-            | undefined
-        return flattened ? flattened.tintColor : undefined
-    }
-    return style && typeof style === 'object'
-        ? (style as ImageStyle).tintColor
-        : undefined
-}
+// objectFit as the native resizeMode (`none` is FastImage's own).
+const NATIVE_RESIZE_MODE = {
+    fill: 'stretch',
+    contain: 'contain',
+    cover: 'cover',
+    none: 'none',
+    'scale-down': 'center',
+    repeat: 'repeat',
+} as const
 
 // The native loopCount: -1 for the file's own, 0 for forever, or a number of
 // plays. Always sent, since native would reset a removed prop to 0 (forever).
@@ -668,6 +683,7 @@ function FastImageBase({
     style,
     fallback,
     children,
+    objectFit,
     resizeMode = 'cover',
     loop,
     transition,
@@ -745,7 +761,9 @@ function FastImageBase({
     // tintColor can also be set in style, as with React Native's Image. The
     // prop wins.
     const resolvedTintColor =
-        tintColor != null ? tintColor : tintColorFromStyle(style)
+        tintColor != null ? tintColor : fromStyle(style, 'tintColor')
+    const mode =
+        NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
     if (fallback) {
         // Remove `cache`, which React Native's Image doesn't support. A
         // require()d source is a number: pass it through (spreading it gave {}).
@@ -808,7 +826,9 @@ function FastImageBase({
                                 },
                             ))
                     }
-                    resizeMode={resizeMode}
+                    // React Native's Image has no `none` before 0.77, and
+                    // there it's top-left: the nearest is center (scale-down).
+                    resizeMode={mode === 'none' ? 'center' : mode}
                 />
                 {children}
             </View>
@@ -855,7 +875,7 @@ function FastImageBase({
                     ((event: { nativeEvent: any }) =>
                         onLoadEnd(loadResult(event.nativeEvent)))
                 }
-                resizeMode={resizeMode}
+                resizeMode={mode}
             />
             {children}
         </View>
@@ -914,6 +934,10 @@ type NativePreloadResult =
 const noResult: NativePreloadResult = { ok: false, error: 'No result' }
 
 export interface FastImageStaticProperties {
+    /**
+     * @deprecated Use the `objectFit` prop instead of `resizeMode`, except for
+     * `'repeat'`.
+     */
     resizeMode: typeof resizeMode
     priority: typeof priority
     cacheControl: typeof cacheControl

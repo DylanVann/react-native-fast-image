@@ -4,13 +4,13 @@
 // the native views.
 //
 // The View (a div) has FastImage's style, ref and View props. The <img> fills
-// it inside its borders, with object-fit for resizeMode (see Picture).
+// it inside its borders, with object-fit for objectFit (see Picture).
 // defaultSource is a second <img> under it until the image has loaded (the
 // browser draws the image over it as it arrives), resizeMode="repeat" tiles
 // the image as a CSS background, and tintColor is an SVG filter next to them.
 //
 // Works: source (uri, require(), or several sizes: see sizedSources),
-// defaultSource, resizeMode, tintColor, blurRadius, style, children,
+// defaultSource, objectFit, resizeMode, tintColor, blurRadius, style, children,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -27,14 +27,15 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
+import { resolveObjectFit } from './objectFit'
 import type {
     CachePathResult,
     CacheState,
     FastImageBackgroundProps,
     FastImageProps,
     FastImageStaticProperties,
+    ObjectFit,
     PreloadResult,
-    ResizeMode,
     Source,
 } from './index'
 
@@ -73,6 +74,7 @@ function FastImageBase({
     onLoadEnd,
     style,
     children,
+    objectFit,
     resizeMode: mode = 'cover',
     forwardedRef,
     // On the wrapper, as on native.
@@ -114,8 +116,10 @@ function FastImageBase({
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
     const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
-    // Tiles are of one image: several sizes are shown as cover.
-    const fit = several && mode === 'repeat' ? 'cover' : mode
+    // objectFit (the prop, then style's), or resizeMode. Tiles are of one
+    // image: several sizes are shown as cover.
+    const resolved = resolveObjectFit(objectFit, style, mode)
+    const fit = several && resolved === 'repeat' ? 'cover' : resolved
     const filter =
         [
             blurRadius ? `blur(${blurRadius}px)` : '',
@@ -145,7 +149,7 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
-                    mode={fit}
+                    fit={fit}
                     filter={filter}
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
@@ -157,7 +161,7 @@ function FastImageBase({
                     src={src}
                     srcSet={srcSet}
                     lazy={!!several}
-                    mode={fit}
+                    fit={fit}
                     filter={filter}
                     // Shown as it loads, over defaultSource, and not if it
                     // failed (no broken image icon or alt text).
@@ -287,16 +291,6 @@ function loadedSize(
     }
 }
 
-// resizeMode as object-fit: center shows the image at its size, scaled down if
-// it's larger than the view. repeat tiles it instead (see Picture).
-const OBJECT_FIT = {
-    cover: 'cover',
-    contain: 'contain',
-    stretch: 'fill',
-    center: 'scale-down',
-    repeat: 'cover',
-} as const
-
 const fill = {
     position: 'absolute',
     top: 0,
@@ -305,8 +299,8 @@ const fill = {
     height: '100%',
 } as const
 
-// An image filling the view: an <img> with object-fit. With
-// resizeMode="repeat", a div's CSS background instead, repeated from the left
+// An image filling the view: an <img> with object-fit (objectFit's values are
+// CSS's). With resizeMode="repeat", a div's CSS background instead, repeated from the left
 // edge (vertically centered), at the image's size in pixels, scaled down to
 // fit if it's larger than the view; the <img> is on top of it, transparent,
 // for its load events, screen readers and the browser's menu (save, copy).
@@ -314,7 +308,7 @@ function Picture({
     src,
     srcSet,
     lazy,
-    mode,
+    fit,
     filter,
     hidden,
     alt,
@@ -325,14 +319,14 @@ function Picture({
     srcSet?: string
     // Several sizes load lazily, for sizes="auto" (see sizedSources).
     lazy?: boolean
-    mode: ResizeMode
+    fit: ObjectFit | 'repeat'
     filter?: string
     hidden?: boolean
     alt: string
     onLoad?: (image: LoadedImage) => void
     onError?: (uri: string) => void
 }) {
-    const repeat = mode === 'repeat'
+    const repeat = fit === 'repeat'
     const image = useRef<HTMLImageElement>(null)
     const tiles = useRef<HTMLDivElement>(null)
     const mounted = useRef(true)
@@ -418,7 +412,7 @@ function Picture({
             draggable={false}
             style={{
                 ...fill,
-                objectFit: OBJECT_FIT[mode] ?? 'cover',
+                objectFit: repeat ? 'cover' : fit,
                 filter: repeat ? undefined : filter,
                 opacity: repeat || hidden ? 0 : undefined,
             }}

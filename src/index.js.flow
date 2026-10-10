@@ -49,6 +49,7 @@ export type CacheControl = $ReadOnly<{|
 |}>
 
 export type ResizeModes = $Values<ResizeMode>
+export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
 export type Priorities = $Values<Priority>
 export type CacheControls = $Values<CacheControl>
 
@@ -123,6 +124,8 @@ export type FastImageProps = $ReadOnly<{|
     defaultSource?: ?number,
 
     tintColor?: number | string,
+    objectFit?: ?ObjectFit,
+    // Deprecated: objectFit, except for 'repeat'.
     resizeMode?: ?ResizeModes,
     fallback?: ?boolean,
     recyclingKey?: ?string,

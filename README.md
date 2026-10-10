@@ -91,7 +91,7 @@ const YourImage = () => (
             headers: { Authorization: 'someAuthToken' },
             priority: 'normal',
         }}
-        resizeMode="contain"
+        objectFit="contain"
     />
 )
 ```
@@ -235,16 +235,36 @@ On Android, `defaultSource` doesn't show in debug builds: there the dev server s
 
 ---
 
+#### `objectFit`
+
+**Type:** `ObjectFit` · **Default:** `'cover'`
+
+How the image fits the view, as CSS's `object-fit` does.
+
+- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (minus padding), cropping what doesn't fit.
+- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (minus padding).
+- `'fill'`: scales its width and height separately to fill the view, which can change its aspect ratio.
+- `'none'`: shows it at its own size, centered, cropped if it's larger than the view.
+- `'scale-down'`: shows it at its own size, centered, or scaled down uniformly to fit if it's larger than the view (the smaller of `'none'` and `'contain'`).
+
+An image's own size is its size in pixels, as points (dp on Android), as CSS counts an image's pixels: a 300 × 200 image is 300 × 200 points. A bundled image (`require()`) is its size in points.
+
+It can also be set in `style`; the prop wins. Either one overrides `resizeMode`.
+
+---
+
 #### `resizeMode`
 
 **Type:** `ResizeMode` · **Default:** `'cover'`
 
+**Deprecated:** Use `objectFit` instead, except for `'repeat'`, which has no `objectFit` value and isn't deprecated.
+
 How the image fills the view.
 
-- `'contain'`: scales it uniformly (keeping its aspect ratio) so all of it fits in the view (minus padding).
-- `'cover'`: scales it uniformly (keeping its aspect ratio) so it covers the view (minus padding), cropping what doesn't fit.
-- `'stretch'`: scales its width and height separately to fill the view, which can change its aspect ratio.
-- `'center'`: centers it at its own size, scaled down uniformly to fit if it's larger than the view.
+- `'contain'`: as `objectFit="contain"`.
+- `'cover'`: as `objectFit="cover"`.
+- `'stretch'`: as `objectFit="fill"`.
+- `'center'`: as `objectFit="scale-down"`.
 - `'repeat'`: repeats it to cover the view, from its top-left corner, at the image's own size in pixels (a bundled image at its size in points), scaled down to fit if it's larger than the view. An animated image repeats its first frame, and `defaultSource` repeats too.
 
 ---
@@ -686,6 +706,14 @@ A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not `ok`
 
 ---
 
+### `ObjectFit`
+
+**Type:** `'fill' | 'contain' | 'cover' | 'none' | 'scale-down'`
+
+How the image fits the view: see [`objectFit`](#objectfit).
+
+---
+
 ### `OnErrorEvent`
 
 `onError`'s event: `nativeEvent.error` says what went wrong, e.g. an HTTP status code or an image that can't be decoded.
@@ -826,9 +854,9 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `resizeMode`, `tintColor`, `blurRadius`, `style`, children, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
 - Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample`, `fallback` and `onProgress`.
-- The image is an `<img>` element that fills the view inside its borders, with `object-fit` for `resizeMode` (`stretch` is `fill`, `center` is `scale-down`). With `resizeMode="repeat"`, it's a repeated CSS background, with a transparent `<img>` over it. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
+- The image is an `<img>` element that fills the view inside its borders, with `objectFit` as its CSS `object-fit` (and `resizeMode`'s `stretch` as `fill`, `center` as `scale-down`). With `resizeMode="repeat"`, it's a repeated CSS background, with a transparent `<img>` over it. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width. `resizeMode="repeat"` shows them as `cover`.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
 
