@@ -35,6 +35,7 @@ import { CaseStatus, caseStyles } from './CaseStatus'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
+    InRunnerContext,
     Masked,
     measureView,
     RegressionGroup,
@@ -4376,6 +4377,7 @@ function FadeCase({
     description: string
 }) {
     const sample = useContext(SampleContext)
+    const inRunner = useContext(InRunnerContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const change = from === 'change' || from === 'change-download'
     const placeholder = from === 'placeholder'
@@ -4573,7 +4575,7 @@ function FadeCase({
                     <View
                         collapsable={false}
                         nativeID={
-                            opacity === 'animation'
+                            opacity === 'animation' && inRunner
                                 ? VIEW_ANIMATION_ID
                                 : undefined
                         }
@@ -4595,7 +4597,9 @@ function FadeCase({
 
 // The example apps' MainActivity starts a view animation
 // (android.view.animation) with an alpha of 0.5 on the View with this
-// nativeID, which doesn't change the View's opacity.
+// nativeID, which doesn't change the View's opacity. Only in the runner: the
+// Regression tab shows every case at once, and the running animation would
+// keep the app from going idle, which Maestro waits for before it taps.
 const VIEW_ANIMATION_ID = 'regression-view-animation'
 
 const fadeStyles = StyleSheet.create({

@@ -77,6 +77,10 @@ export const SampleContext = createContext<
     return { ok: true, seen: [], detail: 'not recorded (outside the runner)' }
 })
 
+// True in the runner, which shows one group at a time. The app's Regression
+// tab shows every case at once.
+export const InRunnerContext = createContext(false)
+
 // A sample's result as a case status: OK, or what was seen instead.
 export const sampleStatus = (result: SampleResult, expect: string[]) =>
     result.ok
