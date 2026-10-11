@@ -14,6 +14,7 @@ import {
 } from 'react-native-safe-area-context'
 import { caseStyles } from './CaseStatus'
 import {
+    InRunnerContext,
     Masked,
     MaskContext,
     MeasureMask,
@@ -360,52 +361,57 @@ function Group({
         })
     }, [index, group, send])
     return (
-        <ReportContext.Provider value={report}>
-            <MaskContext.Provider value={mask}>
-                <SampleContext.Provider value={sample}>
-                    <View
-                        ref={area}
-                        collapsable={false}
-                        style={[
-                            styles.group,
-                            // Above the system's bars at the bottom.
-                            { paddingBottom: insets.bottom },
-                        ]}
-                    >
-                        {/* The summary changes as cases settle, so the
+        <InRunnerContext.Provider value>
+            <ReportContext.Provider value={report}>
+                <MaskContext.Provider value={mask}>
+                    <SampleContext.Provider value={sample}>
+                        <View
+                            ref={area}
+                            collapsable={false}
+                            style={[
+                                styles.group,
+                                // Above the system's bars at the bottom.
+                                { paddingBottom: insets.bottom },
+                            ]}
+                        >
+                            {/* The summary changes as cases settle, so the
                         screenshot leaves it out. One line, so that doesn't
                         move the cases below (areas they measured for a video
                         sample, while it records). */}
-                        <Masked>
-                            <Text style={caseStyles.title} numberOfLines={1}>
-                                {group.name}: {summary}
-                            </Text>
-                        </Masked>
-                        {/* Grows to fill the screen (for cases that fill it,
+                            <Masked>
+                                <Text
+                                    style={caseStyles.title}
+                                    numberOfLines={1}
+                                >
+                                    {group.name}: {summary}
+                                </Text>
+                            </Masked>
+                            {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
                         the script fails the group (see 'measure'). */}
-                        <View
-                            ref={cases}
-                            collapsable={false}
-                            style={styles.cases}
-                        >
-                            {group.cases}
-                        </View>
-                        {/* Statuses in full (cases show one line each), below
+                            <View
+                                ref={cases}
+                                collapsable={false}
+                                style={styles.cases}
+                            >
+                                {group.cases}
+                            </View>
+                            {/* Statuses in full (cases show one line each), below
                         the cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                        <Masked>
-                            {notOk.map((line) => (
-                                <Text key={line} style={styles.notOk}>
-                                    {line}
-                                </Text>
-                            ))}
-                        </Masked>
-                    </View>
-                </SampleContext.Provider>
-            </MaskContext.Provider>
-        </ReportContext.Provider>
+                            <Masked>
+                                {notOk.map((line) => (
+                                    <Text key={line} style={styles.notOk}>
+                                        {line}
+                                    </Text>
+                                ))}
+                            </Masked>
+                        </View>
+                    </SampleContext.Provider>
+                </MaskContext.Provider>
+            </ReportContext.Provider>
+        </InRunnerContext.Provider>
     )
 }
 
