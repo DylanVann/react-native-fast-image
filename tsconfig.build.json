@@ -6,7 +6,9 @@
         "noEmit": false,
         "emitDeclarationOnly": true,
         "declaration": true,
-        "declarationDir": "./dist"
+        "declarationDir": "./dist",
+        "rootDir": "./src"
     },
+    "include": ["./src"],
     "exclude": ["src/**/*.test.tsx"]
 }

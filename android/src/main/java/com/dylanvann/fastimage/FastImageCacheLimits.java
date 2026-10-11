@@ -76,6 +76,9 @@ final class FastImageCacheLimits {
             ApplicationInfo info = context.getPackageManager()
                     .getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
             Bundle metaData = info.metaData;
+            // Bundle.get (deprecated from API 33 for parcels of unknown types):
+            // the manifest's value is an Integer, a Float or a String.
+            @SuppressWarnings("deprecation")
             Object value = metaData == null ? null : metaData.get(MANIFEST_MAX_DISK_SIZE);
             if (value instanceof Number) return ((Number) value).longValue();
             if (value instanceof String) return Long.parseLong(((String) value).trim());

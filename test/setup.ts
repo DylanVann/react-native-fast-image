@@ -16,6 +16,16 @@ mock.module('react-native-web/dist/modules/AssetRegistry', () => ({
     getAssetByID: (id: number) => assets[id - 1],
 }))
 
+// Tests render inside act() (test/render.ts), as React 19 expects, in React
+// Native's test environment, as its Jest preset sets up (react-test-renderer
+// warns that it's deprecated otherwise).
+const testGlobals = globalThis as {
+    IS_REACT_ACT_ENVIRONMENT?: boolean
+    IS_REACT_NATIVE_TEST_ENVIRONMENT?: boolean
+}
+testGlobals.IS_REACT_ACT_ENVIRONMENT = true
+testGlobals.IS_REACT_NATIVE_TEST_ENVIRONMENT = true
+
 // require()d images become { testUri } objects, as with React Native's Jest
 // preset (jest/assetFileTransformer.js).
 plugin({

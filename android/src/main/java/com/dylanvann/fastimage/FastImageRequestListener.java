@@ -84,6 +84,11 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
                 dataSource == DataSource.RESOURCE_DISK_CACHE);
         // Before the view shows it (the target does once this returns).
         view.onImageSize(size);
+        // Only onLoad and onLoadEnd need a local image's size read from it:
+        // without them, don't (scale-down and none lay it out from the decoded
+        // image meanwhile). (After get, which also forgets a size that mustn't
+        // be reused.)
+        if (!view.handles(FastImageEvents.LOAD | FastImageEvents.LOAD_END)) return false;
         if (size != null) {
             sendLoad(view, size);
             return false;

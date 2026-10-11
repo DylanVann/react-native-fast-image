@@ -40,13 +40,8 @@ function setAndroidManifest(manifest, options = {}) {
 }
 
 function withFastImage(config, options) {
-    // From the Expo project, which has it (older SDKs only as the package).
-    let plugins
-    try {
-        plugins = require('expo/config-plugins')
-    } catch {
-        plugins = require('@expo/config-plugins')
-    }
+    // From the Expo project's expo package.
+    const plugins = require('expo/config-plugins')
     config = plugins.withInfoPlist(config, (mod) => {
         mod.modResults = setInfoPlist(mod.modResults, options)
         return mod

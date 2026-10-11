@@ -14,33 +14,35 @@ import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
-import com.facebook.react.common.MapBuilder;
-import com.facebook.react.uimanager.LayoutShadowNode;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.PointerEvents;
-import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.uimanager.ViewManagerDelegate;
+import com.facebook.react.uimanager.ViewProps;
+import com.facebook.react.viewmanagers.FastImageViewManagerDelegate;
+import com.facebook.react.viewmanagers.FastImageViewManagerInterface;
 import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nullable;
 
-class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
+// The FastImageView component (src/specs), with the props Codegen generates
+// its interface from.
+class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
+        implements FastImageViewManagerInterface<FastImageViewWithUrl> {
 
     static final String REACT_CLASS = "FastImageView";
     static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
@@ -70,10 +72,32 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         long step;
     }
 
+    // Codegen's delegate leaves pointerEvents to React Native's base delegate,
+    // which only sets it on Views. FastImage gives its image view "none" for
+    // pointerEvents="box-none" (the image is part of the box), and React
+    // Native's touch handling reads it from a ReactPointerEventsView.
+    private final ViewManagerDelegate<FastImageViewWithUrl> delegate =
+            new FastImageViewManagerDelegate<FastImageViewWithUrl, FastImageViewManager>(this) {
+                @Override
+                public void setProperty(FastImageViewWithUrl view, String propName, @Nullable Object value) {
+                    if (ViewProps.POINTER_EVENTS.equals(propName)) {
+                        view.setPointerEvents(PointerEvents.parsePointerEvents(
+                                value instanceof String ? (String) value : null));
+                        return;
+                    }
+                    super.setProperty(view, propName, value);
+                }
+            };
+
     @NonNull
     @Override
     public String getName() {
         return REACT_CLASS;
+    }
+
+    @Override
+    protected ViewManagerDelegate<FastImageViewWithUrl> getDelegate() {
+        return delegate;
     }
 
     @NonNull
@@ -96,34 +120,25 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         return new FastImageViewWithUrl(reactContext, requestManager);
     }
 
-    @ReactProp(name = "source")
-    public void setSource(FastImageViewWithUrl view, @Nullable ReadableMap source) {
-        view.setSource(source);
+    @Override
+    public void setSource(FastImageViewWithUrl view, Dynamic source) {
+        view.setSource(source.isNull() ? null : source.asMap());
     }
 
-    @ReactProp(name = "sources")
-    public void setSources(FastImageViewWithUrl view, @Nullable ReadableArray sources) {
-        view.setSources(sources);
+    @Override
+    public void setSources(FastImageViewWithUrl view, Dynamic sources) {
+        view.setSources(sources.isNull() ? null : sources.asArray());
     }
 
-    @ReactProp(name = "defaultSource")
-    public void setDefaultSource(FastImageViewWithUrl view, @Nullable String source) {
+    // The resolved asset's uri.
+    @Override
+    public void setDefaultSource(FastImageViewWithUrl view, Dynamic source) {
         view.setDefaultSource(
-                ResourceDrawableIdHelper.getInstance()
-                        .getResourceDrawable(view.getContext(), source));
+                ResourceDrawableIdHelper.getResourceDrawable(
+                        view.getContext(), source.isNull() ? null : source.asString()));
     }
 
-    // React Native's View manager handles pointerEvents; a SimpleViewManager
-    // doesn't. Parsed here: PointerEvents.parsePointerEvents isn't in every
-    // supported React Native version.
-    @ReactProp(name = "pointerEvents")
-    public void setPointerEvents(FastImageViewWithUrl view, @Nullable String pointerEvents) {
-        view.setPointerEvents(pointerEvents == null
-                ? PointerEvents.AUTO
-                : PointerEvents.valueOf(pointerEvents.toUpperCase(Locale.US).replace('-', '_')));
-    }
-
-    @ReactProp(name = "tintColor", customType = "Color")
+    @Override
     public void setTintColor(FastImageViewWithUrl view, @Nullable Integer color) {
         if (color == null) {
             view.clearColorFilter();
@@ -132,54 +147,60 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         }
     }
 
-    @ReactProp(name = "recyclingKey")
+    @Override
     public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
         view.setRecyclingKey(recyclingKey);
     }
 
-    @ReactProp(name = "loopCount", defaultInt = -1)
+    @Override
     public void setLoopCount(FastImageViewWithUrl view, int loopCount) {
         view.setLoopCount(loopCount);
     }
 
-    @ReactProp(name = "imageRendering")
+    @Override
     public void setImageRendering(FastImageViewWithUrl view, @Nullable String imageRendering) {
         view.setImageRendering(imageRendering);
     }
 
-    @ReactProp(name = "blurRadius")
+    @Override
     public void setBlurRadius(FastImageViewWithUrl view, float blurRadius) {
         view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));
     }
 
-    @ReactProp(name = "transitionDuration")
-    public void setTransitionDuration(FastImageViewWithUrl view, int transitionDuration) {
-        view.setTransitionDuration(transitionDuration);
+    @Override
+    public void setTransitionDuration(FastImageViewWithUrl view, double transitionDuration) {
+        view.setTransitionDuration((int) transitionDuration);
     }
 
-    @ReactProp(name = "transitionBetweenImages")
+    @Override
     public void setTransitionBetweenImages(FastImageViewWithUrl view, boolean betweenImages) {
         view.setTransitionBetweenImages(betweenImages);
     }
 
-    @ReactProp(name = "transitionSkipOnCacheHit")
+    @Override
     public void setTransitionSkipOnCacheHit(FastImageViewWithUrl view, @Nullable String skipOnCacheHit) {
         view.setTransitionSkipOnCacheHit(skipOnCacheHit);
     }
 
-    @ReactProp(name = "paused")
+    @Override
     public void setPaused(FastImageViewWithUrl view, boolean paused) {
         view.setPaused(paused);
     }
 
-    // Set when the image has an onProgress (see onDownloadProgress).
-    @ReactProp(name = "trackProgress")
-    public void setTrackProgress(FastImageViewWithUrl view, boolean trackProgress) {
-        view.setTrackProgress(trackProgress);
+    // iOS only: Android always decodes images at about the view's size.
+    @Override
+    public void setDownsample(FastImageViewWithUrl view, boolean downsample) {
     }
 
-    @ReactProp(name = "resizeMode")
-    public void setResizeMode(FastImageViewWithUrl view, String resizeMode) {
+    // Which events JS has a handler for (FastImageEvents); with onProgress,
+    // the view gets its download's progress (see onDownloadProgress).
+    @Override
+    public void setHandledEvents(FastImageViewWithUrl view, int handledEvents) {
+        view.setHandledEvents(handledEvents);
+    }
+
+    @Override
+    public void setResizeMode(FastImageViewWithUrl view, @Nullable String resizeMode) {
         // repeat fills the view with the tiled image (see setImageDrawable).
         boolean repeat = "repeat".equals(resizeMode);
         final FastImageViewWithUrl.ScaleType scaleType =
@@ -198,13 +219,19 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
 
     @Override
     public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
-        return MapBuilder.<String, Object>builder()
-                .put(REACT_ON_LOAD_START_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_START_EVENT))
-                .put(REACT_ON_PROGRESS_EVENT, MapBuilder.of("registrationName", REACT_ON_PROGRESS_EVENT))
-                .put(REACT_ON_LOAD_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_EVENT))
-                .put(REACT_ON_ERROR_EVENT, MapBuilder.of("registrationName", REACT_ON_ERROR_EVENT))
-                .put(REACT_ON_LOAD_END_EVENT, MapBuilder.of("registrationName", REACT_ON_LOAD_END_EVENT))
-                .build();
+        Map<String, Object> events = new HashMap<>();
+        for (String name : new String[] {
+                REACT_ON_LOAD_START_EVENT,
+                REACT_ON_PROGRESS_EVENT,
+                REACT_ON_LOAD_EVENT,
+                REACT_ON_ERROR_EVENT,
+                REACT_ON_LOAD_END_EVENT,
+        }) {
+            Map<String, Object> event = new HashMap<>();
+            event.put("registrationName", name);
+            events.put(name, event);
+        }
+        return events;
     }
 
     // On the UI thread (FastImageViewWithUrl's updateProgressTracking).
@@ -352,18 +379,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
 
     private static boolean isActivityDestroyed(Activity activity) {
         return activity.isDestroyed() || activity.isFinishing();
-    }
-
-    // Legacy architecture only; the New Architecture doesn't use shadow nodes.
-    @NonNull
-    @Override
-    public LayoutShadowNode createShadowNodeInstance() {
-        return new FastImageShadowNode();
-    }
-
-    @Override
-    public void updateExtraData(@NonNull FastImageViewWithUrl view, Object extraData) {
-        if (extraData == FastImageShadowNode.ZERO_LAYOUT) view.onZeroLayout();
     }
 
     @Override

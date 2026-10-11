@@ -20,6 +20,8 @@ After installing or updating FastImage, or when a build fails for no clear reaso
 - Watchman: `watchman watch-del-all`.
 - Dependencies: delete `node_modules` and install them again.
 
+If `pod install` says it can't find compatible versions for `SDWebImage` after updating FastImage (which needs 5.21.4 or later), update it: `cd ios && pod update SDWebImage`. If another pod pins an older SDWebImage, update that pod too.
+
 ## Duplicate AndroidSVG classes
 
 FastImage includes AndroidSVG for SVG images as `com.caverock:androidsvg-aar`. If your app (or another library) has its other package, `com.caverock:androidsvg`, which has the same classes, the Android build fails with "Duplicate class com.caverock.androidsvg…". Leave FastImage's out in `android/app/build.gradle`; FastImage works with either package:

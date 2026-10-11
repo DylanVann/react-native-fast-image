@@ -9,7 +9,6 @@
 
 @interface FFFastImageView ()
 
-@property(nonatomic, assign) BOOL hasSentOnLoadStart;
 @property(nonatomic, assign) BOOL hasCompleted;
 @property(nonatomic, assign) BOOL hasErrored;
 // Whether the latest change of props requires the image to be reloaded
@@ -72,6 +71,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     if (self != [FFFastImageView class]) {
         return;
     }
+    FFFApplyCacheLimits();
     [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidEnterBackgroundNotification
                                                       object: nil
                                                        queue: [NSOperationQueue mainQueue]
@@ -282,40 +282,6 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-- (void) setOnFastImageLoadEnd: (RCTDirectEventBlock)onFastImageLoadEnd {
-    _onFastImageLoadEnd = onFastImageLoadEnd;
-    if (self.hasCompleted && _onFastImageLoadEnd) {
-        _onFastImageLoadEnd([self loadEndEvent: YES]);
-    }
-}
-
-- (void) setOnFastImageLoad: (RCTDirectEventBlock)onFastImageLoad {
-    _onFastImageLoad = onFastImageLoad;
-    if (self.hasCompleted && _onFastImageLoad) {
-        _onFastImageLoad(self.onLoadEvent);
-    }
-}
-
-- (void) setOnFastImageError: (RCTDirectEventBlock)onFastImageError {
-    _onFastImageError = onFastImageError;
-    if (self.hasErrored && _onFastImageError) {
-        _onFastImageError(self.onErrorEvent);
-    }
-}
-
-- (void) setOnFastImageLoadStart: (RCTDirectEventBlock)onFastImageLoadStart {
-    // Send it for a load that has already started. When a reload is pending
-    // (e.g. source set in the same update), reloadImage sends it.
-    if (_source && !_needsReload && !self.hasSentOnLoadStart && onFastImageLoadStart) {
-        _onFastImageLoadStart = onFastImageLoadStart;
-        onFastImageLoadStart(@{});
-        self.hasSentOnLoadStart = YES;
-    } else {
-        _onFastImageLoadStart = onFastImageLoadStart;
-        self.hasSentOnLoadStart = NO;
-    }
-}
-
 - (void) setImageColor: (UIColor*)imageColor {
     _imageColor = imageColor;
     // A blurred image is a still image: show it with the new tint, without
@@ -334,12 +300,6 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         super.image = nil;
         [self setImage: image];
     }
-}
-
-// Whether SDAnimatedImageView can tint the frames of an animated image as
-// they're decoded (animationTransformer, SDWebImage 5.20+).
-- (BOOL) tintsFrames {
-    return [self respondsToSelector: @selector(setAnimationTransformer:)];
 }
 
 - (void) setImage: (UIImage*)image {
@@ -389,17 +349,15 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // template image in the view's tintColor, so no tinted copy of the image is
 // made. SDAnimatedImageView draws the frames of an animated image itself,
 // without the tint, so each frame is tinted as it's decoded (source-in, as the
-// template is), or, before SDWebImage 5.20, the first frame shows.
+// template is).
 - (void) showImage: (UIImage*)image {
     UIColor* tint = image ? self.imageColor : nil;
     // resizeMode repeat tiles an animated image's first frame (tiledImage:).
     BOOL repeats = image && _resizeMode == RCTResizeModeRepeat;
     BOOL animated = !repeats && [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
     self.tintColor = tint;
-    if ([self tintsFrames]) {
-        [self setValue: tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil forKey: @"animationTransformer"];
-    }
-    if (tint && animated && [self tintsFrames]) {
+    self.animationTransformer = tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil;
+    if (tint && animated) {
         BOOL changed = super.image != image;
         super.image = image;
         // Shows the first frame tinted now, also while paused (the player
@@ -410,9 +368,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         }
     } else {
         if (tint) {
-            if (animated) {
-                image = [UIImage imageWithCGImage: image.CGImage scale: image.scale orientation: image.imageOrientation];
-            } else if (!image.CGImage && !repeats) {
+            if (!image.CGImage && !repeats) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
                 // template: drawn into a bitmap at the size it's shown at
                 // (tiledImage: draws one for repeat).
@@ -607,7 +563,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     uint32_t boxSize = factor == 1 ? (uint32_t) box | 1 : (uint32_t) round((box / factor - 1) / 2) * 2 + 1;
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGContextRef context = CGBitmapContextCreate(NULL, width, height, 8, 0, colorSpace,
-                                                 kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+                                                 (CGBitmapInfo)kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
     CGColorSpaceRelease(colorSpace);
     if (!context) {
         return image;
@@ -776,7 +732,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-- (void) didSetProps: (NSArray<NSString*>*)changedProps {
+- (void) didSetProps {
     if (_needsReload) {
         // With downsample on, the image is decoded for the view's size, and
         // with several sources one is picked for it, so a view that hasn't
@@ -803,16 +759,15 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-// Whether images are decoded at about the view's size (downsample, from
-// SDWebImage 5.19, and always for photo library images, which are large and
-// usually shown small: Photos makes them at the size asked for, on any
-// version). Not for `repeat`, which tiles the image at its own size, or
-// `none`, which shows it at its own size.
+// Whether images are decoded at about the view's size (downsample, and always
+// for photo library images, which are large and usually shown small: Photos
+// makes them at the size asked for). Not for `repeat`, which tiles the image
+// at its own size, or `none`, which shows it at its own size.
 - (BOOL) downsamples {
     if (_resizeMode == RCTResizeModeRepeat || _resizeMode == FFFResizeModeNone) {
         return NO;
     }
-    return [_source isPhotoLibrary] || (_downsample && [FFFDownsampledImage isSupported]);
+    return [_source isPhotoLibrary] || _downsample;
 }
 
 // Whether the view has been laid out with an area. One that's 0 wide or tall
@@ -884,7 +839,7 @@ NSString *FFFErrorMessage(NSError *error)
     // source doesn't start one), and ignore what it still sends (SDWebImage
     // completes a cancelled load with an error; see downloadImage:).
     self.loadCount++;
-    [self sd_cancelCurrentImageLoad];
+    [self sd_cancelLatestImageLoad];
 
     if (_source) {
         // Load base64 images.
@@ -892,9 +847,6 @@ NSString *FFFErrorMessage(NSError *error)
         if (url && [url hasPrefix: @"data:image"]) {
             if (self.onFastImageLoadStart) {
                 self.onFastImageLoadStart(@{});
-                self.hasSentOnLoadStart = YES;
-            } else {
-                self.hasSentOnLoadStart = NO;
             }
             // Use SDWebImage API to support external format like WebP images
             UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
@@ -937,9 +889,6 @@ NSString *FFFErrorMessage(NSError *error)
 
         if (self.onFastImageLoadStart) {
             self.onFastImageLoadStart(@{});
-            self.hasSentOnLoadStart = YES;
-        } else {
-            self.hasSentOnLoadStart = NO;
         }
         self.hasCompleted = NO;
         self.hasErrored = NO;
@@ -982,8 +931,7 @@ NSString *FFFErrorMessage(NSError *error)
 // Whether the view loads as it's laid out, so its image shows in this frame:
 // one in the memory cache, where SDWebImage finds it as the load starts, or
 // one that isn't downloaded (no source, which shows defaultSource, or a data
-// uri). Also when that can't be told (an app's own image cache, or an
-// SDWebImage without cacheKeyForURL:context:), as before.
+// uri). Also when that can't be told (an app's own image cache), as before.
 - (BOOL) loadsDuringLayout {
     FFFastImageSource* source = [self picksSource] ? [self sourceForSize] : _source;
     if (!source.url || [source.url.scheme isEqualToString: @"data"]) {
@@ -993,7 +941,7 @@ NSString *FFFErrorMessage(NSError *error)
         return NO;
     }
     SDWebImageManager* manager = [SDWebImageManager sharedManager];
-    if (![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
+    if (![manager.imageCache isKindOfClass: [SDImageCache class]]) {
         return YES;
     }
     CGSize box = [self decodeBox];
@@ -1190,9 +1138,23 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
+- (void) stop {
+    self.onFastImageLoadStart = nil;
+    self.onFastImageProgress = nil;
+    self.onFastImageLoad = nil;
+    self.onFastImageError = nil;
+    self.onFastImageLoadEnd = nil;
+    // As a new load does (see reloadImage): a completion still on its way is
+    // ignored, and a load waiting for the view's size doesn't start.
+    self.loadCount++;
+    self.waitsForSize = NO;
+    [self stopWaitingForActive];
+    [self sd_cancelLatestImageLoad];
+}
+
 - (void) dealloc {
     [self stopWaitingForActive];
-    [self sd_cancelCurrentImageLoad];
+    [self sd_cancelLatestImageLoad];
 }
 
 @end

@@ -327,9 +327,8 @@ function Group({
     const insets = useSafeAreaInsets()
     const measure = useCallback(async (): Promise<Measured> => {
         const rects = await Promise.all([...masks.current].map((m) => m()))
-        // Measured rather than from Dimensions: on Android's legacy
-        // architecture the window's size leaves out the system's bars, which
-        // the apps draw under (edge to edge).
+        // Measured rather than from Dimensions, which can leave out the
+        // system's bars on Android, which the apps draw under (edge to edge).
         const group = await measureView(area.current)
         return {
             masks: rects.filter((rect): rect is Rect => rect != null),

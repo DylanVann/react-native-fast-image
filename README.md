@@ -57,7 +57,14 @@ See [Formats](docs/formats.md) for the versions of iOS and Android each format n
 
 ## Installation
 
-Works with React Native 0.65 and later (iOS 13 and later, Android `minSdkVersion` 21 and later), with the New Architecture (through React Native's interop layer) and the legacy architecture, with Expo, and on tvOS with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). It's tested on React Native 0.87 with the New Architecture, 0.73 with the legacy architecture, Expo SDK 57, and React Native tvOS 0.87. A native New Architecture component is planned for a future major version.
+Needs React Native 0.83 or later (New Architecture only), iOS/tvOS 15.1 and Android 7.0 (API 24) or later, and on iOS SDWebImage 5.21.4 or later. Works with Expo (SDK 55 or later) and on tvOS with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). It's tested on React Native 0.83 and 0.87, React Native tvOS 0.87, and Expo SDK 57.
+
+| react-native-fast-image | React Native                                                             |
+| ----------------------- | ------------------------------------------------------------------------ |
+| 10.x                    | 0.83 and later, New Architecture                                         |
+| 9.x                     | 0.65 and later, New Architecture (interop layer) and legacy architecture |
+
+Apps on older React Native or the legacy architecture can use FastImage 9 (`npm install react-native-fast-image@9`), which gets fixes from the `9.x` branch.
 
 ```bash
 npm install react-native-fast-image
@@ -349,7 +356,7 @@ Decodes a large image at about the size it's shown at, instead of at full size, 
 - `true`: an image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
 - `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
 
-It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size (but Android 16 and later decode animated WebP at full size, and scale it as they draw it).
+It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size (but Android 16 and later decode animated WebP at full size, and scale it as they draw it).
 
 If you control the images, serve them at the size they're shown (resized on your server or by an image CDN), which also saves bandwidth.
 
@@ -369,7 +376,7 @@ It's for still images, or a radius that changes now and then (e.g. blurring a ph
 - The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
 - Changing it blurs the image that's showing again, without sending the load events again.
 
-To animate a blur, or to blur an animated image, use React Native's `filter` style instead, which the GPU draws: `style={{ filter: [{ blur: 6 }] }}`. It needs the New Architecture. React Native's docs list `blur` for Android 12+ only; on iOS it's behind an experimental React Native feature flag (`enableSwiftUIBasedFilters`, SwiftUI-based filters).
+To animate a blur, or to blur an animated image, use React Native's `filter` style instead, which the GPU draws: `style={{ filter: [{ blur: 6 }] }}`. React Native's docs list `blur` for Android 12+ only; on iOS it's behind an experimental React Native feature flag (`enableSwiftUIBasedFilters`, SwiftUI-based filters).
 
 ---
 
@@ -455,7 +462,7 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 **Type:** `ReactNode`
 
-**Deprecated:** In the next major version, `FastImage` won't render children: use `FastImageBackground`.
+**Deprecated:** In a future major version, `FastImage` won't render children: use `FastImageBackground`.
 
 Render children within the image.
 
@@ -465,7 +472,7 @@ Render children within the image.
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
-Use it rather than giving `FastImage` children: in the next major version, `FastImage` won't render children, since the image will be a single native view ([#1220](https://github.com/DylanVann/react-native-fast-image/pull/1220)), which can't hold them. `FastImageBackground` works the same in both.
+Use it rather than giving `FastImage` children: in a future major version, `FastImage` won't render children, since the image will be a single native view, which can't hold them. `FastImageBackground` works the same in both.
 
 ```jsx
 import { FastImageBackground } from 'react-native-fast-image'
@@ -628,11 +635,11 @@ const result = await FastImage.writeToCache(
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
-| Limit                                                                                                             | iOS                                                                                        | Android                                                                                              |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit.         | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
-| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week (counted from when it was stored before SDWebImage 5.21, unless it's set). | No age limit.                                                                                        |
-| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).                      | About two screenfuls of images.[^glide-memory]                                                       |
+| Limit                                                                                                             | iOS                                                                                | Android                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `maxDiskSize`: the most bytes of images kept on disk. When it's over, the least recently used images are removed. | Changes apply at once (the cache is trimmed to half the limit). Default: no limit. | Changes apply from the next launch (Glide's disk cache size is set when it starts). Default: 250 MB. |
+| `maxDiskAge`: seconds an image is kept on disk after it was last used.                                            | Default: 1 week.                                                                   | No age limit.                                                                                        |
+| `maxMemorySize`: the most bytes of decoded images kept in memory.                                                 | Default: no limit (they're removed when the system is low on memory).              | About two screenfuls of images.[^glide-memory]                                                       |
 
 `0` means no limit.
 
@@ -724,7 +731,7 @@ How the image fits the view: see [`objectFit`](#objectfit).
 
 ### `OnLoadEvent`
 
-`onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in pixels, and `target`, the view's React tag (missing on Android with the legacy architecture).
+`onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in pixels, and `target`, the view's React tag (on iOS and Android; not on the web).
 
 - `nativeEvent` (`{ width: number; height: number; target?: number }`)
 
@@ -859,6 +866,14 @@ Support is minimal:
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` as its CSS `object-fit` (and `resizeMode`'s `stretch` as `fill`, `center` as `scale-down`). With `resizeMode="repeat"`, it's a repeated CSS background, with a transparent `<img>` over it. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width. `resizeMode="repeat"` shows them as `cover`.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
+
+## Jest
+
+With React Native's Jest preset, FastImage renders without any setup, as its native view (`FastImageView`, in snapshots). Its functions need the native module, which Jest doesn't have, so they throw: mock the ones a test calls, e.g.
+
+```js
+jest.spyOn(FastImage, 'preload').mockResolvedValue([])
+```
 
 ## Troubleshooting
 

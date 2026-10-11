@@ -3,8 +3,6 @@ import {
     ColorValue,
     View,
     Image,
-    NativeModules,
-    requireNativeComponent,
     StyleSheet,
     StyleProp,
     ViewStyle,
@@ -15,6 +13,8 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import FastImageView from './specs/FastImageViewNativeComponent'
+import NativeFastImageModule from './specs/NativeFastImageModule'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -152,14 +152,13 @@ export type Transition = {
 
 /**
  * `onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in
- * pixels, and `target`, the view's React tag (missing on Android with the
- * legacy architecture).
+ * pixels, and `target`, the view's React tag (on iOS and Android; not on the
+ * web).
  */
 export interface OnLoadEvent {
     nativeEvent: {
         width: number
         height: number
-        // TODO: make it required once the New Architecture is the minimum.
         target?: number
     }
 }
@@ -248,9 +247,10 @@ export interface OnProgressEvent {
 }
 
 // Extends ViewStyle rather than FlexStyle/TransformsStyle/ShadowStyleIOS, which
-// React Native 0.80+'s default types no longer export. Only the image's own keys
-// are added; the rest (radii, opacity, colors) come from ViewStyle, so they're
-// the app's React Native types (e.g. string radii, Animated values).
+// React Native's Strict TypeScript API (types_generated: opt-in from 0.80, the
+// default from 0.87) doesn't export. Only the image's own keys are added; the
+// rest (radii, opacity, colors) come from ViewStyle, so they're the app's
+// React Native types (e.g. string radii, Animated values).
 export interface ImageStyle extends ViewStyle {
     overlayColor?: ColorValue
     tintColor?: ColorValue
@@ -442,9 +442,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   otherwise show the smaller copy enlarged.
      *
      * It doesn't change `onLoad`'s width and height (the image's own size) or
-     * the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images
-     * are decoded at full size, and 5.19.0 to 5.19.6 show photos stored
-     * sideways with an EXIF orientation (most phone photos) sideways. Photo
+     * the cached file. Photo
      * library images are always decoded this way, and on Android images are
      * always decoded at about the view's size (but Android 16 and later
      * decode animated WebP at full size, and scale it as they draw it).
@@ -479,8 +477,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * To animate a blur, or to blur an animated image, use React Native's
      * `filter` style instead, which the GPU draws:
-     * `style={{ filter: [{ blur: 6 }] }}`. It needs the New Architecture.
-     * React Native's docs list `blur` for Android 12+ only; on iOS it's behind
+     * `style={{ filter: [{ blur: 6 }] }}`. React Native's docs list `blur` for Android 12+ only; on iOS it's behind
      * an experimental React Native feature flag (`enableSwiftUIBasedFilters`,
      * SwiftUI-based filters).
      *
@@ -564,7 +561,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * Render children within the image.
      *
-     * @deprecated In the next major version, `FastImage` won't render
+     * @deprecated In a future major version, `FastImage` won't render
      * children: use `FastImageBackground`.
      */
     children?: React.ReactNode
@@ -572,25 +569,17 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
 const resolveDefaultSource = (
     defaultSource?: ImageRequireSource,
-): string | number | null => {
+): string | object | null => {
     if (!defaultSource) {
         return null
     }
-    if (Platform.OS === 'android') {
-        // Android receives a URI string, and resolves into a Drawable using RN's methods.
-        const resolved = Image.resolveAssetSource(
-            defaultSource as ImageRequireSource,
-        )
-
-        if (resolved) {
-            return resolved.uri
-        }
-
+    const resolved = Image.resolveAssetSource(defaultSource)
+    if (!resolved) {
         return null
     }
-    // iOS or other number mapped assets
-    // In iOS the number is passed, and bridged automatically into a UIImage
-    return defaultSource
+    // Android takes the uri, and loads it as a Drawable with React Native's
+    // helpers; iOS the image source ({ uri, width, height, scale }).
+    return Platform.OS === 'android' ? resolved.uri : resolved
 }
 
 // objectFit as the native resizeMode (`none` and `scale-down` are FastImage's
@@ -628,7 +617,7 @@ function loadResult(event: {
 }
 
 // Adds `progress` (loaded / total, 0 to 1) to onProgress's event. Worked out
-// here so it's the same on both platforms and architectures, and with
+// here so it's the same on both platforms, and with
 // fallback (React Native's Image). The native views don't send events with an
 // unknown total; React Native's Image can, and those get 0.
 function withProgress(onProgress: FastImageProps['onProgress']) {
@@ -640,6 +629,24 @@ function withProgress(onProgress: FastImageProps['onProgress']) {
                 total > 0 ? Math.min(1, Math.max(0, loaded / total)) : 0
             onProgress(event)
         })
+    )
+}
+
+// The native view's handledEvents (see specs/FastImageViewNativeComponent.ts):
+// the events with a handler, which are the only ones it sends.
+function handledEvents({
+    onLoadStart,
+    onProgress,
+    onLoad,
+    onError,
+    onLoadEnd,
+}: FastImageProps) {
+    return (
+        (onLoadStart ? 1 : 0) |
+        (onProgress ? 2 : 0) |
+        (onLoad ? 4 : 0) |
+        (onError ? 8 : 0) |
+        (onLoadEnd ? 16 : 0)
     )
 }
 
@@ -723,10 +730,10 @@ function FastImageBase({
     onTouchEndCapture,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    // Touchables pass onClick to their child (React Native 0.73+, for
-    // accessibility clicks). It goes on the wrapper: the image view doesn't
-    // support it on iOS, which crashed (#1020). Older React Native types don't
-    // include it.
+    // Touchables pass onClick to their child (for accessibility clicks). It
+    // goes on the wrapper: the image view doesn't support it on iOS, which
+    // crashed (#1020). React Native's types up to 0.86 don't include it (only
+    // its Strict TypeScript API's, the default from 0.87, do).
     const { onClick, ...props } = viewProps as typeof viewProps & {
         onClick?: (event: any) => void
     }
@@ -864,6 +871,8 @@ function FastImageBase({
         >
             <FastImageView
                 {...imageProps}
+                // null (no key) as undefined, which the native prop takes.
+                recyclingKey={imageProps.recyclingKey ?? undefined}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
                 {...transitionProps(transition)}
@@ -872,10 +881,17 @@ function FastImageBase({
                 sources={sources}
                 defaultSource={resolvedDefaultSource}
                 onFastImageLoadStart={onLoadStart}
-                onFastImageProgress={withProgress(onProgress)}
-                // The native views only send progress events with this, so
-                // images without onProgress don't send one for every chunk.
-                trackProgress={!!onProgress}
+                // Adds `progress` to the native event.
+                onFastImageProgress={withProgress(onProgress) as any}
+                // The native views only send the events with a handler (and
+                // only track progress with onProgress).
+                handledEvents={handledEvents({
+                    onLoadStart,
+                    onProgress,
+                    onLoad,
+                    onError,
+                    onLoadEnd,
+                })}
                 onFastImageLoad={onLoad}
                 onFastImageError={onError}
                 onFastImageLoadEnd={
@@ -893,11 +909,11 @@ function FastImageBase({
 const FastImageMemo = memo(FastImageBase)
 
 // What a ref to FastImage or FastImageBackground gets: the view the image
-// fills (FastImage's wrapper, FastImageBackground's view). ElementRef, as
+// fills (FastImage's wrapper, FastImageBackground's view). ComponentRef, as
 // React Native's types declare View as a class, and its Strict TypeScript API
 // (opt-in from 0.80, the default from 0.87) as a function component that takes
 // a ref.
-type ViewRef = React.ElementRef<typeof View>
+type ViewRef = React.ComponentRef<typeof View>
 
 const FastImageComponent: React.ForwardRefExoticComponent<
     FastImageProps & React.RefAttributes<ViewRef>
@@ -940,6 +956,22 @@ type NativePreloadResult =
     | Omit<PreloadFailure, 'uri'>
 
 const noResult: NativePreloadResult = { ok: false, error: 'No result' }
+
+// The native module, or an error saying why it's missing, thrown when a
+// function is called (as React Native's own optional modules do), so
+// importing FastImage works without it (Jest, Expo Go).
+function nativeModule(): NonNullable<typeof NativeFastImageModule> {
+    if (!NativeFastImageModule) {
+        throw new Error(
+            "react-native-fast-image: the native module FastImageModule isn't " +
+                'in this app. Rebuild the app after installing the package ' +
+                '(run pod install on iOS). It needs the New Architecture, and ' +
+                "isn't in Expo Go: use a development build. In Jest, mock the " +
+                'function (e.g. jest.spyOn(FastImage, "preload")).',
+        )
+    }
+    return NativeFastImageModule
+}
 
 export interface FastImageStaticProperties {
     /**
@@ -1012,9 +1044,9 @@ FastImage.preload = (sources: Source[]) =>
     // Null sources are sent as {} so native results line up with the sources
     // (iOS drops null entries), and arrays too (their results are replaced).
     Promise.resolve(
-        NativeModules.FastImageView.preload(
+        nativeModule().preload(
             sources.map((s) => (s && !Array.isArray(s) ? s : {})),
-        ),
+        ) as Promise<NativePreloadResult[]>,
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
             if (Array.isArray(source)) {
@@ -1031,13 +1063,26 @@ FastImage.preload = (sources: Source[]) =>
     )
 
 FastImage.clearMemoryCache = (): Promise<ClearCacheResult> =>
-    Promise.resolve(NativeModules.FastImageView.clearMemoryCache())
+    nativeModule().clearMemoryCache() as Promise<ClearCacheResult>
 
 FastImage.clearDiskCache = (): Promise<ClearCacheResult> =>
-    Promise.resolve(NativeModules.FastImageView.clearDiskCache())
+    nativeModule().clearDiskCache() as Promise<ClearCacheResult>
 
-FastImage.configureCache = (limits: CacheLimits = {}): Promise<CacheState> =>
-    Promise.resolve(NativeModules.FastImageView.configureCache(limits))
+FastImage.configureCache = (limits?: CacheLimits): Promise<CacheState> => {
+    // Sent as the limits to set (numbers) and the names of those to reset
+    // (null), never as null values: iOS's TurboModule leaves those out of the
+    // object it passes, so both platforms read resets from `reset`.
+    const set: { [name: string]: number } = {}
+    const reset: string[] = []
+    for (const [name, value] of Object.entries(limits ?? {})) {
+        if (value === null) reset.push(name)
+        else if (typeof value === 'number') set[name] = value
+    }
+    return nativeModule().configureCache({
+        ...set,
+        reset,
+    }) as Promise<CacheState>
+}
 
 FastImage.writeToCache = (
     source: Source,
@@ -1047,7 +1092,10 @@ FastImage.writeToCache = (
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : // A null source is sent as {} (it fails as a source without a uri).
           Promise.resolve(
-              NativeModules.FastImageView.writeToCache(source || {}, file),
+              nativeModule().writeToCache(
+                  source || {},
+                  file,
+              ) as Promise<CachePathResult>,
           )
 
 FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
@@ -1055,7 +1103,9 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : // A null source is sent as {} (it fails as a source without a uri).
           Promise.resolve(
-              NativeModules.FastImageView.getCachePath(source || {}),
+              nativeModule().getCachePath(
+                  source || {},
+              ) as Promise<CachePathResult>,
           )
 
 const styles = StyleSheet.create({
@@ -1090,7 +1140,7 @@ export interface FastImageBackgroundProps extends Omit<
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
  * view that the image fills, with the children on top. Use it rather than
- * giving `FastImage` children, which it won't render in the next major version
+ * giving `FastImage` children, which it won't render in a future major version
  * (the image will be a single native view). The other props go to the image;
  * the ref is the view's.
  */
@@ -1126,21 +1176,5 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
 )
 
 FastImageBackground.displayName = 'FastImageBackground'
-
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
-            trackProgress: true,
-        },
-    },
-)
 
 export default FastImage

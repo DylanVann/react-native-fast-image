@@ -52,9 +52,23 @@ static const FFFResizeMode FFFResizeModeNone = (FFFResizeMode) -2;
 // Blurs the loaded image by this radius, in points (0 is no blur).
 @property (nonatomic, assign) CGFloat blurRadius;
 
+// After an update's props are set: loads the image if they changed it (once
+// the view has a size, when it needs one).
+- (void) didSetProps;
+
+// Stops for good, before the view is discarded: cancels the load and sends no
+// more events, also for a load that already finished and is on its way to the
+// main queue.
+- (void) stop;
+
 @end
 
 // An error's description, with the HTTP status code when there is one.
 FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
+
+// Applies the app's cache limits (saved by configureCache, or in its
+// Info.plist) to SDWebImage's cache, once, before FastImage loads an image
+// (in FFFastImageModule.mm).
+FOUNDATION_EXTERN void FFFApplyCacheLimits(void);
 
 
