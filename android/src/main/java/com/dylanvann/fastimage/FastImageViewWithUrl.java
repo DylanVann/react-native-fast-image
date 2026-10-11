@@ -832,6 +832,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private Object mModel;
     // Whether the loading image has loaded or failed.
     private boolean mLoadEnded = false;
+    // Whether the loading request is the image that's showing loaded again
+    // (reloadForSize's or reblur's), which sends no events.
+    private boolean mLoadingQuietly = false;
     // Set by reblur: the next load is the same one again, so it doesn't send
     // onLoadStart (it sends its other events, as the load it replaces would
     // have).
@@ -942,13 +945,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 .error(current.clone())
                 .listener(new FastImageRequestListener(null, true, false));
         if (meanwhile == null) builder = builder.thumbnail(current);
-        into(shown, builder, meanwhile);
+        into(shown, builder, meanwhile, true);
     }
 
     // blurRadius changed, and nothing else that needs a reload: the image
     // that's showing, blurred again, with no events, as reloadForSize does: it's
     // decoded again from the cache and blurred on Glide's threads, and the view
-    // keeps the current image until then (or if that fails). A load that
+    // keeps the current image until then. If that fails, it shows the image
+    // from Glide's caches; cache: 'web' skips them, so the view shows
+    // defaultSource (or nothing) then. Also while it's loading again that way
+    // (e.g. the blur changes every frame): that load is replaced. A load that
     // hasn't finished starts again with the new blur, without a second
     // onLoadStart. Nothing loaded (defaultSource, which isn't blurred, or
     // nothing): the next load has the new blur.
@@ -956,7 +962,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private void reblur() {
         if (requestManager == null || mBaseRequest == null) return;
         RequestBuilder<Drawable> shown = mShownRequest;
-        if (shown != null && shown == mLoadingRequest) {
+        if (shown != null && (shown == mLoadingRequest || mLoadingQuietly)) {
             RequestBuilder<Drawable> request = mBaseRequest.clone().apply(renderingOptions(mModel));
             RequestBuilder<Drawable> current = fromCache(shown);
             Drawable meanwhile = shownCopy(shown);
@@ -966,7 +972,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                     .error(current.clone())
                     .listener(new FastImageRequestListener(null, true, false));
             if (meanwhile == null) builder = builder.thumbnail(current);
-            into(request, builder, meanwhile);
+            into(request, builder, meanwhile, true);
         } else if (mLoadingRequest != null && !mLoadEnded) {
             mRestarting = true;
             mNeedsReload = true;
@@ -1007,10 +1013,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Starts loading the request (built by builder), showing meanwhile (if
     // not null) until it loads, and recording the size Glide loads it at. The size callback is added first, so it has the size by
-    // the time the image loads, even from the memory cache.
-    private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder, @Nullable Drawable meanwhile) {
+    // the time the image loads, even from the memory cache. Quiet: the image
+    // that's showing, loaded again (no events).
+    private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder, @Nullable Drawable meanwhile,
+            boolean quiet) {
         final int load = mLoadCount;
         mLoadingRequest = request;
+        mLoadingQuietly = quiet;
         mLoadEnded = false;
         mLoadingWidth = 0;
         mLoadingHeight = 0;
@@ -1218,7 +1227,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (imageSource != null)
                 builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
 
-            into(request, builder, meanwhile);
+            into(request, builder, meanwhile, false);
         }
     }
 
