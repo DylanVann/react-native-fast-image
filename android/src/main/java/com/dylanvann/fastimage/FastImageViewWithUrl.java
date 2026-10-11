@@ -951,11 +951,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // blurRadius changed, and nothing else that needs a reload: the image
     // that's showing, blurred again, with no events, as reloadForSize does: it's
     // decoded again from the cache and blurred on Glide's threads, and the view
-    // keeps the current image until then (or if that fails). Also while it's
-    // loading again that way (e.g. the blur changes every frame): that load
-    // is replaced. A load that hasn't finished starts again with the new blur,
-    // without a second onLoadStart. Nothing loaded (defaultSource, which isn't
-    // blurred, or nothing): the next load has the new blur.
+    // keeps the current image until then. If that fails, it shows the image
+    // from Glide's caches; cache: 'web' skips them, so the view shows
+    // defaultSource (or nothing) then. Also while it's loading again that way
+    // (e.g. the blur changes every frame): that load is replaced. A load that
+    // hasn't finished starts again with the new blur, without a second
+    // onLoadStart. Nothing loaded (defaultSource, which isn't blurred, or
+    // nothing): the next load has the new blur.
     @SuppressLint("CheckResult")
     private void reblur() {
         if (requestManager == null || mBaseRequest == null) return;
