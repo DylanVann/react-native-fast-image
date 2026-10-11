@@ -11,13 +11,18 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.view.View;
+import android.view.ViewParent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -342,6 +347,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private ValueAnimator mFade;
     @Nullable
     private Bitmap mFadeFrom;
+    // Or, instead of a copy, the defaultSource the view showed, with the
+    // matrix it drew it with: FastImage's own drawable, which Glide doesn't
+    // recycle, so it's drawn again as it was, rather than copied into a
+    // bitmap the size of the view for every image that fades in over it.
+    @Nullable
+    private Drawable mFadeFromDrawable;
+    @Nullable
+    private Matrix mFadeFromMatrix;
     private float mFadeProgress = 1f;
     private final Paint mFadeFromPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Paint mFadeInPaint = new Paint();
@@ -357,7 +370,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (width <= 0 || height <= 0) return;
         // What the view shows now, including a fade in progress.
         Bitmap from = null;
-        if (getDrawable() != null) {
+        Drawable fromDrawable = null;
+        Matrix fromMatrix = null;
+        Drawable shown = getDrawable();
+        if (shown != null && mShowsDefaultSource && mFade == null) {
+            // Its own state, so its alpha (see drawFadeFrom) is only its own.
+            fromDrawable = shown.mutate();
+            fromMatrix = new Matrix(getImageMatrix());
+        } else if (shown != null) {
             try {
                 from = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                 onDraw(new Canvas(from));
@@ -371,6 +391,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
         endFade();
         mFadeFrom = from;
+        mFadeFromDrawable = fromDrawable;
+        mFadeFromMatrix = fromMatrix;
         mFadeProgress = 0f;
         final ValueAnimator fade = ValueAnimator.ofFloat(0f, 1f);
         fade.setDuration(duration);
@@ -401,8 +423,43 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mFadeFrom.recycle();
             mFadeFrom = null;
         }
+        mFadeFromDrawable = null;
+        mFadeFromMatrix = null;
         mFadeProgress = 1f;
         invalidate();
+    }
+
+    // Draws the defaultSource the view showed when the fade started (with
+    // `alpha`), as ImageView draws its drawable: inside the padding
+    // (cropToPadding), with the matrix it had then.
+    private void drawFadeFrom(Canvas canvas, Drawable drawable, int alpha) {
+        int count = canvas.save();
+        if (getCropToPadding()) {
+            int scrollX = getScrollX();
+            int scrollY = getScrollY();
+            canvas.clipRect(scrollX + getPaddingLeft(), scrollY + getPaddingTop(),
+                    scrollX + getWidth() - getPaddingRight(), scrollY + getHeight() - getPaddingBottom());
+        }
+        canvas.translate(getPaddingLeft(), getPaddingTop());
+        if (mFadeFromMatrix != null) canvas.concat(mFadeFromMatrix);
+        if (alpha == 255) {
+            drawable.draw(canvas);
+        } else if (drawable instanceof BitmapDrawable || drawable instanceof GradientDrawable) {
+            // A bitmap or a shape applies its alpha as it's drawn.
+            int previous = drawable.getAlpha();
+            drawable.setAlpha(alpha);
+            drawable.draw(canvas);
+            drawable.setAlpha(previous);
+        } else {
+            // Others through a layer: a vector drawable, or an animated GIF or
+            // WebP resource (an AnimatedImageDrawable on Android 9+), keeps
+            // its alpha as a property the RenderThread reads when it syncs
+            // the frame, after it's set back here.
+            int layer = canvas.saveLayerAlpha(null, alpha);
+            drawable.draw(canvas);
+            canvas.restoreToCount(layer);
+        }
+        canvas.restoreToCount(count);
     }
 
     @SuppressWarnings("deprecation")
@@ -415,21 +472,116 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         int width = getWidth();
         int height = getHeight();
         int alpha = Math.round(255 * mFadeProgress);
-        if (mFadeFrom == null) {
+        if (drawFadeWithoutLayers(canvas, alpha)) return;
+        if (mFadeFrom == null && mFadeFromDrawable == null) {
             // Fading in over nothing: one layer.
             int count = canvas.saveLayerAlpha(0, 0, width, height, alpha, Canvas.ALL_SAVE_FLAG);
             super.onDraw(canvas);
             canvas.restoreToCount(count);
             return;
         }
+        // Two layers, which add up to the cross-dissolve whatever the image's
+        // transparency.
         // Canvas.ALL_SAVE_FLAG: the saveLayer without flags is API 21+.
         int count = canvas.saveLayer(0, 0, width, height, null, Canvas.ALL_SAVE_FLAG);
-        mFadeFromPaint.setAlpha(255 - alpha);
-        canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+        if (mFadeFromDrawable != null) {
+            drawFadeFrom(canvas, mFadeFromDrawable, 255 - alpha);
+        } else {
+            mFadeFromPaint.setAlpha(255 - alpha);
+            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+        }
         mFadeInPaint.setAlpha(alpha);
         canvas.saveLayer(0, 0, width, height, mFadeInPaint, Canvas.ALL_SAVE_FLAG);
         super.onDraw(canvas);
         canvas.restoreToCount(count);
+    }
+
+    // Draws the fade without layers, each of which is a buffer drawn again
+    // every frame, when the image takes an alpha in one drawing (a bitmap or
+    // GIF): over nothing, the image with the fade's alpha; over
+    // what the view showed, if the image is opaque and covers it, that and
+    // the image over it with the alpha, which is the same cross-dissolve,
+    // from * (1 - t) + image * t: photos without transparency, most images.
+    // Over what the view showed, only when nothing draws the view with an
+    // alpha (see drawnWithAlpha).
+    // Not an animated WebP or AVIF (an AnimatedImageDrawable): its alpha is a
+    // property the RenderThread reads when it syncs the frame, after it's set
+    // back here, so it would show without the fade.
+    // Returns false, having drawn nothing, otherwise.
+    private boolean drawFadeWithoutLayers(Canvas canvas, int alpha) {
+        Drawable image = getDrawable();
+        boolean drawsOnce = image instanceof BitmapDrawable || image instanceof GifDrawable;
+        if (!drawsOnce) return false;
+        boolean over = mFadeFrom != null || mFadeFromDrawable != null;
+        if (over && (!coversOpaquely(image) || drawnWithAlpha())) return false;
+        if (mFadeFromDrawable != null) {
+            drawFadeFrom(canvas, mFadeFromDrawable, 255);
+        } else if (mFadeFrom != null) {
+            mFadeFromPaint.setAlpha(255);
+            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+        }
+        // Without the drawable asking the view to draw again.
+        Drawable.Callback callback = image.getCallback();
+        image.setCallback(null);
+        int previous = image.getAlpha();
+        image.setAlpha(alpha);
+        super.onDraw(canvas);
+        image.setAlpha(previous);
+        image.setCallback(callback);
+        return true;
+    }
+
+    // Whether the view, or a view it's in, has an alpha (an opacity), or a
+    // view animation (android.view.animation, e.g. an AlphaAnimation), which
+    // can apply one without changing the view's.
+    // React Native's View (unless it has needsOffscreenAlphaCompositing) and
+    // an ImageView without a background have no layer of their own for it,
+    // so it applies to each drawing in them: what the view showed, drawn at
+    // full strength, would show through the image over it until the fade
+    // ends. The layers are right with any alpha: it applies to the
+    // cross-dissolve they add up to. Checked on every frame of the fade, as
+    // an opacity can change during it.
+    // Not the transition alpha, which only Android's Transition fades
+    // (android.transition.Fade) set: getTransitionAlpha is public from API 29
+    // only (hidden on Android 5 to 9, and the library compiles against 28
+    // when an app doesn't set compileSdkVersion). React Native's opacity,
+    // Animated, LayoutAnimation and Reanimated set the view's alpha, and
+    // react-native-screens' fragment animations run on a container with a
+    // layer of its own.
+    private boolean drawnWithAlpha() {
+        View view = this;
+        while (true) {
+            if (view.getAlpha() < 1 || view.getAnimation() != null) {
+                return true;
+            }
+            ViewParent parent = view.getParent();
+            if (!(parent instanceof View)) return false;
+            view = (View) parent;
+        }
+    }
+
+    private final RectF mFadeImageRect = new RectF();
+
+    // Whether the image, as the view draws it, is opaque and covers all of
+    // what the view showed: inside the padding (cropToPadding), or the whole
+    // view.
+    private boolean coversOpaquely(Drawable image) {
+        if (image.getOpacity() != PixelFormat.OPAQUE || getColorFilter() != null) return false;
+        mFadeImageRect.set(image.getBounds());
+        getImageMatrix().mapRect(mFadeImageRect);
+        mFadeImageRect.offset(getPaddingLeft(), getPaddingTop());
+        boolean crop = getCropToPadding();
+        float left = crop ? getPaddingLeft() : 0;
+        float top = crop ? getPaddingTop() : 0;
+        float right = getWidth() - (crop ? getPaddingRight() : 0);
+        float bottom = getHeight() - (crop ? getPaddingBottom() : 0);
+        // Within float error only: an edge half a pixel in leaves a row or
+        // column of pixels uncovered (which one depends on how it's
+        // rasterized; e.g. contain, with the image a pixel shorter than the
+        // view), where what the view showed would stay until the fade ends.
+        float error = 0.01f;
+        return mFadeImageRect.left <= left + error && mFadeImageRect.top <= top + error
+                && mFadeImageRect.right >= right - error && mFadeImageRect.bottom >= bottom - error;
     }
 
     @Override
@@ -651,9 +803,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateImageMatrix();
     }
 
+    // Whether the view shows its defaultSource (or its tiled copy, which has
+    // its bitmap): FastImage's own drawable, which Glide doesn't recycle (see
+    // startFade).
+    private boolean mShowsDefaultSource = false;
+
     // Repeats what the view shows (the loaded image, and defaultSource).
     @Override
     public void setImageDrawable(@Nullable Drawable drawable) {
+        mShowsDefaultSource = drawable != null && drawable == mDefaultSource;
         super.setImageDrawable(mRepeat ? tiled(drawable) : drawable);
         updateImageMatrix();
     }
@@ -903,6 +1061,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mFadeFrom != null && (w != mFadeFrom.getWidth() || h != mFadeFrom.getHeight())) {
             mFadeFrom.recycle();
             mFadeFrom = null;
+            invalidate();
+        }
+        if (mFadeFromDrawable != null && (w != oldw || h != oldh)) {
+            mFadeFromDrawable = null;
+            mFadeFromMatrix = null;
             invalidate();
         }
         if (!switchSourceIfResized()) reloadIfResized();

@@ -2,11 +2,13 @@ package com.reactnativefastimageexample
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.animation.AlphaAnimation
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 import com.facebook.react.devsupport.DefaultDevLoadingViewImplementation
+import com.facebook.react.uimanager.util.ReactFindViewUtil
 
 class MainActivity : ReactActivity() {
 
@@ -17,6 +19,7 @@ class MainActivity : ReactActivity() {
       DefaultDevLoadingViewImplementation.setDevLoadingEnabled(false)
     }
     super.onCreate(savedInstanceState)
+    ReactFindViewUtil.addViewsListener(viewAnimation, setOf("regression-view-animation"))
   }
 
   /**
@@ -24,6 +27,19 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "ReactNativeFastImageExample"
+
+  // The regression runner's fade-placeholder-animation case: a view
+  // animation (android.view.animation) with an alpha of 0.5 on the View with
+  // this nativeID, as an app's native code can start. It doesn't change the
+  // view's alpha.
+  private val viewAnimation =
+      ReactFindViewUtil.OnMultipleViewsFoundListener { view, _ ->
+        view.startAnimation(
+            AlphaAnimation(0.5f, 0.5f).apply {
+              duration = 600_000
+              fillAfter = true
+            })
+      }
 
   // maestro/background-no-activity.yaml opens the app's
   // <scheme>://finish-on-leave link: then leaving the app finishes this
@@ -39,6 +55,11 @@ class MainActivity : ReactActivity() {
   override fun onUserLeaveHint() {
     super.onUserLeaveHint()
     if (finishOnLeave) finish()
+  }
+
+  override fun onDestroy() {
+    ReactFindViewUtil.removeViewsListener(viewAnimation)
+    super.onDestroy()
   }
 
   /**
