@@ -553,7 +553,7 @@ for (const result of results) {
 
 Each source's `cache` applies, as for a view: with `web` the preload follows the HTTP cache, and with `cacheOnly` it doesn't download. A `cacheOnly` preload resolves `ok` only if the image is cached.
 
-The sources of a `preload` called before [`clearDiskCache`](#cleardiskcache) that haven't loaded when the clear is called are cancelled: their results are `{ uri, ok: false, error: 'Cancelled by clearDiskCache' }`. A `preload` called after the clear waits for it.
+The sources of a `preload` called before [`clearDiskCache`](#cleardiskcache) that haven't finished when the clear is called are cancelled: their results are `{ uri, ok: false, error: 'Cancelled by clearDiskCache' }`. A `preload` called after the clear waits for it.
 
 A source with `memoryCache: false` is only downloaded to the disk cache, without being decoded into memory, and is decoded when it's shown. Use it to preload many images, or large ones, e.g. the next pages of a feed: a decoded photo can take tens of MB of memory. Other sources are decoded too. A view showing a preloaded image loads it from the cache for its own size: it doesn't wait for the network, but it fades in as other images from the disk cache do (see `transition`'s `skipOnCacheHit`).
 
