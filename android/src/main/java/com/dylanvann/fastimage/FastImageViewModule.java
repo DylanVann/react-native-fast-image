@@ -280,6 +280,11 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 .asFile()
                 .load(model)
                 .apply(options)
+                // Not kept in or taken from the memory cache (asFile() skips
+                // it, but the options turn it back on): the file is only there
+                // while the disk cache keeps it, and Glide gave the path of
+                // one that clearDiskCache had deleted.
+                .skipMemoryCache(true)
                 .listener(new RequestListener<File>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
@@ -307,6 +312,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     .asFile()
                     .load(model)
                     .apply(options)
+                    // On disk only, as in loadFile.
+                    .skipMemoryCache(true)
                     .onlyRetrieveFromCache(true)
                     .submit()
                     .get();
