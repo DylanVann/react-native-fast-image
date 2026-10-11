@@ -553,7 +553,7 @@ for (const result of results) {
 
 Each source's `cache` applies, as for a view: with `web` the preload follows the HTTP cache, and with `cacheOnly` it doesn't download. A `cacheOnly` preload resolves `ok` only if the image is cached.
 
-On Android, the sources of a `preload` called before [`clearDiskCache`](#cleardiskcache) that haven't loaded when the clear is called are cancelled: their results are `{ uri, ok: false, error: 'Cancelled by clearDiskCache' }`. A `preload` called after the clear waits for it.
+The sources of a `preload` called before [`clearDiskCache`](#cleardiskcache) that haven't loaded when the clear is called are cancelled: their results are `{ uri, ok: false, error: 'Cancelled by clearDiskCache' }`. A `preload` called after the clear waits for it.
 
 A source with `memoryCache: false` is only downloaded to the disk cache, without being decoded into memory, and is decoded when it's shown. Use it to preload many images, or large ones, e.g. the next pages of a feed: a decoded photo can take tens of MB of memory. Other sources are decoded too. A view showing a preloaded image loads it from the cache for its own size: it doesn't wait for the network, but it fades in as other images from the disk cache do (see `transition`'s `skipOnCacheHit`).
 
@@ -573,9 +573,9 @@ Removes every image from the memory cache, e.g. to free memory. They're decoded 
 
 Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey). Resolves like `clearMemoryCache`.
 
-On Android, it's in order with the other cache calls, as they were made:
+It's in order with the other cache calls, as they were made:
 
-- Preloads and `getCachePath` downloads called before it that haven't finished, loading or waiting for their turn, are cancelled: they resolve with `{ ok: false, error: 'Cancelled by clearDiskCache' }`, and their images aren't left in the disk cache. So a screen that was still preloading photos when the user logged out doesn't leave them on the device. Rarely, a `cache: 'web'` preload whose response arrived just then can still leave its image.
+- Preloads and `getCachePath` downloads called before it that haven't finished, loading or waiting for their turn, are cancelled: they resolve with `{ ok: false, error: 'Cancelled by clearDiskCache' }`, and their images aren't left in the disk cache. So a screen that was still preloading photos when the user logged out doesn't leave them on the device. Some can still leave their image: on Android, rarely, a `cache: 'web'` preload whose response arrived just then; on iOS, a `cache: 'web'` preload that found its image in the cache, which resolves at once while the image is checked with the server (a changed image is stored when it arrives, also after a clear), and a preload of a photo library image or of an image in the app by name that loaded just before the clear: it resolves before its image is stored, which for a large photo can be after the clear.
 - `getCachePath` lookups and `writeToCache` called before it run before it: their files are removed by the clear.
 - Calls made after it that use the disk cache wait for it, and resolve after it. Others, e.g. `getCachePath` of a `file://` uri or `clearMemoryCache`, can resolve before it.
 - Images that views are loading aren't ordered with it: one that was loading when it was called can be in the disk cache afterwards.
@@ -604,7 +604,7 @@ const { ok } = await FastImage.getCachePath({
 
 - The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. If a view or a preload is downloading the same source, `getCachePath` shares that download instead of downloading the image again (on Android, except with `cache: 'web'`).
 - The file belongs to the cache, which can remove it at any time: copy it to keep it.
-- On Android, the download of a `getCachePath` called before [`clearDiskCache`](#cleardiskcache) that hasn't finished when the clear is called is cancelled: it resolves with `{ ok: false, error: 'Cancelled by clearDiskCache' }`. A `getCachePath` called after the clear looks for the image, and downloads it, after the clear.
+- The download of a `getCachePath` called before [`clearDiskCache`](#cleardiskcache) that hasn't finished when the clear is called is cancelled: it resolves with `{ ok: false, error: 'Cancelled by clearDiskCache' }`. A `getCachePath` called after the clear looks for the image, and downloads it, after the clear.
 - Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
 - A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.
 - With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.

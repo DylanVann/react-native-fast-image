@@ -4158,9 +4158,8 @@ function CachePathCase({
     )
 }
 
-// Android only (iOS clears on its disk cache's queue, which doesn't wait for
-// downloads). clearDiskCache's order with the cache calls around it, by when
-// they were called. Before the clear: getCachePath downloads a `cache: 'web'`
+// clearDiskCache's order with the cache calls around it, by when they were
+// called. Before the clear: getCachePath downloads a `cache: 'web'`
 // image from the slow server, and two remote images are preloaded from it
 // (one to disk only, one into the memory cache); the server holds the rest of
 // them once the headers and half have come, so they keep the 3 preload slots
@@ -4175,7 +4174,7 @@ function CachePathCase({
 // preloaded before; the clear removes the remote one's file), getCachePath
 // of a `web` image that isn't cached, and a cacheOnly getCachePath. The hold
 // is released once the clear and the first preload after it are done, or
-// after 5 s. Passes when the clear was done before that (it doesn't wait for
+// after 2 s. Passes when the clear was done before that (it doesn't wait for
 // the downloads), the loads called before it resolved "Cancelled by
 // clearDiskCache" and the remote ones aren't cached, writeToCache, the
 // preloads after the clear and the `web` getCachePath after it were ok, the
@@ -4199,9 +4198,17 @@ function CachePathCase({
 // clear (it was called after it), and the preload after them is ok and
 // cached. The second clear resolved the preload between them at once, before
 // the first clear. Last, after a clear, a local image's preload (a data uri of
-// its own, to disk only): passes when it's ok with a size, and the disk
-// cache's size didn't change. Glide stored a decoded copy of a local image,
-// also when a clear had cancelled its preload while it was decoding.
+// its own, to disk only): passes when it's ok with a size, and on Android
+// when the disk cache's size didn't change. Glide stored a decoded copy of a
+// local image, also when a clear had cancelled its preload while it was
+// decoding. On iOS, getCachePath's downloads wait in the preloads' queue too,
+// so the `web` download takes the third slot, and the waiting getCachePath's
+// lookup on FastImage's cache queue doesn't wait (its download waits for a
+// slot). A preload of a remote image in the memory cache resolves from there
+// without looking for its file, so that file isn't stored again after the
+// clear (not checked on iOS). SDWebImage stores local images in its disk
+// cache, so there the waiting local image's preload is checked with a
+// cacheOnly preload, and the disk cache's size after the last preload isn't.
 const CLEAR_ORDER = `clear-order-${RUN}`
 const CLEAR_CANCELLED = 'Cancelled by clearDiskCache'
 function ClearDiskCacheOrderCase() {
@@ -4352,10 +4359,12 @@ function ClearDiskCacheOrderCase() {
                 FastImage.getCachePath({ uri: stored, cache: cacheOnly }),
             )
             // Both take well under a second, unless the clear waits for the
-            // downloads (and the preload for the clear).
+            // downloads (and the preload for the clear). Under 3 s: on iOS a
+            // clear waits that long at most for the loads it cancelled to
+            // report back, and here they report back at once.
             await Promise.race([
                 Promise.all([cleared, preloading]),
-                sleep(5000),
+                sleep(2000),
             ])
             const clearWaited = !clearDone
             await release()
@@ -4412,6 +4421,14 @@ function ClearDiskCacheOrderCase() {
                 remoteInMemory,
                 webAfter,
             ])
+            // On iOS, SDWebImage stores a local image in its disk cache, where
+            // a cacheOnly preload (with memoryCache false) finds it.
+            const [waitingLocalCached] =
+                Platform.OS === 'ios'
+                    ? await FastImage.preload([
+                          { ...waitingLocal, cache: cacheOnly },
+                      ])
+                    : []
             if (stopped) return
             // Two clears. Lookups of images that aren't cached keep the cache
             // thread busy, so the first clear is still waiting when the
@@ -4460,10 +4477,11 @@ function ClearDiskCacheOrderCase() {
                 between,
                 afterBoth,
             ])
-            // A local image's preload (a data uri of its own, to disk only)
-            // leaves the disk cache as it was, emptied by a clear: Glide
-            // doesn't read or store a decoded copy of it there, so a clear
-            // called while it decodes can't leave one behind.
+            // On Android, a local image's preload (a data uri of its own, to
+            // disk only) leaves the disk cache as it was, emptied by a clear:
+            // Glide doesn't read or store a decoded copy of it there, so a
+            // clear called while it decodes can't leave one behind. SDWebImage
+            // stores it, and views read it by its uri.
             const local: Source = {
                 uri: YELLOW_DATA_URI.replace(
                     ';base64,',
@@ -4518,6 +4536,7 @@ function ClearDiskCacheOrderCase() {
                 ...notCancelled(
                     'waiting preload of a local image',
                     waitingLocalResult,
+                    waitingLocalCached,
                 ),
                 !write.ok && `writeToCache: ${write.error}`,
                 !clear.ok && `clearDiskCache: ${clear.error}`,
@@ -4535,7 +4554,8 @@ function ClearDiskCacheOrderCase() {
                 storedCached.ok && 'the stored image is still cached',
                 !preloadedCached.ok &&
                     `the image preloaded after clearDiskCache: ${preloadedCached.error}`,
-                !remoteMemoryCached.ok &&
+                Platform.OS === 'android' &&
+                    !remoteMemoryCached.ok &&
                     `the remote image in memory preloaded after clearDiskCache: ${remoteMemoryCached.error}`,
                 !webAfterCached.ok &&
                     `the image downloaded after clearDiskCache: ${webAfterCached.error}`,
@@ -4559,7 +4579,8 @@ function ClearDiskCacheOrderCase() {
                     : !(localResult.width > 0 && localResult.height > 0) &&
                       `preload of a local image: size ${localResult.width}x${localResult.height}`,
                 sizeBefore === undefined && 'configureCache has no diskSize',
-                sizeBefore !== sizeAfter &&
+                Platform.OS === 'android' &&
+                    sizeBefore !== sizeAfter &&
                     `a local image's preload changed the disk cache from ${sizeBefore} to ${sizeAfter} bytes`,
             ].filter(Boolean)
             if (!stopped) {
@@ -4579,7 +4600,7 @@ function ClearDiskCacheOrderCase() {
             <CaseStatus
                 id="clear-disk-cache-order"
                 status={status}
-                description="clearDiskCache cancels the preloads and getCachePath downloads called before it, runs after a writeToCache called before it, and before a preload and getCachePath called after it (Android only)"
+                description="clearDiskCache cancels the preloads and getCachePath downloads called before it, runs after a writeToCache called before it, and before a preload and getCachePath called after it"
             />
         </View>
     )
@@ -7528,17 +7549,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Clears the caches and holds a download, so on its own.
         name: 'clear-disk-cache-order',
-        cases: [
-            Platform.OS === 'android' ? (
-                <ClearDiskCacheOrderCase key="clear-disk-cache-order" />
-            ) : (
-                <NoCrashCase
-                    key="clear-disk-cache-order"
-                    id="clear-disk-cache-order"
-                    description="clearDiskCache's order with the cache calls around it (Android only)"
-                />
-            ),
-        ],
+        cases: [<ClearDiskCacheOrderCase key="clear-disk-cache-order" />],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and

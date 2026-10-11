@@ -2,6 +2,8 @@
 #import "FFFastImageView.h"
 #import "FFFDownsampledImage.h"
 
+#import <stdatomic.h>
+
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
 #import <SDWebImage/SDWebImageError.h>
@@ -76,6 +78,236 @@ static unsigned long long FFFFolderSize(NSString *path)
     return size;
 }
 
+@class FFFQueuedLoad;
+
+// Preloads waiting to start, in the order they were added, and those
+// loading, across all preload calls. Like SDWebImagePrefetcher, at most
+// maxConcurrentPrefetchCount load at a time, so a long list doesn't queue
+// hundreds of operations ahead of the images the app is showing. Only used on
+// the main queue (SDWebImageManager calls its completion blocks there).
+static NSMutableArray<FFFQueuedLoad *> *FFFPendingPreloads;
+static NSMutableArray<FFFQueuedLoad *> *FFFRunningPreloads;
+// clearDiskCache calls so far, and those that haven't cleared yet, counted
+// on the UIManager queue when they're called: React Native calls this
+// module's methods there (RCTViewManager's methodQueue), one at a time in
+// the order JS made them, so a preload or getCachePath that notes FFFClears
+// there (clearsBefore) knows which clears were called before it. Nothing in
+// FFFPendingPreloads starts while a clear is waiting: one called after it
+// would otherwise load from or into the disk cache the clear then empties.
+static atomic_ulong FFFClears;
+static atomic_ulong FFFPendingClears;
+// clearDiskCache calls that have resolved, counted on FFFCacheQueue after
+// each resolves, so in the order they were called.
+static atomic_ulong FFFClearsDone;
+// Loads cancelled by a clear before a clear called before them had
+// resolved, waiting to resolve after it (FFFResolveParked). Only used on the
+// main queue.
+static NSMutableArray<FFFQueuedLoad *> *FFFParked;
+// How long a clear waits for the loads it cancelled to report back (see
+// cancelForClear:). One cancelled before SDWebImage's check reports back at
+// once. One past it is storing its image: a downloaded image's file is
+// written once on SDImageCache's serial queue (see FFFPreloadContext), where
+// it's queued before the clear's delete anyway, and for getCachePath, a
+// photo library image, which comes without its data, is encoded first,
+// which takes a moment for a large photo (a preload of one doesn't wait for
+// it, see FFFPreloadOptions). A loader or cache of the app's own that
+// doesn't report a cancelled load back would otherwise hold the clear, and
+// every preload, getCachePath, writeToCache and configureCache after it, for
+// good. After this the clear goes ahead, and the loads that still haven't
+// reported back resolve with its error and free their slots.
+static const NSTimeInterval FFFClearWait = 3;
+
+// Where getCachePath looks in the disk cache, writeToCache stores files,
+// configureCache measures the disk cache and clearDiskCache empties it: one
+// at a time, in the order they were called.
+// SDImageCache's own queue is private, and calls go through other queues
+// before they get to it, so they can't be ordered with a clear there.
+static dispatch_queue_t FFFCacheQueue(void)
+{
+    static dispatch_queue_t queue;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        dispatch_queue_attr_t attributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0);
+        queue = dispatch_queue_create("com.dylanvann.fastimage.cache", attributes);
+    });
+    return queue;
+}
+
+static NSDictionary *FFFFailure(NSString *error)
+{
+    return @{@"ok": @NO, @"error": error};
+}
+
+static NSDictionary *FFFFile(NSString *path)
+{
+    return @{@"ok": @YES, @"path": path};
+}
+
+static NSDictionary *FFFCancelled(void)
+{
+    return FFFFailure(@"Cancelled by clearDiskCache");
+}
+
+static void FFFStartPendingPreloads(void);
+
+// A preload of a source, or a getCachePath download, waiting in
+// FFFPendingPreloads, then loading. Only used on the main queue.
+@interface FFFQueuedLoad : NSObject
+
+// FFFClears when it was called.
+@property (nonatomic, readonly) NSUInteger clearsBefore;
+@property (nonatomic, copy, readonly) void (^resolve)(NSDictionary *result);
+
+// loaded gets SDWebImage's result, and calls finish: with the load's.
+- (instancetype)initWithSource:(FFFastImageSource *)source
+                       options:(SDWebImageOptions)options
+                       context:(SDWebImageContext *)context
+                  clearsBefore:(NSUInteger)clearsBefore
+                        loaded:(void (^)(FFFQueuedLoad *load, UIImage *image, NSError *error))loaded
+                       resolve:(void (^)(NSDictionary *result))resolve;
+- (BOOL)clearedSince;
+// Loads it with SDWebImageManager, in a slot of FFFRunningPreloads.
+- (void)start;
+- (void)cancelForClear:(dispatch_group_t)clearing;
+- (void)stopWaitingForClear:(dispatch_group_t)clearing;
+- (void)finish:(NSDictionary *)result;
+
+@end
+
+@implementation FFFQueuedLoad {
+    FFFastImageSource *_source;
+    SDWebImageOptions _options;
+    SDWebImageContext *_context;
+    void (^_loaded)(FFFQueuedLoad *load, UIImage *image, NSError *error);
+    // Its SDWebImage load until it finishes, which a clear cancels.
+    SDWebImageCombinedOperation *_operation;
+    // The clear that cancelled it while it was loading, which waits until
+    // it has finished (for up to FFFClearWait).
+    dispatch_group_t _clearing;
+    BOOL _finished;
+}
+
++ (void)initialize
+{
+    if (self == [FFFQueuedLoad class]) {
+        FFFPendingPreloads = [NSMutableArray array];
+        FFFRunningPreloads = [NSMutableArray array];
+        FFFParked = [NSMutableArray array];
+    }
+}
+
+- (instancetype)initWithSource:(FFFastImageSource *)source
+                       options:(SDWebImageOptions)options
+                       context:(SDWebImageContext *)context
+                  clearsBefore:(NSUInteger)clearsBefore
+                        loaded:(void (^)(FFFQueuedLoad *load, UIImage *image, NSError *error))loaded
+                       resolve:(void (^)(NSDictionary *result))resolve
+{
+    if ((self = [super init])) {
+        _source = source;
+        _options = options;
+        _context = context;
+        _clearsBefore = clearsBefore;
+        _loaded = loaded;
+        _resolve = resolve;
+    }
+    return self;
+}
+
+- (BOOL)clearedSince
+{
+    return atomic_load(&FFFClears) != _clearsBefore;
+}
+
+- (void)start
+{
+    FFFastImageSource *source = _source;
+    // Once: SDWebImage calls this once with finished set (a progressive load
+    // calls it more, without), and again for a load cancelled while its
+    // download is decoded.
+    __block BOOL loaded = NO;
+    SDWebImageCombinedOperation *operation = [[SDWebImageManager sharedManager] loadImageWithURL:source.url
+                                                                                       options:_options
+                                                                                       context:_context
+                                                                                      progress:nil
+                                                                                     completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+        if (!finished || loaded) {
+            return;
+        }
+        loaded = YES;
+        if (error) {
+            [source forgetResponseAfterError:error];
+        }
+        self->_loaded(self, image, error);
+    }];
+    // SDWebImage reports an image in the memory cache from inside the call,
+    // so the load can be finished already.
+    if (!_finished) {
+        _operation = operation;
+    }
+}
+
+// Cancels its SDWebImage load (a download that a view shares goes on for the
+// view), and holds clearing until it has finished, for up to FFFClearWait.
+// SDWebImage checks once whether a load was cancelled, when its download or
+// disk cache lookup is done: a load cancelled before that reports back at
+// once, without waiting for its download (SDWebImage calls back a cancelled
+// load), and one past it is storing its image, and reports back once the
+// file is written (SDWebImageWaitStoreCache), so before the clear deletes it.
+// A preload of an image that SDWebImage encodes to store it reports back
+// before it's stored (see FFFPreloadOptions).
+- (void)cancelForClear:(dispatch_group_t)clearing
+{
+    // Unless an earlier clear already waits for it.
+    if (_finished || _clearing) {
+        return;
+    }
+    _clearing = clearing;
+    dispatch_group_enter(clearing);
+    [_operation cancel];
+}
+
+// After clearing stopped waiting for it (FFFClearWait): if it still hasn't
+// reported back, it resolves with the clear's error now, and frees its slot.
+// If it reports back later, that's ignored.
+- (void)stopWaitingForClear:(dispatch_group_t)clearing
+{
+    if (!_finished && _clearing == clearing) {
+        [self finish:FFFCancelled()];
+    }
+}
+
+// Its result, which frees its slot. Only the first counts: the load's own,
+// or that of a clear that cancelled it. If a clear was called since the load
+// was, the result is the clear's, also when the load finished just before
+// the clear cancelled it: the clear removes what it stored. A load called
+// after a clear resolves after that clear, as the calls were made: one that
+// a later clear cancels before the earlier one has resolved waits for it in
+// FFFParked.
+- (void)finish:(NSDictionary *)result
+{
+    if (_finished) {
+        return;
+    }
+    _finished = YES;
+    _operation = nil;
+    [FFFRunningPreloads removeObjectIdenticalTo:self];
+    if (![self clearedSince]) {
+        _resolve(result);
+    } else if (atomic_load(&FFFClearsDone) < _clearsBefore) {
+        [FFFParked addObject:self];
+    } else {
+        _resolve(FFFCancelled());
+    }
+    // So the clear waiting for it resolves after it.
+    if (_clearing) {
+        dispatch_group_leave(_clearing);
+    }
+    FFFStartPendingPreloads();
+}
+
+@end
+
 @implementation FFFastImageViewManager
 
 RCT_EXPORT_MODULE(FastImageView)
@@ -121,14 +353,6 @@ RCT_EXPORT_VIEW_PROPERTY(onFastImageLoad, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onFastImageLoadEnd, RCTDirectEventBlock)
 RCT_REMAP_VIEW_PROPERTY(tintColor, imageColor, UIColor)
 
-// Preloads waiting to start, in the order they were added, and the number
-// loading, across all preload calls. Like SDWebImagePrefetcher, at most
-// maxConcurrentPrefetchCount load at a time, so a long list doesn't queue
-// hundreds of operations ahead of the images the app is showing. Only used on
-// the main queue (SDWebImageManager calls its completion blocks there).
-static NSMutableArray<dispatch_block_t> *FFFPendingPreloads;
-static NSUInteger FFFPreloadsInFlight;
-
 // A preload's context: the source's headers and cache key, and the image
 // class views use, so a view of the same url can share its download (see
 // FFFDownsampledImage).
@@ -139,6 +363,12 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     [FFFDownsampledImage addFullSizeToContext:context];
+    // Stored once. Without a transformer, SDWebImage's original image is the
+    // same file under the same key, which it would store again (and encode
+    // again, for an image without its data) once the first store is done
+    // (SDWebImageWaitStoreCache): after the delete of a clear that stopped
+    // waiting for the load (FFFClearWait).
+    context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
     return context;
 }
 
@@ -148,10 +378,20 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
 // to send its headers with its own request only. Failed urls are tried again,
 // as views do (SDWebImage otherwise fails a url that failed before, e.g. with
 // data that isn't an image, without a request until the app is relaunched,
-// #394).
+// #394). It completes once its image is written to the disk cache, so a
+// clear that cancels it can wait for that (see cancelForClear:). Except an
+// image that SDWebImage encodes to store it (loadsWithoutData): encoding the
+// full-size photo first would make a photo library image's preload take
+// about 3 times as long (0.1 to 0.2 s more for a 12 MP photo in the
+// simulator). That preload completes once the image has loaded, and the
+// image is stored in the background, which can be after a clear called
+// meanwhile.
 static SDWebImageOptions FFFPreloadOptions(FFFastImageSource *source)
 {
     SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options | SDWebImageRetryFailed;
+    if (!source.loadsWithoutData) {
+        options |= SDWebImageWaitStoreCache;
+    }
     if (source.hasPriority) {
         options &= ~(SDWebImageLowPriority | SDWebImageHighPriority);
         if (source.priority == FFFPriorityLow) {
@@ -183,77 +423,81 @@ static NSUInteger FFFPreloadLimit(void)
     return MAX(limit, (NSUInteger)1);
 }
 
-// Starts pending preloads while there's room. A completion block calls it
-// again, sometimes from inside start() (a memory cache hit completes
-// synchronously on the main queue). That's fine: the counters are shared and
-// updated before each start(), so the inner call starts what fits, and the
-// outer loop sees the updated counters when it checks again.
+// Starts pending preloads while there's room and no clear is waiting. A
+// completion block calls it again, sometimes from inside start (a memory
+// cache hit completes synchronously on the main queue). That's fine: a load
+// is in FFFRunningPreloads before it starts, so the inner call starts what
+// fits, and the outer loop sees what it started when it checks again.
 static void FFFStartPendingPreloads(void)
 {
-    while (FFFPreloadsInFlight < FFFPreloadLimit() && FFFPendingPreloads.count > 0) {
-        dispatch_block_t start = FFFPendingPreloads.firstObject;
+    while (atomic_load(&FFFPendingClears) == 0 && FFFRunningPreloads.count < FFFPreloadLimit() && FFFPendingPreloads.count > 0) {
+        FFFQueuedLoad *load = FFFPendingPreloads.firstObject;
         [FFFPendingPreloads removeObjectAtIndex:0];
-        FFFPreloadsInFlight++;
-        start();
+        [FFFRunningPreloads addObject:load];
+        [load start];
     }
 }
 
-// Loads the source in the preloads' queue, then calls completed once with its
-// image or error. Only on the main queue (SDWebImageManager calls its
-// completion blocks there); call FFFStartPendingPreloads after adding loads.
-static void FFFQueueLoad(FFFastImageSource *source,
-                         SDWebImageOptions options,
-                         SDWebImageContext *context,
-                         void (^completed)(UIImage *image, NSError *error))
+// Adds a load to FFFPendingPreloads, or cancels it if a clear was called
+// since: getCachePath queues its download after its lookup, which can be
+// after the clear has cancelled the loads called before it. Then call
+// FFFStartPendingPreloads.
+static void FFFQueue(FFFQueuedLoad *load)
 {
-    if (!FFFPendingPreloads) {
-        FFFPendingPreloads = [NSMutableArray array];
+    if ([load clearedSince]) {
+        [load finish:FFFCancelled()];
+    } else {
+        [FFFPendingPreloads addObject:load];
     }
-    [FFFPendingPreloads addObject:[^{
-        // Once per slot: SDWebImage calls this once with finished set (a
-        // progressive load calls it more, without).
-        __block BOOL done = NO;
-        [[SDWebImageManager sharedManager] loadImageWithURL:source.url
-                                                    options:options
-                                                    context:context
-                                                   progress:nil
-                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
-            if (!finished || done) {
-                return;
-            }
-            done = YES;
-            if (error) {
-                [source forgetResponseAfterError:error];
-            }
-            FFFPreloadsInFlight--;
-            completed(image, error);
-            FFFStartPendingPreloads();
-        }];
-    } copy]];
 }
 
-// Calls found with the path of the file cached under key, or missing if it
-// isn't on disk. On the main queue.
-static void FFFFindCachedFile(NSString *key, void (^found)(NSString *path), dispatch_block_t missing)
+// Cancels the preloads and getCachePath downloads called before the latest
+// clear, waiting or loading (local images too: SDWebImage stores them in its
+// disk cache as well), which resolve with the clear's error. clearing waits
+// for those loading to finish, for up to FFFClearWait (see cancelForClear:).
+static void FFFCancelLoads(dispatch_group_t clearing)
+{
+    for (FFFQueuedLoad *load in [FFFPendingPreloads copy]) {
+        if ([load clearedSince]) {
+            [FFFPendingPreloads removeObjectIdenticalTo:load];
+            [load finish:FFFCancelled()];
+        }
+    }
+    for (FFFQueuedLoad *load in [FFFRunningPreloads copy]) {
+        if ([load clearedSince]) {
+            [load cancelForClear:clearing];
+        }
+    }
+}
+
+// After clearing stopped waiting at FFFClearWait: the loads it cancelled that
+// haven't reported back resolve with its error, and free their slots.
+static void FFFStopWaitingForLoads(dispatch_group_t clearing)
+{
+    for (FFFQueuedLoad *load in [FFFRunningPreloads copy]) {
+        [load stopWaitingForClear:clearing];
+    }
+}
+
+// Resolves the parked loads whose clears before them have resolved. On the
+// main queue, after a clear has resolved.
+static void FFFResolveParked(void)
+{
+    NSUInteger done = atomic_load(&FFFClearsDone);
+    for (FFFQueuedLoad *load in [FFFParked copy]) {
+        if (load.clearsBefore <= done) {
+            [FFFParked removeObjectIdenticalTo:load];
+            load.resolve(FFFCancelled());
+        }
+    }
+}
+
+// The path of the file cached under key, or nil if it isn't on disk. Waits
+// for SDImageCache's queue: on FFFCacheQueue.
+static NSString *FFFCachedFile(NSString *key)
 {
     SDImageCache *cache = SDImageCache.sharedImageCache;
-    [cache diskImageExistsWithKey:key completion:^(BOOL exists) {
-        if (exists) {
-            found([cache cachePathForKey:key]);
-        } else {
-            missing();
-        }
-    }];
-}
-
-static NSDictionary *FFFFailure(NSString *error)
-{
-    return @{@"ok": @NO, @"error": error};
-}
-
-static NSDictionary *FFFFile(NSString *path)
-{
-    return @{@"ok": @YES, @"path": path};
+    return [cache diskImageDataExistsWithKey:key] ? [cache cachePathForKey:key] : nil;
 }
 
 // Resolves with a result per source, in order, once all have loaded or failed:
@@ -264,8 +508,10 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
-    // This runs on the UIManager queue; the queue state is only touched on
-    // the main queue.
+    // This runs on the UIManager queue, where calls arrive in the order JS
+    // made them (see FFFClears); the queue state is only touched on the main
+    // queue.
+    NSUInteger clearsBefore = atomic_load(&FFFClears);
     dispatch_async(dispatch_get_main_queue(), ^{
         NSMutableArray *results = [NSMutableArray arrayWithCapacity:sources.count];
         // Sources of this call still to finish. It starts at the number of
@@ -296,12 +542,14 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                 options |= SDWebImageAvoidDecodeImage;
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
-            FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
-                results[idx] = image
+            FFFQueue([[FFFQueuedLoad alloc] initWithSource:source options:options context:[context copy] clearsBefore:clearsBefore loaded:^(FFFQueuedLoad *load, UIImage *image, NSError *error) {
+                [load finish:image
                     ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
-                    : FFFFailure([source errorMessage:error]);
+                    : FFFFailure([source errorMessage:error])];
+            } resolve:^(NSDictionary *result) {
+                results[idx] = result;
                 finishOne();
-            });
+            }]);
         }];
 
         if (sources.count == 0) {
@@ -327,10 +575,9 @@ RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
             resolve(FFFFailure(@"Invalid source: no uri or cacheKey"));
             return;
         }
-        FFFFindCachedFile(key, ^(NSString *path) {
-            resolve(FFFFile(path));
-        }, ^{
-            resolve(FFFFailure(@"Not in the disk cache"));
+        dispatch_async(FFFCacheQueue(), ^{
+            NSString *path = FFFCachedFile(key);
+            resolve(path ? FFFFile(path) : FFFFailure(@"Not in the disk cache"));
         });
         return;
     }
@@ -340,31 +587,42 @@ RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
         return;
     }
     NSString *key = FFFDiskCacheKey(source);
-    void (^resolveFile)(NSString *) = ^(NSString *path) {
-        resolve(FFFFile(path));
-    };
-    FFFFindCachedFile(key, resolveFile, ^{
+    // Noted where calls arrive in the order JS made them (see FFFClears).
+    NSUInteger clearsBefore = atomic_load(&FFFClears);
+    dispatch_async(FFFCacheQueue(), ^{
+        NSString *path = FFFCachedFile(key);
+        if (path) {
+            resolve(FFFFile(path));
+            return;
+        }
         if (source.cacheControl == FFFCacheControlCacheOnly) {
             resolve(FFFFailure(@"Not in the disk cache"));
             return;
         }
-        // As a disk-only preload: not decoded, and not looked up in or kept in
-        // memory (an image in memory may not be on disk). It completes once
-        // the file is written.
-        SDWebImageOptions options = FFFPreloadOptions(source) | SDWebImageAvoidDecodeImage | SDWebImageWaitStoreCache;
-        SDWebImageMutableContext *context = FFFPreloadContext(source);
-        context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
-        context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
-        FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
-            if (!image) {
-                resolve(FFFFailure([source errorMessage:error]));
-                return;
-            }
-            FFFFindCachedFile(key, resolveFile, ^{
-                resolve(FFFFailure(@"Not stored in the disk cache"));
-            });
+        dispatch_async(dispatch_get_main_queue(), ^{
+            // As a disk-only preload: not decoded, and not looked up in or
+            // kept in memory (an image in memory may not be on disk). It
+            // completes once the file is written, also for an image that
+            // SDWebImage encodes, so it can look for the file.
+            SDWebImageOptions options = FFFPreloadOptions(source) | SDWebImageAvoidDecodeImage | SDWebImageWaitStoreCache;
+            SDWebImageMutableContext *context = FFFPreloadContext(source);
+            context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+            context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+            FFFQueue([[FFFQueuedLoad alloc] initWithSource:source options:options context:[context copy] clearsBefore:clearsBefore loaded:^(FFFQueuedLoad *load, UIImage *image, NSError *error) {
+                if (!image) {
+                    [load finish:FFFFailure([source errorMessage:error])];
+                    return;
+                }
+                // The file is written by now. Looked for on SDImageCache's
+                // queue, not on FFFCacheQueue, where a clear can be waiting
+                // for this load to finish.
+                SDImageCache *cache = SDImageCache.sharedImageCache;
+                [cache diskImageExistsWithKey:key completion:^(BOOL exists) {
+                    [load finish:exists ? FFFFile([cache cachePathForKey:key]) : FFFFailure(@"Not stored in the disk cache")];
+                }];
+            } resolve:resolve]);
+            FFFStartPendingPreloads();
         });
-        FFFStartPendingPreloads();
     });
 }
 
@@ -397,26 +655,26 @@ RCT_EXPORT_METHOD(writeToCache:(FFFastImageSource *)source
         return;
     }
     NSString *key = FFFDiskCacheKey(source);
-    FFFFindCachedFile(key, ^(NSString *path) {
-        resolve(FFFFailure(@"Already in the disk cache"));
-    }, ^{
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            NSData *data = [NSData dataWithContentsOfURL:fileURL];
-            if (!data) {
-                resolve(FFFFailure(@"Can't read the file"));
-                return;
-            }
-            if (![FFFastImageSource isImageData:data]) {
-                resolve(FFFFailure(@"Not an image"));
-                return;
-            }
-            SDImageCache *cache = SDImageCache.sharedImageCache;
-            [cache storeImageDataToDisk:data forKey:key];
-            // An image a view showed under this key before, which isn't on
-            // disk anymore.
-            [cache removeImageFromMemoryForKey:key];
-            resolve(FFFFile([cache cachePathForKey:key]));
-        });
+    dispatch_async(FFFCacheQueue(), ^{
+        SDImageCache *cache = SDImageCache.sharedImageCache;
+        if ([cache diskImageDataExistsWithKey:key]) {
+            resolve(FFFFailure(@"Already in the disk cache"));
+            return;
+        }
+        NSData *data = [NSData dataWithContentsOfURL:fileURL];
+        if (!data) {
+            resolve(FFFFailure(@"Can't read the file"));
+            return;
+        }
+        if (![FFFastImageSource isImageData:data]) {
+            resolve(FFFFailure(@"Not an image"));
+            return;
+        }
+        [cache storeImageDataToDisk:data forKey:key];
+        // An image a view showed under this key before, which isn't on disk
+        // anymore.
+        [cache removeImageFromMemoryForKey:key];
+        resolve(FFFFile([cache cachePathForKey:key]));
     });
 }
 
@@ -448,22 +706,26 @@ RCT_EXPORT_METHOD(configureCache:(NSDictionary *)limits
         }
         FFFSetCacheLimit(config, name, FFFCacheLimit(name));
     }
-    void (^finish)(void) = ^{
-        // Not on the disk cache's queue, which image loads use.
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            resolve(@{
-                @"maxDiskSize": @(config.maxDiskSize),
-                @"maxDiskAge": @(MAX(config.maxDiskAge, 0)),
-                @"maxMemorySize": @(config.maxMemoryCost),
-                @"diskSize": @(FFFFolderSize(cache.diskCachePath)),
-            });
+    BOOL trim = config.maxDiskSize != maxDiskSize || config.maxDiskAge != maxDiskAge;
+    // In order with clearDiskCache, and not on the disk cache's queue, which
+    // image loads use.
+    dispatch_async(FFFCacheQueue(), ^{
+        if (trim) {
+            // SDImageCache trims on its own queue, and always calls back on
+            // the main queue (see clearDiskCache).
+            dispatch_semaphore_t trimmed = dispatch_semaphore_create(0);
+            [cache deleteOldFilesWithCompletionBlock:^{
+                dispatch_semaphore_signal(trimmed);
+            }];
+            dispatch_semaphore_wait(trimmed, DISPATCH_TIME_FOREVER);
+        }
+        resolve(@{
+            @"maxDiskSize": @(config.maxDiskSize),
+            @"maxDiskAge": @(MAX(config.maxDiskAge, 0)),
+            @"maxMemorySize": @(config.maxMemoryCost),
+            @"diskSize": @(FFFFolderSize(cache.diskCachePath)),
         });
-    };
-    if (config.maxDiskSize != maxDiskSize || config.maxDiskAge != maxDiskAge) {
-        [cache deleteOldFilesWithCompletionBlock:finish];
-    } else {
-        finish();
-    }
+    });
 }
 
 RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
@@ -472,13 +734,52 @@ RCT_EXPORT_METHOD(clearMemoryCache:(RCTPromiseResolveBlock)resolve reject:(RCTPr
     resolve(@{@"ok": @YES});
 }
 
+// On FFFCacheQueue, after the getCachePath lookups and writeToCache calls
+// called before it, so a file writeToCache is storing isn't stored after the
+// clear. First the preloads and getCachePath downloads called before it that
+// are waiting or loading are cancelled (FFFCancelLoads), without waiting for
+// their downloads, and it waits, for up to FFFClearWait, until those loading
+// have finished, so they don't store their images after it. The loads called
+// after it don't start until it's done (FFFPendingClears), and resolve after
+// it also when a later clear cancels them (FFFParked).
 RCT_EXPORT_METHOD(clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
 {
-    // And the HTTP cache of `cache: 'web'` images.
-    [FFFastImageSource.webURLCache removeAllCachedResponses];
-    [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){
+    atomic_fetch_add(&FFFClears, 1);
+    atomic_fetch_add(&FFFPendingClears, 1);
+    dispatch_group_t cancelled = dispatch_group_create();
+    dispatch_group_enter(cancelled);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        FFFCancelLoads(cancelled);
+        dispatch_group_leave(cancelled);
+    });
+    dispatch_async(FFFCacheQueue(), ^{
+        BOOL waited = dispatch_group_wait(cancelled, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(FFFClearWait * NSEC_PER_SEC))) == 0;
+        // And the HTTP cache of `cache: 'web'` images.
+        [FFFastImageSource.webURLCache removeAllCachedResponses];
+        // SDImageCache deletes on its own queue, and calls back on the main
+        // queue. It always calls back, so this wait has no limit (nor has
+        // configureCache's trim): it would only hang if the main thread did,
+        // or if a disk cache class of the app's own never returned from its
+        // delete, which would hold every disk cache call, views' too.
+        dispatch_semaphore_t cleared = dispatch_semaphore_create(0);
+        [SDImageCache.sharedImageCache clearDiskOnCompletion:^{
+            dispatch_semaphore_signal(cleared);
+        }];
+        dispatch_semaphore_wait(cleared, DISPATCH_TIME_FOREVER);
+        // Resolved here, before the calls queued after it on FFFCacheQueue
+        // run and the preloads held for it start, so it resolves before them,
+        // as the calls were made.
         resolve(@{@"ok": @YES});
-    }];
+        atomic_fetch_add(&FFFClearsDone, 1);
+        atomic_fetch_sub(&FFFPendingClears, 1);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            FFFResolveParked();
+            if (!waited) {
+                FFFStopWaitingForLoads(cancelled);
+            }
+            FFFStartPendingPreloads();
+        });
+    });
 }
 
 @end
