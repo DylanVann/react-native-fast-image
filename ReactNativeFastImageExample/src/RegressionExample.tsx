@@ -4165,38 +4165,40 @@ function CachePathCase({
 // (one to disk only, one into the memory cache); the server holds the rest of
 // them once the headers and half have come, so they keep the 3 preload slots
 // (and the `web` download keeps FastImage's cache thread busy). Then preload
-// of a remote image, a `web` image and a local image (a data uri, decoded),
-// and a getCachePath download (its lookup waits behind the `web` download)
-// wait for a slot, and writeToCache stores an image's file from getCachePath
-// under another url. Then clearDiskCache, then preload of a remote image
-// that isn't cached (to disk only), preload of a local image in the memory
-// cache (a data uri), preload of a remote image in the memory cache (both
-// preloaded before; the clear removes the remote one's file), getCachePath of
-// a `web` image that isn't cached, and a cacheOnly getCachePath. The hold is
-// released once the clear and the first preload after it are done, or after
-// 5 s. Passes when the clear was done before that (it doesn't wait for the
-// downloads), the remote loads called before it resolved "Cancelled by
-// clearDiskCache" and aren't cached, the local preload, writeToCache, the
-// preloads after the clear and the second getCachePath were ok, the clear
-// resolved before the calls after it, and afterwards the stored image isn't
-// cached while the remote images preloaded after the clear and the second
-// `web` one are. Android cleared at once on the native modules' thread: the
-// clear removed the HTTP cache entry being written (so getCachePath said the
-// server doesn't allow caching the image), and writeToCache ran after the
-// clear, which had removed its file. A clear on the cache thread must cancel
-// the remote loads called before it, or those loading finish after it and
-// those waiting load after it, and they stay cached; it must hold the
-// preloads called after it, or they load first and the clear removes their
-// files; and it must resolve before it lets them start: Glide reports a
-// local image in the memory cache as soon as it's preloaded (a remote
-// image's preload first looks for its file in the disk cache, and downloads
-// it again). Then clearDiskCache twice, with a preload of a remote image
-// between the clears and one after them, and cacheOnly lookups queued on the
-// cache thread before the first clear, so it's still waiting when the second
-// is called. Passes when the preload between them is cancelled by the second
-// clear and not cached, but resolves after the first clear (it was called
-// after it), and the preload after them is ok and cached. The second clear
-// resolved the preload between them at once, before the first clear.
+// of a remote image, a `web` image and a local image (a data uri, decoded)
+// wait for a slot, a getCachePath's lookup waits behind the `web` download
+// (so it would queue its download after clearDiskCache is called), and
+// writeToCache stores an image's file from getCachePath under another url.
+// Then clearDiskCache, then preload of a remote image that isn't cached (to
+// disk only), preload of a local image in the memory cache (a data uri),
+// preload of a remote image in the memory cache (both preloaded before; the
+// clear removes the remote one's file), getCachePath of a `web` image that
+// isn't cached, and a cacheOnly getCachePath. The hold is released once the
+// clear and the first preload after it are done, or after 5 s. Passes when
+// the clear was done before that (it doesn't wait for the downloads), the
+// remote loads called before it resolved "Cancelled by clearDiskCache" and
+// aren't cached, the local preload, writeToCache, the preloads after the
+// clear and the `web` getCachePath after it were ok, the clear resolved
+// before the calls after it, and afterwards the stored image isn't cached
+// while the remote images preloaded after the clear and the `web` image
+// downloaded after it are. Android cleared at once on the native modules'
+// thread: the clear removed the HTTP cache entry being written (so
+// getCachePath said the server doesn't allow caching the image), and
+// writeToCache ran after the clear, which had removed its file. A clear on
+// the cache thread must cancel the remote loads called before it, or those
+// loading finish after it and those waiting load after it, and they stay
+// cached; it must hold the preloads called after it, or they load first and
+// the clear removes their files; and it must resolve before it lets them
+// start: Glide reports a local image in the memory cache as soon as it's
+// preloaded (a remote image's preload first looks for its file in the disk
+// cache, and downloads it again). Then clearDiskCache twice, with a preload
+// of a remote image between the clears and one after them, and cacheOnly
+// lookups queued on the cache thread before the first clear, so it's still
+// waiting when the second is called. Passes when the preload between them is
+// cancelled by the second clear and not cached, but resolves after the first
+// clear (it was called after it), and the preload after them is ok and
+// cached. The second clear resolved the preload between them at once, before
+// the first clear.
 const CLEAR_ORDER = `clear-order-${RUN}`
 const CLEAR_CANCELLED = 'Cancelled by clearDiskCache'
 function ClearDiskCacheOrderCase() {

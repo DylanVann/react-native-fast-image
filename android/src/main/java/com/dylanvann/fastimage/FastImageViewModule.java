@@ -90,7 +90,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         // `clears` when it was called.
         final int clearsBefore;
         // Whether a clear called before it's done cancels it: a remote
-        // image's. A local image's preload goes on: it doesn't download.
+        // image's. A local image's preload goes on: it doesn't download
+        // (Glide can still store a copy of it in the disk cache).
         final boolean cancellable;
         // Its Glide request while one runs, which a clear stops.
         @Nullable
@@ -739,9 +740,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // (and its stream is closed), and a write under way belongs to the
     // DiskLruCache that the clear closes and deletes, which aborts it; the
     // HTTP cache of `web` images drops the responses it's writing when it's
-    // emptied. The `web` download on cachePathExecutor is stopped (see
-    // webDownload). The loads called after the clear don't start until it's
-    // done (pendingClears), and resolve after it also when a later clear
+    // emptied (one whose headers came just before the cancel can still start
+    // storing after it). The `web` download on cachePathExecutor is stopped
+    // (see webDownload). The loads called after the clear don't start until
+    // it's done (pendingClears), and resolve after it also when a later clear
     // cancels them (parked). Not on the native modules' thread, where React
     // Native runs the async methods of every Java and Kotlin module: deleting
     // a full cache held them up.
