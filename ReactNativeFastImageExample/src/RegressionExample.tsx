@@ -4177,18 +4177,16 @@ function CachePathCase({
 // is released once the clear and the first preload after it are done, or
 // after 5 s. Passes when the clear was done before that (it doesn't wait for
 // the downloads), the loads called before it resolved "Cancelled by
-// clearDiskCache" and aren't cached (for the local image, Glide's decoded
-// copy, which a cacheOnly preload looks for), writeToCache, the preloads
-// after the clear and the `web` getCachePath after it were ok, the clear
-// resolved before the calls after it, and afterwards the stored image isn't
-// cached while the remote images preloaded after the clear and the `web`
-// image downloaded after it are. Android cleared at once on the native
+// clearDiskCache" and the remote ones aren't cached, writeToCache, the
+// preloads after the clear and the `web` getCachePath after it were ok, the
+// clear resolved before the calls after it, and afterwards the stored image
+// isn't cached while the remote images preloaded after the clear and the
+// `web` image downloaded after it are. Android cleared at once on the native
 // modules' thread: the clear removed the HTTP cache entry being written (so
 // getCachePath said the server doesn't allow caching the image), and
 // writeToCache ran after the clear, which had removed its file. A clear on
 // the cache thread must cancel the loads called before it, or those loading
-// finish after it and those waiting load after it, and they stay cached
-// (Glide stores a decoded copy of the local image in its disk cache too);
+// finish after it and those waiting load after it, and they stay cached;
 // it must hold the preloads called after it, or they load first and
 // the clear removes their files; and it must resolve before it lets them
 // start: Glide reports a local image in the memory cache as soon as it's
@@ -4200,7 +4198,10 @@ function CachePathCase({
 // cancelled by the second clear and not cached, but resolves after the first
 // clear (it was called after it), and the preload after them is ok and
 // cached. The second clear resolved the preload between them at once, before
-// the first clear.
+// the first clear. Last, after a clear, a local image's preload (a data uri of
+// its own, to disk only): passes when it's ok with a size, and the disk
+// cache's size didn't change. Glide stored a decoded copy of a local image,
+// also when a clear had cancelled its preload while it was decoding.
 const CLEAR_ORDER = `clear-order-${RUN}`
 const CLEAR_CANCELLED = 'Cancelled by clearDiskCache'
 function ClearDiskCacheOrderCase() {
@@ -4267,7 +4268,7 @@ function ClearDiskCacheOrderCase() {
                 cache: FastImage.cacheControl.web,
             }
             // A data uri of its own (the parameter only changes the uri), so
-            // nothing else here stores its decoded copy in the disk cache.
+            // nothing else here loads it.
             const waitingLocal: Source = {
                 uri: YELLOW_DATA_URI.replace(
                     ';base64,',
@@ -4411,12 +4412,6 @@ function ClearDiskCacheOrderCase() {
                 remoteInMemory,
                 webAfter,
             ])
-            // A local image has no file for getCachePath: a cacheOnly preload
-            // (from the disk cache only, with memoryCache false) finds the
-            // decoded copy Glide stores when it decodes one.
-            const [waitingLocalCached] = await FastImage.preload([
-                { ...waitingLocal, cache: cacheOnly },
-            ])
             if (stopped) return
             // Two clears. Lookups of images that aren't cached keep the cache
             // thread busy, so the first clear is still waiting when the
@@ -4465,15 +4460,31 @@ function ClearDiskCacheOrderCase() {
                 between,
                 afterBoth,
             ])
+            // A local image's preload (a data uri of its own, to disk only)
+            // leaves the disk cache as it was, emptied by a clear: Glide
+            // doesn't read or store a decoded copy of it there, so a clear
+            // called while it decodes can't leave one behind.
+            const local: Source = {
+                uri: YELLOW_DATA_URI.replace(
+                    ';base64,',
+                    ';name=clear-order-local;base64,',
+                ),
+                memoryCache: false,
+            }
+            const emptied = await FastImage.clearDiskCache()
+            const { diskSize: sizeBefore } = await FastImage.configureCache({})
+            const [localResult] = await FastImage.preload([local])
+            const { diskSize: sizeAfter } = await FastImage.configureCache({})
+            if (stopped) return
             // A load called before a clear, which cancels it.
             const notCancelled = (
                 name: string,
                 result: PreloadResult | CachePathResult,
-                cached: PreloadResult | CachePathResult,
+                cached?: PreloadResult | CachePathResult,
             ) => [
                 (result.ok || result.error !== CLEAR_CANCELLED) &&
                     `${name}: ${result.ok ? 'ok' : result.error}`,
-                cached.ok && `${name} is cached`,
+                cached?.ok && `${name} is cached`,
             ]
             const problems = [
                 clearWaited &&
@@ -4507,7 +4518,6 @@ function ClearDiskCacheOrderCase() {
                 ...notCancelled(
                     'waiting preload of a local image',
                     waitingLocalResult,
-                    waitingLocalCached,
                 ),
                 !write.ok && `writeToCache: ${write.error}`,
                 !clear.ok && `clearDiskCache: ${clear.error}`,
@@ -4542,6 +4552,15 @@ function ClearDiskCacheOrderCase() {
                     `preload after two clears: ${afterBothResult.error}`,
                 !afterBothCached.ok &&
                     `the image preloaded after two clears: ${afterBothCached.error}`,
+                !emptied.ok &&
+                    `clearDiskCache before the local preload: ${emptied.error}`,
+                !localResult.ok
+                    ? `preload of a local image: ${localResult.error}`
+                    : !(localResult.width > 0 && localResult.height > 0) &&
+                      `preload of a local image: size ${localResult.width}x${localResult.height}`,
+                sizeBefore === undefined && 'configureCache has no diskSize',
+                sizeBefore !== sizeAfter &&
+                    `a local image's preload changed the disk cache from ${sizeBefore} to ${sizeAfter} bytes`,
             ].filter(Boolean)
             if (!stopped) {
                 setStatus(problems.length > 0 ? problems.join('; ') : 'OK')

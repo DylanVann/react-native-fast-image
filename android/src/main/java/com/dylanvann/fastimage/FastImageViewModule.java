@@ -86,8 +86,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // A preload of a source, or a getCachePath download, waiting in
     // pendingPreloads, then loading. A clear called after it cancels it, also
-    // a local image's preload: Glide stores a decoded copy of a local image
-    // in its disk cache. On the UI thread.
+    // a local image's preload (which doesn't use the disk cache), so every
+    // load called before a clear resolves the same way. On the UI thread.
     private abstract static class QueuedLoad {
         // `clears` when it was called.
         final int clearsBefore;
@@ -366,8 +366,14 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // A preload's options: low priority unless the source sets one, as on
     // iOS (the prefetcher's options), so the images the app shows load first.
+    // A local image (not http(s)) is decoded from its source, without the
+    // disk cache: Glide would store a decoded copy at its original size,
+    // which only a later preload of the image reads (views load it at their
+    // own size), and which it still stores after a clearDiskCache called
+    // while it decodes the image.
     private static RequestOptions preloadOptions(Context context, FastImageSource imageSource, ReadableMap source) {
         RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
+        if (!imageSource.isRemote()) options = options.diskCacheStrategy(DiskCacheStrategy.NONE);
         return source.hasKey("priority") && !source.isNull("priority") ? options : options.priority(Priority.LOW);
     }
 
@@ -740,10 +746,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // the DiskLruCache that the clear closes and deletes, which aborts it; the
     // HTTP cache of `web` images drops the responses it's writing when it's
     // emptied (one whose headers came just before the cancel can still start
-    // storing after it). A local image that's being decoded when its preload
-    // is cancelled can still be stored after the clear: Glide finishes the
-    // decode and then writes the decoded copy to its disk cache, also for a
-    // cleared request. The `web` download on cachePathExecutor is stopped
+    // storing after it). The `web` download on cachePathExecutor is stopped
     // (see webDownload). The loads called after the clear don't start until
     // it's done (pendingClears), and resolve after it also when a later clear
     // cancels them (parked). Not on the native modules' thread, where React

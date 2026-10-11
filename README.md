@@ -575,7 +575,7 @@ Removes every image from the disk cache, including the HTTP cache of `cache: 'we
 
 On Android, it's in order with the other cache calls, as they were made:
 
-- Preloads and `getCachePath` downloads called before it that haven't finished, loading or waiting for their turn, are cancelled: they resolve with `{ ok: false, error: 'Cancelled by clearDiskCache' }`, and their images aren't left in the disk cache. So a screen that was still preloading photos when the user logged out doesn't leave them on the device. Two can still leave their image: a local image's preload that was decoding it when the clear was called (Glide finishes the decode, and stores a decoded copy of a local image), and, rarely, a `cache: 'web'` preload whose response arrived just then.
+- Preloads and `getCachePath` downloads called before it that haven't finished, loading or waiting for their turn, are cancelled: they resolve with `{ ok: false, error: 'Cancelled by clearDiskCache' }`, and their images aren't left in the disk cache. So a screen that was still preloading photos when the user logged out doesn't leave them on the device. Rarely, a `cache: 'web'` preload whose response arrived just then can still leave its image.
 - `getCachePath` lookups and `writeToCache` called before it run before it: their files are removed by the clear.
 - Calls made after it that use the disk cache wait for it, and resolve after it. Others, e.g. `getCachePath` of a `file://` uri or `clearMemoryCache`, can resolve before it.
 - Images that views are loading aren't ordered with it: one that was loading when it was called can be in the disk cache afterwards.
