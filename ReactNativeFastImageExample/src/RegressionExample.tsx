@@ -4190,7 +4190,13 @@ function CachePathCase({
 // files; and it must resolve before it lets them start: Glide reports a
 // local image in the memory cache as soon as it's preloaded (a remote
 // image's preload first looks for its file in the disk cache, and downloads
-// it again).
+// it again). Then clearDiskCache twice, with a preload of a remote image
+// between the clears and one after them, and cacheOnly lookups queued on the
+// cache thread before the first clear, so it's still waiting when the second
+// is called. Passes when the preload between them is cancelled by the second
+// clear and not cached, but resolves after the first clear (it was called
+// after it), and the preload after them is ok and cached. The second clear
+// resolved the preload between them at once, before the first clear.
 const CLEAR_ORDER = `clear-order-${RUN}`
 const CLEAR_CANCELLED = 'Cancelled by clearDiskCache'
 function ClearDiskCacheOrderCase() {
@@ -4302,11 +4308,14 @@ function ClearDiskCacheOrderCase() {
             )
             // The calls from clearDiskCache on, in the order they resolve.
             const resolved: string[] = []
-            const track = <T,>(name: string, promise: Promise<T>) =>
-                promise.then((result) => {
-                    resolved.push(name)
-                    return result
-                })
+            const tracker =
+                (list: string[]) =>
+                <T,>(name: string, promise: Promise<T>) =>
+                    promise.then((result) => {
+                        list.push(name)
+                        return result
+                    })
+            const track = tracker(resolved)
             let clearDone = false
             const cleared = track(
                 'clearDiskCache',
@@ -4393,7 +4402,55 @@ function ClearDiskCacheOrderCase() {
                 remoteInMemory,
                 webAfter,
             ])
-            // A remote load called before the clear, which cancels it.
+            if (stopped) return
+            // Two clears. Lookups of images that aren't cached keep the cache
+            // thread busy, so the first clear is still waiting when the
+            // second is called.
+            const between: Source = {
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-order-between=${RUN}`,
+                ),
+            }
+            const afterBoth: Source = {
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-order-after-both=${RUN}`,
+                ),
+            }
+            const lookups = Promise.all(
+                Array.from({ length: 30 }, (_, i) =>
+                    FastImage.getCachePath({
+                        uri: imageUrl(
+                            `picsum/1022-120x120.jpg?clear-order-lookup=${RUN}-${i}`,
+                        ),
+                        cache: cacheOnly,
+                    }),
+                ),
+            )
+            const twice: string[] = []
+            const trackTwice = tracker(twice)
+            const clearingFirst = trackTwice(
+                'first clearDiskCache',
+                FastImage.clearDiskCache(),
+            )
+            const preloadingBetween = trackTwice(
+                'preload between',
+                FastImage.preload([between]),
+            )
+            const clearingSecond = FastImage.clearDiskCache()
+            const preloadingAfterBoth = FastImage.preload([afterBoth])
+            const [, first, [betweenResult], second, [afterBothResult]] =
+                await Promise.all([
+                    lookups,
+                    clearingFirst,
+                    preloadingBetween,
+                    clearingSecond,
+                    preloadingAfterBoth,
+                ])
+            const [betweenCached, afterBothCached] = await cachedAfter([
+                between,
+                afterBoth,
+            ])
+            // A remote load called before a clear, which cancels it.
             const notCancelled = (
                 name: string,
                 result: PreloadResult | CachePathResult,
@@ -4454,6 +4511,19 @@ function ClearDiskCacheOrderCase() {
                     `the remote image in memory preloaded after clearDiskCache: ${remoteMemoryCached.error}`,
                 !webAfterCached.ok &&
                     `the image downloaded after clearDiskCache: ${webAfterCached.error}`,
+                !first.ok && `first of two clears: ${first.error}`,
+                !second.ok && `second of two clears: ${second.error}`,
+                twice[0] !== 'first clearDiskCache' &&
+                    'the preload between two clears resolved before the first',
+                ...notCancelled(
+                    'preload between two clears',
+                    betweenResult,
+                    betweenCached,
+                ),
+                !afterBothResult.ok &&
+                    `preload after two clears: ${afterBothResult.error}`,
+                !afterBothCached.ok &&
+                    `the image preloaded after two clears: ${afterBothCached.error}`,
             ].filter(Boolean)
             if (!stopped) {
                 setStatus(problems.length > 0 ? problems.join('; ') : 'OK')

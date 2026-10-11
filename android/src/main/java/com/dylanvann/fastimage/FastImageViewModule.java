@@ -76,6 +76,13 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // load from or into the disk cache the clear then empties.
     private static final AtomicInteger clears = new AtomicInteger();
     private static final AtomicInteger pendingClears = new AtomicInteger();
+    // clearDiskCache calls that have resolved, counted on cachePathExecutor
+    // after each resolves, so in the order they were called.
+    private static final AtomicInteger clearsDone = new AtomicInteger();
+    // Loads cancelled by a clear before a clear called before them had
+    // resolved, waiting to resolve after it (resolveParked). Only used on the
+    // UI thread.
+    private static final List<QueuedLoad> parked = new ArrayList<>();
 
     // A preload of a source, or a getCachePath download, waiting in
     // pendingPreloads, then loading. On the UI thread.
@@ -114,19 +121,39 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         // load's own, or that of a clear that cancelled it. If a clear was
         // called since the load was, the result is the clear's, also when the
         // load finished just before the clear cancelled it: the clear removes
-        // what it stored.
+        // what it stored. A load called after a clear resolves after that
+        // clear, as the calls were made: one that a later clear cancels
+        // before the earlier one has resolved waits for it in parked.
         final void finish(WritableMap result) {
             if (finished) return;
             finished = true;
             request = null;
             runningPreloads.remove(this);
-            resolve(clearedSince() ? cancelled() : result);
+            if (!clearedSince()) {
+                resolve(result);
+            } else if (clearsDone.get() < clearsBefore) {
+                parked.add(this);
+            } else {
+                resolve(cancelled());
+            }
             startPendingPreloads();
         }
     }
 
     private static WritableMap cancelled() {
         return failure("Cancelled by clearDiskCache");
+    }
+
+    // Resolves the parked loads whose clears before them have resolved. On
+    // the UI thread, after a clear has resolved.
+    private static void resolveParked() {
+        int done = clearsDone.get();
+        List<QueuedLoad> ready = new ArrayList<>();
+        for (QueuedLoad load : parked) {
+            if (load.clearsBefore <= done) ready.add(load);
+        }
+        parked.removeAll(ready);
+        for (QueuedLoad load : ready) load.resolve(cancelled());
     }
 
     // Adds a load to pendingPreloads, or cancels it if a clear was called
@@ -714,7 +741,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // HTTP cache of `web` images drops the responses it's writing when it's
     // emptied. The `web` download on cachePathExecutor is stopped (see
     // webDownload). The loads called after the clear don't start until it's
-    // done (pendingClears). Not on the native modules' thread, where React
+    // done (pendingClears), and resolve after it also when a later clear
+    // cancels them (parked). Not on the native modules' thread, where React
     // Native runs the async methods of every Java and Kotlin module: deleting
     // a full cache held them up.
     @ReactMethod
@@ -751,13 +779,16 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     // it resolves before them, as the calls were made.
                     promise.resolve(clearDiskCaches(context));
                 } finally {
-                    // Then those preloads start, if no other clear is
-                    // waiting; also if the clear threw, so they aren't held
-                    // for good.
+                    // Then the loads called after it that a later clear
+                    // cancelled resolve, and those preloads start, if no
+                    // other clear is waiting; also if the clear threw, so
+                    // they aren't held for good.
+                    clearsDone.incrementAndGet();
                     pendingClears.decrementAndGet();
                     UiThreadUtil.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            resolveParked();
                             startPendingPreloads();
                         }
                     });
