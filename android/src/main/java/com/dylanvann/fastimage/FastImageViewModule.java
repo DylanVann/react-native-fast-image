@@ -37,6 +37,9 @@ import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import okhttp3.Call;
 
 class FastImageViewModule extends ReactContextBaseJavaModule {
 
@@ -61,6 +64,12 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // loading. Only used on the UI thread (Glide calls its listeners there).
     private static final ArrayDeque<Runnable> pendingPreloads = new ArrayDeque<>();
     private static int preloadsInFlight = 0;
+    // clearDiskCache calls that haven't cleared yet, counted on the native
+    // modules' thread when they're called, so the methods called after one
+    // see it. Nothing in pendingPreloads starts meanwhile: the clear waits
+    // for the work before it on cachePathExecutor, and a preload called after
+    // it would otherwise load from or into the disk cache it then empties.
+    private static final AtomicInteger pendingClears = new AtomicInteger();
 
     // Starts pending preloads while there's room. A listener calls it again,
     // sometimes from inside run() (Glide reports a memory-cached image
@@ -68,7 +77,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // updated before each run(), so the inner call starts what fits, and the
     // outer loop sees the updated counters when it checks again.
     private static void startPendingPreloads() {
-        while (preloadsInFlight < PRELOAD_LIMIT && !pendingPreloads.isEmpty()) {
+        while (pendingClears.get() == 0 && preloadsInFlight < PRELOAD_LIMIT && !pendingPreloads.isEmpty()) {
             preloadsInFlight++;
             pendingPreloads.poll().run();
         }
@@ -329,8 +338,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return result;
     }
 
-    // Where getCachePath looks in the caches and downloads `web` images
-    // (blocking calls, off the UI and modules threads).
+    // Where getCachePath looks in the caches and downloads `web` images,
+    // writeToCache stores files, configureCache measures the disk cache and
+    // clearDiskCache empties it: blocking calls, off the UI and modules
+    // threads, one at a time in the order they get here.
     private static final Executor cachePathExecutor = Executors.newSingleThreadExecutor();
 
     private static WritableMap pathResult(File file) {
@@ -444,8 +455,15 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         };
     }
 
+    // The `web` download running on cachePathExecutor (getCachePath, one at
+    // a time), which clearDiskCache stops rather than wait for: it takes as
+    // long as the server keeps sending.
+    @Nullable
+    private static volatile Call webDownload;
+
     // Downloads a `web` image into its HTTP cache, which keeps it only if the
-    // server allows caching it.
+    // server allows caching it, and not if clearDiskCache is called before
+    // it's done.
     private static Runnable downloadToWebCache(final FastImageSource imageSource, final Promise promise) {
         return new Runnable() {
             @Override
@@ -454,14 +472,26 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     @Override
                     public void run() {
                         WritableMap result;
+                        Call call = null;
                         try {
-                            FastImageOkHttpProgressGlideModule.downloadToWebCache(imageSource.getGlideUrl());
+                            call = FastImageOkHttpProgressGlideModule.webDownload(imageSource.getGlideUrl());
+                            // Set before checking for a clear, which counts
+                            // itself before it looks here: one of them sees the
+                            // other.
+                            webDownload = call;
+                            // A clear is waiting behind it.
+                            if (pendingClears.get() > 0) call.cancel();
+                            FastImageOkHttpProgressGlideModule.downloadToWebCache(call);
                             File file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                             result = file != null
                                     ? pathResult(file)
                                     : failure("Not stored in the disk cache (the server doesn't allow caching it)");
                         } catch (IOException e) {
-                            result = failure(e.getMessage() != null ? e.getMessage() : e.toString());
+                            result = failure(call != null && call.isCanceled()
+                                    ? "Not stored in the disk cache (clearDiskCache was called while it was downloading)"
+                                    : e.getMessage() != null ? e.getMessage() : e.toString());
+                        } finally {
+                            webDownload = null;
                         }
                         finishDownload(promise, result);
                     }
@@ -597,24 +627,58 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
-    // On the native modules' thread: Glide clears its disk cache off the main
-    // thread.
+    // On cachePathExecutor (Glide clears its disk cache off the main thread),
+    // after the lookups and writeToCache calls queued there before it, so a
+    // file writeToCache is storing isn't stored after the clear. A `web`
+    // download there is stopped rather than waited for (see webDownload).
+    // Preloads don't start until it's done (pendingClears). Not on the native
+    // modules' thread, where React Native runs the async methods of every
+    // Java and Kotlin module: deleting a full cache held them up.
     @ReactMethod
-    public void clearDiskCache(Promise promise) {
+    public void clearDiskCache(final Promise promise) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        pendingClears.incrementAndGet();
+        Call download = webDownload;
+        if (download != null) download.cancel();
+        cachePathExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Resolved here, before the calls queued after it on
+                    // this thread run and the preloads held for it start, so
+                    // it resolves before them, as the calls were made.
+                    promise.resolve(clearDiskCaches(context));
+                } finally {
+                    // Then those preloads start, if no other clear is
+                    // waiting; also if the clear threw, so they aren't held
+                    // for good.
+                    pendingClears.decrementAndGet();
+                    UiThreadUtil.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            startPendingPreloads();
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    // Empties Glide's disk cache and the HTTP cache of `cache: 'web'` images,
+    // which Glide doesn't cache (set up when FastImage's components are
+    // registered). Blocking.
+    private static WritableMap clearDiskCaches(Context context) {
         try {
-            FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();
+            FastImageGlide.getRegistered(context).clearDiskCache();
         } catch (RuntimeException e) {
-            promise.resolve(failure(e));
-            return;
+            return failure(e);
         }
-        // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
-        // cache (set up when FastImage's components are registered).
         try {
             FastImageOkHttpProgressGlideModule.clearWebCache();
         } catch (IOException e) {
             // Cleared as far as it could.
         }
-        promise.resolve(cleared());
+        return cleared();
     }
 
     private static WritableMap cleared() {

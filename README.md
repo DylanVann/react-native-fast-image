@@ -597,7 +597,7 @@ const { ok } = await FastImage.getCachePath({
 - The file belongs to the cache, which can remove it at any time: copy it to keep it.
 - Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
 - A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.
-- With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.
+- With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise, or if `clearDiskCache` is called while it's downloading. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.
 
 There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey).
 

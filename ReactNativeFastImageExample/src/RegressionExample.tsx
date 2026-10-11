@@ -4158,6 +4158,218 @@ function CachePathCase({
     )
 }
 
+// Android only (iOS clears on its disk cache's queue, which doesn't wait for
+// downloads). clearDiskCache's order with the cache calls around it:
+// getCachePath downloads a `cache: 'web'` image from the slow server, which
+// holds the rest of it once the headers and half of it have come (so the HTTP
+// cache is storing it, and FastImage's cache thread is busy); meanwhile
+// writeToCache is called (to store an image's file from getCachePath under
+// another url), then clearDiskCache, then preload of a remote image that
+// isn't cached (to disk only), preload of a local image in the memory cache
+// (a data uri), preload of a remote image in the memory cache (both preloaded
+// before; the clear removes the remote one's file), getCachePath of a `web`
+// image that isn't cached, and a cacheOnly getCachePath. The hold is released
+// once the clear and the first preload are done, or after 5 s. Passes when
+// the clear was done before that (it doesn't wait for the download), the
+// download failed because of the clear, writeToCache, the preloads and the
+// second getCachePath were ok, the clear resolved before the calls after it,
+// the downloaded and stored images aren't cached after the clear, and the
+// remote images preloaded after it and the second `web` one are. Android
+// cleared at once on the native modules' thread: the clear removed the HTTP
+// cache entry being written (so getCachePath said the server doesn't allow
+// caching the image), and writeToCache ran after the clear, which had removed
+// its file. A clear that waits on the cache thread must hold the preloads
+// called after it, or they load first and the clear removes their files, and
+// must resolve before it lets them start: Glide reports a local image in the
+// memory cache as soon as it's preloaded (a remote image's preload first
+// looks for its file in the disk cache, and downloads it again).
+const CLEAR_ORDER = `clear-order-${RUN}`
+function ClearDiskCacheOrderCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        let stopped = false
+        const release = () => fetch(imageUrl(`release?hold=${CLEAR_ORDER}`))
+        const run = async () => {
+            const file = await FastImage.getCachePath({
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-order-file=${RUN}`,
+                ),
+            })
+            if (!file.ok) return setStatus(`no file: ${file.error}`)
+            // Decoded into the memory cache, which the clear keeps. Preloaded
+            // again after the clear, the local image (a data uri) comes from
+            // there at once, and the remote one's file is downloaded first.
+            const inMemory: Source = { uri: YELLOW_DATA_URI }
+            const remoteInMemory: Source = {
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-order-memory=${RUN}`,
+                ),
+            }
+            const [memory, remoteMemory] = await FastImage.preload([
+                inMemory,
+                remoteInMemory,
+            ])
+            if (!memory.ok) return setStatus(`no memory image: ${memory.error}`)
+            if (!remoteMemory.ok) {
+                return setStatus(
+                    `no remote memory image: ${remoteMemory.error}`,
+                )
+            }
+            const web: Source = {
+                uri: slowImageUrl(
+                    `picsum/1025-200x200.jpg?group=${CLEAR_ORDER}&hold=${CLEAR_ORDER}&delay=50`,
+                ),
+                headers: SLOW_HEADERS,
+                cache: FastImage.cacheControl.web,
+            }
+            const stored = imageUrl(
+                `picsum/1025-200x200.jpg?clear-order-stored=${RUN}`,
+            )
+            // To disk only, so getCachePath looks for it on disk.
+            const preloaded: Source = {
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-order-preloaded=${RUN}`,
+                ),
+                memoryCache: false,
+            }
+            const webAfter: Source = {
+                uri: imageUrl(
+                    `max-age/picsum/1022-120x120.jpg?clear-order-web=${RUN}`,
+                ),
+                cache: FastImage.cacheControl.web,
+            }
+            const downloaded = FastImage.getCachePath(web)
+            await groupRequested(CLEAR_ORDER, () => stopped)
+            // The headers and half of the image come in about 150 ms.
+            await sleep(1000)
+            if (stopped) return
+            setStatus('clearing')
+            const written = FastImage.writeToCache(
+                { uri: stored },
+                `file://${file.path}`,
+            )
+            // The calls from clearDiskCache on, in the order they resolve.
+            const resolved: string[] = []
+            const track = <T,>(name: string, promise: Promise<T>) =>
+                promise.then((result) => {
+                    resolved.push(name)
+                    return result
+                })
+            let clearDone = false
+            const cleared = track(
+                'clearDiskCache',
+                FastImage.clearDiskCache(),
+            ).then((result) => {
+                clearDone = true
+                return result
+            })
+            const cacheOnly = FastImage.cacheControl.cacheOnly
+            const preloading = track('preload', FastImage.preload([preloaded]))
+            const preloadingMemory = track(
+                'preload from memory',
+                FastImage.preload([inMemory]),
+            )
+            const preloadingRemoteMemory = track(
+                'preload of a remote image in memory',
+                FastImage.preload([remoteInMemory]),
+            )
+            const downloadedAfter = track(
+                "cache 'web' getCachePath",
+                FastImage.getCachePath(webAfter),
+            )
+            const lookedUp = track(
+                'cacheOnly getCachePath',
+                FastImage.getCachePath({ uri: stored, cache: cacheOnly }),
+            )
+            // Both take well under a second, unless the clear waits for the
+            // download (and the preload for the clear).
+            await Promise.race([
+                Promise.all([cleared, preloading]),
+                sleep(5000),
+            ])
+            const clearWaited = !clearDone
+            await release()
+            const [
+                download,
+                write,
+                clear,
+                [preload],
+                [preloadMemory],
+                [preloadRemoteMemory],
+                downloadAfter,
+            ] = await Promise.all([
+                downloaded,
+                written,
+                cleared,
+                preloading,
+                preloadingMemory,
+                preloadingRemoteMemory,
+                downloadedAfter,
+                lookedUp,
+            ])
+            const [
+                webCached,
+                storedCached,
+                preloadedCached,
+                remoteMemoryCached,
+                webAfterCached,
+            ] = await Promise.all([
+                FastImage.getCachePath({ ...web, cache: cacheOnly }),
+                FastImage.getCachePath({ uri: stored, cache: cacheOnly }),
+                FastImage.getCachePath({ ...preloaded, cache: cacheOnly }),
+                FastImage.getCachePath({ ...remoteInMemory, cache: cacheOnly }),
+                FastImage.getCachePath({ ...webAfter, cache: cacheOnly }),
+            ])
+            const problems = [
+                clearWaited &&
+                    "clearDiskCache waited for the cache 'web' download before it",
+                (download.ok || !download.error.includes('clearDiskCache')) &&
+                    `getCachePath: ${download.ok ? 'ok' : download.error}`,
+                !write.ok && `writeToCache: ${write.error}`,
+                !clear.ok && `clearDiskCache: ${clear.error}`,
+                !preload.ok && `preload: ${preload.error}`,
+                !preloadMemory.ok &&
+                    `preload from memory: ${preloadMemory.error}`,
+                !preloadRemoteMemory.ok &&
+                    `preload of a remote image in memory: ${preloadRemoteMemory.error}`,
+                resolved[0] !== 'clearDiskCache' &&
+                    `resolved before clearDiskCache: ${resolved
+                        .slice(0, resolved.indexOf('clearDiskCache'))
+                        .join(', ')}`,
+                !downloadAfter.ok &&
+                    `getCachePath after clearDiskCache: ${downloadAfter.error}`,
+                webCached.ok && 'the downloaded image is cached',
+                storedCached.ok && 'the stored image is still cached',
+                !preloadedCached.ok &&
+                    `the image preloaded after clearDiskCache: ${preloadedCached.error}`,
+                !remoteMemoryCached.ok &&
+                    `the remote image in memory preloaded after clearDiskCache: ${remoteMemoryCached.error}`,
+                !webAfterCached.ok &&
+                    `the image downloaded after clearDiskCache: ${webAfterCached.error}`,
+            ].filter(Boolean)
+            if (!stopped) {
+                setStatus(problems.length > 0 ? problems.join('; ') : 'OK')
+            }
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        return () => {
+            stopped = true
+            // Nothing stays held if the case goes first.
+            release().catch(() => {})
+        }
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="clear-disk-cache-order"
+                status={status}
+                description="clearDiskCache stops a cache 'web' getCachePath download instead of waiting for it, runs after a writeToCache called before it, and before a preload and getCachePath called after it (Android only)"
+            />
+        </View>
+    )
+}
+
 // Preloads an image with memoryCache false (to disk only, without decoding
 // it), which still reports its size, then shows it: it loads from the disk
 // cache, so the server gets one request. (That it isn't decoded into memory
@@ -7097,6 +7309,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Clears the caches, so on its own.
         name: 'web-cache-clear',
         cases: [<WebCacheClearCase key="web-cache-clear" />],
+    },
+    {
+        // Clears the caches and holds a download, so on its own.
+        name: 'clear-disk-cache-order',
+        cases: [
+            Platform.OS === 'android' ? (
+                <ClearDiskCacheOrderCase key="clear-disk-cache-order" />
+            ) : (
+                <NoCrashCase
+                    key="clear-disk-cache-order"
+                    id="clear-disk-cache-order"
+                    description="clearDiskCache's order with the cache calls around it (Android only)"
+                />
+            ),
+        ],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and

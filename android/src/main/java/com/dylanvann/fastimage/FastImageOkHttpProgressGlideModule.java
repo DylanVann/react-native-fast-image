@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
+import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.JavaNetCookieJar;
@@ -56,13 +57,18 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         if (cache != null) cache.evictAll();
     }
 
-    // Downloads a `web` image (with its headers) through the client with the
-    // HTTP cache, which stores it if the server allows it (getCachePath).
-    // Blocking. Glide must be set up.
-    static void downloadToWebCache(GlideUrl url) throws IOException {
+    // A download of a `web` image (with its headers) through the client with
+    // the HTTP cache (getCachePath). Glide must be set up.
+    static Call webDownload(GlideUrl url) throws IOException {
         OkHttpClient client = webClient;
         if (client == null) throw new IOException("Glide isn't set up");
-        try (Response response = client.newCall(FastImageSharedDownloads.request(url)).execute()) {
+        return client.newCall(FastImageSharedDownloads.request(url));
+    }
+
+    // Runs it, reading the response to the end so the cache stores it if the
+    // server allows it. Blocking.
+    static void downloadToWebCache(Call call) throws IOException {
+        try (Response response = call.execute()) {
             if (!response.isSuccessful()) {
                 // As Glide's HttpException reports it.
                 throw new IOException(response.message() + ", status code: " + response.code());
