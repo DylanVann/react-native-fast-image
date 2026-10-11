@@ -12,7 +12,7 @@
         "react": "19.2.3",
         "react-native": "0.86.3",
         "react-native-fast-image": "8.28.0",
-        "react-native-fast-image-9": "npm:react-native-fast-image@9.1.0",
+        "react-native-fast-image-9": "npm:react-native-fast-image@9.2.2",
         "react-native-nitro-image": "0.15.2",
         "react-native-nitro-modules": "0.37.1",
         "react-native-nitro-web-image": "0.15.2",
@@ -697,7 +697,7 @@
 
     "react-native-fast-image": ["react-native-fast-image@8.28.0", "", { "peerDependencies": { "react": "^17 || ^18 || ^19", "react-native": ">=0.60.0" } }, "sha512-hvlJMODXuHmYk5TA5ixsojHbne8LF2sws46KiCvQtIhnrYs/6+iTGH6BkP5P5A4vEe3/WGFIFzFbwCfnx5ZtGw=="],
 
-    "react-native-fast-image-9": ["react-native-fast-image@9.1.0", "", { "peerDependencies": { "react": "^17 || ^18 || ^19", "react-native": "*" } }, "sha512-Pm7MxYAn0c1SAEoPzC/NUis16/H6RLyAPBgiSqRKS2UOXYNep5H79TlSMLaLMGp1wCQltIowFdnhVdQyVf4zFw=="],
+    "react-native-fast-image-9": ["react-native-fast-image@9.2.2", "", { "peerDependencies": { "react": "^17 || ^18 || ^19", "react-native": "*" } }, "sha512-gWKK3FNhzBr/PfJBWL82TkiZo+nAeYH9g+83KiGAYcAyc7fYH/Uus+ej2AwyhBSyE8Fh7lYDG+RvAiF/SL4gbg=="],
 
     "react-native-nitro-image": ["react-native-nitro-image@0.15.2", "", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-nitro-modules": "*" }, "optionalPeers": ["react-native-nitro-modules"] }, "sha512-WiaGnORmfNIIqtRJW76TWYNet1YZx1MWDlSOxd0jfcIBN4KjkVVMDVpvO01eCfpxKVG0ez9nA2iLQkPVlGFj+A=="],
 

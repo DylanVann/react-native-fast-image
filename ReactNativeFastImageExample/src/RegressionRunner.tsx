@@ -12,6 +12,7 @@ import {
     SafeAreaProvider,
     useSafeAreaInsets,
 } from 'react-native-safe-area-context'
+import FastImage from 'react-native-fast-image'
 import { caseStyles } from './CaseStatus'
 import {
     Masked,
@@ -112,6 +113,11 @@ export default function RegressionRunner({
 }: {
     groups: RegressionGroup[]
 }) {
+    // No fades unless a case asks for one (Android fades by default), so the
+    // screenshots don't catch an image fading in. Set before the first group
+    // renders; the fade-default group checks the built-in default.
+    useState(() => FastImage.setDefaults({ transition: false }))
+    useEffect(() => () => FastImage.setDefaults({ transition: null }), [])
     const [index, setIndex] = useState(0)
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)

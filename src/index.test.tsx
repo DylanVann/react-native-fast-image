@@ -7,7 +7,15 @@ import {
     View,
 } from 'react-native'
 import React from 'react'
-import { beforeAll, describe, expect, it, mock, spyOn } from 'bun:test'
+import {
+    afterEach,
+    beforeAll,
+    describe,
+    expect,
+    it,
+    mock,
+    spyOn,
+} from 'bun:test'
 import renderer from '../test/render'
 import FastImage, { FastImageBackground, FastImageProps } from './index'
 
@@ -704,11 +712,97 @@ describe('transition', () => {
             .root.findAll((node) => node.type === ('FastImageView' as any))[0]
     const source = { uri: 'https://example.com/a.jpg' }
 
-    it('is off by default, not between images and skipping memory cache hits once set', () => {
+    // As on another platform (the tests run as iOS).
+    const onPlatform = (os: typeof Platform.OS, run: () => void) => {
+        const saved = Platform.OS
+        Platform.OS = os
+        try {
+            run()
+        } finally {
+            Platform.OS = saved
+        }
+    }
+
+    afterEach(() => {
+        FastImage.setDefaults({ transition: null })
+    })
+
+    it('is off by default on iOS, not between images and skipping memory cache hits once set', () => {
         const view = nativeView(<FastImage source={source} />)
         expect(view.props.transitionDuration).toBe(0)
         expect(view.props.transitionBetweenImages).toBe(false)
         expect(view.props.transitionSkipOnCacheHit).toBe('memory')
+    })
+
+    it('fades over 300 ms by default on Android, and null is the default', () => {
+        onPlatform('android', () => {
+            for (const transition of [undefined, null]) {
+                const view = nativeView(
+                    <FastImage source={source} transition={transition} />,
+                )
+                expect(view.props.transitionDuration).toBe(300)
+                expect(view.props.transitionBetweenImages).toBe(false)
+                expect(view.props.transitionSkipOnCacheHit).toBe('memory')
+            }
+            expect(
+                nativeView(<FastImage source={source} transition={false} />)
+                    .props.transitionDuration,
+            ).toBe(0)
+        })
+        expect(
+            nativeView(<FastImage source={source} transition={null} />).props
+                .transitionDuration,
+        ).toBe(0)
+    })
+
+    it('takes a default from setDefaults, which an image overrides setting by setting', () => {
+        FastImage.setDefaults({
+            transition: { duration: 200, betweenImages: true },
+        })
+        const props = (transition?: any) => {
+            const view = nativeView(
+                <FastImage source={source} transition={transition} />,
+            )
+            return [
+                view.props.transitionDuration,
+                view.props.transitionBetweenImages,
+                view.props.transitionSkipOnCacheHit,
+            ]
+        }
+        expect(props()).toEqual([200, true, 'memory'])
+        // true is the default's duration; the rest come from the default.
+        expect(props(true)).toEqual([200, true, 'memory'])
+        expect(props(500)).toEqual([500, true, 'memory'])
+        expect(props({ skipOnCacheHit: 'none' })).toEqual([200, true, 'none'])
+        expect(props({ betweenImages: false })).toEqual([200, false, 'memory'])
+        expect(props(false)).toEqual([0, true, 'memory'])
+        // Settings left out of setDefaults are kept.
+        FastImage.setDefaults({})
+        expect(props()).toEqual([200, true, 'memory'])
+    })
+
+    it('can turn the fade off, or on for iOS, for every image', () => {
+        onPlatform('android', () => {
+            FastImage.setDefaults({ transition: false })
+            expect(
+                nativeView(<FastImage source={source} />).props
+                    .transitionDuration,
+            ).toBe(0)
+            // An image's true is still the usual fade.
+            expect(
+                nativeView(<FastImage source={source} transition />).props
+                    .transitionDuration,
+            ).toBe(300)
+        })
+        FastImage.setDefaults({ transition: true })
+        expect(
+            nativeView(<FastImage source={source} />).props.transitionDuration,
+        ).toBe(250)
+        // null goes back to the built-in default.
+        FastImage.setDefaults({ transition: null })
+        expect(
+            nativeView(<FastImage source={source} />).props.transitionDuration,
+        ).toBe(0)
     })
 
     it('takes a duration', () => {

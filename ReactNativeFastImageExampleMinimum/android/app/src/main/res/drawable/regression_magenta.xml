@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A solid magenta defaultSource for the regression cases: in debug builds,
+     Android only resolves a defaultSource the app bundles as a drawable. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF00FF" />
+</shape>

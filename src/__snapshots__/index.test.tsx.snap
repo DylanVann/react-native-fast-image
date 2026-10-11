@@ -153,7 +153,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
       }
     }
     transitionBetweenImages={false}
-    transitionDuration={0}
+    transitionDuration={300}
     transitionSkipOnCacheHit="memory"
   />
 </View>"
@@ -192,7 +192,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
       }
     }
     transitionBetweenImages={false}
-    transitionDuration={0}
+    transitionDuration={300}
     transitionSkipOnCacheHit="memory"
   />
 </View>"
@@ -228,7 +228,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
       }
     }
     transitionBetweenImages={false}
-    transitionDuration={0}
+    transitionDuration={300}
     transitionSkipOnCacheHit="memory"
   />
 </View>"

@@ -4238,6 +4238,14 @@ function PreloadDiskCase() {
 //   a `file://` source: a local file, not a memory cache hit.
 // - bundled: a require()d image (from Metro in debug builds, from the app in
 //   release builds).
+// - placeholder: the view shows a magenta defaultSource (no source), then its
+//   source becomes a cyan image that downloads (the slow server): magenta,
+//   then cyan, or through blue-violet if it fades. With image 'cyan-half', a
+//   cyan image at half opacity: magenta, then half cyan over black, through
+//   a darker blue-violet (with the magenta gone at the end). With tall, the
+//   view is three times as tall as the case shows (its top third), with
+//   resizeMode contain: the square image covers the middle third, and the
+//   top shows defaultSource, then black, through half magenta.
 // - web: a cache 'web' image (cacheable for an hour) that a view (left)
 //   loaded: on Android from its HTTP cache, without a request (Android doesn't
 //   keep cache 'web' images in the memory cache), on iOS from the memory cache
@@ -4248,6 +4256,20 @@ const BLACK = '#000000'
 const HALF_CYAN = '#008080'
 // Halfway from magenta to cyan.
 const MAGENTA_CYAN = '#8080ff'
+// Halfway from magenta to half-opacity cyan, over black.
+const MAGENTA_HALF_CYAN = '#8040c0'
+// Magenta at half opacity over black.
+const HALF_MAGENTA = '#800080'
+// A magenta defaultSource (see DEFAULT for Android's).
+const MAGENTA_DEFAULT = Platform.select({
+    android: { uri: 'regression_magenta' } as unknown as number,
+    default: require('./images/magenta.png'),
+})
+// The same for the tall view (iOS fits it in the view as the image).
+const MAGENTA_TALL_DEFAULT = Platform.select({
+    android: { uri: 'regression_magenta' } as unknown as number,
+    default: require('./images/magenta-tall.png'),
+})
 type FadeFrom =
     | 'download'
     | 'memory'
@@ -4256,6 +4278,7 @@ type FadeFrom =
     | 'change-download'
     | 'file'
     | 'bundled'
+    | 'placeholder'
     | 'web'
 function FadeCase({
     id,
@@ -4263,24 +4286,35 @@ function FadeCase({
     skipOnCacheHit,
     betweenImages,
     blurRadius,
+    defaultTransition = false,
+    image = 'cyan',
+    tall = false,
     fades,
     description,
 }: {
     id: string
     from: FadeFrom
+    image?: 'cyan' | 'cyan-half'
+    tall?: boolean
     skipOnCacheHit?: Transition['skipOnCacheHit']
     betweenImages?: boolean
     blurRadius?: number
+    // No transition prop: the built-in default (the runner turns fades off
+    // for the other cases), which fades for the platform's usual length.
+    defaultTransition?: boolean
     fades: boolean
     description: string
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const change = from === 'change' || from === 'change-download'
+    const placeholder = from === 'placeholder'
+    // From magenta (the image showing, or defaultSource) to cyan.
+    const fromMagenta = change || placeholder
     const source =
-        from === 'download' || from === 'change-download'
+        from === 'download' || from === 'change-download' || placeholder
             ? {
-                  uri: slowImageUrl(`cyan.png?${id}=${RUN}&delay=50`),
+                  uri: slowImageUrl(`${image}.png?${id}=${RUN}&delay=50`),
                   headers: BACKGROUND_SLOW_HEADERS,
               }
             : from === 'web'
@@ -4295,10 +4329,11 @@ function FadeCase({
     // loads the image first (left) has loaded it.
     const onMount = from === 'download' || from === 'bundled'
     // Whether a view (left) loads the image first.
-    const loader = !onMount && from !== 'change-download'
+    const loader = !onMount && from !== 'change-download' && !placeholder
     const [loaderShown, setLoaderShown] = useState(loader)
-    // The view that fades (change: it shows magenta until the change).
-    const [shown, setShown] = useState(change)
+    // The view that fades (change: it shows magenta until the change;
+    // placeholder: its defaultSource until it gets its source).
+    const [shown, setShown] = useState(fromMagenta)
     const [changed, setChanged] = useState(false)
     // What the view that fades shows (change: magenta until the change).
     const shownSource =
@@ -4308,17 +4343,23 @@ function FadeCase({
               ? file
               : change && !changed
                 ? magenta
-                : source
+                : placeholder && !changed
+                  ? undefined
+                  : source
     const [status, setStatus] = useState(
         onMount ? 'waiting' : 'loading the first view',
     )
-    const expect = change
-        ? fades
-            ? [MAGENTA, MAGENTA_CYAN, CYAN]
-            : [MAGENTA, CYAN]
-        : fades
-          ? [BLACK, HALF_CYAN, CYAN]
-          : [BLACK, CYAN]
+    const expect = tall
+        ? [MAGENTA, HALF_MAGENTA, BLACK]
+        : image === 'cyan-half'
+          ? [MAGENTA, MAGENTA_HALF_CYAN, HALF_CYAN]
+          : fromMagenta
+            ? fades
+                ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                : [MAGENTA, CYAN]
+            : fades
+              ? [BLACK, HALF_CYAN, CYAN]
+              : [BLACK, CYAN]
     const loaded = useRef(0)
     const done = useRef(() => {})
     const record = async () => {
@@ -4331,13 +4372,28 @@ function FadeCase({
                 area,
                 durationMs: 5000,
                 expect,
-                palette: change
-                    ? [MAGENTA, MAGENTA_CYAN, CYAN]
-                    : [BLACK, HALF_CYAN, CYAN],
+                // tall and cyan-half: also what shows if defaultSource
+                // doesn't fade out (magenta until the end, magenta with half
+                // cyan over it).
+                palette: tall
+                    ? [MAGENTA, HALF_MAGENTA, BLACK, CYAN]
+                    : image === 'cyan-half'
+                      ? [MAGENTA, MAGENTA_HALF_CYAN, HALF_CYAN, MAGENTA_CYAN]
+                      : fromMagenta
+                        ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                        : [BLACK, HALF_CYAN, CYAN],
             },
             (sampleDone) => {
-                done.current = sampleDone
-                if (change) setChanged(true)
+                done.current = () => {
+                    if (defaultTransition) {
+                        FastImage.setDefaults({ transition: false })
+                    }
+                    sampleDone()
+                }
+                if (defaultTransition) {
+                    FastImage.setDefaults({ transition: null })
+                }
+                if (fromMagenta) setChanged(true)
                 else setShown(true)
             },
         )
@@ -4364,6 +4420,14 @@ function FadeCase({
     }
     useEffect(() => {
         if (onMount) record()
+        // Once defaultSource shows.
+        const timer = placeholder ? setTimeout(record, 500) : undefined
+        // Back to the runner's default (no fades) if it unmounts while
+        // recording.
+        return () => {
+            clearTimeout(timer)
+            if (defaultTransition) FastImage.setDefaults({ transition: false })
+        }
         // Only on mount (the others record once the first view loads).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -4383,12 +4447,24 @@ function FadeCase({
             <View
                 ref={view}
                 collapsable={false}
-                style={[fadeStyles.black, loader ? styles.gap : null]}
+                style={[
+                    fadeStyles.black,
+                    loader ? styles.gap : null,
+                    tall ? fadeStyles.clip : null,
+                ]}
             >
                 {shown ? (
                     <FastImage
-                        style={fadeStyles.image}
+                        style={tall ? fadeStyles.tall : fadeStyles.image}
+                        resizeMode={tall ? 'contain' : undefined}
                         source={shownSource}
+                        defaultSource={
+                            tall
+                                ? MAGENTA_TALL_DEFAULT
+                                : placeholder
+                                  ? MAGENTA_DEFAULT
+                                  : undefined
+                        }
                         onLoad={
                             change && !changed
                                 ? onLoaderLoad
@@ -4400,11 +4476,15 @@ function FadeCase({
                                           FADE_MS + 500,
                                       )
                         }
-                        transition={{
-                            duration: FADE_MS,
-                            betweenImages,
-                            skipOnCacheHit,
-                        }}
+                        transition={
+                            defaultTransition
+                                ? undefined
+                                : {
+                                      duration: FADE_MS,
+                                      betweenImages,
+                                      skipOnCacheHit,
+                                  }
+                        }
                         blurRadius={blurRadius}
                     />
                 ) : null}
@@ -4417,6 +4497,8 @@ function FadeCase({
 const fadeStyles = StyleSheet.create({
     black: { width: 48, height: 48, backgroundColor: BLACK },
     image: { width: 48, height: 48 },
+    clip: { overflow: 'hidden' },
+    tall: { width: 48, height: 144 },
 })
 
 // Preloads a mix of sources and checks the results: each source's ok, and the
@@ -7214,6 +7296,53 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         // Recorded (video samples).
+        name: 'fade-web',
+        cases: [
+            <FadeCase
+                key="fade-web"
+                id="fade-web"
+                from="web"
+                defaultTransition
+                fades={false}
+                description="without transition: a cache web image shown again, from its HTTP cache without a request, shows at once (recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+            />,
+            <FadeCase
+                key="fade-web-transition"
+                id="fade-web-transition"
+                from="web"
+                fades={false}
+                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+            />,
+            <FadeCase
+                key="fade-web-none"
+                id="fade-web-none"
+                from="web"
+                skipOnCacheHit="none"
+                fades
+                description="skipOnCacheHit 'none': a cache web image from its HTTP cache fades in (recorded: black, half cyan, cyan)"
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
+        name: 'fade-default',
+        cases: [
+            <FadeCase
+                key="fade-default"
+                id="fade-default"
+                from="download"
+                defaultTransition
+                fades={Platform.OS === 'android'}
+                description={
+                    Platform.OS === 'android'
+                        ? 'without transition: a downloaded image fades in by default on Android (300 ms; recorded: black, half cyan, cyan)'
+                        : "without transition: a downloaded image shows at once by default on iOS (recorded: black, then cyan; half cyan mustn't appear)"
+                }
+            />,
+        ],
+    },
+    {
+        // Recorded (video samples).
         name: 'fade-source',
         cases: [
             <FadeCase
@@ -7267,6 +7396,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 fades
                 description="transition with betweenImages and skipOnCacheHit none: a new source from the memory cache cross-dissolves from the image showing (right; recorded: magenta, blue-violet, cyan)"
             />,
+            <FadeCase
+                key="fade-placeholder"
+                id="fade-placeholder"
+                from="placeholder"
+                fades
+                description="transition: an image that downloads cross-dissolves from defaultSource (recorded: magenta, blue-violet, cyan)"
+            />,
+            <FadeCase
+                key="fade-placeholder-translucent"
+                id="fade-placeholder-translucent"
+                from="placeholder"
+                image="cyan-half"
+                fades
+                description="transition: an image at half opacity cross-dissolves from defaultSource, which fades out under it (recorded: magenta, dark blue-violet, half cyan)"
+            />,
+            <FadeCase
+                key="fade-placeholder-contain"
+                id="fade-placeholder-contain"
+                from="placeholder"
+                tall
+                fades
+                description="transition with resizeMode contain: defaultSource fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
+            />,
         ],
     },
     {
@@ -7287,27 +7439,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 skipOnCacheHit="all"
                 fades={false}
                 description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
-            />,
-        ],
-    },
-    {
-        // Recorded (video samples).
-        name: 'fade-web',
-        cases: [
-            <FadeCase
-                key="fade-web"
-                id="fade-web"
-                from="web"
-                fades={false}
-                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
-            />,
-            <FadeCase
-                key="fade-web-none"
-                id="fade-web-none"
-                from="web"
-                skipOnCacheHit="none"
-                fades
-                description="transition with skipOnCacheHit none: a cache web image shown again fades in (right; recorded: black, half cyan, cyan)"
             />,
         ],
     },

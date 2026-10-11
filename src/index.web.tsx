@@ -548,6 +548,9 @@ FastImage.clearDiskCache = () => Promise.resolve(notSupported)
 
 FastImage.configureCache = (): Promise<CacheState> => Promise.resolve({})
 
+// transition is native only.
+FastImage.setDefaults = () => {}
+
 FastImage.writeToCache = () => Promise.resolve(notSupported)
 
 FastImage.getCachePath = () => Promise.resolve(notSupported)

@@ -122,7 +122,8 @@ export type Source = {
 export type Transition = {
     /**
      * How long the fade takes, in milliseconds; 0 means no fade. Defaults to
-     * the platform's usual length: 300 ms on Android, 250 ms on iOS.
+     * the default transition's (see `FastImage.setDefaults`) if it fades,
+     * otherwise the platform's usual length: 300 ms on Android, 250 ms on iOS.
      */
     duration?: number
     /**
@@ -408,15 +409,21 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     paused?: boolean
     /**
-     * Fades the image in when it loads. `true` uses the platform's usual
-     * fade, a number is the duration in milliseconds, or pass a `Transition`.
+     * Fades the image in when it loads. `true` fades for the default's
+     * duration (see `FastImage.setDefaults`), or the platform's usual length
+     * if the default doesn't fade; a number is the duration in milliseconds,
+     * `false` (or 0) is no fade, or pass a `Transition`.
+     *
+     * By default, images fade in on Android (300 ms), and not on iOS.
+     * `FastImage.setDefaults` changes that for every image; an image's own
+     * `transition` wins, and the settings it leaves out come from the
+     * default. `null` is the default.
      *
      * Downloads, local files (`file://`, `content://`) and bundled images
      * (`require()`) fade in. In lists that reuse views (e.g. FlashList), set
      * `recyclingKey`, so a reused view starts empty and its image fades in,
      * instead of showing the previous item's image until it loads.
      *
-     * @default false
      * @example
      * ```jsx
      * <FastImage source={{ uri }} transition />
@@ -631,28 +638,60 @@ function handledEvents({
 
 // The platform's usual fade length: Glide's and React Native's Image's on
 // Android, Core Animation's default on iOS.
-const DEFAULT_FADE_MS = Platform.OS === 'ios' ? 250 : 300
+function usualFadeMs() {
+    return Platform.OS === 'ios' ? 250 : 300
+}
 
-// The native transition props. Always sent, so removing `transition` turns it
-// off.
-function transitionProps(transition: FastImageProps['transition']) {
+// The native transition props. Always sent, so removing `transition` goes
+// back to the default.
+type TransitionProps = {
+    transitionDuration: number
+    transitionBetweenImages: boolean
+    transitionSkipOnCacheHit: string
+}
+
+const NO_TRANSITION: TransitionProps = {
+    transitionDuration: 0,
+    transitionBetweenImages: false,
+    transitionSkipOnCacheHit: 'memory',
+}
+
+// A transition (an image's, or setDefaults') over `base`: the settings it
+// leaves out come from base, and null (or undefined) is base. true, or a
+// missing duration, is base's duration if it fades, otherwise the platform's
+// usual one.
+function resolveTransition(
+    transition: FastImageProps['transition'],
+    base: TransitionProps,
+): TransitionProps {
+    if (transition == null) return base
+    if (transition === false) return { ...base, transitionDuration: 0 }
+    const usual =
+        base.transitionDuration > 0 ? base.transitionDuration : usualFadeMs()
+    if (transition === true) return { ...base, transitionDuration: usual }
     const { duration, betweenImages, skipOnCacheHit }: Transition =
-        typeof transition === 'number'
-            ? { duration: transition }
-            : typeof transition === 'object' && transition
-              ? {
-                    ...transition,
-                    // A missing (or, from Flow, null) duration is the usual one.
-                    duration: transition.duration ?? DEFAULT_FADE_MS,
-                }
-              : { duration: transition ? DEFAULT_FADE_MS : 0 }
+        typeof transition === 'number' ? { duration: transition } : transition
+    const resolvedDuration = duration ?? usual
     return {
         transitionDuration:
-            typeof duration === 'number' && duration > 0 ? duration : 0,
-        transitionBetweenImages: !!betweenImages,
-        transitionSkipOnCacheHit: skipOnCacheHit || 'memory',
+            typeof resolvedDuration === 'number' && resolvedDuration > 0
+                ? resolvedDuration
+                : 0,
+        transitionBetweenImages: betweenImages ?? base.transitionBetweenImages,
+        transitionSkipOnCacheHit:
+            skipOnCacheHit ?? base.transitionSkipOnCacheHit,
     }
 }
+
+// The built-in default: Android fades images in, as React Native's Image does;
+// iOS doesn't, as UIImageView and SDWebImage don't.
+function builtInTransition() {
+    return resolveTransition(Platform.OS === 'android', NO_TRANSITION)
+}
+
+// The default transition set with FastImage.setDefaults (undefined: the
+// built-in one).
+let defaultTransition: TransitionProps | undefined
 
 // React Native's global: true in development (Metro and React Native's Jest
 // preset set it), false in release builds.
@@ -781,7 +820,10 @@ function FastImageBase({
                 recyclingKey={imageProps.recyclingKey ?? undefined}
                 tintColor={resolvedTintColor}
                 loopCount={loopCount(loop)}
-                {...transitionProps(transition)}
+                {...resolveTransition(
+                    transition,
+                    defaultTransition ?? builtInTransition(),
+                )}
                 style={StyleSheet.absoluteFill}
                 source={resolvedSource}
                 sources={sources}
@@ -927,6 +969,23 @@ export interface FastImageStaticProperties {
      * to read the disk cache's size).
      */
     configureCache: (limits?: CacheLimits) => Promise<CacheState>
+    /**
+     * Changes the defaults of every image (only those given; null goes back
+     * to the built-in one). An image already showing uses a change once one
+     * of its props changes, for its next load. Not saved: call it before
+     * images render, e.g. in index.js.
+     */
+    setDefaults: (defaults: FastImageDefaults) => void
+}
+
+/** `FastImage.setDefaults`'s settings. */
+export interface FastImageDefaults {
+    /**
+     * The `transition` of images that don't set one (an image's own settings
+     * win, and those it leaves out come from this). `null` goes back to the
+     * built-in default: images fade in on Android (300 ms), and not on iOS.
+     */
+    transition?: boolean | number | Transition | null
 }
 
 const FastImage: React.ForwardRefExoticComponent<
@@ -939,6 +998,14 @@ FastImage.resizeMode = resizeMode
 FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
+
+FastImage.setDefaults = ({ transition }: FastImageDefaults = {}) => {
+    if (transition === null) {
+        defaultTransition = undefined
+    } else if (transition !== undefined) {
+        defaultTransition = resolveTransition(transition, builtInTransition())
+    }
+}
 
 // preload, getCachePath and writeToCache take one source per image, not
 // several sizes of one: pick the size (e.g. the one a view will show).
