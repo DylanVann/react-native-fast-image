@@ -1,4 +1,11 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+    useContext,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import {
     AppState,
     Image,
@@ -5194,6 +5201,100 @@ function BlurChangeCase() {
     )
 }
 
+// blurRadius changed in steps once the image has loaded (after onLoadEnd, the
+// load's last event): `interval` ms apart, or without one in renders one after
+// the other (before the next frame), as an animated blur or a slider changes
+// it. It's the image that's showing, so no load events fire again, and it ends
+// up like the image next to it, blurred with the last step's radius from the
+// start. With `progress`, the load must send onProgress first. Android loads
+// the image that's showing again for each new blur, without events (from
+// Glide's cache, or for `cache: 'web'` through the HTTP cache); a change while
+// that was loading started the image's load again, which sent onLoad,
+// onLoadEnd and, if it downloaded the image, onProgress.
+function BlurStepsCase({
+    id,
+    description,
+    source,
+    steps,
+    interval,
+    progress = false,
+}: {
+    id: string
+    description: string
+    source: Source
+    steps: number[]
+    interval?: number
+    progress?: boolean
+}) {
+    const [step, setStep] = useState(-1)
+    const [done, setDone] = useState(false)
+    const [progressed, setProgressed] = useState(false)
+    const [late, handlers] = useLateEvents(() => setStep(0))
+    const last = step === steps.length - 1
+    // Without an interval, each step renders right after the one before
+    // (before the next frame): each is its own commit, so the view gets each
+    // blurRadius.
+    useLayoutEffect(() => {
+        if (interval === undefined && step >= 0 && !last) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setStep(step + 1)
+        }
+    }, [interval, step, last])
+    useEffect(() => {
+        if (step < 0 || (interval === undefined && !last)) return
+        // After the last step, long enough for a download from the slow
+        // server (about 2 s) to end.
+        const timer = last
+            ? setTimeout(() => setDone(true), 4000)
+            : setTimeout(() => setStep(step + 1), interval)
+        return () => clearTimeout(timer)
+    }, [step, last, interval])
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={blurStyles.images}>
+                <FastImage
+                    style={blurStyles.image}
+                    source={source}
+                    blurRadius={step < 0 ? 0 : steps[step]}
+                    {...handlers}
+                    onProgress={() => {
+                        if (step < 0) setProgressed(true)
+                        handlers.onProgress()
+                    }}
+                />
+                <FastImage
+                    style={[blurStyles.image, blurStyles.next]}
+                    source={{ uri: PRELOAD }}
+                    blurRadius={steps[steps.length - 1]}
+                />
+            </View>
+            <View style={blurStyles.status}>
+                <CaseStatus
+                    id={id}
+                    status={
+                        late.length > 0
+                            ? `fired again: ${late.join(', ')}`
+                            : !done
+                              ? 'waiting'
+                              : progress && !progressed
+                                ? 'no onProgress before onLoad'
+                                : 'OK'
+                    }
+                    description={description}
+                />
+            </View>
+        </View>
+    )
+}
+
+// A `cache: 'web'` image from the slow server, which sends it without cache
+// headers, so each load of it downloads it again (in about 2 s).
+const BLUR_TWICE_SOURCE = {
+    uri: slowImageUrl(`picsum/1025-200x200.jpg?blur-twice=${RUN}&delay=300`),
+    headers: SLOW_HEADERS,
+    cache: 'web' as const,
+}
+
 // resizeMode="center" shows a small image at its own size. A large radius
 // blurs a smaller copy, which must still show at that size.
 function BlurCenterCase() {
@@ -6722,6 +6823,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <BlurCenterCase key="blur-center" />,
             <BlurTintChangeCase key="blur-tint-change" />,
+        ],
+    },
+    {
+        name: 'blur-events',
+        cases: [
+            <BlurStepsCase
+                key="blur-change-twice"
+                id="blur-change-twice"
+                description="blurRadius 5, then 10 300 ms later, after a slow `web` image (with onProgress) loaded: like the second, without load events"
+                source={BLUR_TWICE_SOURCE}
+                steps={[5, 10]}
+                interval={300}
+                progress
+            />,
+            <BlurStepsCase
+                key="blur-change-steps"
+                id="blur-change-steps"
+                description="blurRadius 2, 4, 6, 8 and 10 in renders one after the other, after the image loaded: like the second, without load events"
+                source={{
+                    uri: imageUrl(`picsum/1025-200x200.jpg?blur-steps=${RUN}`),
+                }}
+                steps={[2, 4, 6, 8, 10]}
+            />,
         ],
     },
     {
