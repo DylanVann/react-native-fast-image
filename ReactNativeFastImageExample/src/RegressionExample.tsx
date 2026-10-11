@@ -3935,6 +3935,93 @@ function WriteToCacheCase({
     )
 }
 
+// getCachePath of an image, then `await clearDiskCache()`, then getCachePath
+// of the image again, with cache 'cacheOnly' and without. Passes when the
+// cacheOnly one isn't ok, and the other downloads the image again (the server
+// gets one more request) and gives a file that's there. Android kept the file
+// in Glide's memory cache, so both gave the old path, though the clear had
+// deleted the file. The first getCachePath:
+//   - downloads the image;
+//   - loaded: finds the file of the image a view showed (on Android, a lookup
+//     in the disk cache, which kept its result in memory the same way).
+function CachePathAfterClearCase({
+    id,
+    description,
+    loaded,
+}: {
+    id: string
+    description: string
+    loaded?: boolean
+}) {
+    const path = `/picsum/1022-120x120.jpg?${id}=${RUN}`
+    const source: Source = { uri: imageUrl(path.slice(1)) }
+    const [status, setStatus] = useState('waiting')
+    const [shown, setShown] = useState(false)
+    const ready = !loaded || shown
+    useEffect(() => {
+        if (!ready) return
+        let stopped = false
+        // Whether a result's file is there (getCachePath of its file:// uri).
+        const fileThere = async (result: CachePathResult) =>
+            result.ok &&
+            (await FastImage.getCachePath({ uri: `file://${result.path}` })).ok
+        const run = async () => {
+            const first = await FastImage.getCachePath(source)
+            if (!first.ok) return setStatus(`no file: ${first.error}`)
+            const clear = await FastImage.clearDiskCache()
+            const cacheOnly = await FastImage.getCachePath({
+                ...source,
+                cache: FastImage.cacheControl.cacheOnly,
+            })
+            const cacheOnlyThere = await fileThere(cacheOnly)
+            const again = await FastImage.getCachePath(source)
+            const againThere = await fileThere(again)
+            const requests = await fetch(
+                imageUrl(`requests?path=${encodeURIComponent(path)}`),
+            )
+                .then((response) => response.json())
+                .then((json: { count: number }) => json.count)
+            const problems = [
+                !clear.ok && `clearDiskCache: ${clear.error}`,
+                cacheOnly.ok &&
+                    (cacheOnlyThere
+                        ? "cache 'cacheOnly' found it after clearDiskCache"
+                        : "cache 'cacheOnly' gave a path with no file"),
+                !again.ok && `getCachePath: ${again.error}`,
+                again.ok &&
+                    !againThere &&
+                    'getCachePath gave a path with no file',
+                // The first download (the view's, or getCachePath's), and
+                // getCachePath's after the clear.
+                requests !== 2 && `requested ${requests} times, expected 2`,
+            ].filter(Boolean)
+            if (!stopped) {
+                setStatus(problems.length > 0 ? problems.join('; ') : 'OK')
+            }
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        return () => {
+            stopped = true
+        }
+        // Once, when ready.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready])
+    return (
+        <View style={styles.row}>
+            {loaded ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={() => setShown(true)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
 // FastImage.getCachePath: the source's file in the disk cache, shown as a
 // `file://` source (so it's the downloaded image; the file may have no image
 // extension, which React Native 0.73's Image doesn't load on iOS).
@@ -7140,6 +7227,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="cache-path-while-loading"
                 whileLoading
                 description="getCachePath while a view is still downloading the image: its file"
+            />,
+        ],
+    },
+    {
+        // Clears the disk cache, so on its own.
+        name: 'cache-path-after-clear',
+        cases: [
+            <CachePathAfterClearCase
+                key="cache-path-after-clear"
+                id="cache-path-after-clear"
+                description="getCachePath after clearDiskCache: cache 'cacheOnly' doesn't find the image, and without it, it's downloaded again and its file is there"
+            />,
+        ],
+    },
+    {
+        // Clears the disk cache, so on its own.
+        name: 'cache-path-after-clear-loaded',
+        cases: [
+            <CachePathAfterClearCase
+                key="cache-path-after-clear-loaded"
+                id="cache-path-after-clear-loaded"
+                loaded
+                description="getCachePath after clearDiskCache, for an image a view showed: cache 'cacheOnly' doesn't find it, and without it, it's downloaded again and its file is there"
             />,
         ],
     },
