@@ -376,7 +376,9 @@ public class FastImageSharedDownloadsTest {
             load(url("/sent-" + i));
         }
         server.awaitRequests(11);
-        // The photo opens, then avatars from another host load.
+        // The photo opens (held too, so once sent it keeps its slot), then
+        // avatars from another host load.
+        server.route("/photo").holdHeaders();
         load(url("/photo"), Priority.IMMEDIATE);
         for (int i = 0; i < 5; i++) {
             server.route("/avatar-" + i).holdHeaders();
