@@ -1,3 +1,10 @@
+## [9.3.4](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.3...v9.3.4) (2026-10-11)
+
+
+### Performance Improvements
+
+* **android:** fades draw without extra layers when they can, and from defaultSource without a copy ([#1293](https://github.com/DylanVann/react-native-fast-image/issues/1293)) ([ba90eb0](https://github.com/DylanVann/react-native-fast-image/commit/ba90eb0b0d6fa573d34dd42aa1aefdcd78b0e415))
+
 ## [9.3.3](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.2...v9.3.3) (2026-10-11)
 
 
