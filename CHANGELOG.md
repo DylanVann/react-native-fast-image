@@ -1,3 +1,11 @@
+## [9.3.3](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.2...v9.3.3) (2026-10-11)
+
+
+### Bug Fixes
+
+* **android:** clearDiskCache runs on FastImage's cache thread, not the native modules thread ([#1295](https://github.com/DylanVann/react-native-fast-image/issues/1295)) ([e30930f](https://github.com/DylanVann/react-native-fast-image/commit/e30930fb69c7d75d3ba4fb36ddbf4096c0063953))
+* **android:** getCachePath doesn't give a file clearDiskCache deleted ([#1294](https://github.com/DylanVann/react-native-fast-image/issues/1294)) ([56f7efd](https://github.com/DylanVann/react-native-fast-image/commit/56f7efd83ae1888f2da93b6af303a95ffdc135c2))
+
 ## [9.3.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.1...v9.3.2) (2026-10-11)
 
 
