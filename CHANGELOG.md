@@ -1,3 +1,10 @@
+## [9.3.2](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.1...v9.3.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **android:** changing blurRadius twice in a row doesn't send onLoad again ([#1292](https://github.com/DylanVann/react-native-fast-image/issues/1292)) ([4db62d3](https://github.com/DylanVann/react-native-fast-image/commit/4db62d32effe522a0531f75ab673b22ee647eacc))
+
 ## [9.3.1](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.0...v9.3.1) (2026-10-10)
 
 
