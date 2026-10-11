@@ -1,0 +1,110 @@
+package com.fastimage;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+
+import androidx.annotation.Nullable;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.gifdecoder.GifDecoder;
+import com.bumptech.glide.gifdecoder.GifHeader;
+import com.bumptech.glide.gifdecoder.GifHeaderParser;
+import com.bumptech.glide.gifdecoder.StandardGifDecoder;
+import com.bumptech.glide.load.Transformation;
+import com.bumptech.glide.load.engine.Resource;
+import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
+import com.bumptech.glide.load.resource.UnitTransformation;
+import com.bumptech.glide.load.resource.bitmap.BitmapResource;
+import com.bumptech.glide.load.resource.gif.GifBitmapProvider;
+import com.bumptech.glide.load.resource.gif.GifDrawable;
+
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+
+// Gives a view its own animation of a GIF. Glide gives every view that shows
+// the same GIF (same url and size) a GifDrawable over one frame loader (it's
+// in the cached drawable's constant state), so they animate as one: a view
+// whose GIF stopped (the `loop` prop) keeps drawing another view's frames, and
+// restarting one throws while another view plays it. A copy has its own
+// decoder and frame loader over the same data, so each view animates on its
+// own, as with React Native's Image and on iOS. Decoded like Glide's
+// ByteBufferGifDecoder does, at the size the image was loaded at, and cropped
+// or fitted with the same transformation.
+final class FastImageGif {
+    private FastImageGif() {}
+
+    // Null if the GIF can't be decoded again (then the view shows Glide's).
+    @Nullable
+    static GifDrawable copy(Context context, GifDrawable gif, int width, int height) {
+        if (width <= 0 || height <= 0) return null;
+        ByteBuffer data = gif.getBuffer();
+        GifHeader header = new GifHeaderParser().setData(data).parseHeader();
+        if (header.getNumFrames() <= 0 || header.getStatus() != GifDecoder.STATUS_OK) return null;
+        Glide glide = FastImageGlide.get(context);
+        BitmapPool bitmapPool = glide.getBitmapPool();
+        GifDecoder decoder = new StandardGifDecoder(
+                new GifBitmapProvider(bitmapPool, glide.getArrayPool()),
+                header, gif.getBuffer(), sampleSize(header, width, height));
+        decoder.setDefaultBitmapConfig(Bitmap.Config.ARGB_8888);
+        decoder.advance();
+        Bitmap firstFrame = decoder.getNextFrame();
+        if (firstFrame == null) {
+            decoder.clear();
+            return null;
+        }
+        GifDrawable copy = new GifDrawable(
+                context, decoder, UnitTransformation.<Bitmap>get(), width, height, firstFrame);
+        Transformation<Bitmap> transformation = gif.getFrameTransformation();
+        if (transformation != null && !(transformation instanceof UnitTransformation)) {
+            // As GifDrawableTransformation does.
+            Resource<Bitmap> frame = new BitmapResource(firstFrame, bitmapPool);
+            Resource<Bitmap> transformed = transformation.transform(context, frame, width, height);
+            if (!frame.equals(transformed)) frame.recycle();
+            copy.setFrameTransformation(transformation, transformed.get());
+        }
+        return copy;
+    }
+
+    // GifDrawable.start() also starts counting plays again, so a paused GIF
+    // would play its whole loop count again when resumed; iOS continues it.
+    // The count isn't public: keep it across start() by reflection. A GIF
+    // that already finished its plays starts over, as on iOS. Without the
+    // fields (another Glide version), it counts again, as start() does.
+    @Nullable
+    private static final Field LOOP_COUNT = field("loopCount");
+    @Nullable
+    private static final Field MAX_LOOP_COUNT = field("maxLoopCount");
+
+    static void resume(GifDrawable gif) {
+        if (LOOP_COUNT == null || MAX_LOOP_COUNT == null) {
+            gif.start();
+            return;
+        }
+        try {
+            int played = LOOP_COUNT.getInt(gif);
+            int max = MAX_LOOP_COUNT.getInt(gif);
+            gif.start();
+            if (max == GifDrawable.LOOP_FOREVER || played < max) LOOP_COUNT.setInt(gif, played);
+        } catch (IllegalAccessException e) {
+            gif.start();
+        }
+    }
+
+    @Nullable
+    private static Field field(String name) {
+        try {
+            Field field = GifDrawable.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.getType() == int.class ? field : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ByteBufferGifDecoder's.
+    private static int sampleSize(GifHeader header, int width, int height) {
+        int exact = Math.min(header.getHeight() / height, header.getWidth() / width);
+        int powerOfTwo = exact == 0 ? 0 : Integer.highestOneBit(exact);
+        return Math.max(1, powerOfTwo);
+    }
+}
