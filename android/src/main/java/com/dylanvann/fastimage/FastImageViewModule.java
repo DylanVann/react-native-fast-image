@@ -35,6 +35,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,26 +63,112 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // list doesn't queue hundreds of requests ahead of the images the app is
     // showing (Glide's executors run requests in order within a priority).
     private static final int PRELOAD_LIMIT = 3;
-    // Preloads waiting to start, in the order they were added, and the number
+    // Preloads waiting to start, in the order they were added, and those
     // loading. Only used on the UI thread (Glide calls its listeners there).
-    private static final ArrayDeque<Runnable> pendingPreloads = new ArrayDeque<>();
-    private static int preloadsInFlight = 0;
-    // clearDiskCache calls that haven't cleared yet, counted on the native
-    // modules' thread when they're called, so the methods called after one
-    // see it. Nothing in pendingPreloads starts meanwhile: the clear waits
-    // for the work before it on cachePathExecutor, and a preload called after
-    // it would otherwise load from or into the disk cache it then empties.
+    private static final ArrayDeque<QueuedLoad> pendingPreloads = new ArrayDeque<>();
+    private static final List<QueuedLoad> runningPreloads = new ArrayList<>();
+    // clearDiskCache calls so far, and those that haven't cleared yet,
+    // counted on the native modules' thread when they're called: React
+    // Native calls the module's methods there in the order JS made them, so
+    // a preload or getCachePath that notes `clears` there (clearsBefore)
+    // knows which clears were called before it. Nothing in pendingPreloads
+    // starts while a clear is waiting: one called after it would otherwise
+    // load from or into the disk cache the clear then empties.
+    private static final AtomicInteger clears = new AtomicInteger();
     private static final AtomicInteger pendingClears = new AtomicInteger();
 
+    // A preload of a source, or a getCachePath download, waiting in
+    // pendingPreloads, then loading. On the UI thread.
+    private abstract static class QueuedLoad {
+        // `clears` when it was called.
+        final int clearsBefore;
+        // Whether a clear called before it's done cancels it: a remote
+        // image's. A local image's preload goes on: it doesn't download.
+        final boolean cancellable;
+        // Its Glide request while one runs, which a clear stops.
+        @Nullable
+        private Target<?> request;
+        private boolean finished = false;
+
+        QueuedLoad(int clearsBefore, boolean cancellable) {
+            this.clearsBefore = clearsBefore;
+            this.cancellable = cancellable;
+        }
+
+        // Loads it, in a slot of runningPreloads.
+        abstract void start();
+
+        abstract void resolve(WritableMap result);
+
+        final boolean clearedSince() {
+            return cancellable && clears.get() != clearsBefore;
+        }
+
+        // Glide calls the listener from inside preload() for an image in
+        // the memory cache, so the load can be finished already.
+        final void loading(Target<?> started) {
+            if (!finished) request = started;
+        }
+
+        // Its result, which frees its slot. Only the first counts: the
+        // load's own, or that of a clear that cancelled it. If a clear was
+        // called since the load was, the result is the clear's, also when the
+        // load finished just before the clear cancelled it: the clear removes
+        // what it stored.
+        final void finish(WritableMap result) {
+            if (finished) return;
+            finished = true;
+            request = null;
+            runningPreloads.remove(this);
+            resolve(clearedSince() ? cancelled() : result);
+            startPendingPreloads();
+        }
+    }
+
+    private static WritableMap cancelled() {
+        return failure("Cancelled by clearDiskCache");
+    }
+
+    // Adds a load to pendingPreloads, or cancels it if a clear was called
+    // since: getCachePath queues its download after its lookup, which can be
+    // after the clear has cancelled the loads called before it.
+    private static void queue(QueuedLoad load) {
+        if (load.clearedSince()) {
+            load.finish(cancelled());
+        } else {
+            pendingPreloads.add(load);
+        }
+    }
+
     // Starts pending preloads while there's room. A listener calls it again,
-    // sometimes from inside run() (Glide reports a memory-cached image
-    // synchronously from preload()). That's fine: the counters are shared and
-    // updated before each run(), so the inner call starts what fits, and the
-    // outer loop sees the updated counters when it checks again.
+    // sometimes from inside start() (Glide reports a memory-cached image
+    // synchronously from preload()). That's fine: a load is in
+    // runningPreloads before it starts, so the inner call starts what fits,
+    // and the outer loop sees what it started when it checks again.
     private static void startPendingPreloads() {
-        while (pendingClears.get() == 0 && preloadsInFlight < PRELOAD_LIMIT && !pendingPreloads.isEmpty()) {
-            preloadsInFlight++;
-            pendingPreloads.poll().run();
+        while (pendingClears.get() == 0 && runningPreloads.size() < PRELOAD_LIMIT && !pendingPreloads.isEmpty()) {
+            QueuedLoad load = pendingPreloads.poll();
+            runningPreloads.add(load);
+            load.start();
+        }
+    }
+
+    // Cancels the remote preloads and getCachePath downloads called before
+    // the latest clear, waiting or loading: their Glide requests stop (a
+    // download a view shares goes on for the view), and they resolve with
+    // the clear's error. On the UI thread.
+    private static void cancelLoads(Context context) {
+        List<QueuedLoad> cancelling = new ArrayList<>();
+        for (QueuedLoad load : pendingPreloads) {
+            if (load.clearedSince()) cancelling.add(load);
+        }
+        for (QueuedLoad load : runningPreloads) {
+            if (load.clearedSince()) cancelling.add(load);
+        }
+        for (QueuedLoad load : cancelling) {
+            pendingPreloads.remove(load);
+            if (load.request != null) Glide.with(context).clear(load.request);
+            load.finish(cancelled());
         }
     }
 
@@ -124,6 +213,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void preload(final ReadableArray sources, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
+        final int clearsBefore = clears.get();
         UiThreadUtil.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -162,54 +252,52 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                         continue;
                     }
                     final RequestOptions preloadOptions = preloadOptions(context, imageSource, source);
-                    // A source's result, which frees its slot.
-                    final ResultCallback done = new ResultCallback() {
+                    // A remote image is downloaded to the disk cache first,
+                    // then decoded from there. Views that load it meanwhile
+                    // share the download (FastImageSharedDownloads), and those
+                    // that get to downloading just after it ended read its file.
+                    // (`web` images are in their HTTP cache instead, and local
+                    // ones are decoded from where they are.)
+                    final boolean download = !imageSource.isWebCache() && imageSource.isRemote();
+                    // Not decoded: its size comes from the file's header.
+                    final boolean diskOnly = download && !imageSource.isMemoryCache();
+                    queue(new QueuedLoad(clearsBefore, imageSource.isRemote()) {
                         @Override
-                        public void run(WritableMap result) {
-                            results[index] = result;
-                            preloadsInFlight--;
-                            finishOne.run();
-                            startPendingPreloads();
-                        }
-                    };
-                    // Remote images (web ones are in the HTTP cache instead,
-                    // and local ones are already on disk).
-                    if (!imageSource.isMemoryCache() && !imageSource.isWebCache() && imageSource.isRemote()) {
-                        pendingPreloads.add(new Runnable() {
-                            @Override
-                            public void run() {
-                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
-                                    @Override
-                                    public void run(@Nullable final File file, @Nullable String error) {
-                                        if (file == null) {
-                                            done.run(failure(error));
-                                            return;
-                                        }
-                                        sizeExecutor.execute(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                final int[] size = imageSize(context, file);
-                                                UiThreadUtil.runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        done.run(size != null
-                                                                ? success(size[0], size[1])
-                                                                : failure("Failed to read the image's size"));
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    }
-                                });
+                        void start() {
+                            if (!download) {
+                                decode();
+                                return;
                             }
-                        });
-                        continue;
-                    }
-                    // Decodes it into the memory cache.
-                    final Runnable decode = new Runnable() {
-                        @Override
-                        public void run() {
-                            Glide
+                            loading(loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
+                                @Override
+                                public void run(@Nullable File file, @Nullable String error) {
+                                    if (file == null) finish(failure(error));
+                                    else if (diskOnly) readSize(file);
+                                    else decode();
+                                }
+                            }));
+                        }
+
+                        private void readSize(final File file) {
+                            sizeExecutor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    final int[] size = imageSize(context, file);
+                                    UiThreadUtil.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            finish(size != null
+                                                    ? success(size[0], size[1])
+                                                    : failure("Failed to read the image's size"));
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
+                        // Decodes it into the memory cache.
+                        private void decode() {
+                            loading(Glide
                                     .with(context)
                                     // Load it the way the view does, so local images
                                     // (file://, content://, asset:/) work too.
@@ -218,7 +306,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                     .listener(new RequestListener<Drawable>() {
                                         @Override
                                         public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                                            done.run(failure(FastImageRequestListener.errorMessage(e)));
+                                            finish(failure(FastImageRequestListener.errorMessage(e)));
                                             return false;
                                         }
 
@@ -226,28 +314,17 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                                         public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
                                             // Preloaded at its original size, so this is
                                             // the image's own size.
-                                            done.run(success(resource.getIntrinsicWidth(), resource.getIntrinsicHeight()));
+                                            finish(success(resource.getIntrinsicWidth(), resource.getIntrinsicHeight()));
                                             return false;
                                         }
                                     })
-                                    .preload();
+                                    .preload());
                         }
-                    };
-                    // A remote image is downloaded to the disk cache first,
-                    // then decoded from there. Views that load it meanwhile
-                    // share the download (FastImageSharedDownloads), and those
-                    // that get to downloading just after it ended read its file.
-                    final boolean download = !imageSource.isWebCache() && imageSource.isRemote();
-                    pendingPreloads.add(!download ? decode : new Runnable() {
+
                         @Override
-                        public void run() {
-                            loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
-                                @Override
-                                public void run(@Nullable File file, @Nullable String error) {
-                                    if (file == null) done.run(failure(error));
-                                    else decode.run();
-                                }
-                            });
+                        void resolve(WritableMap result) {
+                            results[index] = result;
+                            finishOne.run();
                         }
                     });
                 }
@@ -258,10 +335,6 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 startPendingPreloads();
             }
         });
-    }
-
-    private interface ResultCallback {
-        void run(WritableMap result);
     }
 
     // A preload's options: low priority unless the source sets one, as on
@@ -280,12 +353,13 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // thread. Views that load the image meanwhile share its download
     // (FastImageSharedDownloads); for a preload (`shared`), those whose
     // request gets to downloading just after it finished read its file.
-    private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
+    // Returns the request's target.
+    private static Target<File> loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
         final String key = shared && model instanceof FastImageUrl
                 ? FastImageSharedDownloads.key(((FastImageUrl) model).url)
                 : null;
         FastImageGlide.get(context);
-        Glide.with(context)
+        return Glide.with(context)
                 .asFile()
                 .load(model)
                 .apply(options)
@@ -394,6 +468,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         }
         final boolean cacheOnly = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.CACHE_ONLY;
         final RequestOptions options = preloadOptions(context, imageSource, source);
+        final int clearsBefore = clears.get();
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -414,9 +489,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                 UiThreadUtil.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        pendingPreloads.add(imageSource.isWebCache()
-                                ? downloadToWebCache(imageSource, promise)
-                                : downloadToDiskCache(context, imageSource, options, promise));
+                        queue(imageSource.isWebCache()
+                                ? downloadToWebCache(imageSource, clearsBefore, promise)
+                                : downloadToDiskCache(context, imageSource, options, clearsBefore, promise));
                         startPendingPreloads();
                     }
                 });
@@ -424,33 +499,27 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
-    // Frees a preload slot (on the UI thread) and resolves.
-    private static void finishDownload(final Promise promise, final WritableMap result) {
-        UiThreadUtil.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                preloadsInFlight--;
-                startPendingPreloads();
-                promise.resolve(result);
-            }
-        });
-    }
-
     // Downloads the image into Glide's disk cache (as a disk-only preload).
-    private static Runnable downloadToDiskCache(
+    private static QueuedLoad downloadToDiskCache(
             final Context context,
             final FastImageSource imageSource,
             final RequestOptions options,
+            int clearsBefore,
             final Promise promise) {
-        return new Runnable() {
+        return new QueuedLoad(clearsBefore, true) {
             @Override
-            public void run() {
-                loadFile(context, imageSource.getSourceForLoad(), options, false, new FileCallback() {
+            void start() {
+                loading(loadFile(context, imageSource.getSourceForLoad(), options, false, new FileCallback() {
                     @Override
                     public void run(@Nullable File file, @Nullable String error) {
-                        finishDownload(promise, file != null ? pathResult(file) : failure(error));
+                        finish(file != null ? pathResult(file) : failure(error));
                     }
-                });
+                }));
+            }
+
+            @Override
+            void resolve(WritableMap result) {
+                promise.resolve(result);
             }
         };
     }
@@ -462,40 +531,46 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     private static volatile Call webDownload;
 
     // Downloads a `web` image into its HTTP cache, which keeps it only if the
-    // server allows caching it, and not if clearDiskCache is called before
-    // it's done.
-    private static Runnable downloadToWebCache(final FastImageSource imageSource, final Promise promise) {
-        return new Runnable() {
+    // server allows caching it.
+    private static QueuedLoad downloadToWebCache(final FastImageSource imageSource, final int clearsBefore, final Promise promise) {
+        return new QueuedLoad(clearsBefore, true) {
             @Override
-            public void run() {
+            void start() {
                 cachePathExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
                         WritableMap result;
-                        Call call = null;
                         try {
-                            call = FastImageOkHttpProgressGlideModule.webDownload(imageSource.getGlideUrl());
-                            // Set before checking for a clear, which counts
-                            // itself before it looks here: one of them sees the
-                            // other.
+                            Call call = FastImageOkHttpProgressGlideModule.webDownload(imageSource.getGlideUrl());
+                            // Set before checking for a clear called since
+                            // getCachePath, which counts itself before it
+                            // looks here: one of them sees the other.
                             webDownload = call;
-                            // A clear is waiting behind it.
-                            if (pendingClears.get() > 0) call.cancel();
+                            if (clears.get() != clearsBefore) call.cancel();
                             FastImageOkHttpProgressGlideModule.downloadToWebCache(call);
                             File file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
                             result = file != null
                                     ? pathResult(file)
                                     : failure("Not stored in the disk cache (the server doesn't allow caching it)");
                         } catch (IOException e) {
-                            result = failure(call != null && call.isCanceled()
-                                    ? "Not stored in the disk cache (clearDiskCache was called while it was downloading)"
-                                    : e.getMessage() != null ? e.getMessage() : e.toString());
+                            result = failure(e.getMessage() != null ? e.getMessage() : e.toString());
                         } finally {
                             webDownload = null;
                         }
-                        finishDownload(promise, result);
+                        final WritableMap downloaded = result;
+                        UiThreadUtil.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                finish(downloaded);
+                            }
+                        });
                     }
                 });
+            }
+
+            @Override
+            void resolve(WritableMap result) {
+                promise.resolve(result);
             }
         };
     }
@@ -629,21 +704,48 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
     // On cachePathExecutor (Glide clears its disk cache off the main thread),
     // after the lookups and writeToCache calls queued there before it, so a
-    // file writeToCache is storing isn't stored after the clear. A `web`
-    // download there is stopped rather than waited for (see webDownload).
-    // Preloads don't start until it's done (pendingClears). Not on the native
-    // modules' thread, where React Native runs the async methods of every
-    // Java and Kotlin module: deleting a full cache held them up.
+    // file writeToCache is storing isn't stored after the clear. First the
+    // remote preloads and getCachePath downloads called before it that are
+    // waiting or loading are cancelled (cancelLoads), without waiting for
+    // their downloads, so they don't store their images after it: Glide
+    // doesn't start writing a cancelled request's download to its disk cache
+    // (and its stream is closed), and a write under way belongs to the
+    // DiskLruCache that the clear closes and deletes, which aborts it; the
+    // HTTP cache of `web` images drops the responses it's writing when it's
+    // emptied. The `web` download on cachePathExecutor is stopped (see
+    // webDownload). The loads called after the clear don't start until it's
+    // done (pendingClears). Not on the native modules' thread, where React
+    // Native runs the async methods of every Java and Kotlin module: deleting
+    // a full cache held them up.
     @ReactMethod
     public void clearDiskCache(final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
+        // Counted before it looks at webDownload (see downloadToWebCache).
+        clears.incrementAndGet();
         pendingClears.incrementAndGet();
         Call download = webDownload;
         if (download != null) download.cancel();
+        final CountDownLatch cancelled = new CountDownLatch(1);
+        UiThreadUtil.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    cancelLoads(context);
+                } finally {
+                    cancelled.countDown();
+                }
+            }
+        });
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
+                    try {
+                        cancelled.await();
+                    } catch (InterruptedException e) {
+                        // Nothing interrupts this thread: cleared anyway.
+                        Thread.currentThread().interrupt();
+                    }
                     // Resolved here, before the calls queued after it on
                     // this thread run and the preloads held for it start, so
                     // it resolves before them, as the calls were made.
