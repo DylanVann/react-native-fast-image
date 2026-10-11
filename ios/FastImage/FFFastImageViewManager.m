@@ -107,14 +107,14 @@ static NSMutableArray<FFFQueuedLoad *> *FFFParked;
 // cancelForClear:). One cancelled before SDWebImage's check reports back at
 // once. One past it is storing its image: a downloaded image's file is
 // written once on SDImageCache's serial queue (see FFFPreloadContext), where
-// it's queued before the clear's delete anyway, and for getCachePath, a
-// photo library image, which comes without its data, is encoded first,
-// which takes a moment for a large photo (a preload of one doesn't wait for
-// it, see FFFPreloadOptions). A loader or cache of the app's own that
-// doesn't report a cancelled load back would otherwise hold the clear, and
-// every preload, getCachePath, writeToCache and configureCache after it, for
-// good. After this the clear goes ahead, and the loads that still haven't
-// reported back resolve with its error and free their slots.
+// it's queued before the clear's delete anyway, and an image that comes
+// without its data (a still photo from the photo library, or for a preload
+// an image in the app by name) is encoded first, which takes a moment for a
+// large photo. A loader or cache of the app's own that doesn't report a
+// cancelled load back would otherwise hold the clear, and every preload,
+// getCachePath, writeToCache and configureCache after it, for good. After
+// this the clear goes ahead, and the loads that still haven't reported back
+// resolve with its error and free their slots.
 static const NSTimeInterval FFFClearWait = 3;
 
 // Where getCachePath looks in the disk cache, writeToCache stores files,
@@ -253,9 +253,8 @@ static void FFFStartPendingPreloads(void);
 // disk cache lookup is done: a load cancelled before that reports back at
 // once, without waiting for its download (SDWebImage calls back a cancelled
 // load), and one past it is storing its image, and reports back once the
-// file is written (SDWebImageWaitStoreCache), so before the clear deletes it.
-// A preload of an image that SDWebImage encodes to store it reports back
-// before it's stored (see FFFPreloadOptions).
+// file is written (SDWebImageWaitStoreCache, see FFFPreloadOptions), so
+// before the clear deletes it.
 - (void)cancelForClear:(dispatch_group_t)clearing
 {
     // Unless an earlier clear already waits for it.
@@ -378,20 +377,16 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
 // to send its headers with its own request only. Failed urls are tried again,
 // as views do (SDWebImage otherwise fails a url that failed before, e.g. with
 // data that isn't an image, without a request until the app is relaunched,
-// #394). It completes once its image is written to the disk cache, so a
-// clear that cancels it can wait for that (see cancelForClear:). Except an
-// image that SDWebImage encodes to store it (loadsWithoutData): encoding the
-// full-size photo first would make a photo library image's preload take
-// about 3 times as long (0.1 to 0.2 s more for a 12 MP photo in the
-// simulator). That preload completes once the image has loaded, and the
-// image is stored in the background, which can be after a clear called
-// meanwhile.
+// #394). It completes once its image is stored, its file written to the
+// disk cache too (SDWebImageWaitStoreCache), so a preload doesn't resolve
+// while that's still going on, and a clear that cancels it can wait for it
+// (see cancelForClear:). An image that comes without its data (a still
+// photo from the photo library, an image in the app by name) is encoded
+// before it's written, which for a large photo is most of its preload's
+// time.
 static SDWebImageOptions FFFPreloadOptions(FFFastImageSource *source)
 {
-    SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options | SDWebImageRetryFailed;
-    if (!source.loadsWithoutData) {
-        options |= SDWebImageWaitStoreCache;
-    }
+    SDWebImageOptions options = [SDWebImagePrefetcher sharedImagePrefetcher].options | SDWebImageRetryFailed | SDWebImageWaitStoreCache;
     if (source.hasPriority) {
         options &= ~(SDWebImageLowPriority | SDWebImageHighPriority);
         if (source.priority == FFFPriorityLow) {
@@ -500,10 +495,10 @@ static NSString *FFFCachedFile(NSString *key)
     return [cache diskImageDataExistsWithKey:key] ? [cache cachePathForKey:key] : nil;
 }
 
-// Resolves with a result per source, in order, once all have loaded or failed:
-// { ok, width, height } or { ok: false, error }. Never rejects. A source with
-// memoryCache false is only stored on disk, without decoding it (its size
-// comes from the header).
+// Resolves with a result per source, in order, once each has loaded and been
+// stored (see FFFPreloadOptions) or failed: { ok, width, height } or
+// { ok: false, error }. Never rejects. A source with memoryCache false is only
+// stored on disk, without decoding it (its size comes from the header).
 RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
@@ -601,10 +596,10 @@ RCT_EXPORT_METHOD(getCachePath:(FFFastImageSource *)source
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             // As a disk-only preload: not decoded, and not looked up in or
-            // kept in memory (an image in memory may not be on disk). It
-            // completes once the file is written, also for an image that
-            // SDWebImage encodes, so it can look for the file.
-            SDWebImageOptions options = FFFPreloadOptions(source) | SDWebImageAvoidDecodeImage | SDWebImageWaitStoreCache;
+            // kept in memory (an image in memory may not be on disk). Like a
+            // preload, it completes once the file is written, so it can look
+            // for the file.
+            SDWebImageOptions options = FFFPreloadOptions(source) | SDWebImageAvoidDecodeImage;
             SDWebImageMutableContext *context = FFFPreloadContext(source);
             context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
             context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);

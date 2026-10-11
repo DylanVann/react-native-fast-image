@@ -6568,6 +6568,73 @@ function PhotoLibraryErrorCase({
     )
 }
 
+// A preload resolves once its image is stored, also an image that comes
+// without its data, which SDWebImage encodes before it writes its file: each
+// image in the photo library (in the iPhone simulator, photos of up to
+// 4288x2848; a GIF comes with its data) and the quadrants by name in the
+// app. Each is preloaded on its own, to disk only (memoryCache false, so the
+// photos aren't kept in memory), under a cacheKey of this run's, so nothing
+// was cached under it before. As soon as its preload resolves ok,
+// getCachePath with only that cacheKey (a lookup in the disk cache) must
+// find its file. These preloads resolved once the image had loaded, before
+// it was encoded and written: the photos' files and the app image's weren't
+// there yet (on tvOS, whose library has only 80x80 images, the app image's).
+const PHOTO_PRELOAD = `photo-preload-${RUN}`
+function PhotoLibraryPreloadCase() {
+    const [status, setStatus] = useState('listing the photo library')
+    useEffect(() => {
+        let stopped = false
+        const run = async () => {
+            const { authorized, photos } = await libraryPhotos()
+            if (!authorized) return setStatus('no photo library access')
+            if (photos.length === 0) {
+                return setStatus('no photos in the library')
+            }
+            setStatus('preloading')
+            const images = [
+                ...photos.map((photo) => ({
+                    name: `the ${photo.width}x${photo.height} ${photo.type} photo`,
+                    uri: `ph://${photo.id}`,
+                })),
+                { name: 'the image in the app', uri: 'regression_quadrants' },
+            ]
+            const problems: string[] = []
+            for (const [i, { name, uri }] of images.entries()) {
+                const cacheKey = `${PHOTO_PRELOAD}-${i}`
+                const [result] = await FastImage.preload([
+                    { uri, cacheKey, memoryCache: false },
+                ])
+                if (!result.ok) {
+                    problems.push(`${name}: ${result.error}`)
+                    continue
+                }
+                const file = await FastImage.getCachePath({ cacheKey })
+                if (!file.ok) {
+                    problems.push(
+                        `${name}: not in the disk cache when its preload resolved`,
+                    )
+                }
+                if (stopped) return
+            }
+            setStatus(problems.length > 0 ? problems.join('; ') : 'OK')
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+        return () => {
+            stopped = true
+        }
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="photo-library-preload"
+                status={status}
+                description="A preload of each photo in the library, and of an image in the app by name, resolves once the image is in the disk cache"
+            />
+        </View>
+    )
+}
+
 export type { RegressionGroup }
 
 // resizeMode repeat: the image repeated from the top-left at its own size, as
@@ -8417,6 +8484,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           expected="ph://"
                           description="#314: an assets-library:// url fails with onError, pointing to ph:// urls"
                       />,
+                      <PhotoLibraryPreloadCase key="photo-library-preload" />,
                   ]
                 : [
                       <NoCrashCase

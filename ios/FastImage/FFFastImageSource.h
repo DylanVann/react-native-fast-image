@@ -64,11 +64,6 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // which is decoded at about the view's size.
 - (BOOL)isPhotoLibrary;
 
-// Whether its loader gives the image without its data (a photo library
-// image, an image in the app by name), so SDWebImage encodes the image to
-// store it in the disk cache.
-- (BOOL)loadsWithoutData;
-
 // The error's message, for onError.
 - (NSString *)errorMessage:(NSError *)error;
 

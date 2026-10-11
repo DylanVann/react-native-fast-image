@@ -385,11 +385,6 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     return [_url.scheme isEqualToString:@"ph"];
 }
 
-- (BOOL)loadsWithoutData
-{
-    return [self isPhotoLibrary] || FFFBundleAssetName(_url) != nil;
-}
-
 - (CGSize)photoPixelSize
 {
     return [self isPhotoLibrary] ? FFFPhotoPixelSize(_url) : CGSizeZero;
