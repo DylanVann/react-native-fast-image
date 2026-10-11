@@ -4022,6 +4022,54 @@ function CachePathAfterClearCase({
     )
 }
 
+// clearDiskCache() and then getCachePath of a file:// uri, which is answered
+// on the native modules' thread (Android) or the module's queue (iOS),
+// without awaiting either, after queueing cache 'cacheOnly' lookups the clear
+// waits behind. Passes when the file:// call resolves first. On Android the
+// clear ran on the native modules' thread, where React Native runs every
+// module's async methods, so they waited while it deleted the cache.
+function ClearDiskCacheThreadCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const order: string[] = []
+        const lookups = Array.from({ length: 20 }, (_, n) =>
+            FastImage.getCachePath({
+                uri: imageUrl(
+                    `picsum/1022-120x120.jpg?clear-disk-cache-thread=${RUN}&n=${n}`,
+                ),
+                cache: FastImage.cacheControl.cacheOnly,
+            }),
+        )
+        const clear = FastImage.clearDiskCache().then((result) => {
+            order.push('clearDiskCache')
+            return result
+        })
+        const file = FastImage.getCachePath({
+            uri: 'file:///clear-disk-cache-thread',
+        }).then(() => order.push('getCachePath'))
+        Promise.all([clear, file, ...lookups])
+            .then(([result]) => {
+                const problems = [
+                    !result.ok && `clearDiskCache: ${result.error}`,
+                    order[0] !== 'getCachePath' &&
+                        'the file:// getCachePath resolved after clearDiskCache',
+                ].filter(Boolean)
+                setStatus(problems.length > 0 ? problems.join('; ') : 'OK')
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="clear-disk-cache-thread"
+                status={status}
+                description="clearDiskCache doesn't hold up a native call made after it (getCachePath of a file:// uri, answered right away)"
+            />
+        </View>
+    )
+}
+
 // FastImage.getCachePath: the source's file in the disk cache, shown as a
 // `file://` source (so it's the downloaded image; the file may have no image
 // extension, which React Native 0.73's Image doesn't load on iOS).
@@ -7252,6 +7300,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="getCachePath after clearDiskCache, for an image a view showed: cache 'cacheOnly' doesn't find it, and without it, it's downloaded again and its file is there"
             />,
         ],
+    },
+    {
+        // Clears the disk cache, so on its own.
+        name: 'clear-disk-cache-thread',
+        cases: [<ClearDiskCacheThreadCase key="clear-disk-cache-thread" />],
     },
     {
         name: 'write-to-cache',

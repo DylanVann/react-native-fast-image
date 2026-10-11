@@ -329,8 +329,10 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         return result;
     }
 
-    // Where getCachePath looks in the caches and downloads `web` images
-    // (blocking calls, off the UI and modules threads).
+    // Where getCachePath looks in the caches and downloads `web` images,
+    // writeToCache stores files, configureCache measures the disk cache and
+    // clearDiskCache empties it (blocking calls, off the UI and modules
+    // threads).
     private static final Executor cachePathExecutor = Executors.newSingleThreadExecutor();
 
     private static WritableMap pathResult(File file) {
@@ -597,24 +599,33 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         });
     }
 
-    // On the native modules' thread: Glide clears its disk cache off the main
-    // thread.
+    // On cachePathExecutor: Glide clears its disk cache off the main thread,
+    // and the native modules' thread runs every module's async methods (e.g.
+    // a fetch()'s request), which would wait for it. It's also in order with
+    // the disk work of getCachePath, writeToCache and configureCache there.
     @ReactMethod
-    public void clearDiskCache(Promise promise) {
-        try {
-            FastImageGlide.getRegistered(getReactApplicationContext()).clearDiskCache();
-        } catch (RuntimeException e) {
-            promise.resolve(failure(e));
-            return;
-        }
-        // And the HTTP cache of `cache: 'web'` images, which Glide doesn't
-        // cache (set up when FastImage's components are registered).
-        try {
-            FastImageOkHttpProgressGlideModule.clearWebCache();
-        } catch (IOException e) {
-            // Cleared as far as it could.
-        }
-        promise.resolve(cleared());
+    public void clearDiskCache(final Promise promise) {
+        final ReactApplicationContext context = getReactApplicationContext();
+        cachePathExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    FastImageGlide.getRegistered(context).clearDiskCache();
+                } catch (RuntimeException e) {
+                    promise.resolve(failure(e));
+                    return;
+                }
+                // And the HTTP cache of `cache: 'web'` images, which Glide
+                // doesn't cache (set up when FastImage's components are
+                // registered).
+                try {
+                    FastImageOkHttpProgressGlideModule.clearWebCache();
+                } catch (IOException e) {
+                    // Cleared as far as it could.
+                }
+                promise.resolve(cleared());
+            }
+        });
     }
 
     private static WritableMap cleared() {
