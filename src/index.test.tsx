@@ -77,28 +77,6 @@ describe('FastImage (iOS)', () => {
         }
     })
 
-    it('passes a required (numeric) source to Image when using fallback', () => {
-        const resolveAssetSource = spyOn(
-            Image,
-            'resolveAssetSource',
-        ).mockImplementation((asset: any) => ({ uri: `asset-${asset}` }) as any)
-        try {
-            const image = renderer
-                .create(<FastImage source={1} fallback style={style.image} />)
-                .root.findByType(Image)
-
-            expect(resolveAssetSource).toHaveBeenCalledWith(1)
-            expect(image.props.source).toEqual({ uri: 'asset-1' })
-            // Fills FastImage's box instead of taking the asset's size.
-            expect(StyleSheet.flatten(image.props.style)).toMatchObject({
-                width: '100%',
-                height: '100%',
-            })
-        } finally {
-            resolveAssetSource.mockRestore()
-        }
-    })
-
     it('uses tintColor from style, with the prop taking precedence', () => {
         const source = { uri: 'https://example.com/image.png' }
         const fromStyle: any = renderer
@@ -211,20 +189,6 @@ describe('FastImage (iOS)', () => {
                 <FastImage
                     source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
                     style={style.image}
-                />,
-            )
-            .toJSON()
-
-        expect(jsx(tree)).toMatchSnapshot()
-    })
-
-    it('renders Image with fallback prop', () => {
-        const tree = renderer
-            .create(
-                <FastImage
-                    source={require('../ReactNativeFastImageExample/src/images/jellyfish.gif')}
-                    style={style.image}
-                    fallback
                 />,
             )
             .toJSON()
@@ -413,69 +377,26 @@ describe('onLoadEnd', () => {
             { ok: false, error: 'status code: 404' },
         ])
     })
-
-    it("gets the load's result with fallback, from onLoad or onError", () => {
-        const results: any[] = []
-        const loads: any[] = []
-        const image = renderer
-            .create(
-                <FastImage
-                    source={source}
-                    fallback
-                    onLoad={(event) => loads.push(event)}
-                    onLoadEnd={(result) => results.push(result)}
-                />,
-            )
-            .root.findByType(Image)
-        const load = { nativeEvent: { source: { width: 10, height: 20 } } }
-        image.props.onLoad(load)
-        image.props.onLoadEnd()
-        image.props.onError({ nativeEvent: { error: 'status code: 404' } })
-        image.props.onLoadEnd()
-        expect(loads).toEqual([load])
-        expect(results).toEqual([
-            { ok: true, width: 10, height: 20 },
-            { ok: false, error: 'status code: 404' },
-        ])
-    })
 })
 
 describe('onProgress', () => {
     const source = { uri: 'https://example.com/a.png' }
 
-    it('adds progress (loaded / total) to the event', () => {
-        const progress: number[] = []
+    it('passes the native event on, with the progress the views worked out', () => {
+        const events: any[] = []
         const [view] = renderer
             .create(
                 <FastImage
                     source={source}
-                    onProgress={(e) => progress.push(e.nativeEvent.progress)}
+                    onProgress={(e) => events.push(e)}
                 />,
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
-        view.props.onFastImageProgress({
-            nativeEvent: { loaded: 50, total: 200 },
-        })
-        view.props.onFastImageProgress({
-            nativeEvent: { loaded: 200, total: 200 },
-        })
-        expect(progress).toEqual([0.25, 1])
-    })
-
-    it('adds progress with fallback, 0 for an unknown total', () => {
-        const progress: number[] = []
-        const image = renderer
-            .create(
-                <FastImage
-                    source={source}
-                    fallback
-                    onProgress={(e) => progress.push(e.nativeEvent.progress)}
-                />,
-            )
-            .root.findByType(Image)
-        image.props.onProgress({ nativeEvent: { loaded: 10, total: -1 } })
-        image.props.onProgress({ nativeEvent: { loaded: 30, total: 40 } })
-        expect(progress).toEqual([0, 0.75])
+        const event = {
+            nativeEvent: { loaded: 50, total: 200, progress: 0.25 },
+        }
+        view.props.onFastImageProgress(event)
+        expect(events).toEqual([event])
     })
 })
 
@@ -873,19 +794,6 @@ describe('blurRadius', () => {
             .root.findAll((node) => node.type === ('FastImageView' as any))
         expect(view.props.blurRadius).toBe(10)
     })
-
-    it("is passed to React Native's Image with fallback", () => {
-        const [image] = renderer
-            .create(
-                <FastImage
-                    source={{ uri: 'https://example.com/a.jpg' }}
-                    blurRadius={10}
-                    fallback
-                />,
-            )
-            .root.findAll((node) => node.type === Image)
-        expect(image.props.blurRadius).toBe(10)
-    })
 })
 
 describe('FastImage (Android)', () => {
@@ -1036,23 +944,6 @@ describe('objectFit', () => {
             ),
         ).toBe('contain')
     })
-
-    it("is React Native Image's resizeMode with fallback", () => {
-        const resizeMode = (objectFit: any) =>
-            renderer
-                .create(
-                    <FastImage
-                        source={source}
-                        objectFit={objectFit}
-                        fallback
-                    />,
-                )
-                .root.findByType(Image).props.resizeMode
-        expect(resizeMode('fill')).toBe('stretch')
-        expect(resizeMode('scale-down')).toBe('center')
-        // Its `none` is top-left (and only from 0.77).
-        expect(resizeMode('none')).toBe('center')
-    })
 })
 
 describe('resizeMode center', () => {
@@ -1119,6 +1010,37 @@ describe('without the native module', () => {
             mock.module('./specs/NativeFastImageModule', () => ({
                 default: TurboModuleRegistry.get('FastImageModule'),
             }))
+        }
+    })
+})
+
+describe('fallback (removed in 10.0)', () => {
+    it('is ignored, with a warning once in development', () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            const tree = renderer.create(
+                <>
+                    {[0, 1].map((i) => (
+                        <FastImage
+                            key={i}
+                            source={{ uri: 'https://example.com/a.png' }}
+                            {...({ fallback: true } as any)}
+                        />
+                    ))}
+                </>,
+            )
+            const views = tree.root.findAll(
+                (node) => node.type === ('FastImageView' as any),
+            )
+            expect(views).toHaveLength(2)
+            expect(views[0].props.fallback).toBeUndefined()
+            expect(tree.root.findAllByType(Image)).toHaveLength(0)
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(String(warn.mock.calls[0][0])).toContain(
+                '`fallback` was removed in 10.0',
+            )
+        } finally {
+            warn.mockRestore()
         }
     })
 })

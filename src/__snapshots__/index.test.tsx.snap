@@ -84,45 +84,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 </View>"
 `;
 
-exports[`FastImage (iOS) renders Image with fallback prop 1`] = `
-"<View
-  style={
-    [
-      {
-        "overflow": "hidden",
-      },
-      {
-        "height": 44,
-        "width": 44,
-      },
-    ]
-  }
->
-  <Image
-    resizeMode="cover"
-    source={
-      {
-        "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-      }
-    }
-    style={
-      [
-        {
-          "height": "100%",
-          "left": 0,
-          "position": "absolute",
-          "top": 0,
-          "width": "100%",
-        },
-        {
-          "tintColor": undefined,
-        },
-      ]
-    }
-  />
-</View>"
-`;
-
 exports[`FastImage (iOS) renders defaultSource 1`] = `
 "<View
   style={
