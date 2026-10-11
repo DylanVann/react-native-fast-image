@@ -7,6 +7,16 @@ import type { ImageStyle } from 'react-native'
 export type ImageProps = {
     uri: string
     style: ImageStyle
+    // Whether the library fades the image in as it shows (over 300 ms where
+    // the duration is set), or shows it at once. Off except in the burst
+    // test: the subjects are compared without fades.
+    fade: boolean
+    // A local image (require()) to show until the image loads, if the library
+    // takes one.
+    placeholder?: number
+    // High for an image the app needs first (the detail scenario's photo),
+    // if the library takes a priority.
+    priority?: 'high'
     onLoad: () => void
     onError: (error: string) => void
 }

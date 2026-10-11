@@ -7,6 +7,7 @@ import {
     Easing,
     PixelRatio,
     Platform,
+    Pressable,
     StyleSheet,
     Text,
     View,
@@ -16,11 +17,11 @@ import type { Adapter } from './adapter'
 // The scenarios (see ../README.md). Each shows a black marker bar, then turns
 // the marker green, starts the clock and mounts its images, records when each
 // image's load event arrives, and once they've all loaded (or after
-// `fixedMs`) measures where each cell is on screen and the network (`probe`),
-// writes the results to Documents/results-<run>.json (which run.ts copies
-// from the device over USB, no network permission needed) and turns the
-// marker blue.
-export type ScenarioName = 'grid' | 'scroll' | 'large' | 'sizes'
+// `fixedMs`) measures where each cell is on screen, asks the image server how
+// many image requests it got, measures the network (`probe`), writes the
+// results to Documents/results-<run>.json (which run.ts copies from the
+// device over USB, no network permission needed) and turns the marker blue.
+export type ScenarioName = 'grid' | 'scroll' | 'large' | 'sizes' | 'detail'
 
 type Config = {
     columns: number
@@ -32,6 +33,10 @@ type Config = {
     // Each photo once per entry, at that many columns: the same urls at
     // several sizes at once.
     sizes?: number[]
+    // After `afterMs`, one of the photos (`index`) opens at the screen's
+    // width over the others, which go on loading under it, at high priority
+    // (for the libraries with a priority): only it is timed.
+    detail?: { index: number; afterMs: number }
     // For subjects without load events (Nitro Image), done after this long
     // on each platform. With no bandwidth limit every subject shows every
     // image within 1 s (iPhone 15 Pro Max, Pixel 8); with `--mbps 50`, within
@@ -83,11 +88,23 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
         sizes: [4, 8],
         fixedMs: { ios: 2_000, android: 3_000 },
     },
+    // The grid's 60 photos, and 100 ms later the last of them (the one whose
+    // download the grid asked for last) at the screen's width over the grid,
+    // as when a tap on a photo opens it while the grid is still loading.
+    detail: {
+        columns: 4,
+        list: false,
+        set: 'grid',
+        detail: { index: 59, afterMs: 100 },
+        fixedMs: { ios: 2_000, android: 3_000 },
+    },
 }
 
 // The cell background while an image hasn't shown: far from every tinted
 // photo's average color, so the recording tells them apart.
 export const PLACEHOLDER = '#d9d9d9'
+// The same color as an image, for libraries' placeholders (`placeholder`).
+const PLACEHOLDER_IMAGE: number = require('./placeholder.png')
 const MARKER_WAITING = '#000000'
 const MARKER_STARTED = '#00ff00'
 const MARKER_DONE = '#0000ff'
@@ -110,6 +127,9 @@ type Cell = {
     uri: string
     // Its size, in columns (the scenario's by default).
     columns?: number
+    // The detail scenario's photo, opened over the others.
+    detail?: boolean
+    openMs?: number
     loadMs?: number
     errorMs?: number
     error?: string
@@ -122,6 +142,13 @@ export type ScenarioProps = {
     adapter: Adapter
     run: string
     server: string
+    // The burst test's (BenchmarkTest.kt): wait for a tap on `start` before
+    // mounting the images, so the measured frames start there, and no clock
+    // (nothing records the screen, and the clock draws a frame every vsync);
+    // fade the images in; show a placeholder image until each loads.
+    hold?: boolean
+    fade?: boolean
+    placeholder?: boolean
 }
 
 const now = () => performance.now()
@@ -163,17 +190,30 @@ async function probe(urls: string[]): Promise<Probe> {
     return { bytes, ms, mbps: (bytes * 8) / 1000 / ms }
 }
 
-export function Scenario({ name, adapter, run, server }: ScenarioProps) {
+export function Scenario({
+    name,
+    adapter,
+    run,
+    server,
+    hold = false,
+    fade = false,
+    placeholder = false,
+}: ScenarioProps) {
     const config = SCENARIOS[name]
     const [phase, setPhase] = useState<
-        'loading' | 'running' | 'measuring' | 'done' | 'failed'
+        'loading' | 'ready' | 'running' | 'measuring' | 'done' | 'failed'
     >('loading')
+    // hold: mounts the images.
+    const start = useRef<() => void>(undefined)
     const [cells, setCells] = useState<Cell[]>([])
+    // The detail scenario's photo is open.
+    const [open, setOpen] = useState(false)
     const [message, setMessage] = useState('')
     const started = useRef(0)
     const views = useRef(new Map<number, View>())
-    // Each image's first load or error time, by cell index. Not state: the
-    // results aren't shown, so a load doesn't render the cells again.
+    // Each image's first load or error time (and the detail photo's opening
+    // time), by cell index. Not state: the results aren't shown, so a load
+    // doesn't render the cells again.
     const settled = useRef(new Map<number, Partial<Cell>>())
     const marker = useRef<View>(null)
     const clockView = useRef<View>(null)
@@ -209,8 +249,15 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             // A moment for the recording to show the marker before it changes.
             await new Promise((r) => setTimeout(r, 300))
             if (cancelled) return
-            setCells(
-                (config.sizes ?? [config.columns]).flatMap((columns, size) =>
+            if (hold) {
+                await new Promise<void>((resolve) => {
+                    start.current = resolve
+                    setPhase('ready')
+                })
+                if (cancelled) return
+            }
+            const grid = (config.sizes ?? [config.columns]).flatMap(
+                (columns, size) =>
                     images.map((image, i) => ({
                         index: size * images.length + i,
                         key: image.key,
@@ -218,17 +265,34 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                         uri: url(image.key, run),
                         columns,
                     })),
-                ),
             )
+            const detail = config.detail && {
+                ...grid[config.detail.index],
+                index: grid.length,
+                columns: 1,
+                detail: true,
+            }
+            setCells(detail ? [...grid, detail] : grid)
             started.current = now()
             setPhase('running')
+            if (config.detail) {
+                setTimeout(() => {
+                    if (cancelled) return
+                    settled.current.set(grid.length, {
+                        openMs: now() - started.current,
+                    })
+                    setOpen(true)
+                }, config.detail.afterMs)
+            }
             // It stops at its largest value rather than wrap to 0.
-            Animated.timing(clock, {
-                toValue: CLOCK_UNITS - 1,
-                duration: (CLOCK_UNITS - 1) * CLOCK_UNIT_MS,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            }).start()
+            if (!hold) {
+                Animated.timing(clock, {
+                    toValue: CLOCK_UNITS - 1,
+                    duration: (CLOCK_UNITS - 1) * CLOCK_UNIT_MS,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }).start()
+            }
         })().catch((error) => {
             setMessage(String(error))
             setPhase('failed')
@@ -236,7 +300,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         return () => {
             cancelled = true
         }
-    }, [clock, config, name, run, server])
+    }, [clock, config, hold, name, run, server])
 
     const finish = useCallback(async () => {
         if (finished.current) return
@@ -249,6 +313,11 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         )
         const markerRect = await measure(marker.current)
         const clockRect = await measure(clockView.current)
+        const imageRequests = await fetch(
+            `${server}/requests?run=${encodeURIComponent(run)}`,
+        )
+            .then(async (response) => Number(await response.text()))
+            .catch(() => undefined)
         const network = await probe(probeUrls.current).catch(() => undefined)
         const window = Dimensions.get('window')
         const results = {
@@ -271,12 +340,17 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             placeholder: PLACEHOLDER,
             loadEvents: adapter.loadEvents,
             durationMs: now() - started.current,
+            // The image requests the image server got for this run: how many
+            // downloads the library made, e.g. one per photo shown at two
+            // sizes when it shares them.
+            imageRequests,
             // Network speed once the images have loaded.
             network,
             images: cells.map((cell, i) => ({
                 ...cell,
                 ...settled.current.get(cell.index),
-                rect: rects[i],
+                // Under the detail scenario's photo: not timed.
+                rect: config.detail && !cell.detail ? undefined : rects[i],
             })),
         }
         try {
@@ -299,7 +373,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             setMessage(`couldn't write the results: ${error}`)
             setPhase('failed')
         }
-    }, [adapter, cells, name, run, server])
+    }, [adapter, cells, config, name, run, server])
 
     // Done when every mounted image has loaded or failed (a list only mounts
     // the ones near the screen); without load events, after fixedMs.
@@ -313,11 +387,13 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
     }, [phase, finish, waitMs])
 
     // An image's first load or error counts (a library can send more).
+    const loaded = useRef(new Set<number>())
     const settle = (index: number, result: Partial<Cell>) => {
-        if (settled.current.has(index)) return
-        settled.current.set(index, result)
+        if (loaded.current.has(index)) return
+        loaded.current.add(index)
+        settled.current.set(index, { ...settled.current.get(index), ...result })
         const expected = config.list ? views.current.size : cells.length
-        if (adapter.loadEvents && settled.current.size >= expected) finish()
+        if (adapter.loadEvents && loaded.current.size >= expected) finish()
     }
 
     const cellSize = (cell: Cell) => {
@@ -338,6 +414,9 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
             <adapter.Image
                 uri={cell.uri}
                 style={styles.image}
+                fade={fade}
+                placeholder={placeholder ? PLACEHOLDER_IMAGE : undefined}
+                priority={cell.detail ? 'high' : undefined}
                 onLoad={() =>
                     settle(cell.index, { loadMs: now() - started.current })
                 }
@@ -351,7 +430,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
         </View>
     )
 
-    const running = phase !== 'loading'
+    const running = phase !== 'loading' && phase !== 'ready'
     return (
         <View style={styles.screen}>
             <View style={styles.markerRow}>
@@ -371,7 +450,7 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                     ]}
                 />
                 {/* Not in the list scenario, which is only scrolled. */}
-                {!config.list && (
+                {!config.list && !hold && (
                     <View
                         ref={clockView}
                         collapsable={false}
@@ -396,8 +475,22 @@ export function Scenario({ name, adapter, run, server }: ScenarioProps) {
                         renderItem={({ item }) => renderCell(item)}
                     />
                 ) : (
-                    <View style={styles.grid}>{cells.map(renderCell)}</View>
+                    <View style={styles.grid}>
+                        {cells.filter((cell) => !cell.detail).map(renderCell)}
+                    </View>
                 ))}
+            {open && (
+                <View style={styles.detail}>
+                    {cells.filter((cell) => cell.detail).map(renderCell)}
+                </View>
+            )}
+            {phase === 'ready' && (
+                <Pressable
+                    testID="start"
+                    style={styles.start}
+                    onPress={() => start.current?.()}
+                />
+            )}
             <Text
                 testID={phase === 'done' ? 'done' : 'status'}
                 style={styles.status}
@@ -422,6 +515,18 @@ const styles = StyleSheet.create({
         borderColor: '#ffffff',
     },
     image: { flex: 1 },
+    // Over the grid, below the marker; the photo in the middle, away from
+    // the grid's first rows, which show first.
+    detail: {
+        position: 'absolute',
+        top: TOP + MARKER_HEIGHT,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        backgroundColor: '#000000',
+    },
+    start: { flex: 1 },
     // Above the marker, so it isn't over a timed cell as it changes.
     status: {
         position: 'absolute',

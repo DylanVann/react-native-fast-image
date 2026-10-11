@@ -21,7 +21,10 @@ import kotlin.math.max
 // Serves the benchmark's images (../../images/out, in this APK's assets) on
 // the phone, at http://127.0.0.1:<port>, as the iOS tests do
 // (../../ios/UITests/ImageServer.swift): GET /<set>/<index>.jpg?run=<id> and
-// /manifest.json, the query ignored for the lookup. The app loads them over
+// /manifest.json, the query ignored for the lookup, and /requests?run=<id>,
+// how many image requests it got for that run id (the probe's aren't
+// counted): how many downloads a library made, e.g. one per photo shown at
+// two sizes when it shares them. The app loads them over
 // HTTP with each library's own networking, but every run gets the same
 // network: `latencyMs` before each response (and before a new connection's
 // first, for its handshake), and `mbps` shared by every response at once, as
@@ -37,9 +40,7 @@ class ImageServer(
     private val socket = ServerSocket(0, 128, InetAddress.getByName("127.0.0.1"))
     private val link = Link(mbps)
     private val files = ConcurrentHashMap<String, ByteArray>()
-    // Image requests per run id (the probe's aren't counted): how many
-    // downloads a library made, e.g. one per photo shown at two sizes when it
-    // shares them.
+    // Image requests by run id.
     private val requests = ConcurrentHashMap<String, AtomicInteger>()
     private val executor = Executors.newCachedThreadPool()
 
@@ -62,8 +63,6 @@ class ImageServer(
             }
         }
     }
-
-    fun imageRequests(run: String): Int = requests[run]?.get() ?: 0
 
     override fun close() {
         socket.close()
@@ -105,11 +104,24 @@ class ImageServer(
             val path = target.substringBefore('?').trimStart('/')
             val query = target.substringAfter('?', "").split('&')
             val closing = path == "manifest.json" || query.contains("close")
-            val run = query.firstOrNull { it.startsWith("run=") }?.removePrefix("run=")
+            val run = query.firstOrNull { it.startsWith("run=") }
+                ?.let { URLDecoder.decode(it.removePrefix("run="), "UTF-8") }
             if (run != null && !closing && path.endsWith(".jpg")) {
-                requests.getOrPut(URLDecoder.decode(run, "UTF-8")) { AtomicInteger() }.incrementAndGet()
+                requests.getOrPut(run) { AtomicInteger() }.incrementAndGet()
             }
             sleep(latencyMs)
+            if (path == "requests") {
+                val count = (run?.let { requests[it]?.get() } ?: 0).toString().toByteArray()
+                output.write(
+                    ("HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: text/plain\r\n" +
+                        "Content-Length: ${count.size}\r\n" +
+                        "\r\n").toByteArray(),
+                )
+                output.write(count)
+                output.flush()
+                continue
+            }
             val body = files[path]
             if (body == null) {
                 output.write(
