@@ -1,6 +1,6 @@
 import { Image, Text } from 'react-native'
 import React from 'react'
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, spyOn } from 'bun:test'
 import renderer, { act } from 'react-test-renderer'
 // The stand-in for react-native-web's asset registry (test/setup.ts).
 // @ts-expect-error react-native-web has no type declarations.
@@ -274,13 +274,19 @@ describe('FastImage (web)', () => {
         expect(img.props.style.opacity).toBe(0)
     })
 
-    it('renders children on top of the image', () => {
-        const tree = render(
-            <FastImage source={A}>
-                <Text>on top</Text>
-            </FastImage>,
-        )
-        expect(hosts(tree, 'Text')).toHaveLength(1)
+    it("doesn't render children, as on native; FastImageBackground does", () => {
+        const error = spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const tree = render(
+                <FastImage source={A}>
+                    {(<Text>on top</Text>) as any}
+                </FastImage>,
+            )
+            expect(hosts(tree, 'Text')).toHaveLength(0)
+            expect(error).toHaveBeenCalledTimes(1)
+        } finally {
+            error.mockRestore()
+        }
         const background = render(
             <FastImageBackground source={A}>
                 <Text>on top</Text>

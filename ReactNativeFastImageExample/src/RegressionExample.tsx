@@ -310,9 +310,8 @@ function PointerEventsCase() {
 }
 
 // A FastImage with pointerEvents="box-none" over a Pressable. maestro/touch.yaml
-// taps the Pressable's position; passes when it gets the press. The image is
-// part of the box (FastImage gives it "none"), but on Android its view didn't
-// read pointerEvents, and took the touch.
+// taps the Pressable's position; passes when it gets the press. FastImage is
+// a single view without children, so box-none leaves nothing to touch.
 function PointerEventsBoxNoneCase() {
     const [pressed, setPressed] = useState(false)
     return (
@@ -332,7 +331,32 @@ function PointerEventsBoxNoneCase() {
             <CaseStatus
                 id="pointer-events-box-none"
                 status={pressed ? 'OK' : 'tap the image'}
-                description='pointerEvents="box-none" lets touches through the image'
+                description='pointerEvents="box-none" lets touches through (a single view has nothing else to touch)'
+            />
+        </View>
+    )
+}
+
+// A FastImage with an accessibility label, which maestro/touch.yaml finds by
+// that label and taps; it takes the touch with responder props (View props,
+// on the image's own view). (Maestro finds it by its label whether or not iOS
+// treats it as an accessibility element, so this doesn't check `accessible`.)
+function AccessibleCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                accessible
+                accessibilityLabel="regression accessible image"
+                onStartShouldSetResponder={() => true}
+                onResponderRelease={() => setPressed(true)}
+                style={styles.image}
+                source={{ uri: LOGO }}
+            />
+            <CaseStatus
+                id="accessible"
+                status={pressed ? 'OK' : 'tap the image'}
+                description="an accessibilityLabel and responder props on FastImage's own view: found by its label and touched"
             />
         </View>
     )
@@ -341,8 +365,6 @@ function PointerEventsBoxNoneCase() {
 // A FastImage with hitSlop to its right and responder props. maestro/touch.yaml
 // taps the gray square beside it, which has pointerEvents="none" (the touch
 // goes to what's under it, the image's slop); passes when the image gets it.
-// Both went to the image view inside FastImage's wrapper, which touches
-// outside the wrapper didn't reach.
 function HitSlopCase() {
     const [pressed, setPressed] = useState(false)
     return (
@@ -614,10 +636,10 @@ const RawEventEmitter: {
 
 type ViewRef = React.ComponentRef<typeof View>
 
-// The tag of the native image view in a FastImage (whose ref is its wrapper
-// View), which its events have as nativeEvent.target.
-function imageViewTag(wrapper: ViewRef | null): number | undefined {
-    return (wrapper as any)?.firstElementChild?.__nativeTag
+// The tag of a FastImage's native view (its ref), which its events have as
+// nativeEvent.target.
+function imageViewTag(view: ViewRef | null): number | undefined {
+    return (view as any)?.__nativeTag
 }
 
 // Counts the events that reach JS from two images without handlers, until a
@@ -6234,13 +6256,29 @@ function expectedSize(width: number, height: number) {
     return SIZES.reduce((best, size) => (fit(size) < fit(best) ? size : best))
 }
 
-function SeveralSourcesCase({ id, size }: { id: string; size: number }) {
+// With `border`, the view has borders that wide: it picks for the box inside
+// them, where the image is drawn (Android picked for the whole view).
+function SeveralSourcesCase({
+    id,
+    size,
+    border = 0,
+}: {
+    id: string
+    size: number
+    border?: number
+}) {
     const [status, setStatus] = useState('loading')
-    const expected = expectedSize(size, size)
+    const inner = size - 2 * border
+    const expected = expectedSize(inner, inner)
     return (
         <View style={styles.row}>
             <FastImage
-                style={{ width: size, height: size }}
+                style={{
+                    width: size,
+                    height: size,
+                    borderWidth: border,
+                    borderColor: '#000000',
+                }}
                 source={sizedSources(id)}
                 onLoad={(e) =>
                     setStatus(
@@ -6254,7 +6292,59 @@ function SeveralSourcesCase({ id, size }: { id: string; size: number }) {
             <CaseStatus
                 id={id}
                 status={status}
-                description={`several sources (100, 300, 900 px) in a ${size} pt view: loads the ${expected} px one (red 100, green 300, blue 900)`}
+                description={`several sources (100, 300, 900 px) in a ${size} pt view${
+                    border ? ` with ${border} pt borders` : ''
+                }: loads the ${expected} px one (red 100, green 300, blue 900)`}
+            />
+        </View>
+    )
+}
+
+// Borders come after the image loaded: the box inside them is smaller, and the
+// view loads the size that fits it (Android kept the source picked for the
+// whole view).
+function SeveralSourcesBorderChangeCase() {
+    const size = 120
+    const border = 30
+    const [bordered, setBordered] = useState(false)
+    const [status, setStatus] = useState('loading')
+    const first = expectedSize(size, size)
+    const expected = expectedSize(size - 2 * border, size - 2 * border)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{
+                    width: size,
+                    height: size,
+                    borderWidth: bordered ? border : 0,
+                    borderColor: '#000000',
+                }}
+                source={sizedSources('several-border-change')}
+                onLoad={(e) => {
+                    const { width } = e.nativeEvent
+                    if (!bordered) {
+                        if (width !== first) {
+                            setStatus(
+                                `picked ${width} px, expected ${first} px before the borders`,
+                            )
+                            return
+                        }
+                        setStatus('waiting for the borders')
+                        setBordered(true)
+                        return
+                    }
+                    setStatus(
+                        width === expected
+                            ? 'OK'
+                            : `picked ${width} px with the borders, expected ${expected} px`,
+                    )
+                }}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="several-border-change"
+                status={status}
+                description={`several sources: a ${size} pt view loads the ${first} px one, then gets ${border} pt borders and loads the ${expected} px one for the box inside them`}
             />
         </View>
     )
@@ -6614,6 +6704,364 @@ function AppImageNameCase() {
     )
 }
 
+// FastImage is a single native view (10.0): the View style props are the
+// image's own, so each platform has to draw and clip them as the View around
+// the image did. Checked by screenshot; each case reports OK once its images
+// have loaded. The wide image (2:1) shows how each box crops it.
+function ViewStyleCase({
+    id,
+    description,
+    images,
+}: {
+    id: string
+    description: string
+    images: FastImageProps[]
+}) {
+    const [loaded, setLoaded] = useState(0)
+    return (
+        <View style={styles.row}>
+            {images.map((props, i) => (
+                <FastImage
+                    key={i}
+                    source={{ uri: WIDE.uri }}
+                    {...props}
+                    style={[i > 0 && styles.gap, props.style]}
+                    onLoad={() => setLoaded((n) => n + 1)}
+                />
+            ))}
+            <CaseStatus
+                id={id}
+                status={loaded >= images.length ? 'OK' : 'waiting'}
+                description={description}
+            />
+        </View>
+    )
+}
+
+const viewStyles = StyleSheet.create({
+    box: { width: 56, height: 56, backgroundColor: '#ddd' },
+    wide: { width: 96, height: 56, backgroundColor: '#ddd' },
+})
+
+// A gradient background (experimental_backgroundImage) under a contained
+// image (a wide one in a square box: the gradient shows above and below it),
+// next to a View with the same gradient (right). Checked by screenshot.
+// Android drew no gradient on FastImage's view.
+const GRADIENT = 'linear-gradient(#ff0000, #0000ff)'
+function GradientCase() {
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[
+                    viewStyles.box,
+                    { experimental_backgroundImage: GRADIENT },
+                ]}
+                resizeMode="contain"
+                source={{ uri: WIDE.uri }}
+                onLoad={() => setLoaded(true)}
+            />
+            <View
+                style={[
+                    viewStyles.box,
+                    styles.gap,
+                    { experimental_backgroundImage: GRADIENT },
+                ]}
+            />
+            <CaseStatus
+                id="style-gradient"
+                status={loaded ? 'OK' : 'waiting'}
+                description="a gradient background under a contained image (left), as on a View (right)"
+            />
+        </View>
+    )
+}
+
+// A border that goes away after the image loaded (left): the image fills the
+// box again, as the one that never had a border (right). Checked by
+// screenshot. Android kept the image it loaded for the smaller box inside the
+// border, stretched.
+const BORDER_CHANGE_URI = imageUrl(
+    `picsum/1018-600x300.jpg?border-change=${RUN}`,
+)
+function BorderChangeCase() {
+    const [borderTop, setBorderTop] = useState(40)
+    const [status, setStatus] = useState('waiting')
+    const onLoad = () => {
+        setTimeout(() => {
+            setBorderTop(0)
+            setTimeout(() => setStatus('OK'), 1000)
+        }, 100)
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[
+                    viewStyles.wide,
+                    { borderTopWidth: borderTop, borderColor: 'black' },
+                ]}
+                source={{ uri: BORDER_CHANGE_URI }}
+                onLoad={borderTop === 40 ? onLoad : undefined}
+            />
+            <FastImage
+                style={[viewStyles.wide, styles.gap]}
+                source={{ uri: BORDER_CHANGE_URI }}
+            />
+            <CaseStatus
+                id="style-border-change"
+                status={status}
+                description="a 40 dp top border removed after the image loaded (left): the image fills the box, as without a border (right)"
+            />
+        </View>
+    )
+}
+
+// An edge's border width that leaves the style after the image loaded, under a
+// width for every edge (left): the edge falls back to that width, and the
+// image is inside the borders, as with that width from the start (right).
+// Checked by screenshot. A removed width reaches the view as NaN, which
+// Android's border insets keep (React Native 0.83 to 0.87) instead of falling
+// back, so the image was drawn over the left border.
+const BORDER_REMOVED_URI = imageUrl(
+    `picsum/1018-600x300.jpg?border-removed=${RUN}`,
+)
+function BorderRemovedCase() {
+    const [border, setBorder] = useState(true)
+    const [status, setStatus] = useState('waiting')
+    const onLoad = () => {
+        setTimeout(() => {
+            setBorder(false)
+            setTimeout(() => setStatus('OK'), 1000)
+        }, 100)
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[
+                    viewStyles.wide,
+                    { borderWidth: 6, borderColor: 'black' },
+                    border && { borderLeftWidth: 30 },
+                ]}
+                source={{ uri: BORDER_REMOVED_URI }}
+                onLoad={border ? onLoad : undefined}
+            />
+            <FastImage
+                style={[
+                    viewStyles.wide,
+                    styles.gap,
+                    { borderWidth: 6, borderColor: 'black' },
+                ]}
+                source={{ uri: BORDER_REMOVED_URI }}
+            />
+            <CaseStatus
+                id="style-border-removed"
+                status={status}
+                description="a 30 dp left border removed after the image loaded, with 6 dp borders (left): 6 dp borders all round, as from the start (right)"
+            />
+        </View>
+    )
+}
+
+// overflow switched from hidden to visible after the image loaded, with a
+// radius (left): square corners, as the one that was visible from the start
+// (right). Checked by screenshot. iOS kept the image view's rounded mask.
+function OverflowChangeCase() {
+    const [hidden, setHidden] = useState(true)
+    const [status, setStatus] = useState('waiting')
+    const onLoad = () => {
+        setTimeout(() => {
+            setHidden(false)
+            setTimeout(() => setStatus('OK'), 1000)
+        }, 100)
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={[
+                    viewStyles.box,
+                    {
+                        borderRadius: 16,
+                        overflow: hidden ? 'hidden' : 'visible',
+                    },
+                ]}
+                source={{ uri: WIDE.uri }}
+                onLoad={hidden ? onLoad : undefined}
+            />
+            <FastImage
+                style={[
+                    viewStyles.box,
+                    styles.gap,
+                    { borderRadius: 16, overflow: 'visible' },
+                ]}
+                source={{ uri: WIDE.uri }}
+            />
+            <CaseStatus
+                id="style-overflow-change"
+                status={status}
+                description="overflow from hidden to visible after the image loaded, with a radius (left): square corners, as visible from the start (right)"
+            />
+        </View>
+    )
+}
+
+const VIEW_STYLE_CASES = [
+    <ViewStyleCase
+        key="style-corners"
+        id="style-corners"
+        description="per-corner and logical radii with a border: the image is clipped inside it, with its inner radii"
+        images={[
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: 24,
+                        borderBottomRightRadius: 8,
+                        borderBottomLeftRadius: 16,
+                        borderWidth: 3,
+                        borderColor: '#0066ff',
+                    },
+                ],
+            },
+            {
+                style: [
+                    viewStyles.box,
+                    { borderTopStartRadius: 24, borderBottomEndRadius: 24 },
+                ],
+            },
+        ]}
+    />,
+    <ViewStyleCase
+        key="style-border-sides"
+        id="style-border-sides"
+        description="borders of different widths and colors on each side, a 50% radius on a wide box, and a dashed border"
+        images={[
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        borderRadius: 12,
+                        borderTopWidth: 2,
+                        borderRightWidth: 6,
+                        borderBottomWidth: 10,
+                        borderLeftWidth: 4,
+                        borderTopColor: 'red',
+                        borderRightColor: 'green',
+                        borderBottomColor: 'blue',
+                        borderLeftColor: 'orange',
+                    },
+                ],
+            },
+            { style: [viewStyles.wide, { borderRadius: '50%' }] },
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        borderRadius: 8,
+                        borderWidth: 2,
+                        borderColor: 'black',
+                        borderStyle: 'dashed',
+                    },
+                ],
+            },
+        ]}
+    />,
+    <ViewStyleCase
+        key="style-padding"
+        id="style-padding"
+        description="padding 8 (left) doesn't inset the image: same as none (middle); overflow visible: square corners (right)"
+        images={[
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        padding: 8,
+                        borderWidth: 2,
+                        borderColor: 'black',
+                        borderRadius: 12,
+                    },
+                ],
+            },
+            {
+                style: [
+                    viewStyles.box,
+                    { borderWidth: 2, borderColor: 'black', borderRadius: 12 },
+                ],
+            },
+            {
+                style: [
+                    viewStyles.box,
+                    { overflow: 'visible', borderRadius: 16 },
+                ],
+            },
+        ]}
+    />,
+    <ViewStyleCase
+        key="style-effects"
+        id="style-effects"
+        description="opacity 0.5, a rotation with a radius, a box shadow, and elevation with a radius and background"
+        images={[
+            { style: [viewStyles.box, { opacity: 0.5 }] },
+            {
+                style: [
+                    viewStyles.box,
+                    { borderRadius: 12, transform: [{ rotate: '15deg' }] },
+                ],
+            },
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        borderRadius: 12,
+                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.6)',
+                    },
+                ],
+            },
+            {
+                style: [viewStyles.box, { borderRadius: 12, elevation: 8 }],
+            },
+        ]}
+    />,
+    <ViewStyleCase
+        key="style-backface"
+        id="style-backface"
+        description="turned around (rotateY 180°): with backfaceVisibility hidden it doesn't show at all (left, empty); visible shows it mirrored (right)"
+        images={[
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        backfaceVisibility: 'hidden',
+                        transform: [{ rotateY: '180deg' }],
+                    },
+                ],
+            },
+            {
+                style: [
+                    viewStyles.box,
+                    {
+                        backfaceVisibility: 'visible',
+                        transform: [{ rotateY: '180deg' }],
+                    },
+                ],
+            },
+        ]}
+    />,
+    <ViewStyleCase
+        key="tint-prop-wins"
+        id="tint-prop-wins"
+        description="the tintColor prop (green) wins over style's tintColor (red), as with React Native's Image"
+        images={[
+            {
+                source: { uri: LOGO },
+                tintColor: 'green',
+                style: [viewStyles.box, { tintColor: 'red' }],
+                resizeMode: 'contain',
+            },
+        ]}
+    />,
+]
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // First, before any view has loaded an image.
@@ -6814,6 +7262,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 height={281}
             />,
             <SourceSizeCachedCase key="source-size-cached" />,
+        ],
+    },
+    {
+        // FastImage's View style props, on its single native view (10.0).
+        name: 'view-style',
+        cases: VIEW_STYLE_CASES,
+    },
+    {
+        // Checked by screenshot as much as by status.
+        name: 'view-style-more',
+        cases: [
+            <GradientCase key="style-gradient" />,
+            <BorderChangeCase key="style-border-change" />,
+            <BorderRemovedCase key="style-border-removed" />,
+            <OverflowChangeCase key="style-overflow-change" />,
         ],
     },
     {
@@ -7521,6 +7984,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
+        // Bordered views: the source fits the box inside the borders.
+        name: 'several-sources-border',
+        cases: [
+            <SeveralSourcesCase
+                key="several-border"
+                id="several-border"
+                size={120}
+                border={30}
+            />,
+            <SeveralSourcesBorderChangeCase key="several-border-change" />,
+        ],
+    },
+    {
         name: 'image-background',
         cases: [<ImageBackgroundCase key="image-background" />],
     },
@@ -7971,6 +8447,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <TouchableCase key="touchable" />,
             <PointerEventsCase key="pointer-events" />,
             <PointerEventsBoxNoneCase key="pointer-events-box-none" />,
+            <AccessibleCase key="accessible" />,
             <HitSlopCase key="hit-slop" />,
         ],
     },

@@ -102,8 +102,8 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(fromStyle.children[0].props.tintColor).toBe('green')
-        expect(fromProp.children[0].props.tintColor).toBe('red')
+        expect(fromStyle.props.tintColor).toBe('green')
+        expect(fromProp.props.tintColor).toBe('red')
     })
 
     it('uses the last tintColor in a style array', () => {
@@ -120,7 +120,7 @@ describe('FastImage (iOS)', () => {
             )
             .toJSON()
 
-        expect(tree.children[0].props.tintColor).toBe('blue')
+        expect(tree.props.tintColor).toBe('blue')
     })
 
     it('reads tintColor from a registered (numeric) style', () => {
@@ -137,28 +137,74 @@ describe('FastImage (iOS)', () => {
                 )
                 .toJSON()
 
-            expect(tree.children[0].props.tintColor).toBe('purple')
+            expect(tree.props.tintColor).toBe('purple')
         } finally {
             flatten.mockRestore()
         }
     })
 
-    it('puts pointerEvents on the wrapper, and none on the image for box-none', () => {
+    it('is one native view, with the View props and style on it', () => {
+        const onLayout = () => {}
         const tree: any = renderer
             .create(
                 <FastImage
                     source={{ uri: 'https://example.com/image.png' }}
                     pointerEvents="box-none"
-                    style={style.image}
+                    onLayout={onLayout}
+                    accessibilityLabel="a cat"
+                    style={[style.image, { borderRadius: 4 }]}
                 />,
             )
             .toJSON()
 
+        expect(tree.type).toBe('FastImageView')
+        expect(tree.children).toBeNull()
         expect(tree.props.pointerEvents).toBe('box-none')
-        expect(tree.children[0].props.pointerEvents).toBe('none')
+        expect(tree.props.onLayout).toBe(onLayout)
+        expect(tree.props.accessibilityLabel).toBe('a cat')
+        // Clips the image by default, as React Native's Image does.
+        expect(StyleSheet.flatten(tree.props.style)).toEqual({
+            overflow: 'hidden',
+            width: 44,
+            height: 44,
+            borderRadius: 4,
+        })
     })
 
-    it('puts hitSlop and the touch handlers on the wrapper', () => {
+    it("doesn't render children, with an error once in development", () => {
+        const error = spyOn(console, 'error').mockImplementation(() => {})
+        try {
+            const element = (
+                <FastImage source={{ uri: 'https://example.com/image.png' }}>
+                    {/* @ts-expect-error FastImage doesn't take children: use FastImageBackground */}
+                    <View testID="child" />
+                </FastImage>
+            )
+            const tree: any = renderer.create(
+                <>
+                    {element}
+                    {element}
+                </>,
+            )
+            expect(
+                tree.root.findAll(
+                    (node: any) => node.props?.testID === 'child',
+                ),
+            ).toHaveLength(0)
+            const [view] = tree.root.findAll(
+                (node: any) => node.type === 'FastImageView',
+            )
+            expect(view.props.children).toBeUndefined()
+            expect(error).toHaveBeenCalledTimes(1)
+            expect(String(error.mock.calls[0][0])).toContain(
+                "FastImage doesn't render children",
+            )
+        } finally {
+            error.mockRestore()
+        }
+    })
+
+    it('puts hitSlop and the touch handlers on its native view', () => {
         const onStartShouldSetResponder = () => true
         const onResponderRelease = () => {}
         const onTouchStart = () => {}
@@ -182,13 +228,8 @@ describe('FastImage (iOS)', () => {
         )
         expect(tree.props.onResponderRelease).toBe(onResponderRelease)
         expect(tree.props.onTouchStart).toBe(onTouchStart)
-        const image = tree.children[0].props
-        expect(image.hitSlop).toBeUndefined()
-        expect(image.onStartShouldSetResponder).toBeUndefined()
-        expect(image.onResponderRelease).toBeUndefined()
-        expect(image.onTouchStart).toBeUndefined()
-        // Other View props stay on the image.
-        expect(image.accessibilityLabel).toBe('a cat')
+        expect(tree.props.accessibilityLabel).toBe('a cat')
+        expect(tree.children).toBeNull()
     })
 
     it('renders a normal Image when not passed a uri', () => {
@@ -319,7 +360,8 @@ describe('ref', () => {
             { createNodeMock: (element) => ({ type: element.type }) },
         )
         expect(tree.toJSON()).not.toBeNull()
-        expect(ref.current).toEqual({ type: 'View' } as any)
+        // The native view itself: FastImage has no wrapper.
+        expect(ref.current).toEqual({ type: 'FastImageView' } as any)
         // Typed as the view, with its methods (a type check: the view here
         // is a stand-in).
         const measure = (view: React.ComponentRef<typeof FastImage>) =>
@@ -344,7 +386,7 @@ describe('FastImageBackground', () => {
             // Host refs are null without a node.
             { createNodeMock: () => ({}) },
         )
-        // A view with the image's wrapper, then the children.
+        // A view with the image (FastImage's native view), then the children.
         const json: any = tree.toJSON()
         expect(json.props.style).toEqual({ width: 100, height: 50 })
         expect(json.props.accessibilityIgnoresInvertColors).toBe(true)
