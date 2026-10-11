@@ -79,28 +79,25 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // clearDiskCache calls that have resolved, counted on cachePathExecutor
     // after each resolves, so in the order they were called.
     private static final AtomicInteger clearsDone = new AtomicInteger();
-    // Loads cancelled by a clear before a clear called before them had
-    // resolved, waiting to resolve after it (resolveParked). Only used on the
-    // UI thread.
+    // Loads that a clear called after them cancelled while a clear called
+    // before them hadn't resolved yet, waiting to resolve after that one
+    // (resolveParked). Only used on the UI thread.
     private static final List<QueuedLoad> parked = new ArrayList<>();
 
     // A preload of a source, or a getCachePath download, waiting in
-    // pendingPreloads, then loading. On the UI thread.
+    // pendingPreloads, then loading. A clear called after it cancels it, also
+    // a local image's preload: Glide stores a decoded copy of a local image
+    // in its disk cache. On the UI thread.
     private abstract static class QueuedLoad {
         // `clears` when it was called.
         final int clearsBefore;
-        // Whether a clear called before it's done cancels it: a remote
-        // image's. A local image's preload goes on: it doesn't download
-        // (Glide can still store a copy of it in the disk cache).
-        final boolean cancellable;
         // Its Glide request while one runs, which a clear stops.
         @Nullable
         private Target<?> request;
         private boolean finished = false;
 
-        QueuedLoad(int clearsBefore, boolean cancellable) {
+        QueuedLoad(int clearsBefore) {
             this.clearsBefore = clearsBefore;
-            this.cancellable = cancellable;
         }
 
         // Loads it, in a slot of runningPreloads.
@@ -108,8 +105,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
         abstract void resolve(WritableMap result);
 
+        // Whether a clear was called after this load was, which cancels it.
         final boolean clearedSince() {
-            return cancellable && clears.get() != clearsBefore;
+            return clears.get() != clearsBefore;
         }
 
         // Glide calls the listener from inside preload() for an image in
@@ -120,11 +118,11 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
 
         // Its result, which frees its slot. Only the first counts: the
         // load's own, or that of a clear that cancelled it. If a clear was
-        // called since the load was, the result is the clear's, also when the
-        // load finished just before the clear cancelled it: the clear removes
-        // what it stored. A load called after a clear resolves after that
-        // clear, as the calls were made: one that a later clear cancels
-        // before the earlier one has resolved waits for it in parked.
+        // called after the load was, the load resolves with that clear's
+        // error, also when it finished just before the clear cancelled it:
+        // the clear removes what it stored. It resolves after the clears
+        // called before it have: if a clear called after it cancels it while
+        // one called before it hasn't resolved yet, it waits in parked.
         final void finish(WritableMap result) {
             if (finished) return;
             finished = true;
@@ -158,8 +156,9 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     }
 
     // Adds a load to pendingPreloads, or cancels it if a clear was called
-    // since: getCachePath queues its download after its lookup, which can be
-    // after the clear has cancelled the loads called before it.
+    // after it: getCachePath queues its download after its lookup, which can
+    // be after the clear has cancelled the loads called before it, and a
+    // preload gets here after a hop to the UI thread.
     private static void queue(QueuedLoad load) {
         if (load.clearedSince()) {
             load.finish(cancelled());
@@ -181,8 +180,8 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // Cancels the remote preloads and getCachePath downloads called before
-    // the latest clear, waiting or loading: their Glide requests stop (a
+    // Cancels the preloads and getCachePath downloads called before the
+    // latest clear, waiting or loading: their Glide requests stop (a
     // download a view shares goes on for the view), and they resolve with
     // the clear's error. On the UI thread.
     private static void cancelLoads(Context context) {
@@ -289,7 +288,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                     final boolean download = !imageSource.isWebCache() && imageSource.isRemote();
                     // Not decoded: its size comes from the file's header.
                     final boolean diskOnly = download && !imageSource.isMemoryCache();
-                    queue(new QueuedLoad(clearsBefore, imageSource.isRemote()) {
+                    queue(new QueuedLoad(clearsBefore) {
                         @Override
                         void start() {
                             if (!download) {
@@ -534,7 +533,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
             final RequestOptions options,
             int clearsBefore,
             final Promise promise) {
-        return new QueuedLoad(clearsBefore, true) {
+        return new QueuedLoad(clearsBefore) {
             @Override
             void start() {
                 loading(loadFile(context, imageSource.getSourceForLoad(), options, false, new FileCallback() {
@@ -561,7 +560,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // Downloads a `web` image into its HTTP cache, which keeps it only if the
     // server allows caching it.
     private static QueuedLoad downloadToWebCache(final FastImageSource imageSource, final int clearsBefore, final Promise promise) {
-        return new QueuedLoad(clearsBefore, true) {
+        return new QueuedLoad(clearsBefore) {
             @Override
             void start() {
                 cachePathExecutor.execute(new Runnable() {
@@ -733,15 +732,18 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
     // On cachePathExecutor (Glide clears its disk cache off the main thread),
     // after the lookups and writeToCache calls queued there before it, so a
     // file writeToCache is storing isn't stored after the clear. First the
-    // remote preloads and getCachePath downloads called before it that are
-    // waiting or loading are cancelled (cancelLoads), without waiting for
-    // their downloads, so they don't store their images after it: Glide
-    // doesn't start writing a cancelled request's download to its disk cache
-    // (and its stream is closed), and a write under way belongs to the
-    // DiskLruCache that the clear closes and deletes, which aborts it; the
+    // preloads (local images' too) and getCachePath downloads called before
+    // it that are waiting or loading are cancelled (cancelLoads), without
+    // waiting for their downloads, so they don't store their images after
+    // it: Glide doesn't start writing a cancelled request's download to its
+    // disk cache (and its stream is closed), and a write under way belongs to
+    // the DiskLruCache that the clear closes and deletes, which aborts it; the
     // HTTP cache of `web` images drops the responses it's writing when it's
     // emptied (one whose headers came just before the cancel can still start
-    // storing after it). The `web` download on cachePathExecutor is stopped
+    // storing after it). A local image that's being decoded when its preload
+    // is cancelled can still be stored after the clear: Glide finishes the
+    // decode and then writes the decoded copy to its disk cache, also for a
+    // cleared request. The `web` download on cachePathExecutor is stopped
     // (see webDownload). The loads called after the clear don't start until
     // it's done (pendingClears), and resolve after it also when a later clear
     // cancels them (parked). Not on the native modules' thread, where React

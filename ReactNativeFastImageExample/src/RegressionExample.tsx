@@ -4165,29 +4165,31 @@ function CachePathCase({
 // (one to disk only, one into the memory cache); the server holds the rest of
 // them once the headers and half have come, so they keep the 3 preload slots
 // (and the `web` download keeps FastImage's cache thread busy). Then preload
-// of a remote image, a `web` image and a local image (a data uri, decoded)
-// wait for a slot, a getCachePath's lookup waits behind the `web` download
-// (so it would queue its download after clearDiskCache is called), and
-// writeToCache stores an image's file from getCachePath under another url.
-// Then clearDiskCache, then preload of a remote image that isn't cached (to
-// disk only), preload of a local image in the memory cache (a data uri),
-// preload of a remote image in the memory cache (both preloaded before; the
-// clear removes the remote one's file), getCachePath of a `web` image that
-// isn't cached, and a cacheOnly getCachePath. The hold is released once the
-// clear and the first preload after it are done, or after 5 s. Passes when
-// the clear was done before that (it doesn't wait for the downloads), the
-// remote loads called before it resolved "Cancelled by clearDiskCache" and
-// aren't cached, the local preload, writeToCache, the preloads after the
-// clear and the `web` getCachePath after it were ok, the clear resolved
-// before the calls after it, and afterwards the stored image isn't cached
-// while the remote images preloaded after the clear and the `web` image
-// downloaded after it are. Android cleared at once on the native modules'
-// thread: the clear removed the HTTP cache entry being written (so
+// of a remote image, a `web` image and a local image (a data uri of its own,
+// to disk only) wait for a slot, a getCachePath's lookup waits behind the
+// `web` download (so it would queue its download after clearDiskCache is
+// called), and writeToCache stores an image's file from getCachePath under
+// another url. Then clearDiskCache, then preload of a remote image that
+// isn't cached (to disk only), preload of a local image in the memory cache
+// (a data uri), preload of a remote image in the memory cache (both
+// preloaded before; the clear removes the remote one's file), getCachePath
+// of a `web` image that isn't cached, and a cacheOnly getCachePath. The hold
+// is released once the clear and the first preload after it are done, or
+// after 5 s. Passes when the clear was done before that (it doesn't wait for
+// the downloads), the loads called before it resolved "Cancelled by
+// clearDiskCache" and aren't cached (for the local image, Glide's decoded
+// copy, which a cacheOnly preload looks for), writeToCache, the preloads
+// after the clear and the `web` getCachePath after it were ok, the clear
+// resolved before the calls after it, and afterwards the stored image isn't
+// cached while the remote images preloaded after the clear and the `web`
+// image downloaded after it are. Android cleared at once on the native
+// modules' thread: the clear removed the HTTP cache entry being written (so
 // getCachePath said the server doesn't allow caching the image), and
 // writeToCache ran after the clear, which had removed its file. A clear on
-// the cache thread must cancel the remote loads called before it, or those
-// loading finish after it and those waiting load after it, and they stay
-// cached; it must hold the preloads called after it, or they load first and
+// the cache thread must cancel the loads called before it, or those loading
+// finish after it and those waiting load after it, and they stay cached
+// (Glide stores a decoded copy of the local image in its disk cache too);
+// it must hold the preloads called after it, or they load first and
 // the clear removes their files; and it must resolve before it lets them
 // start: Glide reports a local image in the memory cache as soon as it's
 // preloaded (a remote image's preload first looks for its file in the disk
@@ -4264,8 +4266,13 @@ function ClearDiskCacheOrderCase() {
                 ),
                 cache: FastImage.cacheControl.web,
             }
+            // A data uri of its own (the parameter only changes the uri), so
+            // nothing else here stores its decoded copy in the disk cache.
             const waitingLocal: Source = {
-                uri: YELLOW_DATA_URI,
+                uri: YELLOW_DATA_URI.replace(
+                    ';base64,',
+                    ';name=clear-order;base64,',
+                ),
                 memoryCache: false,
             }
             const waitingDownload: Source = {
@@ -4404,6 +4411,12 @@ function ClearDiskCacheOrderCase() {
                 remoteInMemory,
                 webAfter,
             ])
+            // A local image has no file for getCachePath: a cacheOnly preload
+            // (from the disk cache only, with memoryCache false) finds the
+            // decoded copy Glide stores when it decodes one.
+            const [waitingLocalCached] = await FastImage.preload([
+                { ...waitingLocal, cache: cacheOnly },
+            ])
             if (stopped) return
             // Two clears. Lookups of images that aren't cached keep the cache
             // thread busy, so the first clear is still waiting when the
@@ -4452,11 +4465,11 @@ function ClearDiskCacheOrderCase() {
                 between,
                 afterBoth,
             ])
-            // A remote load called before a clear, which cancels it.
+            // A load called before a clear, which cancels it.
             const notCancelled = (
                 name: string,
                 result: PreloadResult | CachePathResult,
-                cached: CachePathResult,
+                cached: PreloadResult | CachePathResult,
             ) => [
                 (result.ok || result.error !== CLEAR_CANCELLED) &&
                     `${name}: ${result.ok ? 'ok' : result.error}`,
@@ -4491,8 +4504,11 @@ function ClearDiskCacheOrderCase() {
                     waitingDownloadResult,
                     waitingDownloadCached,
                 ),
-                !waitingLocalResult.ok &&
-                    `waiting preload of a local image: ${waitingLocalResult.error}`,
+                ...notCancelled(
+                    'waiting preload of a local image',
+                    waitingLocalResult,
+                    waitingLocalCached,
+                ),
                 !write.ok && `writeToCache: ${write.error}`,
                 !clear.ok && `clearDiskCache: ${clear.error}`,
                 !preload.ok && `preload: ${preload.error}`,
@@ -4544,7 +4560,7 @@ function ClearDiskCacheOrderCase() {
             <CaseStatus
                 id="clear-disk-cache-order"
                 status={status}
-                description="clearDiskCache cancels the remote preloads and getCachePath downloads called before it, runs after a writeToCache called before it, and before a preload and getCachePath called after it (Android only)"
+                description="clearDiskCache cancels the preloads and getCachePath downloads called before it, runs after a writeToCache called before it, and before a preload and getCachePath called after it (Android only)"
             />
         </View>
     )
