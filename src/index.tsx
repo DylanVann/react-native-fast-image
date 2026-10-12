@@ -130,6 +130,27 @@ export type Source = {
      */
     diskCache?: boolean
     /**
+     * A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short
+     * string (base64, about 25 to 35 characters) that shows as a blurred
+     * preview of the image while it loads, and if it fails to load, in place
+     * of `defaultSource`. Make it when the image is uploaded (e.g. on your
+     * server, with the `thumbhash` package), and send it with the image's url.
+     *
+     * It's drawn where the image will be (`objectFit` and `objectPosition`),
+     * as with `contain` for `scale-down` and `none`, which depend on the
+     * image's size. A new `thumbhash` for the same image doesn't load it
+     * again. With several sources, each has its own: the view shows the one
+     * it picks for its size (on the web, where the browser picks, only if
+     * they all have the same `thumbhash`). An invalid one shows nothing, or
+     * `defaultSource`.
+     *
+     * @example
+     * ```jsx
+     * <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
+     * ```
+     */
+    thumbhash?: string
+    /**
      * With several sources (`source` as an array), the image's width at this
      * uri, in pixels (times `scale`, if given).
      */
@@ -326,7 +347,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * An asset loaded with `require(...)`, shown while the first image loads,
      * and if an image fails to load. When `source` changes, the previous image
      * shows while the new one loads instead (see `source` and
-     * `recyclingKey`).
+     * `recyclingKey`). A source's `thumbhash` shows instead of it.
      *
      * On Android, `defaultSource` doesn't show in debug builds: there the dev
      * server serves `require()`d images, and `defaultSource` is only loaded
@@ -601,6 +622,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
 }
 
+// A source without its thumbhash, which the native view gets as its own prop.
+function withoutThumbhash<T>(source: T): T {
+    if (!source || typeof source !== 'object' || !('thumbhash' in source)) {
+        return source
+    }
+    const { thumbhash: _thumbhash, ...rest } = source as Source
+    return rest as T
+}
+
 const resolveDefaultSource = (
     defaultSource?: ImageRequireSource,
 ): string | object | null => {
@@ -773,9 +803,19 @@ function FastImageBase({
             : source
         : undefined
     const single = Array.isArray(source) ? source[0] : source
+    // ThumbHashes go to the native view apart from the sources, so a new hash
+    // for the same image doesn't load it again: one source's, or several
+    // sources' by index ('' for none).
+    const thumbhash =
+        !sources && single && typeof single === 'object'
+            ? single.thumbhash
+            : undefined
+    const thumbhashes = sources?.some((entry) => entry?.thumbhash)
+        ? sources.map((entry) => entry?.thumbhash ?? '')
+        : undefined
     const resolvedSource = sources
         ? undefined
-        : Image.resolveAssetSource(single as any)
+        : Image.resolveAssetSource(withoutThumbhash(single) as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
@@ -793,7 +833,9 @@ function FastImageBase({
                 defaultTransition ?? builtInTransition(),
             )}
             source={resolvedSource}
-            sources={sources}
+            sources={sources?.map(withoutThumbhash)}
+            thumbhash={thumbhash}
+            thumbhashes={thumbhashes}
             defaultSource={resolvedDefaultSource}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}

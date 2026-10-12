@@ -6,6 +6,7 @@ import renderer, { act } from 'react-test-renderer'
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground } from './index.web'
+import { thumbHashDataUri } from './thumbhash'
 
 // Renders with effects run, as in a browser.
 function render(element: React.ReactElement, options?: any) {
@@ -629,5 +630,58 @@ describe('FastImage (web)', () => {
         expect(FastImage.resizeMode.contain).toBe('contain')
         expect(FastImage.priority.high).toBe('high')
         expect(FastImage.cacheControl.web).toBe('web')
+    })
+})
+
+describe('thumbhash (web)', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const H2 = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
+
+    it('shows in place of defaultSource until the image loads', async () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, thumbhash: H1 }}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                objectFit="none"
+            />,
+        )
+        const [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe(thumbHashDataUri(H1))
+        // As contain: it stands for an image whose size isn't known yet.
+        expect(placeholder.props.style.objectFit).toBe('contain')
+        expect(image.props.style.objectFit).toBe('none')
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(images(tree)).toHaveLength(1)
+    })
+
+    it('shows for several sizes only if they all have the same one', () => {
+        const sizes = (second: string) => [
+            {
+                uri: 'https://example.com/a.jpg',
+                width: 100,
+                height: 75,
+                thumbhash: H1,
+            },
+            {
+                uri: 'https://example.com/b.jpg',
+                width: 400,
+                height: 300,
+                thumbhash: second,
+            },
+        ]
+        let tree = render(<FastImage source={sizes(H1)} />)
+        expect(images(tree)[0].props.src).toBe(thumbHashDataUri(H1))
+        tree = render(
+            <FastImage
+                source={sizes(H2)}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
     })
 })

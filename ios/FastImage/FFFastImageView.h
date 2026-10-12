@@ -33,6 +33,12 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 // loads the one whose size is closest to its own.
 @property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
 @property (nonatomic, strong) UIImage *defaultSource;
+// The `thumbhash` prop (one source), or `thumbhashes` (several, by index, an
+// empty string for none): the picked source's ThumbHash shows instead of
+// defaultSource. JS sends them apart from the sources, so a new hash for the
+// same image doesn't load it again.
+@property (nonatomic, copy) NSString *thumbhash;
+@property (nonatomic, copy) NSArray<NSString *> *thumbhashes;
 @property (nonatomic, strong) UIColor *imageColor;
 // When it changes, the next image doesn't replace the current one: the view
 // clears first (for views reused for other content, like list rows).

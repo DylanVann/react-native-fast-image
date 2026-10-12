@@ -335,6 +335,16 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     @Override
+    public void setThumbhash(FastImageViewWithUrl view, @Nullable String thumbhash) {
+        view.setThumbhash(thumbhash);
+    }
+
+    @Override
+    public void setThumbhashes(FastImageViewWithUrl view, @Nullable ReadableArray thumbhashes) {
+        view.setThumbhashes(thumbhashes);
+    }
+
+    @Override
     public void setLoopCount(FastImageViewWithUrl view, int loopCount) {
         view.setLoopCount(loopCount);
     }
