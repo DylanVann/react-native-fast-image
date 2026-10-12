@@ -145,8 +145,8 @@ export type FastImageProps = $ReadOnly<{|
     blurRadius?: ?number,
     testID?: ?string,
     // FastImage is a single native view, which doesn't take children (since
-    // 10.0): use FastImageBackground.
-    children?: "FastImage doesn't take children: use FastImageBackground for content over an image",
+    // 10.0): use ImageBackground (FastImageBackground).
+    children?: "FastImage doesn't take children: use ImageBackground (FastImageBackground) for content over an image",
 |}>
 
 export type FastImageBackgroundProps = $ReadOnly<{|
@@ -177,3 +177,8 @@ declare export default class FastImage extends React$Component<FastImageProps> {
         file: string,
     ) => Promise<CachePathResult>;
 }
+
+// The same components under React Native's names (`FastImage` and
+// `FastImageBackground` stay exported).
+declare export var Image: typeof FastImage;
+declare export var ImageBackground: typeof FastImageBackground;

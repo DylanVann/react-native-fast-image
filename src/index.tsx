@@ -84,7 +84,7 @@ export type Source = {
      *
      * @example
      * ```jsx
-     * <FastImage
+     * <Image
      *     source={{
      *         uri: signedUrl,
      *         cacheKey: `avatar-${user.id}-${user.avatarUpdatedAt}`,
@@ -96,7 +96,7 @@ export type Source = {
     /**
      * Whether the decoded image is kept in the memory cache. With `false`
      * it's only kept on disk: a view doesn't leave it in memory once it stops
-     * showing it, and `FastImage.preload` downloads it without decoding it.
+     * showing it, and `Image.preload` downloads it without decoding it.
      * Use it for large images that are shown once or rarely, like a
      * full-screen photo: a decoded photo can take tens of MB of memory. Images
      * shown again, like a list scrolled back, are decoded from disk again.
@@ -122,7 +122,7 @@ export type Source = {
 export type Transition = {
     /**
      * How long the fade takes, in milliseconds; 0 means no fade. Defaults to
-     * the default transition's (see `FastImage.setDefaults`) if it fades,
+     * the default transition's (see `Image.setDefaults`) if it fades,
      * otherwise the platform's usual length: 300 ms on Android, 250 ms on iOS.
      */
     duration?: number
@@ -274,7 +274,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * image:
      *
      * ```jsx
-     * <FastImage
+     * <Image
      *     style={{ width: 120, height: 120 }}
      *     source={[
      *         { uri: 'https://example.com/photo-200.jpg', width: 200, height: 200 },
@@ -291,7 +291,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - Each size is cached separately. A `cacheKey` applies to its own entry:
      *   give each size its own key (or none), or the sizes would replace each
      *   other in the cache.
-     * - `FastImage.preload`, `getCachePath` and `writeToCache` take one size:
+     * - `Image.preload`, `getCachePath` and `writeToCache` take one size:
      *   pass the one a view will show. An array fails with
      *   `{ ok: false, error }`.
      * - An array of one is the same as that source.
@@ -354,7 +354,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * @default '50% 50%'
      * @example
      * ```jsx
-     * <FastImage source={{ uri }} objectFit="cover" objectPosition="top" />
+     * <Image source={{ uri }} objectFit="cover" objectPosition="top" />
      * ```
      */
     objectPosition?: ObjectPosition
@@ -368,7 +368,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * @example
      * ```jsx
-     * <FastImage recyclingKey={item.id} source={{ uri: item.imageUrl }} />
+     * <Image recyclingKey={item.id} source={{ uri: item.imageUrl }} />
      * ```
      */
     recyclingKey?: string | null
@@ -414,12 +414,12 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     paused?: boolean
     /**
      * Fades the image in when it loads. `true` fades for the default's
-     * duration (see `FastImage.setDefaults`), or the platform's usual length
+     * duration (see `Image.setDefaults`), or the platform's usual length
      * if the default doesn't fade; a number is the duration in milliseconds,
      * `false` (or 0) is no fade, or pass a `Transition`.
      *
      * By default, images fade in on Android (300 ms), and not on iOS.
-     * `FastImage.setDefaults` changes that for every image; an image's own
+     * `Image.setDefaults` changes that for every image; an image's own
      * `transition` wins, and the settings it leaves out come from the
      * default. `null` is the default.
      *
@@ -430,9 +430,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * @example
      * ```jsx
-     * <FastImage source={{ uri }} transition />
-     * <FastImage source={{ uri }} transition={500} />
-     * <FastImage source={{ uri }} transition={{ betweenImages: true, skipOnCacheHit: 'none' }} />
+     * <Image source={{ uri }} transition />
+     * <Image source={{ uri }} transition={500} />
+     * <Image source={{ uri }} transition={{ betweenImages: true, skipOnCacheHit: 'none' }} />
      * ```
      */
     transition?: boolean | number | Transition | null
@@ -543,7 +543,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * @example
      * ```jsx
-     * <FastImage
+     * <Image
      *     source={{ uri }}
      *     onLoadEnd={(result) => {
      *         if (result.ok) setAspectRatio(result.width / result.height)
@@ -569,11 +569,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * FastImage is a single native view, which doesn't take children (since
-     * 10.0): use `FastImageBackground` for content over an image.
+     * 10.0): use `ImageBackground` (`FastImageBackground`) for content over an image.
      *
      * @hidden
      */
-    children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
+    children?: "FastImage doesn't take children: use ImageBackground (FastImageBackground) for content over an image"
 }
 
 const resolveDefaultSource = (
@@ -934,7 +934,7 @@ export interface FastImageStaticProperties {
     setDefaults: (defaults: FastImageDefaults) => void
 }
 
-/** `FastImage.setDefaults`'s settings. */
+/** `Image.setDefaults`'s settings. */
 export interface FastImageDefaults {
     /**
      * The `transition` of images that don't set one (an image's own settings
@@ -1055,7 +1055,7 @@ export interface FastImageBackgroundProps extends Omit<
     style?: StyleProp<ViewStyle>
     /** The image's style. */
     imageStyle?: StyleProp<ImageStyle>
-    /** A ref to the image (the FastImage inside). */
+    /** A ref to the image (the `Image` inside). */
     imageRef?: React.Ref<any>
     /** Content shown on top of the image. */
     children?: React.ReactNode
@@ -1063,7 +1063,7 @@ export interface FastImageBackgroundProps extends Omit<
 
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
- * view that the image fills, with the children on top (`FastImage` is a single
+ * view that the image fills, with the children on top (`Image` is a single
  * native view, which doesn't take children). The other props go to the image;
  * the ref is the view's.
  */
@@ -1099,5 +1099,10 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
 )
 
 FastImageBackground.displayName = 'FastImageBackground'
+
+// The components under the names React Native and Expo Image use. They're the
+// same components as `FastImage` (the default export) and
+// `FastImageBackground`, which stay exported.
+export { FastImage as Image, FastImageBackground as ImageBackground }
 
 export default FastImage

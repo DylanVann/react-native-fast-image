@@ -6,6 +6,7 @@ import renderer, { act } from 'react-test-renderer'
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground } from './index.web'
+import * as library from './index.web'
 
 // Renders with effects run, as in a browser.
 function render(element: React.ReactElement, options?: any) {
@@ -629,5 +630,13 @@ describe('FastImage (web)', () => {
         expect(FastImage.resizeMode.contain).toBe('contain')
         expect(FastImage.priority.high).toBe('high')
         expect(FastImage.cacheControl.web).toBe('web')
+    })
+})
+
+describe('named exports (web)', () => {
+    it("are FastImage and FastImageBackground under React Native's names", () => {
+        expect(library.Image).toBe(FastImage)
+        expect(library.ImageBackground).toBe(FastImageBackground)
+        expect(library.default).toBe(FastImage)
     })
 })

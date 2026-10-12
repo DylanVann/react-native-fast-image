@@ -18,6 +18,7 @@ import {
 } from 'bun:test'
 import renderer from '../test/render'
 import FastImage, { FastImageBackground, FastImageProps } from './index'
+import * as library from './index'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -393,6 +394,15 @@ describe('FastImage (iOS)', () => {
             ok: false,
             error: 'Glide failed',
         })
+    })
+})
+
+describe('named exports', () => {
+    it("are FastImage and FastImageBackground under React Native's names", () => {
+        expect(library.Image).toBe(FastImage)
+        expect(library.ImageBackground).toBe(FastImageBackground)
+        expect(library.Image.preload).toBe(FastImage.preload)
+        expect(library.default).toBe(FastImage)
     })
 })
 

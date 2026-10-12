@@ -30,7 +30,7 @@ export function warnIfChildren(children: unknown) {
     if (Children.toArray(children as ReactNode).length > 0) {
         warnOnce(
             'children',
-            "react-native-fast-image: FastImage doesn't render children (since 10.0): use FastImageBackground for content over an image.",
+            "react-native-fast-image: FastImage doesn't render children (since 10.0): use ImageBackground (FastImageBackground) for content over an image.",
             'error',
         )
     }
