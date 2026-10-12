@@ -2990,6 +2990,46 @@ function ObjectFitStyleCase() {
 // objectFit changed after load, from contain to none: a 1600x1000 page of
 // text, whose middle at its own size needs the full-size image, not the one
 // decoded for contain. Should match the left image.
+// objectFit changed after the image loaded (cover, contain, cover, then
+// contain): each load event comes once, as for a new blurRadius. Android
+// loaded the image again for each fit, with onLoadStart, onLoad and onLoadEnd.
+function ObjectFitEventsCase({ id, uri }: { id: string; uri: string }) {
+    const [counts, setCounts] = useState({ start: 0, load: 0, end: 0 })
+    const [fit, setFit] = useState<'cover' | 'contain'>('cover')
+    const [changed, setChanged] = useState(false)
+    const loaded = useRef(false)
+    const onLoad = () => {
+        setCounts((c) => ({ ...c, load: c.load + 1 }))
+        if (loaded.current) return
+        loaded.current = true
+        setTimeout(() => setFit('contain'), 300)
+        setTimeout(() => setFit('cover'), 1300)
+        setTimeout(() => setFit('contain'), 2300)
+        setTimeout(() => setChanged(true), 3300)
+    }
+    const got = `onLoadStart ${counts.start}, onLoad ${counts.load}, onLoadEnd ${counts.end}`
+    const once = counts.start === 1 && counts.load === 1 && counts.end === 1
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={objectFitStyles.image}
+                objectFit={fit}
+                source={{ uri: `${uri}?${id}=${RUN}` }}
+                onLoadStart={() =>
+                    setCounts((c) => ({ ...c, start: c.start + 1 }))
+                }
+                onLoad={onLoad}
+                onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
+            />
+            <CaseStatus
+                id={id}
+                status={changed ? (once ? 'OK' : got) : 'waiting'}
+                description={`objectFit changed after load${uri.endsWith('.gif') ? ' (a GIF)' : ''}, ending at contain: each load event once`}
+            />
+        </View>
+    )
+}
+
 function ObjectFitChangeCase() {
     const [fit, setFit] = useState<'contain' | 'none'>('contain')
     const [done, setDone] = useState(false)
@@ -7290,6 +7330,23 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ObjectFitFromCoverCase key="object-fit-from-cover" />,
             <ObjectFitStyleCase key="object-fit-style" />,
             <ObjectFitChangeCase key="object-fit-change" />,
+        ],
+    },
+    {
+        // A new fit sends no load events (Android loaded the image again,
+        // with onLoadStart, onLoad and onLoadEnd).
+        name: 'object-fit-events',
+        cases: [
+            <ObjectFitEventsCase
+                key="object-fit-events"
+                id="object-fit-events"
+                uri={imageUrl('center-large.png')}
+            />,
+            <ObjectFitEventsCase
+                key="object-fit-events-gif"
+                id="object-fit-events-gif"
+                uri={imageUrl('jellyfish.gif')}
+            />,
         ],
     },
     {
