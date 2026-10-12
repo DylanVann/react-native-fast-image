@@ -1,15 +1,15 @@
 # Benchmarks
 
-How long images take to show, how much memory they use, how smoothly a list of them scrolls, and how much drawing a screen of them costs, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
+How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
 
 ## How it's measured
 
-- **The same app for every library.** An Expo app (SDK 57, React Native 0.86.3, New Architecture) is built in Release once per library, with only that library linked. Libraries: Fast Image, React Native's `Image` (0.86.3), Expo Image 57.0.5, Nitro Image 0.15.2 and Turbo Image 1.24.3, each with its defaults, except that fades are turned off outside the burst test (Fast Image and React Native's `Image` on Android, and Turbo Image, fade images in over 300 ms by default).
+- **The same app for every library.** An Expo app (SDK 57, React Native 0.86.3, New Architecture) is built in Release once per library, with only that library linked. Libraries: Fast Image, React Native's `Image` (0.86.3), Expo Image 57.0.5, Nitro Image 0.15.2 and Turbo Image 1.24.3, each with its defaults, except that fades are turned off (Fast Image and React Native's `Image` on Android, and Turbo Image, fade images in over 300 ms by default).
 - **The same images and network.** A fixed set of photos is served by a small HTTP server on the phone itself, with 40 ms before each response and no bandwidth limit, so the times are the libraries' own work rather than the network's. Each library loads them over HTTP with its own networking, from a cold cache.
 - **Time until images are on screen, from pixels.** The phone's screen is recorded while the app shows the images, and each image counts as shown in the first frame where it's visible. Load events (`onLoad`) aren't used for the times. Each run is timed from when the app starts rendering the images, so the times include each library's rendering.
-- **Memory, scrolling and drawing** come from Apple's XCTest metrics on iOS and Android's Macrobenchmark.
+- **Memory and scrolling** come from Apple's XCTest metrics on iOS and Android's Macrobenchmark.
 - **iOS:** an iPhone 15 Pro Max (iOS 27), 5 runs per scenario, the libraries one after another.
-- **Android:** Pixel 8s (Android 15) on Firebase Test Lab. For the times, four phones each ran every library in turns, in the other order each time, 5 times each (20 runs per library). Memory and the burst test ran the same way on two phones each, one in each order. Scrolling ran each library on its own phone.
+- **Android:** Pixel 8s (Android 15) on Firebase Test Lab. For the times, four phones each ran every library in turns, in the other order each time, 5 times each (20 runs per library). Memory ran the same way on two phones, one in each order. Scrolling ran each library on its own phone.
 - Times are the median and the 90th percentile, in milliseconds (on iOS, with 5 runs, the slowest).
 
 Scenarios:
@@ -19,7 +19,6 @@ Scenarios:
 - **Sizes:** 16 of the grid's photos at two sizes at once (4 and 8 columns), with the same urls; the time until all 32 have shown, and on Android how many requests the server got (16 when a library downloads each photo once for both sizes).
 - **Detail:** the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
-- **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
 ## iOS
 
@@ -94,23 +93,6 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 | Turbo Image        | 528 / 532 |       60 |
 
 - Every library but React Native's `Image` showed the photo within 528–580 ms (medians), and used the grid's download of it.
-
-## Many images loading at once (Android)
-
-Time spent drawing frames, from when the photos mount until the run ends shortly after the last one loads, on the UI thread and the RenderThread over all frames (median of 20 runs, ms), and the most memory used. Each library was run without fades, with its fade-in over 300 ms (Fast Image's `transition`, Expo Image's `transition={300}`, `fadeDuration`), and with the fade over a gray placeholder image until each photo loads (`defaultSource`, Expo Image's `placeholder`). Android's animations were on.
-
-<!-- chart: No fade (ms), Fade (ms), Fade over the placeholder (ms) -->
-
-| Library            | No fade (ms) | Fade (ms) | Fade over the placeholder (ms) |     Memory |
-| ------------------ | -----------: | --------: | -----------------------------: | ---------: |
-| Fast Image         |          390 |       560 |                            581 | 123–126 MB |
-| React Native Image |          513 |       624 |                            672 | 139–140 MB |
-| Expo Image         |          446 |       558 |                            622 | 129–133 MB |
-| Turbo Image        |          386 |       563 |                              – | 106–110 MB |
-
-- Every library missed one or two frame deadlines per run, as the 60 views mounted, with or without fades.
-- Turbo Image's placeholders aren't local images. Nitro Image has no fade or placeholder, and sends no load events, so its runs last a fixed time and aren't comparable here.
-- These are every frame's time: Macrobenchmark's frame timing only counts the frames Android's frame timeline shows presented, which left out about a fifth of Expo Image's frames with fades and almost none of the others'.
 
 ## Running it
 
