@@ -1,6 +1,9 @@
-// FastImage.resizeMode, priority and cacheControl, shared by the native
-// (index.tsx) and web (index.web.tsx) versions.
+// FastImage.resizeMode, priority and cacheControl (deprecated), shared by the
+// native (index.tsx) and web (index.web.tsx) versions.
 
+// resizeMode was removed in 10.0 and is ignored (objectFit instead): its
+// values are kept so code that reads them, e.g. FastImage.resizeMode.contain,
+// doesn't throw.
 export const resizeMode = {
     contain: 'contain',
     cover: 'cover',

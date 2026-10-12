@@ -404,12 +404,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     @Override
-    public void setResizeMode(FastImageViewWithUrl view, @Nullable String resizeMode) {
-        // repeat fills the view with the tiled image (see setImageDrawable).
-        boolean repeat = "repeat".equals(resizeMode);
-        final FastImageViewWithUrl.ScaleType scaleType =
-                repeat ? FastImageViewWithUrl.ScaleType.FIT_XY : FastImageViewConverter.getScaleType(resizeMode);
-        view.setResizeMode(scaleType, repeat, "center".equals(resizeMode));
+    public void setObjectFit(FastImageViewWithUrl view, @Nullable String objectFit) {
+        view.setObjectFit(FastImageViewConverter.getScaleType(objectFit));
     }
 
     @Override

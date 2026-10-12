@@ -33,8 +33,7 @@ final class FastImageBlur extends BitmapTransformation {
     private final float radius;
     private final ImageView.ScaleType scaleType;
     // Pixels on screen per pixel of the image at its own size (scale-down and
-    // none show it at that size: see FastImageViewWithUrl.updateImageMatrix;
-    // 1 for resizeMode center).
+    // none show it at that size: see FastImageViewWithUrl.updateImageMatrix).
     private final float density;
 
     FastImageBlur(float radius, ImageView.ScaleType scaleType, float density) {
@@ -76,7 +75,6 @@ final class FastImageBlur extends BitmapTransformation {
         if (width <= 0 || height <= 0 || outWidth <= 0 || outHeight <= 0) return 1;
         float x = outWidth / (float) width;
         float y = outHeight / (float) height;
-        if (scaleType == null) return 1;
         switch (scaleType) {
             case CENTER_CROP:
                 return Math.max(x, y);
@@ -212,7 +210,7 @@ final class FastImageBlur extends BitmapTransformation {
 
     @Override
     public int hashCode() {
-        return (ID.hashCode() * 31 + Float.floatToIntBits(radius) * 31 + (scaleType == null ? 0 : scaleType.ordinal())) * 31
+        return (ID.hashCode() * 31 + Float.floatToIntBits(radius) * 31 + scaleType.ordinal()) * 31
                 + Float.floatToIntBits(density);
     }
 

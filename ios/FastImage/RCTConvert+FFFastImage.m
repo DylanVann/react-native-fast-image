@@ -3,16 +3,13 @@
 
 @implementation RCTConvert (FFFastImage)
 
-RCT_ENUM_CONVERTER(FFFResizeMode, (@{
-                                     @"cover": @(RCTResizeModeCover),
-                                     @"contain": @(RCTResizeModeContain),
-                                     @"stretch": @(RCTResizeModeStretch),
-                                     @"center": @(RCTResizeModeCenter),
-                                     // objectFit="scale-down": as center on iOS.
-                                     @"scale-down": @(RCTResizeModeCenter),
-                                     @"repeat": @(RCTResizeModeRepeat),
-                                     @"none": @(FFFResizeModeNone),
-                                     }), RCTResizeModeCover, integerValue);
+RCT_ENUM_CONVERTER(FFFObjectFit, (@{
+                                    @"cover": @(FFFObjectFitCover),
+                                    @"contain": @(FFFObjectFitContain),
+                                    @"fill": @(FFFObjectFitFill),
+                                    @"scale-down": @(FFFObjectFitScaleDown),
+                                    @"none": @(FFFObjectFitNone),
+                                    }), FFFObjectFitCover, integerValue);
 
 RCT_ENUM_CONVERTER(FFFPriority, (@{
                                    @"low": @(FFFPriorityLow),

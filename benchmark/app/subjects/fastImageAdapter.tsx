@@ -6,7 +6,6 @@ import type { Adapter } from '../src/adapter'
 type FastImageLike = ComponentType<{
     source: { uri: string; priority?: 'high' }
     style?: unknown
-    resizeMode?: 'cover'
     defaultSource?: number
     transition?: boolean
     onLoad?: () => void
@@ -25,7 +24,8 @@ export const fastImageAdapter = (
         <FastImage
             source={{ uri, priority }}
             style={style}
-            resizeMode="cover"
+            // No fit prop: cover is every version's default (8.x has no
+            // objectFit, 10.x no resizeMode).
             defaultSource={placeholder}
             // Always set: FastImage fades images in on Android by default,
             // and the scenarios don't fade unless they ask to. FastImage 8

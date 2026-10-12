@@ -12,8 +12,8 @@ const IMAGE_URL = imageUrl('picsum/1018-600x300.jpg')
 
 const Col = (p: any) => <View style={styles.col} {...p} />
 
-export const ResizeModeExample = () => {
-    const onLoad = useLoads('resize-mode-example', 4)
+export const ObjectFitExample = () => {
+    const onLoad = useLoads('object-fit-example', 4)
     return (
         <View>
             <Section>

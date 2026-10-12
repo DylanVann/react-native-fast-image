@@ -16,7 +16,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Shader;
 import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -389,7 +388,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Whether a step a download reported is for the current load, and doesn't
     // go back: one reported before it started is for an earlier load, e.g. of
-    // the same url before resizeMode changed, posted while that load still
+    // the same url before objectFit changed, posted while that load still
     // ran, and one below what the load has had is from another download of
     // the key (e.g. one that started after the first had ended).
     boolean takesProgress(long step, long loaded, long total) {
@@ -911,48 +910,37 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         animated.setRepeatCount(mLoopCount == 0 ? AnimatedImageDrawable.REPEAT_INFINITE : mLoopCount - 1);
     }
 
-    // resizeMode repeat: the image (a GIF's first frame) repeated from the
-    // top-left at its own size, scaled down to fit the view if it's larger,
-    // as React Native's Image does. The view fills with it (FIT_XY).
-    private boolean mRepeat = false;
-
-    // The scale type for resizeMode, which Glide decodes the image for and the
+    // The scale type for objectFit, which Glide decodes the image for and the
     // blur scales with. For scale-down (CENTER_INSIDE) and none (CENTER), and
     // contain and cover with an objectPosition other than the center, the
     // view is MATRIX: it lays the image out itself (see updateImageMatrix).
     // Starts as ImageView's.
-    private ScaleType mResizeScaleType = ScaleType.FIT_CENTER;
-
-    // resizeMode center: CENTER_INSIDE as ImageView draws it, an image smaller
-    // than the view at its size in pixels on the screen (scale-down: in dp).
-    private boolean mInPixels = false;
+    private ScaleType mFitScaleType = ScaleType.FIT_CENTER;
 
     // The scale type the image on screen is laid out for, and whether it was
-    // downsampled or pixelated (see applyResizeMode).
+    // downsampled or pixelated (see applyObjectFit).
     private ScaleType mLayoutScaleType = ScaleType.FIT_CENTER;
     private boolean mLayoutDownsampled = true;
     private boolean mLayoutPixelated = false;
 
     // Glide crops or fits the bitmap for the scale type when it loads, so a
-    // new resizeMode needs a reload to take effect (#762): the image that's
+    // new objectFit needs a reload to take effect (#762): the image that's
     // showing, loaded again quietly (see reblur), as for a new blurRadius,
     // without the load events, as on iOS.
-    public void setResizeMode(ScaleType scaleType, boolean repeat, boolean inPixels) {
-        if (scaleType == mResizeScaleType && repeat == mRepeat && inPixels == mInPixels) return;
-        mResizeScaleType = scaleType;
-        mInPixels = inPixels;
-        mRepeat = repeat;
+    public void setObjectFit(ScaleType scaleType) {
+        if (scaleType == mFitScaleType) return;
+        mFitScaleType = scaleType;
         mFitChanged = true;
         // A loaded image on screen was cropped or fitted for the old scale
         // type: it keeps its layout until the image for the new one is ready
         // (onImageLoaded), or the load fails. Laid out for the new one, a
         // cover crop would be stretched to the image's own size.
-        if (mShownRequest == null) applyResizeMode();
+        if (mShownRequest == null) applyObjectFit();
     }
 
-    // Lays the view out for resizeMode.
-    private void applyResizeMode() {
-        mLayoutScaleType = mResizeScaleType;
+    // Lays the view out for objectFit.
+    private void applyObjectFit() {
+        mLayoutScaleType = mFitScaleType;
         mLayoutDownsampled = mDownsample;
         mLayoutPixelated = mPixelated;
         updateScaleType();
@@ -994,7 +982,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // ready it stays as it was cropped (see shownCropped). Others, and cover
     // images Glide doesn't crop, are only laid out at it, right away.
     private void onPositionChanged() {
-        if (mResizeScaleType == ScaleType.CENTER_CROP && !mRepeat && !mPixelated && mDownsample) {
+        if (mFitScaleType == ScaleType.CENTER_CROP && !mPixelated && mDownsample) {
             mCropChanged = true;
         }
         updateScaleType();
@@ -1008,7 +996,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // objectPosition), FastImageCrop elsewhere.
     @Nullable
     private FastImageCrop positionedCrop() {
-        return mResizeScaleType == ScaleType.CENTER_CROP && !isCentered() && !mRepeat && !mPixelated && mDownsample
+        return mFitScaleType == ScaleType.CENTER_CROP && !isCentered() && !mPixelated && mDownsample
                 ? new FastImageCrop(mPositionX, mPositionXOffset, mPositionY, mPositionYOffset)
                 : null;
     }
@@ -1019,35 +1007,32 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // defaultSource, and doesn't crop pixelated images or ones decoded at full
     // size (downsample false).
     private boolean shownCropped(Drawable drawable) {
-        return mLayoutScaleType == ScaleType.CENTER_CROP && !mRepeat && !mLayoutPixelated && mLayoutDownsampled
+        return mLayoutScaleType == ScaleType.CENTER_CROP && !mLayoutPixelated && mLayoutDownsampled
                 && drawable != mDefaultSource
                 && (drawable instanceof BitmapDrawable || drawable instanceof GifDrawable);
     }
 
     // ImageView's own scale type for the layout, or MATRIX where the view lays
     // the image out itself (updateImageMatrix): scale-down and none at their
-    // size in dp (center at its size in pixels is ImageView's CENTER_INSIDE),
-    // and any of them, contain and cover too, at another position.
+    // size in dp, and contain and cover at a position other than the center.
     private void updateScaleType() {
         ScaleType type = mLayoutScaleType;
         boolean ownSize = type == ScaleType.CENTER_INSIDE || type == ScaleType.CENTER;
         boolean positioned = !isCentered()
                 && (ownSize || type == ScaleType.FIT_CENTER || type == ScaleType.CENTER_CROP);
-        boolean laidOut = !mRepeat && ((ownSize && !mInPixels) || positioned);
+        boolean laidOut = ownSize || positioned;
         setScaleType(laidOut ? ScaleType.MATRIX : type);
         updateImageMatrix();
     }
 
-    // Whether the view shows its defaultSource (or its tiled copy, which has
-    // its bitmap): FastImage's own drawable, which Glide doesn't recycle (see
-    // startFade).
+    // Whether the view shows its defaultSource: FastImage's own drawable,
+    // which Glide doesn't recycle (see startFade).
     private boolean mShowsDefaultSource = false;
 
-    // Repeats what the view shows (the loaded image, and defaultSource).
     @Override
     public void setImageDrawable(@Nullable Drawable drawable) {
         mShowsDefaultSource = drawable != null && drawable == mDefaultSource;
-        super.setImageDrawable(mRepeat ? tiled(drawable) : drawable);
+        super.setImageDrawable(drawable);
         updateImageMatrix();
     }
 
@@ -1137,7 +1122,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             float scale = mLayoutScaleType == ScaleType.CENTER_CROP ? Math.max(x, y) : Math.min(x, y);
             width = drawableWidth * scale;
             height = drawableHeight * scale;
-        } else if (drawable == mDefaultSource || mInPixels) {
+        } else if (drawable == mDefaultSource) {
             width = drawableWidth;
             height = drawableHeight;
         } else if (mImageWidth > 0 && mImageHeight > 0) {
@@ -1160,21 +1145,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 Math.round((viewWidth - width) * mPositionX + mPositionXOffset),
                 Math.round((viewHeight - height) * mPositionY + mPositionYOffset));
         setImageMatrix(matrix);
-    }
-
-    @Nullable
-    private Drawable tiled(@Nullable Drawable drawable) {
-        if (!(drawable instanceof BitmapDrawable)) return drawable;
-        BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
-        if (bitmapDrawable.getTileModeX() == Shader.TileMode.REPEAT) return drawable;
-        Bitmap bitmap = bitmapDrawable.getBitmap();
-        if (bitmap == null) return drawable;
-        // A copy of the drawable (not of the bitmap): Glide's may be shown by
-        // other views too.
-        BitmapDrawable tiled = new BitmapDrawable(getResources(), bitmap);
-        tiled.setTileModeXY(Shader.TileMode.REPEAT, Shader.TileMode.REPEAT);
-        if (mPixelated) tiled.setFilterBitmap(false);
-        return tiled;
     }
 
     // imageRendering="pixelated": no resampling by Glide, and drawn without
@@ -1201,16 +1171,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (downsample == mDownsample) return;
         mDownsample = downsample;
         mNeedsReload = true;
-        // As for a new resizeMode: an image on screen keeps the layout it was
+        // As for a new objectFit: an image on screen keeps the layout it was
         // loaded for until the new one is ready.
-        if (mShownRequest == null) applyResizeMode();
+        if (mShownRequest == null) applyObjectFit();
     }
 
     // blurRadius, in pixels (0 is no blur). Part of the request (see
     // reblur for a change).
     private float mBlurRadius = 0;
     private boolean mBlurChanged = false;
-    // resizeMode or objectFit changed (setResizeMode).
+    // objectFit changed (setObjectFit).
     private boolean mFitChanged = false;
     // objectPosition changed for an image Glide crops (onPositionChanged).
     private boolean mCropChanged = false;
@@ -1226,21 +1196,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
         FastImageBlur blur = mBlurRadius > 0
-                ? new FastImageBlur(mBlurRadius, mRepeat ? null : mResizeScaleType, mInPixels ? 1 : loadingDensity())
+                ? new FastImageBlur(mBlurRadius, mFitScaleType, loadingDensity())
                 : null;
         RequestOptions options;
-        if (mRepeat) {
-            // Decoded at its own size, or scaled down to fit the view if it's
-            // larger (not cropped or fitted for the scale type), and a GIF as
-            // its first frame (tiled by setImageDrawable).
-            options = new RequestOptions()
-                    .downsample(new FastImageSourceSize.Capture(
-                            mPixelated ? DownsampleStrategy.NONE : DownsampleStrategy.CENTER_INSIDE,
-                            String.valueOf(model)))
-                    .dontTransform()
-                    .dontAnimate();
-            if (blur != null) options = options.optionalTransform(blur);
-        } else if (mPixelated) {
+        if (mPixelated) {
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
             options = new RequestOptions()
@@ -1248,16 +1207,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                     .dontTransform();
             if (blur != null) options = options.optionalTransform(blur);
         } else {
-            options = FastImageSourceSize.scaleTypeOptions(mResizeScaleType,
-                    FastImageSourceSize.capture(mResizeScaleType, model, mDownsample), positionedCrop(), blur,
+            options = FastImageSourceSize.scaleTypeOptions(mFitScaleType,
+                    FastImageSourceSize.capture(mFitScaleType, model, mDownsample), positionedCrop(), blur,
                     mDownsample);
-            boolean ownSize = mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER;
+            boolean ownSize = mFitScaleType == ScaleType.CENTER_INSIDE || mFitScaleType == ScaleType.CENTER;
             // scale-down and none show it at its own size in dp: an SVG is
             // drawn at that size, so it's sharp (not with a blur, which hides
             // the difference).
-            if (ownSize && !mInPixels && blur == null) {
+            if (ownSize && blur == null) {
                 options = options.set(FastImageSvg.DENSITY, loadingDensity())
-                        .set(FastImageSvg.FITS, mResizeScaleType == ScaleType.CENTER_INSIDE);
+                        .set(FastImageSvg.FITS, mFitScaleType == ScaleType.CENTER_INSIDE);
             }
         }
         return blur != null ? options.dontAnimate() : options;
@@ -1324,7 +1283,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mLoadEnded = true;
         endProgress();
         // Before the view shows it (the target does once this returns).
-        applyResizeMode();
+        applyObjectFit();
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -1392,7 +1351,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         into(shown, builder, meanwhile, true);
     }
 
-    // blurRadius or resizeMode changed, and nothing else that needs a reload:
+    // blurRadius or objectFit changed, and nothing else that needs a reload:
     // the image that's showing, blurred or fitted again, with no events, as
     // reloadForSize does: it's decoded again from the cache and blurred or
     // fitted on Glide's threads, and the view keeps the current image (and its
@@ -1491,7 +1450,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
         endProgress();
-        applyResizeMode();
+        applyObjectFit();
         mShownRequest = null;
         if (!hadThumbnail) return;
         final int load = mLoadCount;
@@ -1541,7 +1500,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             pickSource();
         }
         // Only reload for changes that affect the request (source,
-        // defaultSource, resizeMode), not for every prop update.
+        // defaultSource, objectFit), not for every prop update.
         mNeedsReload = false;
         mBlurChanged = false;
         mFitChanged = false;

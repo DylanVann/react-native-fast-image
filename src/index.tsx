@@ -23,9 +23,6 @@ export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
 
 export type { ObjectPosition, PositionLength } from './objectPosition'
 
-/** How the image fits the view: see [`resizeMode`](#resizemode). */
-export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
-
 /** An image's load priority: see [`source.priority`](#sourcepriority). */
 export type Priority = 'low' | 'normal' | 'high'
 
@@ -257,7 +254,6 @@ export interface OnProgressEvent {
 // rest (radii, opacity, colors) come from ViewStyle, so they're the app's
 // React Native types (e.g. string radii, Animated values).
 export interface ImageStyle extends ViewStyle {
-    overlayColor?: ColorValue
     tintColor?: ColorValue
     objectFit?: ObjectFit
 }
@@ -332,8 +328,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * as CSS counts an image's pixels: a 300 × 200 image is 300 × 200 points.
      * A bundled image (`require()`) is its size in points.
      *
-     * It can also be set in `style`; the prop wins. Either one overrides
-     * `resizeMode`.
+     * It can also be set in `style`; the prop wins.
      *
      * @default 'cover'
      */
@@ -355,8 +350,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * Points are dp on Android. An invalid value is ignored (the image is
      * centered), with a warning in development. `defaultSource` is placed
-     * the same way. No effect with `resizeMode="repeat"`, whose tiles start at
-     * the top-left corner.
+     * the same way.
      *
      * @default '50% 50%'
      * @example
@@ -365,24 +359,6 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```
      */
     objectPosition?: ObjectPosition
-    /**
-     * How the image fills the view.
-     *
-     * - `'contain'`: as `objectFit="contain"`.
-     * - `'cover'`: as `objectFit="cover"`.
-     * - `'stretch'`: as `objectFit="fill"`.
-     * - `'center'`: as `objectFit="scale-down"`, except that on Android an
-     *   image smaller than the view is shown at its size in pixels on the
-     *   screen, so smaller than on iOS and the web.
-     * - `'repeat'`: repeats it to cover the view, from its top-left corner, at
-     *   the image's own size in pixels (a bundled image at its size in
-     *   points), scaled down to fit if it's larger than the view. An animated
-     *   image repeats its first frame, and `defaultSource` repeats too.
-     *
-     * @default 'cover'
-     * @deprecated Use `objectFit` instead.
-     */
-    resizeMode?: ResizeMode
     /**
      * For views that get reused for other content, such as rows in FlashList
      * or recyclerlistview. Set it to something that identifies the content,
@@ -616,18 +592,6 @@ const resolveDefaultSource = (
     return Platform.OS === 'android' ? resolved.uri : resolved
 }
 
-// objectFit as the native resizeMode (`none` and `scale-down` are FastImage's
-// own; iOS shows `scale-down` as `center`).
-const NATIVE_RESIZE_MODE = {
-    fill: 'stretch',
-    contain: 'contain',
-    cover: 'cover',
-    none: 'none',
-    'scale-down': 'scale-down',
-    center: 'center',
-    repeat: 'repeat',
-} as const
-
 // The native loopCount: -1 for the file's own, 0 for forever, or a number of
 // plays. Always sent, since native would reset a removed prop to 0 (forever).
 function loopCount(loop: boolean | number | undefined) {
@@ -742,15 +706,21 @@ function FastImageBase({
     children,
     objectFit,
     objectPosition,
-    resizeMode = 'cover',
     loop,
     transition,
     forwardedRef,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    const { fallback, ...props } = viewProps as typeof viewProps & {
+    const {
+        fallback,
+        resizeMode: _resizeMode,
+        ...props
+    } = viewProps as typeof viewProps & {
         // Removed in 10.0 (React Native's Image instead of FastImage's view).
         fallback?: unknown
+        // Removed in 10.0 (objectFit instead): ignored, so it reaches no
+        // native prop.
+        resizeMode?: unknown
     }
     if (__DEV__ && fallback !== undefined) {
         warnOnce(
@@ -768,8 +738,7 @@ function FastImageBase({
     // prop wins.
     const resolvedTintColor =
         tintColor != null ? tintColor : fromStyle(style, 'tintColor')
-    const mode =
-        NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
+    const fit = resolveObjectFit(objectFit, style)
     const position = objectPositionOrCentered(objectPosition)
 
     // Several sources are picked from natively, for the view's size; one in
@@ -820,10 +789,10 @@ function FastImageBase({
                 ((event: { nativeEvent: any }) =>
                     onLoadEnd(loadResult(event.nativeEvent)))
             }
-            // After style, whose tintColor and resizeMode reach the native
+            // After style, whose tintColor and objectFit reach the native
             // view's props too: these win.
             tintColor={resolvedTintColor}
-            resizeMode={mode}
+            objectFit={fit}
             objectPositionX={position.x.fraction}
             objectPositionXOffset={position.x.offset}
             objectPositionY={position.y.fraction}
@@ -902,10 +871,18 @@ function nativeModule(): NonNullable<typeof NativeFastImageModule> {
 
 export interface FastImageStaticProperties {
     /**
-     * @deprecated Use the `objectFit` prop instead of `resizeMode`.
+     * @deprecated `resizeMode` was removed in 10.0, and a `resizeMode` prop
+     * is ignored: use `objectFit` instead (`stretch` is `fill`, `center` is
+     * `scale-down`). Kept so code that reads it doesn't throw.
      */
     resizeMode: typeof resizeMode
+    /**
+     * @deprecated Use the strings instead, e.g. `priority: 'high'`.
+     */
     priority: typeof priority
+    /**
+     * @deprecated Use the strings instead, e.g. `cache: 'immutable'`.
+     */
     cacheControl: typeof cacheControl
     preload: (sources: Source[]) => Promise<PreloadResult[]>
     /**
@@ -973,11 +950,11 @@ const FastImage: React.ForwardRefExoticComponent<
 > &
     FastImageStaticProperties = FastImageComponent as any
 
-FastImage.resizeMode = resizeMode
-
 FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
+
+FastImage.resizeMode = resizeMode
 
 FastImage.setDefaults = ({ transition }: FastImageDefaults = {}) => {
     if (transition === null) {

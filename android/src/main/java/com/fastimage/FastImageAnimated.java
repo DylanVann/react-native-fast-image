@@ -46,7 +46,7 @@ import java.util.concurrent.Executors;
 // the image's data (which the drawable keeps anyway, to decode its frames
 // from), off the main thread.
 //
-// Not animated (dontAnimate: blurRadius, resizeMode repeat), they're decoded
+// Not animated (dontAnimate: blurRadius), they're decoded
 // as their first frame, a bitmap, as GIFs are, and as Glide did before 4.15.
 // Glide's own decoder for them doesn't check that option.
 final class FastImageAnimated {

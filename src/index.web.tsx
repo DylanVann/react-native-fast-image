@@ -6,11 +6,11 @@
 // The View (a div) has FastImage's style, ref and View props. The <img> fills
 // it inside its borders, with object-fit for objectFit (see Picture).
 // defaultSource is a second <img> under it until the image has loaded (the
-// browser draws the image over it as it arrives), resizeMode="repeat" tiles
-// the image as a CSS background, and tintColor is an SVG filter next to them.
+// browser draws the image over it as it arrives), and tintColor is an SVG
+// filter next to them.
 //
 // Works: source (uri, require(), or several sizes: see sizedSources),
-// defaultSource, objectFit, resizeMode, tintColor, blurRadius, style,
+// defaultSource, objectFit, objectPosition, tintColor, blurRadius, style,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -82,7 +82,6 @@ function FastImageBase({
     children,
     objectFit,
     objectPosition,
-    resizeMode: mode = 'cover',
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -108,8 +107,10 @@ function FastImageBase({
     const {
         accessibilityLabel,
         'aria-label': ariaLabel,
+        // Removed in 10.0 (objectFit instead): ignored.
+        resizeMode: _resizeMode,
         ...viewProps
-    } = props as typeof props & { 'aria-label'?: string }
+    } = props as typeof props & { 'aria-label'?: string; resizeMode?: unknown }
     const label = ariaLabel || accessibilityLabel || undefined
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
@@ -127,16 +128,8 @@ function FastImageBase({
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
     const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
-    // objectFit (the prop, then style's), or resizeMode, whose center is
-    // scale-down here. Tiles are of one image: several sizes are shown as
-    // cover.
-    const resolved = resolveObjectFit(objectFit, style, mode)
-    const fit =
-        resolved === 'center'
-            ? 'scale-down'
-            : several && resolved === 'repeat'
-              ? 'cover'
-              : resolved
+    // objectFit (the prop, then style's).
+    const fit = resolveObjectFit(objectFit, style)
     const position = cssPosition(objectPositionOrCentered(objectPosition))
     const filter =
         [
@@ -318,11 +311,8 @@ const fill = {
     height: '100%',
 } as const
 
-// An image filling the view: an <img> with object-fit (objectFit's values are
-// CSS's). With resizeMode="repeat", a div's CSS background instead, repeated from the left
-// edge (vertically centered), at the image's size in pixels, scaled down to
-// fit if it's larger than the view; the <img> is on top of it, transparent,
-// for its load events, screen readers and the browser's menu (save, copy).
+// An image filling the view: an <img> with object-fit and object-position
+// (objectFit's values are CSS's).
 function Picture({
     src,
     srcSet,
@@ -339,7 +329,7 @@ function Picture({
     srcSet?: string
     // Several sizes load lazily, for sizes="auto" (see sizedSources).
     lazy?: boolean
-    fit: ObjectFit | 'repeat'
+    fit: ObjectFit
     // objectPosition, as CSS.
     position: string
     filter?: string
@@ -348,9 +338,7 @@ function Picture({
     onLoad?: (image: LoadedImage) => void
     onError?: (uri: string) => void
 }) {
-    const repeat = fit === 'repeat'
     const image = useRef<HTMLImageElement>(null)
-    const tiles = useRef<HTMLDivElement>(null)
     const mounted = useRef(true)
     // The load that was handled: the file, for these sources. The image can
     // have loaded when this mounts: from the memory cache (it also gets a load
@@ -360,8 +348,6 @@ function Picture({
     const handled = useRef<{ sources: string; file: string } | undefined>(
         undefined,
     )
-    const [natural, setNatural] = useState<Size>()
-    const [box, setBox] = useState<Size>()
 
     const loaded = (target: LoadedImage) => {
         const file = target.currentSrc || src
@@ -374,8 +360,6 @@ function Picture({
             return
         }
         handled.current = { sources, file }
-        // For the tiles.
-        setNatural({ width: target.naturalWidth, height: target.naturalHeight })
         // Once it's decoded, as react-native-web's Image did, so it shows at
         // once (e.g. in place of defaultSource). Safari can fail to decode an
         // SVG, which still shows.
@@ -410,20 +394,7 @@ function Picture({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // The tiles' size depends on the view's.
-    useClientLayoutEffect(() => {
-        const Observer = (globalThis as any).ResizeObserver
-        const node = tiles.current
-        if (!repeat || !node || !Observer) return
-        const observer = new Observer((entries: any[]) => {
-            const { width, height } = entries[0].contentRect
-            setBox({ width, height })
-        })
-        observer.observe(node)
-        return () => observer.disconnect()
-    }, [repeat])
-
-    const img = (
+    return (
         <img
             ref={image}
             src={src}
@@ -434,10 +405,10 @@ function Picture({
             draggable={false}
             style={{
                 ...fill,
-                objectFit: repeat ? 'cover' : fit,
+                objectFit: fit,
                 objectPosition: position,
-                filter: repeat ? undefined : filter,
-                opacity: repeat || hidden ? 0 : undefined,
+                filter,
+                opacity: hidden ? 0 : undefined,
             }}
             onLoad={(event) =>
                 loaded(event.currentTarget as unknown as LoadedImage)
@@ -450,41 +421,6 @@ function Picture({
             }}
         />
     )
-    return (
-        <>
-            {repeat ? (
-                <div
-                    ref={tiles}
-                    style={{
-                        ...fill,
-                        backgroundImage: `url("${src}")`,
-                        backgroundRepeat: 'repeat',
-                        backgroundPosition: '0',
-                        backgroundSize: tileSize(natural, box),
-                        filter,
-                        opacity: hidden ? 0 : undefined,
-                    }}
-                />
-            ) : null}
-            {img}
-        </>
-    )
-}
-
-type Size = { width: number; height: number }
-
-// The image's size, scaled down to fit in the view if it's larger, rounded up
-// to whole pixels. Until both are known, the image's size.
-function tileSize(natural: Size | undefined, box: Size | undefined) {
-    if (!natural?.width || !natural.height || !box?.width || !box.height) {
-        return undefined
-    }
-    const scale = Math.min(
-        1,
-        box.width / natural.width,
-        box.height / natural.height,
-    )
-    return `${Math.ceil(scale * natural.width)}px ${Math.ceil(scale * natural.height)}px`
 }
 
 // tintColor: an SVG filter that fills the image's pixels with the color,
@@ -534,11 +470,11 @@ function getSize(uri: string) {
 const FastImage: React.ComponentType<FastImageProps> &
     FastImageStaticProperties = FastImageComponent as any
 
-FastImage.resizeMode = resizeMode
-
 FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
+
+FastImage.resizeMode = resizeMode
 
 // Loads each source into the browser's cache, with a result per source.
 FastImage.preload = (sources: Source[]) =>

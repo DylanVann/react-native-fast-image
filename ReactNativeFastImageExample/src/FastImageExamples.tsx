@@ -8,7 +8,7 @@ import { GifExample } from './GifExample'
 import { BorderRadiusExample } from './BorderRadiusExample'
 import { ProgressExample } from './ProgressExample'
 import { PreloadExample } from './PreloadExample'
-import { ResizeModeExample } from './ResizeModeExample'
+import { ObjectFitExample } from './ObjectFitExample'
 import { TintColorExample } from './TintColorExample'
 import { LocalImagesExample } from './LocalImagesExample'
 import { AutoSizeExample } from './AutoSizeExample'
@@ -32,7 +32,7 @@ const FastImageExample = () => {
                     <BorderRadiusExample />
                     <ProgressExample />
                     <PreloadExample />
-                    <ResizeModeExample />
+                    <ObjectFitExample />
                     <TintColorExample />
                     <LocalImagesExample />
                     <AutoSizeExample />

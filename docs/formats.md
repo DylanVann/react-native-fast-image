@@ -58,6 +58,6 @@ An SVG is drawn at the size it's shown at, so it's sharp at any size, and then w
 
 APNG (animated PNG) images animate on Android with [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes.
 
-APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius` or `resizeMode="repeat"`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
+APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
 
 [^android-avif]: Android 14 is the first version that requires an AVIF decoder; many devices on Android 12 and 13 have one too.

@@ -27,7 +27,7 @@ export const PriorityExample = () => {
                     style={styles.image}
                     source={{
                         uri: IMAGE_URLS[0] + query,
-                        priority: FastImage.priority.low,
+                        priority: 'low',
                     }}
                     onLoad={onLoad}
                 />
@@ -35,7 +35,7 @@ export const PriorityExample = () => {
                     style={styles.image}
                     source={{
                         uri: IMAGE_URLS[1] + query,
-                        priority: FastImage.priority.normal,
+                        priority: 'normal',
                     }}
                     onLoad={onLoad}
                 />
@@ -43,7 +43,7 @@ export const PriorityExample = () => {
                     style={styles.image}
                     source={{
                         uri: IMAGE_URLS[2] + query,
-                        priority: FastImage.priority.high,
+                        priority: 'high',
                     }}
                     onLoad={onLoad}
                 />

@@ -1,7 +1,7 @@
-// objectFit, from the prop, the style or resizeMode, shared by the native
-// (index.tsx) and web (index.web.tsx) versions.
+// objectFit, from the prop or the style, shared by the native (index.tsx) and
+// web (index.web.tsx) versions.
 import { StyleSheet } from 'react-native'
-import type { ImageStyle, ObjectFit, ResizeMode } from './index'
+import type { ImageStyle, ObjectFit } from './index'
 
 // Finds a key (tintColor, objectFit) in a style prop, where the last style
 // that sets it wins, as with StyleSheet.flatten, but without flattening (which
@@ -29,17 +29,6 @@ export function fromStyle<K extends 'tintColor' | 'objectFit'>(
         : undefined
 }
 
-// resizeMode as objectFit, and the two objectFit doesn't have: repeat, and
-// center, which is scale-down except that Android shows an image smaller than
-// the view at its size in pixels on the screen (scale-down: in dp).
-const RESIZE_MODE_FIT = {
-    contain: 'contain',
-    cover: 'cover',
-    stretch: 'fill',
-    center: 'center',
-    repeat: 'repeat',
-} as const
-
 const FITS: Record<ObjectFit, true> = {
     fill: true,
     contain: true,
@@ -48,14 +37,12 @@ const FITS: Record<ObjectFit, true> = {
     'scale-down': true,
 }
 
-// The objectFit prop, then style's, then resizeMode (null, or a value that
-// isn't one of objectFit's, counts as not set).
+// The objectFit prop, then style's, then cover (null, or a value that isn't
+// one of objectFit's, counts as not set).
 export function resolveObjectFit(
     objectFit: ObjectFit | null | undefined,
     style: unknown,
-    resizeMode: ResizeMode,
-): ObjectFit | 'repeat' | 'center' {
+): ObjectFit {
     const fit = objectFit != null ? objectFit : fromStyle(style, 'objectFit')
-    if (fit && FITS[fit] === true) return fit
-    return RESIZE_MODE_FIT[resizeMode] ?? 'cover'
+    return fit && FITS[fit] === true ? fit : 'cover'
 }
