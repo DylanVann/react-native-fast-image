@@ -17,7 +17,7 @@ Scenarios:
 - **Grid:** 60 photos of 400 × 400 px in a grid, all mounted at once; the time until every one on screen (28 on the iPhone, 32 on the Pixel) has shown.
 - **Large:** 20 photos of 4000 × 3000 px shown in small views; the time until all have shown, and the app's memory once they have.
 - **Sizes:** 16 of the grid's photos at two sizes at once (4 and 8 columns), with the same urls; the time until all 32 have shown, and on Android how many requests the server got (16 when a library downloads each photo once for both sizes).
-- **Detail:** the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
+- **Detail** (Android): the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
 - **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
@@ -51,7 +51,7 @@ Scenarios:
 
 ## Opening a photo while others load (Android)
 
-The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with `priority="high"` (Fast Image, Expo Image; the others have no priority). The time until it showed, from the grid's start (median / p90 of 20 runs on 4 phones, ms), and the image requests for all 61 images.
+The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90 of 20 runs on 4 phones, ms), and the image requests for all 61 images.
 
 | Library            | Time      | Requests |
 | ------------------ | --------- | -------- |
@@ -67,7 +67,7 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 
 ## Many images loading at once (Android)
 
-Time spent drawing frames, from when the photos mount until the run ends shortly after the last one loads, on the UI thread and the RenderThread over all frames (median of 20 runs, ms), and the most memory used. Each library was run as it is, with its fade-in over 300 ms (Fast Image's `transition`, Expo Image's `transition={300}`, `fadeDuration`), and with the fade over a gray placeholder image until each photo loads (`defaultSource`, Expo Image's `placeholder`). Android's animations were on.
+Time spent drawing frames, from when the photos mount until the run ends shortly after the last one loads, on the UI thread and the RenderThread over all frames (median of 20 runs, ms), and the most memory used. Each library was run without fades, with its fade-in over 300 ms (Fast Image's `transition`, Expo Image's `transition={300}`, `fadeDuration`), and with the fade over a gray placeholder image until each photo loads (`defaultSource`, Expo Image's `placeholder`). Android's animations were on.
 
 | Library            | No fade | Fade | Fade over the placeholder | Memory     |
 | ------------------ | ------- | ---- | ------------------------- | ---------- |
