@@ -580,6 +580,7 @@ describe('FastImage (web)', () => {
             { uri: 'https://example.com/missing.jpg' },
             {},
             null as any,
+            'https://example.com/a.jpg' as any,
         ])
         expect(results).toEqual([
             {
@@ -594,6 +595,8 @@ describe('FastImage (web)', () => {
                 uri: 'https://example.com/missing.jpg',
             },
             { ok: false, error: 'Invalid source: no uri', uri: undefined },
+            { ok: false, error: 'Invalid source: no uri', uri: undefined },
+            // A url string isn't a source.
             { ok: false, error: 'Invalid source: no uri', uri: undefined },
         ])
     })
