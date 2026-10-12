@@ -3192,6 +3192,344 @@ const objectFitStyles = StyleSheet.create({
     images: { flexDirection: 'row', marginBottom: 4 },
 })
 
+// objectPosition: where the image is when it doesn't fill the view, as CSS's
+// object-position places it. A 600x300 image (red, with a blue border) or a
+// 16x16 one (green) in 48-point views; the magenta outlines are just outside
+// where each image should be. Check the screenshot.
+const LARGE = imageUrl('center-large.png')
+const SMALL = imageUrl('center-small.png')
+
+// objectPosition changed after the image loaded (left, right, then left
+// again): each load event comes once, as for any prop that doesn't change the
+// image.
+function PositionEventsCase({
+    id,
+    uri = LARGE,
+    downsample,
+}: {
+    id: string
+    uri?: string
+    downsample?: boolean
+}) {
+    const [counts, setCounts] = useState({ start: 0, load: 0, end: 0 })
+    const [position, setPosition] = useState('left')
+    const [changed, setChanged] = useState(false)
+    const loaded = useRef(false)
+    const onLoad = () => {
+        setCounts((c) => ({ ...c, load: c.load + 1 }))
+        if (loaded.current) return
+        loaded.current = true
+        setTimeout(() => setPosition('right'), 300)
+        setTimeout(() => setPosition('left'), 1300)
+        setTimeout(() => setChanged(true), 2300)
+    }
+    const got = `onLoadStart ${counts.start}, onLoad ${counts.load}, onLoadEnd ${counts.end}`
+    const once = counts.start === 1 && counts.load === 1 && counts.end === 1
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={objectFitStyles.image}
+                resizeMode="cover"
+                objectPosition={position}
+                source={{ uri: `${uri}?${id}=${RUN}` }}
+                downsample={downsample}
+                onLoadStart={() =>
+                    setCounts((c) => ({ ...c, start: c.start + 1 }))
+                }
+                onLoad={onLoad}
+                onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
+            />
+            <CaseStatus
+                id={id}
+                status={changed ? (once ? 'OK' : got) : 'waiting'}
+                description={`objectPosition changed after load${downsample === false ? ' (downsample false)' : uri === LARGE ? '' : ' (a GIF)'}: each load event once`}
+            />
+        </View>
+    )
+}
+
+// Just outside a rect (in points) of a 48-point view.
+function Outline({
+    x,
+    y,
+    width,
+    height,
+}: {
+    x: number
+    y: number
+    width: number
+    height: number
+}) {
+    return (
+        <View
+            pointerEvents="none"
+            style={[
+                objectPositionStyles.outline,
+                {
+                    left: x - 1,
+                    top: y - 1,
+                    width: width + 2,
+                    height: height + 2,
+                },
+            ]}
+        />
+    )
+}
+
+function PositionedImage({
+    outline,
+    first,
+    ...props
+}: React.ComponentProps<typeof FastImage> & {
+    outline?: { x: number; y: number; width: number; height: number }
+    first?: boolean
+}) {
+    return (
+        <View style={!first && styles.gap}>
+            <FastImage style={objectFitStyles.image} {...props} />
+            {outline && <Outline {...outline} />}
+        </View>
+    )
+}
+
+// cover: the 96x48 image's left part (its left border shows), its right
+// part, a quarter of the way along, and at the left 10 points from the top
+// (CSS's two values: x, then y), which leaves a gap at the top.
+function ObjectPositionCoverCase() {
+    const [status, onLoad] = useLoadedThenOk(4)
+    const positions = ['left', 'right', '25%', 'left 10px']
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                {positions.map((position, i) => (
+                    <PositionedImage
+                        key={position}
+                        first={i === 0}
+                        objectFit="cover"
+                        objectPosition={position}
+                        source={{ uri: LARGE }}
+                        onLoad={onLoad}
+                    />
+                ))}
+            </View>
+            <CaseStatus
+                id="object-position-cover"
+                status={status}
+                description="cover at left (left border), right (right border), 25%, and left 10px (left, 10 points down: a gap at the top)"
+            />
+        </View>
+    )
+}
+
+// contain: the 48x24 image at the top, the bottom, 4 points above the
+// bottom, and a 16x16 one with none and scale-down at corners.
+function ObjectPositionContainCase() {
+    const [status, onLoad] = useLoadedThenOk(6)
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <PositionedImage
+                    first
+                    objectFit="contain"
+                    objectPosition="top"
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 0, width: 48, height: 24 }}
+                />
+                <PositionedImage
+                    objectFit="contain"
+                    objectPosition="bottom"
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 24, width: 48, height: 24 }}
+                />
+                <PositionedImage
+                    objectFit="contain"
+                    objectPosition={{ bottom: 4 }}
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 20, width: 48, height: 24 }}
+                />
+                <PositionedImage
+                    objectFit="none"
+                    objectPosition="left top"
+                    source={{ uri: SMALL }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 0, width: 16, height: 16 }}
+                />
+                <PositionedImage
+                    objectFit="none"
+                    objectPosition="right 4px bottom 4px"
+                    source={{ uri: SMALL }}
+                    onLoad={onLoad}
+                    outline={{ x: 28, y: 28, width: 16, height: 16 }}
+                />
+                <PositionedImage
+                    objectFit="scale-down"
+                    objectPosition="right"
+                    source={{ uri: SMALL }}
+                    onLoad={onLoad}
+                    outline={{ x: 32, y: 16, width: 16, height: 16 }}
+                />
+            </View>
+            <CaseStatus
+                id="object-position-contain"
+                status={status}
+                description="contain at top, bottom and 4 points above the bottom; a small image with none at the top-left and 4 points from the bottom-right, and scale-down at the right (inside the outlines)"
+            />
+        </View>
+    )
+}
+
+// With the view's style and props: cover at the left inside a rounded
+// border; none at the large image's top-left corner with overflow visible
+// (still cropped to the view); tinted and blurred, contained at the top and
+// bottom; and fading in at the left.
+function ObjectPositionStyleCase() {
+    const [status, onLoad] = useLoadedThenOk(5)
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={[
+                        objectFitStyles.image,
+                        objectPositionStyles.rounded,
+                    ]}
+                    objectFit="cover"
+                    objectPosition="left"
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                />
+                <PositionedImage
+                    style={[objectFitStyles.image, objectFitStyles.visible]}
+                    objectFit="none"
+                    objectPosition="left top"
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                />
+                <PositionedImage
+                    objectFit="contain"
+                    objectPosition="top"
+                    tintColor="#9324c3"
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 0, width: 48, height: 24 }}
+                />
+                <PositionedImage
+                    objectFit="contain"
+                    objectPosition="bottom"
+                    blurRadius={4}
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                    outline={{ x: 0, y: 24, width: 48, height: 24 }}
+                />
+                <PositionedImage
+                    objectFit="cover"
+                    objectPosition="left"
+                    transition={{ duration: 300 }}
+                    source={{ uri: LARGE }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-position-style"
+                status={status}
+                description="cover at the left in a rounded border; none at the top-left with overflow visible (cropped); contain at the top tinted, at the bottom blurred; cover at the left after fading in"
+            />
+        </View>
+    )
+}
+
+// objectPosition changed after load: cover from left to right (Android crops
+// it again), contain from top to bottom. Each should match the image to its
+// left.
+function ObjectPositionChangeCase() {
+    const [loaded, setLoaded] = useState(false)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (!loaded) return
+        const timer = setTimeout(() => setDone(true), 750)
+        return () => clearTimeout(timer)
+    }, [loaded])
+    return (
+        <View style={styles.row}>
+            <PositionedImage
+                first
+                objectFit="cover"
+                objectPosition="right"
+                source={{ uri: LARGE }}
+            />
+            <PositionedImage
+                objectFit="cover"
+                objectPosition={loaded ? 'right' : 'left'}
+                source={{ uri: LARGE }}
+                onLoad={() => setLoaded(true)}
+            />
+            <PositionedImage
+                objectFit="contain"
+                objectPosition="bottom"
+                source={{ uri: LARGE }}
+            />
+            <PositionedImage
+                objectFit="contain"
+                objectPosition={loaded ? 'bottom' : 'top'}
+                source={{ uri: LARGE }}
+            />
+            <CaseStatus
+                id="object-position-change"
+                status={done ? 'OK' : 'waiting'}
+                description="objectPosition changed after load (each should match the image to its left)"
+            />
+        </View>
+    )
+}
+
+// defaultSource is placed at the position too: a source that fails, with the
+// quadrants (an image in the app by its name: 80x80 points on iOS, 80 pixels
+// on Android, a drawable-nodpi) at its own size, at the top-left and the
+// bottom-right. On iOS each shows a quadrant's corner; on Android the whole
+// image is in the corner.
+function ObjectPositionDefaultSourceCase() {
+    const [failed, setFailed] = useState(0)
+    const onError = () => setFailed((n) => n + 1)
+    const quadrants = { uri: 'regression_quadrants' } as unknown as number
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <PositionedImage
+                    first
+                    objectFit="none"
+                    objectPosition="left top"
+                    source={{ uri: MISSING }}
+                    defaultSource={quadrants}
+                    onError={onError}
+                />
+                <PositionedImage
+                    objectFit="none"
+                    objectPosition="right bottom"
+                    source={{ uri: MISSING }}
+                    defaultSource={quadrants}
+                    onError={onError}
+                />
+            </View>
+            <CaseStatus
+                id="object-position-default-source"
+                status={failed === 2 ? 'OK' : 'waiting'}
+                description="defaultSource (the quadrants at their own size) at the top-left and the bottom-right"
+            />
+        </View>
+    )
+}
+
+const objectPositionStyles = StyleSheet.create({
+    outline: {
+        position: 'absolute',
+        borderWidth: 1,
+        borderColor: '#f0f',
+    },
+    rounded: { borderRadius: 14, borderWidth: 3, borderColor: '#222' },
+})
+
 // Just outside a 40-point image centered in a 48-point view.
 const centerStyles = StyleSheet.create({
     outline: {
@@ -4526,11 +4864,16 @@ function FadeCase({
     edge = false,
     defaultDrawable,
     opacity,
+    positioned = false,
     fades,
     description,
 }: {
     id: string
     from: FadeFrom
+    // A wide image at objectPosition left (cover), from the square
+    // defaultSource: recorded at the view's right edge, which shows the view's
+    // background (black) if the image view moves during the fade.
+    positioned?: boolean
     image?: 'cyan' | 'cyan-half' | 'cyan-animated'
     tall?: boolean
     edge?: boolean
@@ -4554,11 +4897,13 @@ function FadeCase({
     const placeholder = from === 'placeholder'
     // From magenta (the image showing, or defaultSource) to cyan.
     const fromMagenta = change || placeholder
-    const imageFile = edge
-        ? 'cyan-short.png'
-        : image === 'cyan-animated'
-          ? 'cyan-animated.webp'
-          : `${image}.png`
+    const imageFile = positioned
+        ? 'cyan-wide.png'
+        : edge
+          ? 'cyan-short.png'
+          : image === 'cyan-animated'
+            ? 'cyan-animated.webp'
+            : `${image}.png`
     const source =
         from === 'download' || from === 'change-download' || placeholder
             ? {
@@ -4615,10 +4960,16 @@ function FadeCase({
     const record = async () => {
         const measured = await measureView(view.current)
         if (!measured) return setStatus('not on screen')
-        // edge: the top 4 pixels.
+        // edge: the top 4 pixels. positioned: the right 4.
         const area = edge
             ? { ...measured, height: 4 / PixelRatio.get() }
-            : measured
+            : positioned
+              ? {
+                    ...measured,
+                    x: measured.x + measured.width - 4 / PixelRatio.get(),
+                    width: 4 / PixelRatio.get(),
+                }
+              : measured
         setStatus('recording')
         const result = await sample(
             {
@@ -4640,9 +4991,11 @@ function FadeCase({
                       ? [MAGENTA, HALF_MAGENTA, BLACK, CYAN]
                       : image === 'cyan-half'
                         ? [MAGENTA, MAGENTA_HALF_CYAN, HALF_CYAN, MAGENTA_CYAN]
-                        : fromMagenta
-                          ? [MAGENTA, MAGENTA_CYAN, CYAN]
-                          : [BLACK, HALF_CYAN, CYAN],
+                        : positioned
+                          ? [MAGENTA, MAGENTA_CYAN, CYAN, BLACK]
+                          : fromMagenta
+                            ? [MAGENTA, MAGENTA_CYAN, CYAN]
+                            : [BLACK, HALF_CYAN, CYAN],
             },
             (sampleDone) => {
                 done.current = () => {
@@ -4704,6 +5057,7 @@ function FadeCase({
                 opacity === 'style' ? fadeStyles.half : null,
             ]}
             resizeMode={tall || edge ? 'contain' : undefined}
+            objectPosition={positioned ? 'left' : undefined}
             source={shownSource}
             defaultSource={
                 defaultDrawable
@@ -7924,6 +8278,45 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="object-fit-events-gif"
                 uri={imageUrl('jellyfish.gif')}
             />,
+        ],
+    },
+    {
+        // Changes after load: a new position sends no load events (Android
+        // loaded the image again, with onLoadStart, onLoad and onLoadEnd),
+        // and a fade into a positioned image keeps it in place (iOS moved the
+        // image view during the fade, with its clip already moved).
+        name: 'object-position-changes',
+        cases: [
+            <PositionEventsCase key="position-events" id="position-events" />,
+            <PositionEventsCase
+                key="position-events-full-size"
+                id="position-events-full-size"
+                downsample={false}
+            />,
+            <PositionEventsCase
+                key="position-events-gif"
+                id="position-events-gif"
+                uri={imageUrl('jellyfish.gif')}
+            />,
+            <FadeCase
+                key="fade-placeholder-positioned"
+                id="fade-placeholder-positioned"
+                from="placeholder"
+                positioned
+                fades
+                description="transition with objectPosition left: a wide image cross-dissolves from defaultSource in place (its right edge recorded: magenta, blue-violet, cyan; black mustn't appear)"
+            />,
+        ],
+    },
+    {
+        // Checked by screenshot.
+        name: 'object-position',
+        cases: [
+            <ObjectPositionCoverCase key="object-position-cover" />,
+            <ObjectPositionContainCase key="object-position-contain" />,
+            <ObjectPositionStyleCase key="object-position-style" />,
+            <ObjectPositionChangeCase key="object-position-change" />,
+            <ObjectPositionDefaultSourceCase key="object-position-default-source" />,
         ],
     },
     {

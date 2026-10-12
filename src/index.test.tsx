@@ -1179,6 +1179,63 @@ describe('resizeMode center', () => {
     })
 })
 
+describe('objectPosition', () => {
+    const nativeProps = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+    const source = { uri: 'https://example.com/a.png' }
+
+    it('is sent as a fraction and an offset per axis, centered by default', () => {
+        expect(nativeProps(<FastImage source={source} />)).toMatchObject({
+            objectPositionX: 0.5,
+            objectPositionXOffset: 0,
+            objectPositionY: 0.5,
+            objectPositionYOffset: 0,
+        })
+        expect(
+            nativeProps(
+                <FastImage
+                    source={source}
+                    objectPosition="right 10px bottom 20%"
+                />,
+            ),
+        ).toMatchObject({
+            objectPositionX: 1,
+            objectPositionXOffset: -10,
+            objectPositionY: 0.8,
+            objectPositionYOffset: 0,
+        })
+        expect(
+            nativeProps(
+                <FastImage source={source} objectPosition={{ top: 12 }} />,
+            ),
+        ).toMatchObject({
+            objectPositionX: 0.5,
+            objectPositionY: 0,
+            objectPositionYOffset: 12,
+        })
+    })
+
+    it('centers an invalid position, with a warning', () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            expect(
+                nativeProps(
+                    <FastImage source={source} objectPosition="top 10%" />,
+                ),
+            ).toMatchObject({ objectPositionX: 0.5, objectPositionY: 0.5 })
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(String(warn.mock.calls[0][0])).toContain(
+                'objectPosition "top 10%"',
+            )
+        } finally {
+            warn.mockRestore()
+        }
+    })
+})
+
 describe('resizeMode', () => {
     it('passes repeat to the native view', () => {
         expect(FastImage.resizeMode.repeat).toBe('repeat')

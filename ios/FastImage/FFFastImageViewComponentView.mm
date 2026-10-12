@@ -210,6 +210,8 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     [_imageView stop];
     _imageView = nil;
     self.contentView = nil;
+    // A fade from the old image view (see FFFastImageView's fadeIn:).
+    [self.layer removeAnimationForKey: kCATransition];
 }
 
 - (void)updateProps:(const Props::Shared &)props oldProps:(const Props::Shared &)oldProps
@@ -236,6 +238,18 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     }
     if (all || oldViewProps.resizeMode != newViewProps.resizeMode) {
         view.resizeMode = [RCTConvert FFFResizeMode:FFFString(newViewProps.resizeMode)];
+    }
+    if (all || oldViewProps.objectPositionX != newViewProps.objectPositionX) {
+        view.objectPositionX = newViewProps.objectPositionX;
+    }
+    if (all || oldViewProps.objectPositionXOffset != newViewProps.objectPositionXOffset) {
+        view.objectPositionXOffset = newViewProps.objectPositionXOffset;
+    }
+    if (all || oldViewProps.objectPositionY != newViewProps.objectPositionY) {
+        view.objectPositionY = newViewProps.objectPositionY;
+    }
+    if (all || oldViewProps.objectPositionYOffset != newViewProps.objectPositionYOffset) {
+        view.objectPositionYOffset = newViewProps.objectPositionYOffset;
     }
     if (all || oldViewProps.tintColor != newViewProps.tintColor) {
         view.imageColor = RCTUIColorFromSharedColor(newViewProps.tintColor);
@@ -291,10 +305,20 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     if (!std::static_pointer_cast<const FastImageViewProps>(_props)->getClipsContentToBounds()) {
         _imageView.layer.mask = nil;
     }
+    // Where objectPosition moved the image view, its mask moves back.
+    [_imageView updateMask];
     if (_propsChanged) {
         _propsChanged = NO;
         [_imageView didSetProps];
     }
+}
+
+// React Native makes the image view's mask again when the appearance changes
+// (as after an update): where objectPosition moved the view, it moves back.
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection
+{
+    [super traitCollectionDidChange:previousTraitCollection];
+    [_imageView updateMask];
 }
 
 @end

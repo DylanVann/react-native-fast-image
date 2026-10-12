@@ -51,10 +51,21 @@ static const FFFResizeMode FFFResizeModeNone = (FFFResizeMode) -2;
 @property (nonatomic, assign) BOOL downsample;
 // Blurs the loaded image by this radius, in points (0 is no blur).
 @property (nonatomic, assign) CGFloat blurRadius;
+// objectPosition, as CSS computes it: on each axis the image's left or top
+// edge is at (view - image) * fraction + offset, in points.
+@property (nonatomic, assign) CGFloat objectPositionX;
+@property (nonatomic, assign) CGFloat objectPositionXOffset;
+@property (nonatomic, assign) CGFloat objectPositionY;
+@property (nonatomic, assign) CGFloat objectPositionYOffset;
 
 // After an update's props are set: loads the image if they changed it (once
 // the view has a size, when it needs one).
 - (void) didSetProps;
+
+// Keeps the view's mask (React Native's, for its rounded corners) on the box
+// the view was laid out at, while objectPosition moves the view: after React
+// Native sets or removes it.
+- (void) updateMask;
 
 // Stops for good, before the view is discarded: cancels the load and sends no
 // more events, also for a load that already finished and is on its way to the

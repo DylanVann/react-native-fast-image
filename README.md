@@ -260,6 +260,23 @@ It can also be set in `style`; the prop wins. Either one overrides `resizeMode`.
 
 ---
 
+#### `objectPosition`
+
+**Type:** `ObjectPosition` · **Default:** `'50% 50%'`
+
+Where the image is in the view, as CSS's `object-position` places it: where its edges are when it doesn't fill the view exactly (`contain`, `cover`, `none` and `scale-down`; with `fill` it always fills it).
+
+- A string in CSS's syntax: one or two keywords (`'top'`, `'left bottom'`), lengths in points (`'10px 20px'`, with `px`) or percentages (`'25% 75%'`), or offsets from an edge (`'right 10px bottom 20%'`). A percentage puts that point of the image at that point of the view: `'0% 0%'` is the top-left corner, `'100% 100%'` the bottom-right.
+- An object with one of `top` and `bottom` and one of `left` and `right`, each in points (a number) or a percentage (`'25%'`), e.g. `{ right: 10, bottom: '20%' }`. A missing axis is centered.
+
+Points are dp on Android. An invalid value is ignored (the image is centered), with a warning in development. `defaultSource` is placed the same way. No effect with `resizeMode="repeat"`, whose tiles start at the top-left corner.
+
+```jsx
+<FastImage source={{ uri }} objectFit="cover" objectPosition="top" />
+```
+
+---
+
 #### `resizeMode`
 
 **Type:** `ResizeMode` · **Default:** `'cover'`
@@ -732,6 +749,14 @@ How the image fits the view: see [`objectFit`](#objectfit).
 
 ---
 
+### `ObjectPosition`
+
+**Type:** `string | ({ top?: PositionLength; bottom?: never } | { bottom: PositionLength; top?: never }) & ({ left?: PositionLength; right?: never } | { right: PositionLength; left?: never })`
+
+Where the image is in the view: see [`objectPosition`](#objectposition).
+
+---
+
 ### `OnErrorEvent`
 
 `onError`'s event: `nativeEvent.error` says what went wrong, e.g. an HTTP status code or an image that can't be decoded.
@@ -753,6 +778,14 @@ How the image fits the view: see [`objectFit`](#objectfit).
 `onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`, and `progress`, `loaded / total` from 0 to 1.
 
 - `nativeEvent` (`{ loaded: number; total: number; progress: number }`)
+
+---
+
+### `PositionLength`
+
+**Type:** `` number | `${number}%` ``
+
+A length in points (dp on Android), or a percentage: see [`objectPosition`](#objectposition).
 
 ---
 

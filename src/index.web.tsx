@@ -28,6 +28,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
+import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import { warnIfChildren } from './warnings'
 import type {
     CachePathResult,
@@ -80,6 +81,7 @@ function FastImageBase({
     style,
     children,
     objectFit,
+    objectPosition,
     resizeMode: mode = 'cover',
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
@@ -135,6 +137,7 @@ function FastImageBase({
             : several && resolved === 'repeat'
               ? 'cover'
               : resolved
+    const position = cssPosition(objectPositionOrCentered(objectPosition))
     const filter =
         [
             blurRadius ? `blur(${blurRadius}px)` : '',
@@ -165,6 +168,7 @@ function FastImageBase({
                     key={`default ${defaultUri}`}
                     src={defaultUri}
                     fit={fit}
+                    position={position}
                     filter={filter}
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
@@ -177,6 +181,7 @@ function FastImageBase({
                     srcSet={srcSet}
                     lazy={!!several}
                     fit={fit}
+                    position={position}
                     filter={filter}
                     // Shown as it loads, over defaultSource, and not if it
                     // failed (no broken image icon or alt text).
@@ -323,6 +328,7 @@ function Picture({
     srcSet,
     lazy,
     fit,
+    position,
     filter,
     hidden,
     alt,
@@ -334,6 +340,8 @@ function Picture({
     // Several sizes load lazily, for sizes="auto" (see sizedSources).
     lazy?: boolean
     fit: ObjectFit | 'repeat'
+    // objectPosition, as CSS.
+    position: string
     filter?: string
     hidden?: boolean
     alt: string
@@ -427,6 +435,7 @@ function Picture({
             style={{
                 ...fill,
                 objectFit: repeat ? 'cover' : fit,
+                objectPosition: position,
                 filter: repeat ? undefined : filter,
                 opacity: repeat || hidden ? 0 : undefined,
             }}

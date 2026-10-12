@@ -381,6 +381,28 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         view.setHandledEvents(handledEvents);
     }
 
+    // objectPosition: each axis's fraction of the free space, and offset (in
+    // dp, as pixels for the view).
+    @Override
+    public void setObjectPositionX(FastImageViewWithUrl view, float value) {
+        view.setObjectPositionX(value);
+    }
+
+    @Override
+    public void setObjectPositionXOffset(FastImageViewWithUrl view, float value) {
+        view.setObjectPositionXOffset(PixelUtil.toPixelFromDIP(value));
+    }
+
+    @Override
+    public void setObjectPositionY(FastImageViewWithUrl view, float value) {
+        view.setObjectPositionY(value);
+    }
+
+    @Override
+    public void setObjectPositionYOffset(FastImageViewWithUrl view, float value) {
+        view.setObjectPositionYOffset(PixelUtil.toPixelFromDIP(value));
+    }
+
     @Override
     public void setResizeMode(FastImageViewWithUrl view, @Nullable String resizeMode) {
         // repeat fills the view with the tiled image (see setImageDrawable).
