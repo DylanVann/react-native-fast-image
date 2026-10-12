@@ -6181,6 +6181,46 @@ function DownsamplePreloadCase() {
     )
 }
 
+// A view zoomed in on with a transform, as a pinch-to-zoom viewer does: a
+// page of text (1600x1000) in an 80x50 view drawn 4 times larger, its top
+// left corner showing. With downsample false (right) it's decoded at full
+// size, so the text is sharp; downsampled (left), it's decoded at about the
+// view's size, so it's enlarged and blurry. Android decoded both at about the
+// view's size.
+function DownsampleZoomCase() {
+    const [status, onLoad] = useLoadedThenOk(2)
+    const source = { uri: imageUrl('text-page.png?case=downsample-zoom') }
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={blurStyles.images}>
+                {[true, false].map((downsample) => (
+                    <View
+                        key={String(downsample)}
+                        style={[
+                            downsampleStyles.zoomClip,
+                            !downsample && styles.gap,
+                        ]}
+                    >
+                        <FastImage
+                            style={downsampleStyles.zoomed}
+                            source={source}
+                            downsample={downsample}
+                            onLoad={onLoad}
+                        />
+                    </View>
+                ))}
+            </View>
+            <View style={blurStyles.status}>
+                <CaseStatus
+                    id="downsample-zoom"
+                    status={status}
+                    description="A view zoomed in on 4 times with a transform: downsampled (left) the text is blurry, with downsample={false} (right) it's sharp"
+                />
+            </View>
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -6189,6 +6229,21 @@ const downsampleStyles = StyleSheet.create({
     fill: { flex: 1 },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
+    zoomClip: {
+        width: 140,
+        height: 88,
+        overflow: 'hidden',
+        backgroundColor: '#eee',
+    },
+    // Scaled about its center, so it spans 320x200 from the clip's top left.
+    zoomed: {
+        position: 'absolute',
+        left: 120,
+        top: 75,
+        width: 80,
+        height: 50,
+        transform: [{ scale: 4 }],
+    },
 })
 
 // Photo library images (ph://, iOS, with SDWebImagePhotosPlugin, which
@@ -7275,7 +7330,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleCase
                 key="downsample-stripes"
                 id="downsample-stripes"
-                description="downsample (left): 1px stripes (1024px) in a 48 view decode to an even gray on iOS, not the stripes drawn smaller (right). Android: both black (Glide keeps every nth pixel of a PNG)"
+                description="downsample (left): 1px stripes (1024px) in a 48 view decode to an even gray on iOS (black on Android: Glide keeps every nth pixel of a PNG), not the stripes drawn smaller (right)"
                 image="stripes.png"
                 size="1024x1024"
                 style={downsampleStyles.stripes}
@@ -7311,6 +7366,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsamplePreloadingCase key="downsample-preloading" />,
             <DownsampleOrderCase key="downsample-order" />,
         ],
+    },
+    {
+        name: 'downsample-zoom',
+        cases: [<DownsampleZoomCase key="downsample-zoom" />],
     },
     {
         name: 'loading',

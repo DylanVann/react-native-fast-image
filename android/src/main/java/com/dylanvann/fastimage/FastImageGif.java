@@ -34,8 +34,10 @@ final class FastImageGif {
     private FastImageGif() {}
 
     // Null if the GIF can't be decoded again (then the view shows Glide's).
+    // Full size (downsample false): at the GIF's own size, or sampled down to
+    // at most FastImageSourceSize.MAX_PIXELS pixels.
     @Nullable
-    static GifDrawable copy(Context context, GifDrawable gif, int width, int height) {
+    static GifDrawable copy(Context context, GifDrawable gif, int width, int height, boolean fullSize) {
         if (width <= 0 || height <= 0) return null;
         ByteBuffer data = gif.getBuffer();
         GifHeader header = new GifHeaderParser().setData(data).parseHeader();
@@ -44,7 +46,7 @@ final class FastImageGif {
         BitmapPool bitmapPool = glide.getBitmapPool();
         GifDecoder decoder = new StandardGifDecoder(
                 new GifBitmapProvider(bitmapPool, glide.getArrayPool()),
-                header, gif.getBuffer(), sampleSize(header, width, height));
+                header, gif.getBuffer(), fullSize ? fullSizeSampleSize(header) : sampleSize(header, width, height));
         decoder.setDefaultBitmapConfig(Bitmap.Config.ARGB_8888);
         decoder.advance();
         Bitmap firstFrame = decoder.getNextFrame();
@@ -99,6 +101,15 @@ final class FastImageGif {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static int fullSizeSampleSize(GifHeader header) {
+        int sampleSize = 1;
+        while ((float) (header.getWidth() / sampleSize) * (header.getHeight() / sampleSize)
+                > FastImageSourceSize.MAX_PIXELS) {
+            sampleSize *= 2;
+        }
+        return sampleSize;
     }
 
     // ByteBufferGifDecoder's.

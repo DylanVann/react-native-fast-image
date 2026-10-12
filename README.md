@@ -311,7 +311,7 @@ Changing it restarts the animation.
 How the image is filtered when it's drawn smaller or larger than its size (like CSS's `image-rendering`):
 
 - `'auto'`: the platform's usual filtering.
-- `'smooth'`: iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'` (images are always decoded at about the view's size there).
+- `'smooth'`: iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'`.
 - `'pixelated'`: sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
 
 ---
@@ -342,14 +342,14 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 
 #### `downsample`
 
-**Type:** `boolean` · **Default:** `true` · iOS only
+**Type:** `boolean` · **Default:** `true`
 
 Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
 
-- `true`: an image at least twice the size its view needs is decoded at about the view's size. If the view grows, the image is decoded again for its new size (from the disk cache).
-- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged.
+- `true`: an image at least twice the size its view needs is decoded at about the view's size (on Android, any image larger than its view). If the view grows, the image is decoded again for its new size (from the disk cache).
+- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged. **It uses more memory:** a 12-megapixel photo takes about 48 MB decoded, however small it's shown. On Android, an image over 16 megapixels (4096 × 4096) is decoded at the largest size under that, which Android can still draw.
 
-It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded this way, and on Android images are always decoded at about the view's size (but Android 16 and later decode animated WebP at full size, and scale it as they draw it).
+It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. On iOS it needs SDWebImage 5.19.7 or later: before 5.19 images are decoded at full size, and 5.19.0 to 5.19.6 show photos stored sideways with an EXIF orientation (most phone photos) sideways. Photo library images are always decoded at about the view's size. Android 16 and later decode animated WebP at full size either way, and scale it as they draw it.
 
 If you control the images, serve them at the size they're shown (resized on your server or by an image CDN), which also saves bandwidth.
 
