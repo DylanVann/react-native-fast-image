@@ -1,3 +1,10 @@
+## [9.3.6](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.5...v9.3.6) (2026-10-12)
+
+
+### Bug Fixes
+
+* **android:** downsample={false} decodes images at full size ([#1302](https://github.com/DylanVann/react-native-fast-image/issues/1302)) ([ca5c53a](https://github.com/DylanVann/react-native-fast-image/commit/ca5c53a45a60dce5700069aaaa0191afd8185acc))
+
 ## [9.3.5](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.4...v9.3.5) (2026-10-12)
 
 
