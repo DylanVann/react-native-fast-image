@@ -39,7 +39,7 @@ The examples load their remote images from a local server (`ReactNativeFastImage
 
 ## The legacy architecture (FastImage 9)
 
-FastImage 10 is a New Architecture component (React Native 0.83+). FastImage 9, for apps on the legacy architecture, is maintained on the `9.x` branch, which has its own example for React Native 0.73 with the legacy architecture (`ReactNativeFastImageExampleLegacy`). Fixes for 9.x are made there, from that branch.
+FastImage is a New Architecture component (React Native 0.83 and later, since 10.0). FastImage 9, for apps on older React Native or the legacy architecture, is maintained on the `9.x` branch, which has its own example for React Native 0.73 with the legacy architecture (`ReactNativeFastImageExampleLegacy`). Fixes for 9.x are made there, from that branch.
 
 ## Testing on the oldest supported React Native
 

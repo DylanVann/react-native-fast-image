@@ -1,0 +1,112 @@
+/* Tables set as text to be read, not looked at: no grid, one thin rule under
+   the headings, a faint tint on alternate rows to track across wide tables,
+   and numbers in tabular lining figures, right-aligned where the markdown
+   says so (`---:`). Not layered, so it overrides Starlight's. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+    /* The cells' inline padding: the outer cells keep theirs, and the table
+       gives it back, so the text lines up with the page's while the tint and
+       the rule run a little past it. */
+    --table-edge: 0.6em;
+    width: max-content;
+    max-width: calc(100% + 2 * var(--table-edge));
+    margin-inline: calc(-1 * var(--table-edge));
+    font-size: var(--sl-text-sm);
+    line-height: 1.4;
+    white-space: nowrap;
+    font-variant-numeric: lining-nums tabular-nums;
+    /* overflow-x alone would let it scroll vertically by a rounding. */
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+    padding: 0.35em var(--table-edge) 0.45em;
+    border-bottom: 0;
+    vertical-align: top;
+}
+.sl-markdown-content
+    :is(th:first-child, td:first-child):not(:where(.not-content *)) {
+    padding-inline-start: var(--table-edge);
+}
+.sl-markdown-content
+    :is(th:last-child, td:last-child):not(:where(.not-content *)) {
+    padding-inline-end: var(--table-edge);
+}
+.sl-markdown-content th:not(:where(.not-content *)) {
+    border-bottom: 1px solid var(--sl-color-gray-5);
+}
+.sl-markdown-content tbody tr:nth-child(even) > td:not(:where(.not-content *)) {
+    background-color: var(--sl-color-gray-7);
+}
+
+/* Where there's more table past an edge, it fades out at that edge: two mask
+   layers, one per edge, slid by the table's own scroll position. With
+   nothing to scroll the timeline is inactive and there's no mask. */
+@property --table-fade-start {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@property --table-fade-end {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@supports (animation-timeline: scroll()) {
+    .sl-markdown-content table:not(:where(.not-content *)) {
+        --table-fade: 4rem;
+        --table-mask-start: linear-gradient(
+            to right,
+            rgb(0 0 0 / 0),
+            rgb(0 0 0 / 0.104) calc(var(--table-fade) * 0.2),
+            rgb(0 0 0 / 0.352) calc(var(--table-fade) * 0.4),
+            rgb(0 0 0 / 0.648) calc(var(--table-fade) * 0.6),
+            rgb(0 0 0 / 0.896) calc(var(--table-fade) * 0.8),
+            black var(--table-fade)
+        );
+        --table-mask-end: linear-gradient(
+            to right,
+            black,
+            black calc(100% - var(--table-fade)),
+            rgb(0 0 0 / 0.896) calc(100% - var(--table-fade) * 0.8),
+            rgb(0 0 0 / 0.648) calc(100% - var(--table-fade) * 0.6),
+            rgb(0 0 0 / 0.352) calc(100% - var(--table-fade) * 0.4),
+            rgb(0 0 0 / 0.104) calc(100% - var(--table-fade) * 0.2),
+            rgb(0 0 0 / 0)
+        );
+        mask-size: calc(100% + var(--table-fade)) 100%;
+        mask-repeat: no-repeat;
+        mask-composite: intersect;
+        mask-position:
+            calc(var(--table-fade-start) - var(--table-fade)) 0,
+            calc(0px - var(--table-fade-end)) 0;
+        /* Longhands: a shorthand's animation-duration: 0s would end a
+           scroll-driven animation as it starts. */
+        animation-name: table-fade-start, table-fade-end;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: scroll(self inline);
+        animation-range:
+            0 var(--table-fade),
+            calc(100% - var(--table-fade)) 100%;
+    }
+    /* The mask image is only set while the animation applies, so a table
+       that fits gets none. */
+    @keyframes table-fade-start {
+        from {
+            --table-fade-start: 0px;
+            mask-image: var(--table-mask-start), var(--table-mask-end);
+        }
+        to {
+            --table-fade-start: var(--table-fade);
+            mask-image: var(--table-mask-start), var(--table-mask-end);
+        }
+    }
+    @keyframes table-fade-end {
+        from {
+            --table-fade-end: var(--table-fade);
+        }
+        to {
+            --table-fade-end: 0px;
+        }
+    }
+}

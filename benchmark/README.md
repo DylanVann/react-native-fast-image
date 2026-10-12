@@ -1,8 +1,8 @@
 # Benchmark
 
-Measures how React Native image components load and show images, the same way for each, on real phones: FastImage, React Native's `Image`, expo-image, Nitro Image and Turbo Image (`app/subjects.json`). Results are distributions over several runs, from the screen as the user sees it where possible.
+Measures how React Native image components load and show images, the same way for each, on real phones: FastImage (8.28.0), React Native's `Image`, expo-image, Nitro Image and Turbo Image (`app/subjects.json`). Results are distributions over several runs, from the screen as the user sees it where possible.
 
-Two more subjects compare FastImage versions: `fast-image-9` (the latest 9.x release) and `fast-image-local` (FastImage from this checkout: its `src/` through `app/metro.config.js`, its native code through `app/react-native.config.js`), e.g. a change against the release before it, with `--paired` on Android.
+Two more subjects compare FastImage versions: `fast-image-9` (9.2.2) and `fast-image-local` (FastImage from this checkout: its `src/` through `app/metro.config.js`, its native code through `app/react-native.config.js`), e.g. a change against the release before it, with `--paired` on Android.
 
 ## Running it
 
@@ -74,7 +74,7 @@ A Test Lab phone runs for at most 45 minutes, and is billed by the minute, so th
 | `sizes`  | 16 of the grid's photos at two sizes at once                                                                  | time to each image, and the image requests: a library that shares a download between its requests for one url makes 16, not 32                                                                           |
 | `detail` | the grid's 60 photos, and 100 ms later the last of them at the screen's width over the grid, at high priority | time to the large photo: whether a library moves an image the app needs now ahead of the downloads already waiting (the grid asked for that photo last), and whether it shares the grid's download of it |
 
-Nitro Image's view sends no load events, so its scenarios end after a fixed time, long enough for every subject at no bandwidth limit and at `--mbps 50` (`fixedMs` in `app/src/Scenario.tsx`), and have no event gap. Turbo Image and React Native's `Image` are run with `fadeDuration={0}`: they fade remote images in over 300 ms by default (React Native's `Image` on Android only), and the others show them at once. The burst test's `fade` variants fade every subject in over 300 ms (FastImage's `transition`, which FastImage 8 doesn't have; `fadeDuration`; expo-image's `transition`), and its `placeholder` variants show a gray image until each image loads (`defaultSource`, expo-image's `placeholder`; Turbo Image's and Nitro Image's placeholders aren't local images, so they show none).
+Nitro Image's view sends no load events, so its scenarios end after a fixed time, long enough for every subject at no bandwidth limit and at `--mbps 50` (`fixedMs` in `app/src/Scenario.tsx`), and have no event gap. Turbo Image and React Native's `Image` are run with `fadeDuration={0}`, and FastImage with `transition={false}`: they fade remote images in over 300 ms by default (React Native's `Image`, and FastImage from 10.0, on Android only), and the others show them at once. The burst test's `fade` variants fade every subject in over 300 ms (FastImage's `transition`, which 8.28.0 doesn't have; `fadeDuration`; expo-image's `transition`), and its `placeholder` variants show a gray image until each image loads (`defaultSource`, expo-image's `placeholder`; Turbo Image's and Nitro Image's placeholders aren't local images, so they show none).
 
 ## Limits
 

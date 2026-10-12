@@ -144,8 +144,7 @@ export type Transition = {
      *   usually only the first time (the disk cache usually keeps them too).
      * - `'none'`: always fades.
      *
-     * Downloads, local files and bundled images (`require()`) fade in. On
-     * Android, a `cache: 'web'` image from its HTTP cache, without a request,
+     * On Android, a `cache: 'web'` image from its HTTP cache, without a request,
      * counts as one from the memory cache (these images aren't kept there).
      * @default 'memory'
      */
@@ -153,9 +152,9 @@ export type Transition = {
 }
 
 /**
- * `onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in
- * pixels, and `target`, the view's React tag (on iOS and Android; not on the
- * web).
+ * `onLoad`'s event: `nativeEvent` has the image's own `width` and `height`
+ * (see `onLoad`), and `target`, the view's React tag (on iOS and Android; not
+ * on the web).
  */
 export interface OnLoadEvent {
     nativeEvent: {
@@ -940,7 +939,7 @@ export interface FastImageDefaults {
     /**
      * The `transition` of images that don't set one (an image's own settings
      * win, and those it leaves out come from this). `null` goes back to the
-     * built-in default: images fade in on Android (300 ms), and not on iOS.
+     * built-in default (see `transition`).
      */
     transition?: boolean | number | Transition | null
 }

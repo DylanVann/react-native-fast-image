@@ -15,6 +15,7 @@ import {
 import { posix } from 'node:path'
 import GithubSlugger, { slug } from 'github-slugger'
 import { Application, normalizePath, type JSONOutput as J } from 'typedoc'
+import { withCharts } from './charts.mts'
 
 const root = new URL('../../', import.meta.url).pathname
 const app = await Application.bootstrap({
@@ -519,9 +520,9 @@ function rewriteLinks(markdown: string, file: string) {
             )
                 console.warn(`${file}: no heading in ${resolved} for ${anchor}`)
             if (!target) return all
-            // Images in the repo (e.g. the README's icons) are copied to the
-            // website's public/.
-            if (/\.(svg|png|gif|jpe?g|webp)$/.test(resolved)) {
+            // Images and videos in the repo (e.g. the README's icons) are copied
+            // to the website's public/.
+            if (/\.(svg|png|gif|jpe?g|webp|mp4)$/.test(resolved)) {
                 const copy = `${root}website/public/${resolved}`
                 mkdirSync(posix.dirname(copy), { recursive: true })
                 copyFileSync(`${root}${resolved}`, copy)
@@ -568,12 +569,52 @@ write(
     }) + rewriteLinks(readmePage, 'README.md'),
 )
 
+// A link to a video on a line of its own (on GitHub, it opens the video) is
+// the video on the website: playing silently in a loop like a GIF, with the
+// link's text as its caption, and its size from the file so the page doesn't
+// move when it loads.
+function withVideos(markdown: string) {
+    return markdown.replace(
+        /^\[([^\]]+)\]\(((?:\.\.?\/)*([^)]+\.mp4))\)$/gm,
+        (_, caption: string, src: string, file: string) => {
+            const { width, height } = videoSize(`${root}website/public/${file}`)
+            return (
+                `<figure class="video not-content">` +
+                `<video src="${src}" width="${width}" height="${height}" autoplay muted loop playsinline preload="metadata" aria-label="${caption.replace(/"/g, '&quot;')}"></video>` +
+                `<figcaption>${caption}</figcaption></figure>`
+            )
+        },
+    )
+}
+
+// An MP4's display size, from its video track's header (tkhd: 16.16 fixed
+// point width and height at its end).
+function videoSize(path: string) {
+    const data = readFileSync(path)
+    for (
+        let i = data.indexOf('tkhd');
+        i >= 0;
+        i = data.indexOf('tkhd', i + 4)
+    ) {
+        const end = i - 4 + data.readUInt32BE(i - 4)
+        const width = data.readUInt32BE(end - 8) >>> 16
+        const height = data.readUInt32BE(end - 4) >>> 16
+        if (width && height) return { width, height }
+    }
+    throw new Error(`No video track in ${path}`)
+}
+
 // A page per doc, titled with its first heading.
 for (const file of docs) {
     const markdown = sources.get(file)!
     write(
         pageOf(file)!,
         frontmatter({ title: titleOf(file) }) +
-            rewriteLinks(markdown.replace(/^# .*\n+/m, ''), file),
+            withVideos(
+                rewriteLinks(
+                    withCharts(markdown.replace(/^# .*\n+/m, '')),
+                    file,
+                ),
+            ),
     )
 }

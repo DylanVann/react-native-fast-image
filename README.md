@@ -18,7 +18,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 
 ## Features
 
-- **Performance**, with images [decoded at the size they're shown](#downsample): in [benchmarks](docs/benchmarks.md), FastImage shows images about as fast as other React Native image components and uses among the least memory for large photos.
+- **Performance**: in [benchmarks](docs/benchmarks.md), FastImage shows images about as fast as other React Native image components on iOS and among the fastest on Android, [significantly faster in some scenarios](docs/benchmarks.md#opening-a-photo-while-others-load), and uses among the least memory for large photos.
 - **Aggressive caching**: an image downloads once, then shows from disk or memory until its url changes, without flickering ([freshness](#sourcecache), [cache keys](#sourcecachekey), [size limits](#configurecachelimits)).
 - **Preloading**, with a [result per image](#preloadsources) and the [cached file's path](#getcachepathsource).
 - **Headers**, e.g. for authentication ([`headers`](#sourceheaders)).
@@ -57,15 +57,6 @@ See [Formats](docs/formats.md) for the versions of iOS and Android each format n
 
 ## Installation
 
-Needs React Native 0.83 or later (New Architecture only), iOS/tvOS 15.1 and Android 7.0 (API 24) or later, and on iOS SDWebImage 5.21.4 or later. Works with Expo (SDK 55 or later) and on tvOS with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). It's tested on React Native 0.83 and 0.87, React Native tvOS 0.87, and Expo SDK 57.
-
-| react-native-fast-image | React Native                                                             |
-| ----------------------- | ------------------------------------------------------------------------ |
-| 10.x                    | 0.83 and later, New Architecture                                         |
-| 9.x                     | 0.65 and later, New Architecture (interop layer) and legacy architecture |
-
-Apps on older React Native or the legacy architecture can use FastImage 9 (`npm install react-native-fast-image@9`), which gets fixes from the `9.x` branch.
-
 ```bash
 npm install react-native-fast-image
 cd ios && pod install
@@ -79,11 +70,13 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
+Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later), iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
+
 To set the cache's size when the app starts, see [Native config](#native-config).
 
 If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
 
-On iOS, FastImage works with SDWebImage 5.11.1 and later, but apps that run on iOS 26 or later need 5.21.4 or later: earlier versions can crash there while loading images ([SDWebImage#3849](https://github.com/SDWebImage/SDWebImage/issues/3849)). A new install gets the latest version. If your `Podfile.lock` has an older one, update it with `cd ios && pod update SDWebImage`.
+If `pod install` can't find a compatible SDWebImage (FastImage needs 5.21.4 or later), update it with `cd ios && pod update SDWebImage`.
 
 ## Usage
 
@@ -457,8 +450,6 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 An image with content on top of it: a view that the image fills, with the children on top.
 
-`FastImage` is a single native view, which doesn't take children, so use `FastImageBackground` for content over an image.
-
 ```jsx
 import { FastImageBackground } from 'react-native-fast-image'
 
@@ -647,13 +638,13 @@ Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB
 
 Changes the defaults of every image, including `FastImageBackground`'s. Pass the settings to change; `null` goes back to the built-in default.
 
-- `transition`: the [`transition`](#transition) of images that don't set one. Built in, images fade in on Android (300 ms) and not on iOS. An image's own `transition` wins, and the settings it leaves out come from the default.
+- `transition`: the [`transition`](#transition) of images that don't set one (its doc describes the built-in default). An image's own `transition` wins, and the settings it leaves out come from the default.
 
 ```js
 // In index.js, before images render.
 FastImage.setDefaults({ transition: false }) // no fades
 FastImage.setDefaults({ transition: true }) // fades on iOS too
-FastImage.setDefaults({ transition: Platform.select({ ios: 200 }) }) // 200 ms on iOS, Android's usual on Android
+FastImage.setDefaults({ transition: Platform.select({ ios: 200 }) }) // 200 ms on iOS; Android keeps its default
 FastImage.setDefaults({ transition: { duration: 200, betweenImages: true } })
 FastImage.setDefaults({ transition: null }) // the built-in default
 ```
@@ -713,7 +704,7 @@ How fresh an image must be: see [`source.cache`](#sourcecache).
 
 `FastImage.setDefaults`'s settings.
 
-- `transition?` (`number | boolean | Transition | null`): The `transition` of images that don't set one (an image's own settings win, and those it leaves out come from this). `null` goes back to the built-in default: images fade in on Android (300 ms), and not on iOS.
+- `transition?` (`number | boolean | Transition | null`): The `transition` of images that don't set one (an image's own settings win, and those it leaves out come from this). `null` goes back to the built-in default (see `transition`).
 
 ---
 
@@ -751,7 +742,7 @@ Where the image is in the view: see [`objectPosition`](#objectposition).
 
 ### `OnLoadEvent`
 
-`onLoad`'s event: `nativeEvent` has the image's `width` and `height`, in pixels, and `target`, the view's React tag (on iOS and Android; not on the web).
+`onLoad`'s event: `nativeEvent` has the image's own `width` and `height` (see `onLoad`), and `target`, the view's React tag (on iOS and Android; not on the web).
 
 - `nativeEvent` (`{ width: number; height: number; target?: number }`)
 
@@ -822,7 +813,7 @@ How the image fades in: see [`transition`](#transition).
     - `'all'`: skips it for images from the memory or disk cache too, so images that download fade in, and local files and bundled images usually only the first time (the disk cache usually keeps them too).
     - `'none'`: always fades.
 
-    Downloads, local files and bundled images (`require()`) fade in. On Android, a `cache: 'web'` image from its HTTP cache, without a request, counts as one from the memory cache (these images aren't kept there).
+    On Android, a `cache: 'web'` image from its HTTP cache, without a request, counts as one from the memory cache (these images aren't kept there).
 
 <!-- api:types end -->
 
