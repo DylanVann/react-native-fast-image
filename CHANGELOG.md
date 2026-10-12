@@ -1,3 +1,60 @@
+# [10.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.7...v10.0.0) (2026-10-12)
+
+
+### Code Refactoring
+
+* **android:** the Java package is com.fastimage ([#1259](https://github.com/DylanVann/react-native-fast-image/issues/1259)) ([7cc9685](https://github.com/DylanVann/react-native-fast-image/commit/7cc9685494856ba7557657e1621fd28b3f238978))
+* remove fallback, and onProgress's progress comes from the native views ([#1260](https://github.com/DylanVann/react-native-fast-image/issues/1260)) ([cb15524](https://github.com/DylanVann/react-native-fast-image/commit/cb15524ef0ae1e2ffc96ec43c26181f757e309be))
+
+
+### Features
+
+* **android:** images an app loads with Glide itself use React Native's OkHttp client ([#1277](https://github.com/DylanVann/react-native-fast-image/issues/1277)) ([cbc06a0](https://github.com/DylanVann/react-native-fast-image/commit/cbc06a0486f50d67f9250ea743c9692b5d14a8dc))
+* FastImage is a single native view, without children ([#1262](https://github.com/DylanVann/react-native-fast-image/issues/1262)) ([45875b7](https://github.com/DylanVann/react-native-fast-image/commit/45875b7bce7d570bb4d16b04390eaf0222bc1bdb))
+* images fade in by default on Android, and FastImage.setDefaults changes it ([#1261](https://github.com/DylanVann/react-native-fast-image/issues/1261)) ([a086631](https://github.com/DylanVann/react-native-fast-image/commit/a086631dbcf09ae18e20afe1a2770cc4c14b17bf))
+* native New Architecture component, React Native 0.83+ ([#1220](https://github.com/DylanVann/react-native-fast-image/issues/1220)) ([5473320](https://github.com/DylanVann/react-native-fast-image/commit/54733203a4c1097f40a8fe277faec98f4139892d))
+* objectPosition prop (CSS object-position) ([#1298](https://github.com/DylanVann/react-native-fast-image/issues/1298)) ([07f3e0b](https://github.com/DylanVann/react-native-fast-image/commit/07f3e0bd5ec7013defc585ed21f05dfaa0009cfc))
+* remove resizeMode in favor of objectFit ([#1299](https://github.com/DylanVann/react-native-fast-image/issues/1299)) ([88ec915](https://github.com/DylanVann/react-native-fast-image/commit/88ec91554c9f9ce536315a3b82aa36a81eaa1e39))
+
+
+### BREAKING CHANGES
+
+* `resizeMode` (prop and style) is removed and ignored;
+`objectFit` replaces it (`stretch` → `fill`, `center` → `scale-down`,
+`contain` and `cover` unchanged). Tiling (`repeat`) is no longer
+supported. `overlayColor` is removed from `ImageStyle` (it had no
+effect).
+* **android:** on Android, images an app loads with Glide itself (a
+GlideUrl) go through React Native's OkHttp client, with the app's
+interceptors and cookies, and 15 s connect and read timeouts where the
+client has none, instead of the default client of Glide's OkHttp
+integration. An app's own AppGlideModule can still register another.
+* FastImage is a single native view: it doesn't render
+children (use FastImageBackground for content over an image; children get a
+type error and a development error), its ref is the native view, and Jest
+snapshots show one FastImageView element.
+* On Android, images fade in by default (300 ms, as with React
+Native's Image); iOS doesn't change. FastImage.setDefaults({ transition:
+false }) keeps 9.x's behavior. transition={null} now means the default, not
+no fade.
+* The fallback prop is removed: images always load with
+FastImage's native views (a fallback prop is ignored, with a warning in
+development). Use React Native's Image directly for images that need it.
+* **android:** FastImage's Android package is com.fastimage (was
+com.dylanvann.fastimage). Autolinked apps need no change; an app that adds
+FastImageViewPackage by hand, imports FastImage's classes, or keeps its own
+ProGuard rules for them (FastImage ships its own) needs the new name.
+FastImageProgressListener is removed.
+* FastImage is a native New Architecture component and
+TurboModule. It needs React Native 0.83 or later (New Architecture only;
+apps on older React Native or the legacy architecture can stay on FastImage
+9), Expo SDK 55 or later, iOS/tvOS 15.1, Android API 24 (compileSdk and
+targetSdk 36 by default), SDWebImage 5.21.4 or later on iOS (run `pod
+update SDWebImage` if Podfile.lock has an older one), and Glide 5 by
+default on Android (5.0.7; glideVersion 4.15 or later still works). The
+native module is now the TurboModule FastImageModule
+(NativeModules.FastImageView is gone); otherwise the JS API is unchanged.
+
 ## [9.3.7](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.6...v9.3.7) (2026-10-12)
 
 
