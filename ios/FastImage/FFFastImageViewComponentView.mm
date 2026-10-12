@@ -236,6 +236,16 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         id defaultSource = FFFJSON(newViewProps.defaultSource);
         view.defaultSource = defaultSource ? [RCTConvert UIImage:defaultSource] : nil;
     }
+    if (all || oldViewProps.thumbhash != newViewProps.thumbhash) {
+        view.thumbhash = newViewProps.thumbhash.empty() ? nil : [NSString stringWithUTF8String:newViewProps.thumbhash.c_str()];
+    }
+    if (all || oldViewProps.thumbhashes != newViewProps.thumbhashes) {
+        NSMutableArray<NSString *> *thumbhashes = [NSMutableArray arrayWithCapacity:newViewProps.thumbhashes.size()];
+        for (const auto &thumbhash : newViewProps.thumbhashes) {
+            [thumbhashes addObject:[NSString stringWithUTF8String:thumbhash.c_str()]];
+        }
+        view.thumbhashes = thumbhashes.count > 0 ? thumbhashes : nil;
+    }
     if (all || oldViewProps.objectFit != newViewProps.objectFit) {
         view.objectFit = [RCTConvert FFFObjectFit:FFFString(newViewProps.objectFit)];
     }

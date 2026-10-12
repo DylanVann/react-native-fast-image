@@ -47,6 +47,11 @@ export interface NativeProps extends ViewProps {
     sources?: CodegenTypes.UnsafeMixed
     // A resolved asset source ({ uri, width, height, scale }).
     defaultSource?: CodegenTypes.UnsafeMixed
+    // The ThumbHash shown in place of defaultSource: one source's, or several
+    // sources' by index ('' for none). Apart from the sources, so a new hash
+    // for the same image doesn't load it again.
+    thumbhash?: string
+    thumbhashes?: ReadonlyArray<string>
     // objectFit, resolved (fill, contain, cover, none or scale-down).
     objectFit?: CodegenTypes.WithDefault<string, 'cover'>
     // objectPosition, as CSS computes it: on each axis the image's left or top
