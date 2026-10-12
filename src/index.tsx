@@ -13,12 +13,15 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
+
+export type { ObjectPosition, PositionLength } from './objectPosition'
 
 /** How the image fits the view: see [`resizeMode`](#resizemode). */
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center' | 'repeat'
@@ -335,6 +338,33 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * @default 'cover'
      */
     objectFit?: ObjectFit
+    /**
+     * Where the image is in the view, as CSS's `object-position` places it:
+     * where its edges are when it doesn't fill the view exactly (`contain`,
+     * `cover`, `none` and `scale-down`; with `fill` it always fills it).
+     *
+     * - A string in CSS's syntax: one or two keywords (`'top'`,
+     *   `'left bottom'`), lengths in points (`'10px 20px'`, with `px`) or
+     *   percentages (`'25% 75%'`), or offsets from an edge
+     *   (`'right 10px bottom 20%'`). A percentage puts that point of the image
+     *   at that point of the view: `'0% 0%'` is the top-left corner,
+     *   `'100% 100%'` the bottom-right.
+     * - An object with one of `top` and `bottom` and one of `left` and
+     *   `right`, each in points (a number) or a percentage (`'25%'`), e.g.
+     *   `{ right: 10, bottom: '20%' }`. A missing axis is centered.
+     *
+     * Points are dp on Android. An invalid value is ignored (the image is
+     * centered), with a warning in development. `defaultSource` is placed
+     * the same way. No effect with `resizeMode="repeat"`, whose tiles start at
+     * the top-left corner.
+     *
+     * @default '50% 50%'
+     * @example
+     * ```jsx
+     * <FastImage source={{ uri }} objectFit="cover" objectPosition="top" />
+     * ```
+     */
+    objectPosition?: ObjectPosition
     /**
      * How the image fills the view.
      *
@@ -711,6 +741,7 @@ function FastImageBase({
     style,
     children,
     objectFit,
+    objectPosition,
     resizeMode = 'cover',
     loop,
     transition,
@@ -739,6 +770,7 @@ function FastImageBase({
         tintColor != null ? tintColor : fromStyle(style, 'tintColor')
     const mode =
         NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
+    const position = objectPositionOrCentered(objectPosition)
 
     // Several sources are picked from natively, for the view's size; one in
     // an array is a plain source.
@@ -792,6 +824,10 @@ function FastImageBase({
             // view's props too: these win.
             tintColor={resolvedTintColor}
             resizeMode={mode}
+            objectPositionX={position.x.fraction}
+            objectPositionXOffset={position.x.offset}
+            objectPositionY={position.y.fraction}
+            objectPositionYOffset={position.y.offset}
         />
     )
 }

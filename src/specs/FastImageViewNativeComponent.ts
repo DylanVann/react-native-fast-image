@@ -48,6 +48,12 @@ export interface NativeProps extends ViewProps {
     // A resolved asset source ({ uri, width, height, scale }).
     defaultSource?: CodegenTypes.UnsafeMixed
     resizeMode?: CodegenTypes.WithDefault<string, 'cover'>
+    // objectPosition, as CSS computes it: on each axis the image's left or top
+    // edge is at (view - image) * fraction + offset, in points.
+    objectPositionX?: CodegenTypes.WithDefault<CodegenTypes.Float, 0.5>
+    objectPositionXOffset?: CodegenTypes.Float
+    objectPositionY?: CodegenTypes.WithDefault<CodegenTypes.Float, 0.5>
+    objectPositionYOffset?: CodegenTypes.Float
     tintColor?: ColorValue
     recyclingKey?: string
     loopCount?: CodegenTypes.WithDefault<CodegenTypes.Int32, -1>

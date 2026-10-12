@@ -110,13 +110,23 @@ final class FastImageSourceSize {
     // downsample strategy it implies wrapped by capture, and then blur if it
     // isn't null. Not downsampled (downsample false), the image isn't cropped
     // or fitted to the view's size either: the view scales it as it draws it.
-    static RequestOptions scaleTypeOptions(@Nullable ImageView.ScaleType scaleType, Capture capture, @Nullable FastImageBlur blur,
+    static RequestOptions scaleTypeOptions(
+            @Nullable ImageView.ScaleType scaleType,
+            Capture capture,
+            @Nullable FastImageCrop crop,
+            @Nullable FastImageBlur blur,
             boolean downsample) {
         RequestOptions options = new RequestOptions();
         BitmapTransformation transformation = null;
         if (scaleType != null && downsample) {
             switch (scaleType) {
                 case CENTER_CROP:
+                    if (crop != null) {
+                        // At objectPosition, rather than the center.
+                        options = options.optionalTransform(crop);
+                        transformation = crop;
+                        break;
+                    }
                     options = options.optionalCenterCrop();
                     transformation = new CenterCrop();
                     break;

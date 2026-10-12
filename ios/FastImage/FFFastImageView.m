@@ -57,6 +57,13 @@
 @property(nonatomic, assign) BOOL decodedCover;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
+// The frame the view was laid out at (the box the image fits in), and how far
+// objectPosition moves the view from it (see updatePosition).
+@property(nonatomic, assign) CGRect box;
+@property(nonatomic, assign) CGPoint positionOffset;
+// The view's own mask, which clips it to the box while it's moved, when React
+// Native gives it none (the view doesn't clip: overflow visible).
+@property(nonatomic, strong) CALayer* ownMask;
 
 @end
 
@@ -84,6 +91,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    _objectPositionX = 0.5;
+    _objectPositionY = 0.5;
     // The tint (tintColor) stays as it is while an alert or sheet is shown,
     // rather than dimming like the system's controls.
     self.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
@@ -201,10 +210,18 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         [self.layer addAnimation: fadeIn forKey: @"FFFFadeIn"];
         return;
     }
-    [UIView transitionWithView: self
+    // On the view it's in, which doesn't move, with the change itself not
+    // animated: objectPosition moves this view for the new image
+    // (updatePosition), which in a transition of this view was animated while
+    // its mask moved at once. The old image stays where it was while the new
+    // one fades in where it goes.
+    UIView* container = self.superview ?: self;
+    [UIView transitionWithView: container
                       duration: self.transitionDuration / 1000
                        options: UIViewAnimationOptionTransitionCrossDissolve | UIViewAnimationOptionAllowUserInteraction
-                    animations: change
+                    animations: ^{
+                        [UIView performWithoutAnimation: change];
+                    }
                     completion: nil];
 }
 
@@ -261,6 +278,107 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     if (self.contentMode != contentMode) {
         self.contentMode = contentMode;
     }
+    [self updatePosition];
+}
+
+- (void) setObjectPositionX: (CGFloat)objectPositionX {
+    _objectPositionX = objectPositionX;
+    [self updatePosition];
+}
+
+- (void) setObjectPositionXOffset: (CGFloat)objectPositionXOffset {
+    _objectPositionXOffset = objectPositionXOffset;
+    [self updatePosition];
+}
+
+- (void) setObjectPositionY: (CGFloat)objectPositionY {
+    _objectPositionY = objectPositionY;
+    [self updatePosition];
+}
+
+- (void) setObjectPositionYOffset: (CGFloat)objectPositionYOffset {
+    _objectPositionYOffset = objectPositionYOffset;
+    [self updatePosition];
+}
+
+// The frame React Native lays the view out at: the box the image fits in. The
+// view itself is moved from it by objectPosition (see updatePosition).
+- (void) setFrame: (CGRect)frame {
+    self.box = frame;
+    [super setFrame: CGRectOffset(frame, self.positionOffset.x, self.positionOffset.y)];
+}
+
+// objectPosition: where the image is in the view, as CSS places it. The
+// content mode centers the image, so the view moves by the difference,
+// keeping its size: React Native's mask for its rounded corners (made for its
+// bounds) only has to move back (see updateMask). Not moved, as most images
+// are, the view clips to its bounds as before.
+- (void) updatePosition {
+    CGPoint offset = [self imageOffset];
+    if (!CGPointEqualToPoint(offset, self.positionOffset)) {
+        self.positionOffset = offset;
+        [super setFrame: CGRectOffset(self.box, offset.x, offset.y)];
+    }
+    [self updateMask];
+}
+
+// How far objectPosition moves the image from the center: on each axis its
+// left or top edge is at (view - image) * fraction + offset, where the
+// content mode centers it at (view - image) / 2. Nothing for fill and repeat,
+// which fill the view.
+- (CGPoint) imageOffset {
+    CGSize view = self.box.size;
+    CGSize size = super.image.size;
+    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+        return CGPointZero;
+    }
+    CGFloat scale;
+    switch (self.contentMode) {
+        case UIViewContentModeScaleAspectFill:
+            scale = MAX(view.width / size.width, view.height / size.height);
+            break;
+        case UIViewContentModeScaleAspectFit:
+            scale = MIN(view.width / size.width, view.height / size.height);
+            break;
+        case UIViewContentModeCenter:
+            scale = 1;
+            break;
+        default:
+            return CGPointZero;
+    }
+    CGFloat x = (view.width - size.width * scale) * (_objectPositionX - 0.5) + _objectPositionXOffset;
+    CGFloat y = (view.height - size.height * scale) * (_objectPositionY - 0.5) + _objectPositionYOffset;
+    return CGPointMake(isfinite(x) ? x : 0, isfinite(y) ? y : 0);
+}
+
+- (void) updateMask {
+    CGPoint offset = self.positionOffset;
+    BOOL moved = offset.x != 0 || offset.y != 0;
+    // Moved, the view's bounds aren't the box: the mask clips it.
+    self.clipsToBounds = !moved;
+    CALayer* mask = self.layer.mask;
+    if (!moved && (!mask || CGPointEqualToPoint(mask.frame.origin, CGPointZero)) && mask != self.ownMask) {
+        return;
+    }
+    [CATransaction begin];
+    [CATransaction setDisableActions: YES];
+    if (mask && mask != self.ownMask) {
+        // React Native's (the box with its rounded corners, in the view's
+        // bounds): back on the box.
+        CGRect frame = mask.frame;
+        frame.origin = CGPointMake(-offset.x, -offset.y);
+        mask.frame = frame;
+    } else if (moved) {
+        if (!self.ownMask) {
+            self.ownMask = [CALayer layer];
+            self.ownMask.backgroundColor = [UIColor blackColor].CGColor;
+        }
+        self.ownMask.frame = CGRectMake(-offset.x, -offset.y, self.box.size.width, self.box.size.height);
+        self.layer.mask = self.ownMask;
+    } else if (mask) {
+        self.layer.mask = nil;
+    }
+    [CATransaction commit];
 }
 
 - (void) layoutSubviews {
@@ -721,6 +839,7 @@ NSString *FFFErrorMessage(NSError *error)
         // source is the same, nor a fade from it.
         self.showsLoadedImage = NO;
         [self.layer removeAllAnimations];
+        [self.superview.layer removeAnimationForKey: kCATransition];
         _needsReload = YES;
     }
 }

@@ -79,9 +79,30 @@ describe('FastImage (web)', () => {
             width: '100%',
             height: '100%',
             objectFit: 'contain',
+            objectPosition: '50% 50%',
             filter: 'blur(4px)',
             opacity: undefined,
         })
+    })
+
+    it('positions the image as objectPosition says, CSS object-position', () => {
+        const position = (objectPosition?: any) =>
+            images(
+                render(
+                    <FastImage source={A} objectPosition={objectPosition} />,
+                ),
+            )[0].props.style.objectPosition
+        expect(position()).toBe('50% 50%')
+        expect(position('right 10px bottom 20%')).toBe('calc(100% - 10px) 80%')
+        expect(position({ left: 4, top: '25%' })).toBe('4px 25%')
+        // Invalid, it's centered, with a warning.
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            expect(position('top 10%')).toBe('50% 50%')
+            expect(warn).toHaveBeenCalledTimes(1)
+        } finally {
+            warn.mockRestore()
+        }
     })
 
     it('fits the image as resizeMode says, covering by default', () => {

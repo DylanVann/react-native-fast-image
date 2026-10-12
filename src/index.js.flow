@@ -48,6 +48,15 @@ export type CacheControl = $ReadOnly<{|
 
 export type ResizeModes = $Values<ResizeMode>
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
+export type PositionLength = number | string
+export type ObjectPosition =
+    | string
+    | $ReadOnly<{|
+          top?: PositionLength,
+          bottom?: PositionLength,
+          left?: PositionLength,
+          right?: PositionLength,
+      |}>
 export type Priorities = $Values<Priority>
 export type CacheControls = $Values<CacheControl>
 
@@ -127,6 +136,7 @@ export type FastImageProps = $ReadOnly<{|
 
     tintColor?: number | string,
     objectFit?: ?ObjectFit,
+    objectPosition?: ?ObjectPosition,
     // Deprecated: use objectFit.
     resizeMode?: ?ResizeModes,
     recyclingKey?: ?string,

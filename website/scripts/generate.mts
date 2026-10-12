@@ -60,6 +60,16 @@ function typeToString(t: J.SomeType | undefined): string {
             return `${typeToString(t.elementType)}[]`
         case 'union':
             return t.types.map(typeToString).join(' | ')
+        case 'templateLiteral':
+            return `\`${t.head}${t.tail.map(([u, text]) => `\${${typeToString(u)}}${text}`).join('')}\``
+        case 'intersection':
+            return t.types
+                .map((u) =>
+                    u.type === 'union'
+                        ? `(${typeToString(u)})`
+                        : typeToString(u),
+                )
+                .join(' & ')
         case 'reflection': {
             const sig = t.declaration.signatures?.[0]
             if (sig) return signatureToString(sig)
@@ -180,7 +190,8 @@ const props = members('FastImageProps').flatMap((m) =>
     m.name === 'source' ? [m, ...members('Source', 'source.')] : [m],
 )
 
-const code = (s: string) => `\`${s}\``
+// With double backticks around a type with backticks (a template literal).
+const code = (s: string) => (s.includes('`') ? `\`\` ${s} \`\`` : `\`${s}\``)
 const html = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 // On the website, a type as code, highlighted like the code blocks (see
@@ -328,6 +339,7 @@ function collectTypes(t: J.SomeType | undefined) {
             return collectTypes(node.type)
         }
         case 'union':
+        case 'intersection':
             return t.types.forEach(collectTypes)
         case 'array':
             return collectTypes(t.elementType)
