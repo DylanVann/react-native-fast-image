@@ -57,7 +57,10 @@ const writerOpts = {
 }
 
 export default {
-    branches: ['main'],
+    // 9.x (the legacy architecture's line) releases fixes from its branch, to
+    // the npm dist-tag latest-9 (a tag can't look like a version range, such
+    // as 9.x); main releases 10.0 and later.
+    branches: [{ name: '9.x', range: '9.x', channel: 'latest-9' }, 'main'],
     plugins: [
         [
             '@semantic-release/commit-analyzer',
