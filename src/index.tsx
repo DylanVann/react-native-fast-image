@@ -1008,19 +1008,26 @@ FastImage.priority = priority
 const ONE_SOURCE =
     'Takes one source, not an array of sizes: pass the size to use'
 
+// Whether a source is an object, which native can read. Other values (null, a
+// url string, a number, an array) are sent as {}, which fails as a source
+// without a uri: native would crash reading them as a source.
+const isSourceObject = (source: unknown): source is Source =>
+    typeof source === 'object' && source !== null && !Array.isArray(source)
+
 FastImage.preload = (sources: Source[]) =>
-    // Null sources are sent as {} so native results line up with the sources
-    // (iOS drops null entries), and arrays too (their results are replaced).
+    // Entries that aren't source objects are sent as {}, so native results
+    // line up with the sources (iOS drops null entries). Arrays' results are
+    // replaced.
     Promise.resolve(
         NativeModules.FastImageView.preload(
-            sources.map((s) => (s && !Array.isArray(s) ? s : {})),
+            sources.map((s) => (isSourceObject(s) ? s : {})),
         ),
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
             if (Array.isArray(source)) {
                 return { ok: false, error: ONE_SOURCE, uri: undefined }
             }
-            const uri = source ? source.uri : undefined
+            const uri = isSourceObject(source) ? source.uri : undefined
             const result = results?.[i] ?? noResult
             if (!result.ok) return { ...result, uri }
             // Native already fails a source without a uri.
@@ -1045,17 +1052,20 @@ FastImage.writeToCache = (
 ): Promise<CachePathResult> =>
     Array.isArray(source)
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
-        : // A null source is sent as {} (it fails as a source without a uri).
-          Promise.resolve(
-              NativeModules.FastImageView.writeToCache(source || {}, file),
+        : Promise.resolve(
+              NativeModules.FastImageView.writeToCache(
+                  isSourceObject(source) ? source : {},
+                  file,
+              ),
           )
 
 FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
     Array.isArray(source)
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
-        : // A null source is sent as {} (it fails as a source without a uri).
-          Promise.resolve(
-              NativeModules.FastImageView.getCachePath(source || {}),
+        : Promise.resolve(
+              NativeModules.FastImageView.getCachePath(
+                  isSourceObject(source) ? source : {},
+              ),
           )
 
 const styles = StyleSheet.create({

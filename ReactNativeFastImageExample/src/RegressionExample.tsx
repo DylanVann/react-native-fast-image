@@ -4668,6 +4668,87 @@ function PreloadResultsCase() {
     )
 }
 
+// preload with a url string (or a number) where a source object goes, e.g.
+// preload(['https://…']) instead of preload([{ uri }]): the entry resolves not
+// ok, as a source without a uri, in its place among the results. Native read
+// it as a source, which crashed the app: iOS sent it an unrecognized selector,
+// Android cast it to a map. In their own group near the end (a crash ends the
+// run).
+const NON_OBJECT_URL = imageUrl(`picsum/1025-200x200.jpg?non-object=${RUN}`)
+function PreloadNonObjectCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        Promise.resolve()
+            .then(() =>
+                FastImage.preload([
+                    NON_OBJECT_URL as unknown as Source,
+                    { uri: NON_OBJECT_URL },
+                    42 as unknown as Source,
+                ]),
+            )
+            .then((results) => {
+                const got = results
+                    .map((r) =>
+                        r.ok
+                            ? `${r.width}x${r.height}`
+                            : `${r.error}${r.uri === undefined ? '' : ` (${r.uri})`}`,
+                    )
+                    .join(', ')
+                const noUri = 'Invalid source: no uri'
+                setStatus(got === `${noUri}, 200x200, ${noUri}` ? 'OK' : got)
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="preload-non-object"
+                status={status}
+                description="#592: preload with a url string or a number instead of a source resolves not ok for it (crashed)"
+            />
+        </View>
+    )
+}
+
+// The same for getCachePath and writeToCache: a url string instead of a source
+// resolves not ok.
+function CachePathNonObjectCase({ write }: { write?: boolean }) {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const source = NON_OBJECT_URL as unknown as Source
+        Promise.resolve()
+            .then(() =>
+                write
+                    ? FastImage.writeToCache(source, '/does-not-exist.jpg')
+                    : FastImage.getCachePath(source),
+            )
+            .then((result) =>
+                setStatus(
+                    !result.ok && result.error
+                        ? 'OK'
+                        : `resolved ${JSON.stringify(result)}`,
+                ),
+            )
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [write])
+    const name = write ? 'writeToCache' : 'getCachePath'
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id={
+                    write
+                        ? 'write-to-cache-non-object'
+                        : 'cache-path-non-object'
+                }
+                status={status}
+                description={`${name} with a url string instead of a source resolves not ok`}
+            />
+        </View>
+    )
+}
+
 // Preloads a few slow images at once and asks the server how many it was
 // sending at the same time: preload loads a few sources at a time (3, or
 // SDWebImagePrefetcher's maxConcurrentPrefetchCount on iOS), so a long list
@@ -8308,6 +8389,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Empties the disk cache on iOS, so it's near the end.
         name: 'configure-cache',
         cases: [<ConfigureCacheCase key="configure-cache" />],
+    },
+    {
+        // Near the end: before the fix, these crashed the app, which ended
+        // the run.
+        name: 'non-object-sources',
+        cases: [
+            <PreloadNonObjectCase key="preload-non-object" />,
+            <CachePathNonObjectCase key="cache-path-non-object" />,
+            <CachePathNonObjectCase key="write-to-cache-non-object" write />,
+        ],
     },
     {
         // Tapped by scripts/verify.mts (maestro/touch.yaml) while it's shown.

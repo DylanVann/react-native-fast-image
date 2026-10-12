@@ -302,6 +302,53 @@ describe('FastImage (iOS)', () => {
         }
     })
 
+    it("fails preload entries that aren't source objects, without sending them", async () => {
+        const preload = spyOn(
+            NativeModules.FastImageView,
+            'preload',
+        ).mockImplementation(async (sources: any[]) =>
+            sources.map((s) =>
+                s.uri
+                    ? { ok: true, width: 10, height: 20 }
+                    : { ok: false, error: 'Invalid source: no uri' },
+            ),
+        )
+        try {
+            const results = await FastImage.preload([
+                'https://example.com/a.png' as any,
+                { uri: 'https://example.com/b.png' },
+                42 as any,
+                true as any,
+            ])
+            // Native would crash reading them as sources: they're sent as {},
+            // so the results line up.
+            expect(preload).toHaveBeenCalledWith([
+                {},
+                { uri: 'https://example.com/b.png' },
+                {},
+                {},
+            ])
+            const failed = {
+                uri: undefined,
+                ok: false,
+                error: 'Invalid source: no uri',
+            } as const
+            expect(results).toEqual([
+                failed,
+                {
+                    uri: 'https://example.com/b.png',
+                    ok: true,
+                    width: 10,
+                    height: 20,
+                },
+                failed,
+                failed,
+            ])
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
     it('runs static functions', () => {
         FastImage.preload([
             {
@@ -577,9 +624,45 @@ describe('getCachePath', () => {
                 ok: true,
                 path: '/cache/a',
             })
-            // A null source is sent as {}.
+            // A null source, or one that isn't an object (native would crash
+            // reading it), is sent as {}.
             await FastImage.getCachePath(null as any)
-            expect(sources).toEqual([source, {}])
+            await FastImage.getCachePath('https://example.com/a.jpg' as any)
+            await FastImage.getCachePath(42 as any)
+            expect(sources).toEqual([source, {}, {}, {}])
+        } finally {
+            NativeModules.FastImageView = saved
+        }
+    })
+})
+
+describe('writeToCache', () => {
+    it("asks native to store the file as the source's image", async () => {
+        const calls: any[] = []
+        const writeToCache = async (source: any, file: string) => {
+            calls.push([source, file])
+            return { ok: true, path: '/cache/a' }
+        }
+        const saved = NativeModules.FastImageView
+        NativeModules.FastImageView = { ...saved, writeToCache }
+        try {
+            const source = { uri: 'https://example.com/a.jpg' }
+            expect(await FastImage.writeToCache(source, '/a.jpg')).toEqual({
+                ok: true,
+                path: '/cache/a',
+            })
+            // A null source, or one that isn't an object (native would crash
+            // reading it), is sent as {}.
+            await FastImage.writeToCache(null as any, '/a.jpg')
+            await FastImage.writeToCache(
+                'https://example.com/a.jpg' as any,
+                '/a.jpg',
+            )
+            expect(calls).toEqual([
+                [source, '/a.jpg'],
+                [{}, '/a.jpg'],
+                [{}, '/a.jpg'],
+            ])
         } finally {
             NativeModules.FastImageView = saved
         }
