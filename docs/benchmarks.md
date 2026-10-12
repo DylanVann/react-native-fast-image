@@ -1,6 +1,6 @@
 # Benchmarks
 
-How long images take to show, how much memory they use, how smoothly a list of them scrolls, and how much drawing a screen of them costs, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12 on Android and 2026-10-10 on iOS.
+How long images take to show, how much memory they use, how smoothly a list of them scrolls, and how much drawing a screen of them costs, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
 
 ## How it's measured
 
@@ -17,7 +17,7 @@ Scenarios:
 - **Grid:** 60 photos of 400 × 400 px in a grid, all mounted at once; the time until every one on screen (28 on the iPhone, 32 on the Pixel) has shown.
 - **Large:** 20 photos of 4000 × 3000 px shown in small views; the time until all have shown, and the app's memory once they have.
 - **Sizes:** 16 of the grid's photos at two sizes at once (4 and 8 columns), with the same urls; the time until all 32 have shown, and on Android how many requests the server got (16 when a library downloads each photo once for both sizes).
-- **Detail** (Android): the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
+- **Detail:** the grid's photos, and 100 ms later the last of them (the one the grid asked for last) at the screen's width over the grid, which goes on loading, with high priority where the library has one; the time until it has shown.
 - **Scroll:** 500 photos of 300 × 300 px in a list, scrolled through quickly.
 - **Burst** (Android): the grid's 60 photos mounted at once, with and without each library's fade and a placeholder image; how much time the app spent drawing frames until they had all loaded.
 
@@ -27,15 +27,17 @@ Scenarios:
 
 | Library            | Grid (ms) | Large (ms) | Sizes (ms) | Large: memory |
 | ------------------ | --------: | ---------: | ---------: | ------------: |
-| Fast Image         | 328 / 344 |  332 / 332 |  248 / 248 |         51 MB |
-| React Native Image | 400 / 416 |  348 / 348 |  316 / 332 |         47 MB |
-| Expo Image         | 360 / 380 |  564 / 584 |  208 / 244 |        417 MB |
-| Nitro Image        | 316 / 360 |  300 / 312 |  216 / 232 |        407 MB |
-| Turbo Image        | 312 / 316 |  564 / 680 |  216 / 216 |         58 MB |
+| Fast Image         | 316 / 364 |  328 / 340 |  248 / 248 |         52 MB |
+| React Native Image | 380 / 400 |  332 / 348 |  300 / 316 |         48 MB |
+| Expo Image         | 308 / 360 |  560 / 592 |  212 / 232 |        414 MB |
+| Nitro Image        | 316 / 332 |  300 / 316 |  216 / 232 |        407 MB |
+| Turbo Image        | 300 / 316 |  532 / 564 |  216 / 216 |         64 MB |
 
 - Fast Image decodes images at the size they're shown (`downsample`, on by default), which keeps the large photos' memory low.
-- With Expo Image, the phone drew no new frame for about 270 ms before the large photos appeared.
+- With Expo Image, the phone drew no new frame for about 350 ms before the large photos appeared.
 - Scrolling: no hitches for any library.
+
+[Fast Image in the scroll test on the iPhone, in real time: the app opens, its photos load, and the test scrolls quickly through the list of 500 photos.](assets/benchmark-scroll-ios.mp4)
 
 ## Android
 
@@ -53,9 +55,15 @@ Scenarios:
 - React Native's `Image` decodes the large photos at full size and fails the last ones (Fresco's `Pool hard cap violation`). Memory is the app's anonymous resident memory.
 - Scrolling, frames past their deadline per pass through the list (median of 5): Fast Image 0.3%, React Native's `Image` 0.4%, Expo Image 1.1%, Nitro Image 1.2%, Turbo Image 7.3%.
 
-## Opening a photo while others load (Android)
+## Opening a photo while others load
 
-The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90 of 20 runs on 4 phones, ms), and the image requests for all 61 images.
+The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
+
+[Fast Image and Expo Image in one round on the same phone, each near its median time, at ¼ speed: the grid starts loading, and at 100 ms the photo opens over it.](assets/benchmark-detail-android.mp4)
+
+### Android
+
+20 runs on 4 phones.
 
 <!-- chart: Time (ms) -->
 
@@ -70,6 +78,22 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 - Fast Image moves the grid's download of the photo, still waiting to start, ahead of the others, and uses it for both sizes. Downloads that haven't started wait in Fast Image's own queue, where priority applies, rather than in the HTTP client's.
 - Expo Image downloads the photo again; in 6 of 20 runs it showed it within 248–416 ms, in the others within 532–832 ms.
 - React Native's `Image`, Nitro Image and Turbo Image have no priority, and mostly showed it about when the grid's last photos loaded.
+
+### iOS
+
+5 runs.
+
+<!-- chart: Time (ms) -->
+
+| Library            | Time (ms) | Requests |
+| ------------------ | --------: | -------: |
+| Fast Image         | 580 / 600 |       60 |
+| React Native Image | 780 / 800 |       61 |
+| Expo Image         | 580 / 580 |       60 |
+| Nitro Image        | 548 / 580 |       60 |
+| Turbo Image        | 528 / 532 |       60 |
+
+- Every library but React Native's `Image` showed the photo within 528–580 ms (medians), and used the grid's download of it.
 
 ## Many images loading at once (Android)
 

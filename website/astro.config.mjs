@@ -24,7 +24,7 @@ export default defineConfig({
                 './src/styles/api.css',
                 './src/styles/capsize.css',
                 './src/styles/tables.css',
-                './src/styles/charts.css',
+                './src/styles/benchmarks.css',
             ],
             components: {
                 Header: './src/components/Header.astro',

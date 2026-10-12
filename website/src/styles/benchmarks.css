@@ -115,3 +115,18 @@
 .sl-markdown-content > .chart + table {
     margin-top: 2rem;
 }
+
+/* Videos on the benchmarks page (scripts/generate.mts), with their caption
+   under them. */
+.video video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+}
+.video figcaption {
+    margin-top: 0.75rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+}
