@@ -1,3 +1,10 @@
+## [9.3.5](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.4...v9.3.5) (2026-10-12)
+
+
+### Bug Fixes
+
+* a url string where a source goes resolves not ok, instead of crashing ([#1301](https://github.com/DylanVann/react-native-fast-image/issues/1301)) ([a92df5a](https://github.com/DylanVann/react-native-fast-image/commit/a92df5a269598cf5126476a61a265dfaa2d2ae63))
+
 ## [9.3.4](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.3...v9.3.4) (2026-10-11)
 
 
