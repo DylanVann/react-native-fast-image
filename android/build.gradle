@@ -2,22 +2,10 @@ def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
 
-buildscript {
-    // The Android Gradle plugin is only required when opening the android folder stand-alone.
-    // This avoids unnecessary downloads and potential conflicts when the library is included as a
-    // module dependency in an application project.
-    if (project == rootProject) {
-        repositories {
-            google()
-            mavenCentral()
-        }
-        dependencies {
-            classpath 'com.android.tools.build:gradle:3.5.3'
-        }
-    }
-}
-
 apply plugin: 'com.android.library'
+// Codegen for the component and module specs (src/specs), from the app's
+// React Native Gradle plugin.
+apply plugin: 'com.facebook.react'
 
 // Whether the app has expo-image (in a node_modules folder above the app's
 // android folder, as Node finds it), which ships its own AppGlideModule.
@@ -32,10 +20,12 @@ def appHasExpoImage = {
 def excludeAppGlideModule = safeExtGet('excludeAppGlideModule', appHasExpoImage())
 
 // When changing the default, revisit the Glide rules in consumer-rules.pro.
-// 4.15+ animates animated WebP (Android 9+) and AVIF (Android 12+), which
+// 5.0.7: Glide 5.0.9 needs apps to compile against API 37 (React Native
+// 0.83's compileSdk is 36). An app can set another, 4.15 or later: 4.15+
+// animates animated WebP (Android 9+) and AVIF (Android 12+), which
 // FastImageAnimated builds on. A version that isn't numbered (e.g. "4.+") is
 // taken to be recent.
-def glideVersion = safeExtGet('glideVersion', '4.16.0')
+def glideVersion = safeExtGet('glideVersion', '5.0.7')
 def glideVersionParts = glideVersion.toString() =~ /^(\d+)\.(\d+)/
 if (glideVersionParts.find() &&
         (glideVersionParts.group(1).toInteger() < 4 ||
@@ -43,30 +33,18 @@ if (glideVersionParts.find() &&
     throw new GradleException("react-native-fast-image needs Glide 4.15 or later, but glideVersion is ${glideVersion}.")
 }
 
-// Newer versions of the Android Gradle plugin (7.3+) take the namespace from
-// build.gradle and warn about the package attribute in AndroidManifest.xml;
-// older versions need that attribute.
-def supportsNamespace = project.android.hasProperty("namespace")
-
 android {
-    if (supportsNamespace) {
-        namespace "com.dylanvann.fastimage"
-    }
-    compileSdkVersion safeExtGet('compileSdkVersion', 28)
-    buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
+    namespace = "com.dylanvann.fastimage"
+    // React Native 0.83's.
+    compileSdkVersion safeExtGet('compileSdkVersion', 36)
     defaultConfig {
-        minSdkVersion safeExtGet('minSdkVersion', 21)
-        targetSdkVersion safeExtGet('targetSdkVersion', 28)
-        versionCode 1
-        versionName "1.0"
+        minSdkVersion safeExtGet('minSdkVersion', 24)
+        targetSdkVersion safeExtGet('targetSdkVersion', 36)
         // Applied to the app's release build, so apps don't need to add them.
         consumerProguardFiles 'consumer-rules.pro'
     }
     sourceSets {
         main {
-            if (supportsNamespace) {
-                manifest.srcFile "src/main/AndroidManifestNew.xml"
-            }
             java {
                 if (excludeAppGlideModule) {
                     exclude "**/FastImageGlideModule.java"
@@ -74,28 +52,24 @@ android {
             }
         }
     }
-    lintOptions {
-        abortOnError false
+    lint {
+        abortOnError = false
     }
 }
 
+react {
+    jsRootDir = file("../src/specs")
+    libraryName = "RNFastImageSpec"
+    codegenJavaPackageName = "com.dylanvann.fastimage"
+}
+
 repositories {
-    mavenLocal()
-    maven {
-        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
-        url "$rootDir/../node_modules/react-native/android"
-    }
-    maven {
-        // Android JSC is installed from npm
-        url "$rootDir/../node_modules/jsc-android/dist"
-    }
     google()
     mavenCentral()
 }
 
 dependencies {
-    //noinspection GradleDynamicVersion
-    implementation 'com.facebook.react:react-native:+'  // From node_modules
+    implementation 'com.facebook.react:react-android'
     implementation "com.github.bumptech.glide:glide:${glideVersion}"
     // FastImageGlideModule and FastImageOkHttpProgressGlideModule use @GlideModule.
     implementation "com.github.bumptech.glide:annotations:${glideVersion}"

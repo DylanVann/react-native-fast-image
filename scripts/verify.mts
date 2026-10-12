@@ -1,4 +1,4 @@
-// Checks the library and runs both example apps on iOS and Android. Run it with
+// Checks the library and runs the example apps on iOS and Android. Run it with
 // Node 26 (the repo's .node-version), which runs TypeScript directly:
 //
 //   node scripts/verify.mts [options]
@@ -11,7 +11,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { compare } from 'odiff-bin'
 
-const HELP = `Checks the library and runs both example apps on iOS and Android.
+const HELP = `Checks the library and runs the example apps on iOS and Android.
 
   node scripts/verify.mts [options]
 
@@ -27,9 +27,12 @@ Steps:
      failure or a crash fails the run.
 
 Options:
-  --app main|legacy|expo|tv
-                      Only this example app (default: main and legacy). The
-                      Expo example (ReactNativeFastImageExampleExpo) runs only
+  --app main|minimum|expo|tv
+                      Only this example app (default: main and minimum, the
+                      oldest React Native FastImage supports:
+                      ReactNativeFastImageExampleMinimum, the regression
+                      cases only). The Expo example
+                      (ReactNativeFastImageExampleExpo) runs only
                       when asked for: a few smoke cases on iOS and Android
                       (its native projects made by \`expo prebuild\`, with
                       FastImage's config plugin) and on the web (its web
@@ -98,7 +101,7 @@ Needs Xcode with CocoaPods via Bundler, JDK 17+, and the Android SDK with an
 emulator. Output (logs, screenshots, crash reports, recordings) goes to
 verify-output/<timestamp>/.`
 
-type App = 'main' | 'legacy' | 'expo' | 'tv'
+type App = 'main' | 'minimum' | 'expo' | 'tv'
 type Platform = 'ios' | 'android' | 'web'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
@@ -145,15 +148,15 @@ if (options.help) {
 if (
     options.app !== undefined &&
     options.app !== 'main' &&
-    options.app !== 'legacy' &&
+    options.app !== 'minimum' &&
     options.app !== 'expo' &&
     options.app !== 'tv'
 ) {
-    console.error(`Unknown app: ${options.app} (use main, legacy, expo or tv)`)
+    console.error(`Unknown app: ${options.app} (use main, minimum, expo or tv)`)
     process.exit(2)
 }
 // The Expo and tvOS examples only run when asked for (--app expo, --app tv).
-const APPS: App[] = options.app ? [options.app as App] : ['main', 'legacy']
+const APPS: App[] = options.app ? [options.app as App] : ['main', 'minimum']
 if (options.web && !APPS.includes('expo')) {
     console.error('--web is for the Expo example: use it with --app expo')
     process.exit(2)
@@ -495,14 +498,15 @@ const appDir = (app: App) =>
         ROOT,
         {
             main: 'ReactNativeFastImageExample',
-            legacy: 'ReactNativeFastImageExampleLegacy',
             expo: 'ReactNativeFastImageExampleExpo',
+            minimum: 'ReactNativeFastImageExampleMinimum',
             tv: 'ReactNativeFastImageExampleTV',
         }[app],
     )
 const appName = (app: App) => path.basename(appDir(app))
 const iosBundleId = (app: App) => `org.reactjs.native.example.${appName(app)}`
-// com.reactnativefastimageexample, …legacy and …expo.
+// com.<the app's directory, lowercased>: com.reactnativefastimageexample,
+// …minimum, …expo, …tv.
 const androidPackage = (app: App) => `com.${appName(app).toLowerCase()}`
 
 async function ensureNodeModules(dir: string) {
@@ -1846,15 +1850,14 @@ async function expoPrebuild(platform: 'ios' | 'android') {
     return true
 }
 
-// Pods need reinstalling after node_modules is: on React Native 0.73,
-// `pod install` also generates files inside node_modules/react-native. And
+// Pods need reinstalling after node_modules is: `pod install` also generates
+// files inside node_modules/react-native (and runs Codegen). And
 // after the Podfile changed (e.g. another branch's): the installed Pods record
 // the Podfile's SHA-1 they were installed for. And after FastImage's podspec
 // changed (e.g. a dependency added), or a file was added to or removed from
-// its ios folder (the podspec's `ios/**/*.{h,m}` is resolved by `pod
-// install`), or its package.json changed (on the New Architecture, `pod
-// install` runs Codegen from its codegenConfig, which another branch can
-// have): the source marker keeps the SHA-1 of all three.
+// its ios folder (the podspec's `ios/**/*.{h,m,mm}` is resolved by `pod
+// install`), or its package.json changed (`pod install` runs Codegen from its
+// codegenConfig): the source marker keeps the SHA-1 of all three.
 const libraryDir = (dir: string) =>
     FROM_PACKAGE ? path.join(dir, 'node_modules', PACKAGE_NAME) : ROOT
 const packageJsonSha = (dir: string) =>
@@ -2232,12 +2235,11 @@ async function buildAndroid(app: App) {
     const dir = appDir(app)
     const log = path.join(OUT, `android-build-${app}.log`)
     if (app === 'expo' && !(await expoPrebuild('android'))) return false
-    // React Native 0.87 caches autolinking (the library's directory, and on
-    // the New Architecture its Codegen library from package.json's
-    // codegenConfig) here, and only works it out again when the app's own
-    // files change: again after switching between the source and the
-    // package, or when the library's package.json changed (e.g. another
-    // branch's). 0.73 works it out on every build.
+    // React Native caches autolinking (the library's directory, and its
+    // Codegen library from package.json's codegenConfig) here, and only works
+    // it out again when the app's own files change: again after switching
+    // between the source and the package, or when the library's package.json
+    // changed (e.g. another branch's).
     const androidBuild = path.join(dir, 'android/build')
     const autolinkedFrom = `${SOURCE} ${packageJsonSha(dir)}`
     if (builtFrom(androidBuild) !== autolinkedFrom) {
@@ -2277,8 +2279,7 @@ async function buildAndroid(app: App) {
             `app:assemble${CONFIGURATION}`,
             ...(abi ? [`-PreactNativeArchitectures=${abi}`] : []),
             // React Native's bundle task only tracks the JS in the app's own
-            // folder, not the library's src/ or (for the legacy app) the main
-            // example's, so it would keep a stale bundle.
+            // folder, not the library's src/, so it would keep a stale bundle.
             ...(RELEASE
                 ? ['app:createBundleReleaseJsAndAssets', '--rerun']
                 : []),
@@ -2436,6 +2437,16 @@ async function main() {
                 ['run', '--silent', 'typecheck'],
                 example,
             )
+            if (
+                APPS.includes('minimum') &&
+                (await ensureNodeModules(appDir('minimum')))
+            )
+                await jsCheck(
+                    'minimum example typecheck',
+                    'bun',
+                    ['run', '--silent', 'typecheck'],
+                    appDir('minimum'),
+                )
             if (
                 APPS.includes('expo') &&
                 (await ensureNodeModules(appDir('expo')))

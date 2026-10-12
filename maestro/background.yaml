@@ -18,12 +18,19 @@ env:
 ---
 - launchApp:
       stopApp: true
+# The main example opens on its tabs; the React Native 0.83 example on the
+# regression cases themselves.
 - extendedWaitUntil:
       visible:
-          id: 'tab-regression'
+          id: 'tab-regression|regression-background-start'
       timeout: 60000
-- tapOn:
-      id: 'tab-regression'
+- runFlow:
+      when:
+          visible:
+              id: 'tab-regression'
+      commands:
+          - tapOn:
+                id: 'tab-regression'
 - tapOn:
       id: 'regression-background-start'
 # The slow server holds the rest of the slow image until the app is back and

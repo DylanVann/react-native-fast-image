@@ -1,0 +1,23 @@
+{
+    "extends": "@react-native/typescript-config",
+    "compilerOptions": {
+        // This app's @types, not the repo root's (a parent folder's node_modules).
+        "typeRoots": ["./node_modules/@types"],
+        // No Jest here (the base config adds its types).
+        "types": [],
+        "paths": {
+            "react-native-fast-image": ["../src/index"],
+            // The shared screens (../ReactNativeFastImageExample/src) and the
+            // library source would otherwise pick up the main example's or the
+            // repo root's react and react-native types.
+            "react": ["./node_modules/@types/react"],
+            "react/*": ["./node_modules/@types/react/*"],
+            "react-native": ["./node_modules/react-native/types_generated"],
+            "react-native-safe-area-context": [
+                "./node_modules/react-native-safe-area-context"
+            ]
+        }
+    },
+    "include": ["**/*.ts", "**/*.tsx"],
+    "exclude": ["**/node_modules", "ios", "android"]
+}
