@@ -31,7 +31,7 @@ An app has one Glide `AppGlideModule`. FastImage has one (`FastImageGlideModule`
 
 Your module needs `@GlideModule` and Glide's annotation processor in your app (`annotationProcessor "com.github.bumptech.glide:compiler:<version>"` in `android/app/build.gradle`), as Glide requires for any `AppGlideModule` (see [Glide's docs](https://bumptech.github.io/glide/doc/generatedapi.html)).
 
-FastImage sets Glide's disk cache size in its module, so with your own module, `maxDiskSize` (from the manifest, the Expo plugin or `FastImage.configureCache`) isn't applied or reported. Set the disk cache size in your module's `applyOptions`, as described in [Glide's configuration docs](https://bumptech.github.io/glide/doc/configuration.html):
+FastImage sets Glide's disk cache size in its module, so with your own module, `maxDiskSize` (from the manifest, the Expo plugin or `Image.configureCache`) isn't applied or reported. Set the disk cache size in your module's `applyOptions`, as described in [Glide's configuration docs](https://bumptech.github.io/glide/doc/configuration.html):
 
 ```java
 @GlideModule
