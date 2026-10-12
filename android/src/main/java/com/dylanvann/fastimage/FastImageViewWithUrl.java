@@ -780,13 +780,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private ScaleType mLayoutScaleType = ScaleType.FIT_CENTER;
 
     // Glide crops or fits the bitmap for the scale type when it loads, so a
-    // new resizeMode needs a reload to take effect (#762).
+    // new resizeMode needs a reload to take effect (#762): the image that's
+    // showing, loaded again quietly (see reblur), as for a new blurRadius,
+    // without the load events, as on iOS.
     public void setResizeMode(ScaleType scaleType, boolean repeat, boolean inPixels) {
         if (scaleType == mResizeScaleType && repeat == mRepeat && inPixels == mInPixels) return;
         mResizeScaleType = scaleType;
         mInPixels = inPixels;
         mRepeat = repeat;
-        mNeedsReload = true;
+        mFitChanged = true;
         // A loaded image on screen was cropped or fitted for the old scale
         // type: it keeps its layout until the image for the new one is ready
         // (onImageLoaded), or the load fails. Laid out for the new one, a
@@ -946,6 +948,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // reblur for a change).
     private float mBlurRadius = 0;
     private boolean mBlurChanged = false;
+    // resizeMode or objectFit changed (setResizeMode).
+    private boolean mFitChanged = false;
 
     public void setBlurRadius(float blurRadius) {
         if (blurRadius == mBlurRadius) return;
@@ -1123,10 +1127,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         into(shown, builder, meanwhile, true);
     }
 
-    // blurRadius changed, and nothing else that needs a reload: the image
-    // that's showing, blurred again, with no events, as reloadForSize does: it's
-    // decoded again from the cache and blurred on Glide's threads, and the view
-    // keeps the current image until then. If that fails, it shows the image
+    // blurRadius or resizeMode changed, and nothing else that needs a reload:
+    // the image that's showing, blurred or fitted again, with no events, as
+    // reloadForSize does: it's decoded again from the cache and blurred or
+    // fitted on Glide's threads, and the view keeps the current image (and its
+    // layout, see onImageLoaded) until then. If that fails, it shows the image
     // from Glide's caches; cache: 'web' skips them, so the view shows
     // defaultSource (or nothing) then. Also while it's loading again that way
     // (e.g. the blur changes every frame): that load is replaced. A load that
@@ -1240,8 +1245,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             @Nullable RequestManager requestManager) {
         if (mDropped) return;
         mManager = manager;
-        if (mBlurChanged && !mNeedsReload) {
+        if ((mBlurChanged || mFitChanged) && !mNeedsReload) {
             mBlurChanged = false;
+            mFitChanged = false;
             reblur();
         }
         if (!mNeedsReload)
@@ -1272,6 +1278,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // defaultSource, resizeMode), not for every prop update.
         mNeedsReload = false;
         mBlurChanged = false;
+        mFitChanged = false;
         boolean switching = mSwitchesSource;
         mSwitchesSource = false;
         boolean restarting = mRestarting;
