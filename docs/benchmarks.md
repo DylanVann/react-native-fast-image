@@ -59,11 +59,11 @@ Scenarios:
 
 The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
 
-[Fast Image and Expo Image in one round on the same phone, each near its median time, at ¼ speed: the grid starts loading, and at 100 ms the photo opens over it.](assets/benchmark-detail-android.mp4)
-
 ### Android
 
 20 runs on 4 phones.
+
+[Fast Image and Expo Image in one round on the same phone, each near its median time, at ¼ speed: the grid starts loading, and at 100 ms the photo opens over it.](assets/benchmark-detail-android.mp4)
 
 <!-- chart: Time (ms) -->
 
