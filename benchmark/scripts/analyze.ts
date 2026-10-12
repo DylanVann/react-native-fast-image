@@ -55,6 +55,9 @@ export type Analysis = {
     // The run's frames, and the median time between them.
     frames: number
     frameMs?: number
+    // Each of the run's frames (its index in the recording) with its clock,
+    // for compare-videos.ts.
+    clock?: { frame: number; ms: number }[]
     error?: string
 }
 
@@ -313,6 +316,7 @@ export async function analyze(
         notShown,
         frames: run.length,
         frameMs: gaps.length ? gaps[Math.floor(gaps.length / 2)] : undefined,
+        clock: run.map((frame) => ({ frame, ms: clockMs[frame] })),
         ...(error ? { error } : {}),
     }
 }

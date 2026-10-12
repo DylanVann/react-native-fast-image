@@ -16,6 +16,16 @@ const subjects: Record<string, { name: string }> = JSON.parse(
     ),
 )
 const nameOf = (subject: string) => subjects[subject]?.name ?? subject
+// A Macrobenchmark test's name, with its app's package as the subject's id
+// (BurstTest's are named `burst[<variant>,<package>]`).
+const testName = (name: string) =>
+    name.replace(
+        /com\.dylanvann\.rnfibenchmark\.(\w+)/g,
+        (match, id: string) =>
+            Object.keys(subjects).find(
+                (s) => s.replace(/[^a-z0-9]/gi, '') === id,
+            ) ?? match,
+    )
 const order = Object.keys(subjects)
 
 // The XCTest metrics in the summary (the result bundles have them all).
@@ -63,7 +73,7 @@ type Run = {
     // which the other subjects ran next to on that phone.
     phone?: number
     iteration?: number
-    // The image requests the phone's server got (Android).
+    // The image requests the phone's image server got.
     imageRequests?: number
 }
 
@@ -88,8 +98,11 @@ type MetricTest = {
 type AndroidMetrics = {
     benchmarks: {
         name: string
-        metrics?: Record<string, { median: number }>
-        sampledMetrics?: Record<string, { P50: number; P90: number }>
+        metrics?: Record<string, { median: number; runs: number[] }>
+        sampledMetrics?: Record<
+            string,
+            { P50: number; P90: number; P99: number; runs: number[][] }
+        >
     }[]
 }
 
@@ -168,7 +181,8 @@ function pairedComparison(runs: Run[]): string[] {
 export function summarize(dir: string) {
     const files = fs.readdirSync(dir)
     const runs = files
-        .filter((f) => /-\d+\.json$/.test(f))
+        // Not a paired run's metrics (metrics-android-phone-<n>.json).
+        .filter((f) => /-\d+\.json$/.test(f) && !f.startsWith('metrics-'))
         .map(
             (f) =>
                 JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as Run,
@@ -213,10 +227,10 @@ export function summarize(dir: string) {
         ),
     ]
     const lines = [
-        `Times in ms from the start of the run (the frame its clock starts in, as the app renders the subject's views), from screen recordings, timed by the clock the app draws in each frame: median / p90 over the runs (with 5 runs, p90 is the slowest). All visible images: over the runs that showed every one; the others are counted in the next columns. Frame window: how long before an image's first frame the last earlier one was drawn (median / max): the image showed within that time. Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) once the images have loaded.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
+        `Times in ms from the start of the run (the frame its clock starts in, as the app renders the subject's views), from screen recordings, timed by the clock the app draws in each frame: median / p90 over the runs (with 5 runs, p90 is the slowest). All visible images: over the runs that showed every one; the others are counted in the next columns. Frame window: how long before an image's first frame the last earlier one was drawn (median / max): the image showed within that time. Image requests: how many the image server got (median). Network: the median download rate of 4 large photos fetched with \`fetch\` (not through the subject) once the images have loaded.${devices.length ? ` iOS: ${devices.join(', ')}.` : ''}${servers.length ? ` Images served on the phone (${servers.join('; ')}).` : ''}`,
         '',
-        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Frame window | Load event after pixels | Images not shown (load errors) | Network Mbps | Failures |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+        '| Platform | Subject | Scenario | Runs | First image | All visible images | Per image | Frame window | Load event after pixels | Images not shown (load errors) | Image requests | Network Mbps | Failures |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ]
     for (const key of keys) {
         const [platform, subject, scenario] = key.split('\t')
@@ -258,10 +272,11 @@ export function summarize(dir: string) {
             0,
         )
         const network = pick((r) => r.network?.mbps)
+        const requests = pick((r) => r.imageRequests)
         const first = pick((r) => r.analysis.firstMs)
         const all = pick((r) => r.analysis.allMs)
         lines.push(
-            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)}${all.length && all.length < timed.length ? ` (${all.length} runs)` : ''} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${network.length ? fmt(network, median) : '–'} | ${failed || ''} |`,
+            `| ${platform} | ${nameOf(subject)} | ${scenario} | ${timed.length} | ${fmt(first, median)} / ${fmt(first, p90)} | ${fmt(all, median)} / ${fmt(all, p90)}${all.length && all.length < timed.length ? ` (${all.length} runs)` : ''} | ${fmt(perImage, median)} / ${fmt(perImage, p90)} | ${windows.length ? `${fmt(windows, median)} / ${Math.max(...windows)}` : '–'} | ${gap.length ? fmt(gap, median) : '–'} | ${notShown || errors ? `${notShown} (${errors})` : ''} | ${requests.length ? fmt(requests, median) : '–'} | ${network.length ? fmt(network, median) : '–'} | ${failed || ''} |`,
         )
     }
 
@@ -325,16 +340,21 @@ export function summarize(dir: string) {
     }
 
     const android = files.filter((f) => /^metrics-android-.*\.json$/.test(f))
-    if (android.length > 0) {
+    // A paired run's metrics, one file per phone: pooled below.
+    const phoneFiles = android.filter((f) =>
+        /^metrics-android-phone-\d+\.json$/.test(f),
+    )
+    const subjectFiles = android.filter((f) => !phoneFiles.includes(f))
+    if (subjectFiles.length > 0) {
         lines.push(
             '',
-            'Android Macrobenchmark metrics (median, or p50 / p90 for sampled metrics):',
+            'Android Macrobenchmark metrics (median, or p50 / p90 / p99 for sampled metrics):',
             '',
             '| Subject | Test | Metric | Value |',
             '| --- | --- | --- | --- |',
         )
     }
-    for (const file of android) {
+    for (const file of subjectFiles) {
         const subject = file.replace(/^metrics-android-|\.json$/g, '')
         const data = JSON.parse(
             fs.readFileSync(path.join(dir, file), 'utf8'),
@@ -344,14 +364,79 @@ export function summarize(dir: string) {
                 benchmark.metrics ?? {},
             )) {
                 lines.push(
-                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${Math.round(metric.median)} |`,
+                    `| ${nameOf(subject)} | ${testName(benchmark.name)} | ${name} | ${Math.round(metric.median)} |`,
                 )
             }
             for (const [name, metric] of Object.entries(
                 benchmark.sampledMetrics ?? {},
             )) {
                 lines.push(
-                    `| ${nameOf(subject)} | ${benchmark.name} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} |`,
+                    `| ${nameOf(subject)} | ${testName(benchmark.name)} | ${name} | ${metric.P50.toFixed(1)} / ${metric.P90.toFixed(1)} / ${metric.P99.toFixed(1)} |`,
+                )
+            }
+        }
+    }
+
+    // Every phone's runs of each test together. allFramesMs: each run's UI
+    // thread and RenderThread frame time added up (the burst test's sums),
+    // which counts frames FrameTimingMetric leaves out.
+    const pooled = new Map<
+        string,
+        { metrics: Map<string, number[]>; sampled: Map<string, number[]> }
+    >()
+    const add = (map: Map<string, number[]>, name: string, values: number[]) =>
+        map.set(name, [...(map.get(name) ?? []), ...values])
+    for (const file of phoneFiles) {
+        const data = JSON.parse(
+            fs.readFileSync(path.join(dir, file), 'utf8'),
+        ) as AndroidMetrics
+        for (const benchmark of data.benchmarks) {
+            const entry = pooled.get(benchmark.name) ?? {
+                metrics: new Map(),
+                sampled: new Map(),
+            }
+            pooled.set(benchmark.name, entry)
+            const metrics = benchmark.metrics ?? {}
+            for (const [name, metric] of Object.entries(metrics)) {
+                add(entry.metrics, name, metric.runs)
+            }
+            const ui = metrics.uiThreadFramesSumMs?.runs
+            const rt = metrics.renderThreadFramesSumMs?.runs
+            if (ui && rt) {
+                add(
+                    entry.metrics,
+                    'allFramesMs',
+                    ui.map((v, i) => v + rt[i]),
+                )
+            }
+            for (const [name, metric] of Object.entries(
+                benchmark.sampledMetrics ?? {},
+            )) {
+                add(entry.sampled, name, metric.runs.flat())
+            }
+        }
+    }
+    if (pooled.size > 0) {
+        lines.push(
+            '',
+            `Android Macrobenchmark metrics over every run on the ${phoneFiles.length} phones (median, or p50 / p90 / p99 of every sample; allFramesMs: each run's UI thread and RenderThread frame time added up):`,
+            '',
+            '| Test | Metric | Value |',
+            '| --- | --- | --- |',
+        )
+        for (const [name, entry] of [...pooled].sort(([a], [b]) =>
+            a.localeCompare(b),
+        )) {
+            for (const [metric, values] of [...entry.metrics].sort(([a], [b]) =>
+                a.localeCompare(b),
+            )) {
+                lines.push(
+                    `| ${testName(name)} | ${metric} | ${fmt(values, median)} |`,
+                )
+            }
+            for (const [metric, values] of entry.sampled) {
+                lines.push(
+                    `| ${testName(name)} | ${metric} | ${[0.5, 0.9, 0.99].map((p) => percentile(values, p).toFixed(1)).join(' / ')} |`,
                 )
             }
         }
