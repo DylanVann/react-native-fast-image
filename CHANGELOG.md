@@ -1,3 +1,10 @@
+## [9.3.7](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.6...v9.3.7) (2026-10-12)
+
+
+### Bug Fixes
+
+* **android:** a new objectFit after load sends no load events again ([#1303](https://github.com/DylanVann/react-native-fast-image/issues/1303)) ([4238910](https://github.com/DylanVann/react-native-fast-image/commit/423891075b6e36344250b2b6aad5c3bade19ada3))
+
 ## [9.3.6](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.5...v9.3.6) (2026-10-12)
 
 
