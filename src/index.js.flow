@@ -26,6 +26,12 @@ export type OnProgressEvent = NativeSyntheticEvent<
     |}>,
 >
 
+export type Priority = $ReadOnly<{|
+    low: 'low',
+    normal: 'normal',
+    high: 'high',
+|}>
+
 export type ResizeMode = $ReadOnly<{|
     contain: 'contain',
     cover: 'cover',
@@ -34,19 +40,12 @@ export type ResizeMode = $ReadOnly<{|
     repeat: 'repeat',
 |}>
 
-export type Priority = $ReadOnly<{|
-    low: 'low',
-    normal: 'normal',
-    high: 'high',
-|}>
-
 export type CacheControl = $ReadOnly<{|
     immutable: 'immutable',
     web: 'web',
     cacheOnly: 'cacheOnly',
 |}>
 
-export type ResizeModes = $Values<ResizeMode>
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
 export type PositionLength = number | string
 export type ObjectPosition =
@@ -137,8 +136,6 @@ export type FastImageProps = $ReadOnly<{|
     tintColor?: number | string,
     objectFit?: ?ObjectFit,
     objectPosition?: ?ObjectPosition,
-    // Deprecated: use objectFit.
-    resizeMode?: ?ResizeModes,
     recyclingKey?: ?string,
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
@@ -162,8 +159,12 @@ export type FastImageBackgroundProps = $ReadOnly<{|
 declare export var FastImageBackground: React$ComponentType<FastImageBackgroundProps>
 
 declare export default class FastImage extends React$Component<FastImageProps> {
+    // Deprecated: removed in 10.0, and a resizeMode prop is ignored; use
+    // objectFit. Kept so code that reads it doesn't throw.
     static resizeMode: ResizeMode;
+    // Deprecated: use the strings instead, e.g. priority: 'high'.
     static priority: Priority;
+    // Deprecated: use the strings instead, e.g. cache: 'immutable'.
     static cacheControl: CacheControl;
     static preload: PreloadFn;
     static clearMemoryCache: () => Promise<ClearCacheResult>;

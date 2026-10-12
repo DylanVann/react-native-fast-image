@@ -36,7 +36,7 @@ describe('FastImage (web)', () => {
                     priority: 'high',
                     cache: 'immutable',
                 }}
-                resizeMode="contain"
+                objectFit="contain"
                 blurRadius={4}
                 style={{ width: 40, height: 30 }}
                 testID="image"
@@ -105,18 +105,6 @@ describe('FastImage (web)', () => {
         }
     })
 
-    it('fits the image as resizeMode says, covering by default', () => {
-        const fit = (mode?: any) =>
-            images(render(<FastImage source={A} resizeMode={mode} />))[0].props
-                .style.objectFit
-        expect(fit()).toBe('cover')
-        expect(fit('cover')).toBe('cover')
-        expect(fit('contain')).toBe('contain')
-        expect(fit('stretch')).toBe('fill')
-        // At its size, scaled down if it's larger than the view.
-        expect(fit('center')).toBe('scale-down')
-    })
-
     it('fits the image as objectFit says, CSS object-fit', () => {
         const fit = (props: object) =>
             images(render(<FastImage source={A} {...props} />))[0].props.style
@@ -130,20 +118,27 @@ describe('FastImage (web)', () => {
         ]) {
             expect(fit({ objectFit: value })).toBe(value)
         }
-        // In style, where the prop wins; either one wins over resizeMode.
+        expect(fit({})).toBe('cover')
+        // In style, where the prop wins.
         expect(
             fit({ style: [{ objectFit: 'contain' }, { objectFit: 'none' }] }),
         ).toBe('none')
         expect(fit({ objectFit: 'fill', style: { objectFit: 'none' } })).toBe(
             'fill',
         )
-        expect(fit({ objectFit: 'contain', resizeMode: 'repeat' })).toBe(
-            'contain',
-        )
-        // An unknown value leaves resizeMode.
-        expect(fit({ objectFit: 'tile', resizeMode: 'center' })).toBe(
-            'scale-down',
-        )
+        // An unknown value is not set.
+        expect(fit({ objectFit: 'tile' })).toBe('cover')
+        // resizeMode was removed in 10.0: ignored, as a prop and in style.
+        expect(
+            fit({ resizeMode: 'contain', style: { resizeMode: 'stretch' } }),
+        ).toBe('cover')
+        const view = hosts(
+            render(
+                <FastImage source={A} {...({ resizeMode: 'contain' } as {})} />,
+            ),
+            'View',
+        )[0]
+        expect(view.props.resizeMode).toBeUndefined()
     })
 
     it('tints the image with an SVG filter, after the blur', () => {
@@ -208,7 +203,7 @@ describe('FastImage (web)', () => {
             <FastImage
                 source={A}
                 defaultSource={{ uri: '/assets/placeholder.png' } as any}
-                resizeMode="contain"
+                objectFit="contain"
                 accessibilityLabel="An image"
             />,
         )
@@ -268,31 +263,6 @@ describe('FastImage (web)', () => {
             images(tree)[0].props.onError({ currentTarget: {} })
         })
         expect(images(tree)[0].props.style.opacity).toBe(0)
-    })
-
-    it('tiles the image as a CSS background for resizeMode repeat', () => {
-        const tree = render(
-            <FastImage source={A} resizeMode="repeat" tintColor="red" />,
-        )
-        const [tiles] = hosts(tree, 'div')
-        const [filter] = hosts(tree, 'filter')
-        expect(tiles.props.style).toEqual({
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundImage: `url("${A.uri}")`,
-            backgroundRepeat: 'repeat',
-            backgroundPosition: '0',
-            backgroundSize: undefined,
-            filter: `url(#${filter.props.id})`,
-            opacity: undefined,
-        })
-        // The <img> is on top, transparent, for its events and the browser.
-        const [img] = images(tree)
-        expect(img.props.src).toBe(A.uri)
-        expect(img.props.style.opacity).toBe(0)
     })
 
     it("doesn't render children, as on native; FastImageBackground does", () => {
@@ -655,7 +625,7 @@ describe('FastImage (web)', () => {
         ).resolves.toEqual(notSupported)
     })
 
-    it('has the same constants as native', () => {
+    it('has the same constants as native (deprecated, still there)', () => {
         expect(FastImage.resizeMode.contain).toBe('contain')
         expect(FastImage.priority.high).toBe('high')
         expect(FastImage.cacheControl.web).toBe('web')

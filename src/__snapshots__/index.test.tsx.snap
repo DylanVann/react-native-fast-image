@@ -5,11 +5,11 @@ exports[`FastImage (iOS) renders 1`] = `
   defaultSource={null}
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={
     {
       "headers": {
@@ -41,11 +41,11 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
   defaultSource={null}
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={
     {
       "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
@@ -77,11 +77,11 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
   }
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={null}
   style={
     [
@@ -104,11 +104,11 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 "<FastImageView
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={null}
   style={
     [
@@ -131,11 +131,11 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
 "<FastImageView
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={
     {
       "uri": "https://www.google.com/image_does_not_exist.png",
@@ -163,11 +163,11 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
   defaultSource={null}
   handledEvents={0}
   loopCount={-1}
+  objectFit="cover"
   objectPositionX={0.5}
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  resizeMode="cover"
   source={null}
   style={
     [

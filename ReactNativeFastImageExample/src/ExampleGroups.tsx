@@ -3,7 +3,7 @@ import { PriorityExample } from './PriorityExample'
 import { GifExample } from './GifExample'
 import { BorderRadiusExample } from './BorderRadiusExample'
 import { ProgressExample } from './ProgressExample'
-import { ResizeModeExample } from './ResizeModeExample'
+import { ObjectFitExample } from './ObjectFitExample'
 import { TintColorExample } from './TintColorExample'
 import { LocalImagesExample } from './LocalImagesExample'
 import { AutoSizeExample } from './AutoSizeExample'
@@ -29,7 +29,7 @@ export const EXAMPLE_GROUPS: RegressionGroup[] = [
         name: 'examples-2',
         cases: [
             <ProgressExample key="progress" />,
-            <ResizeModeExample key="resize-mode-example" />,
+            <ObjectFitExample key="object-fit-example" />,
         ],
     },
     {

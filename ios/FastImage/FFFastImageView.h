@@ -4,15 +4,19 @@
 #import <SDWebImage/SDWebImageDownloader.h>
 
 #import <React/RCTComponent.h>
-#import <React/RCTResizeMode.h>
 
 #import "FFFastImageSource.h"
 
-// resizeMode: React Native's, and `none` (objectFit="none": the image at its
-// own size, centered, not scaled), which React Native's own resize modes only
-// have from 0.77, with another meaning (top-left).
-typedef RCTResizeMode FFFResizeMode;
-static const FFFResizeMode FFFResizeModeNone = (FFFResizeMode) -2;
+// objectFit, as CSS's object-fit.
+typedef NS_ENUM(NSInteger, FFFObjectFit) {
+    FFFObjectFitCover,
+    FFFObjectFitContain,
+    FFFObjectFitFill,
+    // The image at its own size, or scaled down to fit if it's larger.
+    FFFObjectFitScaleDown,
+    // The image at its own size, whatever its size (cropped by the view).
+    FFFObjectFitNone,
+};
 
 @interface FFFastImageView : SDAnimatedImageView
 
@@ -23,7 +27,7 @@ static const FFFResizeMode FFFResizeModeNone = (FFFResizeMode) -2;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
-@property (nonatomic, assign) FFFResizeMode resizeMode;
+@property (nonatomic, assign) FFFObjectFit objectFit;
 @property (nonatomic, strong) FFFastImageSource *source;
 // Several sources (2 or more) of the same image at different sizes: the view
 // loads the one whose size is closest to its own.

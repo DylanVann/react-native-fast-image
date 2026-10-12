@@ -236,8 +236,8 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         id defaultSource = FFFJSON(newViewProps.defaultSource);
         view.defaultSource = defaultSource ? [RCTConvert UIImage:defaultSource] : nil;
     }
-    if (all || oldViewProps.resizeMode != newViewProps.resizeMode) {
-        view.resizeMode = [RCTConvert FFFResizeMode:FFFString(newViewProps.resizeMode)];
+    if (all || oldViewProps.objectFit != newViewProps.objectFit) {
+        view.objectFit = [RCTConvert FFFObjectFit:FFFString(newViewProps.objectFit)];
     }
     if (all || oldViewProps.objectPositionX != newViewProps.objectPositionX) {
         view.objectPositionX = newViewProps.objectPositionX;

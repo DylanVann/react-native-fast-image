@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 //
 // The decoders come before Glide's own, and only take PNGs with an animation
 // control chunk (acTL), when the request animates (not with dontAnimate:
-// blurRadius, resizeMode repeat, which get the first frame from Glide's
+// blurRadius, which gets the first frame from Glide's
 // decoder).
 final class FastImageApng {
     // As much of the start of the file as is read to find acTL, which comes

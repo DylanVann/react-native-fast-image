@@ -4,8 +4,8 @@
 // An image decoded at about the size it's shown at (the `downsample`
 // prop), instead of at full size. The view asks for it with SDWebImage's
 // thumbnail context: the box to fill (the view's size in pixels), and
-// preserveAspectRatio NO when the image has to cover the box (resizeMode
-// cover or stretch) rather than fit in it (contain or center). SDWebImage's
+// preserveAspectRatio NO when the image has to cover the box (objectFit
+// cover or fill) rather than fit in it (contain or scale-down). SDWebImage's
 // own thumbnail decoding can only fit, so this class works out the size from
 // the image's header before it decodes, as React Native's Image does.
 @interface FFFDownsampledImage : SDAnimatedImage

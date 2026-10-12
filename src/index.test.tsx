@@ -51,6 +51,7 @@ describe('FastImage (iOS)', () => {
                         headers: {
                             token: 'someToken',
                         },
+                        // Deprecated, still works: 'high'.
                         priority: FastImage.priority.high,
                     }}
                     style={style.image}
@@ -376,6 +377,7 @@ describe('FastImage (iOS)', () => {
                 headers: {
                     token: 'someToken',
                 },
+                // Deprecated, still works: 'high'.
                 priority: FastImage.priority.high,
             },
         ])
@@ -426,7 +428,7 @@ describe('FastImageBackground', () => {
                 style={{ width: 100, height: 50 }}
                 imageStyle={{ borderRadius: 8 }}
                 imageRef={imageRef}
-                resizeMode="contain"
+                objectFit="contain"
             >
                 <View testID="content" />
             </FastImageBackground>,
@@ -441,7 +443,7 @@ describe('FastImageBackground', () => {
         expect(json.children[1].props.testID).toBe('content')
         // The FastImage, with the other props, filling the view.
         const image = tree.root.findByType(FastImage as any)
-        expect(image.props.resizeMode).toBe('contain')
+        expect(image.props.objectFit).toBe('contain')
         expect(StyleSheet.flatten(image.props.style)).toMatchObject({
             position: 'absolute',
             borderRadius: 8,
@@ -1059,34 +1061,25 @@ describe('FastImage (Android)', () => {
 })
 
 describe('objectFit', () => {
-    const nativeResizeMode = (element: React.ReactElement) =>
+    const nativeFit = (element: React.ReactElement) =>
         renderer
             .create(element)
             .root.findAll((node) => node.type === ('FastImageView' as any))[0]
-            .props.resizeMode
+            .props.objectFit
     const source = { uri: 'https://example.com/a.png' }
 
-    it('is sent as the native resizeMode', () => {
-        expect(nativeResizeMode(<FastImage source={source} />)).toBe('cover')
-        const modes = {
-            fill: 'stretch',
-            contain: 'contain',
-            cover: 'cover',
-            none: 'none',
-            'scale-down': 'scale-down',
-        } as const
-        for (const [fit, mode] of Object.entries(modes)) {
+    it('is sent to the native view, cover by default', () => {
+        expect(nativeFit(<FastImage source={source} />)).toBe('cover')
+        for (const fit of ['fill', 'contain', 'cover', 'none', 'scale-down']) {
             expect(
-                nativeResizeMode(
-                    <FastImage source={source} objectFit={fit as any} />,
-                ),
-            ).toBe(mode)
+                nativeFit(<FastImage source={source} objectFit={fit as any} />),
+            ).toBe(fit)
         }
     })
 
     it('can be set in style, where the last style that sets it wins', () => {
         expect(
-            nativeResizeMode(
+            nativeFit(
                 <FastImage
                     source={source}
                     style={[{ objectFit: 'contain' }, [{ objectFit: 'none' }]]}
@@ -1098,24 +1091,13 @@ describe('objectFit', () => {
             fit: { objectFit: 'fill' } as any,
         })
         expect(
-            nativeResizeMode(
-                <FastImage source={source} style={registered.fit} />,
-            ),
-        ).toBe('stretch')
+            nativeFit(<FastImage source={source} style={registered.fit} />),
+        ).toBe('fill')
     })
 
-    it('wins over resizeMode, and the prop over style', () => {
+    it('the prop wins over style, and an unknown value is not set', () => {
         expect(
-            nativeResizeMode(
-                <FastImage
-                    source={source}
-                    resizeMode="repeat"
-                    style={{ objectFit: 'contain' }}
-                />,
-            ),
-        ).toBe('contain')
-        expect(
-            nativeResizeMode(
+            nativeFit(
                 <FastImage
                     source={source}
                     objectFit="scale-down"
@@ -1123,38 +1105,20 @@ describe('objectFit', () => {
                 />,
             ),
         ).toBe('scale-down')
-        // Also over center, which Android shows differently.
         expect(
-            nativeResizeMode(
+            nativeFit(<FastImage source={source} objectFit={'tile' as any} />),
+        ).toBe('cover')
+        expect(
+            nativeFit(
                 <FastImage
                     source={source}
-                    resizeMode="center"
-                    objectFit="scale-down"
+                    style={{ objectFit: 'tile' as any }}
                 />,
             ),
-        ).toBe('scale-down')
+        ).toBe('cover')
+        // So is null (Flow's types allow it), and style's then applies.
         expect(
-            nativeResizeMode(
-                <FastImage
-                    source={source}
-                    resizeMode="center"
-                    style={{ objectFit: 'scale-down' }}
-                />,
-            ),
-        ).toBe('scale-down')
-        // An unknown value leaves resizeMode.
-        expect(
-            nativeResizeMode(
-                <FastImage
-                    source={source}
-                    resizeMode="repeat"
-                    objectFit={'tile' as any}
-                />,
-            ),
-        ).toBe('repeat')
-        // So does null (Flow's types allow it), and style's then applies.
-        expect(
-            nativeResizeMode(
+            nativeFit(
                 <FastImage
                     source={source}
                     objectFit={null as any}
@@ -1163,19 +1127,33 @@ describe('objectFit', () => {
             ),
         ).toBe('contain')
     })
-})
 
-describe('resizeMode center', () => {
-    it('is sent as center, not as scale-down', () => {
+    it('ignores resizeMode (removed in 10.0), as a prop and in style', () => {
         const [view] = renderer
             .create(
                 <FastImage
-                    source={{ uri: 'https://example.com/a.png' }}
-                    resizeMode="center"
+                    source={source}
+                    {...({ resizeMode: 'contain' } as {})}
+                    style={{ resizeMode: 'stretch' } as any}
                 />,
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
-        expect(view.props.resizeMode).toBe('center')
+        expect(view.props.objectFit).toBe('cover')
+        expect(view.props.resizeMode).toBeUndefined()
+    })
+
+    it('keeps the deprecated FastImage.resizeMode, whose values are ignored', () => {
+        // Code written for 9.x reads it: it mustn't throw.
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={source}
+                    {...({ resizeMode: FastImage.resizeMode.contain } as {})}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.objectFit).toBe('cover')
+        expect(view.props.resizeMode).toBeUndefined()
     })
 })
 
@@ -1233,21 +1211,6 @@ describe('objectPosition', () => {
         } finally {
             warn.mockRestore()
         }
-    })
-})
-
-describe('resizeMode', () => {
-    it('passes repeat to the native view', () => {
-        expect(FastImage.resizeMode.repeat).toBe('repeat')
-        const [view] = renderer
-            .create(
-                <FastImage
-                    source={{ uri: 'https://example.com/a.png' }}
-                    resizeMode={FastImage.resizeMode.repeat}
-                />,
-            )
-            .root.findAll((node) => node.type === ('FastImageView' as any))
-        expect(view.props.resizeMode).toBe('repeat')
     })
 })
 

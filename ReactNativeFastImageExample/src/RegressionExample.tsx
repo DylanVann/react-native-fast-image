@@ -86,7 +86,7 @@ function EventCase({
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                resizeMode="contain"
+                objectFit="contain"
                 {...props}
                 {...handlers}
             />
@@ -248,12 +248,12 @@ function ClearTintCase() {
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: LOGO }}
             />
             <FastImage
                 style={[styles.image, { marginLeft: 4 }]}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor={tinted ? 'green' : undefined}
                 onLoad={() => setTinted(false)}
@@ -416,35 +416,31 @@ const touchStyles = StyleSheet.create({
 
 // A wide image in square boxes: the left one is contain; the right one loads
 // as cover, then switches to contain. Both should match (checked by
-// screenshot). Android kept showing the cover crop.
+// screenshot). Android kept showing the cover crop (#762).
 // A stable source object: a new one on each render re-sends the source prop,
 // which reloaded the image and hid the bug.
 const WIDE = { uri: imageUrl('picsum/1018-600x300.jpg') }
-function ResizeModeChangeCase() {
-    const [resizeMode, setResizeMode] = useState<'cover' | 'contain'>('cover')
+function ObjectFitChangeCropCase() {
+    const [fit, setFit] = useState<'cover' | 'contain'>('cover')
     const [done, setDone] = useState(false)
     useEffect(() => {
-        if (resizeMode === 'cover') return
+        if (fit === 'cover') return
         const timer = setTimeout(() => setDone(true), 750)
         return () => clearTimeout(timer)
-    }, [resizeMode])
+    }, [fit])
     return (
         <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                resizeMode="contain"
-                source={WIDE}
-            />
+            <FastImage style={styles.image} objectFit="contain" source={WIDE} />
             <FastImage
                 style={[styles.image, { marginLeft: 4 }]}
-                resizeMode={resizeMode}
+                objectFit={fit}
                 source={WIDE}
-                onLoad={() => setResizeMode('contain')}
+                onLoad={() => setFit('contain')}
             />
             <CaseStatus
-                id="resize-mode"
+                id="fit-change"
                 status={done ? 'OK' : 'waiting'}
-                description="#762: resizeMode changed after load (should match the left image)"
+                description="#762: objectFit changed from cover to contain after load (should match the left image)"
             />
         </View>
     )
@@ -730,7 +726,7 @@ function SourceSizeCase({
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri }}
                 onLoad={(e) =>
                     setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
@@ -772,7 +768,7 @@ function SourceSizeCachedCase() {
                 <FastImage
                     key={step}
                     style={styles.image}
-                    resizeMode="contain"
+                    objectFit="contain"
                     source={{ uri: CACHED_SOURCE }}
                     onLoad={(e) => {
                         const size = `${e.nativeEvent.width}x${e.nativeEvent.height}`
@@ -819,7 +815,7 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
                     style={styles.image}
                     source={{
                         uri: imageUrl(path.slice(1)),
-                        cache: FastImage.cacheControl.web,
+                        cache: 'web',
                     }}
                     onLoad={() => setLoads((n) => n + 1)}
                 />
@@ -871,7 +867,7 @@ function WebCacheClearCase() {
                 style={styles.image}
                 source={{
                     uri: imageUrl(WEB_CLEAR_PATH.slice(1)),
-                    cache: FastImage.cacheControl.web,
+                    cache: 'web',
                 }}
                 onLoad={() => {
                     if (step === 'first') {
@@ -2775,35 +2771,6 @@ function ClearWithoutActivityCase() {
     )
 }
 
-// resizeMode center: a 600x300 image (red, with a blue border) is scaled down
-// to fit the view, so the border shows (iOS showed it at full size, cropped to
-// red); a 16x16 one (green) stays at its own size. Check the screenshot.
-function CenterCase() {
-    const [loaded, setLoaded] = useState(0)
-    const onLoad = () => setLoaded((n) => n + 1)
-    return (
-        <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                resizeMode="center"
-                source={{ uri: imageUrl('center-large.png') }}
-                onLoad={onLoad}
-            />
-            <FastImage
-                style={[styles.image, styles.gap]}
-                resizeMode="center"
-                source={{ uri: imageUrl('center-small.png') }}
-                onLoad={onLoad}
-            />
-            <CaseStatus
-                id="resize-center"
-                status={loaded === 2 ? 'OK' : 'waiting'}
-                description="#866: resizeMode center scales a larger image down (blue border shows) and keeps a smaller one at its size"
-            />
-        </View>
-    )
-}
-
 // objectFit, as CSS's object-fit: a 600x300 image (red, with a blue border)
 // in a square view. fill: stretched, the border all around; contain: the whole
 // image, half the view's height; cover: the middle, the border only at the top
@@ -2890,55 +2857,6 @@ function ObjectFitSizeCase() {
     )
 }
 
-// resizeMode center and objectFit scale-down: the same, except that Android
-// shows an image smaller than the view at its size in pixels with center
-// (about 15 dp for this 40x40 image, inside the outline with a gap), and at
-// its size in dp with scale-down (filling the outline), as iOS shows both.
-// objectFit wins over resizeMode. Check the screenshot.
-function ObjectFitCenterCase() {
-    const [status, onLoad] = useLoadedThenOk(3)
-    const source = { uri: imageUrl('center-medium.png') }
-    return (
-        <View style={objectFitStyles.stacked}>
-            <View style={objectFitStyles.images}>
-                <View>
-                    <FastImage
-                        style={objectFitStyles.image}
-                        resizeMode="center"
-                        source={source}
-                        onLoad={onLoad}
-                    />
-                    <View style={centerStyles.outline} pointerEvents="none" />
-                </View>
-                <View style={styles.gap}>
-                    <FastImage
-                        style={objectFitStyles.image}
-                        objectFit="scale-down"
-                        source={source}
-                        onLoad={onLoad}
-                    />
-                    <View style={centerStyles.outline} pointerEvents="none" />
-                </View>
-                <View style={styles.gap}>
-                    <FastImage
-                        style={objectFitStyles.image}
-                        resizeMode="center"
-                        objectFit="scale-down"
-                        source={source}
-                        onLoad={onLoad}
-                    />
-                    <View style={centerStyles.outline} pointerEvents="none" />
-                </View>
-            </View>
-            <CaseStatus
-                id="object-fit-center"
-                status={status}
-                description="resizeMode center, objectFit scale-down, and both: the same on iOS; on Android the first is its size in pixels (smaller), the others fill the outlines"
-            />
-        </View>
-    )
-}
-
 // objectFit scale-down and none with an SVG of 60x60 black and white stripes,
 // one unit wide: drawn at its size in points (dp), as sharp as with contain in
 // a 60 point view (right). Android drew it at its size in pixels and enlarged
@@ -3004,7 +2922,7 @@ function ObjectFitFromCoverCase() {
     const source = (fit: string) => ({
         uri: slowImageUrl(`text-page.png?case=object-fit-from-cover-${fit}`),
         headers: SLOW_HEADERS,
-        cache: FastImage.cacheControl.web,
+        cache: 'web' as const,
     })
     return (
         <View style={objectFitStyles.stacked}>
@@ -3068,7 +2986,8 @@ function ObjectFitBlurCase() {
 }
 
 // objectFit in style, and which wins: style's contain; the prop's none over
-// style's contain; objectFit contain over resizeMode cover.
+// style's contain. resizeMode (removed in 10.0), as a prop and in style, is
+// ignored: cover.
 function ObjectFitStyleCase() {
     const [status, onLoad] = useLoadedThenOk(3)
     const source = { uri: imageUrl('center-large.png') }
@@ -3091,9 +3010,12 @@ function ObjectFitStyleCase() {
                     onLoad={onLoad}
                 />
                 <FastImage
-                    style={[objectFitStyles.image, styles.gap]}
-                    objectFit="contain"
-                    resizeMode="cover"
+                    style={[
+                        objectFitStyles.image,
+                        styles.gap,
+                        { resizeMode: 'stretch' } as {},
+                    ]}
+                    {...({ resizeMode: 'contain' } as {})}
                     source={source}
                     onLoad={onLoad}
                 />
@@ -3101,7 +3023,7 @@ function ObjectFitStyleCase() {
             <CaseStatus
                 id="object-fit-style"
                 status={status}
-                description="objectFit in style (contain), the prop over style (none), objectFit over resizeMode cover (contain)"
+                description="objectFit in style (contain), the prop over style (none); resizeMode as a prop and in style, removed in 10.0, ignored (cover)"
             />
         </View>
     )
@@ -3229,7 +3151,7 @@ function PositionEventsCase({
         <View style={styles.row}>
             <FastImage
                 style={objectFitStyles.image}
-                resizeMode="cover"
+                objectFit="cover"
                 objectPosition={position}
                 source={{ uri: `${uri}?${id}=${RUN}` }}
                 downsample={downsample}
@@ -4018,7 +3940,7 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
         `/bad-once/picsum/1025-200x200.jpg?${id}=${RUN}-${attempt}`
     const sourceFor = (attempt: number) => ({
         uri: imageUrl(pathFor(attempt).slice(1)),
-        cache: web ? FastImage.cacheControl.web : undefined,
+        cache: web ? ('web' as const) : undefined,
     })
     const [status, setStatus] = useState('waiting')
     const [shown, setShown] = useState(false)
@@ -4128,7 +4050,7 @@ function Web404Case() {
             const [result] = await FastImage.preload([
                 {
                     uri: imageUrl(WEB_404_PATH.slice(1)),
-                    cache: FastImage.cacheControl.web,
+                    cache: 'web',
                 },
             ])
             const response = await fetch(
@@ -4190,7 +4112,7 @@ function PreloadCacheOnlyCase() {
         FastImage.preload([
             {
                 uri: imageUrl(PRELOAD_CACHE_ONLY_PATH.slice(1)),
-                cache: FastImage.cacheControl.cacheOnly,
+                cache: 'cacheOnly',
             },
         ])
             .then(async ([result]) => {
@@ -4315,7 +4237,7 @@ function ConfigureCacheCase() {
             const trimmed = await FastImage.configureCache({ maxDiskSize: 1 })
             const after = await FastImage.getCachePath({
                 uri,
-                cache: FastImage.cacheControl.cacheOnly,
+                cache: 'cacheOnly',
             })
             const reset = await FastImage.configureCache({ maxDiskSize: null })
             setStatus(
@@ -4374,7 +4296,7 @@ function WriteToCacheCase({
     const source: Source = {
         uri: imageUrl(path.slice(1)),
         cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
-        cache: web ? FastImage.cacheControl.web : undefined,
+        cache: web ? ('web' as const) : undefined,
     }
     const [status, setStatus] = useState('waiting')
     const [shown, setShown] = useState(false)
@@ -4479,7 +4401,7 @@ function CachePathAfterClearCase({
             const clear = await FastImage.clearDiskCache()
             const cacheOnly = await FastImage.getCachePath({
                 ...source,
-                cache: FastImage.cacheControl.cacheOnly,
+                cache: 'cacheOnly',
             })
             const cacheOnlyThere = await fileThere(cacheOnly)
             const again = await FastImage.getCachePath(source)
@@ -4545,7 +4467,7 @@ function ClearDiskCacheThreadCase() {
                 uri: imageUrl(
                     `picsum/1022-120x120.jpg?clear-disk-cache-thread=${RUN}&n=${n}`,
                 ),
-                cache: FastImage.cacheControl.cacheOnly,
+                cache: 'cacheOnly',
             }),
         )
         const clear = FastImage.clearDiskCache().then((result) => {
@@ -4623,7 +4545,7 @@ function CachePathCase({
     const source: Source = {
         uri,
         cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
-        cache: web ? FastImage.cacheControl.web : undefined,
+        cache: web ? ('web' as const) : undefined,
         headers: whileLoading ? BACKGROUND_SLOW_HEADERS : undefined,
     }
     const [result, setResult] = useState<CachePathResult>()
@@ -4637,7 +4559,7 @@ function CachePathCase({
                   ? {
                         uri,
                         cacheKey: source.cacheKey,
-                        cache: FastImage.cacheControl.cacheOnly,
+                        cache: 'cacheOnly',
                     }
                   : source,
         )
@@ -4804,9 +4726,9 @@ function PreloadDiskCase() {
 //   cyan image at half opacity: magenta, then half cyan over black, through
 //   a darker blue-violet (with the magenta gone at the end). With tall, the
 //   view is three times as tall as the case shows (its top third), with
-//   resizeMode contain: the square image covers the middle third, and the
+//   objectFit contain: the square image covers the middle third, and the
 //   top shows defaultSource, then black, through half magenta. With edge,
-//   the same in the half pixel an image leaves at the top: resizeMode
+//   the same in the half pixel an image leaves at the top: objectFit
 //   contain, with the image (cyan-short.png, 42 × 41 px) a pixel shorter
 //   than the 16 dp view (42 px on the Android emulator; the same for views
 //   of 22 to 62 px), and the view magnified 8 times, so the half pixel is 4
@@ -4913,7 +4835,7 @@ function FadeCase({
             : from === 'web'
               ? {
                     uri: imageUrl(`max-age/cyan.png?${id}=${RUN}`),
-                    cache: FastImage.cacheControl.web,
+                    cache: 'web' as const,
                 }
               : { uri: imageUrl(`cyan.png?${id}=${RUN}`) }
     const magenta = { uri: imageUrl(`magenta.png?${id}=${RUN}`) }
@@ -5056,7 +4978,7 @@ function FadeCase({
                       : fadeStyles.image,
                 opacity === 'style' ? fadeStyles.half : null,
             ]}
-            resizeMode={tall || edge ? 'contain' : undefined}
+            objectFit={tall || edge ? 'contain' : undefined}
             objectPosition={positioned ? 'left' : undefined}
             source={shownSource}
             defaultSource={
@@ -5355,7 +5277,7 @@ function SizeChangeCase() {
         <View style={styles.row}>
             <FastImage
                 style={size}
-                resizeMode="cover"
+                objectFit="cover"
                 source={source}
                 onLoad={() => setTimeout(() => setTall(true), 300)}
             />
@@ -5967,7 +5889,7 @@ function BlurKindsCase() {
             />
             <FastImage
                 style={[blurStyles.image, blurStyles.next]}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor="green"
                 blurRadius={4}
@@ -6010,7 +5932,7 @@ function BlurTintChangeCase() {
         <View style={styles.row}>
             <FastImage
                 style={blurStyles.image}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor={changed ? '#9324c3' : 'green'}
                 blurRadius={4}
@@ -6018,7 +5940,7 @@ function BlurTintChangeCase() {
             />
             <FastImage
                 style={[blurStyles.image, blurStyles.next]}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor="#9324c3"
                 blurRadius={4}
@@ -6212,39 +6134,6 @@ const BLUR_TWICE_SOURCE = {
     cache: 'web' as const,
 }
 
-// resizeMode="center" shows a small image at its own size. A large radius
-// blurs a smaller copy, which must still show at that size.
-function BlurCenterCase() {
-    const [status, onLoad] = useLoadedThenOk(2)
-    const source = { uri: imageUrl('picsum/1020-120x120.jpg') }
-    return (
-        <View style={blurStyles.stacked}>
-            <View style={blurStyles.images}>
-                <FastImage
-                    style={blurStyles.large}
-                    resizeMode="center"
-                    source={source}
-                    onLoad={onLoad}
-                />
-                <FastImage
-                    style={[blurStyles.large, blurStyles.next]}
-                    resizeMode="center"
-                    source={source}
-                    blurRadius={30}
-                    onLoad={onLoad}
-                />
-            </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="blur-center"
-                    status={status}
-                    description='resizeMode="center" with blurRadius={30}: a 120 px image at its own size, blurred the same size as the sharp one'
-                />
-            </View>
-        </View>
-    )
-}
-
 // defaultSource isn't blurred, as with React Native's Image.
 function BlurDefaultSourceCase() {
     const [failed, setFailed] = useState(false)
@@ -6287,14 +6176,14 @@ function DownsampleCase({
     image,
     size,
     style,
-    resizeMode = 'cover',
+    objectFit = 'cover',
 }: {
     id: string
     description: string
     image: string
     size: string
     style: { width: number; height: number }
-    resizeMode?: FastImageProps['resizeMode']
+    objectFit?: FastImageProps['objectFit']
 }) {
     const [sizes, setSizes] = useState<string[]>([])
     const onLoad = (e: { nativeEvent: { width: number; height: number } }) => {
@@ -6307,14 +6196,14 @@ function DownsampleCase({
         <View style={styles.row}>
             <FastImage
                 style={style}
-                resizeMode={resizeMode}
+                objectFit={objectFit}
                 source={{ uri: imageUrl(image) }}
                 downsample
                 onLoad={onLoad}
             />
             <FastImage
                 style={[style, styles.gap]}
-                resizeMode={resizeMode}
+                objectFit={objectFit}
                 source={{ uri: imageUrl(image) }}
                 downsample={false}
                 onLoad={onLoad}
@@ -7005,109 +6894,6 @@ function PhotoLibraryErrorCase({
 
 export type { RegressionGroup }
 
-// resizeMode repeat: the image repeated from the top-left at its own size, as
-// React Native's Image (right) does: a 20px tile of four colors (red, green,
-// blue, yellow), and a 200px photo larger than the view, scaled down to fit.
-// The image's own size is in pixels. On Android, React Native's Image is left
-// out of the screenshot: it tiles with one Matrix shared by every Image
-// (ReactImageView's tileMatrix) on Fresco's threads, so Images tiled at the
-// same time sometimes draw with each other's scale.
-const QUADRANTS = imageUrl('quadrants.png')
-function RepeatCase({
-    id,
-    uri,
-    tintColor,
-    description,
-}: {
-    id: string
-    uri: string
-    tintColor?: string
-    description: string
-}) {
-    const [status, onLoad] = useLoadedThenOk(2)
-    const image = (
-        <Image
-            style={[repeatStyles.image, { tintColor }]}
-            resizeMode="repeat"
-            source={{ uri }}
-            onLoad={onLoad}
-        />
-    )
-    return (
-        <View style={styles.row}>
-            <FastImage
-                style={repeatStyles.image}
-                resizeMode="repeat"
-                source={{ uri }}
-                tintColor={tintColor}
-                onLoad={onLoad}
-            />
-            {Platform.OS === 'android' ? (
-                <Masked style={styles.gap}>{image}</Masked>
-            ) : (
-                <View style={styles.gap}>{image}</View>
-            )}
-            <CaseStatus id={id} status={status} description={description} />
-        </View>
-    )
-}
-
-// An animated image repeats its first frame (still): a GIF of two colors.
-function RepeatGifCase() {
-    const [status, onLoad] = useLoadedThenOk(1)
-    return (
-        <View style={styles.row}>
-            <FastImage
-                style={repeatStyles.image}
-                resizeMode="repeat"
-                source={{ uri: imageUrl('loop-forever.gif') }}
-                onLoad={onLoad}
-            />
-            <CaseStatus
-                id="repeat-gif"
-                status={status}
-                description="repeat with a GIF (80px, larger than the view's height): its first frame, still, scaled down and repeated"
-            />
-        </View>
-    )
-}
-
-// resizeMode changed after the image loaded (left) matches the view that had
-// it from the start (right): to repeat, and from repeat to cover.
-function RepeatChangeCase({ to }: { to: 'repeat' | 'cover' }) {
-    const [status, onLoad] = useLoadedThenOk(2)
-    const [changed, setChanged] = useState(false)
-    const from = to === 'repeat' ? 'cover' : 'repeat'
-    return (
-        <View style={styles.row}>
-            <FastImage
-                style={repeatStyles.image}
-                resizeMode={changed ? to : from}
-                source={{ uri: QUADRANTS }}
-                onLoad={() => {
-                    if (!changed) setTimeout(() => setChanged(true), 300)
-                    onLoad()
-                }}
-            />
-            <FastImage
-                style={[repeatStyles.image, styles.gap]}
-                resizeMode={to}
-                source={{ uri: QUADRANTS }}
-                onLoad={onLoad}
-            />
-            <CaseStatus
-                id={`to-${to}`}
-                status={changed ? status : 'waiting'}
-                description={`resizeMode ${from} changed to ${to} after loading (left) matches ${to} from the start (right)`}
-            />
-        </View>
-    )
-}
-
-const repeatStyles = StyleSheet.create({
-    image: { width: 120, height: 60, backgroundColor: '#eeeeee' },
-})
-
 // Several sources (source as an array of sizes): the view loads the one whose
 // size in pixels is closest to its own. Solid colors so the screenshot shows
 // which: 100 px red, 300 px green, 900 px blue. Each case checks onLoad's
@@ -7333,7 +7119,7 @@ function FormatCase({
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: imageUrl(`formats/${file}`) }}
                 onLoad={(e) => {
                     const { width, height } = e.nativeEvent
@@ -7445,7 +7231,7 @@ function SvgCase({
     source,
     style,
     expected,
-    resizeMode,
+    objectFit,
     tintColor,
     downsample,
     description,
@@ -7454,7 +7240,7 @@ function SvgCase({
     source: Source | number
     style: { width: number; height: number }
     expected: [number, number]
-    resizeMode?: FastImageProps['resizeMode']
+    objectFit?: FastImageProps['objectFit']
     tintColor?: string
     downsample?: boolean
     description: string
@@ -7465,7 +7251,7 @@ function SvgCase({
             <FastImage
                 style={[style, { backgroundColor: '#eee' }]}
                 source={source}
-                resizeMode={resizeMode}
+                objectFit={objectFit}
                 tintColor={tintColor}
                 downsample={downsample}
                 onLoad={(e) => {
@@ -7528,7 +7314,7 @@ function WebCachePathAtStartCase() {
     useEffect(() => {
         FastImage.getCachePath({
             uri: imageUrl(START_WEB_PATH.slice(1)),
-            cache: FastImage.cacheControl.web,
+            cache: 'web',
         })
             .then((result) =>
                 setStatus(result.ok ? 'OK' : `error: ${result.error}`),
@@ -7630,7 +7416,7 @@ function GradientCase() {
                     viewStyles.box,
                     { experimental_backgroundImage: GRADIENT },
                 ]}
-                resizeMode="contain"
+                objectFit="contain"
                 source={{ uri: WIDE.uri }}
                 onLoad={() => setLoaded(true)}
             />
@@ -7929,7 +7715,7 @@ const VIEW_STYLE_CASES = [
                 source: { uri: LOGO },
                 tintColor: 'green',
                 style: [viewStyles.box, { tintColor: 'red' }],
-                resizeMode: 'contain',
+                objectFit: 'contain',
             },
         ]}
     />,
@@ -8157,8 +7943,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'visual',
         cases: [
             <ClearTintCase key="clear-tint" />,
-            <ResizeModeChangeCase key="resize-mode" />,
-            <CenterCase key="resize-center" />,
+            <ObjectFitChangeCropCase key="fit-change" />,
             <NoCrashCase
                 key="gif-loop-once"
                 id="gif-loop-once"
@@ -8220,11 +8005,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        name: 'blur-center',
-        cases: [
-            <BlurCenterCase key="blur-center" />,
-            <BlurTintChangeCase key="blur-tint-change" />,
-        ],
+        name: 'blur-tint',
+        cases: [<BlurTintChangeCase key="blur-tint-change" />],
     },
     {
         name: 'blur-events',
@@ -8255,7 +8037,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <ObjectFitCase key="object-fit" />,
             <ObjectFitSizeCase key="object-fit-size" />,
-            <ObjectFitCenterCase key="object-fit-center" />,
             <ObjectFitBlurCase key="object-fit-blur" />,
             <ObjectFitSvgCase key="object-fit-svg" />,
             <ObjectFitFromCoverCase key="object-fit-from-cover" />,
@@ -8320,38 +8101,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        name: 'repeat',
-        cases: [
-            <RepeatCase
-                key="repeat-tile"
-                id="repeat-tile"
-                uri={QUADRANTS}
-                description="resizeMode repeat: a 20px tile (red, green, blue, yellow) repeated from the top-left, as Image (right)"
-            />,
-            <RepeatCase
-                key="repeat-big"
-                id="repeat-big"
-                uri={imageUrl('picsum/1025-200x200.jpg')}
-                description="repeat with an image larger than the view: scaled down to fit, then repeated, as Image (right)"
-            />,
-            <RepeatCase
-                key="repeat-tint"
-                id="repeat-tint"
-                uri={imageUrl('sprite-12.png')}
-                tintColor="#9324c3"
-                description="repeat with tintColor: the tile tinted, then repeated, as Image (right)"
-            />,
-        ],
-    },
-    {
-        name: 'repeat-change',
-        cases: [
-            <RepeatGifCase key="repeat-gif" />,
-            <RepeatChangeCase key="to-repeat" to="repeat" />,
-            <RepeatChangeCase key="to-cover" to="cover" />,
-        ],
-    },
-    {
         name: 'downsampling',
         cases: [
             <DownsampleCase
@@ -8377,7 +8126,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 image="exif-rotated.jpg"
                 size="800x1200"
                 style={downsampleStyles.rotated}
-                resizeMode="contain"
+                objectFit="contain"
             />,
             <DownsampleMemoryCase key="downsample-memory" />,
             <DownsamplePreloadCase key="downsample-preload" />,
@@ -8872,7 +8621,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="placeholder"
                 tall
                 fades
-                description="transition with resizeMode contain: defaultSource fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
+                description="transition with objectFit contain: defaultSource fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
             />,
             // Android's: how it decides the image covers the view.
             ...(Platform.OS === 'android'
@@ -8883,7 +8632,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           from="placeholder"
                           edge
                           fades
-                          description="transition with resizeMode contain and an image a pixel shorter than the view (magnified): defaultSource fades out in the half pixel the image leaves at the top (recorded: magenta, half magenta, black)"
+                          description="transition with objectFit contain and an image a pixel shorter than the view (magnified): defaultSource fades out in the half pixel the image leaves at the top (recorded: magenta, half magenta, black)"
                       />,
                   ]
                 : []),
@@ -8911,7 +8660,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           tall
                           defaultDrawable="vector"
                           fades
-                          description="transition with resizeMode contain, over a vector drawable defaultSource: it fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
+                          description="transition with objectFit contain, over a vector drawable defaultSource: it fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
                       />,
                       <FadeCase
                           key="fade-placeholder-animated-translucent"
@@ -9315,7 +9064,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected="animates"
                 description="...and so does this one (masked)"
             />,
-            // Not animated (as a GIF isn't): blurred, and repeated.
+            // Not animated (as a GIF isn't): blurred.
             <FormatAnimationCase
                 key="blur-webp"
                 id="blur-webp"
@@ -9323,14 +9072,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected="first frame"
                 imageProps={{ blurRadius: 6 }}
                 description="Blurred: an animated WebP shows its first frame (red), blurred and still (masked)"
-            />,
-            <FormatAnimationCase
-                key="repeat-webp"
-                id="repeat-webp"
-                file="animated.webp"
-                expected="first frame"
-                imageProps={{ resizeMode: 'repeat' }}
-                description="repeat with an animated WebP: its first frame (red), still, repeated (masked)"
             />,
         ],
     },
@@ -9378,14 +9119,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected="first frame"
                 imageProps={{ blurRadius: 6 }}
                 description="Blurred: an APNG shows its first frame (red), blurred and still (masked)"
-            />,
-            <FormatAnimationCase
-                key="repeat-apng"
-                id="repeat-apng"
-                file="animated.png"
-                expected="first frame"
-                imageProps={{ resizeMode: 'repeat' }}
-                description="repeat with an APNG: its first frame (red), still, repeated (masked)"
             />,
         ],
     },
@@ -9461,7 +9194,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: imageUrl('svg-flag.svg') }}
                 style={{ width: 64, height: 64 }}
                 expected={[100, 50]}
-                resizeMode="contain"
+                objectFit="contain"
                 description="contain: the whole SVG, with gray above and below"
             />,
             <SvgCase
@@ -9470,19 +9203,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: imageUrl('svg-flag.svg') }}
                 style={{ width: 64, height: 64 }}
                 expected={[100, 50]}
-                resizeMode="cover"
+                objectFit="cover"
                 description="cover: the middle of the SVG, half red and half blue, filling the view"
             />,
             <SvgSharpCase key="svg-sharp" />,
-            <SvgCase
-                key="svg-repeat"
-                id="svg-repeat"
-                source={{ uri: imageUrl('svg-rings.svg') }}
-                style={{ width: 120, height: 60 }}
-                expected={[20, 20]}
-                resizeMode="repeat"
-                description="repeat: the 20x20 SVG tiled at its own size in pixels, as other images are"
-            />,
         ],
     },
     {

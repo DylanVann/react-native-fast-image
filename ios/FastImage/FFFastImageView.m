@@ -23,8 +23,6 @@
 @property(nonatomic, assign) NSUInteger imageCount;
 // The view's size when the image showing was blurred.
 @property(nonatomic, assign) CGSize blurredForSize;
-// The view's size when the image showing was tiled (resizeMode repeat).
-@property(nonatomic, assign) CGSize tiledForSize;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
 // The image being blurred fades in once it's blurred (transition).
@@ -89,7 +87,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 
 - (id) init {
     self = [super init];
-    self.resizeMode = RCTResizeModeCover;
+    // objectFit cover (FFFObjectFitCover, 0).
+    self.contentMode = UIViewContentModeScaleAspectFill;
     self.clipsToBounds = YES;
     _objectPositionX = 0.5;
     _objectPositionY = 0.5;
@@ -241,39 +240,46 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-- (void) setResizeMode: (FFFResizeMode)resizeMode {
-    if (_resizeMode != resizeMode) {
-        BOOL repeated = _resizeMode == RCTResizeModeRepeat;
-        _resizeMode = resizeMode;
+- (void) setObjectFit: (FFFObjectFit)objectFit {
+    if (_objectFit != objectFit) {
+        _objectFit = objectFit;
         [self updateContentMode];
-        // The blur is made for the size the image is shown at, and repeat
-        // shows the image tiled: show it again.
-        UIImage* image = self.originalImage ?: super.image;
-        if ([self blurs: self.originalImage] || ((repeated || resizeMode == RCTResizeModeRepeat) && image)) {
-            [self setImage: image];
+        // The blur is made for the size the image is shown at: show it again.
+        if ([self blurs: self.originalImage]) {
+            [self setImage: self.originalImage];
         }
     }
 }
 
-// The content mode for resizeMode. `center` scales an image larger than the
-// view down to fit, as React Native's Image and Android do (#866); only a
-// smaller one is shown at its own size. UIViewContentModeCenter alone showed
-// large images at full size, cropped. So it depends on the image and the
-// view's size. `none` is the image at its own size, centered, whatever its
-// size (cropped by the view).
+// The content mode for objectFit. `scale-down` scales an image larger than
+// the view down to fit, and shows a smaller one at its own size
+// (UIViewContentModeCenter alone would show large images at full size,
+// cropped), so it depends on the image and the view's size. `none` is the
+// image at its own size, centered, whatever its size (cropped by the view).
 - (void) updateContentMode {
-    UIViewContentMode contentMode = (UIViewContentMode) _resizeMode;
-    if (_resizeMode == FFFResizeModeNone) {
-        contentMode = UIViewContentModeCenter;
-    } else if (_resizeMode == RCTResizeModeRepeat) {
-        // The tiled image (see tiledImage:) fills the view.
-        contentMode = UIViewContentModeScaleToFill;
-    } else if (_resizeMode == RCTResizeModeCenter) {
-        CGSize imageSize = super.image.size;
-        CGSize viewSize = self.bounds.size;
-        if (imageSize.width > viewSize.width || imageSize.height > viewSize.height) {
+    UIViewContentMode contentMode;
+    switch (_objectFit) {
+        case FFFObjectFitContain:
             contentMode = UIViewContentModeScaleAspectFit;
+            break;
+        case FFFObjectFitFill:
+            contentMode = UIViewContentModeScaleToFill;
+            break;
+        case FFFObjectFitNone:
+            contentMode = UIViewContentModeCenter;
+            break;
+        case FFFObjectFitScaleDown: {
+            CGSize imageSize = super.image.size;
+            CGSize viewSize = self.bounds.size;
+            contentMode = imageSize.width > viewSize.width || imageSize.height > viewSize.height
+                ? UIViewContentModeScaleAspectFit
+                : UIViewContentModeCenter;
+            break;
         }
+        case FFFObjectFitCover:
+        default:
+            contentMode = UIViewContentModeScaleAspectFill;
+            break;
     }
     if (self.contentMode != contentMode) {
         self.contentMode = contentMode;
@@ -324,8 +330,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 
 // How far objectPosition moves the image from the center: on each axis its
 // left or top edge is at (view - image) * fraction + offset, where the
-// content mode centers it at (view - image) / 2. Nothing for fill and repeat,
-// which fill the view.
+// content mode centers it at (view - image) / 2. Nothing for fill, which
+// fills the view.
 - (CGPoint) imageOffset {
     CGSize view = self.box.size;
     CGSize size = super.image.size;
@@ -385,7 +391,6 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     [super layoutSubviews];
     [self updateContentMode];
     [self blurAgainIfResized];
-    [self tileAgainIfResized];
     if (self.waitsForSize) {
         // An image in the memory cache shows in this frame. Others start
         // loading from didSetProps's block, after layout, in the order the
@@ -428,8 +433,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         [self blurImage: image];
         return;
     }
-    // Kept to tint, or tile (resizeMode repeat), it again.
-    self.originalImage = image && (self.imageColor || _resizeMode == RCTResizeModeRepeat) ? image : nil;
+    // Kept to tint it again.
+    self.originalImage = image && self.imageColor ? image : nil;
     self.blurredImage = nil;
     self.blursOverNothing = NO;
     // The blur was removed before it was ready: the fade it was waiting for
@@ -470,9 +475,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // template is).
 - (void) showImage: (UIImage*)image {
     UIColor* tint = image ? self.imageColor : nil;
-    // resizeMode repeat tiles an animated image's first frame (tiledImage:).
-    BOOL repeats = image && _resizeMode == RCTResizeModeRepeat;
-    BOOL animated = !repeats && [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
+    BOOL animated = [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
     self.tintColor = tint;
     self.animationTransformer = tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil;
     if (tint && animated) {
@@ -486,65 +489,16 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         }
     } else {
         if (tint) {
-            if (!image.CGImage && !repeats) {
+            if (!image.CGImage) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
-                // template: drawn into a bitmap at the size it's shown at
-                // (tiledImage: draws one for repeat).
+                // template: drawn into a bitmap at the size it's shown at.
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
         }
-        if (repeats) {
-            image = [self tiledImage: image];
-            self.tiledForSize = self.bounds.size;
-        }
         super.image = image;
     }
     [self updateContentMode];
-}
-
-// resizeMode repeat: the image repeated from the top-left at its own size in
-// pixels (a scaled image, e.g. a bundled @3x one, at its size in points), an
-// animated image's first frame, scaled down to fit the view if it's larger,
-// as React Native's Image does (and Android here).
-- (UIImage*) tiledImage: (UIImage*)image {
-    if (!image.CGImage && image.size.width > 0 && image.size.height > 0) {
-        // A vector image (an SVG): drawn at its own size in pixels (its width
-        // and height), as Android tiles it and as any other image's size is.
-        UIImage* vector = image;
-        UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
-        format.scale = 1;
-        format.opaque = NO;
-        UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: vector.size format: format];
-        image = [[renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-            [vector drawInRect: CGRectMake(0, 0, vector.size.width, vector.size.height)];
-        }] imageWithRenderingMode: vector.renderingMode];
-    }
-    CGImageRef cgImage = image.CGImage;
-    if (!cgImage) {
-        return image;
-    }
-    CGFloat scale = image.scale > 1 ? image.scale : (self.window.screen.scale ?: [UIScreen mainScreen].scale);
-    CGSize size = CGSizeMake(image.size.width * image.scale / scale, image.size.height * image.scale / scale);
-    CGSize view = self.bounds.size;
-    if (view.width > 0 && view.height > 0 && (size.width > view.width || size.height > view.height)) {
-        scale *= MAX(size.width / view.width, size.height / view.height);
-    }
-    UIImage* still = [[UIImage imageWithCGImage: cgImage scale: scale orientation: image.imageOrientation]
-                      imageWithRenderingMode: image.renderingMode];
-    return [still resizableImageWithCapInsets: UIEdgeInsetsZero resizingMode: UIImageResizingModeTile];
-}
-
-// The view's size changed since the image was tiled, which scales an image
-// larger than the view down to fit it: tile it again.
-- (void) tileAgainIfResized {
-    if (_resizeMode != RCTResizeModeRepeat || CGSizeEqualToSize(self.bounds.size, self.tiledForSize)) {
-        return;
-    }
-    UIImage* image = [self blurs: self.originalImage] ? self.blurredImage : self.originalImage;
-    if (image) {
-        [self showImage: image];
-    }
 }
 
 - (void) setBlurRadius: (CGFloat)blurRadius {
@@ -615,7 +569,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 }
 
 // Points on screen per point of the image, for the view's size and
-// resizeMode, or 1 before the view has a size.
+// objectFit, or 1 before the view has a size.
 - (CGFloat) shownScale: (UIImage*)image {
     CGSize size = image.size;
     CGSize view = self.bounds.size;
@@ -624,14 +578,14 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
     CGFloat x = view.width / size.width;
     CGFloat y = view.height / size.height;
-    switch (_resizeMode) {
-        case RCTResizeModeCover:
+    switch (_objectFit) {
+        case FFFObjectFitCover:
             return MAX(x, y);
-        case RCTResizeModeContain:
+        case FFFObjectFitContain:
             return MIN(x, y);
-        case RCTResizeModeStretch:
+        case FFFObjectFitFill:
             return sqrt(x * y);
-        case RCTResizeModeCenter:
+        case FFFObjectFitScaleDown:
             return MIN(MIN(x, y), 1);
         default:
             return 1;
@@ -880,10 +834,10 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether images are decoded at about the view's size (downsample, and always
 // for photo library images, which are large and usually shown small: Photos
-// makes them at the size asked for). Not for `repeat`, which tiles the image
-// at its own size, or `none`, which shows it at its own size.
+// makes them at the size asked for). Not for `none`, which shows it at its own
+// size.
 - (BOOL) downsamples {
-    if (_resizeMode == RCTResizeModeRepeat || _resizeMode == FFFResizeModeNone) {
+    if (_objectFit == FFFObjectFitNone) {
         return NO;
     }
     return [_source isPhotoLibrary] || _downsample;
@@ -907,7 +861,7 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the image has to cover the box, rather than fit in it.
 - (BOOL) decodeCovers {
-    return _resizeMode == RCTResizeModeCover || _resizeMode == RCTResizeModeStretch;
+    return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill;
 }
 
 // The view grew (by more than a fifth, as React Native's Image reloads), or

@@ -6,7 +6,7 @@
 
 @interface RCTConvert (FFFastImage)
 
-+ (FFFResizeMode)FFFResizeMode:(id)json;
++ (FFFObjectFit)FFFObjectFit:(id)json;
 + (FFFastImageSource *)FFFastImageSource:(id)json;
 + (NSArray<FFFastImageSource *> *)FFFastImageSourceArray:(id)json;
 
