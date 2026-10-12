@@ -14,7 +14,7 @@
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
-// recyclingKey, fallback) and onProgress are ignored.
+// recyclingKey) and onProgress are ignored.
 import React, {
     forwardRef,
     memo,
@@ -81,7 +81,6 @@ function FastImageBase({
     onLayout,
     pointerEvents,
     // Native only.
-    fallback: _fallback,
     recyclingKey: _recyclingKey,
     loop: _loop,
     imageRendering: _imageRendering,
