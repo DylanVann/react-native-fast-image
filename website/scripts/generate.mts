@@ -15,6 +15,7 @@ import {
 import { posix } from 'node:path'
 import GithubSlugger, { slug } from 'github-slugger'
 import { Application, normalizePath, type JSONOutput as J } from 'typedoc'
+import { withCharts } from './charts.mts'
 
 const root = new URL('../../', import.meta.url).pathname
 const app = await Application.bootstrap({
@@ -574,6 +575,6 @@ for (const file of docs) {
     write(
         pageOf(file)!,
         frontmatter({ title: titleOf(file) }) +
-            rewriteLinks(markdown.replace(/^# .*\n+/m, ''), file),
+            rewriteLinks(withCharts(markdown.replace(/^# .*\n+/m, '')), file),
     )
 }

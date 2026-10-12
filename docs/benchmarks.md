@@ -23,13 +23,15 @@ Scenarios:
 
 ## iOS
 
+<!-- chart: Grid (ms), Large (ms), Sizes (ms), Large: memory -->
+
 | Library            | Grid (ms) | Large (ms) | Sizes (ms) | Large: memory |
-| ------------------ | --------- | ---------- | ---------- | ------------- |
-| Fast Image         | 328 / 344 | 332 / 332  | 248 / 248  | 51 MB         |
-| React Native Image | 400 / 416 | 348 / 348  | 316 / 332  | 47 MB         |
-| Expo Image         | 360 / 380 | 564 / 584  | 208 / 244  | 417 MB        |
-| Nitro Image        | 316 / 360 | 300 / 312  | 216 / 232  | 407 MB        |
-| Turbo Image        | 312 / 316 | 564 / 680  | 216 / 216  | 58 MB         |
+| ------------------ | --------: | ---------: | ---------: | ------------: |
+| Fast Image         | 328 / 344 |  332 / 332 |  248 / 248 |         51 MB |
+| React Native Image | 400 / 416 |  348 / 348 |  316 / 332 |         47 MB |
+| Expo Image         | 360 / 380 |  564 / 584 |  208 / 244 |        417 MB |
+| Nitro Image        | 316 / 360 |  300 / 312 |  216 / 232 |        407 MB |
+| Turbo Image        | 312 / 316 |  564 / 680 |  216 / 216 |         58 MB |
 
 - Fast Image decodes images at the size they're shown (`downsample`, on by default), which keeps the large photos' memory low.
 - With Expo Image, the phone drew no new frame for about 270 ms before the large photos appeared.
@@ -37,13 +39,15 @@ Scenarios:
 
 ## Android
 
-| Library            | Grid (ms) | Large (ms)        | Sizes (ms) | Sizes: requests | Large: memory |
-| ------------------ | --------- | ----------------- | ---------- | --------------- | ------------- |
-| Fast Image         | 548 / 616 | 480 / 580         | 348 / 380  | 16              | 97 MB         |
-| React Native Image | 516 / 580 | 4 of 20 not shown | 348 / 364  | 16              | 269 MB        |
-| Expo Image         | 548 / 616 | 480 / 516         | 516 / 548  | 32              | 102 MB        |
-| Nitro Image        | 796 / 832 | 848 / 1080        | 564 / 632  | 32              | 92 MB         |
-| Turbo Image        | 648 / 796 | 864 / 1364        | 564 / 596  | 32              | 94 MB         |
+<!-- chart: Grid (ms), Large (ms), Sizes (ms), Large: memory -->
+
+| Library            | Grid (ms) |        Large (ms) | Sizes (ms) | Sizes: requests | Large: memory |
+| ------------------ | --------: | ----------------: | ---------: | --------------: | ------------: |
+| Fast Image         | 548 / 616 |         480 / 580 |  348 / 380 |              16 |         97 MB |
+| React Native Image | 516 / 580 | 4 of 20 not shown |  348 / 364 |              16 |        269 MB |
+| Expo Image         | 548 / 616 |         480 / 516 |  516 / 548 |              32 |        102 MB |
+| Nitro Image        | 796 / 832 |        848 / 1080 |  564 / 632 |              32 |         92 MB |
+| Turbo Image        | 648 / 796 |        864 / 1364 |  564 / 596 |              32 |         94 MB |
 
 - Fast Image and React Native's `Image` download a photo shown at two sizes once; the others download it for each size, and showed both 168–232 ms later (medians). Expo Image didn't show one photo in one of its 20 runs (a load error).
 - React Native's `Image` decodes the large photos at full size and fails the last ones (Fresco's `Pool hard cap violation`). Memory is the app's anonymous resident memory.
@@ -53,13 +57,15 @@ Scenarios:
 
 The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90 of 20 runs on 4 phones, ms), and the image requests for all 61 images.
 
-| Library            | Time      | Requests |
-| ------------------ | --------- | -------- |
-| Fast Image         | 280 / 316 | 60       |
-| React Native Image | 764 / 780 | 60       |
-| Expo Image         | 748 / 816 | 61       |
-| Nitro Image        | 832 / 880 | 61       |
-| Turbo Image        | 832 / 864 | 61       |
+<!-- chart: Time (ms) -->
+
+| Library            | Time (ms) | Requests |
+| ------------------ | --------: | -------: |
+| Fast Image         | 280 / 316 |       60 |
+| React Native Image | 764 / 780 |       60 |
+| Expo Image         | 748 / 816 |       61 |
+| Nitro Image        | 832 / 880 |       61 |
+| Turbo Image        | 832 / 864 |       61 |
 
 - Fast Image moves the grid's download of the photo, still waiting to start, ahead of the others, and uses it for both sizes. Downloads that haven't started wait in Fast Image's own queue, where priority applies, rather than in the HTTP client's.
 - Expo Image downloads the photo again; in 6 of 20 runs it showed it within 248–416 ms, in the others within 532–832 ms.
@@ -69,12 +75,14 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 
 Time spent drawing frames, from when the photos mount until the run ends shortly after the last one loads, on the UI thread and the RenderThread over all frames (median of 20 runs, ms), and the most memory used. Each library was run without fades, with its fade-in over 300 ms (Fast Image's `transition`, Expo Image's `transition={300}`, `fadeDuration`), and with the fade over a gray placeholder image until each photo loads (`defaultSource`, Expo Image's `placeholder`). Android's animations were on.
 
-| Library            | No fade | Fade | Fade over the placeholder | Memory     |
-| ------------------ | ------- | ---- | ------------------------- | ---------- |
-| Fast Image         | 390     | 560  | 581                       | 123–126 MB |
-| React Native Image | 513     | 624  | 672                       | 139–140 MB |
-| Expo Image         | 446     | 558  | 622                       | 129–133 MB |
-| Turbo Image        | 386     | 563  | –                         | 106–110 MB |
+<!-- chart: No fade (ms), Fade (ms), Fade over the placeholder (ms) -->
+
+| Library            | No fade (ms) | Fade (ms) | Fade over the placeholder (ms) |     Memory |
+| ------------------ | -----------: | --------: | -----------------------------: | ---------: |
+| Fast Image         |          390 |       560 |                            581 | 123–126 MB |
+| React Native Image |          513 |       624 |                            672 | 139–140 MB |
+| Expo Image         |          446 |       558 |                            622 | 129–133 MB |
+| Turbo Image        |          386 |       563 |                              – | 106–110 MB |
 
 - Every library missed one or two frame deadlines per run, as the 60 views mounted, with or without fades.
 - Turbo Image's placeholders aren't local images. Nitro Image has no fade or placeholder, and sends no load events, so its runs last a fixed time and aren't comparable here.
