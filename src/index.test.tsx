@@ -396,6 +396,48 @@ describe('FastImage (iOS)', () => {
     })
 })
 
+describe('thumbhash', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const H2 = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
+    const uri = 'https://example.com/a.jpg'
+    const props = (element: React.ReactElement) =>
+        (renderer.create(element).toJSON() as any).props
+
+    it('goes to the native view apart from the source', () => {
+        const view = props(<FastImage source={{ uri, thumbhash: H1 }} />)
+        expect(view.thumbhash).toBe(H1)
+        expect(view.thumbhashes).toBeUndefined()
+        // Without it, so a new hash for the same image doesn't reload it.
+        expect(view.source).toEqual({ uri })
+    })
+
+    it("goes by index for several sources ('' for none)", () => {
+        const view = props(
+            <FastImage
+                source={[
+                    { uri, width: 100, height: 75 },
+                    { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
+                ]}
+            />,
+        )
+        expect(view.thumbhashes).toEqual(['', H2])
+        expect(view.thumbhash).toBeUndefined()
+        expect(view.sources).toEqual([
+            { uri, width: 100, height: 75 },
+            { uri: `${uri}?2`, width: 400, height: 300 },
+        ])
+    })
+
+    it("isn't sent without one", () => {
+        const view = props(
+            <FastImage source={[{ uri, width: 1, height: 1 }, { uri }]} />,
+        )
+        expect(view.thumbhash).toBeUndefined()
+        expect(view.thumbhashes).toBeUndefined()
+        expect(props(<FastImage source={{ uri }} />).source).toEqual({ uri })
+    })
+})
+
 describe('ref', () => {
     it("is FastImage's view", () => {
         const ref = React.createRef<View>()

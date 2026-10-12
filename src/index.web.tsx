@@ -9,8 +9,8 @@
 // browser draws the image over it as it arrives), and tintColor is an SVG
 // filter next to them.
 //
-// Works: source (uri, require(), or several sizes: see sizedSources),
-// defaultSource, objectFit, objectPosition, tintColor, blurRadius, style,
+// Works: source (uri, require(), or several sizes: see sizedSources, and
+// thumbhash), defaultSource, objectFit, objectPosition, tintColor, blurRadius, style,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -29,6 +29,7 @@ import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
+import { thumbHashDataUri } from './thumbhash'
 import { warnIfChildren } from './warnings'
 import type {
     CachePathResult,
@@ -121,7 +122,11 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
-    const defaultUri = resolveUri(defaultSource)
+    // The source's ThumbHash, decoded, shows in place of defaultSource. With
+    // several sizes the browser picks one itself (from the srcset, as it
+    // loads), so a hash only shows if they all have the same one.
+    const hashUri = thumbHashDataUri(sourceThumbhash(source))
+    const defaultUri = hashUri ?? resolveUri(defaultSource)
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
@@ -160,7 +165,14 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
-                    fit={fit}
+                    // A ThumbHash stands for an image whose size isn't known
+                    // yet: as contain for scale-down and none, which show an
+                    // image at its own size.
+                    fit={
+                        hashUri && (fit === 'scale-down' || fit === 'none')
+                            ? 'contain'
+                            : fit
+                    }
                     position={position}
                     filter={filter}
                     // The image has the label, if there is one.
@@ -197,6 +209,17 @@ function FastImageBase({
             {tintColor ? <TintFilter id={tintId} color={tintColor} /> : null}
         </View>
     )
+}
+
+// The source's ThumbHash: one source's, or the one all of several share.
+function sourceThumbhash(source: FastImageProps['source']): string | undefined {
+    if (Array.isArray(source)) {
+        const hashes = source.map((entry) => entry?.thumbhash)
+        return hashes.every((hash) => hash && hash === hashes[0])
+            ? hashes[0]
+            : undefined
+    }
+    return source && typeof source === 'object' ? source.thumbhash : undefined
 }
 
 // A source's (or defaultSource's) uri. Expo's web builds make a require()d

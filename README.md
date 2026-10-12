@@ -26,6 +26,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
+- **Placeholders**: a blurred preview from a [ThumbHash](#sourcethumbhash) while an image loads, or a bundled image ([`defaultSource`](#defaultsource)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios-and-tvos) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
 - **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
@@ -201,6 +202,20 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 ---
 
+##### `source.thumbhash`
+
+**Type:** `string`
+
+A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short string (base64, about 25 to 35 characters) that shows as a blurred preview of the image while it loads, and if it fails to load, in place of `defaultSource`. Make it when the image is uploaded (e.g. on your server, with the `thumbhash` package), and send it with the image's url.
+
+It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). An invalid one shows nothing, or `defaultSource`.
+
+```jsx
+<FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
+```
+
+---
+
 ##### `source.width`
 
 **Type:** `number`
@@ -229,7 +244,7 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 **Type:** `number`
 
-An asset loaded with `require(...)`, shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
+An asset loaded with `require(...)`, shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`). A source's `thumbhash` shows instead of it.
 
 On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
 

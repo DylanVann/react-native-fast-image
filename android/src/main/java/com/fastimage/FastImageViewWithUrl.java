@@ -312,6 +312,75 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mDefaultSource = source;
     }
 
+    // The `thumbhash` prop (one source), or `thumbhashes` (several, by index,
+    // "" for none): the picked source's ThumbHash shows instead of
+    // defaultSource. JS sends them apart from the sources, so a new hash for
+    // the same image doesn't reload it.
+    @Nullable
+    private String mThumbhash = null;
+    @Nullable
+    private ReadableArray mThumbhashes = null;
+    // What shows while the image loads and if it fails: the picked source's
+    // ThumbHash decoded (FastImageThumbHash), or defaultSource. FastImage's
+    // own drawable either way, which Glide doesn't recycle.
+    @Nullable
+    private Drawable mPlaceholder = null;
+    // The hash mPlaceholder shows, or null for defaultSource.
+    @Nullable
+    private String mPlaceholderHash = null;
+
+    public void setThumbhash(@Nullable String thumbhash) {
+        mThumbhash = thumbhash;
+        updatePlaceholder();
+    }
+
+    public void setThumbhashes(@Nullable ReadableArray thumbhashes) {
+        mThumbhashes = thumbhashes;
+        updatePlaceholder();
+    }
+
+    // The picked source's ThumbHash, or null.
+    @Nullable
+    private String pickedThumbhash() {
+        String hash;
+        if (mSources == null) {
+            hash = mThumbhash;
+        } else if (mThumbhashes != null && mSourceIndex >= 0 && mSourceIndex < mThumbhashes.size()
+                && !mThumbhashes.isNull(mSourceIndex)) {
+            hash = mThumbhashes.getString(mSourceIndex);
+        } else {
+            hash = null;
+        }
+        return hash == null || hash.isEmpty() ? null : hash;
+    }
+
+    // Sets mPlaceholder for the picked source. A view showing the previous
+    // placeholder shows the new one at once, without reloading the image.
+    private void updatePlaceholder() {
+        String hash = pickedThumbhash();
+        Drawable placeholder;
+        if (hash != null && hash.equals(mPlaceholderHash)) {
+            placeholder = mPlaceholder;
+        } else {
+            Bitmap bitmap = FastImageThumbHash.bitmap(hash);
+            if (bitmap != null) {
+                BitmapDrawable drawable = new BitmapDrawable(getResources(), bitmap);
+                // Scaled up smoothly, as a blurred preview (also with
+                // imageRendering pixelated, which is for the image).
+                drawable.setFilterBitmap(true);
+                placeholder = drawable;
+                mPlaceholderHash = hash;
+            } else {
+                placeholder = mDefaultSource;
+                mPlaceholderHash = null;
+            }
+        }
+        if (placeholder == mPlaceholder) return;
+        boolean showing = mShowsDefaultSource;
+        mPlaceholder = placeholder;
+        if (showing) setImageDrawable(placeholder);
+    }
+
     // The events JS has a handler for (the handledEvents prop): the view only
     // sends those (see FastImageEvents).
     int handledEvents;
@@ -1008,7 +1077,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // size (downsample false).
     private boolean shownCropped(Drawable drawable) {
         return mLayoutScaleType == ScaleType.CENTER_CROP && !mLayoutPixelated && mLayoutDownsampled
-                && drawable != mDefaultSource
+                && drawable != mPlaceholder
                 && (drawable instanceof BitmapDrawable || drawable instanceof GifDrawable);
     }
 
@@ -1025,13 +1094,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateImageMatrix();
     }
 
-    // Whether the view shows its defaultSource: FastImage's own drawable,
-    // which Glide doesn't recycle (see startFade).
+    // Whether the view shows its placeholder (defaultSource or a ThumbHash):
+    // FastImage's own drawable, which Glide doesn't recycle (see startFade).
     private boolean mShowsDefaultSource = false;
 
     @Override
     public void setImageDrawable(@Nullable Drawable drawable) {
-        mShowsDefaultSource = drawable != null && drawable == mDefaultSource;
+        mShowsDefaultSource = drawable != null && drawable == mPlaceholder;
         super.setImageDrawable(drawable);
         updateImageMatrix();
     }
@@ -1116,13 +1185,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             setImageMatrix(matrix);
             return;
         }
-        if (mLayoutScaleType == ScaleType.CENTER_CROP || mLayoutScaleType == ScaleType.FIT_CENTER) {
+        // A ThumbHash stands for an image whose size isn't known yet: with
+        // scale-down and none (which show an image at its own size), it's
+        // shown as with contain.
+        boolean hashFits = drawable == mPlaceholder && mPlaceholderHash != null;
+        if (mLayoutScaleType == ScaleType.CENTER_CROP || mLayoutScaleType == ScaleType.FIT_CENTER || hashFits) {
             float x = viewWidth / drawableWidth;
             float y = viewHeight / drawableHeight;
             float scale = mLayoutScaleType == ScaleType.CENTER_CROP ? Math.max(x, y) : Math.min(x, y);
             width = drawableWidth * scale;
             height = drawableHeight * scale;
-        } else if (drawable == mDefaultSource) {
+        } else if (drawable == mPlaceholder) {
             width = drawableWidth;
             height = drawableHeight;
         } else if (mImageWidth > 0 && mImageHeight > 0) {
@@ -1452,13 +1525,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         endProgress();
         applyObjectFit();
         mShownRequest = null;
-        if (!hadThumbnail) return;
         final int load = mLoadCount;
-        // Not from within Glide's callback.
+        // Not from within Glide's callback. Without a thumbnail Glide shows the
+        // placeholder the request started with: a ThumbHash that changed since
+        // shows the new one.
         post(new Runnable() {
             @Override
             public void run() {
-                if (load == mLoadCount) setImageDrawable(mDefaultSource);
+                if (load == mLoadCount && (hadThumbnail || getDrawable() != mPlaceholder)) {
+                    setImageDrawable(mPlaceholder);
+                }
             }
         });
     }
@@ -1499,6 +1575,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mWaitedForSize = false;
             pickSource();
         }
+        updatePlaceholder();
         // Only reload for changes that affect the request (source,
         // defaultSource, objectFit), not for every prop update.
         mNeedsReload = false;
@@ -1520,7 +1597,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mModel = null;
 
         // Nothing to show.
-        if (mSource == null && mDefaultSource == null) {
+        if (mSource == null && mPlaceholder == null) {
             mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
@@ -1555,7 +1632,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             clearView(requestManager);
 
             endProgress();
-            setImageDrawable(mDefaultSource);
+            setImageDrawable(mPlaceholder);
             return;
         }
 
@@ -1600,8 +1677,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                             .load(model)
                             .apply(FastImageViewConverter
                                     .getOptions(getContext(), imageSource, mSource)
-                                    .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)); // null will not be treated as error
+                                    .placeholder(mPlaceholder) // show until loaded
+                                    .fallback(mPlaceholder)); // null will not be treated as error
             mBaseRequest = model == null ? null : base;
             mModel = model;
             // What into() would apply for the scale type, with the size
