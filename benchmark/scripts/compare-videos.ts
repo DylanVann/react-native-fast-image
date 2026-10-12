@@ -5,7 +5,7 @@
 // iOS), slowed down, under the subject's name and time.
 //
 //   bun benchmark/scripts/compare-videos.ts <results folder> [--scenario grid]
-//       [--slow 4] [--width 270] [--names fast-image-local=FastImage 10,...]
+//       [--slow 4] [--width 270] [--names fast-image-local=FastImage,...]
 //
 // Needs the runs' recordings: run.ts keeps them with --keep-videos, and
 // run-android.ts's are in the folder's pulled outputs. Needs ffmpeg and

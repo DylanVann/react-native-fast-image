@@ -27,7 +27,7 @@ export const fastImageAdapter = (
             style={style}
             resizeMode="cover"
             defaultSource={placeholder}
-            // Always set: FastImage 10 fades images in on Android by default,
+            // Always set: FastImage fades images in on Android by default,
             // and the scenarios don't fade unless they ask to. FastImage 8
             // has no transition, and never fades.
             transition={fade}

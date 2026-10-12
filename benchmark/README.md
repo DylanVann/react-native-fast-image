@@ -51,7 +51,7 @@ bun benchmark/scripts/run-android.ts --firebase --subjects $S --tests scroll --a
 # iOS: the iPhone over USB, keeping the recordings
 bun benchmark/scripts/run.ts --subjects $S --scenarios grid,large,sizes,detail --keep-videos --out benchmark/results/<date>-ios
 # Side-by-side videos of a scenario: each library's median run, timed by its clock, 4× slower
-bun benchmark/scripts/compare-videos.ts benchmark/results/<date>-ios --scenario grid --names fast-image-local='FastImage 10'
+bun benchmark/scripts/compare-videos.ts benchmark/results/<date>-ios --scenario grid --names fast-image-local='FastImage'
 ```
 
 A Test Lab phone runs for at most 45 minutes, and is billed by the minute, so the tests are split over several runs at once (scrolling five subjects on one phone takes about that long). `compare-videos.ts` writes `compare-<scenario>.mp4` in the results folder (Android's recordings are in the pulled outputs; it needs ffmpeg and ImageMagick). Each command prints its summary (also in the folder's `summary.md`); a paired run's Macrobenchmark metrics are over every run on all its phones. The results folders aren't committed: the summaries go in `results/<date>-<platform>-<device>.md`, and the numbers on the benchmarks page.
