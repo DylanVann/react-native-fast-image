@@ -186,7 +186,7 @@ function members(name: string, prefix = '', all = false): Member[] {
 }
 
 // FastImage's props, with the source's options (source.uri etc.) after source,
-// a heading level below it. Both under Components → FastImage in the README.
+// a heading level below it. Both under Components → Image in the README.
 const props = members('FastImageProps').flatMap((m) =>
     m.name === 'source' ? [m, ...members('Source', 'source.')] : [m],
 )
