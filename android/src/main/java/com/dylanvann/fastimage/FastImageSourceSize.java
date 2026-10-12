@@ -49,22 +49,41 @@ final class FastImageSourceSize {
     // options, so the size is recorded by image rather than by request.
     static final class Capture extends DownsampleStrategy {
         private final DownsampleStrategy strategy;
+        // What an SVG is drawn at (see FastImageSvgRenderer): the strategy for
+        // the view's scale type, also when images are decoded at full size
+        // (downsample false). An SVG has no size of its own to decode at, and
+        // drawn at the view's size it's already sharp.
+        private final DownsampleStrategy vectorStrategy;
         private final String key;
         private boolean recorded;
 
         Capture(DownsampleStrategy strategy, String key) {
+            this(strategy, strategy, key);
+        }
+
+        Capture(DownsampleStrategy strategy, DownsampleStrategy vectorStrategy, String key) {
             this.strategy = strategy;
+            this.vectorStrategy = vectorStrategy;
             this.key = key;
         }
 
-        @Override
-        public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+        private void record(int sourceWidth, int sourceHeight) {
             // Called again with the sampled size; the first call has the image's.
             if (!recorded) {
                 recorded = true;
                 SIZES.put(key, new int[]{sourceWidth, sourceHeight});
             }
+        }
+
+        @Override
+        public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+            record(sourceWidth, sourceHeight);
             return strategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
+        }
+
+        float getVectorScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+            record(sourceWidth, sourceHeight);
+            return vectorStrategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
         }
 
         @Override
@@ -73,26 +92,29 @@ final class FastImageSourceSize {
         }
 
         // Glide's memory cache keys include the strategy, so match the wrapped
-        // one to keep sharing cached images between views.
+        // ones to keep sharing cached images between views.
         @Override
         public boolean equals(Object o) {
-            return o instanceof Capture && ((Capture) o).strategy.equals(strategy);
+            return o instanceof Capture && ((Capture) o).strategy.equals(strategy)
+                    && ((Capture) o).vectorStrategy.equals(vectorStrategy);
         }
 
         @Override
         public int hashCode() {
-            return strategy.hashCode();
+            return 31 * strategy.hashCode() + vectorStrategy.hashCode();
         }
     }
 
     // What RequestBuilder.into(ImageView) applies for the view's scale type
     // (it leaves a transformation that's already set alone), with the
     // downsample strategy it implies wrapped by capture, and then blur if it
-    // isn't null.
-    static RequestOptions scaleTypeOptions(@Nullable ImageView.ScaleType scaleType, Capture capture, @Nullable FastImageBlur blur) {
+    // isn't null. Not downsampled (downsample false), the image isn't cropped
+    // or fitted to the view's size either: the view scales it as it draws it.
+    static RequestOptions scaleTypeOptions(@Nullable ImageView.ScaleType scaleType, Capture capture, @Nullable FastImageBlur blur,
+            boolean downsample) {
         RequestOptions options = new RequestOptions();
         BitmapTransformation transformation = null;
-        if (scaleType != null) {
+        if (scaleType != null && downsample) {
             switch (scaleType) {
                 case CENTER_CROP:
                     options = options.optionalCenterCrop();
@@ -121,8 +143,9 @@ final class FastImageSourceSize {
         return options.downsample(capture);
     }
 
-    static Capture capture(@Nullable ImageView.ScaleType scaleType, Object model) {
-        return new Capture(strategy(scaleType), String.valueOf(model));
+    static Capture capture(@Nullable ImageView.ScaleType scaleType, Object model, boolean downsample) {
+        DownsampleStrategy strategy = strategy(scaleType);
+        return new Capture(downsample ? strategy : FULL_SIZE, strategy, String.valueOf(model));
     }
 
     private static DownsampleStrategy strategy(@Nullable ImageView.ScaleType scaleType) {
@@ -145,11 +168,12 @@ final class FastImageSourceSize {
     }
 
     // At the image's own size (objectFit none shows it at that size, whatever
-    // the view's), or scaled down to at most MAX_PIXELS pixels, which a
-    // bitmap can be drawn at (Android won't draw one over 100 MB).
+    // the view's, and downsample false decodes every image this way), or
+    // scaled down to at most MAX_PIXELS pixels, which a bitmap can be drawn at
+    // (Android won't draw one over 100 MB).
     static final DownsampleStrategy FULL_SIZE = new FullSize();
 
-    private static final float MAX_PIXELS = 4096f * 4096f;
+    static final float MAX_PIXELS = 4096f * 4096f;
 
     private static final class FullSize extends DownsampleStrategy {
         @Override

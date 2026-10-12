@@ -147,6 +147,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
         view.setImageRendering(imageRendering);
     }
 
+    @ReactProp(name = "downsample", defaultBoolean = true)
+    public void setDownsample(FastImageViewWithUrl view, boolean downsample) {
+        view.setDownsample(downsample);
+    }
+
     @ReactProp(name = "blurRadius")
     public void setBlurRadius(FastImageViewWithUrl view, float blurRadius) {
         view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));

@@ -63,13 +63,17 @@ final class FastImageSvgRenderer {
         int sourceHeight = Math.max(1, Math.round(ownHeight));
 
         // The strategy also records the SVG's own size for onLoad
-        // (FastImageSourceSize.Capture).
+        // (FastImageSourceSize.Capture), and has the one for the view when
+        // images are decoded at full size (downsample false).
         DownsampleStrategy strategy = options.get(DownsampleStrategy.OPTION);
         int targetWidth = width > 0 ? width : sourceWidth;
         int targetHeight = height > 0 ? height : sourceHeight;
-        float scale = strategy != null
-                ? strategy.getScaleFactor(sourceWidth, sourceHeight, targetWidth, targetHeight)
-                : 1f;
+        float scale = strategy instanceof FastImageSourceSize.Capture
+                ? ((FastImageSourceSize.Capture) strategy).getVectorScaleFactor(
+                        sourceWidth, sourceHeight, targetWidth, targetHeight)
+                : strategy != null
+                        ? strategy.getScaleFactor(sourceWidth, sourceHeight, targetWidth, targetHeight)
+                        : 1f;
         // objectFit scale-down and none: at its own size in dp (see
         // FastImageSvg.DENSITY), and for scale-down no larger than the view.
         Float density = options.get(FastImageSvg.DENSITY);

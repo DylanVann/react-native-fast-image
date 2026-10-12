@@ -659,7 +659,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             }
             if (resource instanceof GifDrawable) {
                 GifDrawable own = FastImageGif.copy(
-                        getContext(), (GifDrawable) resource, mLoadingWidth, mLoadingHeight);
+                        getContext(), (GifDrawable) resource, mLoadingWidth, mLoadingHeight, !mDownsample);
                 if (own != null) {
                     applyLoopCount(own);
                     super.onResourceReady(own, transition);
@@ -918,15 +918,27 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // imageRendering="pixelated": no resampling by Glide, and drawn without
     // filtering (sharp pixels). "smooth" is iOS only; here it's the same as
-    // "auto": Glide already decodes a large image at about the view's size, and
-    // averaging it properly would need a full-size decode. Part of the
-    // request, so a change reloads.
+    // "auto": Glide decodes a large image at about the view's size (unless
+    // downsample is false), and averaging it properly would need mipmaps or
+    // a full-size decode. Part of the request, so a change reloads.
     private boolean mPixelated = false;
 
     public void setImageRendering(@Nullable String imageRendering) {
         boolean pixelated = "pixelated".equals(imageRendering);
         if (pixelated == mPixelated) return;
         mPixelated = pixelated;
+        mNeedsReload = true;
+    }
+
+    // downsample false: images are decoded at their own size (capped, see
+    // FastImageSourceSize.FULL_SIZE), not cropped or fitted to the view's
+    // size, so a view zoomed in on with a transform shows the image's detail.
+    // Part of the request, so a change reloads.
+    private boolean mDownsample = true;
+
+    public void setDownsample(boolean downsample) {
+        if (downsample == mDownsample) return;
+        mDownsample = downsample;
         mNeedsReload = true;
     }
 
@@ -968,8 +980,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                     .dontTransform();
             if (blur != null) options = options.optionalTransform(blur);
         } else {
-            options = FastImageSourceSize.scaleTypeOptions(
-                    mResizeScaleType, FastImageSourceSize.capture(mResizeScaleType, model), blur);
+            options = FastImageSourceSize.scaleTypeOptions(mResizeScaleType,
+                    FastImageSourceSize.capture(mResizeScaleType, model, mDownsample), blur, mDownsample);
             boolean ownSize = mResizeScaleType == ScaleType.CENTER_INSIDE || mResizeScaleType == ScaleType.CENTER;
             // scale-down and none show it at its own size in dp: an SVG is
             // drawn at that size, so it's sharp (not with a blur, which hides
