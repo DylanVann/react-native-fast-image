@@ -62,7 +62,7 @@ final class FastImageGlide {
             synchronized (FastImageGlide.class) {
                 if (registered != glide) {
                     new FastImageOkHttpProgressGlideModule()
-                            .registerComponents(context.getApplicationContext(), glide, registry);
+                            .register(context.getApplicationContext(), glide, registry, false);
                 }
             }
         }
