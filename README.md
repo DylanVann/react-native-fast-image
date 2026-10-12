@@ -57,15 +57,6 @@ See [Formats](docs/formats.md) for the versions of iOS and Android each format n
 
 ## Installation
 
-Needs React Native 0.83 or later (New Architecture only), iOS/tvOS 15.1 and Android 7.0 (API 24) or later, and on iOS SDWebImage 5.21.4 or later. Works with Expo (SDK 55 or later) and on tvOS with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). It's tested on React Native 0.83 and 0.87, React Native tvOS 0.87, and Expo SDK 57.
-
-| react-native-fast-image | React Native                                                             |
-| ----------------------- | ------------------------------------------------------------------------ |
-| 10.x                    | 0.83 and later, New Architecture                                         |
-| 9.x                     | 0.65 and later, New Architecture (interop layer) and legacy architecture |
-
-Apps on older React Native or the legacy architecture can use FastImage 9 (`npm install react-native-fast-image@9`), which gets fixes from the `9.x` branch. To upgrade from FastImage 9, see [Upgrading from 9.x](docs/upgrading.md).
-
 ```bash
 npm install react-native-fast-image
 cd ios && pod install
@@ -79,11 +70,13 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
+Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later), iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
+
 To set the cache's size when the app starts, see [Native config](#native-config).
 
-If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work. Images your app loads with Glide itself use React Native's OkHttp client too: see [images your app loads with Glide](docs/android-build-settings.md#images-your-app-loads-with-glide).
+If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
 
-If `pod install` can't find a compatible SDWebImage (your `Podfile.lock` has one older than 5.21.4), update it with `cd ios && pod update SDWebImage`.
+If `pod install` can't find a compatible SDWebImage (FastImage needs 5.21.4 or later), update it with `cd ios && pod update SDWebImage`.
 
 ## Usage
 
