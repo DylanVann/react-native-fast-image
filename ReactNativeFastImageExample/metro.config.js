@@ -3,6 +3,12 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config')
 const pkg = require('../package.json')
 
 const root = path.resolve(__dirname, '..')
+// react-native-fast-image-nitro-image (Nitro Images), from its source.
+const nitroImage = path.join(
+    root,
+    'packages',
+    'react-native-fast-image-nitro-image',
+)
 
 // The repo root has its own dev copies of the library's peer dependencies
 // (react, react-native). Block them so the library source uses this app's.
@@ -42,10 +48,16 @@ const config = {
     resolver: {
         blockList: [
             ...peers.map((m) => dir(path.join(root, 'node_modules', m))),
+            // Its dev copies of Nitro: it uses this app's.
+            dir(path.join(nitroImage, 'node_modules')),
             ...notSource,
         ],
         extraNodeModules: Object.fromEntries(
-            peers.map((m) => [m, path.join(__dirname, 'node_modules', m)]),
+            [
+                ...peers,
+                'react-native-nitro-modules',
+                'react-native-nitro-image',
+            ].map((m) => [m, path.join(__dirname, 'node_modules', m)]),
         ),
         // Load the library from its source so changes show up without a build
         // (unless `scripts/verify.mts --package` installed the package).
@@ -57,6 +69,12 @@ const config = {
                 return {
                     type: 'sourceFile',
                     filePath: path.join(root, 'src', 'index.tsx'),
+                }
+            }
+            if (moduleName === 'react-native-fast-image-nitro-image') {
+                return {
+                    type: 'sourceFile',
+                    filePath: path.join(nitroImage, 'src', 'index.ts'),
                 }
             }
             return context.resolveRequest(context, moduleName, platform)

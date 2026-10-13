@@ -27,6 +27,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios-and-tvos) images.
+- [**Nitro Images**](#nitro-images-and-visioncamera), e.g. VisionCamera's photos, passed as the `source`.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
 - **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
 
@@ -106,9 +107,9 @@ It's a single native view, which also takes React Native's View props, such as a
 
 #### `source`
 
-**Type:** `number | Source | Source[]`
+**Type:** `number | NitroImage | Source | Source[]`
 
-Source for the remote image to load: a `Source`, a `require()`d image, or an array of the same image at different sizes.
+Source for the remote image to load: a `Source`, a `require()`d image, an array of the same image at different sizes, or a Nitro Image (see [Nitro Images](#nitro-images-and-visioncamera)).
 
 When `source` changes, the image that's showing stays until the new one has loaded. In views that get reused for other content, such as rows in FlashList or recyclerlistview, set `recyclingKey` so a reused row doesn't show the previous row's image.
 
@@ -716,6 +717,16 @@ A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not `ok`
 
 ---
 
+### `NitroImage`
+
+An image already in memory from Nitro Image: react-native-nitro-image's `Image`, which VisionCamera's photos and snapshots also give (e.g. `photo.toImage()`). FastImage shows it with react-native-fast-image-nitro-image installed. See [Nitro Images](#nitro-images-and-visioncamera).
+
+- `width` (`number`)
+- `height` (`number`)
+- `toRawPixelData` (`(args: any[]) => unknown`)
+
+---
+
 ### `ObjectFit`
 
 **Type:** `'fill' | 'contain' | 'cover' | 'none' | 'scale-down'`
@@ -865,6 +876,37 @@ If your app has its own `AppGlideModule` (see [using FastImage with an AppGlideM
 A photo library url (`ph://<localIdentifier>`, as camera roll libraries give) loads with SDWebImagePhotosPlugin, which FastImage includes.
 
 The app needs access to the photo library, which it has if it got the url from there. A photo library image is decoded at about the view's size, since photos are large and usually shown small; `onLoad` still reports the photo's own size. `FastImage.preload` of a `ph://` source loads the full-size photo (there's no view to size it for), which doesn't make a view's smaller copy load faster, so preloading photo library images usually isn't worth it. `assets-library://` urls aren't supported. On Android, photo pickers give `content://` urls, which load as they are.
+
+## Nitro Images and VisionCamera
+
+FastImage shows a [Nitro Image](https://github.com/mrousavy/react-native-nitro-image) (react-native-nitro-image's `Image`) passed as its `source`, with react-native-fast-image-nitro-image installed. [VisionCamera](https://github.com/mrousavy/react-native-vision-camera)'s photos and snapshots give Nitro Images too, so you can show a photo the camera just took without saving it to a file:
+
+```sh
+npm install react-native-fast-image-nitro-image react-native-nitro-image react-native-nitro-modules
+cd ios && pod install
+```
+
+```jsx
+const [image, setImage] = useState()
+
+const takePhoto = async () => {
+    const photo = await photoOutput.capturePhoto({}, {})
+    setImage(await photo.toImageAsync())
+    photo.dispose()
+}
+
+return (
+    <FastImage
+        style={{ width: 200, height: 200 }}
+        source={image}
+        objectFit="cover"
+    />
+)
+```
+
+The view shows the Image as it is in memory: it isn't downloaded, cached or decoded again, and it shows at once, as an image from the memory cache does (see [`transition`](#transition)). The view's props (`objectFit`, `objectPosition`, `tintColor`, `blurRadius`, ...) and events work as for other images, and `onLoad` has the Image's size. Passing the same Image again doesn't load it again.
+
+Keep the Image while a view shows it: on Android, `image.dispose()` frees its pixels, which the view may still be drawing. Without react-native-fast-image-nitro-image installed, passing an Image throws an error. Nitro Images aren't supported by `FastImage.preload`, `getCachePath`, `writeToCache` or `defaultSource`.
 
 ## Web
 

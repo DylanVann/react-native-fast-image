@@ -441,11 +441,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         private final int duration;
         private final String skipOnCacheHit;
         private final boolean webCache;
+        private final boolean memoryImage;
 
-        FadeFactory(int duration, String skipOnCacheHit, boolean webCache) {
+        FadeFactory(int duration, String skipOnCacheHit, boolean webCache, boolean memoryImage) {
             this.duration = duration;
             this.skipOnCacheHit = skipOnCacheHit;
             this.webCache = webCache;
+            this.memoryImage = memoryImage;
         }
 
         @Override
@@ -463,7 +465,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         private boolean skips(DataSource dataSource) {
             if (skipOnCacheHit.equals("none")) return false;
-            if (dataSource == DataSource.MEMORY_CACHE) return true;
+            // An image already in memory shows as one from the memory cache.
+            if (dataSource == DataSource.MEMORY_CACHE || memoryImage) return true;
             if (webCache && dataSource == DataSource.DATA_DISK_CACHE) return true;
             // Glide also keeps a local file's or bundled image's decoded
             // image in its disk cache (at the size it was decoded at, and not
@@ -1543,8 +1546,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // A source without a uri (empty, missing or null), or one that can't be
         // resolved: fire onError and onLoadEnd and show defaultSource, as on iOS
         // (#1028, #945).
+        String error = null;
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
-            String error = "Invalid source: " + mSource;
+            error = "Invalid source: " + mSource;
+        } else if (imageSource != null && imageSource.isMemoryImage() && imageSource.getSourceForLoad() == null) {
+            error = "The image at " + imageSource.getUri() + " is no longer in memory";
+        }
+        if (error != null) {
             WritableMap event = new WritableNativeMap();
             event.putString("error", error);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
@@ -1626,7 +1634,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         new FadeFactory(
                                 mTransitionDuration,
                                 mTransitionSkipOnCacheHit,
-                                imageSource != null && imageSource.isWebCache())));
+                                imageSource != null && imageSource.isWebCache(),
+                                imageSource != null && imageSource.isMemoryImage())));
             }
             if (thumbnail) {
                 builder = builder.thumbnail(fromCache(shownRequest));

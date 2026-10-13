@@ -547,6 +547,44 @@ describe('source.memoryCache', () => {
     })
 })
 
+describe('Nitro Images', () => {
+    // A stand-in for react-native-nitro-image's Image: FastImage tells them
+    // apart by toRawPixelData.
+    const nitroImage = () => ({
+        width: 4,
+        height: 2,
+        toRawPixelData: () => ({}),
+    })
+    const nativeSource = (source: FastImageProps['source']) =>
+        renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.source
+
+    // First: once react-native-fast-image-nitro-image has loaded, it stays.
+    it('throws without react-native-fast-image-nitro-image', () => {
+        spyOn(console, 'error').mockImplementation(() => {})
+        expect(() => nativeSource(nitroImage())).toThrow(
+            'to show a Nitro Image, install react-native-fast-image-nitro-image',
+        )
+    })
+
+    it('shows an Image by the uri react-native-fast-image-nitro-image gives', () => {
+        const imageSource = mock(() => ({ uri: 'fastimage-memory://1' }))
+        mock.module('react-native-fast-image-nitro-image', () => ({
+            imageSource,
+        }))
+        const image = nitroImage()
+        expect(nativeSource(image)).toEqual({ uri: 'fastimage-memory://1' })
+        expect(imageSource).toHaveBeenCalledWith(image)
+    })
+
+    it("doesn't take a source object with a width and height for an Image", () => {
+        const source = { uri: 'https://example.com/a.jpg', width: 4, height: 2 }
+        expect(nativeSource(source)).toEqual(source)
+    })
+})
+
 describe('several sources', () => {
     const nativeView = (element: React.ReactElement) =>
         renderer

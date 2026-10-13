@@ -1,0 +1,58 @@
+{
+    "name": "react-native-fast-image-nitro-image",
+    "version": "0.1.0",
+    "description": "Shows Nitro Images (react-native-nitro-image, VisionCamera) in FastImage.",
+    "keywords": [
+        "fastimage",
+        "image",
+        "nitro",
+        "react-native",
+        "vision-camera"
+    ],
+    "homepage": "https://github.com/DylanVann/react-native-fast-image/tree/main/packages/react-native-fast-image-nitro-image#readme",
+    "bugs": {
+        "url": "https://github.com/DylanVann/react-native-fast-image/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/DylanVann/react-native-fast-image.git",
+        "directory": "packages/react-native-fast-image-nitro-image"
+    },
+    "license": "MIT",
+    "author": "Dylan Vann <dylan@dylanvann.com> (https://dylanvann.com)",
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "react-native": "src/index.ts",
+    "source": "src/index.ts",
+    "files": [
+        "src",
+        "lib",
+        "nitrogen",
+        "nitro.json",
+        "android/build.gradle",
+        "android/gradle.properties",
+        "android/CMakeLists.txt",
+        "android/src",
+        "ios",
+        "*.podspec",
+        "react-native.config.js",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "rm -rf lib && tsc",
+        "typecheck": "tsc --noEmit",
+        "specs": "nitrogen --logLevel=\"debug\""
+    },
+    "devDependencies": {
+        "nitrogen": "0.37.1",
+        "react-native-nitro-image": "0.15.2",
+        "react-native-nitro-modules": "0.37.1",
+        "typescript": "7.0.2"
+    },
+    "peerDependencies": {
+        "react-native": "*",
+        "react-native-fast-image": ">=10.1.0",
+        "react-native-nitro-image": "*",
+        "react-native-nitro-modules": "*"
+    }
+}

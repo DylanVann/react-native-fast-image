@@ -149,8 +149,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // once, as Android's image libraries fade an image in from nothing and never
 // between images. Then as SDWebImage's transitions and those libraries
 // decide: from the memory cache it shows at once (skipOnCacheHit 'memory',
-// the default), and from the disk cache too with 'all'. Downloads, local
-// files and bundled images fade.
+// the default), as an image already in memory does, and from the disk cache
+// too with 'all'. Downloads, local files and bundled images fade.
 - (BOOL) fadesImageFromCache: (SDImageCacheType)cacheType {
     if (self.transitionDuration <= 0 || self.loadsSwitchedSource ||
         ([self displaysLoadedImage] && !self.transitionBetweenImages)) {
@@ -837,7 +837,8 @@ NSString *FFFErrorMessage(NSError *error)
 // makes them at the size asked for). Not for `none`, which shows it at its own
 // size.
 - (BOOL) downsamples {
-    if (_objectFit == FFFObjectFitNone) {
+    // An image in memory is shown as it is: it's decoded already.
+    if (_objectFit == FFFObjectFitNone || [_source isMemoryImage]) {
         return NO;
     }
     return [_source isPhotoLibrary] || _downsample;
@@ -1004,11 +1005,12 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the view loads as it's laid out, so its image shows in this frame:
 // one in the memory cache, where SDWebImage finds it as the load starts, or
-// one that isn't downloaded (no source, which shows defaultSource, or a data
-// uri). Also when that can't be told (an app's own image cache), as before.
+// one that isn't downloaded (no source, which shows defaultSource, a data
+// uri, or an image in memory). Also when that can't be told (an app's own
+// image cache), as before.
 - (BOOL) loadsDuringLayout {
     FFFastImageSource* source = [self picksSource] ? [self sourceForSize] : _source;
-    if (!source.url || [source.url.scheme isEqualToString: @"data"]) {
+    if (!source.url || [source.url.scheme isEqualToString: @"data"] || [source isMemoryImage]) {
         return YES;
     }
     if (!source.memoryCache) {
@@ -1029,6 +1031,15 @@ NSString *FFFErrorMessage(NSError *error)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
+    if ([source isMemoryImage]) {
+        // Already in memory, where the view keeps it while it shows it: not
+        // in SDWebImage's caches too (the disk cache would encode it).
+        context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeNone);
+        context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeNone);
+        context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
+        context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
+        return context;
+    }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         [FFFDownsampledImage addFullSizeToContext: context];
         if (!source.memoryCache) {
@@ -1131,7 +1142,9 @@ NSString *FFFErrorMessage(NSError *error)
         // The loaded image, not defaultSource (shown while it loads, or if it
         // fails).
         BOOL loaded = image && image != placeholder;
-        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType]];
+        // An image in memory shows as one from the memory cache does.
+        SDImageCacheType from = [source isMemoryImage] ? SDImageCacheTypeMemory : cacheType;
+        [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: from]];
     };
     [self sd_internalSetImageWithURL: url
                     placeholderImage: placeholder

@@ -9,6 +9,7 @@
 #import <SDWebImage/SDImageAWebPCoder.h>
 #import "FFFAnimatedWebPCoder.h"
 #import "FFFAnimatedAVIFCoder.h"
+#import "FFFastImageMemoryImages.h"
 #import <SDWebImageSVGCoder/SDImageSVGCoder.h>
 #import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
 #import <Photos/Photos.h>
@@ -112,6 +113,53 @@ static NSString *FFFBundleAssetName(NSURL *url)
             completedBlock(image, nil, nil, YES);
         } else {
             NSString *message = [NSString stringWithFormat:@"No image named %@ in the app", name ?: url.path];
+            completedBlock(nil, nil, [NSError errorWithDomain:SDWebImageErrorDomain code:SDWebImageErrorInvalidURL userInfo:@{NSLocalizedDescriptionKey: message}], YES);
+        }
+    }
+    return nil;
+}
+
+- (BOOL)shouldBlockFailedURLWithURL:(NSURL *)url error:(NSError *)error
+{
+    return NO;
+}
+
+@end
+
+// Gives views an image already in memory (FFFastImageMemoryImages), as it
+// is: it's decoded already.
+@interface FFFMemoryImageLoader : NSObject <SDImageLoader>
+@end
+
+@implementation FFFMemoryImageLoader
+
++ (FFFMemoryImageLoader *)sharedLoader
+{
+    static FFFMemoryImageLoader *loader;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        loader = [FFFMemoryImageLoader new];
+    });
+    return loader;
+}
+
+- (BOOL)canRequestImageForURL:(NSURL *)url
+{
+    return YES;
+}
+
+- (id<SDWebImageOperation>)requestImageWithURL:(NSURL *)url
+                                        options:(SDWebImageOptions)options
+                                        context:(SDWebImageContext *)context
+                                       progress:(SDImageLoaderProgressBlock)progressBlock
+                                      completed:(SDImageLoaderCompletedBlock)completedBlock
+{
+    UIImage *image = [FFFastImageMemoryImages imageForURL:url];
+    if (completedBlock) {
+        if (image) {
+            completedBlock(image, nil, nil, YES);
+        } else {
+            NSString *message = [NSString stringWithFormat:@"The image at %@ is no longer in memory", url.absoluteString];
             completedBlock(nil, nil, [NSError errorWithDomain:SDWebImageErrorDomain code:SDWebImageErrorInvalidURL userInfo:@{NSLocalizedDescriptionKey: message}], YES);
         }
     }
@@ -390,8 +438,16 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     return [self isPhotoLibrary] ? FFFPhotoPixelSize(_url) : CGSizeZero;
 }
 
+- (BOOL)isMemoryImage
+{
+    return [FFFastImageMemoryImages isMemoryImageURL:_url];
+}
+
 - (id<SDImageLoader>)imageLoader
 {
+    if ([self isMemoryImage]) {
+        return [FFFMemoryImageLoader sharedLoader];
+    }
     if ([self isPhotoLibrary]) {
         return [FFFPhotosLoader photosLoader];
     }

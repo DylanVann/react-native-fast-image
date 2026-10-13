@@ -122,6 +122,14 @@ export type FastImageSource = {
     scale?: number,
 }
 
+// react-native-nitro-image's Image (shown with
+// react-native-fast-image-nitro-image).
+export type NitroImage = interface {
+    +width: number,
+    +height: number,
+    toRawPixelData(...args: Array<any>): mixed,
+}
+
 export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
     onError?: ?(event: OnErrorEvent) => void,
@@ -130,7 +138,7 @@ export type FastImageProps = $ReadOnly<{|
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 
-    source?: ?(FastImageSource | Array<FastImageSource> | number),
+    source?: ?(FastImageSource | Array<FastImageSource> | number | NitroImage),
     defaultSource?: ?number,
 
     tintColor?: number | string,

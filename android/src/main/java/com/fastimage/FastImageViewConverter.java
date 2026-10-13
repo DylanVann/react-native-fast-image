@@ -120,6 +120,14 @@ class FastImageViewConverter {
                 break;
         }
 
+        if (imageSource != null && imageSource.isMemoryImage()) {
+            // Already in memory, where the view keeps it while it shows it:
+            // not in Glide's caches too.
+            diskCacheStrategy = DiskCacheStrategy.NONE;
+            onlyFromCache = false;
+            skipMemoryCache = true;
+        }
+
         RequestOptions options = new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
                 .onlyRetrieveFromCache(onlyFromCache)
