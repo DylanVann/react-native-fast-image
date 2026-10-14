@@ -10,5 +10,6 @@
         "rootDir": "./src"
     },
     "include": ["./src"],
-    "exclude": ["src/**/*.test.tsx"]
+    // src/nitro is Nitrogen's input, not the package's.
+    "exclude": ["src/**/*.test.tsx", "src/nitro"]
 }

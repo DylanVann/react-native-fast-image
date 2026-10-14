@@ -1,6 +1,7 @@
 package com.fastimage;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -202,6 +203,12 @@ final class FastImageSourceSize {
     // header first (see readLocal).
     @Nullable
     static int[] get(Drawable resource, Object model, boolean local, boolean fromResourceCache) {
+        if (model instanceof Bitmap) {
+            // An image in memory (FastImageMemoryImages): its own size, which
+            // a fit or crop for the view doesn't change.
+            Bitmap bitmap = (Bitmap) model;
+            return new int[]{bitmap.getWidth(), bitmap.getHeight()};
+        }
         String key = String.valueOf(model);
         if (resource instanceof GifDrawable) {
             // Glide decodes GIFs itself (sampled to fit the view), without the

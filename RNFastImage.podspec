@@ -31,4 +31,25 @@ Pod::Spec.new do |s|
   s.dependency 'SDWebImageSVGCoder', '>= 1.7.0', '< 2.0'
   # Photo library images (ph://).
   s.dependency 'SDWebImagePhotosPlugin', '>= 1.2.0', '< 2.0'
+
+  # Nitro Images (react-native-nitro-image's Image) as a source, when the app
+  # has react-native-nitro-image: its HybridObject (src/nitro, ios/Nitro), with
+  # Nitrogen's code. Apps without it don't build any of this.
+  podfile = Pod::Config.instance.podfile rescue nil
+  if podfile&.dependencies&.any? { |d| d.root_name == 'NitroImage' }
+    s.source_files = [s.attributes_hash["source_files"], "ios/Nitro/*.swift"].flatten
+    # The Swift code's view of FastImage (a module now, for Swift).
+    s.public_header_files = "ios/FastImage/FFFastImageMemoryImages.h"
+    load File.join(__dir__, "nitrogen/generated/ios/RNFastImage+autolinking.rb")
+    add_nitrogen_files(s)
+    s.dependency 'NitroImage'
+    # A Swift pod's dependencies must be modules, and the SDWebImage pods
+    # aren't by default: build them as modules, as `:modular_headers => true`
+    # for them in the Podfile would.
+    podfile.target_definition_list.each do |target|
+      %w[SDWebImage SDWebImageWebPCoder SDWebImageSVGCoder SDWebImagePhotosPlugin].each do |pod|
+        target.set_use_modular_headers_for_pod(pod, true)
+      end
+    end
+  end
 end

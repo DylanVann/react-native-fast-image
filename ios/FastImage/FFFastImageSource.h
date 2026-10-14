@@ -56,8 +56,8 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 - (SDWebImageOptions)cacheOptions;
 
 // The loader for `cache: 'web'` images, whose HTTP cache is their own (see
-// webURLCache), for photo library images (ph://, see FFFPhotosLoader), or nil
-// for SDWebImage's shared one.
+// webURLCache), for photo library images (ph://, see FFFPhotosLoader), images
+// in memory (see FFFastImageMemoryImages), or nil for SDWebImage's shared one.
 - (id<SDImageLoader>)imageLoader;
 
 // Whether the source is a photo library image (ph://<localIdentifier>),
@@ -66,6 +66,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 
 // The error's message, for onError.
 - (NSString *)errorMessage:(NSError *)error;
+
+// Whether the source is an image already in memory (see
+// FFFastImageMemoryImages), which isn't cached or downsampled.
+- (BOOL)isMemoryImage;
 
 // A photo library image's own size in pixels (for onLoad when it comes from
 // a cache, where the size it was decoded from isn't recorded), or zero.

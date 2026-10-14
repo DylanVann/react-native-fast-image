@@ -43,6 +43,8 @@ example/android/app/src/main/gen
 # build
 react-native-fast-image-*.tgz
 dist/
+# CMake's build of the Nitro part (android/CMakeLists.txt)
+.cxx/
 
 # coverage reports
 coverage
