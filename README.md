@@ -719,7 +719,7 @@ A load's result, as `onLoadEnd` gets it: `ok` with the image's size, or not `ok`
 
 ### `NitroImage`
 
-An image already in memory from Nitro Image: react-native-nitro-image's `Image`, which VisionCamera's photos and snapshots also give (e.g. `photo.toImage()`). FastImage shows it with react-native-fast-image-nitro-image installed. See [Nitro Images](#nitro-images-and-visioncamera).
+An image already in memory from Nitro Image: react-native-nitro-image's `Image`, which VisionCamera's photos and snapshots also give (e.g. `photo.toImage()`). FastImage shows it in apps with react-native-nitro-image. See [Nitro Images](#nitro-images-and-visioncamera).
 
 - `width` (`number`)
 - `height` (`number`)
@@ -879,12 +879,7 @@ The app needs access to the photo library, which it has if it got the url from t
 
 ## Nitro Images and VisionCamera
 
-FastImage shows a [Nitro Image](https://github.com/mrousavy/react-native-nitro-image) (react-native-nitro-image's `Image`) passed as its `source`, with react-native-fast-image-nitro-image installed. [VisionCamera](https://github.com/mrousavy/react-native-vision-camera)'s photos and snapshots give Nitro Images too, so you can show a photo the camera just took without saving it to a file:
-
-```sh
-npm install react-native-fast-image-nitro-image react-native-nitro-image react-native-nitro-modules
-cd ios && pod install
-```
+FastImage shows a [Nitro Image](https://github.com/mrousavy/react-native-nitro-image) (react-native-nitro-image's `Image`) passed as its `source`. [VisionCamera](https://github.com/mrousavy/react-native-vision-camera)'s photos and snapshots give Nitro Images too, so you can show a photo the camera just took without saving it to a file:
 
 ```jsx
 const [image, setImage] = useState()
@@ -906,7 +901,9 @@ return (
 
 The view shows the Image as it is in memory: it isn't downloaded, cached or decoded again, and it shows at once, as an image from the memory cache does (see [`transition`](#transition)). The view's props (`objectFit`, `objectPosition`, `tintColor`, `blurRadius`, ...) and events work as for other images, and `onLoad` has the Image's size. Passing the same Image again doesn't load it again.
 
-Keep the Image while a view shows it: on Android, `image.dispose()` frees its pixels, which the view may still be drawing. Without react-native-fast-image-nitro-image installed, passing an Image throws an error. Nitro Images aren't supported by `FastImage.preload`, `getCachePath`, `writeToCache` or `defaultSource`.
+It works in apps with react-native-nitro-image (and react-native-nitro-modules), which VisionCamera apps have already: FastImage builds its native part for Nitro Images only then, so other apps don't get it. After adding them, run `pod install` and rebuild the app; without them, passing an Image throws an error.
+
+Keep the Image while a view shows it: on Android, `image.dispose()` frees its pixels, which the view may still be drawing. Nitro Images aren't supported by `FastImage.preload`, `getCachePath`, `writeToCache` or `defaultSource`.
 
 ## Web
 

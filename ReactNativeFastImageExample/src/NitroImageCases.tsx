@@ -7,9 +7,8 @@ import { imageUrl } from './imageServer'
 import type { RegressionGroup } from './RunnerContext'
 
 // Nitro Images (react-native-nitro-image's Image, which VisionCamera's photos
-// and snapshots also give) as FastImage's source, shown through
-// react-native-fast-image-nitro-image (packages/). Only in this example: the
-// others don't have Nitro.
+// and snapshots also give) as FastImage's source. Only in this example: the
+// others don't have Nitro, so FastImage leaves out its Nitro part there.
 
 // Opaque RGBA colors.
 type Rgb = [number, number, number]

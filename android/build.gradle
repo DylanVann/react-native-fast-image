@@ -19,6 +19,15 @@ def appHasExpoImage = {
 // and FastImage registers its Glide components itself (FastImageGlide).
 def excludeAppGlideModule = safeExtGet('excludeAppGlideModule', appHasExpoImage())
 
+// Nitro Images (react-native-nitro-image's Image) as a source, when the app
+// has react-native-nitro-image: its HybridObject (../src/nitro, src/nitro),
+// with Nitrogen's code. Apps without it don't build any of this.
+def hasNitroImage = rootProject.findProject(':react-native-nitro-image') != null
+if (hasNitroImage) {
+    apply plugin: 'org.jetbrains.kotlin.android'
+    apply from: '../nitrogen/generated/android/FastImage+autolinking.gradle'
+}
+
 // When changing the default, revisit the Glide rules in consumer-rules.pro.
 // 5.0.7: Glide 5.0.9 needs apps to compile against API 37 (React Native
 // 0.83's compileSdk is 36). An app can set another, 4.15 or later: 4.15+
@@ -42,10 +51,47 @@ android {
         targetSdkVersion safeExtGet('targetSdkVersion', 36)
         // Applied to the app's release build, so apps don't need to add them.
         consumerProguardFiles 'consumer-rules.pro'
+        if (hasNitroImage) {
+            externalNativeBuild {
+                cmake {
+                    cppFlags "-frtti -fexceptions -Wall -Wextra -fstack-protector-all"
+                    arguments "-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                    def architectures = rootProject.findProperty('reactNativeArchitectures')
+                    if (architectures) {
+                        abiFilters(*architectures.split(','))
+                    }
+                }
+            }
+        }
+    }
+    if (hasNitroImage) {
+        if (rootProject.ext.has('ndkVersion')) {
+            ndkVersion rootProject.ext.get('ndkVersion')
+        }
+        buildFeatures {
+            prefab true
+        }
+        externalNativeBuild {
+            cmake {
+                path 'CMakeLists.txt'
+            }
+        }
+        // React Native's libraries, which the app has already.
+        packaging {
+            jniLibs {
+                excludes += [
+                    '**/libc++_shared.so',
+                    '**/libfbjni.so',
+                    '**/libjsi.so',
+                    '**/libreactnative.so',
+                ]
+            }
+        }
     }
     sourceSets {
         main {
             java {
+                srcDirs += hasNitroImage ? 'src/nitro/java' : 'src/noNitro/java'
                 if (excludeAppGlideModule) {
                     exclude "**/FastImageGlideModule.java"
                 }
@@ -82,6 +128,10 @@ dependencies {
     implementation 'com.caverock:androidsvg-aar:1.4'
     // Animated PNGs (see FastImageApng).
     implementation 'com.github.penfeizhou.android.animation:apng:3.0.5'
+    if (hasNitroImage) {
+        implementation project(':react-native-nitro-modules')
+        implementation project(':react-native-nitro-image')
+    }
 }
 
 // Unit tests of the downloads (src/test, with Robolectric, which gives them

@@ -28,7 +28,12 @@
         "android/build.gradle",
         "android/consumer-rules.pro",
         "android/src/main",
+        "android/src/nitro",
+        "android/src/noNitro",
+        "android/CMakeLists.txt",
         "ios/FastImage",
+        "ios/Nitro",
+        "nitrogen",
         "app.plugin.js",
         "src",
         "!src/**/*.test.tsx",
@@ -59,12 +64,15 @@
         "@types/react-test-renderer": "^19.1.0",
         "conventional-changelog-angular": "8.3.1",
         "maestro-runner": "1.1.27",
+        "nitrogen": "0.37.1",
         "odiff-bin": "^4.5.0",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
         "pretty-format": "^30.5.1",
         "react": "19.2.0",
         "react-native": "0.83.10",
+        "react-native-nitro-image": "0.15.2",
+        "react-native-nitro-modules": "0.37.1",
         "react-test-renderer": "19.2.0",
         "rolldown": "1.2.11",
         "semantic-release": "25.0.9",
@@ -72,7 +80,17 @@
     },
     "peerDependencies": {
         "react": "*",
-        "react-native": "*"
+        "react-native": "*",
+        "react-native-nitro-image": ">=0.15.0",
+        "react-native-nitro-modules": ">=0.37.0"
+    },
+    "peerDependenciesMeta": {
+        "react-native-nitro-image": {
+            "optional": true
+        },
+        "react-native-nitro-modules": {
+            "optional": true
+        }
     },
     "codegenConfig": {
         "name": "RNFastImageSpec",

@@ -122,8 +122,8 @@ export type FastImageSource = {
     scale?: number,
 }
 
-// react-native-nitro-image's Image (shown with
-// react-native-fast-image-nitro-image).
+// react-native-nitro-image's Image (shown in apps with
+// react-native-nitro-image).
 export type NitroImage = interface {
     +width: number,
     +height: number,

@@ -26,9 +26,8 @@ export type { ObjectPosition, PositionLength } from './objectPosition'
 /**
  * An image already in memory from Nitro Image: react-native-nitro-image's
  * `Image`, which VisionCamera's photos and snapshots also give (e.g.
- * `photo.toImage()`). FastImage shows it with
- * react-native-fast-image-nitro-image installed. See
- * [Nitro Images](#nitro-images-and-visioncamera).
+ * `photo.toImage()`). FastImage shows it in apps with react-native-nitro-image.
+ * See [Nitro Images](#nitro-images-and-visioncamera).
  */
 export interface NitroImage {
     readonly width: number
@@ -994,25 +993,37 @@ function isNitroImage(source: unknown): source is NitroImage {
     )
 }
 
-// react-native-fast-image-nitro-image, which gives a Nitro Image's native
-// image to the views, if the app has it: loaded on first use (Metro allows a
-// require of a module that may be missing in a try).
-type NitroImages = { imageSource(image: NitroImage): Source }
+// FastImage's Nitro HybridObject (src/nitro), which gives a Nitro Image's
+// native image to the views. It's built when the app has
+// react-native-nitro-image; created on first use (Metro allows a require of a
+// module that may be missing in a try).
+type NitroImages = { addImage(image: NitroImage): string }
 let nitroImages: NitroImages | undefined
+// Each Image's uri, so a view given the same Image again gets the same source
+// (and doesn't load it again).
+const nitroImageUris = new WeakMap<NitroImage, string>()
 
-function loadNitroImages(): NitroImages {
+function createNitroImages(): NitroImages {
+    let NitroModules
     try {
-        return require('react-native-fast-image-nitro-image')
-    } catch (error) {
+        NitroModules = require('react-native-nitro-modules').NitroModules
+    } catch {}
+    if (!NitroModules?.hasHybridObject('FastImageNitroImages')) {
         throw new Error(
-            `react-native-fast-image: to show a Nitro Image, install react-native-fast-image-nitro-image and rebuild the app (${String(error)})`,
+            'react-native-fast-image: to show a Nitro Image, the app needs react-native-nitro-image (and react-native-nitro-modules): install them and rebuild the app',
         )
     }
+    return NitroModules.createHybridObject('FastImageNitroImages')
 }
 
 function nitroImageSource(image: NitroImage): Source {
-    nitroImages ??= loadNitroImages()
-    return nitroImages.imageSource(image)
+    let uri = nitroImageUris.get(image)
+    if (uri === undefined) {
+        nitroImages ??= createNitroImages()
+        uri = nitroImages.addImage(image)
+        nitroImageUris.set(image, uri)
+    }
+    return { uri }
 }
 
 // Whether a source is an object, which native can read. Other values (null, a

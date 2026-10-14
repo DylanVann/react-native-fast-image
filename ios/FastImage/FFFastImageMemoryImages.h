@@ -4,9 +4,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Images already in memory that views show by a uri
 // (fastimage-memory://<n>), such as a Nitro Image (added by
-// react-native-fast-image-nitro-image). Only Foundation and UIKit here, so
-// other pods (Swift ones too) can declare and call it without SDWebImage's
-// headers.
+// ios/Nitro). Only Foundation and UIKit here: it's the header the Swift code
+// sees.
 @interface FFFastImageMemoryImages : NSObject
 
 // Adds the image and returns its uri. It's only held weakly: the uri works

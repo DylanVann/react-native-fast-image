@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 // Images already in memory that views show by a uri
 // (fastimage-memory://<n>), such as a Nitro Image (added by
-// react-native-fast-image-nitro-image).
+// android/src/nitro).
 public final class FastImageMemoryImages {
     static final String SCHEME = "fastimage-memory";
 

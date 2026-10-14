@@ -16,6 +16,11 @@ import java.util.Map;
 
 // The FastImageView component and the FastImageModule TurboModule.
 public class FastImageViewPackage extends BaseReactPackage {
+    static {
+        // Nitro Images as a source, when the app has react-native-nitro-image.
+        FastImageNitro.load();
+    }
+
     @Nullable
     @Override
     public NativeModule getModule(@NonNull String name, @NonNull ReactApplicationContext reactContext) {
