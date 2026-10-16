@@ -1,19 +1,20 @@
-const Module = require('module')
 const path = require('path')
 
 // FastImage's Expo config plugin: the package's when `scripts/verify.mts
 // --package` installed it, else the repo's app.plugin.js. That one requires
-// expo/config-plugins, which the repo root doesn't have, so it's also looked up
-// in this app's node_modules.
+// expo/config-plugins, which the repo root doesn't have, so its module also
+// looks in this app's node_modules. (Not with NODE_PATH: expo-constants' build
+// script replaces process.env before loading this file, and Node reads
+// NODE_PATH from the real environment.)
 const fromPackage = !!process.env.FAST_IMAGE_FROM_PACKAGE
-if (!fromPackage) {
-    process.env.NODE_PATH = [
-        path.join(__dirname, 'node_modules'),
-        process.env.NODE_PATH,
-    ]
-        .filter(Boolean)
-        .join(path.delimiter)
-    Module._initPaths()
+function fastImagePlugin() {
+    if (fromPackage) return 'react-native-fast-image'
+    const file = require.resolve('../app.plugin.js')
+    const plugin = require(file)
+    const nodeModules = path.join(__dirname, 'node_modules')
+    const { paths } = require.cache[file]
+    if (!paths.includes(nodeModules)) paths.unshift(nodeModules)
+    return plugin
 }
 
 module.exports = {
@@ -48,9 +49,8 @@ module.exports = {
             tsconfigPaths: false,
         },
         plugins: [
-            './plugins/withSceneLifecycle',
             [
-                fromPackage ? 'react-native-fast-image' : '../app.plugin.js',
+                fastImagePlugin(),
                 // The limits the smoke cases check (EXPO_CACHE_LIMITS in
                 // ../ReactNativeFastImageExample/src/SmokeExample.tsx).
                 {

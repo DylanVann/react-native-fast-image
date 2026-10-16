@@ -71,7 +71,7 @@ bun run android   # expo run:android
 bun run web       # the web version, with react-native-web
 ```
 
-`app.config.js` uses the repo's `app.plugin.js` (the installed package's with `verify.mts --package`), and puts the app's `node_modules` on Node's module path for it, since the plugin requires `expo/config-plugins` from where it is. It also turns off Expo's `tsconfigPaths`: `tsconfig.json`'s `paths` point `react` at its types for type checking, which Metro mustn't follow.
+`app.config.js` uses the repo's `app.plugin.js` (the installed package's with `verify.mts --package`), and adds the app's `node_modules` to that module's lookup paths, since the plugin requires `expo/config-plugins` from where it is. The app's `.env` turns off the project fingerprint that debug builds embed (`EXPO_SKIP_FINGERPRINT_EMBED`): with the library linked from the repo root, it would hash the whole repo, ignored files included. `verify.mts` sets it for the Android build too, since it runs Gradle directly, without the Expo CLI that loads `.env`. It also turns off Expo's `tsconfigPaths`: `tsconfig.json`'s `paths` point `react` at its types for type checking, which Metro mustn't follow.
 
 ## Testing on tvOS
 
