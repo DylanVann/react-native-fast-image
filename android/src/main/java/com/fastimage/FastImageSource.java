@@ -156,6 +156,17 @@ public class FastImageSource extends ImageSource {
         return mMemoryCache;
     }
 
+    // `diskCache`: whether the image is kept in the disk cache.
+    private boolean mDiskCache = true;
+
+    void setDiskCache(boolean diskCache) {
+        mDiskCache = diskCache;
+    }
+
+    boolean isDiskCache() {
+        return mDiskCache;
+    }
+
     // An http(s) url.
     boolean isRemote() {
         String scheme = mUri == null ? null : mUri.getScheme();

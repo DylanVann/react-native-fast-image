@@ -62,15 +62,25 @@ class FastImageViewConverter {
         return uri != null && !uri.trim().isEmpty();
     }
 
+    // `diskCache`: whether the image is kept in the disk cache (true unless
+    // the source sets false).
+    static boolean isDiskCache(@Nullable ReadableMap source) {
+        return source == null || !source.hasKey("diskCache") || source.getType("diskCache") != ReadableType.Boolean
+                || source.getBoolean("diskCache");
+    }
+
     // Resolve the source uri to a file path that android understands.
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
         if (source == null) return null;
         FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
-        imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
+        // A `web` image that isn't kept on disk has no HTTP cache to follow:
+        // it's downloaded with the client without one, every time.
+        imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB && isDiskCache(source));
         if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
             imageSource.setMemoryCache(source.getBoolean("memoryCache"));
         }
+        imageSource.setDiskCache(isDiskCache(source));
         if (source.hasKey("cacheKey") && source.getType("cacheKey") == ReadableType.String) {
             imageSource.setCacheKey(source.getString("cacheKey"));
         }
@@ -118,6 +128,12 @@ class FastImageViewConverter {
             case IMMUTABLE:
                 // Use defaults.
                 break;
+        }
+
+        // diskCache false: neither written to Glide's disk cache nor read from
+        // it.
+        if (imageSource != null && !imageSource.isDiskCache()) {
+            diskCacheStrategy = DiskCacheStrategy.NONE;
         }
 
         RequestOptions options = new RequestOptions()

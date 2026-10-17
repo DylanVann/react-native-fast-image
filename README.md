@@ -201,6 +201,16 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 ---
 
+##### `source.diskCache`
+
+**Type:** `boolean` · **Default:** `true`
+
+Whether the image is kept in the disk cache. With `false` it isn't written to disk, or read from it. Use it for images that shouldn't be stored on the device, like private photos or documents, or that change every time they load. The image is downloaded again whenever it isn't in memory, e.g. for a view of another size, so with `memoryCache: false` too it's downloaded each time it's shown. With `cache: 'web'` it isn't kept in the HTTP cache or in memory, so it's downloaded every time it loads. With `cache: 'cacheOnly'` it's only looked for in memory.
+
+`FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok` for it: there's no file, and a view decodes the image for its own size, so it would download a preloaded one again. A source for the same url (or `cacheKey`) without `diskCache: false` still stores the image.
+
+---
+
 ##### `source.width`
 
 **Type:** `number`
@@ -873,7 +883,7 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 Support is minimal:
 
 - Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
-- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
+- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.

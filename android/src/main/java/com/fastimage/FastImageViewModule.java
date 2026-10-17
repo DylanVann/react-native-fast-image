@@ -136,6 +136,13 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                         finishOne.run();
                         continue;
                     }
+                    // Views decode an image for their own size, so one only
+                    // preloaded into memory would be downloaded again.
+                    if (!FastImageViewConverter.isDiskCache(source)) {
+                        results[i] = failure(NOT_ON_DISK);
+                        finishOne.run();
+                        continue;
+                    }
                     final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
                     // A uri that can't be resolved (e.g. a relative path) resolves
                     // to an empty one.
@@ -314,6 +321,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         }
     }
 
+    // preload's, getCachePath's and writeToCache's error for a source with
+    // diskCache false.
+    private static final String NOT_ON_DISK = "The source has diskCache: false, so it isn't kept on disk";
+
     private static WritableMap failure(String error) {
         WritableMap result = Arguments.createMap();
         result.putBoolean("ok", false);
@@ -342,6 +353,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     @Override
     public void getCachePath(final ReadableMap source, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
+        if (!FastImageViewConverter.isDiskCache(source)) {
+            promise.resolve(failure(NOT_ON_DISK));
+            return;
+        }
         if (!FastImageViewConverter.hasUri(source)) {
             // `web` images ignore cacheKey.
             final String cacheKey = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB
@@ -474,6 +489,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     @Override
     public void writeToCache(final ReadableMap source, final String file, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
+        if (!FastImageViewConverter.isDiskCache(source)) {
+            promise.resolve(failure(NOT_ON_DISK));
+            return;
+        }
         if (FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB) {
             promise.resolve(failure("Can't store cache: 'web' images (they're kept in an HTTP cache)"));
             return;

@@ -346,6 +346,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
         _headers = headers;
         _cacheControl = cacheControl;
         _memoryCache = YES;
+        _diskCache = YES;
     }
     return self;
 }
@@ -366,7 +367,10 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 {
     switch (_cacheControl) {
         case FFFCacheControlWeb:
-            return SDWebImageRefreshCached;
+            // Without the disk cache, nor the HTTP cache: without this option
+            // SDWebImage's requests neither read it nor store their responses
+            // there.
+            return _diskCache ? SDWebImageRefreshCached : 0;
         case FFFCacheControlCacheOnly:
             return SDWebImageFromCacheOnly;
         case FFFCacheControlImmutable:
