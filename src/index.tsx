@@ -23,6 +23,18 @@ export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
 
 export type { ObjectPosition, PositionLength } from './objectPosition'
 
+/**
+ * An image already in memory from Nitro Image: react-native-nitro-image's
+ * `Image`, which VisionCamera's photos and snapshots also give (e.g.
+ * `photo.toImage()`). FastImage shows it in apps with react-native-nitro-image.
+ * See [Nitro Images](#nitro-images-and-visioncamera).
+ */
+export interface NitroImage {
+    readonly width: number
+    readonly height: number
+    toRawPixelData(...args: any[]): unknown
+}
+
 /** An image's load priority: see [`source.priority`](#sourcepriority). */
 export type Priority = 'low' | 'normal' | 'high'
 
@@ -260,7 +272,8 @@ export interface ImageStyle extends ViewStyle {
 export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * Source for the remote image to load: a `Source`, a `require()`d image,
-     * or an array of the same image at different sizes.
+     * an array of the same image at different sizes, or a Nitro Image (see
+     * [Nitro Images](#nitro-images-and-visioncamera)).
      *
      * When `source` changes, the image that's showing stays until the new one
      * has loaded. In views that get reused for other content, such as rows in
@@ -296,7 +309,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `{ ok: false, error }`.
      * - An array of one is the same as that source.
      */
-    source?: Source | Source[] | ImageRequireSource
+    source?: Source | Source[] | ImageRequireSource | NitroImage
     /**
      * An asset loaded with `require(...)`, shown while the first image loads,
      * and if an image fails to load. When `source` changes, the previous image
@@ -750,7 +763,9 @@ function FastImageBase({
     const single = Array.isArray(source) ? source[0] : source
     const resolvedSource = sources
         ? undefined
-        : Image.resolveAssetSource(single as any)
+        : isNitroImage(single)
+          ? nitroImageSource(single)
+          : Image.resolveAssetSource(single as any)
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
@@ -967,6 +982,49 @@ FastImage.setDefaults = ({ transition }: FastImageDefaults = {}) => {
 // several sizes of one: pick the size (e.g. the one a view will show).
 const ONE_SOURCE =
     'Takes one source, not an array of sizes: pass the size to use'
+
+// A Nitro Image (react-native-nitro-image's Image), as Nitro Image itself
+// tells them apart.
+function isNitroImage(source: unknown): source is NitroImage {
+    return (
+        typeof source === 'object' &&
+        source !== null &&
+        typeof (source as NitroImage).toRawPixelData === 'function'
+    )
+}
+
+// FastImage's Nitro HybridObject (src/nitro), which gives a Nitro Image's
+// native image to the views. It's built when the app has
+// react-native-nitro-image; created on first use (Metro allows a require of a
+// module that may be missing in a try).
+type NitroImages = { addImage(image: NitroImage): string }
+let nitroImages: NitroImages | undefined
+// Each Image's uri, so a view given the same Image again gets the same source
+// (and doesn't load it again).
+const nitroImageUris = new WeakMap<NitroImage, string>()
+
+function createNitroImages(): NitroImages {
+    let NitroModules
+    try {
+        NitroModules = require('react-native-nitro-modules').NitroModules
+    } catch {}
+    if (!NitroModules?.hasHybridObject('FastImageNitroImages')) {
+        throw new Error(
+            'react-native-fast-image: to show a Nitro Image, the app needs react-native-nitro-image (and react-native-nitro-modules): install them and rebuild the app',
+        )
+    }
+    return NitroModules.createHybridObject('FastImageNitroImages')
+}
+
+function nitroImageSource(image: NitroImage): Source {
+    let uri = nitroImageUris.get(image)
+    if (uri === undefined) {
+        nitroImages ??= createNitroImages()
+        uri = nitroImages.addImage(image)
+        nitroImageUris.set(image, uri)
+    }
+    return { uri }
+}
 
 // Whether a source is an object, which native can read. Other values (null, a
 // url string, a number, an array) are sent as {}, which fails as a source

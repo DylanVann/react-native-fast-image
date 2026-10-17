@@ -109,7 +109,17 @@ public class FastImageSource extends ImageSource {
         return mUri != null && FastImageSource.isContentUri(mUri);
     }
 
+    // An image already in memory (see FastImageMemoryImages).
+    public boolean isMemoryImage() {
+        return FastImageMemoryImages.isMemoryImageUri(mUri);
+    }
+
+    // What Glide loads, or null for an image that's no longer in memory.
+    @Nullable
     public Object getSourceForLoad() {
+        if (isMemoryImage()) {
+            return FastImageMemoryImages.get(mUri);
+        }
         if (isContentUri()) {
             return getSource();
         }

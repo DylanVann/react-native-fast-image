@@ -547,6 +547,55 @@ describe('source.memoryCache', () => {
     })
 })
 
+describe('Nitro Images', () => {
+    // A stand-in for react-native-nitro-image's Image: FastImage tells them
+    // apart by toRawPixelData.
+    const nitroImage = () => ({
+        width: 4,
+        height: 2,
+        toRawPixelData: () => ({}),
+    })
+    const nativeSource = (source: FastImageProps['source']) =>
+        renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.source
+
+    // First: once the HybridObject is created, it stays.
+    it('throws without the HybridObject (react-native-nitro-image)', () => {
+        spyOn(console, 'error').mockImplementation(() => {})
+        mock.module('react-native-nitro-modules', () => ({
+            NitroModules: { hasHybridObject: () => false },
+        }))
+        expect(() => nativeSource(nitroImage())).toThrow(
+            'to show a Nitro Image, the app needs react-native-nitro-image',
+        )
+    })
+
+    it('shows an Image by the uri the HybridObject gives, once per Image', () => {
+        const addImage = mock(() => 'fastimage-memory://1')
+        const createHybridObject = mock(() => ({ addImage }))
+        mock.module('react-native-nitro-modules', () => ({
+            NitroModules: {
+                hasHybridObject: (name: string) =>
+                    name === 'FastImageNitroImages',
+                createHybridObject,
+            },
+        }))
+        const image = nitroImage()
+        expect(nativeSource(image)).toEqual({ uri: 'fastimage-memory://1' })
+        expect(nativeSource(image)).toEqual({ uri: 'fastimage-memory://1' })
+        expect(createHybridObject).toHaveBeenCalledWith('FastImageNitroImages')
+        expect(addImage).toHaveBeenCalledTimes(1)
+        expect(addImage).toHaveBeenCalledWith(image)
+    })
+
+    it("doesn't take a source object with a width and height for an Image", () => {
+        const source = { uri: 'https://example.com/a.jpg', width: 4, height: 2 }
+        expect(nativeSource(source)).toEqual(source)
+    })
+})
+
 describe('several sources', () => {
     const nativeView = (element: React.ReactElement) =>
         renderer

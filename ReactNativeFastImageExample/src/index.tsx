@@ -10,11 +10,16 @@ import DefaultImageGrid from './DefaultImageGrid'
 import RegressionExample, { REGRESSION_GROUPS } from './RegressionExample'
 import RegressionRunner, { runnerWanted } from './RegressionRunner'
 import { EXAMPLE_GROUPS } from './ExampleGroups'
+import { NITRO_IMAGE_GROUPS } from './NitroImageCases'
 
 const Tab = createBottomTabNavigator()
 
 // What the regression runner shows, in order.
-const RUNNER_GROUPS = [...REGRESSION_GROUPS, ...EXAMPLE_GROUPS]
+const RUNNER_GROUPS = [
+    ...REGRESSION_GROUPS,
+    ...NITRO_IMAGE_GROUPS,
+    ...EXAMPLE_GROUPS,
+]
 
 LogBox.ignoreLogs([
     'Warning: isMounted(...) is deprecated',

@@ -1,0 +1,30 @@
+{
+    "$schema": "https://nitro.margelo.com/nitro.schema.json",
+    "cxxNamespace": ["fastimage"],
+    "ios": {
+        "iosModuleName": "RNFastImage"
+    },
+    "android": {
+        "androidNamespace": ["fastimage"],
+        "androidCxxLibName": "FastImage"
+    },
+    "autolinking": {
+        "FastImageNitroImages": {
+            "ios": {
+                "language": "swift",
+                "implementationClassName": "HybridFastImageNitroImages"
+            },
+            "android": {
+                "language": "kotlin",
+                "implementationClassName": "HybridFastImageNitroImages"
+            }
+        }
+    },
+    "ignorePaths": [
+        "**/node_modules",
+        "dist",
+        "website",
+        "benchmark",
+        "ReactNativeFastImageExample*"
+    ]
+}
