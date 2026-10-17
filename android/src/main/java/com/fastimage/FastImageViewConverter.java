@@ -62,6 +62,13 @@ class FastImageViewConverter {
         return uri != null && !uri.trim().isEmpty();
     }
 
+    // `diskCache`: whether the image is kept in the disk cache (true unless
+    // the source sets false).
+    static boolean isDiskCache(@Nullable ReadableMap source) {
+        return source == null || !source.hasKey("diskCache") || source.getType("diskCache") != ReadableType.Boolean
+                || source.getBoolean("diskCache");
+    }
+
     // Resolve the source uri to a file path that android understands.
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
@@ -71,6 +78,7 @@ class FastImageViewConverter {
         if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
             imageSource.setMemoryCache(source.getBoolean("memoryCache"));
         }
+        imageSource.setDiskCache(isDiskCache(source));
         if (source.hasKey("cacheKey") && source.getType("cacheKey") == ReadableType.String) {
             imageSource.setCacheKey(source.getString("cacheKey"));
         }
@@ -120,6 +128,13 @@ class FastImageViewConverter {
                 break;
         }
 
+        // diskCache false: neither written to Glide's disk cache nor read from
+        // it, nor to an HTTP cache (NO_STORE).
+        final boolean noStore = imageSource != null && !imageSource.isDiskCache();
+        if (noStore) {
+            diskCacheStrategy = DiskCacheStrategy.NONE;
+        }
+
         RequestOptions options = new RequestOptions()
                 .diskCacheStrategy(diskCacheStrategy)
                 .onlyRetrieveFromCache(onlyFromCache)
@@ -127,7 +142,8 @@ class FastImageViewConverter {
                 .skipMemoryCache(skipMemoryCache || (imageSource != null && !imageSource.isMemoryCache()))
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
-                .set(FastImageGlide.REQUEST, true);
+                .set(FastImageGlide.REQUEST, true)
+                .set(FastImageGlide.NO_STORE, noStore);
 
         // imageSource is null when only a defaultSource is shown.
         if (imageSource != null && imageSource.isResource()) {

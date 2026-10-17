@@ -59,6 +59,8 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     imageSource.cacheKey = cacheKey.length > 0 ? cacheKey : nil;
     id memoryCache = json[@"memoryCache"];
     imageSource.memoryCache = memoryCache && memoryCache != (id)kCFNull ? [self BOOL:memoryCache] : YES;
+    id diskCache = json[@"diskCache"];
+    imageSource.diskCache = diskCache && diskCache != (id)kCFNull ? [self BOOL:diskCache] : YES;
     CGFloat scale = json[@"scale"] && json[@"scale"] != (id)kCFNull ? [self CGFloat:json[@"scale"]] : 1;
     imageSource.pixelCount = [self CGFloat:json[@"width"]] * [self CGFloat:json[@"height"]] * scale * scale;
     

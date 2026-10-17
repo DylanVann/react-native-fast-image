@@ -154,7 +154,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
         webCache = new Cache(new File(context.getCacheDir(), "fast-image-http-cache"), WEB_CACHE_SIZE);
         webClient = client.newBuilder().cache(webCache).build();
         FastImageSharedDownloads.setDirectory(new File(context.getCacheDir(), "fast-image-downloads"));
-        registry.prepend(FastImageUrl.class, InputStream.class, new UrlLoaderFactory(client, webClient));
+        // diskCache false: no HTTP cache at all, also when the app's client has
+        // one.
+        OkHttpClient noStoreClient = client.newBuilder().cache(null).build();
+        registry.prepend(FastImageUrl.class, InputStream.class, new UrlLoaderFactory(client, webClient, noStoreClient));
         FastImageSvg.register(registry, glide.getBitmapPool());
         FastImageAnimated.register(context, glide, registry);
         FastImageApng.register(registry);
@@ -168,16 +171,19 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     // Loads FastImage's remote images (FastImageUrls), with one download of an
     // image at a time, shared by its requests (FastImageSharedDownloads):
     // `web` ones (FastImageWebGlideUrls) with the client with the HTTP cache,
-    // others with the other client. FastImageUrl isn't a GlideUrl, so Glide
+    // others with the other client, and those with diskCache false
+    // (FastImageGlide.NO_STORE) with a client without any. FastImageUrl isn't a GlideUrl, so Glide
     // doesn't also give these to other GlideUrl loaders, which it would try
     // after a failed load (e.g. a 404, requested again).
     private static class UrlLoaderFactory implements ModelLoaderFactory<FastImageUrl, InputStream> {
         private final OkHttpClient client;
         private final OkHttpClient webClient;
+        private final OkHttpClient noStoreClient;
 
-        UrlLoaderFactory(OkHttpClient client, OkHttpClient webClient) {
+        UrlLoaderFactory(OkHttpClient client, OkHttpClient webClient, OkHttpClient noStoreClient) {
             this.client = client;
             this.webClient = webClient;
+            this.noStoreClient = noStoreClient;
         }
 
         @NonNull
@@ -186,8 +192,10 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
             return new ModelLoader<FastImageUrl, InputStream>() {
                 @Override
                 public LoadData<InputStream> buildLoadData(@NonNull FastImageUrl model, int width, int height, @NonNull Options options) {
-                    return FastImageSharedDownloads.loadData(
-                            model.url, model.url instanceof FastImageWebGlideUrl ? webClient : client);
+                    OkHttpClient urlClient = FastImageGlide.isNoStore(options) ? noStoreClient
+                            : model.url instanceof FastImageWebGlideUrl ? webClient
+                            : client;
+                    return FastImageSharedDownloads.loadData(model.url, urlClient);
                 }
 
                 @Override

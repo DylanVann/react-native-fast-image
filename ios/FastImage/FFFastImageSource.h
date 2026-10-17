@@ -39,6 +39,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // default YES). Without it, it's only kept on disk: views don't leave it in
 // memory, and preload doesn't decode it.
 @property (nonatomic) BOOL memoryCache;
+// Whether the image is kept in the disk cache (`diskCache`, default YES).
+// Without it, it isn't read from or written to the disk cache, nor for `web`
+// images the HTTP cache.
+@property (nonatomic) BOOL diskCache;
 
 - (instancetype)initWithURL:(NSURL *)url
                    priority:(FFFPriority)priority

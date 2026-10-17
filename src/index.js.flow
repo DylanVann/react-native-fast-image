@@ -117,6 +117,7 @@ export type FastImageSource = {
     cache?: CacheControls,
     cacheKey?: string,
     memoryCache?: boolean,
+    diskCache?: boolean,
     width?: number,
     height?: number,
     scale?: number,

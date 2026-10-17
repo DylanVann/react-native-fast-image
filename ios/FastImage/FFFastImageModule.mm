@@ -255,6 +255,10 @@ static NSDictionary *FFFFailure(NSString *error)
     return @{@"ok": @NO, @"error": error};
 }
 
+// preload's, getCachePath's and writeToCache's error for a source with
+// diskCache false.
+static NSString *const FFFNotOnDisk = @"The source has diskCache: false, so it isn't kept on disk";
+
 static NSDictionary *FFFFile(NSString *path)
 {
     return @{@"ok": @YES, @"path": path};
@@ -287,6 +291,13 @@ static NSDictionary *FFFFile(NSString *path)
                 // An empty, missing or null uri (JS sends null sources as {}).
                 // It fails without taking a slot.
                 [results addObject:FFFFailure(@"Invalid source: no uri")];
+                finishOne();
+                return;
+            }
+            if (!source.diskCache) {
+                // Views decode an image for their own size, so one only
+                // preloaded into memory would be downloaded again.
+                [results addObject:FFFFailure(FFFNotOnDisk)];
                 finishOne();
                 return;
             }
@@ -327,6 +338,10 @@ static NSDictionary *FFFFile(NSString *path)
               reject:(__unused RCTPromiseRejectBlock)reject
 {
     FFFastImageSource *source = [RCTConvert FFFastImageSource:sourceJSON];
+    if (source && !source.diskCache) {
+        resolve(FFFFailure(FFFNotOnDisk));
+        return;
+    }
     if (!source.url) {
         NSString *key = FFFDiskCacheKey(source);
         if (!key) {
@@ -387,6 +402,10 @@ static NSDictionary *FFFFile(NSString *path)
               reject:(__unused RCTPromiseRejectBlock)reject
 {
     FFFastImageSource *source = [RCTConvert FFFastImageSource:sourceJSON];
+    if (source && !source.diskCache) {
+        resolve(FFFFailure(FFFNotOnDisk));
+        return;
+    }
     if (source.cacheControl == FFFCacheControlWeb) {
         resolve(FFFFailure(@"Can't store cache: 'web' images (they're kept in an HTTP cache)"));
         return;

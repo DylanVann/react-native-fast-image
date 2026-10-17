@@ -10,7 +10,7 @@ FastImage keeps the images it downloads, so an image it has shown before shows a
 | **Disk**: the downloaded files                   | No size limit, and images unused for a week are removed.       | 250 MB, removing the least recently used images first. No age limit.                                                                   |
 | **`cache: 'web'` images**: an HTTP cache instead | 50 MB, following the server's cache headers.                   | 50 MB, following the server's cache headers.                                                                                           |
 
-Set the limits your app starts with in its [native config](../README.md#native-config) (or with the Expo config plugin), and change them while it runs with [`FastImage.configureCache`](../README.md#configurecachelimits), which saves the change; call it without limits to see the ones in effect and how much the disk cache uses. [`source.memoryCache: false`](../README.md#sourcememorycache) keeps an image on disk only, e.g. a large photo shown once.
+Set the limits your app starts with in its [native config](../README.md#native-config) (or with the Expo config plugin), and change them while it runs with [`FastImage.configureCache`](../README.md#configurecachelimits), which saves the change; call it without limits to see the ones in effect and how much the disk cache uses. [`source.memoryCache: false`](../README.md#sourcememorycache) keeps an image on disk only, e.g. a large photo shown once, and [`source.diskCache: false`](../README.md#sourcediskcache) keeps it off disk, e.g. a disappearing message, or a large image shown once that would push other images out of the disk cache.
 
 ## What an image is cached under
 

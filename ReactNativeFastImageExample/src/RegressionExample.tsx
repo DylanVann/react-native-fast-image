@@ -4193,6 +4193,135 @@ function MemoryCacheOffCase() {
     )
 }
 
+// Shows an image with diskCache false, then a view of the same size and a
+// larger one. The same size comes from memory; the larger one is decoded
+// again, and since the image isn't on disk it's downloaded again (the server
+// gets two requests). Then getCachePath finds no file for its url, and
+// resolves not ok for the source itself.
+const NO_DISK_PATH = `/picsum/1025-200x200.jpg?no-disk=${RUN}`
+function DiskCacheOffCase() {
+    const [more, setMore] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const uri = imageUrl(NO_DISK_PATH.slice(1))
+    const source = { uri, diskCache: false }
+    const check = async () => {
+        const response = await fetch(
+            imageUrl(`requests?path=${encodeURIComponent(NO_DISK_PATH)}`),
+        )
+        const { count } = await response.json()
+        const onDisk = await FastImage.getCachePath({ uri, cache: 'cacheOnly' })
+        const own = await FastImage.getCachePath(source)
+        const problems = [
+            count !== 2 && `requested ${count} times`,
+            onDisk.ok && 'on disk',
+            own.ok && 'getCachePath ok',
+        ].filter(Boolean)
+        setStatus(problems.length ? problems.join(', ') : 'OK')
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={source}
+                onLoad={() => setMore(true)}
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            {more ? (
+                <>
+                    <FastImage
+                        style={[styles.image, styles.gap]}
+                        source={source}
+                    />
+                    <FastImage
+                        style={[diskCacheStyles.large, styles.gap]}
+                        source={source}
+                        onLoad={() =>
+                            check().catch((e) => setStatus(`error: ${e}`))
+                        }
+                        onError={(e) =>
+                            setStatus(`error: ${e.nativeEvent.error}`)
+                        }
+                    />
+                </>
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="disk-cache-off"
+                status={status}
+                description="diskCache false: a view of the same size gets it from memory, a larger one downloads it again, and it isn't on disk"
+            />
+        </View>
+    )
+}
+
+// A `web` image with diskCache false that the server lets caches keep for an
+// hour, after a preload of its url (cache 'immutable'): the first view
+// downloads it (not the preload's file), and a second view of the same size
+// downloads it again (it isn't kept in memory, nor in any HTTP cache), so the
+// server gets three requests.
+const NO_DISK_WEB_PATH = `/max-age/picsum/1025-200x200.jpg?no-disk-web=${RUN}`
+function DiskCacheOffWebCase() {
+    const [first, setFirst] = useState(false)
+    const [second, setSecond] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const uri = imageUrl(NO_DISK_WEB_PATH.slice(1))
+    const source = { uri, cache: 'web' as const, diskCache: false }
+    useEffect(() => {
+        FastImage.preload([{ uri }])
+            .then(([result]) =>
+                result.ok
+                    ? setFirst(true)
+                    : setStatus(`preload error: ${result.error}`),
+            )
+            .catch((e) => setStatus(`error: ${e}`))
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    const check = async () => {
+        const response = await fetch(
+            imageUrl(`requests?path=${encodeURIComponent(NO_DISK_WEB_PATH)}`),
+        )
+        const { count } = await response.json()
+        setStatus(count === 3 ? 'OK' : `requested ${count} times`)
+    }
+    return (
+        <View style={styles.row}>
+            {first ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={() => setSecond(true)}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            {second ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={source}
+                    onLoad={() =>
+                        check().catch((e) => setStatus(`error: ${e}`))
+                    }
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="disk-cache-off-web"
+                status={status}
+                description="diskCache false with cache 'web': after a preload of its url, each view downloads it, though the server allows caching it"
+            />
+        </View>
+    )
+}
+
+const diskCacheStyles = StyleSheet.create({
+    large: { width: 84, height: 84, backgroundColor: '#eee' },
+})
+
 // The disk cache limit the example apps set in their native config
 // (FastImageMaxDiskSize in Info.plist, fastimage.MAX_DISK_SIZE
 // in AndroidManifest.xml), which the configure-cache case checks.
@@ -8274,6 +8403,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="source.cacheKey with downsample: the downloaded file is found under the cacheKey"
             />,
             <MemoryCacheOffCase key="memory-cache-off" />,
+        ],
+    },
+    {
+        name: 'disk-cache',
+        cases: [
+            <DiskCacheOffCase key="disk-cache-off" />,
+            <DiskCacheOffWebCase key="disk-cache-off-web" />,
         ],
     },
     {

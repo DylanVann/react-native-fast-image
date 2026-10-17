@@ -547,6 +547,22 @@ describe('source.memoryCache', () => {
     })
 })
 
+describe('source.diskCache', () => {
+    it('is passed to the native view with the source', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{
+                        uri: 'https://example.com/a.jpg',
+                        diskCache: false,
+                    }}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.source.diskCache).toBe(false)
+    })
+})
+
 describe('several sources', () => {
     const nativeView = (element: React.ReactElement) =>
         renderer
