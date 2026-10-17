@@ -130,7 +130,11 @@ function findDevice() {
             reality: string
             marketingName?: string
         }
-        connectionProperties: { tunnelState?: string; pairingState?: string }
+        connectionProperties: {
+            tunnelState?: string
+            pairingState?: string
+            transportType?: string
+        }
         deviceProperties: { name: string; osVersionNumber?: string }
     }[]
     fs.rmSync(file, { force: true })
@@ -143,6 +147,11 @@ function findDevice() {
     )
     if (!device)
         throw new Error('No connected iPhone (paired, unlocked, over USB)')
+    // Its screen is recorded over USB (../ios/capture).
+    if (device.connectionProperties.transportType !== 'wired')
+        throw new Error(
+            `${device.deviceProperties.name} isn't connected by cable (${device.connectionProperties.transportType ?? 'unknown'}): connect it over USB, and unlock it`,
+        )
     return {
         udid: device.hardwareProperties.udid,
         name: device.deviceProperties.name,
@@ -215,7 +224,10 @@ function buildCapture() {
 }
 
 // The phone's screen recorder (../ios/capture): one process for the whole
-// run, recording each movie on a command (see main.swift).
+// run, recording each movie on a command (see main.swift). A recording it
+// can't start is a CaptureError: the phone's screen is gone (e.g. it's no
+// longer on the cable), so every later run would fail the same way.
+class CaptureError extends Error {}
 async function recorder(binary: string, deviceName: string) {
     const child = spawn(binary, [deviceName], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -275,10 +287,12 @@ async function recorder(binary: string, deviceName: string) {
             const line = await next(20_000).catch(async (error) => {
                 // So it isn't left recording.
                 await stop('stop\n').catch(() => undefined)
-                throw error
+                throw new CaptureError(String(error.message))
             })
             if (line !== 'recording') {
-                throw new Error(`capture didn't record: ${line} ${stderr}`)
+                throw new CaptureError(
+                    `capture didn't record: ${line} ${stderr}`,
+                )
             }
             return {
                 stop: async (until?: { x: number; y: number }) => {
@@ -662,6 +676,10 @@ for (const subject of chosenSubjects) {
                     await measure(subject, scenario, i)
                 } catch (error) {
                     failed(subject, scenario, error)
+                    if (error instanceof CaptureError)
+                        throw new Error(
+                            `${error.message}: is the iPhone still connected by cable, and unlocked? Stopping`,
+                        )
                 }
             }
         }
