@@ -639,4 +639,8 @@ describe('named exports (web)', () => {
         expect(library.ImageBackground).toBe(FastImageBackground)
         expect(library.default).toBe(FastImage)
     })
+
+    it('include FastImage, also the default export', () => {
+        expect(library.FastImage).toBe(FastImage)
+    })
 })

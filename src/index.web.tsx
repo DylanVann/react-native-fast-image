@@ -546,6 +546,6 @@ export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> 
 FastImageBackground.displayName = 'FastImageBackground'
 
 // As on native: the same components under React Native's names.
-export { FastImage as Image, FastImageBackground as ImageBackground }
+export { FastImage, FastImage as Image, FastImageBackground as ImageBackground }
 
 export default FastImage

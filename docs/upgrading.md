@@ -2,7 +2,7 @@
 
 FastImage 10 is a native New Architecture component. Apart from the changes below, the API is the same as in 9.x. Apps that can't move to the New Architecture on React Native 0.83 or later can stay on FastImage 9 (`npm install react-native-fast-image@9`), which gets fixes from the `9.x` branch.
 
-Since 10.1, the components are also exported as `Image` and `ImageBackground`, the names the README uses (`import { Image } from 'react-native-fast-image'`). `FastImage` (the default export) and `FastImageBackground` stay, so existing imports keep working.
+The components are also exported as `Image` and `ImageBackground`, the names the README uses (`import { Image } from 'react-native-fast-image'`). `FastImage` (the default export, now also a named export) and `FastImageBackground` stay, so existing imports keep working.
 
 ## Requirements
 

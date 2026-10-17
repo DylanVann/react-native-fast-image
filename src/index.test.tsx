@@ -404,6 +404,11 @@ describe('named exports', () => {
         expect(library.Image.preload).toBe(FastImage.preload)
         expect(library.default).toBe(FastImage)
     })
+
+    it('include FastImage, also the default export', () => {
+        expect(library.FastImage).toBe(FastImage)
+        expect(library.FastImage.preload).toBe(FastImage.preload)
+    })
 })
 
 describe('ref', () => {

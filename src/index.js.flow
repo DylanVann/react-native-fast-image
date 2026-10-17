@@ -158,7 +158,7 @@ export type FastImageBackgroundProps = $ReadOnly<{|
 
 declare export var FastImageBackground: React$ComponentType<FastImageBackgroundProps>
 
-declare export default class FastImage extends React$Component<FastImageProps> {
+declare export class FastImage extends React$Component<FastImageProps> {
     // Deprecated: removed in 10.0, and a resizeMode prop is ignored; use
     // objectFit. Kept so code that reads it doesn't throw.
     static resizeMode: ResizeMode;
@@ -177,6 +177,8 @@ declare export default class FastImage extends React$Component<FastImageProps> {
         file: string,
     ) => Promise<CachePathResult>;
 }
+
+declare export default typeof FastImage;
 
 // The same components under React Native's names (`FastImage` and
 // `FastImageBackground` stay exported).

@@ -96,7 +96,7 @@ const YourImage = () => (
 )
 ```
 
-`Image` and `ImageBackground` are also exported as `FastImage` (the default export) and `FastImageBackground`, the same components: in a file that also uses React Native's `Image`, use those names, e.g. `import FastImage from 'react-native-fast-image'`.
+`Image` and `ImageBackground` are also exported as `FastImage` (also the default export) and `FastImageBackground`, the same components: in a file that also uses React Native's `Image`, use those names, e.g. `import { FastImage } from 'react-native-fast-image'`.
 
 ## Components
 

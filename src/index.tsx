@@ -1101,8 +1101,8 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
 FastImageBackground.displayName = 'FastImageBackground'
 
 // The components under the names React Native and Expo Image use. They're the
-// same components as `FastImage` (the default export) and
+// same components as `FastImage` (also the default export) and
 // `FastImageBackground`, which stay exported.
-export { FastImage as Image, FastImageBackground as ImageBackground }
+export { FastImage, FastImage as Image, FastImageBackground as ImageBackground }
 
 export default FastImage
