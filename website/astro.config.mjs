@@ -43,6 +43,7 @@ export default defineConfig({
             sidebar: [
                 { label: 'Usage', link: '/' },
                 { label: 'Benchmarks', link: '/benchmarks/' },
+                { label: 'Comparisons', link: '/comparisons/' },
                 {
                     label: 'Guides',
                     items: [{ autogenerate: { directory: 'guides' } }],
