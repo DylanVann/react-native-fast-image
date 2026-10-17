@@ -205,7 +205,7 @@ The website in `website/` ([Starlight](https://starlight.astro.build)) shows the
 
 Releases are automatic from `main`, with an approval step (fixes merged to the `9.x` branch are released the same way, as 9.x versions on the npm dist-tag `latest-9`):
 
-1. A merge to `main` runs CI (`.github/workflows/ci.yml`). Commits with `[skip ci]` in the message don't run it, so they don't release on their own.
+1. A merge to `main` runs CI (`.github/workflows/ci.yml`). Commits with `[skip actions]` in the message don't run it, so they don't release on their own: use it for merges that shouldn't release (docs, chores, tests). Not `[skip ci]`, which also stops Cloudflare's CI from deploying the website.
 2. The `release` job waits for a maintainer to approve it (it runs in the `release` GitHub environment, which has a required reviewer). Approve it from the workflow run's page: **Review deployments**. Only one release job runs at a time; merges while one is waiting release together.
 3. [semantic-release](https://semantic-release.gitbook.io) (`release.config.mjs`) works out the version from the commit messages since the last release, updates `CHANGELOG.md` and `package.json`, publishes to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers) (no npm token; provenance is attached), pushes the release commit and tag, and comments on the released issues and pull requests. Each entry credits the commit's author and co-authors (`Co-authored-by:` trailers), looked up on GitHub with the job's token.
 
