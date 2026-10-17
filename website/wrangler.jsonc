@@ -1,7 +1,6 @@
 // The website, as static files on Cloudflare Workers:
 // https://react-native-fast-image.dylanvann.workers.dev
-// Cloudflare's CI (Workers Builds) deploys it when main changes; by hand,
-// build and deploy with `bun run deploy`.
+// Cloudflare's CI (Workers Builds) deploys it when main changes.
 {
     "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "react-native-fast-image",
