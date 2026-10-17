@@ -1,3 +1,10 @@
+# [10.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.0.0...v10.1.0) (2026-10-17)
+
+
+### Features
+
+* source.diskCache, to keep an image off disk ([8f8d891](https://github.com/DylanVann/react-native-fast-image/commit/8f8d891af1bfb8e6970b4beae575c7db1a76d9cb))
+
 # [10.0.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.7...v10.0.0) (2026-10-12)
 
 
