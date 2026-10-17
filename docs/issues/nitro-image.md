@@ -1,6 +1,6 @@
 # Issues found in Nitro Image
 
-FastImage's maintainers found these while comparing FastImage with Nitro Image (`react-native-nitro-image` and `react-native-nitro-web-image`, which loads web images); FastImage fixes or works around each one in its own code, as described below. They were checked against Nitro Image 0.15.2 (commit `c96240d`, 2026-09-14) on 2026-10-18, with Coil 3.3.0 on Android and SDWebImage on iOS. Paths are relative to the react-native-nitro-image repository. If you maintain Nitro Image, feel free to hand this file to your coding agent.
+FastImage's maintainers found these while comparing FastImage with Nitro Image (`react-native-nitro-image` and `react-native-nitro-web-image`, which loads web images); FastImage fixes or works around the issues in the main sections in its own code, as described in each. The last section lists issues FastImage has no counterpart for. They were checked against Nitro Image 0.15.2 (commit `c96240d`, 2026-09-14) on 2026-10-18, with Coil 3.3.0 on Android and SDWebImage on iOS. Paths are relative to the react-native-nitro-image repository. If you maintain Nitro Image, feel free to hand this file to your coding agent.
 
 ## Web images can't send cookies or headers
 
@@ -11,7 +11,7 @@ FastImage's maintainers found these while comparing FastImage with Nitro Image (
 
 ## Android keeps a response that isn't an image in the disk cache
 
-- **What happens:** on Android, a successful (2xx) response that isn't an image, such as a captive portal's or a CDN's HTML page, is written to Coil's disk cache before it's decoded. Every later load of that url reads it from the disk cache and fails, without a request, even once the network is fine. Nitro Image has no way to clear the cache; `forceRefresh: true` loads it again.
+- **What happens:** on Android, a successful (2xx) response that isn't an image, such as a captive portal's or a CDN's HTML page, is written to Coil's disk cache before it's decoded. Every later load of that url reads it from the disk cache and fails, without a request, even once the network is fine. Nitro Image has no way to clear the cache, and `forceRefresh` doesn't load anything on Android ([below](#android-forcerefresh-always-fails)).
 - **Where:** `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/HybridWebImageFactory.kt` and `HybridWebImageLoader.kt` load with Coil's defaults. In Coil 3.3.0, `NetworkFetcher.fetch()` calls `writeToDiskCache()` for any successful response, and the default `CacheStrategy.DEFAULT` returns the cached entry on later loads. iOS isn't affected: SDWebImage only stores images that decoded.
 - **How to reproduce:** Found by reading the code. Serve an HTML page with status 200 at an image's url and load it on Android (it fails), then serve the image there and load it again: it still fails.
 - **How FastImage handles it:** on Android, a response that isn't an image (its content type and its first bytes both checked, so a mislabelled image still loads) fails before it reaches Glide's disk cache ([#1178](https://github.com/DylanVann/react-native-fast-image/pull/1178)). `FastImage.clearDiskCache()` is there for anything else.
@@ -60,3 +60,43 @@ FastImage's maintainers found these while comparing FastImage with Nitro Image (
 - **Where:** `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/HybridWebImageLoader.kt`, `requestImage(forView:)` calls `imageView.load(url, imageLoader)` without a placeholder; Coil's `GenericViewTarget.onStart()` sets the view's image to that (null) placeholder when the request starts. iOS (`ios/HybridWebImageLoader.swift`) passes `placeholderImage: view.imageView.image`.
 - **How to reproduce:** Found by reading the code. Show `<NitroImage image={{ url: a }} />` on Android, then change the url to an uncached `b` from a slow server.
 - **How FastImage handles it:** when `source` changes, the image that's showing stays until the new one has loaded, on both platforms, and `recyclingKey` starts from blank in reused views ([#1142](https://github.com/DylanVann/react-native-fast-image/pull/1142), [#1286](https://github.com/DylanVann/react-native-fast-image/pull/1286)).
+
+## Other issues
+
+These were found while comparing the code; FastImage has no counterpart for them, so there's no fix to point to.
+
+### Android forceRefresh always fails
+
+- **What happens:** on Android, a web image loaded with `options: { forceRefresh: true }` (in `<NitroImage>`, `loadFromURLAsync` or `createWebImageLoader`) always fails, without a request to the server.
+- **Where:** `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/extensions/ImageRequestBuilder+applyOptions.kt`, `applyOptions()`: `forceRefresh` sets the memory, disk and network cache policies to `CachePolicy.WRITE_ONLY`. For Coil, reading from the network policy means fetching from the network, so this turns off both the disk cache and the network. Coil 3.3.0's `NetworkFetcher.newRequest()` then sends `Cache-Control: no-cache, only-if-cached`, which, as its comment says, fails with a 504. Leaving `networkCachePolicy` enabled (with disk and memory reads off) would load a fresh copy.
+- **How to reproduce:** Found by reading the code. On Android, call `WebImages.loadFromURLAsync(url, { forceRefresh: true })`: it rejects, and the server gets no request.
+
+### iOS loadFromURLAsync with progressive resolves with a partial image
+
+- **What happens:** on iOS, `loadFromURLAsync(url, { progressive: true })` (also through `loadImage` and `useImage` with `{ url, options }`) resolves with the first partial image SDWebImage decodes when the image arrives in several parts (a progressive JPEG, or a large image on a slow network), not the full image. The continuation is then resumed again for the later parts and the final image. Swift documents resuming an unsafe continuation more than once as undefined behavior (a checked continuation would stop the app); what it does here in practice is unconfirmed.
+- **Where:** `packages/react-native-nitro-web-image/ios/Extensions/SDWebImageManager+loadImage.swift`, `loadImage(with:options:)`: the `completed` block resumes the `withUnsafeThrowingContinuation` whenever it gets an image, without checking `finished`. With `.progressiveLoad` (from `progressive: true`, in `toSDWebImageOptions()`), SDWebImage calls that block repeatedly with partial images, as `SDWebImageManager.h` documents.
+- **How to reproduce:** Found by reading the code. Load a large progressive JPEG from a slow server with `progressive: true` and look at the resolved image (its lower part not yet decoded). Switching to `withCheckedThrowingContinuation` would show the extra resumes as a crash.
+
+### Android loadFromURLAsync rejects animated images
+
+- **What happens:** on Android, `loadFromURLAsync` (and `loadImage` or `useImage` with a url) rejects a GIF, or on Android 9 and later an animated WebP, with "Requested Image is not a Bitmap!". On iOS it resolves with the image.
+- **Where:** `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/extensions/ImageLoader+loadImageAsync.kt`, `loadImageAsync()`: `image as? BitmapImage ?: throw Error(...)`. `coil-gif`, a dependency in `packages/react-native-nitro-web-image/android/build.gradle`, registers its decoder with Coil automatically (`AnimatedImageDecoder` on Android 9 and later, `GifDecoder` before), so these images decode to an animated drawable rather than a bitmap.
+- **How to reproduce:** Found by reading the code. On Android, call `WebImages.loadFromURLAsync` with a GIF's url.
+
+### Android scaleDownLargeImages makes views decode larger images
+
+- **What happens:** on Android, `scaleDownLargeImages: true` on a `<NitroImage>` makes a large photo decode at up to 4096 × 4096 px instead of about the view's size, so it uses more memory with the option than without it (a 4000 × 3000 photo in a 100 dp view: about 48 MB instead of under 1 MB).
+- **Where:** `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/extensions/ImageRequestBuilder+applyOptions.kt`, `applyOptions()`: `scaleDownLargeImages` sets `size(4096, 4096)` with `Precision.INEXACT`, which replaces the view-size resolver Coil uses for an `ImageView` target (`HybridWebImageLoader.requestImage(forView:)`).
+- **How to reproduce:** Found by reading the code. Show a 4000 × 3000 photo in a 100 dp `<NitroImage>` with and without `options: { scaleDownLargeImages: true }` and compare the decoded bitmap's size (or the app's memory).
+
+### Some documented options do nothing on Android
+
+- **What happens:** `continueInBackground`, `allowInvalidSSLCertificates`, `queryMemoryDataSync` and `queryDiskDataSync` are documented in `AsyncImageLoadOptions` without a platform note, but have no effect on Android. (`progressive` and `allowHardware` are marked as one platform's.)
+- **Where:** `packages/react-native-nitro-web-image/src/specs/WebImageFactory.nitro.ts` documents them; `packages/react-native-nitro-web-image/android/src/main/java/com/margelo/nitro/web/image/extensions/ImageRequestBuilder+applyOptions.kt`, `applyOptions()`, has a `// TODO: Implement` for each.
+- **How to reproduce:** Found by reading the code. For example, load an image from a server with a self-signed certificate on Android with `allowInvalidSSLCertificates: true`: it fails.
+
+### iOS prints a line for every progress update
+
+- **What happens:** on iOS, `loadFromURLAsync` and an image loader's `loadImage()` print `<url>: Loaded <bytes>/<total> bytes` for every progress update of every download, in release builds too, which costs a little time per update and puts the image urls (with any tokens in them) in the device log.
+- **Where:** `packages/react-native-nitro-web-image/ios/Extensions/SDWebImageManager+loadImage.swift`, `loadImage(with:options:)`: `print(...)` in the progress block. `HybridWebImageLoader.loadImage()` and `HybridWebImageFactory.loadFromURLAsync()` both go through it; views (`requestImage(forView:)`) don't.
+- **How to reproduce:** Found by reading the code. Call `WebImages.loadFromURLAsync(url)` in a release build and watch the device's console.

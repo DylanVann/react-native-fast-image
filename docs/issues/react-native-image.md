@@ -1,6 +1,6 @@
 # Issues found in React Native's Image
 
-FastImage's maintainers found these while comparing FastImage with React Native's built-in `Image`; FastImage fixes or works around each one in its own code, as described below. They were checked against React Native's `main` branch at commit `27e7721` (2026-10-16, after 0.88.0) on 2026-10-18. Paths are relative to the react-native repository. If you maintain React Native's `Image`, feel free to hand this file to your coding agent.
+FastImage's maintainers found these while comparing FastImage with React Native's built-in `Image`. FastImage fixes or works around each issue in the main sections in its own code, as described there; the last section lists issues FastImage has no counterpart for. They were checked against React Native's `main` branch at commit `27e7721` (2026-10-16, after 0.88.0) on 2026-10-18. Paths are relative to the react-native repository. If you maintain React Native's `Image`, feel free to hand this file to your coding agent.
 
 ## Android network images are decoded at full size
 
@@ -22,6 +22,13 @@ FastImage's maintainers found these while comparing FastImage with React Native'
 - **Where:** `packages/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/network/OkHttpClientProvider.kt`, `createClientBuilder()` sets connect, read and write timeouts to 0 (none), and `modules/fresco/FrescoModule.kt` builds the image pipeline's network fetcher from `OkHttpClientProvider.createClient()`.
 - **How to reproduce:** Found by reading the code. Point an `Image` at a server that accepts the connection and then sends nothing (or stops partway through the body), and wait for `onError`.
 - **How FastImage handles it:** FastImage's image client gets 15-second connect and read timeouts, as SDWebImage uses on iOS, unless the app's own client already sets timeouts, so a stalled download fails with `onError` ([#1271](https://github.com/DylanVann/react-native-fast-image/pull/1271)).
+
+## iOS can show an earlier image's blur over a newer image
+
+- **What happens:** with `blurRadius`, the blur runs on a background queue and its result is set on the image view when it finishes, whatever the view shows by then. If the source changes (or `blurRadius` changes) while a blur is running, a slower earlier blur can replace the newer image; and if the view is recycled for another `Image` meanwhile, the previous image's blurred copy shows in it.
+- **Where:** `packages/react-native/React/Fabric/Mounting/ComponentViews/Image/RCTImageComponentView.mm`, `didReceiveImage:metadata:fromObserver:` checks the observer before it starts, then dispatches `RCTBlurredImageWithRadius` to a global queue and sets `self->_imageView.image = blurredImage` on the main queue without checking that the observer, state or image are still current (`prepareForRecycle` clears `_imageView.image`, but a pending blur sets it again).
+- **How to reproduce:** Found by reading the code. Show a large image with `blurRadius={20}`, and switch `source` to a small one (or to one with `blurRadius={0}`) right after the first loads, before its blur has finished; the first image's blur then replaces the second image.
+- **How FastImage handles it:** a blur that finishes after another image was set on the view is dropped, and the view keeps showing what it showed until the blur is ready ([#1193](https://github.com/DylanVann/react-native-fast-image/pull/1193)).
 
 ## iOS downloads a url again while it's already downloading
 
@@ -92,3 +99,13 @@ FastImage's maintainers found these while comparing FastImage with React Native'
 - **Where:** `packages/react-native/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm`, `invalidateLayer`: it sets `self.currentContainerView.layer.mask = nil` and, when clipping (with `enableIOSViewClipToPaddingBox` off, the default), sets a mask on each `UIImageView` subview; when not clipping it doesn't remove those subview masks.
 - **How to reproduce:** Found by reading the code for React Native's `Image`; FastImage's single native view went through the same code and kept its rounded corners in a regression case that switches `overflow` from `hidden` to `visible` with a `borderRadius`, before the fix. To try: render an `Image` with `borderRadius: 40`, then change its style to `overflow: 'visible'`.
 - **How FastImage handles it:** FastImage's view removes its image view's mask when `overflow` becomes `visible` ([#1262](https://github.com/DylanVann/react-native-fast-image/pull/1262)).
+
+## Other issues
+
+These were found while comparing implementations, but FastImage has no counterpart for them, so there's no fix to point to.
+
+### iOS downloads interrupted by the app going to the background may fail (possible)
+
+- **What happens:** possibly, an image that's still downloading when the app goes to the background fails with `onError` when the app comes back, if it was away longer than the request's timeout, and stays empty. Not confirmed for React Native's `Image`: SDWebImage, which uses a 15-second timeout, does this (a suspended download times out with `NSURLErrorTimedOut` as soon as the app resumes); React Native's image requests use `NSURLRequest`'s default 60-second timeout, so the same would happen after more than a minute away.
+- **Where:** `packages/react-native/ReactCommon/react/renderer/imagemanager/platform/ios/react/renderer/imagemanager/RCTImagePrimitivesConversions.h`, `NSURLRequestFromImageSource` sets no `timeoutInterval` (so 60 s); `packages/react-native/Libraries/Image/RCTImageLoader.mm`, `_loadURLRequest:progressBlock:completionBlock:` reports any task error to the view as a failure; nothing in `RCTImageLoader`, `RCTHTTPRequestHandler` or `RCTImageComponentView` observes the app going to the background or becoming active, or retries.
+- **How to reproduce:** Unconfirmed. To confirm: start a large image download from a slow server (one that sends the body over several minutes), send the app to the background for more than 60 seconds, bring it back, and see whether the `Image` gets `onError` and stays empty, or finishes loading.

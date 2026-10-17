@@ -1,13 +1,13 @@
 # Issues found in the dream-horizon-org fork
 
-FastImage's maintainers found these while comparing FastImage with the dream-horizon-org fork (`@d11/react-native-fast-image`), which shares FastImage's 8.x code; FastImage fixes or works around each one in its own code, as described below. They were checked on 2026-10-18 against the fork's `main` branch at commit `eabb78f` (2026-02-04; 8.13.0 plus the commits since). Paths are relative to the fork's repository. Many of them were found and tested in FastImage 8.x or 9.x, which had the same code; where that's the case, the issue says so, but none of them were run against the fork itself. If you maintain the fork, feel free to hand this file to your coding agent.
+FastImage's maintainers found these while comparing FastImage with the dream-horizon-org fork (`@d11/react-native-fast-image`), which shares FastImage's 8.x code; FastImage fixes or works around each one in its own code, as described below, except those in the last section, [Other issues](#other-issues), which FastImage has no counterpart for. They were checked on 2026-10-18 against the fork's `main` branch at commit `eabb78f` (2026-02-04; 8.13.0 plus the commits since). Paths are relative to the fork's repository. Many of them were found and tested in FastImage 8.x or 9.x, which had the same code; where that's the case, the issue says so, but none of them were run against the fork itself. If you maintain the fork, feel free to hand this file to your coding agent.
 
 ## Android and preload crash on sources without a usable uri
 
 - **What happens:**
     - On Android, since the raw resource lookup added after 8.13.0, a view whose `uri` isn't a url and isn't a bundled image (a relative path like `'photo.jpg'`, a typo, a missing asset) crashes the app with a `NullPointerException`. So does `{ uri: '' }` with a `defaultSource`, in release builds (where `defaultSource` resolves), e.g. `{ uri: user.avatarUrl ?? '' }` for a user without an avatar. In 8.13.0 these fire `onError` instead.
     - On Android, `FastImage.preload()` crashes on a source with `uri: null` (`NullPointerException`), and on a uri that can't be resolved (`NullPointerException` on `main`, `IllegalArgumentException: Must not be null or empty` from `GlideUrl` in 8.13.0).
-    - On iOS, `preload()` throws `NSInvalidArgumentException` for a source without a valid url.
+    - On iOS, `preload()` throws `NSInvalidArgumentException` for a source without a valid url. On the New Architecture, React Native's TurboModule rethrows an exception from a void method on the module's queue (`ObjCTurboModule::performVoidMethodInvocation`), so the app crashes.
 - **Where:**
     - `android/src/main/java/com/dylanvann/fastimage/FastImageSource.java`, `resolveResourceUri()`: when React Native's `ImageSource` gives `Uri.EMPTY` (no scheme and no drawable of that name), `tryResolveFromRawFolder()` returns `null` if there's no raw resource either, so `mUri` is `null`. `FastImageViewWithUrl.onAfterUpdate()` then calls `imageSource.getUri().toString()`, and `getGlideUrl()` does the same in preload.
     - `android/src/main/java/com/dylanvann/fastimage/FastImageViewModuleImplementation.java`, `preload()`: `source.getString("uri").isEmpty()` on a null uri, and `getGlideUrl()` on an unresolved one, on the UI thread.
@@ -72,6 +72,13 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **Where:** `android/src/main/java/com/dylanvann/fastimage/FastImageViewWithUrl.java`, `clearView()` only calls `requestManager.clear(this)` when `getTag() instanceof Request`. Glide 4 keeps a view's request under its own tag id (`ViewTarget.setTag(tagId, …)`), so `getTag()` is null and the request is never cleared (reported in this repository as [#386](https://github.com/dream-horizon-org/react-native-fast-image/issues/386)).
 - **How to reproduce:** Found by reading the code, and reported in [#386](https://github.com/dream-horizon-org/react-native-fast-image/issues/386). FastImage before the fix below, which had the same check, failed its `source-cleared` case: a slow image whose source is cleared while it loads got `onLoad` and showed the image.
 - **How FastImage handles it:** `clearView` clears whenever there's a request manager (`RequestManager.clear` does nothing for a view without a request) ([#1165](https://github.com/DylanVann/react-native-fast-image/pull/1165)).
+
+## iOS keeps downloading the image of a removed view
+
+- **What happens:** on iOS, a FastImage that's removed from the screen while its image downloads isn't cancelled: the download goes on to the end, and the view stays in memory until then. On the New Architecture this happens to every removed view, since the component view replaces its image view without cancelling its load.
+- **Where:** `ios/FastImage/FFFastImageView.mm`, `downloadImage:options:context:`: the `progress:` block captures `self` strongly, and SDWebImage's download operation keeps that block until the download ends, so `dealloc` (which calls `sd_cancelCurrentImageLoad`) can't run before then. `ios/FastImage/FFFastImageViewComponentView.mm`, `prepareForRecycle` creates a new `FFFastImageView` without cancelling the old one's load.
+- **How to reproduce:** Found by reading the code. Show a large image from a slow server, remove the view while it downloads, and watch the server finish sending it.
+- **How FastImage handles it:** the component view stops its image view when it's recycled, which cancels its load and ignores anything the load still sends, and the load's blocks only hold the view weakly ([#1220](https://github.com/DylanVann/react-native-fast-image/pull/1220)).
 
 ## Android shows a zoomed-in slice when the view's size changes after loading
 
@@ -228,9 +235,10 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **What happens:**
     - On the legacy architecture, `onLoadStart` fires twice for one load when `source` and `onLoadStart` are set in the same update, as on mount.
     - A `data:` uri that isn't an image (or is corrupt) fires `onLoad` with a 0 × 0 size instead of `onError`.
-- **Where:** `ios/FastImage/FFFastImageView.mm`: `setOnFastImageLoadStart:` sends the event when a source is set and it hasn't been sent, and `reloadImage` sends it again; `reloadImage`'s `data:image` branch sends `onLoad` for whatever `sd_imageWithData:` returned, including nil.
-- **How to reproduce:** Found by reading the code. FastImage before the fix below, which had the same code, failed its `load-start-once` ("onLoadStart fired 2 times") and `error-invalid-data-uri` cases on iOS.
-- **How FastImage handles it:** the setter only sends `onLoadStart` for a load already running ([#1114](https://github.com/DylanVann/react-native-fast-image/pull/1114)), and a `data:` uri that can't be decoded fails like a remote image, with `onError`, `onLoadEnd` and `defaultSource` ([#1126](https://github.com/DylanVann/react-native-fast-image/pull/1126)).
+    - On the legacy architecture, an `onLoad` handler added after the image loaded is called with no `width` or `height`.
+- **Where:** `ios/FastImage/FFFastImageView.mm`: `setOnFastImageLoadStart:` sends the event when a source is set and it hasn't been sent, and `reloadImage` sends it again; `reloadImage`'s `data:image` branch sends `onLoad` for whatever `sd_imageWithData:` returned, including nil; `setOnFastImageLoad:` sends `self.onLoadEvent` to a handler set after the load, but `onLoadEventSend:` builds the event in a local variable and never sets that property, so it's nil.
+- **How to reproduce:** Found by reading the code. FastImage before the fix below, which had the same code, failed its `load-start-once` ("onLoadStart fired 2 times") and `error-invalid-data-uri` cases on iOS. The missing `onLoad` size was found by reading the code.
+- **How FastImage handles it:** the setter only sends `onLoadStart` for a load already running ([#1114](https://github.com/DylanVann/react-native-fast-image/pull/1114)), and a `data:` uri that can't be decoded fails like a remote image, with `onError`, `onLoadEnd` and `defaultSource` ([#1126](https://github.com/DylanVann/react-native-fast-image/pull/1126)). FastImage 9.x keeps the load's event and sends it to a handler added later; 10.0 doesn't call a handler added after its image loaded.
 
 ## iOS keeps fading after transition is removed
 
@@ -239,12 +247,21 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **How to reproduce:** Found by reading the code. Load an image with `transition="fade"`, set `transition="none"`, and change the source to an image that isn't in the memory cache.
 - **How FastImage handles it:** each load uses the current `transition`, and its length can be set (a number of milliseconds, or `true` for the platform's usual length) ([#1164](https://github.com/DylanVann/react-native-fast-image/pull/1164)).
 
-## blurRadius changes reload the image, and animated images on Android aren't blurred
+## blurRadius reloads when it changes, differs between platforms, and isn't cached on Android 12+
 
-- **What happens:** changing `blurRadius` loads the image again, with `onLoadStart`, `onLoad` and `onLoadEnd`, on both platforms. On Android, GIFs, APNGs and animated WebPs aren't blurred at all.
-- **Where:** iOS: `FFFastImageView.setBlurRadius:` sets `_needsReload`, and `setImage:` blurs each image it's given. Android: `FastImageViewWithUrl.setBlurRadius()` sets `mNeedsReload`, and `FastImageBlurHelper.transform()` adds a `BitmapTransformation`; the animated formats are decoded by APNG4Android's plugin to a `FrameSeqDecoder`, for which Glide has no transformation, so it applies none (`DecodeHelper.getTransformation()` falls back to `UnitTransformation` when other transformations are set).
-- **How to reproduce:** Found by reading the code. Change `blurRadius` on a loaded image and count `onLoad`; show a GIF with `blurRadius={10}` on Android.
-- **How FastImage handles it:** a new radius doesn't send load events again, on either platform, also when it changes several times in a row on Android ([#1193](https://github.com/DylanVann/react-native-fast-image/pull/1193), [#1292](https://github.com/DylanVann/react-native-fast-image/pull/1292)); on Android a blurred animated image shows its first frame, blurred.
+- **What happens:**
+    - Changing `blurRadius` loads the image again, with `onLoadStart`, `onLoad` and `onLoadEnd`, on both platforms.
+    - On iOS, the blur runs on the main thread, on the full-size image, and `defaultSource` is blurred too.
+    - A radius looks different on iOS and Android, and on iOS it depends on the image's resolution: iOS blurs in the image's pixels, Android scales the radius against a 540-pixel reference (by the bitmap's size before Android 12, by the view's size from Android 12).
+    - On Android 12 and later, blurred images never come from Glide's memory cache, so each one is decoded again when it's shown, and the blur is set on the view from Glide's decoding thread.
+    - On Android, GIFs, APNGs and animated WebPs aren't blurred at all.
+    - Possible, not confirmed: on Android 12 and later, a blurred local image (bundled or a file) shown again from Glide's disk cache of transformed images could show unblurred.
+- **Where:**
+    - iOS: `FFFastImageView.setBlurRadius:` sets `_needsReload`, and `setImage:` (called by SDWebImage on the main queue, for the placeholder too) runs `FFFastImageBlurTransformation.transform:`, which creates a `CIContext` and blurs `image.CGImage` with `CIGaussianBlur` at the radius as given.
+    - Android: `FastImageViewWithUrl.setBlurRadius()` sets `mNeedsReload`; `FastImageBlurHelper.transform()` adds `FastImageBlurTransformation`, whose `equals()` returns `false` on Android 12+ (`Build.VERSION_CODES.S`), so no request's key matches a cached one. There, `transform()` calls `FastImageBlurEffectEngine.apply()`, which sets a `RenderEffect` and tags on the `ImageView` (on Glide's thread) and returns the bitmap unblurred; before Android 12, `FastImageBlurScriptEngine` blurs a copy scaled to about 540 pixels with RenderScript. The animated formats are decoded by APNG4Android's plugin to a `FrameSeqDecoder`, for which Glide has no transformation, so it applies none (`DecodeHelper.getTransformation()` falls back to `UnitTransformation` when other transformations are set).
+    - The possible issue: Glide's default `DiskCacheStrategy.AUTOMATIC` keeps transformed local images in its resource cache under the transformation's disk key (`updateDiskCacheKey()` is by radius), and a load from there doesn't run `transform()`, so nothing would set the `RenderEffect` on a new view.
+- **How to reproduce:** Found by reading the code. Change `blurRadius` on a loaded image and count `onLoad`; show one image with the same `blurRadius` on iOS and Android and compare; show a GIF with `blurRadius=10` on Android. To confirm the possible issue, show a bundled image with `blurRadius` on Android 12+, then mount a second view of it at the same size.
+- **How FastImage handles it:** it blurs a copy of the image off the main thread (Glide's threads on Android), at about the size it's shown at, with React Native's iOS box-blur math, so a radius looks the same on both platforms whatever the file's resolution; the blur is part of the request's cache key with a value-based `equals`, `defaultSource` isn't blurred, and a new radius doesn't send load events again, also when it changes several times in a row on Android ([#1193](https://github.com/DylanVann/react-native-fast-image/pull/1193), [#1292](https://github.com/DylanVann/react-native-fast-image/pull/1292)). On Android a blurred animated image shows its first frame, blurred.
 
 ## iOS preload doesn't try failed urls again
 
@@ -267,13 +284,6 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **How to reproduce:** Found by reading the code. FastImage before the fix below, which had the same setup, failed its `smoke-progress` and `smoke-web-cache` cases in an Expo app with expo-image.
 - **How FastImage handles it:** it registers its components with Glide the first time it uses Glide, if Glide started without them, leaves its `AppGlideModule` out automatically when the app has expo-image, and limits its decoders to its own requests ([#1241](https://github.com/DylanVann/react-native-fast-image/pull/1241)).
 
-## Android build fails with the other AndroidSVG package
-
-- **What happens:** an app (or another library) with `com.caverock:androidsvg` fails to build with "Duplicate class com.caverock.androidsvg…", since the fork brings `com.caverock:androidsvg-aar`, which has the same classes (reported in this repository as [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378)).
-- **Where:** `android/build.gradle`: `implementation "com.caverock:androidsvg-aar:1.4"`.
-- **How to reproduce:** Reported in [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378).
-- **How FastImage handles it:** it includes the same package, and documents leaving it out with `configurations.all { exclude group: 'com.caverock', module: 'androidsvg-aar' }`, since it works with either package ([#1206](https://github.com/DylanVann/react-native-fast-image/pull/1206), [troubleshooting](../troubleshooting.md#duplicate-androidsvg-classes)). The same exclude should work for the fork, whose decoder uses the classes both packages have.
-
 ## TypeScript style types lose layout props with the Strict TypeScript API
 
 - **What happens:** with React Native's Strict TypeScript API (opt-in since 0.80, and the default in 0.87 according to the report below), `style={{ width: 48, height: 48 }}` on a FastImage is a type error, since `ImageStyle` extends types that are no longer exported (reported in this repository as [#402](https://github.com/dream-horizon-org/react-native-fast-image/issues/402)). Radii and `opacity` are typed `number` and colors `string`, so Animated values, string radii and `ColorValue`s (e.g. `PlatformColor`) don't type-check.
@@ -287,3 +297,19 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **Where:** `package.json`: `"main": "src/index"` (and `module`, `source`), so Jest resolves to `src/index.tsx`, which React Native's Jest preset doesn't transform in `node_modules` (its `transformIgnorePatterns` only allows `react-native` and `@react-native` packages).
 - **How to reproduce:** Found by reading the code. Import the package in a test of a new React Native app with its default Jest config.
 - **How FastImage handles it:** its published entry point is plain JavaScript (`dist`, including the Codegen specs), while Metro still reads the TypeScript sources through the `react-native` field, so it renders in an app's Jest tests with no setup ([#1220](https://github.com/DylanVann/react-native-fast-image/pull/1220)).
+
+## Other issues
+
+These were found while comparing the two libraries, but FastImage has no counterpart for them, so there's no fix to point to.
+
+### iOS build fails with DISABLE_SVG=1
+
+- **What happens:** with `DISABLE_SVG=1` set when installing pods, as the README describes for leaving SVG support out, the iOS build fails with `'SDWebImageSVGCoder/SDImageSVGCoder.h' file not found` (reported in this repository as [#379](https://github.com/dream-horizon-org/react-native-fast-image/issues/379)).
+- **Where:** `RNFastImage.podspec` leaves out the `SDWebImageSVGCoder` dependency when the `DISABLE_SVG` environment variable is `1`, but doesn't pass `DISABLE_SVG` to the compiler (no `GCC_PREPROCESSOR_DEFINITIONS`). `ios/FastImage/FFFastImageView.mm` imports the coder under `#if !defined(DISABLE_SVG) || DISABLE_SVG == 0`, which is then always true. Adding `DISABLE_SVG=1` to the pod's `GCC_PREPROCESSOR_DEFINITIONS` in the podspec when the variable is set would match the two.
+- **How to reproduce:** Found by reading the code, and reported in [#379](https://github.com/dream-horizon-org/react-native-fast-image/issues/379). Run `DISABLE_SVG=1 pod install` and build.
+
+### Android build fails with the other AndroidSVG package
+
+- **What happens:** an app (or another library) with `com.caverock:androidsvg` fails to build with "Duplicate class com.caverock.androidsvg…", since the fork brings `com.caverock:androidsvg-aar`, which has the same classes (reported in this repository as [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378)). FastImage includes the same package and has the same conflict; it [documents](../troubleshooting.md#duplicate-androidsvg-classes) leaving its package out with `configurations.all { exclude group: 'com.caverock', module: 'androidsvg-aar' }`. That should work for the fork too, since its decoder only uses classes both packages have, but it hasn't been tried with the fork.
+- **Where:** `android/build.gradle`: `implementation "com.caverock:androidsvg-aar:1.4"`.
+- **How to reproduce:** Reported in [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378): add `com.caverock:androidsvg` to an app that has the fork and build it.

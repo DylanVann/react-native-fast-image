@@ -1,6 +1,6 @@
 # Issues found in Turbo Image
 
-FastImage's maintainers found these while comparing FastImage with Turbo Image (`react-native-turbo-image`); FastImage fixes or works around each one in its own code, as described below. They were checked against Turbo Image 1.24.3 (commit `9fd1175`, 2026-09-07) on 2026-10-18, with Coil 2.6.0 on Android and the bundled Nuke 12.8.0 on iOS. Paths are relative to the react-native-turbo-image repository. If you maintain Turbo Image, feel free to hand this file to your coding agent.
+FastImage's maintainers found these while comparing FastImage with Turbo Image (`react-native-turbo-image`); FastImage fixes or works around the issues in the main sections in its own code, as described in each. The last section lists issues FastImage has no counterpart for. They were checked against Turbo Image 1.24.3 (commit `9fd1175`, 2026-09-07) on 2026-10-18, with Coil 2.6.0 on Android and the bundled Nuke 12.8.0 on iOS. Paths are relative to the react-native-turbo-image repository. If you maintain Turbo Image, feel free to hand this file to your coding agent.
 
 ## Android prefetch of a source without a uri ends the app
 
@@ -9,12 +9,12 @@ FastImage's maintainers found these while comparing FastImage with Turbo Image (
 - **How to reproduce:** Found by reading the code. Call `TurboImage.prefetch([{ uri: undefined as any }])` in a release build on Android.
 - **How FastImage handles it:** `preload` checks each source and resolves a source without a uri as `{ ok: false, error }`, without loading it ([#1091](https://github.com/DylanVann/react-native-fast-image/pull/1091), [#1099](https://github.com/DylanVann/react-native-fast-image/pull/1099)).
 
-## Android prefetch leaves a network callback registered per call
+## Android a missing source ends the app
 
-- **What happens:** each `TurboImage.prefetch()` call on Android creates a new Coil `ImageLoader`, whose network observer registers a `ConnectivityManager` network callback when the app has the `ACCESS_NETWORK_STATE` permission (most apps do, through libraries such as NetInfo or Google Play services). The callback stays registered after the prefetch is done, until the network changes or the system trims memory. Android allows 100 per app, so after enough prefetch calls the next registration in the app throws `TooManyRequestsException`, as reported for the views in [Turbo Image's issue 440](https://github.com/duguyihou/react-native-turbo-image/issues/440) (fixed there by sharing loaders, in 1.24.3).
-- **Where:** `android/src/main/java/com/turboimage/TurboImageModule.kt`, `prefetch()`: `Coil.imageLoader(context).newBuilder().respectCacheHeaders(...).build()` on every call, with the network observer left on. In Coil 2.6.0, `SystemCallbacks.registerNetworkObserver()` registers the callback lazily on the loader's first request (`RequestService.updateOptionsOnWorkerThread()` reads `isOnline`), and only `shutdown()` unregisters it.
-- **How to reproduce:** Found by reading the code. In an app with `ACCESS_NETWORK_STATE`, call `TurboImage.prefetch([{ uri }])` 100 times without the network changing, then do something that registers a network callback (or keep prefetching and look at `dumpsys connectivity` for the app's requests).
-- **How FastImage handles it:** `preload` goes through the same Glide instance as FastImage's views, so nothing is created per call; the views' loaders in Turbo Image 1.24.3 (`sharedImageLoader()`, with `networkObserverEnabled(false)`) would do the same for prefetch.
+- **What happens:** on Android, a `TurboImage` whose `source` is `null` or `undefined` (for example while data loads, or when a source is removed) ends the app when the prop is applied. On iOS the view sends `onFailure`.
+- **Where:** `android/src/main/java/com/turboimage/TurboImageViewManager.kt`, `setSource(view: TurboImageView, source: ReadableMap)`: the parameter isn't nullable, so when React Native calls the setter with `null` for a missing prop, Kotlin's parameter check throws a `NullPointerException`, which React Native reports as an error updating the `source` property. `src/TurboImage.tsx` passes `source` through as it is.
+- **How to reproduce:** Found by reading the code. Render `<TurboImage source={undefined as any} style={{ width: 100, height: 100 }} />` on Android, or change a loaded image's source to `undefined`.
+- **How FastImage handles it:** a missing source, or one without a uri, sends `onError` and shows `defaultSource` (or nothing) ([#1091](https://github.com/DylanVann/react-native-fast-image/pull/1091), [#1109](https://github.com/DylanVann/react-native-fast-image/pull/1109)).
 
 ## Android returning to the app reloads only the last view created
 
@@ -88,3 +88,43 @@ FastImage's maintainers found these while comparing FastImage with Turbo Image (
 - **Where:** `android/src/main/java/com/turboimage/TurboImageViewManager.kt`, `reloadImage()` registers a `ProgressListener` for every view; `events/interceptor/ProgressResponseBody.kt` calls `update()` on every `read()` with `responseBody.contentLength()`.
 - **How to reproduce:** Found by reading the code. Load a list of images without `onProgress` and count the `onProgress` events dispatched (for example with a breakpoint in the listener's `update`), or load an image served with chunked encoding with `onProgress` and log `total`.
 - **How FastImage handles it:** progress is tracked only for views with an `onProgress` handler ([#1225](https://github.com/DylanVann/react-native-fast-image/pull/1225)), and isn't sent when the total size is unknown ([#1134](https://github.com/DylanVann/react-native-fast-image/pull/1134)); the event also has a 0–1 `progress` ([#1194](https://github.com/DylanVann/react-native-fast-image/pull/1194)).
+
+## Other issues
+
+These were found while comparing the code; FastImage has no counterpart for them, so there's no fix to point to.
+
+### Android prefetch leaves a network callback registered per call
+
+- **What happens:** each `TurboImage.prefetch()` call on Android creates a new Coil `ImageLoader`, whose network observer registers a `ConnectivityManager` network callback when the app has the `ACCESS_NETWORK_STATE` permission (most apps do, through libraries such as NetInfo or Google Play services). The callback stays registered after the prefetch is done, until the network changes or the system trims memory. Android allows 100 per app, so after enough prefetch calls the next registration in the app throws `TooManyRequestsException`, as reported for the views in [Turbo Image's issue 440](https://github.com/duguyihou/react-native-turbo-image/issues/440) (fixed there by sharing loaders, in 1.24.3).
+- **Where:** `android/src/main/java/com/turboimage/TurboImageModule.kt`, `prefetch()`: `Coil.imageLoader(context).newBuilder().respectCacheHeaders(...).build()` on every call, with the network observer left on. In Coil 2.6.0, `SystemCallbacks.registerNetworkObserver()` registers the callback lazily on the loader's first request (`RequestService.updateOptionsOnWorkerThread()` reads `isOnline`), and only `shutdown()` unregisters it. The views' loaders (`sharedImageLoader()` in `TurboImageViewManager.kt`) avoid this with one loader and `networkObserverEnabled(false)`.
+- **How to reproduce:** Found by reading the code. In an app with `ACCESS_NETWORK_STATE`, call `TurboImage.prefetch([{ uri }])` 100 times without the network changing, then do something that registers a network callback (or keep prefetching and look at `dumpsys connectivity` for the app's requests).
+
+### dispose is still exported but not implemented
+
+- **What happens:** `TurboImage.dispose(sources)` is still in the JavaScript API, the types (`TurboImageApi`) and the README's feature list, but calling it rejects with a `TypeError` (`dispose` is not a function), on both platforms.
+- **Where:** `src/TurboImage.tsx` calls `TurboImageViewManager.dispose(sources)`, but neither native module has it any more: `ios/TurboImageViewManager.m` exports `prefetch`, `clearMemoryCache` and `clearDiskCache`, and so does `android/src/main/java/com/turboimage/TurboImageModule.kt`. Commit `94a8929` ("refactor: remove dispose function") removed the native methods and the README's `dispose` section, but not the JavaScript function or its type.
+- **How to reproduce:** Found by reading the code. Call `await TurboImage.dispose([{ uri }])`.
+
+### Android decodes the placeholder hash several times per load, on the main thread
+
+- **What happens:** with a `blurhash` or `thumbhash` placeholder, each load decodes the hash into a new bitmap two or three times on the UI thread, instead of once.
+- **Where:** `android/src/main/java/com/turboimage/TurboImageView.kt`: `blurhashDrawable` and `thumbhashDrawable` are getters that decode the hash every time they're read. `TurboImageViewManager.kt`, `reloadImage()`, reads them for `defaultCrossfade`, for `placeholder(...)` and, with `showPlaceholderOnFailure`, for `error(...)`; `reloadImage()` runs from `onAfterUpdateTransaction()`, on the UI thread.
+- **How to reproduce:** Found by reading the code. Put a breakpoint or a counter in `drawThumbhash()` and load one image with a `thumbhash` placeholder. The cost per decode is small (BlurHash at 8 × 8 px, ThumbHash at about 32 px); it adds up in lists.
+
+### iOS Live Text adds another interaction on every load
+
+- **What happens:** with `enableLiveTextInteraction`, every completed load adds a new `ImageAnalysisInteraction` to the image view, and the earlier ones aren't removed, so a view whose source changes keeps one interaction per image it has shown. What several interactions do at once (for example, text from a previous image staying selectable) is unconfirmed.
+- **Where:** `ios/TurboImageView.swift`, `handleLiveTextInteraction()`: `lazyImageView.imageView.addInteraction(interaction)` on every call (from `onCompletion`); only `liveTextTask` is cancelled.
+- **How to reproduce:** Found by reading the code. With `enableLiveTextInteraction`, change the source a few times and print `imageView.interactions.count`.
+
+### iOS prefetch may never resolve (unconfirmed)
+
+- **What happens:** possibly, `TurboImage.prefetch()` on iOS never resolves when there's nothing to download, for example an empty list or images already in the memory cache. Unconfirmed: it depends on a race, and the window is small.
+- **Where:** `ios/TurboImageViewManager.swift`, `prefetch`: `startPrefetching(with:)` hands the requests to Nuke's pipeline queue, and `didComplete` is set afterward on the calling thread. When no request needs loading, Nuke's `ImagePrefetcher._startPrefetching(with:)` calls `sendCompletionIfNeeded()` once, which does nothing if `didComplete` isn't set yet, so the promise would never resolve. Setting `didComplete` before `startPrefetching` would remove the race.
+- **How to reproduce:** Not reproduced. Calling `TurboImage.prefetch([])` many times in a row (or with images already shown) and checking that each resolves, or running with the Thread Sanitizer, would confirm it.
+
+### Android a prop change after layout reloads the image (unconfirmed)
+
+- **What happens:** possibly, on Android, the first change to any prop after an image has loaded, even one that doesn't affect the image (such as `accessibilityLabel` or `resizeMode`), loads the image again and sends `onStart`, `onSuccess` and `onCompletion` again. Unconfirmed: it depends on the view having no size when its first props are applied.
+- **Where:** `android/src/main/java/com/turboimage/TurboImageView.kt`, `buildLoadSignature()` includes the view's `width` and `height` (when there's no `resize`). The first load's signature is built in `onAfterUpdateTransaction()`, which for a new view runs before layout, when the size is 0 × 0; the next prop update builds a signature with the laid-out size, `shouldSkipReload()` sees a different signature, and `reloadImage()` loads again.
+- **How to reproduce:** Not reproduced. Log the events of a loaded `TurboImage`, then change its `accessibilityLabel`: a second `onStart` would confirm it.
