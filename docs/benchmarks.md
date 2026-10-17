@@ -2,6 +2,8 @@
 
 How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
 
+These results are for Fast Image 10.0.0, measured from its code on the day it was released. Later versions may perform differently until the benchmarks are run again.
+
 ## How it's measured
 
 - **The same app for every library.** An Expo app (SDK 57, React Native 0.86.3, New Architecture) is built in Release once per library, with only that library linked. Libraries: Fast Image, React Native's `Image` (0.86.3), Expo Image 57.0.5, Nitro Image 0.15.2 and Turbo Image 1.24.3, each with its defaults, except that fades are turned off (Fast Image and React Native's `Image` on Android, and Turbo Image, fade images in over 300 ms by default).
