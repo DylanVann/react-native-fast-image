@@ -2290,6 +2290,12 @@ async function buildAndroid(app: App) {
             cwd: path.join(dir, 'android'),
             log,
             timeout: BUILD_TIMEOUT,
+            // The Expo example's .env, which expo run:android would load:
+            // expo-constants' fingerprint task reads only the environment.
+            extraEnv:
+                app === 'expo'
+                    ? { EXPO_SKIP_FINGERPRINT_EMBED: '1' }
+                    : undefined,
         },
     )
     if (!result.ok) {
