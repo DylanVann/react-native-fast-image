@@ -3051,18 +3051,20 @@ function ObjectFitEventsCase({ id, uri }: { id: string; uri: string }) {
     }
     const got = `onLoadStart ${counts.start}, onLoad ${counts.load}, onLoadEnd ${counts.end}`
     const once = counts.start === 1 && counts.load === 1 && counts.end === 1
+    const image = (
+        <FastImage
+            style={objectFitStyles.image}
+            objectFit={fit}
+            source={{ uri: `${uri}?${id}=${RUN}` }}
+            onLoadStart={() => setCounts((c) => ({ ...c, start: c.start + 1 }))}
+            onLoad={onLoad}
+            onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
+        />
+    )
     return (
         <View style={styles.row}>
-            <FastImage
-                style={objectFitStyles.image}
-                objectFit={fit}
-                source={{ uri: `${uri}?${id}=${RUN}` }}
-                onLoadStart={() =>
-                    setCounts((c) => ({ ...c, start: c.start + 1 }))
-                }
-                onLoad={onLoad}
-                onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
-            />
+            {/* A GIF's frame differs between runs; the case checks events. */}
+            {uri.endsWith('.gif') ? <Masked>{image}</Masked> : image}
             <CaseStatus
                 id={id}
                 status={changed ? (once ? 'OK' : got) : 'waiting'}
@@ -3147,20 +3149,22 @@ function PositionEventsCase({
     }
     const got = `onLoadStart ${counts.start}, onLoad ${counts.load}, onLoadEnd ${counts.end}`
     const once = counts.start === 1 && counts.load === 1 && counts.end === 1
+    const image = (
+        <FastImage
+            style={objectFitStyles.image}
+            objectFit="cover"
+            objectPosition={position}
+            source={{ uri: `${uri}?${id}=${RUN}` }}
+            downsample={downsample}
+            onLoadStart={() => setCounts((c) => ({ ...c, start: c.start + 1 }))}
+            onLoad={onLoad}
+            onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
+        />
+    )
     return (
         <View style={styles.row}>
-            <FastImage
-                style={objectFitStyles.image}
-                objectFit="cover"
-                objectPosition={position}
-                source={{ uri: `${uri}?${id}=${RUN}` }}
-                downsample={downsample}
-                onLoadStart={() =>
-                    setCounts((c) => ({ ...c, start: c.start + 1 }))
-                }
-                onLoad={onLoad}
-                onLoadEnd={() => setCounts((c) => ({ ...c, end: c.end + 1 }))}
-            />
+            {/* A GIF's frame differs between runs; the case checks events. */}
+            {uri.endsWith('.gif') ? <Masked>{image}</Masked> : image}
             <CaseStatus
                 id={id}
                 status={changed ? (once ? 'OK' : got) : 'waiting'}
