@@ -8888,6 +8888,20 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description="HEIC loads"
             />,
             <FormatCase
+                key="format-jxl"
+                id="format-jxl"
+                file="quadrants.jxl"
+                expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
+                description="JPEG XL: loads on iOS, fails on Android"
+            />,
+        ],
+    },
+    {
+        // The rest of the formats (in one group, they're taller than the
+        // screen).
+        name: 'formats-more',
+        cases: [
+            <FormatCase
                 key="format-bmp"
                 id="format-bmp"
                 file="quadrants.bmp"
@@ -8976,6 +8990,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 file="animated.avif"
                 expected="animates"
                 description="An animated AVIF animates (masked)"
+            />,
+            <FormatAnimationCase
+                key="format-animated-jxl"
+                id="format-animated-jxl"
+                file="animated.jxl"
+                expected={Platform.OS === 'ios' ? 'first frame' : 'fails'}
+                description="An animated JPEG XL: its first frame on iOS, fails on Android (masked)"
             />,
         ],
     },

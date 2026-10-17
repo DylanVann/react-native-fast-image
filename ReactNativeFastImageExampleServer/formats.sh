@@ -7,9 +7,9 @@
 #
 #   bash ReactNativeFastImageExampleServer/formats.sh
 #
-# Needs ImageMagick, libwebp (cwebp, img2webp), libavif (avifenc) and libheif
-# (heif-enc): `brew install imagemagick webp libavif libheif`, and macOS (sips,
-# for PSD and ICNS).
+# Needs ImageMagick, libwebp (cwebp, img2webp), libavif (avifenc), libheif
+# (heif-enc) and libjxl (cjxl): `brew install imagemagick webp libavif libheif
+# jpeg-xl`, and macOS (sips, for PSD and ICNS).
 set -euo pipefail
 OUT="$(cd "$(dirname "$0")" && pwd)/images/formats"
 TMP="$(mktemp -d)"
@@ -27,6 +27,7 @@ magick "$TMP/quadrants.png" quadrants.gif
 cwebp -quiet -q 92 "$TMP/quadrants.png" -o quadrants.webp
 avifenc -q 90 "$TMP/quadrants.png" quadrants.avif > /dev/null
 heif-enc -q 90 "$TMP/quadrants.png" -o quadrants.heic > /dev/null
+cjxl -q 90 "$TMP/quadrants.png" quadrants.jxl > /dev/null 2>&1
 magick "$TMP/quadrants.png" BMP3:quadrants.bmp
 magick "$TMP/quadrants.png" quadrants.ico
 magick "$TMP/quadrants.png" -compress none quadrants.tiff
@@ -53,4 +54,6 @@ avifenc --timescale 10 --duration 4 --repetition-count infinite -q 90 \
 avifenc --timescale 10 --duration 4 --repetition-count 0 -q 90 \
     --creation-time 1 --modification-time 1 \
     "$TMP/red.png" "$TMP/blue.png" -o animated-once.avif > /dev/null
+# From the APNG: cjxl keeps its frames, their times and its loop count.
+cjxl -d 0 animated.png animated.jxl > /dev/null 2>&1
 chmod 644 ./*
