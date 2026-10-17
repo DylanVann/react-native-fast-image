@@ -106,8 +106,11 @@ export type Source = {
     memoryCache?: boolean
     /**
      * Whether the image is kept in the disk cache. With `false` it isn't
-     * written to disk, or read from it. Use it for images that shouldn't be stored on the device,
-     * like private photos or documents, or that change every time they load.
+     * written to disk, or read from it. Use it for images the app shouldn't
+     * keep once they've been shown (e.g. disappearing messages, or where a
+     * security policy doesn't allow caching sensitive images), images that
+     * change every time they load, or large images shown once, which would
+     * push other images out of the disk cache.
      * The image is downloaded again whenever it isn't in memory, e.g. for a
      * view of another size, so with `memoryCache: false` too it's downloaded
      * each time it's shown. With `cache: 'web'` it isn't kept in the HTTP
@@ -116,7 +119,7 @@ export type Source = {
      *
      * `FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok`
      * for it: there's no file, and a view decodes the image for its own
-     * size, so it would download a preloaded one again. A source for the same
+     * size, so it may download a preloaded one again. A source for the same
      * url (or `cacheKey`) without `diskCache: false` still stores the image.
      *
      * @default true
