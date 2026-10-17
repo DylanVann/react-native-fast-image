@@ -2,6 +2,8 @@
 
 How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
 
+These results are for Fast Image 10.0.0, measured from its code on the day it was released. Later versions may perform differently until the benchmarks are run again.
+
 ## How it's measured
 
 - **The same app for every library.** An Expo app (SDK 57, React Native 0.86.3, New Architecture) is built in Release once per library, with only that library linked. Libraries: Fast Image, React Native's `Image` (0.86.3), Expo Image 57.0.5, Nitro Image 0.15.2 and Turbo Image 1.24.3, each with its defaults, except that fades are turned off (Fast Image and React Native's `Image` on Android, and Turbo Image, fade images in over 300 ms by default).
@@ -56,7 +58,7 @@ Scenarios:
 
 ## Opening a photo while others load
 
-The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
+The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; React Native's `Image` and Turbo Image have no priority, and Nitro Image's `priority` option wasn't set in this run). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
 
 ### Android
 
@@ -76,7 +78,7 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 
 - Fast Image moves the grid's download of the photo, still waiting to start, ahead of the others, and uses it for both sizes. Downloads that haven't started wait in Fast Image's own queue, where priority applies, rather than in the HTTP client's.
 - Expo Image downloads the photo again; in 6 of 20 runs it showed it within 248–416 ms, in the others within 532–832 ms.
-- React Native's `Image`, Nitro Image and Turbo Image have no priority, and mostly showed it about when the grid's last photos loaded.
+- React Native's `Image` and Turbo Image have no priority, and Nitro Image ran without its `priority` option; they mostly showed it about when the grid's last photos loaded.
 
 ### iOS
 
