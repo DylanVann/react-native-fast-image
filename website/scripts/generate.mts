@@ -485,10 +485,14 @@ const anchors = new Map(
     ]),
 )
 
-// The website's pages: the README, the benchmarks and development docs beside
-// it, and the guides, each doc's page named after its title (the files keep
+// The website's pages: the README, the benchmarks, comparisons and development
+// docs beside it, and the guides, each doc's page named after its title (the files keep
 // their names, which links elsewhere point to).
-const TOP_LEVEL = ['docs/benchmarks.md', 'docs/development.md']
+const TOP_LEVEL = [
+    'docs/benchmarks.md',
+    'docs/comparisons.md',
+    'docs/development.md',
+]
 const titleOf = (file: string) =>
     sources.get(file)!.match(/^# (.*)$/m)?.[1] ?? file
 const pageOf = (file: string) =>

@@ -1,6 +1,10 @@
 # Comparisons
 
-While updating Fast Image and working through its issues, I looked at prior art in most cases: how other image libraries handle the same thing, to find the best way to do it. Along the way I found differences between the libraries, and some potential issues in them.
+This page and the linked issues files are probably more useful to other libraries' maintainers, and their coding agents, than to people choosing a library. Most of the code reading was done with coding agents and reviewed by me. I maintain Fast Image, and the benchmark scenarios come from the problems I was working on, so keep that in mind.
+
+My impression: Fast Image doesn't have many of the small issues I found in the other libraries, has a nicer API in some places, and performs well. In the [benchmarks](benchmarks.md) it's the fastest or tied on Android in every scenario, and within about 40 ms of the fastest on iOS, without a scenario where it does badly. The other libraries usually have one or two they do much worse at (large photos' memory on iOS for Expo Image and Nitro Image, Android scrolling for Turbo Image, large photos on Android for React Native's `Image`), even where they're a little faster than Fast Image somewhere else.
+
+While working through Fast Image's issues, I looked at how other image libraries handle the same things, and found differences and some potential issues in them along the way.
 
 This page lists what I consider the major differences between Fast Image and each library, the most important first, including what the other library does better or has that Fast Image doesn't. They come from reading each library's code at the version named in its section (checked on 2026-10-18), and from the [benchmarks](benchmarks.md). Each item says how it's known: from the benchmarks, from a regression case, or from reading the code (not run).
 
