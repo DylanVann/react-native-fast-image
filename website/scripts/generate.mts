@@ -529,12 +529,40 @@ function rewriteLinks(markdown: string, file: string) {
                 return `${start}${toRoot}${resolved}${anchor}`
             }
             const page = pageOf(resolved)
+            // Markdown files in docs/ that aren't pages (docs/issues/, the issues
+            // found in other image libraries) are copied to the website's
+            // public/ as plain Markdown, with their links to GitHub.
+            if (page === undefined && /^docs\/.*\.md$/.test(resolved)) {
+                const copy = `${root}website/public/${resolved}`
+                mkdirSync(posix.dirname(copy), { recursive: true })
+                writeFileSync(
+                    copy,
+                    withGitHubLinks(
+                        readFileSync(`${root}${resolved}`, 'utf8'),
+                        resolved,
+                    ),
+                )
+                return `${start}${toRoot}${resolved}${anchor}`
+            }
             if (page === undefined)
-                return `${start}https://github.com/DylanVann/react-native-fast-image/blob/main/${resolved}${anchor}`
+                return `${start}${GITHUB}${resolved}${anchor}`
             return `${start}${toRoot}${page ? `${page}/` : ''}${anchor}`
         },
     )
 }
+
+const GITHUB = 'https://github.com/DylanVann/react-native-fast-image/blob/main/'
+
+// A Markdown file's relative links, made absolute links to GitHub. `file` is
+// its path in the repo.
+const withGitHubLinks = (markdown: string, file: string) =>
+    markdown.replace(
+        /(\]\(|^\[(?!\^)[^\]]+\]: )([^)\s#]*)(#[^)\s]*)?/gm,
+        (all, start, target, anchor = '') =>
+            !target || /^[a-z]+:/.test(target)
+                ? all
+                : `${start}${GITHUB}${posix.normalize(posix.join(posix.dirname(file), target))}${anchor}`,
+    )
 
 const out = `${root}website/src/content/docs`
 rmSync(out, { recursive: true, force: true })
