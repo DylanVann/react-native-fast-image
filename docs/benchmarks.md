@@ -56,7 +56,7 @@ Scenarios:
 
 ## Opening a photo while others load
 
-The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; the others have no priority). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
+The grid's 60 photos start loading, and 100 ms later the last of them opens at the screen's width over the grid, as when a tap opens a photo, with high priority (Fast Image's `source.priority`, Expo Image's `priority`; React Native's `Image` and Turbo Image have no priority, and Nitro Image's `priority` option wasn't set in this run). The time until it showed, from the grid's start (median / p90, ms), and the image requests for all 61 images.
 
 ### Android
 
@@ -76,7 +76,7 @@ The grid's 60 photos start loading, and 100 ms later the last of them opens at t
 
 - Fast Image moves the grid's download of the photo, still waiting to start, ahead of the others, and uses it for both sizes. Downloads that haven't started wait in Fast Image's own queue, where priority applies, rather than in the HTTP client's.
 - Expo Image downloads the photo again; in 6 of 20 runs it showed it within 248–416 ms, in the others within 532–832 ms.
-- React Native's `Image`, Nitro Image and Turbo Image have no priority, and mostly showed it about when the grid's last photos loaded.
+- React Native's `Image` and Turbo Image have no priority, and Nitro Image ran without its `priority` option; they mostly showed it about when the grid's last photos loaded.
 
 ### iOS
 
