@@ -22,6 +22,16 @@ final class FastImageGlide {
         return Boolean.TRUE.equals(options.get(REQUEST));
     }
 
+    // Set for a source with diskCache false: its download goes through a
+    // client without an HTTP cache (FastImageOkHttpProgressGlideModule), so
+    // neither the `web` images' HTTP cache nor one the app gave its client
+    // keeps it.
+    static final Option<Boolean> NO_STORE = Option.memory("com.fastimage.NoStore", false);
+
+    static boolean isNoStore(@NonNull Options options) {
+        return Boolean.TRUE.equals(options.get(NO_STORE));
+    }
+
     // The Glide instance FastImage's components (FastImageOkHttpProgressGlideModule)
     // were registered with.
     private static volatile Glide registered;

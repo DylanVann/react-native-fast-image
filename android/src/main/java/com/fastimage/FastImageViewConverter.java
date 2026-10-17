@@ -74,9 +74,7 @@ class FastImageViewConverter {
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
         if (source == null) return null;
         FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
-        // A `web` image that isn't kept on disk has no HTTP cache to follow:
-        // it's downloaded with the client without one, every time.
-        imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB && isDiskCache(source));
+        imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
         if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
             imageSource.setMemoryCache(source.getBoolean("memoryCache"));
         }
@@ -131,8 +129,9 @@ class FastImageViewConverter {
         }
 
         // diskCache false: neither written to Glide's disk cache nor read from
-        // it.
-        if (imageSource != null && !imageSource.isDiskCache()) {
+        // it, nor to an HTTP cache (NO_STORE).
+        final boolean noStore = imageSource != null && !imageSource.isDiskCache();
+        if (noStore) {
             diskCacheStrategy = DiskCacheStrategy.NONE;
         }
 
@@ -143,7 +142,8 @@ class FastImageViewConverter {
                 .skipMemoryCache(skipMemoryCache || (imageSource != null && !imageSource.isMemoryCache()))
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE)
-                .set(FastImageGlide.REQUEST, true);
+                .set(FastImageGlide.REQUEST, true)
+                .set(FastImageGlide.NO_STORE, noStore);
 
         // imageSource is null when only a defaultSource is shown.
         if (imageSource != null && imageSource.isResource()) {

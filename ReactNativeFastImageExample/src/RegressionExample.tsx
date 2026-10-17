@@ -4255,6 +4255,69 @@ function DiskCacheOffCase() {
     )
 }
 
+// A `web` image with diskCache false that the server lets caches keep for an
+// hour, after a preload of its url (cache 'immutable'): the first view
+// downloads it (not the preload's file), and a second view of the same size
+// downloads it again (it isn't kept in memory, nor in any HTTP cache), so the
+// server gets three requests.
+const NO_DISK_WEB_PATH = `/max-age/picsum/1025-200x200.jpg?no-disk-web=${RUN}`
+function DiskCacheOffWebCase() {
+    const [first, setFirst] = useState(false)
+    const [second, setSecond] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const uri = imageUrl(NO_DISK_WEB_PATH.slice(1))
+    const source = { uri, cache: 'web' as const, diskCache: false }
+    useEffect(() => {
+        FastImage.preload([{ uri }])
+            .then(([result]) =>
+                result.ok
+                    ? setFirst(true)
+                    : setStatus(`preload error: ${result.error}`),
+            )
+            .catch((e) => setStatus(`error: ${e}`))
+        // Only on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    const check = async () => {
+        const response = await fetch(
+            imageUrl(`requests?path=${encodeURIComponent(NO_DISK_WEB_PATH)}`),
+        )
+        const { count } = await response.json()
+        setStatus(count === 3 ? 'OK' : `requested ${count} times`)
+    }
+    return (
+        <View style={styles.row}>
+            {first ? (
+                <FastImage
+                    style={styles.image}
+                    source={source}
+                    onLoad={() => setSecond(true)}
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={styles.image} />
+            )}
+            {second ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={source}
+                    onLoad={() =>
+                        check().catch((e) => setStatus(`error: ${e}`))
+                    }
+                    onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="disk-cache-off-web"
+                status={status}
+                description="diskCache false with cache 'web': after a preload of its url, each view downloads it, though the server allows caching it"
+            />
+        </View>
+    )
+}
+
 const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
@@ -8344,7 +8407,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'disk-cache',
-        cases: [<DiskCacheOffCase key="disk-cache-off" />],
+        cases: [
+            <DiskCacheOffCase key="disk-cache-off" />,
+            <DiskCacheOffWebCase key="disk-cache-off-web" />,
+        ],
     },
     {
         name: 'cache-path',
