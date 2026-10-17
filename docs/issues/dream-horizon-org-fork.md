@@ -272,7 +272,7 @@ FastImage's maintainers found these while comparing FastImage with the dream-hor
 - **What happens:** an app (or another library) with `com.caverock:androidsvg` fails to build with "Duplicate class com.caverock.androidsvg…", since the fork brings `com.caverock:androidsvg-aar`, which has the same classes (reported in this repository as [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378)).
 - **Where:** `android/build.gradle`: `implementation "com.caverock:androidsvg-aar:1.4"`.
 - **How to reproduce:** Reported in [#378](https://github.com/dream-horizon-org/react-native-fast-image/issues/378).
-- **How FastImage handles it:** it includes the same package, and documents leaving it out with `configurations.all { exclude group: 'com.caverock', module: 'androidsvg-aar' }`, since it works with either package ([#1206](https://github.com/DylanVann/react-native-fast-image/pull/1206), [troubleshooting](troubleshooting.md#duplicate-androidsvg-classes)). The same exclude should work for the fork, whose decoder uses the classes both packages have.
+- **How FastImage handles it:** it includes the same package, and documents leaving it out with `configurations.all { exclude group: 'com.caverock', module: 'androidsvg-aar' }`, since it works with either package ([#1206](https://github.com/DylanVann/react-native-fast-image/pull/1206), [troubleshooting](../troubleshooting.md#duplicate-androidsvg-classes)). The same exclude should work for the fork, whose decoder uses the classes both packages have.
 
 ## TypeScript style types lose layout props with the Strict TypeScript API
 
