@@ -1031,12 +1031,8 @@ NSString *FFFErrorMessage(NSError *error)
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         [FFFDownsampledImage addFullSizeToContext: context];
-        if (!source.memoryCache) {
-            // Only on disk, also when it comes from there.
-            context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
-        }
+        [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetSmallerFullSizeImageForURL: source.url context: context];
-        [self keepOffDisk: context source: source];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];
@@ -1047,30 +1043,35 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
         context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
     }
-    if (!source.memoryCache) {
-        // The smaller copy is only kept in memory, so it isn't kept (the
-        // downloaded file is still on disk).
-        context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeNone);
-    }
-    [self keepOffDisk: context source: source];
+    [self applyCacheOptions: context source: source fullSize: NO];
     return context;
 }
 
-// diskCache false: the image isn't read from or written to the disk cache,
-// neither the downloaded file (the original, for a smaller decode) nor the
-// decoded image. A `web` one isn't kept in memory either, as on Android: it's
-// downloaded every time it loads.
-- (void) keepOffDisk: (SDWebImageMutableContext*)context source: (FFFastImageSource*)source {
-    if (source.diskCache) {
+// The source's memoryCache and diskCache: which caches the image is looked up
+// in and kept in. fullSize: the image is decoded at its own size, rather than
+// smaller (addToContext keeps those in memory only, as the disk cache has the
+// downloaded file).
+- (void) applyCacheOptions: (SDWebImageMutableContext*)context source: (FFFastImageSource*)source fullSize: (BOOL)fullSize {
+    if (!source.diskCache) {
+        // Neither the downloaded file (the original, for a smaller decode)
+        // nor the decoded image is read from or written to the disk cache. A
+        // `web` one isn't kept in memory either, as on Android: it's
+        // downloaded every time it loads.
+        SDImageCacheType memory = source.memoryCache && source.cacheControl != FFFCacheControlWeb
+            ? SDImageCacheTypeMemory
+            : SDImageCacheTypeNone;
+        context[SDWebImageContextStoreCacheType] = @(memory);
+        context[SDWebImageContextQueryCacheType] = @(memory);
+        context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
+        context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
         return;
     }
-    SDImageCacheType memory = source.memoryCache && source.cacheControl != FFFCacheControlWeb
-        ? SDImageCacheTypeMemory
-        : SDImageCacheTypeNone;
-    context[SDWebImageContextStoreCacheType] = @(memory);
-    context[SDWebImageContextQueryCacheType] = @(memory);
-    context[SDWebImageContextOriginalStoreCacheType] = @(SDImageCacheTypeNone);
-    context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
+    if (!source.memoryCache) {
+        // Only on disk, also when it comes from there. A smaller copy is
+        // only kept in memory, so it isn't kept (the downloaded file is still
+        // on disk).
+        context[SDWebImageContextStoreCacheType] = @(fullSize ? SDImageCacheTypeDisk : SDImageCacheTypeNone);
+    }
 }
 
 // events: NO for a quiet reload at a new size (see reloadIfResized), which
