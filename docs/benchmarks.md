@@ -2,7 +2,7 @@
 
 How long images take to show, how much memory they use, and how smoothly a list of them scrolls, for Fast Image and other React Native image components, measured the same way for each. These are the latest reference results, from 2026-10-12.
 
-These results are for Fast Image 10.0.0, measured from its code on the day it was released. Later versions may perform differently until the benchmarks are run again.
+These results are for Fast Image 10.0.
 
 ## How it's measured
 
