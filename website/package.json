@@ -21,7 +21,6 @@
         "check": "node scripts/generate.mts --check",
         "dev": "node scripts/generate.mts && astro dev",
         "build": "node scripts/generate.mts && astro build",
-        "preview": "astro preview",
-        "deploy": "bun run build && wrangler deploy"
+        "preview": "astro preview"
     }
 }
