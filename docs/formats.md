@@ -8,21 +8,22 @@ These are tested on iOS 27 and Android 16 in the example app (the regression run
 
 FastImage loads images with [SDWebImage](https://github.com/SDWebImage/SDWebImage), which decodes most formats with ImageIO, Apple's image decoder.
 
-| Format | Shows                           | Decoded by                                                                                                              |
-| ------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| JPEG   | Yes                             | ImageIO                                                                                                                 |
-| PNG    | Yes                             | ImageIO                                                                                                                 |
-| APNG   | Animated                        | ImageIO, animated by SDWebImage                                                                                         |
-| GIF    | Animated                        | ImageIO, animated by SDWebImage                                                                                         |
-| WebP   | Animated                        | Still ones ImageIO, animated ones libwebp                                                                               |
-| AVIF   | iOS 16+; animated               | ImageIO, animated by SDWebImage                                                                                         |
-| HEIC   | Yes                             | ImageIO                                                                                                                 |
-| SVG    | Yes ([SVG images](#svg-images)) | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer), which FastImage includes |
-| ICO    | Yes                             | ImageIO                                                                                                                 |
-| BMP    | Yes                             | ImageIO                                                                                                                 |
-| TIFF   | Yes                             | ImageIO                                                                                                                 |
-| ICNS   | Yes                             | ImageIO                                                                                                                 |
-| PSD    | Its composite image             | ImageIO                                                                                                                 |
+| Format  | Shows                                         | Decoded by                                                                                                              |
+| ------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| JPEG    | Yes                                           | ImageIO                                                                                                                 |
+| PNG     | Yes                                           | ImageIO                                                                                                                 |
+| APNG    | Animated                                      | ImageIO, animated by SDWebImage                                                                                         |
+| GIF     | Animated                                      | ImageIO, animated by SDWebImage                                                                                         |
+| WebP    | Animated                                      | Still ones ImageIO, animated ones libwebp                                                                               |
+| AVIF    | iOS 16+; animated                             | ImageIO, animated by SDWebImage                                                                                         |
+| HEIC    | Yes                                           | ImageIO                                                                                                                 |
+| JPEG XL | iOS 17+; animated ones show their first frame | ImageIO                                                                                                                 |
+| SVG     | Yes ([SVG images](#svg-images))               | [SDWebImageSVGCoder](https://github.com/SDWebImage/SDWebImageSVGCoder) (Apple's SVG renderer), which FastImage includes |
+| ICO     | Yes                                           | ImageIO                                                                                                                 |
+| BMP     | Yes                                           | ImageIO                                                                                                                 |
+| TIFF    | Yes                                           | ImageIO                                                                                                                 |
+| ICNS    | Yes                                           | ImageIO                                                                                                                 |
+| PSD     | Its composite image                           | ImageIO                                                                                                                 |
 
 On tvOS (tested on tvOS 27 in the tvOS example), the same formats show except ICNS and PSD, which tvOS's ImageIO doesn't decode.
 
@@ -32,21 +33,22 @@ Animated WebPs are decoded with libwebp, from [SDWebImageWebPCoder](https://gith
 
 FastImage loads images with [Glide](https://github.com/bumptech/glide), which decodes most formats with Android's own decoders.
 
-| Format | Shows                                            | Decoded by                                                                           |
-| ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| JPEG   | Yes                                              | Android's decoder                                                                    |
-| PNG    | Yes                                              | Android's decoder                                                                    |
-| APNG   | Animated ([Animated PNG](#animated-png-android)) | [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes |
-| GIF    | Animated                                         | Glide's GIF decoder                                                                  |
-| WebP   | Yes; animated ones Android 9+                    | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
-| AVIF   | Android 14+[^android-avif]; animated             | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
-| HEIC   | Android 8+                                       | Android's decoder                                                                    |
-| SVG    | Yes ([SVG images](#svg-images))                  | [AndroidSVG](https://bigbadaboom.github.io/androidsvg/), which FastImage includes    |
-| ICO    | Yes                                              | Android's decoder                                                                    |
-| BMP    | Yes                                              | Android's decoder                                                                    |
-| TIFF   | No                                               |                                                                                      |
-| ICNS   | No                                               |                                                                                      |
-| PSD    | No                                               |                                                                                      |
+| Format  | Shows                                            | Decoded by                                                                           |
+| ------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| JPEG    | Yes                                              | Android's decoder                                                                    |
+| PNG     | Yes                                              | Android's decoder                                                                    |
+| APNG    | Animated ([Animated PNG](#animated-png-android)) | [APNG4Android](https://github.com/penfeizhou/APNG4Android), which FastImage includes |
+| GIF     | Animated                                         | Glide's GIF decoder                                                                  |
+| WebP    | Yes; animated ones Android 9+                    | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
+| AVIF    | Android 14+[^android-avif]; animated             | Android's decoder; animated ones `ImageDecoder` (an `AnimatedImageDrawable`)         |
+| HEIC    | Android 8+                                       | Android's decoder                                                                    |
+| JPEG XL | No                                               |                                                                                      |
+| SVG     | Yes ([SVG images](#svg-images))                  | [AndroidSVG](https://bigbadaboom.github.io/androidsvg/), which FastImage includes    |
+| ICO     | Yes                                              | Android's decoder                                                                    |
+| BMP     | Yes                                              | Android's decoder                                                                    |
+| TIFF    | No                                               |                                                                                      |
+| ICNS    | No                                               |                                                                                      |
+| PSD     | No                                               |                                                                                      |
 
 ## SVG images
 
