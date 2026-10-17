@@ -100,6 +100,8 @@ const YourImage = () => (
 
 ## Components
 
+<a name="fastimage"></a>
+
 ### `Image`
 
 It's a single native view, which also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`). It doesn't take children: use [`ImageBackground`](#imagebackground) for content over an image.
