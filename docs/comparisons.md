@@ -1,16 +1,16 @@
 # Comparisons
 
-How FastImage 10 differs from the other React Native image libraries, one library at a time, with the differences that matter most to an app first. Each list includes what the other library does better or has that FastImage doesn't.
+While updating FastImage and working through its issues, I looked at prior art in most cases: how other image libraries handle the same thing, to find the best way to do it. Along the way I found differences between the libraries, and some potential issues in them.
 
-The comparisons come from reading each library's code at the version named in its section (checked on 2026-10-18), and from the [benchmarks](benchmarks.md), which measured the versions they name. Each item says how it's known: from the benchmarks, from a regression case, or from reading the code (not run). Libraries change: if something here is out of date, please open an issue or a pull request.
+This page lists what I consider the major differences between FastImage 10 and each library, the most important first, including what the other library does better or has that FastImage doesn't. They come from reading each library's code at the version named in its section (checked on 2026-10-18), and from the [benchmarks](benchmarks.md). Each item says how it's known: from the benchmarks, from a regression case, or from reading the code (not run).
 
-Each section links to a file listing the issues FastImage's maintainers found in that library: what happens, where in the library's code, how to reproduce it and, for most, how FastImage handles it, with the PR; each file ends with the issues FastImage has no counterpart for. They're written so the library's maintainers can hand them to their coding agent.
+For each library there's also a plain markdown file of the potential issues found in it: what happens, where in its code, how to reproduce it, and, where FastImage has a fix, how FastImage handles it. It's meant to be handed to a coding agent: if you work on one of these libraries, you can give it the file to go through, try to reproduce the issues and fix them. Libraries change, so some may already be fixed: if something here is out of date, please open an issue or a pull request.
 
 ## Expo Image
 
 Checked: expo-image 58.0.15 (expo repository at `59dfdddb`, 2026-10-17); the benchmarks measured expo-image 57.0.5, whose npm package has the same code in the parts the results depend on.
 
-Issues found in Expo Image: [issues/expo-image.md](issues/expo-image.md)
+Potential issues in Expo Image: [issues/expo-image.md](issues/expo-image.md)
 
 - **Part of Expo.** Expo Image is an Expo SDK package: it's in Expo Go, versioned and tested with each SDK, and documented on docs.expo.dev. FastImage works in Expo apps too, with a config plugin, but needs a development build.
 - **Memory and time with large photos on iOS.** FastImage decodes images at about the size they're shown at by default; Expo Image decodes them at full size and then resizes them on the main thread. For 20 photos of 4000 × 3000 px, FastImage took 52 MB and 328 ms, Expo Image 414 MB and 560 ms, with no new frame for about 350 ms ([benchmarks](benchmarks.md#ios)). On Android they're at parity (97 and 102 MB, 480 ms each). _(Benchmark; the main-thread resize from code.)_
@@ -41,7 +41,7 @@ Issues found in Expo Image: [issues/expo-image.md](issues/expo-image.md)
 
 Checked: React Native `main` at `27e7721` (2026-10-16, after 0.88.0); the benchmarks measured React Native 0.86.3's `Image`.
 
-Issues found in React Native's `Image`: [issues/react-native-image.md](issues/react-native-image.md)
+Potential issues in React Native's `Image`: [issues/react-native-image.md](issues/react-native-image.md)
 
 - **Built in.** `Image` comes with React Native: nothing to install, no native dependencies added to the app, maintained and released with React Native, and on the web react-native-web provides it. FastImage adds SDWebImage on iOS and Glide on Android (a `pod install`, and their size in the app).
 - **Memory with large photos.** On iOS both decode images at about the size they're shown at, and are at parity (React Native's `Image` 48 MB, FastImage 52 MB for 20 photos of 4000 × 3000 px). On Android, React Native's `Image` decodes network images at full size by default, so the same photos took 269 MB and the last 4 didn't show; FastImage took 97 MB (`resizeMethod="resize"` avoids it). _(Benchmark.)_
@@ -67,7 +67,7 @@ Issues found in React Native's `Image`: [issues/react-native-image.md](issues/re
 
 Checked: the fork's `main` at `eabb78f` (2026-02-04; its latest release is 8.13.0, from 2025-11-05). The fork, `@d11/react-native-fast-image`, continues FastImage 8.x: it added a New Architecture (Fabric and TurboModule) version in September–October 2024, while FastImage wasn't maintained, and kept FastImage's API working on it since. Both wrap SDWebImage and Glide, and their props and caching model come from the same code.
 
-Issues found in the dream-horizon-org fork: [issues/dream-horizon-org-fork.md](issues/dream-horizon-org-fork.md)
+Potential issues in the dream-horizon-org fork: [issues/dream-horizon-org-fork.md](issues/dream-horizon-org-fork.md)
 
 - **Architectures.** The fork supports both the legacy architecture and the New Architecture in one package, and declares no minimum React Native version. FastImage 10 needs React Native 0.83+ with the New Architecture, iOS 15.1+ and Android 7.0+; apps on the legacy architecture or older React Native use FastImage 9.x, which is maintained. _(Both packages' code and docs.)_
 - **Correctness.** Many issues FastImage fixed in 8.x–10.0 are still in the fork, among them crashes, a preload's headers sent with every later request on iOS, Android downloads failing when another image of the url mounts, a replaced load reported as `onError` on iOS and reloads with load events on unrelated prop changes. The full list is in the file linked above. _(Code reading; most were reproduced in FastImage's regression cases while it had the same code, and several are reported in the fork's tracker.)_
@@ -87,7 +87,7 @@ Issues found in the dream-horizon-org fork: [issues/dream-horizon-org-fork.md](i
 
 Checked: `react-native-nitro-image` and `react-native-nitro-web-image` 0.15.2 (commit `c96240d`), which use SDWebImage on iOS and Coil 3 on Android; the benchmarks measured the same version.
 
-Issues found in Nitro Image: [issues/nitro-image.md](issues/nitro-image.md)
+Potential issues in Nitro Image: [issues/nitro-image.md](issues/nitro-image.md)
 
 - **A different kind of library.** Nitro Image is an image object API on Nitro Modules: an `Image` you can load (from a url, a file, resources, SF Symbols, raw pixels or encoded data), resize, crop, rotate, mirror, render into another, encode, save and turn into a ThumbHash, with fast synchronous and async calls. It's the native `Image` type other libraries such as VisionCamera hand to JavaScript, and its view (`<NitroImage>`) is one part. FastImage is a view component with caching; it doesn't edit images. Web images are a separate package, `react-native-nitro-web-image`. _(Code, README.)_
 - **Android speed and downloads.** In the [benchmarks](benchmarks.md#android), FastImage showed images sooner on Android in every scenario: the grid at 548 ms against 796, large photos at 480 against 848, an image at two sizes at 348 against 564 (16 requests against 32: Nitro Image downloads a url again for each size), and a photo opened over a loading grid at 280 ms against 832. Memory was about the same (97 MB against 92), and scrolling missed 0.3% of frames against 1.2%. See downloads for each size. _(Benchmarks, 2026-10-12.)_
@@ -107,7 +107,7 @@ Issues found in Nitro Image: [issues/nitro-image.md](issues/nitro-image.md)
 
 Checked: `react-native-turbo-image` 1.24.3 (commit `9fd1175`), which uses Nuke on iOS and Coil 2 on Android; the benchmarks measured the same version.
 
-Issues found in Turbo Image: [issues/turbo-image.md](issues/turbo-image.md)
+Potential issues in Turbo Image: [issues/turbo-image.md](issues/turbo-image.md)
 
 - **Android speed and downloads.** In the [benchmarks](benchmarks.md#android), FastImage showed images sooner on Android in every scenario: the grid at 548 ms against 648, large photos at 480 against 864, an image at two sizes at 348 against 564 (with 16 requests against 32: Turbo Image downloads a url again for each size), and a photo opened over a loading grid at 280 ms against 832 (Turbo Image has no priority). Scrolling a long list missed 0.3% of frames with FastImage and 7.3% with Turbo Image. See downloads for each size. _(Benchmarks, 2026-10-12.)_
 - **iOS speed is at parity.** On iOS, Turbo Image was as fast or slightly faster for the grid (300 ms against 316), two sizes (216 against 248) and the opened photo (528 against 580, the fastest measured), and slower for large photos (532 ms against 328), with similar memory (64 MB against 52). _(Benchmarks.)_
