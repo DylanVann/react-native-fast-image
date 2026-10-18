@@ -67,8 +67,7 @@ export type Source = {
      *   checking with the server when it loads. These responses are kept in
      *   their own HTTP cache (50 MB on each platform), which `clearDiskCache`
      *   also clears.
-     * - `'cacheOnly'`: only shows a cached image, without making a request. An
-     *   image that isn't cached gets `onError`.
+     * - `'cacheOnly'`: only shows a cached image, without making a request.
      *
      * @default 'immutable'
      */
