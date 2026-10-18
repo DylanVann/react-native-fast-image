@@ -4327,10 +4327,12 @@ const diskCacheStyles = StyleSheet.create({
 })
 
 // A view with cache 'cacheOnly' of an image that isn't cached: onError and
-// onLoadEnd, not onLoad (iOS sent onLoad for no image), and no request.
+// onLoadEnd (not ok), not onLoad (iOS sent onLoad for no image), and no
+// request.
 const CACHE_ONLY_MISS_PATH = `/picsum/1025-200x200.jpg?cache-only-miss=${RUN}`
 function CacheOnlyMissCase() {
     const [status, setStatus] = useState('waiting')
+    const loadEnd = useRef<string | undefined>(undefined)
     const check = async (event: string) => {
         const response = await fetch(
             imageUrl(
@@ -4341,9 +4343,11 @@ function CacheOnlyMissCase() {
         setStatus(
             event !== 'onError'
                 ? event
-                : count === 0
-                  ? 'OK'
-                  : `requested ${count} times`,
+                : count !== 0
+                  ? `requested ${count} times`
+                  : loadEnd.current !== 'not ok'
+                    ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
+                    : 'OK',
         )
     }
     return (
@@ -4356,6 +4360,9 @@ function CacheOnlyMissCase() {
                 }}
                 onLoad={() => check('onLoad').catch((e) => setStatus(`${e}`))}
                 onError={() => check('onError').catch((e) => setStatus(`${e}`))}
+                onLoadEnd={(result) => {
+                    loadEnd.current = result.ok ? 'ok' : 'not ok'
+                }}
             />
             <CaseStatus
                 id="cache-only-miss"

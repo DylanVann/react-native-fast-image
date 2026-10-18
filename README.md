@@ -170,7 +170,7 @@ How fresh the image must be. See [how caching is handled](docs/how-is-caching-ha
 
 - `'immutable'`: loads the image once, then shows the cached copy until its url (or `cacheKey`) changes.
 - `'web'`: follows the server's HTTP cache headers, as a browser does, checking with the server when it loads. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
-- `'cacheOnly'`: only shows a cached image, without making a request.
+- `'cacheOnly'`: only shows a cached image, without making a request. An image that isn't cached gets `onError`.
 
 ---
 
