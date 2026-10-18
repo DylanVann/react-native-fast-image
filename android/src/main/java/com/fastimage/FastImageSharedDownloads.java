@@ -845,11 +845,10 @@ final class FastImageSharedDownloads {
                 if (cancelled) return false;
                 call = stale;
             }
-            // It isn't sent: another request can go to the host.
-            synchronized (downloads) {
-                responded();
-            }
-            startQueued();
+            // It keeps the download's place at the host until it responds
+            // (onResponse): OkHttp counts the failed call until this returns,
+            // so a download sent meanwhile would go to OkHttp's queue ahead of
+            // it, behind calls to a host that may not answer.
             stale.enqueue(this);
             return true;
         }

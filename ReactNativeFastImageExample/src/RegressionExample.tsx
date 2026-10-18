@@ -4342,10 +4342,13 @@ function StaleIfErrorCase() {
     const check = async () => {
         // Until the server got the second view's request (its 500), and a
         // moment more for an error to arrive.
-        for (let i = 0; i < 50 && (await requestCount(STALE_PATH)) < 2; i++) {
-            await new Promise<void>((resolve) => setTimeout(resolve, 100))
+        let count = 0
+        for (let i = 0; i < 50 && count < 2; i++) {
+            count = await requestCount(STALE_PATH)
+            if (count < 2) await sleep(100)
         }
-        await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+        if (count < 2) return setStatus(`requested ${count} times`)
+        await sleep(1000)
         if (!failed.current) setStatus('OK')
     }
     return (
