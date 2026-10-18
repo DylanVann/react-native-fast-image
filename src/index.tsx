@@ -16,6 +16,7 @@ import { fromStyle, resolveObjectFit } from './objectFit'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
+import { dataUri } from './placeholders'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -133,7 +134,7 @@ export type Source = {
      * A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short
      * string (base64, about 25 to 35 characters) that shows as a blurred
      * preview of the image while it loads, and if it fails to load, in place
-     * of `defaultSource`. Make it when the image is uploaded (e.g. on your
+     * of `placeholder`. Make it when the image is uploaded (e.g. on your
      * server, with the `thumbhash` package), and send it with the image's url.
      *
      * It's drawn where the image will be (`objectFit` and `objectPosition`),
@@ -142,7 +143,7 @@ export type Source = {
      * again. With several sources, each has its own: the view shows the one
      * it picks for its size (on the web, where the browser picks, only if
      * they all have the same `thumbhash`). An invalid one shows nothing, or
-     * `defaultSource`.
+     * `placeholder`.
      *
      * @example
      * ```jsx
@@ -150,6 +151,26 @@ export type Source = {
      * ```
      */
     thumbhash?: string
+    /**
+     * A tiny version of the image as a data uri (`data:image/…`, e.g. an 8 to
+     * 20 px PNG, JPEG or WebP made when the image is uploaded, or an image
+     * service's LQIP), shown blurred while the image loads, and if it fails to
+     * load, in place of `placeholder`. It's decoded at once, and drawn like a
+     * `thumbhash`: where the image will be. iOS and Android show PNG, JPEG,
+     * WebP and GIF (its first frame); the web, any image the browser shows.
+     *
+     * With several sources, each has its own (on the web, only if they all
+     * have the same one). If a source has both, iOS and Android show its
+     * `thumbhash` (decoded natively), and the web its `blurDataUri` (no
+     * decoding). A url isn't loaded: it's ignored, with a warning in
+     * development.
+     *
+     * @example
+     * ```jsx
+     * <FastImage source={{ uri: photo.url, blurDataUri: photo.lqip }} />
+     * ```
+     */
+    blurDataUri?: string
     /**
      * With several sources (`source` as an array), the image's width at this
      * uri, in pixels (times `scale`, if given).
@@ -175,7 +196,7 @@ export type Transition = {
     /**
      * Also fades between images: a new `source` replacing an image that's
      * showing cross-dissolves from it. Otherwise only an image that appears
-     * over nothing (or over `defaultSource`) fades in, and a new source
+     * over nothing (or over a placeholder) fades in, and a new source
      * replaces the image showing at once, once it has loaded.
      * @default false
      */
@@ -344,14 +365,27 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     source?: Source | Source[] | ImageRequireSource
     /**
-     * An asset loaded with `require(...)`, shown while the first image loads,
-     * and if an image fails to load. When `source` changes, the previous image
-     * shows while the new one loads instead (see `source` and
-     * `recyclingKey`). A source's `thumbhash` shows instead of it.
+     * An image shown while the first image loads, and if an image fails to
+     * load: an asset loaded with `require(...)`, or a data uri
+     * (`data:image/…`). When `source` changes, the previous image shows while
+     * the new one loads instead (see `source` and `recyclingKey`). A source's
+     * `thumbhash` or `blurDataUri` shows instead of it. It's shown as it is
+     * (not blurred).
      *
-     * On Android, `defaultSource` doesn't show in debug builds: there the dev
-     * server serves `require()`d images, and `defaultSource` is only loaded
-     * from the app's resources.
+     * A url isn't loaded: on iOS and Android it's ignored, with a warning in
+     * development. On Android, a `require()`d placeholder doesn't show in
+     * debug builds: there the dev server serves `require()`d images, and it's
+     * only loaded from the app's resources.
+     *
+     * @example
+     * ```jsx
+     * <FastImage source={{ uri }} placeholder={require('./gray.png')} />
+     * ```
+     */
+    placeholder?: ImageRequireSource | string
+    /**
+     * The same as `placeholder` (React Native's `Image` calls it
+     * `defaultSource`). `placeholder` is used if both are set.
      */
     defaultSource?: ImageRequireSource
     /**
@@ -394,8 +428,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `{ right: 10, bottom: '20%' }`. A missing axis is centered.
      *
      * Points are dp on Android. An invalid value is ignored (the image is
-     * centered), with a warning in development. `defaultSource` is placed
-     * the same way.
+     * centered), with a warning in development. Placeholders are placed the
+     * same way.
      *
      * @default '50% 50%'
      * @example
@@ -408,7 +442,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * For views that get reused for other content, such as rows in FlashList
      * or recyclerlistview. Set it to something that identifies the content,
      * e.g. the item's id. When it changes, the image is cleared right away (to
-     * `defaultSource`, or blank) instead of staying until the new one has
+     * `placeholder`, or blank) instead of staying until the new one has
      * loaded. Unlike changing `key`, this keeps the view, which is what list
      * recycling is for.
      *
@@ -520,7 +554,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * blurring a photo behind a sheet). Each change blurs the image again on
      * the CPU, so don't animate it.
      *
-     * - Only the loaded image is blurred, not `defaultSource`.
+     * - Only the loaded image is blurred, not a placeholder.
      * - An animated image (GIF, animated WebP, APNG or AVIF) shows its first frame,
      *   blurred, and doesn't animate.
      * - With `tintColor`, the blurred image is tinted.
@@ -622,22 +656,49 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
 }
 
-// A source without its thumbhash, which the native view gets as its own prop.
-function withoutThumbhash<T>(source: T): T {
-    if (!source || typeof source !== 'object' || !('thumbhash' in source)) {
-        return source
-    }
-    const { thumbhash: _thumbhash, ...rest } = source as Source
+// Whether a source has a thumbhash or blurDataUri, which the native view gets
+// as props of their own.
+function hasPlaceholders(source: unknown): boolean {
+    return (
+        !!source &&
+        typeof source === 'object' &&
+        ('thumbhash' in source || 'blurDataUri' in source)
+    )
+}
+
+// A source without its thumbhash and blurDataUri.
+function withoutPlaceholders<T>(source: T): T {
+    if (!hasPlaceholders(source)) return source
+    const {
+        thumbhash: _thumbhash,
+        blurDataUri: _blurDataUri,
+        ...rest
+    } = source as Source
     return rest as T
 }
 
-const resolveDefaultSource = (
-    defaultSource?: ImageRequireSource,
+// What the native view shows while a source loads: its ThumbHash (decoded
+// natively), or its blurDataUri, or '' for neither.
+function sourcePlaceholder(source: unknown): string {
+    if (!source || typeof source !== 'object') return ''
+    const { thumbhash, blurDataUri } = source as Source
+    return thumbhash || dataUri(blurDataUri) || ''
+}
+
+const resolvePlaceholder = (
+    placeholder?: ImageRequireSource | string,
 ): string | object | null => {
-    if (!defaultSource) {
+    if (typeof placeholder === 'string') {
+        const uri = dataUri(placeholder)
+        if (!uri) return null
+        // Android decodes it; iOS takes it as an image source, as it does a
+        // require()d image's.
+        return Platform.OS === 'android' ? uri : { uri }
+    }
+    if (!placeholder) {
         return null
     }
-    const resolved = Image.resolveAssetSource(defaultSource)
+    const resolved = Image.resolveAssetSource(placeholder)
     if (!resolved) {
         return null
     }
@@ -749,6 +810,7 @@ declare const __DEV__: boolean
 
 function FastImageBase({
     source,
+    placeholder,
     defaultSource,
     tintColor,
     onLoadStart,
@@ -797,7 +859,12 @@ function FastImageBase({
 
     // Memoized on source, so an unchanged source reaches the native view as
     // the same objects, and React's prop diff stops at them.
-    const { resolvedSource, sources, thumbhash, thumbhashes } = useMemo(() => {
+    const {
+        resolvedSource,
+        sources,
+        sourcePlaceholder: picked,
+        sourcePlaceholders,
+    } = useMemo(() => {
         // Several sources are picked from natively, for the view's size; one
         // in an array is a plain source.
         const sources = Array.isArray(source)
@@ -806,25 +873,26 @@ function FastImageBase({
                 : source
             : undefined
         const single = Array.isArray(source) ? source[0] : source
-        // ThumbHashes go to the native view apart from the sources, so a new
-        // hash for the same image doesn't load it again: one source's, or
-        // several sources' by index ('' for none).
-        const thumbhashes = sources?.some((entry) => entry?.thumbhash)
-            ? sources.map((entry) => entry?.thumbhash ?? '')
-            : undefined
+        // Sources' thumbhashes and blurDataUris go to the native view apart
+        // from the sources, so a new one for the same image doesn't load it
+        // again: one source's, or several sources' by index ('' for none).
+        const placeholders = sources?.map(sourcePlaceholder)
         return {
             resolvedSource: sources
                 ? undefined
-                : Image.resolveAssetSource(withoutThumbhash(single) as any),
-            sources: thumbhashes ? sources?.map(withoutThumbhash) : sources,
-            thumbhash:
-                !sources && single && typeof single === 'object'
-                    ? single.thumbhash
-                    : undefined,
-            thumbhashes,
+                : Image.resolveAssetSource(withoutPlaceholders(single) as any),
+            sources: sources?.some(hasPlaceholders)
+                ? sources.map(withoutPlaceholders)
+                : sources,
+            sourcePlaceholder: sources
+                ? undefined
+                : sourcePlaceholder(single) || undefined,
+            sourcePlaceholders: placeholders?.some(Boolean)
+                ? placeholders
+                : undefined,
         }
     }, [source])
-    const resolvedDefaultSource = resolveDefaultSource(defaultSource)
+    const resolvedPlaceholder = resolvePlaceholder(placeholder ?? defaultSource)
 
     return (
         <FastImageView
@@ -842,9 +910,9 @@ function FastImageBase({
             )}
             source={resolvedSource}
             sources={sources}
-            thumbhash={thumbhash}
-            thumbhashes={thumbhashes}
-            defaultSource={resolvedDefaultSource}
+            sourcePlaceholder={picked}
+            sourcePlaceholders={sourcePlaceholders}
+            defaultSource={resolvedPlaceholder}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

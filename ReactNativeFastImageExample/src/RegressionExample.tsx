@@ -8206,6 +8206,71 @@ function ThumbhashRecycledCase() {
     )
 }
 
+// placeholder as a data uri, and a source's blurDataUri: decoded at once,
+// shown while the download is held. A 2 × 2 PNG of red, green, blue and
+// yellow quadrants, and a 2 × 1 one, orange on the left and teal on the right.
+const PLACEHOLDER_QUADRANTS =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mN4Jicnt8qGQSPgzocTIgAh2AVH0x5+BQAAAABJRU5ErkJggg=='
+const PLACEHOLDER_BAND =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR42mP438HA0NEBAApBApjRI1qYAAAAAElFTkSuQmCC'
+
+// The placeholder prop as a data uri, over defaultSource.
+function PlaceholderDataUriCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('placeholder-data-uri'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('placeholder-data-uri'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={PLACEHOLDER_QUADRANTS}
+                defaultSource={require('./images/magenta.png')}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="placeholder-data-uri"
+                status={status}
+                description="placeholder as a data uri while the image loads: red, green, blue and yellow quadrants blending into each other (no magenta)"
+            />
+        </View>
+    )
+}
+
+// A source's blurDataUri, with objectFit scale-down: blurred, and drawn as a
+// thumbhash is, as contain (the image's size isn't known yet), over the
+// placeholder prop.
+function BlurDataUriCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('blur-data-uri'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="scale-down"
+                source={{
+                    uri: thumbhashHeld('blur-data-uri'),
+                    headers: SLOW_HEADERS,
+                    blurDataUri: PLACEHOLDER_BAND,
+                }}
+                placeholder={require('./images/magenta.png')}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="blur-data-uri"
+                status={status}
+                description="a source's blurDataUri with objectFit scale-down: an orange-to-teal band, blurred smoothly from one color to the other, as wide as the view, half as tall, centered on gray (no magenta)"
+            />
+        </View>
+    )
+}
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9150,6 +9215,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ThumbhashChangeLoadingCase key="thumbhash-change-loading" />,
             <ThumbhashSizesCase key="thumbhash-sizes" />,
             <ThumbhashRecycledCase key="thumbhash-recycled" />,
+        ],
+    },
+    {
+        name: 'placeholder',
+        cases: [
+            <PlaceholderDataUriCase key="placeholder-data-uri" />,
+            <BlurDataUriCase key="blur-data-uri" />,
         ],
     },
     {

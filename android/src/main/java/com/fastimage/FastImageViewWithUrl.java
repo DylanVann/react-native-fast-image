@@ -312,75 +312,76 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mDefaultSource = source;
     }
 
-    // The `thumbhash` prop (one source), or `thumbhashes` (several, by index,
-    // "" for none): the picked source's ThumbHash shows instead of
-    // defaultSource. JS sends them apart from the sources, so a new hash for
-    // the same image doesn't reload it.
+    // The `sourcePlaceholder` prop (one source), or `sourcePlaceholders`
+    // (several, by index, "" for none): the picked source's ThumbHash or
+    // blurDataUri (a data uri) shows instead of defaultSource. JS sends them
+    // apart from the sources, so a new one for the same image doesn't reload
+    // it.
     @Nullable
-    private String mThumbhash = null;
+    private String mSourcePlaceholder = null;
     @Nullable
-    private ReadableArray mThumbhashes = null;
+    private ReadableArray mSourcePlaceholders = null;
     // What shows while the image loads and if it fails: the picked source's
-    // ThumbHash decoded (FastImageThumbHash), or defaultSource. FastImage's
-    // own drawable either way, which Glide doesn't recycle.
+    // ThumbHash or blurDataUri decoded (FastImageThumbHash), or defaultSource.
+    // FastImage's own drawable either way, which Glide doesn't recycle.
     @Nullable
     private Drawable mPlaceholder = null;
-    // The hash mPlaceholder shows, or null for defaultSource.
+    // The source placeholder mPlaceholder shows, or null for defaultSource.
     @Nullable
-    private String mPlaceholderHash = null;
-    // The last hash that failed to decode, so it isn't decoded again on every
-    // update.
+    private String mPlaceholderKey = null;
+    // The last source placeholder that failed to decode, so it isn't decoded
+    // again on every update.
     @Nullable
-    private String mInvalidHash = null;
+    private String mInvalidPlaceholder = null;
 
-    public void setThumbhash(@Nullable String thumbhash) {
-        mThumbhash = thumbhash;
+    public void setSourcePlaceholder(@Nullable String placeholder) {
+        mSourcePlaceholder = placeholder;
         updatePlaceholder();
     }
 
-    public void setThumbhashes(@Nullable ReadableArray thumbhashes) {
-        mThumbhashes = thumbhashes;
+    public void setSourcePlaceholders(@Nullable ReadableArray placeholders) {
+        mSourcePlaceholders = placeholders;
         updatePlaceholder();
     }
 
-    // The picked source's ThumbHash, or null.
+    // The picked source's ThumbHash or blurDataUri, or null.
     @Nullable
-    private String pickedThumbhash() {
-        String hash;
+    private String pickedSourcePlaceholder() {
+        String key;
         if (mSources == null) {
-            hash = mThumbhash;
-        } else if (mThumbhashes != null && mSourceIndex >= 0 && mSourceIndex < mThumbhashes.size()
-                && !mThumbhashes.isNull(mSourceIndex)) {
-            hash = mThumbhashes.getString(mSourceIndex);
+            key = mSourcePlaceholder;
+        } else if (mSourcePlaceholders != null && mSourceIndex >= 0 && mSourceIndex < mSourcePlaceholders.size()
+                && !mSourcePlaceholders.isNull(mSourceIndex)) {
+            key = mSourcePlaceholders.getString(mSourceIndex);
         } else {
-            hash = null;
+            key = null;
         }
-        return hash == null || hash.isEmpty() ? null : hash;
+        return key == null || key.isEmpty() ? null : key;
     }
 
     // Sets mPlaceholder for the picked source. A view showing the previous
     // placeholder shows the new one at once, without reloading the image.
     private void updatePlaceholder() {
-        String hash = pickedThumbhash();
+        String key = pickedSourcePlaceholder();
         Drawable placeholder;
-        if (hash != null && hash.equals(mPlaceholderHash)) {
+        if (key != null && key.equals(mPlaceholderKey)) {
             placeholder = mPlaceholder;
-        } else if (hash != null && hash.equals(mInvalidHash)) {
+        } else if (key != null && key.equals(mInvalidPlaceholder)) {
             placeholder = mDefaultSource;
-            mPlaceholderHash = null;
+            mPlaceholderKey = null;
         } else {
-            Bitmap bitmap = FastImageThumbHash.bitmap(hash);
+            Bitmap bitmap = FastImageThumbHash.placeholder(key);
             if (bitmap != null) {
                 BitmapDrawable drawable = new BitmapDrawable(getResources(), bitmap);
                 // Scaled up smoothly, as a blurred preview (also with
                 // imageRendering pixelated, which is for the image).
                 drawable.setFilterBitmap(true);
                 placeholder = drawable;
-                mPlaceholderHash = hash;
+                mPlaceholderKey = key;
             } else {
                 placeholder = mDefaultSource;
-                mPlaceholderHash = null;
-                mInvalidHash = hash;
+                mPlaceholderKey = null;
+                mInvalidPlaceholder = key;
             }
         }
         if (placeholder == mPlaceholder) return;
@@ -1102,7 +1103,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateImageMatrix();
     }
 
-    // Whether the view shows its placeholder (defaultSource or a ThumbHash):
+    // Whether the view shows its placeholder (defaultSource, or a source's):
     // FastImage's own drawable, which Glide doesn't recycle (see startFade).
     private boolean mShowsDefaultSource = false;
 
@@ -1193,10 +1194,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             setImageMatrix(matrix);
             return;
         }
-        // A ThumbHash stands for an image whose size isn't known yet: with
-        // scale-down and none (which show an image at its own size), it's
-        // shown as with contain.
-        boolean hashFits = drawable == mPlaceholder && mPlaceholderHash != null;
+        // A source's placeholder (a ThumbHash or a blurDataUri) stands for an
+        // image whose size isn't known yet: with scale-down and none (which
+        // show an image at its own size), it's shown as with contain.
+        boolean hashFits = drawable == mPlaceholder && mPlaceholderKey != null;
         if (mLayoutScaleType == ScaleType.CENTER_CROP || mLayoutScaleType == ScaleType.FIT_CENTER || hashFits) {
             float x = viewWidth / drawableWidth;
             float y = viewHeight / drawableHeight;
@@ -1535,7 +1536,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mShownRequest = null;
         final int load = mLoadCount;
         // Not from within Glide's callback. Without a thumbnail Glide shows the
-        // placeholder the request started with: a ThumbHash that changed since
+        // placeholder the request started with: a source placeholder that changed since
         // shows the new one.
         post(new Runnable() {
             @Override

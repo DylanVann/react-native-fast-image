@@ -5,12 +5,13 @@
 //
 // The View (a div) has FastImage's style, ref and View props. The <img> fills
 // it inside its borders, with object-fit for objectFit (see Picture).
-// defaultSource is a second <img> under it until the image has loaded (the
+// The placeholder is a second <img> under it until the image has loaded (the
 // browser draws the image over it as it arrives), and tintColor is an SVG
 // filter next to them.
 //
 // Works: source (uri, require(), or several sizes: see sizedSources, and
-// thumbhash), defaultSource, objectFit, objectPosition, tintColor, blurRadius, style,
+// thumbhash and blurDataUri), placeholder (and defaultSource), objectFit,
+// objectPosition, tintColor, blurRadius, style,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -29,6 +30,7 @@ import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
+import { dataUri } from './placeholders'
 import { thumbHashDataUri } from './thumbhash'
 import { warnIfChildren } from './warnings'
 import type {
@@ -72,6 +74,7 @@ declare const __DEV__: boolean | undefined
 
 function FastImageBase({
     source,
+    placeholder,
     defaultSource,
     tintColor,
     blurRadius,
@@ -122,17 +125,21 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
-    // The source's ThumbHash, decoded, shows in place of defaultSource. With
-    // several sizes the browser picks one itself (from the srcset, as it
-    // loads), so a hash only shows if they all have the same one.
-    const hashUri = thumbHashDataUri(sourceThumbhash(source))
-    const defaultUri = hashUri ?? resolveUri(defaultSource)
+    // The source's blurDataUri (shown blurred, see PreviewBlur), or its
+    // ThumbHash, decoded, shows in place of `placeholder`. With several sizes
+    // the browser picks one itself (from the srcset, as it loads), so they
+    // only show if all the sizes have the same one.
+    const blurUri = resolveUri(dataUri(shared(source, 'blurDataUri')))
+    const standInUri = blurUri ?? thumbHashDataUri(shared(source, 'thumbhash'))
+    const defaultUri = standInUri ?? resolveUri(placeholder ?? defaultSource)
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
-    const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
+    const svgId = useSvgId().replace(/[^\w-]/g, '')
+    const tintId = `fast-image-tint-${svgId}`
+    const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
     const fit = resolveObjectFit(objectFit, style)
     const position = cssPosition(objectPositionOrCentered(objectPosition))
@@ -143,7 +150,7 @@ function FastImageBase({
         ]
             .filter(Boolean)
             .join(' ') || undefined
-    // defaultSource shows until the image has loaded, and if it fails.
+    // The placeholder shows until the image has loaded, and if it fails.
     const showDefault = !!defaultUri && ok !== true
 
     useClientLayoutEffect(() => {
@@ -165,16 +172,24 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
-                    // A ThumbHash stands for an image whose size isn't known
-                    // yet: as contain for scale-down and none, which show an
-                    // image at its own size.
+                    // A source's placeholder stands for an image whose size
+                    // isn't known yet: as contain for scale-down and none,
+                    // which show an image at its own size.
                     fit={
-                        hashUri && (fit === 'scale-down' || fit === 'none')
+                        standInUri && (fit === 'scale-down' || fit === 'none')
                             ? 'contain'
                             : fit
                     }
                     position={position}
-                    filter={filter}
+                    // A source's preview gets only its own blur (as on iOS
+                    // and Android), not the image's tintColor or blurRadius.
+                    filter={
+                        standInUri
+                            ? blurUri
+                                ? `url(#${blurId})`
+                                : undefined
+                            : filter
+                    }
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
                 />
@@ -188,7 +203,7 @@ function FastImageBase({
                     fit={fit}
                     position={position}
                     filter={filter}
-                    // Shown as it loads, over defaultSource, and not if it
+                    // Shown as it loads, over the placeholder, and not if it
                     // failed (no broken image icon or alt text).
                     hidden={ok === false}
                     alt={label ?? ''}
@@ -207,22 +222,27 @@ function FastImageBase({
                 />
             ) : null}
             {tintColor ? <TintFilter id={tintId} color={tintColor} /> : null}
+            {blurUri && showDefault ? <PreviewBlur id={blurId} /> : null}
         </View>
     )
 }
 
-// The source's ThumbHash: one source's, or the one all of several share.
-function sourceThumbhash(source: FastImageProps['source']): string | undefined {
+// The source's thumbhash or blurDataUri: one source's, or the one all of
+// several share.
+function shared(
+    source: FastImageProps['source'],
+    key: 'thumbhash' | 'blurDataUri',
+): string | undefined {
     if (Array.isArray(source)) {
-        const hashes = source.map((entry) => entry?.thumbhash)
-        return hashes.every((hash) => hash && hash === hashes[0])
-            ? hashes[0]
+        const values = source.map((entry) => entry?.[key])
+        return values.every((value) => value && value === values[0])
+            ? values[0]
             : undefined
     }
-    return source && typeof source === 'object' ? source.thumbhash : undefined
+    return source && typeof source === 'object' ? source[key] : undefined
 }
 
-// A source's (or defaultSource's) uri. Expo's web builds make a require()d
+// A source's (or a placeholder's) uri. Expo's web builds make a require()d
 // image a { uri, width, height } object (or a string). Other setups can make
 // it a number in react-native-web's asset registry, resolved as its Image
 // does: the file for the scale closest to the screen's.
@@ -456,6 +476,35 @@ function TintFilter({ id, color }: { id: string; color: unknown }) {
                     {/* A new element for a new color, which browsers apply. */}
                     <feFlood floodColor={String(color)} key={String(color)} />
                     <feComposite in2="SourceAlpha" operator="in" />
+                </filter>
+            </defs>
+        </svg>
+    )
+}
+
+// A source's blurDataUri, a few pixels, blurred as it's scaled up: by about
+// half a pixel of an 8 px image, in units of its size, so the same filter
+// works for any view, also rendered on a server (no layout needed). The blur
+// fades the edges, which the alpha table restores (transparent areas stay
+// transparent): Chrome ignores edgeMode, and forcing alpha to 1 would fill
+// a transparent image's background.
+function PreviewBlur({ id }: { id: string }) {
+    return (
+        <svg style={tintStyle}>
+            <defs>
+                <filter
+                    id={id}
+                    x="0"
+                    y="0"
+                    width="1"
+                    height="1"
+                    primitiveUnits="objectBoundingBox"
+                    colorInterpolationFilters="sRGB"
+                >
+                    <feGaussianBlur stdDeviation="0.06" />
+                    <feComponentTransfer>
+                        <feFuncA type="table" tableValues="0 1 1 1 1" />
+                    </feComponentTransfer>
                 </filter>
             </defs>
         </svg>

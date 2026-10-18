@@ -150,6 +150,78 @@ static uint8_t* FFFThumbHashToRGBA(const uint8_t* hash, NSUInteger length, int* 
     return rgba;
 }
 
+// One row or column (count values, step apart): each becomes the average of
+// the 2 × radius + 1 around it, the edge values repeated.
+static void FFFBoxBlur(float* values, int step, int count, int radius, float* line) {
+    for (int i = 0; i < count; i++) {
+        line[i] = values[i * step];
+    }
+    float sum = 0;
+    for (int i = -radius; i <= radius; i++) {
+        sum += line[MIN(count - 1, MAX(0, i))];
+    }
+    for (int i = 0; i < count; i++) {
+        values[i * step] = sum / (2 * radius + 1);
+        sum += line[MIN(count - 1, i + radius + 1)] - line[MAX(0, i - radius)];
+    }
+}
+
+// A blurDataUri's image scaled so its longer side is 32 px (a ThumbHash's
+// size) and blurred by about half of one of its pixels, so that a few pixels
+// scale up smoothly instead of in steps: a box blur three times each way
+// (about a Gaussian), on premultiplied colors, the edges extended outwards.
+static UIImage* FFFBlurredPreview(UIImage* image) {
+    CGImageRef source = image.CGImage;
+    if (!source) {
+        return nil;
+    }
+    size_t width = CGImageGetWidth(source), height = CGImageGetHeight(source);
+    if (width == 0 || height == 0) {
+        return nil;
+    }
+    float scale = 32.0f / MAX(width, height);
+    int w = MAX(1, (int) lroundf(width * scale)), h = MAX(1, (int) lroundf(height * scale));
+    int radius = MAX(1, (int) lroundf(scale / 2));
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    CGContextRef context = CGBitmapContextCreate(NULL, w, h, 8, w * 4, colorSpace,
+                                                 kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) {
+        return nil;
+    }
+    CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
+    CGContextDrawImage(context, CGRectMake(0, 0, w, h), source);
+    uint8_t* rgba = CGBitmapContextGetData(context);
+    float* channel = malloc(sizeof(float) * w * h);
+    float* line = malloc(sizeof(float) * MAX(w, h));
+    for (int c = 0; c < 4; c++) {
+        for (int i = 0; i < w * h; i++) {
+            channel[i] = rgba[i * 4 + c];
+        }
+        for (int pass = 0; pass < 3; pass++) {
+            for (int y = 0; y < h; y++) {
+                FFFBoxBlur(channel + y * w, 1, w, radius, line);
+            }
+            for (int x = 0; x < w; x++) {
+                FFFBoxBlur(channel + x, w, h, radius, line);
+            }
+        }
+        for (int i = 0; i < w * h; i++) {
+            rgba[i * 4 + c] = (uint8_t) MIN(255, lroundf(channel[i]));
+        }
+    }
+    free(channel);
+    free(line);
+    CGImageRef blurred = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    if (!blurred) {
+        return nil;
+    }
+    UIImage* result = [UIImage imageWithCGImage: blurred scale: 1 orientation: UIImageOrientationUp];
+    CGImageRelease(blurred);
+    return result;
+}
+
 @implementation FFFThumbHash
 
 + (NSCache<NSString*, UIImage*>*) cache {
@@ -161,6 +233,24 @@ static uint8_t* FFFThumbHashToRGBA(const uint8_t* hash, NSUInteger length, int* 
         cache.countLimit = 256;
     });
     return cache;
+}
+
++ (UIImage*) imageForPlaceholder: (NSString*)placeholder {
+    if ([placeholder rangeOfString: @"data:" options: NSCaseInsensitiveSearch | NSAnchoredSearch].location == NSNotFound) {
+        return [self imageForThumbHash: placeholder];
+    }
+    UIImage* cached = [[self cache] objectForKey: placeholder];
+    if (cached) {
+        return cached;
+    }
+    NSURL* url = [NSURL URLWithString: placeholder];
+    NSData* data = url ? [NSData dataWithContentsOfURL: url] : nil;
+    UIImage* decoded = data ? [UIImage imageWithData: data scale: 1] : nil;
+    UIImage* image = decoded ? FFFBlurredPreview(decoded) : nil;
+    if (image) {
+        [[self cache] setObject: image forKey: placeholder];
+    }
+    return image;
 }
 
 + (UIImage*) imageForThumbHash: (NSString*)thumbhash {

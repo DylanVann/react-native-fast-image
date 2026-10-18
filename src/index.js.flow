@@ -119,6 +119,7 @@ export type FastImageSource = {
     memoryCache?: boolean,
     diskCache?: boolean,
     thumbhash?: string,
+    blurDataUri?: string,
     width?: number,
     height?: number,
     scale?: number,
@@ -133,6 +134,7 @@ export type FastImageProps = $ReadOnly<{|
     onProgress?: ?(event: OnProgressEvent) => void,
 
     source?: ?(FastImageSource | Array<FastImageSource> | number),
+    placeholder?: ?(number | string),
     defaultSource?: ?number,
 
     tintColor?: number | string,

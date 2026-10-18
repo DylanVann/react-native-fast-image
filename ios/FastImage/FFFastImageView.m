@@ -63,12 +63,12 @@
 // The view's own mask, which clips it to the box while it's moved, when React
 // Native gives it none (the view doesn't clip: overflow visible).
 @property(nonatomic, strong) CALayer* ownMask;
-// The picked source's ThumbHash decoded, and the hash, or nil: it shows
-// instead of defaultSource (see placeholder).
+// The picked source's placeholder (its ThumbHash or blurDataUri) decoded, and
+// the string, or nil: it shows instead of defaultSource (see placeholder).
 @property(nonatomic, strong) UIImage* hashImage;
 @property(nonatomic, copy) NSString* hashImageKey;
-// Whether the view shows its placeholder (defaultSource or the hash), and
-// whether that's the hash.
+// Whether the view shows its placeholder (defaultSource or the source's), and
+// whether that's the source's (hashImage).
 @property(nonatomic, assign) BOOL showsPlaceholder;
 @property(nonatomic, assign) BOOL showsHash;
 
@@ -275,8 +275,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
             contentMode = UIViewContentModeScaleToFill;
             break;
         case FFFObjectFitNone:
-            // A ThumbHash stands for an image whose size isn't known yet: as
-            // with contain, here and for scale-down.
+            // A source's placeholder stands for an image whose size isn't
+            // known yet: as with contain, here and for scale-down.
             contentMode = self.showsHash ? UIViewContentModeScaleAspectFit : UIViewContentModeCenter;
             break;
         case FFFObjectFitScaleDown: {
@@ -441,8 +441,8 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     self.showsHash = image != nil && image == self.hashImage;
     self.showsPlaceholder = self.showsHash || (image != nil && image == _defaultSource);
     if ([_imageRendering isEqualToString: @"pixelated"]) {
-        // A ThumbHash is a blurred preview, scaled up smoothly (pixelated is
-        // for the image).
+        // A source's placeholder is a blurred preview, scaled up smoothly
+        // (pixelated is for the image).
         self.layer.magnificationFilter = self.showsHash ? kCAFilterLinear : kCAFilterNearest;
     }
     if ([self blurs: image]) {
@@ -823,47 +823,47 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-- (void) setThumbhash: (NSString*)thumbhash {
-    _thumbhash = [thumbhash copy];
+- (void) setSourcePlaceholder: (NSString*)sourcePlaceholder {
+    _sourcePlaceholder = [sourcePlaceholder copy];
     [self updateHashImage];
 }
 
-- (void) setThumbhashes: (NSArray<NSString*>*)thumbhashes {
-    _thumbhashes = [thumbhashes copy];
+- (void) setSourcePlaceholders: (NSArray<NSString*>*)sourcePlaceholders {
+    _sourcePlaceholders = [sourcePlaceholders copy];
     [self updateHashImage];
 }
 
 // What shows while the image loads and if it fails: the picked source's
-// ThumbHash, or defaultSource.
+// placeholder (its ThumbHash or blurDataUri), or defaultSource.
 - (UIImage*) placeholder {
     return self.hashImage ?: _defaultSource;
 }
 
-// The picked source's ThumbHash, or nil.
-- (NSString*) pickedThumbhash {
+// The picked source's ThumbHash or blurDataUri, or nil.
+- (NSString*) pickedSourcePlaceholder {
     NSString* hash = nil;
     if ([self picksSource]) {
         NSUInteger index = _source ? [_sources indexOfObjectIdenticalTo: _source] : NSNotFound;
-        if (index != NSNotFound && index < _thumbhashes.count) {
-            hash = _thumbhashes[index];
+        if (index != NSNotFound && index < _sourcePlaceholders.count) {
+            hash = _sourcePlaceholders[index];
         }
     } else {
-        hash = _thumbhash;
+        hash = _sourcePlaceholder;
     }
     return hash.length > 0 ? hash : nil;
 }
 
-// Decodes the picked source's ThumbHash. A view showing the previous
+// Decodes the picked source's placeholder. A view showing the previous
 // placeholder shows the new one at once, without loading the image again.
 - (void) updateHashImage {
-    NSString* hash = [self pickedThumbhash];
+    NSString* hash = [self pickedSourcePlaceholder];
     if (hash == self.hashImageKey || [hash isEqualToString: self.hashImageKey]) {
         return;
     }
     UIImage* previous = [self placeholder];
     BOOL showing = self.showsPlaceholder;
     self.hashImageKey = hash;
-    self.hashImage = [FFFThumbHash imageForThumbHash: hash];
+    self.hashImage = [FFFThumbHash imageForPlaceholder: hash];
     UIImage* placeholder = [self placeholder];
     if (showing && placeholder != previous) {
         [self setImage: placeholder];
@@ -1262,8 +1262,8 @@ NSString *FFFErrorMessage(NSError *error)
                 }
                 if (error) {
                     // SDWebImage shows the placeholder the load started with
-                    // (defaultSource, a ThumbHash, or nothing): the current
-                    // one if the hash changed since.
+                    // (defaultSource, a source's, or nothing): the current
+                    // one if the source's changed since.
                     UIImage* current = [weakSelf placeholder];
                     if (current != placeholder) {
                         [weakSelf setImage: current];

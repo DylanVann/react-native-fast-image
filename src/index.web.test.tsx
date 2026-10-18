@@ -685,3 +685,58 @@ describe('thumbhash (web)', () => {
         expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
     })
 })
+
+describe('placeholder (web)', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const DATA = 'data:image/png;base64,iVBORw0KGgo='
+    const OTHER = 'data:image/png;base64,R0lGODlh'
+
+    it('takes a data uri, under the image until it loads', () => {
+        const tree = render(<FastImage source={A} placeholder={DATA} />)
+        const [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        expect(image.props.src).toBe(A.uri)
+    })
+
+    it('wins over defaultSource', () => {
+        const tree = render(
+            <FastImage
+                source={A}
+                placeholder={DATA}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(DATA)
+    })
+
+    it("is a source's blurDataUri, blurred, before its thumbhash", () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, thumbhash: H1, blurDataUri: DATA }}
+                placeholder={OTHER}
+                objectFit="none"
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        // As a thumbhash: it stands for an image whose size isn't known yet.
+        expect(placeholder.props.style.objectFit).toBe('contain')
+        // Blurred, by its own filter only.
+        const filter = placeholder.props.style.filter
+        expect(filter).toMatch(/^url\(#fast-image-blur-/)
+        expect(hosts(tree, 'feGaussianBlur')).toHaveLength(1)
+    })
+
+    it("ignores a source's url, with a warning", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: 'https://example.com/small.jpg' }}
+                placeholder={DATA}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(DATA)
+        expect(warn).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
+    })
+})

@@ -1,16 +1,21 @@
 package com.fastimage;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.util.Base64;
 import android.util.LruCache;
 
 import androidx.annotation.Nullable;
 
+import java.util.Locale;
+
 // A source's `thumbhash` (https://evanw.github.io/thumbhash/) decoded into the
 // placeholder it shows while its image loads: at most 32 × 32 pixels, which
 // the view scales up smoothly. Decoding takes well under a millisecond, so it
 // happens as the view picks its source; recent ones are cached by their hash,
-// for list rows that show the same images again.
+// for list rows that show the same images again. Also a source's
+// `blurDataUri`: a data uri's few pixels, scaled up to the same size and
+// blurred (blurDataUri).
 //
 // thumbHashToRGBA is Evan Wallace's reference decoder
 // (https://github.com/evanw/thumbhash, java/com/madebyevan/thumbhash), with a
@@ -39,8 +44,100 @@ final class FastImageThumbHash {
     private FastImageThumbHash() {
     }
 
-    // Recently decoded placeholders, by their hash: at most 4 KB each.
+    // Recently decoded placeholders, by their hash or blurDataUri: at most
+    // 4 KB each.
     private static final LruCache<String, Bitmap> cache = new LruCache<>(256);
+
+    // A source's placeholder: its blurDataUri's, or its ThumbHash's.
+    @Nullable
+    static Bitmap placeholder(@Nullable String value) {
+        return value != null && isDataUri(value) ? blurDataUri(value) : bitmap(value);
+    }
+
+    // A source's blurDataUri, decoded, scaled so its longer side is 32 px
+    // (a ThumbHash's size), and blurred by about half of one of its pixels, so
+    // that a few pixels scale up smoothly instead of in steps.
+    @Nullable
+    static Bitmap blurDataUri(String uri) {
+        Bitmap cached = cache.get(uri);
+        if (cached != null) return cached;
+        Bitmap decoded = dataUri(uri);
+        if (decoded == null) return null;
+        int width = decoded.getWidth();
+        int height = decoded.getHeight();
+        float scale = 32f / Math.max(width, height);
+        int w = Math.max(1, Math.round(width * scale));
+        int h = Math.max(1, Math.round(height * scale));
+        Bitmap scaled = Bitmap.createScaledBitmap(decoded, w, h, true);
+        int[] pixels = new int[w * h];
+        scaled.getPixels(pixels, 0, w, 0, 0, w, h);
+        blur(pixels, w, h, Math.max(1, Math.round(scale / 2)));
+        Bitmap bitmap = Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888);
+        cache.put(uri, bitmap);
+        return bitmap;
+    }
+
+    // Blurs unpremultiplied ARGB pixels in place: a box blur of the radius
+    // three times each way (about a Gaussian), premultiplied so transparent
+    // pixels don't darken their neighbors, with the edges extended outwards.
+    private static void blur(int[] pixels, int w, int h, int radius) {
+        int n = w * h;
+        float[][] channels = new float[4][n];
+        for (int i = 0; i < n; i++) {
+            int p = pixels[i];
+            float a = (p >>> 24) / 255f;
+            channels[0][i] = a;
+            channels[1][i] = ((p >> 16) & 255) * a;
+            channels[2][i] = ((p >> 8) & 255) * a;
+            channels[3][i] = (p & 255) * a;
+        }
+        float[] line = new float[Math.max(w, h)];
+        for (float[] channel : channels) {
+            for (int pass = 0; pass < 3; pass++) {
+                for (int y = 0; y < h; y++) boxBlur(channel, y * w, 1, w, radius, line);
+                for (int x = 0; x < w; x++) boxBlur(channel, x, w, h, radius, line);
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            float a = channels[0][i];
+            int alpha = Math.round(a * 255);
+            int r = a > 0 ? Math.min(255, Math.round(channels[1][i] / a)) : 0;
+            int g = a > 0 ? Math.min(255, Math.round(channels[2][i] / a)) : 0;
+            int b = a > 0 ? Math.min(255, Math.round(channels[3][i] / a)) : 0;
+            pixels[i] = (alpha << 24) | (r << 16) | (g << 8) | b;
+        }
+    }
+
+    // One row or column (count values, step apart from start): each becomes
+    // the average of the 2 × radius + 1 around it, the edge values repeated.
+    private static void boxBlur(float[] values, int start, int step, int count, int radius, float[] line) {
+        for (int i = 0; i < count; i++) line[i] = values[start + i * step];
+        float sum = 0;
+        for (int i = -radius; i <= radius; i++) sum += line[Math.min(count - 1, Math.max(0, i))];
+        for (int i = 0; i < count; i++) {
+            values[start + i * step] = sum / (2 * radius + 1);
+            sum += line[Math.min(count - 1, i + radius + 1)] - line[Math.max(0, i - radius)];
+        }
+    }
+
+    static boolean isDataUri(String value) {
+        return value.regionMatches(true, 0, "data:", 0, 5);
+    }
+
+    // A base64 data uri's image (PNG, JPEG, WebP, a GIF's first frame), or
+    // null if it isn't one Android decodes (e.g. an SVG).
+    @Nullable
+    static Bitmap dataUri(String uri) {
+        int comma = uri.indexOf(',');
+        if (comma < 0 || !uri.substring(0, comma).toLowerCase(Locale.ROOT).endsWith(";base64")) return null;
+        byte[] data;
+        try {
+            data = Base64.decode(uri.substring(comma + 1), Base64.DEFAULT);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        return BitmapFactory.decodeByteArray(data, 0, data.length);
+    }
 
     // The placeholder for a base64 ThumbHash (standard or url-safe, with or
     // without padding), or null for an empty or invalid one.
