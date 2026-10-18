@@ -1,4 +1,4 @@
-import React, { forwardRef, memo } from 'react'
+import React, { forwardRef, memo, useMemo } from 'react'
 import {
     ColorValue,
     View,
@@ -795,27 +795,35 @@ function FastImageBase({
     const fit = resolveObjectFit(objectFit, style)
     const position = objectPositionOrCentered(objectPosition)
 
-    // Several sources are picked from natively, for the view's size; one in
-    // an array is a plain source.
-    const sources = Array.isArray(source)
-        ? source.length === 1
-            ? undefined
-            : source
-        : undefined
-    const single = Array.isArray(source) ? source[0] : source
-    // ThumbHashes go to the native view apart from the sources, so a new hash
-    // for the same image doesn't load it again: one source's, or several
-    // sources' by index ('' for none).
-    const thumbhash =
-        !sources && single && typeof single === 'object'
-            ? single.thumbhash
+    // Memoized on source, so an unchanged source reaches the native view as
+    // the same objects, and React's prop diff stops at them.
+    const { resolvedSource, sources, thumbhash, thumbhashes } = useMemo(() => {
+        // Several sources are picked from natively, for the view's size; one
+        // in an array is a plain source.
+        const sources = Array.isArray(source)
+            ? source.length === 1
+                ? undefined
+                : source
             : undefined
-    const thumbhashes = sources?.some((entry) => entry?.thumbhash)
-        ? sources.map((entry) => entry?.thumbhash ?? '')
-        : undefined
-    const resolvedSource = sources
-        ? undefined
-        : Image.resolveAssetSource(withoutThumbhash(single) as any)
+        const single = Array.isArray(source) ? source[0] : source
+        // ThumbHashes go to the native view apart from the sources, so a new
+        // hash for the same image doesn't load it again: one source's, or
+        // several sources' by index ('' for none).
+        const thumbhashes = sources?.some((entry) => entry?.thumbhash)
+            ? sources.map((entry) => entry?.thumbhash ?? '')
+            : undefined
+        return {
+            resolvedSource: sources
+                ? undefined
+                : Image.resolveAssetSource(withoutThumbhash(single) as any),
+            sources: thumbhashes ? sources?.map(withoutThumbhash) : sources,
+            thumbhash:
+                !sources && single && typeof single === 'object'
+                    ? single.thumbhash
+                    : undefined,
+            thumbhashes,
+        }
+    }, [source])
     const resolvedDefaultSource = resolveDefaultSource(defaultSource)
 
     return (
@@ -833,7 +841,7 @@ function FastImageBase({
                 defaultTransition ?? builtInTransition(),
             )}
             source={resolvedSource}
-            sources={sources?.map(withoutThumbhash)}
+            sources={sources}
             thumbhash={thumbhash}
             thumbhashes={thumbhashes}
             defaultSource={resolvedDefaultSource}

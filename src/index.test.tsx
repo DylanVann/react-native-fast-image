@@ -7,6 +7,7 @@ import {
     View,
 } from 'react-native'
 import React from 'react'
+import { act } from 'react-test-renderer'
 import {
     afterEach,
     beforeAll,
@@ -435,6 +436,25 @@ describe('thumbhash', () => {
         expect(view.thumbhash).toBeUndefined()
         expect(view.thumbhashes).toBeUndefined()
         expect(props(<FastImage source={{ uri }} />).source).toEqual({ uri })
+    })
+
+    it('keeps an unchanged source as the same objects', () => {
+        const source = { uri, thumbhash: H1 }
+        const sources = [
+            { uri, width: 100, height: 75, thumbhash: H1 },
+            { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
+        ]
+        for (const value of [source, sources]) {
+            const view = renderer.create(<FastImage source={value} />)
+            const before = (view.toJSON() as any).props
+            // Another prop changes: React's prop diff stops at the same
+            // objects instead of comparing them field by field.
+            act(() => view.update(<FastImage source={value} tintColor="red" />))
+            const after = (view.toJSON() as any).props
+            expect(after.source).toBe(before.source)
+            expect(after.sources).toBe(before.sources)
+            expect(after.thumbhashes).toBe(before.thumbhashes)
+        }
     })
 })
 
