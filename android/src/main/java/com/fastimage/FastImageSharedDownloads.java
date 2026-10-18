@@ -854,6 +854,7 @@ final class FastImageSharedDownloads {
             synchronized (downloads) {
                 responded();
             }
+            startQueued();
             stale.enqueue(this);
             return true;
         }
@@ -925,7 +926,11 @@ final class FastImageSharedDownloads {
             final ResponseBody body = response.body();
             if (!response.isSuccessful() || body == null) {
                 if (body != null) body.close();
-                HttpException error = new HttpException(response.message(), response.code());
+                // OkHttp answers a cache-only request it has no copy for
+                // with a 504, without a request.
+                IOException error = url instanceof FastImageHttpCacheGlideUrl && response.code() == 504
+                        ? new IOException("Not in the cache")
+                        : new HttpException(response.message(), response.code());
                 if (response.code() >= 500 && askHttpCache(call, error)) return;
                 fail(staleOf != null ? staleOf : error);
                 return;

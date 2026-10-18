@@ -4460,32 +4460,113 @@ function StaleIfErrorCase() {
     )
 }
 
+// Shows magenta and, in a second view, a cyan `web` image (kept in the HTTP
+// cache for an hour), then changes the first view's source to that cyan url
+// with cache 'cacheOnly', while the screen is recorded (a video sample, see
+// RunnerContext.tsx); once it has loaded, the view gets bigger. It should go
+// from magenta to cyan and stay cyan: on Android, where the copy comes from
+// the HTTP cache, it went blank when the view was resized.
+const CACHE_ONLY_SWITCH_PATH = `max-age/cyan.png?cache-only-switch=${RUN}`
+function CacheOnlySwitchCase() {
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const loaded = useRef(0)
+    // Called when cyan has loaded.
+    const switched = useRef(() => {})
+    const [second, setSecond] = useState(false)
+    const [big, setBig] = useState(false)
+    const [status, setStatus] = useState('loading the first images')
+    const expect = [MAGENTA, CYAN]
+    const onFirstLoad = async () => {
+        if (++loaded.current < 2) return
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: 'cache-only-switch',
+                area,
+                durationMs: 4000,
+                expect,
+                palette: [MAGENTA, BLANK, CYAN],
+            },
+            (done) => {
+                setSecond(true)
+                // Resized once cyan has loaded, then a moment for it to load
+                // again at the new size.
+                switched.current = () => {
+                    setBig(true)
+                    setTimeout(done, 1500)
+                }
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={styles.row}>
+            <View ref={view} collapsable={false}>
+                <FastImage
+                    style={[styles.image, big && cacheOnlySwitchStyles.big]}
+                    source={
+                        second
+                            ? {
+                                  uri: imageUrl(CACHE_ONLY_SWITCH_PATH),
+                                  cache: 'cacheOnly',
+                              }
+                            : {
+                                  uri: imageUrl(
+                                      `magenta.png?cache-only-switch=${RUN}`,
+                                  ),
+                              }
+                    }
+                    onLoad={second ? () => switched.current() : onFirstLoad}
+                    onError={(e) =>
+                        setStatus(`onError: ${e.nativeEvent.error}`)
+                    }
+                />
+            </View>
+            <FastImage
+                style={[styles.image, styles.gap]}
+                source={{ uri: imageUrl(CACHE_ONLY_SWITCH_PATH), cache: 'web' }}
+                onLoad={onFirstLoad}
+                onError={(e) => setStatus(`web error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="cache-only-switch"
+                status={status}
+                description="Changing the source to a cacheOnly web image keeps the image (magenta) until it has loaded (cyan), which stays when the view is resized (recorded: magenta, then cyan, never blank)"
+            />
+        </View>
+    )
+}
+
+const cacheOnlySwitchStyles = StyleSheet.create({
+    big: { width: 72, height: 72 },
+})
+
 const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
 
-// A view with cache 'cacheOnly' of an image that isn't cached: onError and
-// onLoadEnd (not ok), not onLoad (iOS sent onLoad for no image), and no
-// request.
+// A view with cache 'cacheOnly' of an image that isn't cached: onError ("Not
+// in the cache", on both platforms) and onLoadEnd (not ok), not onLoad (iOS
+// sent onLoad for no image), and no request.
 const CACHE_ONLY_MISS_PATH = `/picsum/1025-200x200.jpg?cache-only-miss=${RUN}`
 function CacheOnlyMissCase() {
     const [status, setStatus] = useState('waiting')
     const loadEnd = useRef<string | undefined>(undefined)
-    const check = async (event: string) => {
-        const response = await fetch(
-            imageUrl(
-                `requests?path=${encodeURIComponent(CACHE_ONLY_MISS_PATH)}`,
-            ),
-        )
-        const { count } = await response.json()
+    const check = async (event: string, error?: string) => {
+        const count = await requestCount(CACHE_ONLY_MISS_PATH)
         setStatus(
             event !== 'onError'
                 ? event
                 : count !== 0
                   ? `requested ${count} times`
-                  : loadEnd.current !== 'not ok'
-                    ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
-                    : 'OK',
+                  : error !== 'Not in the cache'
+                    ? `onError: ${error}`
+                    : loadEnd.current !== 'not ok'
+                      ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
+                      : 'OK',
         )
     }
     return (
@@ -4497,7 +4578,11 @@ function CacheOnlyMissCase() {
                     cache: 'cacheOnly',
                 }}
                 onLoad={() => check('onLoad').catch((e) => setStatus(`${e}`))}
-                onError={() => check('onError').catch((e) => setStatus(`${e}`))}
+                onError={(e) =>
+                    check('onError', e.nativeEvent.error).catch((err) =>
+                        setStatus(`${err}`),
+                    )
+                }
                 onLoadEnd={(result) => {
                     loadEnd.current = result.ok ? 'ok' : 'not ok'
                 }}
@@ -8610,6 +8695,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <CacheOnlyWebCase key="cache-only-web" />,
             <StaleIfErrorCase key="stale-if-error" />,
+            <CacheOnlySwitchCase key="cache-only-switch" />,
         ],
     },
     {

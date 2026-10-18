@@ -1201,20 +1201,6 @@ NSString *FFFErrorMessage(NSError *error)
                                                 code: 0
                                             userInfo: @{NSLocalizedDescriptionKey: @"Not in the cache"}];
                 }
-                if (error && showedImage) {
-                    // The check of a `web` image with the server failed
-                    // after its cached copy showed. Without the network or
-                    // with a server error, the view keeps the copy and sends
-                    // no error, as a browser's stale-if-error (Android shows
-                    // the HTTP cache's copy then); otherwise it shows
-                    // defaultSource (or nothing), as SDWebImage would have.
-                    if (FFFIsUnreachable(error)) {
-                        return;
-                    }
-                    [weakSelf showLoadedImage: placeholder fade: NO];
-                } else if (!error) {
-                    showedImage = YES;
-                }
                 // The download was running when the app went to the
                 // background, and failed: iOS suspends it there, and its
                 // timeout keeps counting, so it times out as the app comes
@@ -1226,6 +1212,24 @@ NSString *FFFErrorMessage(NSError *error)
                     weakSelf.retriedAfterBackground = YES;
                     [weakSelf downloadWhenActive: source options: options context: context];
                     return;
+                }
+                if (error && showedImage) {
+                    // The check of a `web` image with the server failed
+                    // after its cached copy showed. Without the network or
+                    // with a server error, the view keeps the copy and sends
+                    // no error, as a browser's stale-if-error (Android shows
+                    // the HTTP cache's copy then). Otherwise it does what
+                    // SDWebImage would have (setImage skips the placeholder
+                    // now): it shows defaultSource (or nothing) only with
+                    // SDWebImageDelayPlaceholder.
+                    if (FFFIsUnreachable(error)) {
+                        return;
+                    }
+                    if (options & SDWebImageDelayPlaceholder) {
+                        [weakSelf showLoadedImage: placeholder fade: NO];
+                    }
+                } else if (!error) {
+                    showedImage = YES;
                 }
                 if (error) {
                     // SDWebImage shows the placeholder (defaultSource or nothing).
