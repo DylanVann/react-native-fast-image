@@ -1,3 +1,10 @@
+## [10.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.1.0...v10.1.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **ios:** a cacheOnly image that isn't cached gets onError, not onLoad ([#1315](https://github.com/DylanVann/react-native-fast-image/issues/1315)) ([7f2b46d](https://github.com/DylanVann/react-native-fast-image/commit/7f2b46dd5e543d7177118ddf28854aa63f19a8da))
+
 # [10.1.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.0.0...v10.1.0) (2026-10-17)
 
 
