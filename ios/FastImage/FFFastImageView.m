@@ -1174,6 +1174,13 @@ NSString *FFFErrorMessage(NSError *error)
                 if (weakSelf.loadCount != load) {
                     return;
                 }
+                // cacheOnly: SDWebImage completes the load of an image that
+                // isn't cached with neither an image nor an error.
+                if (!error && !image) {
+                    error = [NSError errorWithDomain: @"FastImage"
+                                                code: 0
+                                            userInfo: @{NSLocalizedDescriptionKey: @"Not in the cache"}];
+                }
                 // The download was running when the app went to the
                 // background, and failed: iOS suspends it there, and its
                 // timeout keeps counting, so it times out as the app comes
