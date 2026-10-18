@@ -6,7 +6,8 @@ import renderer, { act } from 'react-test-renderer'
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground } from './index.web'
-import { thumbHashDataUri } from './thumbhash'
+// Imported: the web version shows thumbhashes only with it.
+import { thumbHashToDataURL } from './thumbhash'
 
 // Renders with effects run, as in a browser.
 function render(element: React.ReactElement, options?: any) {
@@ -646,9 +647,13 @@ describe('thumbhash (web)', () => {
             />,
         )
         const [placeholder, image] = images(tree)
-        expect(placeholder.props.src).toBe(thumbHashDataUri(H1))
+        expect(placeholder.props.src).toBe(thumbHashToDataURL(H1))
         // As contain: it stands for an image whose size isn't known yet.
         expect(placeholder.props.style.objectFit).toBe('contain')
+        // Blurred, as a blurDataUri.
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
         expect(image.props.style.objectFit).toBe('none')
         act(() => {
             image.props.onLoad({
@@ -675,7 +680,7 @@ describe('thumbhash (web)', () => {
             },
         ]
         let tree = render(<FastImage source={sizes(H1)} />)
-        expect(images(tree)[0].props.src).toBe(thumbHashDataUri(H1))
+        expect(images(tree)[0].props.src).toBe(thumbHashToDataURL(H1))
         tree = render(
             <FastImage
                 source={sizes(H2)}
@@ -683,6 +688,30 @@ describe('thumbhash (web)', () => {
             />,
         )
         expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
+    })
+
+    it('is ignored without react-native-fast-image/thumbhash, with a warning', () => {
+        const key = Symbol.for('react-native-fast-image/thumbhash')
+        const registry = globalThis as Record<symbol, unknown>
+        const decoder = registry[key]
+        delete registry[key]
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            const tree = render(
+                <FastImage
+                    source={{ ...A, thumbhash: H1 }}
+                    defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                />,
+            )
+            expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain(
+                'react-native-fast-image/thumbhash',
+            )
+        } finally {
+            registry[key] = decoder
+            warn.mockRestore()
+        }
     })
 })
 

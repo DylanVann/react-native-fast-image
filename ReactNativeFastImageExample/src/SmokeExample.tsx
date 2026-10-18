@@ -582,6 +582,46 @@ function PlaceholderCase() {
     )
 }
 
+// The web version: a source's blurDataUri, a 2 × 2 PNG of red, green, blue
+// and yellow quadrants, blurred by its SVG filter (in its own units, with the
+// edges kept solid). The image fails, so it stays.
+const QUADRANTS =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mN4Jicnt8qGQSPgzocTIgAh2AVH0x5+BQAAAABJRU5ErkJggg=='
+
+function BlurDataUriCase() {
+    const view = useRef<any>(null)
+    const [status, setStatus] = useState('loading')
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={view}
+                style={{ width: 96, height: 72 }}
+                source={{
+                    uri: imageUrl(`does-not-exist.jpg?smoke-blur=${RUN}`),
+                    blurDataUri: QUADRANTS,
+                }}
+                onError={() => {
+                    const preview = view.current?.querySelector?.('img')
+                    const filter = preview
+                        ? (globalThis as any).getComputedStyle(preview).filter
+                        : 'no image'
+                    setStatus(
+                        preview?.getAttribute('src') === QUADRANTS &&
+                            /url\(/.test(filter)
+                            ? 'OK'
+                            : `filter: ${filter}`,
+                    )
+                }}
+            />
+            <CaseStatus
+                id="smoke-blur-data-uri"
+                status={status}
+                description="a source's blurDataUri, after the image failed: red, green, blue and yellow quadrants blurred into each other, with solid edges"
+            />
+        </View>
+    )
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -596,6 +636,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                 ? [
                       <SizesChangeCase key="sizes-change" />,
                       <PlaceholderCase key="placeholder" />,
+                      <BlurDataUriCase key="blur-data-uri" />,
                   ]
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],

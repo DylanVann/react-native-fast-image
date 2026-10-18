@@ -146,6 +146,12 @@ export type Source = {
      * `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one
      * shows nothing, or `placeholder`.
      *
+     * On the web, it shows only with `import 'react-native-fast-image/thumbhash'`
+     * (its decoder, about 1.5 KB gzipped), or made into the source's
+     * `blurDataUri` before it reaches the browser, e.g. on your server, with
+     * that module's `thumbHashToDataURL`, which needs no JavaScript in the
+     * browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
+     *
      * @example
      * ```jsx
      * <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />

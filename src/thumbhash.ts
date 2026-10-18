@@ -1,7 +1,13 @@
-// A source's `thumbhash` (https://evanw.github.io/thumbhash/) decoded into a
-// PNG data uri, for the web version's placeholder (the native views decode it
-// themselves). At most 32 × 32 pixels, which the browser scales up smoothly.
-// Recent ones are kept by their hash.
+// ThumbHashes (https://evanw.github.io/thumbhash/) on the web, as
+// `react-native-fast-image/thumbhash`: importing it makes the web version
+// show sources' thumbhashes (iOS and Android decode them natively), and
+// thumbHashToDataURL makes a source's `blurDataUri` from one, e.g. on a
+// server, so a page shows it without any JavaScript. FastImage doesn't import
+// it, so web bundles only have it if the app does.
+//
+// The data uri is a PNG of at most 8 × 8 pixels: a ThumbHash holds at most 7
+// frequencies on its longer side, so more pixels add bytes, not detail. The
+// web version blurs it as it scales it up, as it does every blurDataUri.
 //
 // thumbHashToRGBA and rgbaToDataURL are Evan Wallace's reference code
 // (https://github.com/evanw/thumbhash, js/thumbhash.js), typed, with a check
@@ -27,24 +33,74 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+// Recently made data uris, by their hash, the least recently used dropped.
 const cache = new Map<string, string | undefined>()
 const CACHE_SIZE = 256
 
-// The placeholder for a base64 ThumbHash (standard or url-safe, with or
-// without padding), or undefined for an empty or invalid one.
-export function thumbHashDataUri(
+/**
+ * A ThumbHash (base64, standard or url-safe, with or without padding) as a
+ * source's `blurDataUri`: a PNG data uri of at most 8 × 8 pixels (about 300
+ * to 500 characters), or undefined for an empty or invalid hash. Works in
+ * browsers, on servers (Node 16+) and in React Native.
+ *
+ * @example
+ * ```js
+ * // e.g. on your server, so the page shows the preview without any JavaScript
+ * const source = { uri: photo.url, blurDataUri: thumbHashToDataURL(photo.thumbhash) }
+ * ```
+ */
+export function thumbHashToDataURL(
     thumbhash: string | undefined,
 ): string | undefined {
     if (!thumbhash) return undefined
-    if (cache.has(thumbhash)) return cache.get(thumbhash)
+    if (cache.has(thumbhash)) {
+        const uri = cache.get(thumbhash)
+        cache.delete(thumbhash)
+        cache.set(thumbhash, uri)
+        return uri
+    }
     const hash = base64Bytes(thumbhash)
     const image = hash ? thumbHashToRGBA(hash) : undefined
-    const uri = image ? rgbaToDataURL(image.w, image.h, image.rgba) : undefined
+    const small = image ? shrink(image.w, image.h, image.rgba, 8) : undefined
+    const uri = small ? rgbaToDataURL(small.w, small.h, small.rgba) : undefined
     if (cache.size >= CACHE_SIZE) {
         cache.delete(cache.keys().next().value as string)
     }
     cache.set(thumbhash, uri)
     return uri
+}
+
+// The web version's decoder, which index.web.tsx finds here without importing
+// this module (the same key from any copy of the package).
+;(globalThis as Record<symbol, unknown>)[
+    Symbol.for('react-native-fast-image/thumbhash')
+] = thumbHashToDataURL
+
+// The pixels averaged down so the longer side is at most max.
+function shrink(w: number, h: number, rgba: Uint8Array, max: number) {
+    const scale = Math.max(w, h) / max
+    if (scale <= 1) return { w, h, rgba }
+    const sw = Math.max(1, Math.round(w / scale))
+    const sh = Math.max(1, Math.round(h / scale))
+    const out = new Uint8Array(sw * sh * 4)
+    for (let y = 0; y < sh; y++) {
+        const y0 = Math.floor((y * h) / sh)
+        const y1 = Math.floor(((y + 1) * h) / sh)
+        for (let x = 0; x < sw; x++) {
+            const x0 = Math.floor((x * w) / sw)
+            const x1 = Math.floor(((x + 1) * w) / sw)
+            for (let c = 0; c < 4; c++) {
+                let sum = 0
+                for (let yy = y0; yy < y1; yy++)
+                    for (let xx = x0; xx < x1; xx++)
+                        sum += rgba[(yy * w + xx) * 4 + c]
+                out[(y * sw + x) * 4 + c] = Math.round(
+                    sum / ((y1 - y0) * (x1 - x0)),
+                )
+            }
+        }
+    }
+    return { w: sw, h: sh, rgba: out }
 }
 
 function base64Bytes(base64: string): Uint8Array | undefined {

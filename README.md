@@ -220,6 +220,8 @@ A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short string (
 
 It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). One for all of them can go in `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one shows nothing, or `placeholder`.
 
+On the web, it shows only with `import 'react-native-fast-image/thumbhash'` (its decoder, about 1.5 KB gzipped), or made into the source's `blurDataUri` before it reaches the browser, e.g. on your server, with that module's `thumbHashToDataURL`, which needs no JavaScript in the browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
+
 ```jsx
 <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
 ```
@@ -939,6 +941,26 @@ Support is minimal:
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and the placeholder is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
+
+### ThumbHashes on the web
+
+A source's [`blurDataUri`](#sourceblurdatauri) shows on the web without any JavaScript (also before the page's scripts load, when it's rendered on a server): it's an `<img>`, blurred with an SVG filter. A [`thumbhash`](#sourcethumbhash) has to be decoded, so the web version doesn't show one unless you include the decoder (about 1.5 KB gzipped):
+
+```js
+import 'react-native-fast-image/thumbhash'
+```
+
+Or make the hash a `blurDataUri` before it reaches the browser, e.g. where your server loads the page's data, with the same module's `thumbHashToDataURL`: a PNG data uri of at most 8 × 8 pixels (about 300 to 500 characters). It works in browsers, on servers (Node 16+) and in React Native.
+
+```js
+import { thumbHashToDataURL } from 'react-native-fast-image/thumbhash'
+
+const source = {
+    uri: photo.url,
+    thumbhash: photo.thumbhash, // iOS and Android
+    blurDataUri: thumbHashToDataURL(photo.thumbhash), // the web
+}
+```
 
 ## Jest
 

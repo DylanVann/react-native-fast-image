@@ -31,8 +31,7 @@ import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import { dataUri, hasSourcePlaceholder } from './placeholders'
-import { thumbHashDataUri } from './thumbhash'
-import { warnIfChildren } from './warnings'
+import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
     CacheState,
@@ -126,15 +125,16 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
-    // The source's blurDataUri (shown blurred, see PreviewBlur), or its
-    // ThumbHash, decoded, shows in place of `placeholder` (or `placeholder`'s,
-    // for a source without its own). With several sizes the browser picks
-    // one itself (from the srcset, as it loads), so they only show if all the
-    // sizes have the same one.
+    // The source's blurDataUri, or its ThumbHash made into one (with
+    // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
+    // in place of `placeholder` (or `placeholder`'s, for a source without its
+    // own). With several sizes the browser picks one itself (from the srcset,
+    // as it loads), so they only show if all the sizes have the same one.
     const preview = hasSourcePlaceholder(placeholder) ? placeholder : undefined
-    const blurUri = resolveUri(dataUri(shared(source, 'blurDataUri', preview)))
-    const standInUri =
-        blurUri ?? thumbHashDataUri(shared(source, 'thumbhash', preview))
+    const blurUri =
+        resolveUri(dataUri(shared(source, 'blurDataUri', preview))) ??
+        thumbhashUri(shared(source, 'thumbhash', preview))
+    const standInUri = blurUri
     const defaultUri =
         standInUri ??
         (preview ? undefined : resolveUri(placeholder ?? defaultSource))
@@ -189,13 +189,7 @@ function FastImageBase({
                     position={position}
                     // A source's preview gets only its own blur (as on iOS
                     // and Android), not the image's tintColor or blurRadius.
-                    filter={
-                        standInUri
-                            ? blurUri
-                                ? `url(#${blurId})`
-                                : undefined
-                            : filter
-                    }
+                    filter={standInUri ? `url(#${blurId})` : filter}
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
                 />
@@ -231,6 +225,25 @@ function FastImageBase({
             {blurUri && showDefault ? <PreviewBlur id={blurId} /> : null}
         </View>
     )
+}
+
+// A ThumbHash as a blurDataUri, with `react-native-fast-image/thumbhash`
+// imported (see thumbhash.ts). Without it, ignored, with a warning in
+// development: FastImage doesn't bundle the decoder on the web.
+function thumbhashUri(hash: string | undefined): string | undefined {
+    if (!hash) return undefined
+    const decode = (globalThis as Record<symbol, unknown>)[
+        Symbol.for('react-native-fast-image/thumbhash')
+    ] as ((hash: string) => string | undefined) | undefined
+    if (decode) return decode(hash)
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        warnOnce(
+            'thumbhash-web',
+            "react-native-fast-image: on the web, a source's `thumbhash` shows only with `import 'react-native-fast-image/thumbhash'` (it decodes them). Or make it a `blurDataUri` before it reaches the browser (e.g. on your server) with that module's thumbHashToDataURL, which needs no JavaScript in the browser.",
+            'warn',
+        )
+    }
+    return undefined
 }
 
 // The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
