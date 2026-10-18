@@ -4330,84 +4330,6 @@ async function requestCount(pathAndQuery: string) {
     return ((await response.json()) as { count: number }).count
 }
 
-// A `web` image that's shown (the server lets caches keep it for an hour),
-// then `cacheOnly` sources of its url: a view, a preload and getCachePath find
-// it (in the HTTP cache on Android, where `web` images are only kept there),
-// without a request. With a cacheKey they don't: the url may be another
-// version of the image.
-const CACHE_ONLY_WEB_PATH = `/max-age/picsum/1025-200x200.jpg?cache-only-web=${RUN}`
-function CacheOnlyWebCase() {
-    const [shown, setShown] = useState(false)
-    const [view, setView] = useState('waiting')
-    const [keyed, setKeyed] = useState('waiting')
-    const [calls, setCalls] = useState('waiting')
-    const uri = imageUrl(CACHE_ONLY_WEB_PATH.slice(1))
-    const cacheOnly = { uri, cache: 'cacheOnly' as const }
-    const withKey = { ...cacheOnly, cacheKey: `cache-only-web-${RUN}` }
-    const check = async () => {
-        const [preloaded] = await FastImage.preload([cacheOnly])
-        const [keyedPreload] = await FastImage.preload([withKey])
-        const path = await FastImage.getCachePath(cacheOnly)
-        const keyedPath = await FastImage.getCachePath(withKey)
-        const count = await requestCount(CACHE_ONLY_WEB_PATH)
-        const problems = [
-            !preloaded.ok && `preload: ${preloaded.error}`,
-            keyedPreload.ok && 'preload with a cacheKey ok',
-            !path.ok && `getCachePath: ${path.error}`,
-            keyedPath.ok && 'getCachePath with a cacheKey ok',
-            count !== 1 && `requested ${count} times`,
-        ].filter(Boolean)
-        setCalls(problems.length ? problems.join(', ') : 'OK')
-    }
-    const results = [view, keyed, calls]
-    return (
-        <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                source={{ uri, cache: 'web' }}
-                onLoad={() => setShown(true)}
-                onError={(e) => setView(`web error: ${e.nativeEvent.error}`)}
-            />
-            {shown ? (
-                <>
-                    <FastImage
-                        style={[styles.image, styles.gap]}
-                        source={cacheOnly}
-                        onLoad={() => {
-                            setView('OK')
-                            check().catch((e) => setCalls(`error: ${e}`))
-                        }}
-                        onError={(e) =>
-                            setView(`cacheOnly error: ${e.nativeEvent.error}`)
-                        }
-                    />
-                    <FastImage
-                        style={[styles.image, styles.gap]}
-                        source={withKey}
-                        onLoad={() =>
-                            setKeyed('cacheOnly with a cacheKey loaded')
-                        }
-                        onError={() => setKeyed('OK')}
-                    />
-                </>
-            ) : (
-                <View style={[styles.image, styles.gap]} />
-            )}
-            <CaseStatus
-                id="cache-only-web"
-                status={
-                    results.includes('waiting')
-                        ? 'waiting'
-                        : results.every((r) => r === 'OK')
-                          ? 'OK'
-                          : results.filter((r) => r !== 'OK').join(', ')
-                }
-                description="cacheOnly finds a web image (a view, preload, getCachePath), without a request; not with a cacheKey"
-            />
-        </View>
-    )
-}
-
 // A `web` image the server sends once, cached but stale at once (max-age=0),
 // then fails with a 500: a second view shows the cached copy with onLoad and
 // no onError (stale-if-error), once its check with the server has failed.
@@ -4460,113 +4382,32 @@ function StaleIfErrorCase() {
     )
 }
 
-// Shows magenta and, in a second view, a cyan `web` image (kept in the HTTP
-// cache for an hour), then changes the first view's source to that cyan url
-// with cache 'cacheOnly', while the screen is recorded (a video sample, see
-// RunnerContext.tsx); once it has loaded, the view gets bigger. It should go
-// from magenta to cyan and stay cyan: on Android, where the copy comes from
-// the HTTP cache, it went blank when the view was resized.
-const CACHE_ONLY_SWITCH_PATH = `max-age/cyan.png?cache-only-switch=${RUN}`
-function CacheOnlySwitchCase() {
-    const sample = useContext(SampleContext)
-    const view = useRef<React.ComponentRef<typeof View>>(null)
-    const loaded = useRef(0)
-    // Called when cyan has loaded.
-    const switched = useRef(() => {})
-    const [second, setSecond] = useState(false)
-    const [big, setBig] = useState(false)
-    const [status, setStatus] = useState('loading the first images')
-    const expect = [MAGENTA, CYAN]
-    const onFirstLoad = async () => {
-        if (++loaded.current < 2) return
-        const area = await measureView(view.current)
-        if (!area) return setStatus('not on screen')
-        setStatus('recording')
-        const result = await sample(
-            {
-                name: 'cache-only-switch',
-                area,
-                durationMs: 4000,
-                expect,
-                palette: [MAGENTA, BLANK, CYAN],
-            },
-            (done) => {
-                setSecond(true)
-                // Resized once cyan has loaded, then a moment for it to load
-                // again at the new size.
-                switched.current = () => {
-                    setBig(true)
-                    setTimeout(done, 1500)
-                }
-            },
-        )
-        setStatus(sampleStatus(result, expect))
-    }
-    return (
-        <View style={styles.row}>
-            <View ref={view} collapsable={false}>
-                <FastImage
-                    style={[styles.image, big && cacheOnlySwitchStyles.big]}
-                    source={
-                        second
-                            ? {
-                                  uri: imageUrl(CACHE_ONLY_SWITCH_PATH),
-                                  cache: 'cacheOnly',
-                              }
-                            : {
-                                  uri: imageUrl(
-                                      `magenta.png?cache-only-switch=${RUN}`,
-                                  ),
-                              }
-                    }
-                    onLoad={second ? () => switched.current() : onFirstLoad}
-                    onError={(e) =>
-                        setStatus(`onError: ${e.nativeEvent.error}`)
-                    }
-                />
-            </View>
-            <FastImage
-                style={[styles.image, styles.gap]}
-                source={{ uri: imageUrl(CACHE_ONLY_SWITCH_PATH), cache: 'web' }}
-                onLoad={onFirstLoad}
-                onError={(e) => setStatus(`web error: ${e.nativeEvent.error}`)}
-            />
-            <CaseStatus
-                id="cache-only-switch"
-                status={status}
-                description="Changing the source to a cacheOnly web image keeps the image (magenta) until it has loaded (cyan), which stays when the view is resized (recorded: magenta, then cyan, never blank)"
-            />
-        </View>
-    )
-}
-
-const cacheOnlySwitchStyles = StyleSheet.create({
-    big: { width: 72, height: 72 },
-})
-
 const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
 
-// A view with cache 'cacheOnly' of an image that isn't cached: onError ("Not
-// in the cache", on both platforms) and onLoadEnd (not ok), not onLoad (iOS
-// sent onLoad for no image), and no request.
+// A view with cache 'cacheOnly' of an image that isn't cached: onError and
+// onLoadEnd (not ok), not onLoad (iOS sent onLoad for no image), and no
+// request.
 const CACHE_ONLY_MISS_PATH = `/picsum/1025-200x200.jpg?cache-only-miss=${RUN}`
 function CacheOnlyMissCase() {
     const [status, setStatus] = useState('waiting')
     const loadEnd = useRef<string | undefined>(undefined)
-    const check = async (event: string, error?: string) => {
-        const count = await requestCount(CACHE_ONLY_MISS_PATH)
+    const check = async (event: string) => {
+        const response = await fetch(
+            imageUrl(
+                `requests?path=${encodeURIComponent(CACHE_ONLY_MISS_PATH)}`,
+            ),
+        )
+        const { count } = await response.json()
         setStatus(
             event !== 'onError'
                 ? event
                 : count !== 0
                   ? `requested ${count} times`
-                  : error !== 'Not in the cache'
-                    ? `onError: ${error}`
-                    : loadEnd.current !== 'not ok'
-                      ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
-                      : 'OK',
+                  : loadEnd.current !== 'not ok'
+                    ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
+                    : 'OK',
         )
     }
     return (
@@ -4578,11 +4419,7 @@ function CacheOnlyMissCase() {
                     cache: 'cacheOnly',
                 }}
                 onLoad={() => check('onLoad').catch((e) => setStatus(`${e}`))}
-                onError={(e) =>
-                    check('onError', e.nativeEvent.error).catch((err) =>
-                        setStatus(`${err}`),
-                    )
-                }
+                onError={() => check('onError').catch((e) => setStatus(`${e}`))}
                 onLoadEnd={(result) => {
                     loadEnd.current = result.ok ? 'ok' : 'not ok'
                 }}
@@ -8684,18 +8521,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [<CacheOnlyMissCase key="cache-only-miss" />],
     },
     {
+        name: 'stale-if-error',
+        cases: [<StaleIfErrorCase key="stale-if-error" />],
+    },
+    {
         name: 'disk-cache',
         cases: [
             <DiskCacheOffCase key="disk-cache-off" />,
             <DiskCacheOffWebCase key="disk-cache-off-web" />,
-        ],
-    },
-    {
-        name: 'cache-fallbacks',
-        cases: [
-            <CacheOnlyWebCase key="cache-only-web" />,
-            <StaleIfErrorCase key="stale-if-error" />,
-            <CacheOnlySwitchCase key="cache-only-switch" />,
         ],
     },
     {

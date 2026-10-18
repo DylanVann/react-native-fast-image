@@ -1249,15 +1249,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private RequestBuilder<Drawable> mShownRequest;
     @Nullable
     private RequestBuilder<Drawable> mLoadingRequest;
-    // cacheOnly: the request that reads the HTTP cache if the loading one
-    // misses (Glide's error request), its base and its model, for when it
-    // loads the image instead (see onImageLoaded).
-    @Nullable
-    private RequestBuilder<Drawable> mHttpCacheRequest;
-    @Nullable
-    private RequestBuilder<Drawable> mHttpCacheBase;
-    @Nullable
-    private Object mHttpCacheModel;
     // Counts loads, to tell whether a posted update is for the current one.
     private int mLoadCount = 0;
     // The size Glide loaded the shown image at, and is loading the loading
@@ -1287,20 +1278,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
     }
 
-    // The loading image loaded (FastImageRequestListener), from model.
-    void onImageLoaded(Object model) {
+    // The loading image loaded (FastImageRequestListener).
+    void onImageLoaded() {
         mLoadEnded = true;
         endProgress();
         // Before the view shows it (the target does once this returns).
         applyObjectFit();
-        if (model != null && model == mHttpCacheModel) {
-            // From the HTTP cache: the request that loads it again (at a new
-            // size, or with another blur) is that one.
-            mLoadingRequest = mHttpCacheRequest;
-            mBaseRequest = mHttpCacheBase;
-            mModel = mHttpCacheModel;
-            mHttpCacheModel = null;
-        }
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
@@ -1638,8 +1621,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // replaces it at once, as Glide, Coil and Fresco fade an image in
             // from nothing and never between images.
             boolean replacing = shownRequest != null && model != null;
-            boolean fades = mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages);
-            if (fades) {
+            if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
                 builder = builder.transition(DrawableTransitionOptions.with(
                         new FadeFactory(
                                 mTransitionDuration,
@@ -1650,34 +1632,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 builder = builder.thumbnail(fromCache(shownRequest));
             }
 
-            // cacheOnly: an image that isn't in Glide's caches is looked for
-            // in the HTTP cache of `web` images, which then sends the events.
-            boolean httpCache = imageSource != null && imageSource.readsHttpCache();
-            mHttpCacheModel = null;
-            mHttpCacheRequest = null;
-            mHttpCacheBase = null;
-            if (httpCache) {
-                Object cached = new FastImageUrl(imageSource.getHttpCacheGlideUrl());
-                RequestBuilder<Drawable> cachedBase = requestManager
-                        .load(cached)
-                        .apply(FastImageViewConverter
-                                .getHttpCacheOptions(getContext(), imageSource, mSource)
-                                .placeholder(mDefaultSource)
-                                .fallback(mDefaultSource));
-                RequestBuilder<Drawable> fallback = cachedBase.clone().apply(renderingOptions(cached));
-                mHttpCacheModel = cached;
-                mHttpCacheBase = cachedBase;
-                mHttpCacheRequest = fallback.clone();
-                if (fades) {
-                    fallback = fallback.transition(DrawableTransitionOptions.with(
-                            new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit, true)));
-                }
-                fallback.listener(new FastImageRequestListener(imageSource, thumbnail, true));
-                builder = builder.error(fallback);
-            }
-
             if (imageSource != null)
-                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true, httpCache));
+                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
 
             into(request, builder, meanwhile, false);
         }

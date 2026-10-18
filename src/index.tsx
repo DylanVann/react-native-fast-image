@@ -69,9 +69,7 @@ export type Source = {
      *   also clears. If the server can't be reached or has an error (a 5xx
      *   status), the cached copy shows, whatever its age (on Android, not if
      *   the server sent it with `no-cache` or `must-revalidate`).
-     * - `'cacheOnly'`: only shows a cached image, without making a request:
-     *   one in the image cache, or (without a `cacheKey`) one loaded with
-     *   `cache: 'web'`, whatever its age (with the same Android exception).
+     * - `'cacheOnly'`: only shows a cached image, without making a request.
      *
      * @default 'immutable'
      */

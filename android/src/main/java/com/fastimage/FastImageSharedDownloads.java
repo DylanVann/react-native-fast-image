@@ -205,9 +205,6 @@ final class FastImageSharedDownloads {
     static String key(GlideUrl url) {
         if (url instanceof FastImageKeyedGlideUrl) return "key " + url.getCacheKey();
         String key = url.getCacheKey() + " " + new TreeMap<>(url.getHeaders());
-        // A read of the HTTP cache apart: it can't share a download that may
-        // use the network.
-        if (url instanceof FastImageHttpCacheGlideUrl) return "cached " + key;
         return (url instanceof FastImageWebGlideUrl ? "web " : "url ") + key;
     }
 
@@ -249,8 +246,6 @@ final class FastImageSharedDownloads {
             for (Map.Entry<String, String> header : url.getHeaders().entrySet()) {
                 builder.addHeader(header.getKey(), header.getValue());
             }
-            // A copy of any age, without the network (a 504 without one).
-            if (url instanceof FastImageHttpCacheGlideUrl) builder.cacheControl(CacheControl.FORCE_CACHE);
             return builder.build();
         } catch (IllegalArgumentException e) {
             throw new IOException("Invalid request: " + e.getMessage(), e);
@@ -841,7 +836,7 @@ final class FastImageSharedDownloads {
         // Outside the locks.
         private boolean askHttpCache(Call failed, IOException error) {
             if (staleOf != null || failed.isCanceled() || !(url instanceof FastImageWebGlideUrl)
-                    || url instanceof FastImageHttpCacheGlideUrl || client.cache() == null) {
+                    || client.cache() == null) {
                 return false;
             }
             staleOf = error;
@@ -926,11 +921,7 @@ final class FastImageSharedDownloads {
             final ResponseBody body = response.body();
             if (!response.isSuccessful() || body == null) {
                 if (body != null) body.close();
-                // OkHttp answers a cache-only request it has no copy for
-                // with a 504, without a request.
-                IOException error = url instanceof FastImageHttpCacheGlideUrl && response.code() == 504
-                        ? new IOException("Not in the cache")
-                        : new HttpException(response.message(), response.code());
+                HttpException error = new HttpException(response.message(), response.code());
                 if (response.code() >= 500 && askHttpCache(call, error)) return;
                 fail(staleOf != null ? staleOf : error);
                 return;
