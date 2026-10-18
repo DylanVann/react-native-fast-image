@@ -4326,6 +4326,53 @@ const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
 
+// A view with cache 'cacheOnly' of an image that isn't cached: onError and
+// onLoadEnd (not ok), not onLoad (iOS sent onLoad for no image), and no
+// request.
+const CACHE_ONLY_MISS_PATH = `/picsum/1025-200x200.jpg?cache-only-miss=${RUN}`
+function CacheOnlyMissCase() {
+    const [status, setStatus] = useState('waiting')
+    const loadEnd = useRef<string | undefined>(undefined)
+    const check = async (event: string) => {
+        const response = await fetch(
+            imageUrl(
+                `requests?path=${encodeURIComponent(CACHE_ONLY_MISS_PATH)}`,
+            ),
+        )
+        const { count } = await response.json()
+        setStatus(
+            event !== 'onError'
+                ? event
+                : count !== 0
+                  ? `requested ${count} times`
+                  : loadEnd.current !== 'not ok'
+                    ? `onLoadEnd: ${loadEnd.current ?? 'not sent'}`
+                    : 'OK',
+        )
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(CACHE_ONLY_MISS_PATH.slice(1)),
+                    cache: 'cacheOnly',
+                }}
+                onLoad={() => check('onLoad').catch((e) => setStatus(`${e}`))}
+                onError={() => check('onError').catch((e) => setStatus(`${e}`))}
+                onLoadEnd={(result) => {
+                    loadEnd.current = result.ok ? 'ok' : 'not ok'
+                }}
+            />
+            <CaseStatus
+                id="cache-only-miss"
+                status={status}
+                description="cacheOnly: an image that isn't cached gets onError (not onLoad), without a request"
+            />
+        </View>
+    )
+}
+
 // The disk cache limit the example apps set in their native config
 // (FastImageMaxDiskSize in Info.plist, fastimage.MAX_DISK_SIZE
 // in AndroidManifest.xml), which the configure-cache case checks.
@@ -8408,6 +8455,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             />,
             <MemoryCacheOffCase key="memory-cache-off" />,
         ],
+    },
+    {
+        name: 'cache-only',
+        cases: [<CacheOnlyMissCase key="cache-only-miss" />],
     },
     {
         name: 'disk-cache',
