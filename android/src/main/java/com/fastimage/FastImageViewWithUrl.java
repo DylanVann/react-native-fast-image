@@ -1621,7 +1621,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // replaces it at once, as Glide, Coil and Fresco fade an image in
             // from nothing and never between images.
             boolean replacing = shownRequest != null && model != null;
-            if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
+            boolean fades = mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages);
+            if (fades) {
                 builder = builder.transition(DrawableTransitionOptions.with(
                         new FadeFactory(
                                 mTransitionDuration,
@@ -1632,8 +1633,28 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 builder = builder.thumbnail(fromCache(shownRequest));
             }
 
+            // cacheOnly: an image that isn't in Glide's caches is looked for
+            // in the HTTP cache of `web` images, which then sends the events.
+            boolean httpCache = imageSource != null && imageSource.readsHttpCache();
+            if (httpCache) {
+                Object cached = new FastImageUrl(imageSource.getHttpCacheGlideUrl());
+                RequestBuilder<Drawable> fallback = requestManager
+                        .load(cached)
+                        .apply(FastImageViewConverter
+                                .getHttpCacheOptions(getContext(), imageSource, mSource)
+                                .placeholder(mDefaultSource)
+                                .fallback(mDefaultSource))
+                        .apply(renderingOptions(cached));
+                if (fades) {
+                    fallback = fallback.transition(DrawableTransitionOptions.with(
+                            new FadeFactory(mTransitionDuration, mTransitionSkipOnCacheHit, true)));
+                }
+                fallback.listener(new FastImageRequestListener(imageSource, thumbnail, true));
+                builder = builder.error(fallback);
+            }
+
             if (imageSource != null)
-                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
+                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true, httpCache));
 
             into(request, builder, meanwhile, false);
         }

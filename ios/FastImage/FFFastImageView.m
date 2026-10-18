@@ -682,6 +682,19 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     return blurred;
 }
 
+// Whether a load failed because the server couldn't be reached (no
+// connection, a timeout) or had an error (a 5xx status), not because of the
+// image or the request (a 404, a cancel).
+static BOOL FFFIsUnreachable(NSError *error)
+{
+    if ([error.domain isEqualToString:NSURLErrorDomain]) {
+        return error.code != NSURLErrorCancelled;
+    }
+    NSNumber *statusCode = error.userInfo[SDWebImageErrorDownloadStatusCodeKey];
+    return [error.domain isEqualToString:SDWebImageErrorDomain] && error.code == SDWebImageErrorInvalidDownloadStatusCode &&
+        statusCode.integerValue >= 500;
+}
+
 // The error's description, with the HTTP status code when there is one (as on
 // Android): SDWebImage keeps the code out of the description. Also for preload
 // results.
@@ -1144,6 +1157,10 @@ NSString *FFFErrorMessage(NSError *error)
     // current load: SDWebImage sets the placeholder when a load it cancelled
     // completes, which could replace a newer image.
     UIImage* placeholder = _defaultSource;
+    // `web`: SDWebImage completes with the cached image, then once more after
+    // checking it with the server. Set once this load has shown its image, so
+    // a failed check keeps it (see the completion).
+    __block BOOL showedImage = NO;
     SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
         if (weakSelf.loadCount != load) {
             return;
@@ -1151,6 +1168,9 @@ NSString *FFFErrorMessage(NSError *error)
         // The loaded image, not defaultSource (shown while it loads, or if it
         // fails).
         BOOL loaded = image && image != placeholder;
+        if (showedImage && !loaded) {
+            return;
+        }
         [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType]];
     };
     [self sd_internalSetImageWithURL: url
@@ -1180,6 +1200,20 @@ NSString *FFFErrorMessage(NSError *error)
                     error = [NSError errorWithDomain: @"FastImage"
                                                 code: 0
                                             userInfo: @{NSLocalizedDescriptionKey: @"Not in the cache"}];
+                }
+                if (error && showedImage) {
+                    // The check of a `web` image with the server failed
+                    // after its cached copy showed. Without the network or
+                    // with a server error, the view keeps the copy and sends
+                    // no error, as a browser's stale-if-error (Android shows
+                    // the HTTP cache's copy then); otherwise it shows
+                    // defaultSource (or nothing), as SDWebImage would have.
+                    if (FFFIsUnreachable(error)) {
+                        return;
+                    }
+                    [weakSelf showLoadedImage: placeholder fade: NO];
+                } else if (!error) {
+                    showedImage = YES;
                 }
                 // The download was running when the app went to the
                 // background, and failed: iOS suspends it there, and its

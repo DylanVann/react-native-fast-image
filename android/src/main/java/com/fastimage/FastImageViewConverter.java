@@ -75,6 +75,7 @@ class FastImageViewConverter {
         if (source == null) return null;
         FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
         imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
+        imageSource.setCacheOnly(getCacheControl(source) == FastImageCacheControl.CACHE_ONLY);
         if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
             imageSource.setMemoryCache(source.getBoolean("memoryCache"));
         }
@@ -83,6 +84,16 @@ class FastImageViewConverter {
             imageSource.setCacheKey(source.getString("cacheKey"));
         }
         return imageSource;
+    }
+
+    // The options of a `cacheOnly` image's read of the HTTP cache of `web`
+    // images (FastImageSource.readsHttpCache): as a `web` image's, not kept
+    // in Glide's caches.
+    static RequestOptions getHttpCacheOptions(Context context, FastImageSource imageSource, @Nullable ReadableMap source) {
+        return getOptions(context, imageSource, source)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .skipMemoryCache(true)
+                .onlyRetrieveFromCache(false);
     }
 
     static Headers getHeaders(ReadableMap source) {

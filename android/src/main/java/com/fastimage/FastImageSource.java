@@ -156,6 +156,26 @@ public class FastImageSource extends ImageSource {
         return mMemoryCache;
     }
 
+    // Set for `cache: 'cacheOnly'`.
+    private boolean mCacheOnly = false;
+
+    void setCacheOnly(boolean cacheOnly) {
+        mCacheOnly = cacheOnly;
+    }
+
+    // A `cacheOnly` image that, when it isn't in Glide's caches, is looked
+    // for in the HTTP cache of `web` images, by its url: a remote one without
+    // a cacheKey (with one, its url may be another version of the image) and
+    // kept on disk.
+    boolean readsHttpCache() {
+        return mCacheOnly && isRemote() && mCacheKey == null && mDiskCache;
+    }
+
+    // The url readsHttpCache looks for (see FastImageHttpCacheGlideUrl).
+    GlideUrl getHttpCacheGlideUrl() {
+        return new FastImageHttpCacheGlideUrl(getUri().toString(), getHeaders());
+    }
+
     // `diskCache`: whether the image is kept in the disk cache.
     private boolean mDiskCache = true;
 
@@ -179,6 +199,11 @@ public class FastImageSource extends ImageSource {
 
     void setCacheKey(@Nullable String cacheKey) {
         mCacheKey = cacheKey == null || cacheKey.isEmpty() ? null : cacheKey;
+    }
+
+    @Nullable
+    String getCacheKey() {
+        return mCacheKey;
     }
 
     public GlideUrl getGlideUrl() {

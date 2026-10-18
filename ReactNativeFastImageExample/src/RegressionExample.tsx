@@ -4322,6 +4322,144 @@ function DiskCacheOffWebCase() {
     )
 }
 
+// How many times the image server got a path (with its query).
+async function requestCount(pathAndQuery: string) {
+    const response = await fetch(
+        imageUrl(`requests?path=${encodeURIComponent(pathAndQuery)}`),
+    )
+    return ((await response.json()) as { count: number }).count
+}
+
+// A `web` image that's shown (the server lets caches keep it for an hour),
+// then `cacheOnly` sources of its url: a view, a preload and getCachePath find
+// it (in the HTTP cache on Android, where `web` images are only kept there),
+// without a request. With a cacheKey they don't: the url may be another
+// version of the image.
+const CACHE_ONLY_WEB_PATH = `/max-age/picsum/1025-200x200.jpg?cache-only-web=${RUN}`
+function CacheOnlyWebCase() {
+    const [shown, setShown] = useState(false)
+    const [view, setView] = useState('waiting')
+    const [keyed, setKeyed] = useState('waiting')
+    const [calls, setCalls] = useState('waiting')
+    const uri = imageUrl(CACHE_ONLY_WEB_PATH.slice(1))
+    const cacheOnly = { uri, cache: 'cacheOnly' as const }
+    const withKey = { ...cacheOnly, cacheKey: `cache-only-web-${RUN}` }
+    const check = async () => {
+        const [preloaded] = await FastImage.preload([cacheOnly])
+        const [keyedPreload] = await FastImage.preload([withKey])
+        const path = await FastImage.getCachePath(cacheOnly)
+        const keyedPath = await FastImage.getCachePath(withKey)
+        const count = await requestCount(CACHE_ONLY_WEB_PATH)
+        const problems = [
+            !preloaded.ok && `preload: ${preloaded.error}`,
+            keyedPreload.ok && 'preload with a cacheKey ok',
+            !path.ok && `getCachePath: ${path.error}`,
+            keyedPath.ok && 'getCachePath with a cacheKey ok',
+            count !== 1 && `requested ${count} times`,
+        ].filter(Boolean)
+        setCalls(problems.length ? problems.join(', ') : 'OK')
+    }
+    const results = [view, keyed, calls]
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri, cache: 'web' }}
+                onLoad={() => setShown(true)}
+                onError={(e) => setView(`web error: ${e.nativeEvent.error}`)}
+            />
+            {shown ? (
+                <>
+                    <FastImage
+                        style={[styles.image, styles.gap]}
+                        source={cacheOnly}
+                        onLoad={() => {
+                            setView('OK')
+                            check().catch((e) => setCalls(`error: ${e}`))
+                        }}
+                        onError={(e) =>
+                            setView(`cacheOnly error: ${e.nativeEvent.error}`)
+                        }
+                    />
+                    <FastImage
+                        style={[styles.image, styles.gap]}
+                        source={withKey}
+                        onLoad={() =>
+                            setKeyed('cacheOnly with a cacheKey loaded')
+                        }
+                        onError={() => setKeyed('OK')}
+                    />
+                </>
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="cache-only-web"
+                status={
+                    results.includes('waiting')
+                        ? 'waiting'
+                        : results.every((r) => r === 'OK')
+                          ? 'OK'
+                          : results.filter((r) => r !== 'OK').join(', ')
+                }
+                description="cacheOnly finds a web image (a view, preload, getCachePath), without a request; not with a cacheKey"
+            />
+        </View>
+    )
+}
+
+// A `web` image the server sends once, cached but stale at once (max-age=0),
+// then fails with a 500: a second view shows the cached copy with onLoad and
+// no onError (stale-if-error), once its check with the server has failed.
+const STALE_PATH = `/fail-later/picsum/1025-200x200.jpg?stale-if-error=${RUN}`
+function StaleIfErrorCase() {
+    const [second, setSecond] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const failed = useRef(false)
+    const source = { uri: imageUrl(STALE_PATH.slice(1)), cache: 'web' as const }
+    const check = async () => {
+        // Until the server got the second view's request (its 500), and a
+        // moment more for an error to arrive.
+        for (let i = 0; i < 50 && (await requestCount(STALE_PATH)) < 2; i++) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 100))
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+        if (!failed.current) setStatus('OK')
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={source}
+                onLoad={() => setSecond(true)}
+                onError={(e) =>
+                    setStatus(`first error: ${e.nativeEvent.error}`)
+                }
+            />
+            {second ? (
+                <FastImage
+                    style={[styles.image, styles.gap]}
+                    source={source}
+                    onLoad={() =>
+                        check().catch((e) => setStatus(`error: ${e}`))
+                    }
+                    onError={(e) => {
+                        failed.current = true
+                        setStatus(`onError: ${e.nativeEvent.error}`)
+                    }}
+                />
+            ) : (
+                <View style={[styles.image, styles.gap]} />
+            )}
+            <CaseStatus
+                id="stale-if-error"
+                status={status}
+                description="web: when the server fails, the cached copy shows (onLoad, no onError)"
+            />
+        </View>
+    )
+}
+
 const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
@@ -8465,6 +8603,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <DiskCacheOffCase key="disk-cache-off" />,
             <DiskCacheOffWebCase key="disk-cache-off-web" />,
+        ],
+    },
+    {
+        name: 'cache-fallbacks',
+        cases: [
+            <CacheOnlyWebCase key="cache-only-web" />,
+            <StaleIfErrorCase key="stale-if-error" />,
         ],
     },
     {

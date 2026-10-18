@@ -22,15 +22,24 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     // False when loading the image that's showing again at a new size: the
     // view shows it at its old size if that fails.
     private final boolean events;
+    // Whether another request (Glide's error request) takes over if this one
+    // fails, and sends the events then.
+    private final boolean failsOver;
 
     FastImageRequestListener(FastImageSource source, boolean thumbnail, boolean events) {
+        this(source, thumbnail, events, false);
+    }
+
+    FastImageRequestListener(FastImageSource source, boolean thumbnail, boolean events, boolean failsOver) {
         this.source = source;
         this.thumbnail = thumbnail;
         this.events = events;
+        this.failsOver = failsOver;
     }
 
     @Override
     public boolean onLoadFailed(@androidx.annotation.Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+        if (failsOver) return false;
         if (!events) {
             if (target instanceof ImageViewTarget) {
                 ((FastImageViewWithUrl) ((ImageViewTarget) target).getView()).onQuietLoadFailed();

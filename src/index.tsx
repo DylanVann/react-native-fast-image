@@ -66,8 +66,11 @@ export type Source = {
      * - `'web'`: follows the server's HTTP cache headers, as a browser does,
      *   checking with the server when it loads. These responses are kept in
      *   their own HTTP cache (50 MB on each platform), which `clearDiskCache`
-     *   also clears.
-     * - `'cacheOnly'`: only shows a cached image, without making a request.
+     *   also clears. If the server can't be reached or has an error (a 5xx
+     *   status), the cached copy shows, whatever its age.
+     * - `'cacheOnly'`: only shows a cached image, without making a request:
+     *   one in the image cache, or (without a `cacheKey`) one loaded with
+     *   `cache: 'web'`, whatever its age.
      *
      * @default 'immutable'
      */

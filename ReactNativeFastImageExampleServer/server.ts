@@ -22,6 +22,9 @@
 //               with an inline SVG icon, so it isn't taken for an SVG image),
 //               later ones the image.
 //   /mislabeled/ The image, sent as `Content-Type: text/plain`.
+//   /fail-later/ The first request for a path and query gets the image with
+//               `Cache-Control: max-age=0` (an HTTP cache keeps it, but must
+//               check it with the server before using it), later ones a 500.
 //
 // GET /set-cookie?run=<run> sets two cookies (`fast-image-a=<run>` and
 // `fast-image-b=<run>`; a new run value each time, so cookies kept from
@@ -225,6 +228,12 @@ const server = Bun.serve({
                 )
             }
             pathname = pathname.slice('/bad-once'.length)
+        } else if (pathname.startsWith('/fail-later/')) {
+            if (requests.get(key) !== 1) {
+                return new Response('Server error', { status: 500 })
+            }
+            cacheControl = 'max-age=0'
+            pathname = pathname.slice('/fail-later'.length)
         } else if (pathname.startsWith('/mislabeled/')) {
             contentType = 'text/plain'
             pathname = pathname.slice('/mislabeled'.length)

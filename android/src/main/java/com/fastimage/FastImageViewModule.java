@@ -168,29 +168,8 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                         pendingPreloads.add(new Runnable() {
                             @Override
                             public void run() {
-                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
-                                    @Override
-                                    public void run(@Nullable final File file, @Nullable String error) {
-                                        if (file == null) {
-                                            done.run(failure(error));
-                                            return;
-                                        }
-                                        sizeExecutor.execute(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                final int[] size = imageSize(context, file);
-                                                UiThreadUtil.runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        done.run(size != null
-                                                                ? success(size[0], size[1])
-                                                                : failure("Failed to read the image's size"));
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    }
-                                });
+                                loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true,
+                                        orHttpCache(imageSource, sized(context, done)));
                             }
                         });
                         continue;
@@ -234,8 +213,13 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                             loadFile(context, imageSource.getSourceForLoad(), preloadOptions, true, new FileCallback() {
                                 @Override
                                 public void run(@Nullable File file, @Nullable String error) {
-                                    if (file == null) done.run(failure(error));
-                                    else decode.run();
+                                    if (file != null) {
+                                        decode.run();
+                                        return;
+                                    }
+                                    // A file from the HTTP cache isn't decoded
+                                    // into memory, as `web` images aren't.
+                                    orHttpCache(imageSource, sized(context, done)).run(null, error);
                                 }
                             });
                         }
@@ -263,6 +247,62 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
 
     private interface FileCallback {
         void run(@Nullable File file, @Nullable String error);
+    }
+
+    // A preload's result from its file: the image's size read from it, or
+    // the error.
+    private static FileCallback sized(final Context context, final ResultCallback done) {
+        return new FileCallback() {
+            @Override
+            public void run(@Nullable final File file, @Nullable String error) {
+                if (file == null) {
+                    done.run(failure(error));
+                    return;
+                }
+                sizeExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final int[] size = imageSize(context, file);
+                        UiThreadUtil.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                done.run(size != null
+                                        ? success(size[0], size[1])
+                                        : failure("Failed to read the image's size"));
+                            }
+                        });
+                    }
+                });
+            }
+        };
+    }
+
+    // cacheOnly: an image that isn't in Glide's disk cache can be in the HTTP
+    // cache of `web` images (FastImageSource.readsHttpCache). Its file there,
+    // or the first error, on the UI thread.
+    private static FileCallback orHttpCache(final FastImageSource imageSource, final FileCallback callback) {
+        if (!imageSource.readsHttpCache()) return callback;
+        return new FileCallback() {
+            @Override
+            public void run(@Nullable File file, @Nullable final String error) {
+                if (file != null) {
+                    callback.run(file, error);
+                    return;
+                }
+                cachePathExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final File cached = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
+                        UiThreadUtil.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                callback.run(cached, cached == null ? error : null);
+                            }
+                        });
+                    }
+                });
+            }
+        };
     }
 
     // Downloads the image into Glide's disk cache without decoding it (if it
@@ -400,7 +440,11 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                 // images (set up when FastImage's components are registered).
                 FastImageGlide.getRegistered(context);
                 File file = imageSource.isWebCache() ? null : cachedFile(context, imageSource.getSourceForLoad(), options);
-                if (file == null) file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
+                // Not for a source with a cacheKey (`web` images ignore it):
+                // its url may be another version of the image.
+                if (file == null && (imageSource.isWebCache() || imageSource.getCacheKey() == null)) {
+                    file = FastImageOkHttpProgressGlideModule.webCacheFile(imageSource.getUri().toString());
+                }
                 if (file != null) {
                     promise.resolve(pathResult(file));
                     return;

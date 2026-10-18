@@ -36,7 +36,7 @@ There's no way to remove a single image from the cache: Glide can't remove one i
 
 ## Offline
 
-The cache is kept for speed, not for offline use: the system or the cache's limits can remove images at any time. [`cache: 'cacheOnly'`](../README.md#sourcecache) shows an image only if it's cached, without a request. To be sure an image is available offline, keep your own copy (e.g. copy the file from `getCachePath` into your app's documents) and show it as a `file://` uri.
+The cache is kept for speed, not for offline use: the system or the cache's limits can remove images at any time. [`cache: 'cacheOnly'`](../README.md#sourcecache) shows an image only if it's cached, without a request, including one loaded with `cache: 'web'` (whatever its age, unless the source has a `cacheKey`), e.g. while the app knows it's offline. A `web` image also shows its cached copy when the server can't be reached or has an error. To be sure an image is available offline, keep your own copy (e.g. copy the file from `getCachePath` into your app's documents) and show it as a `file://` uri.
 
 ## Failed loads
 

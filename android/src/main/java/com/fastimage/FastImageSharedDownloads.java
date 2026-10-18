@@ -36,6 +36,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import okhttp3.CacheControl;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
@@ -204,6 +205,9 @@ final class FastImageSharedDownloads {
     static String key(GlideUrl url) {
         if (url instanceof FastImageKeyedGlideUrl) return "key " + url.getCacheKey();
         String key = url.getCacheKey() + " " + new TreeMap<>(url.getHeaders());
+        // A read of the HTTP cache apart: it can't share a download that may
+        // use the network.
+        if (url instanceof FastImageHttpCacheGlideUrl) return "cached " + key;
         return (url instanceof FastImageWebGlideUrl ? "web " : "url ") + key;
     }
 
@@ -245,6 +249,8 @@ final class FastImageSharedDownloads {
             for (Map.Entry<String, String> header : url.getHeaders().entrySet()) {
                 builder.addHeader(header.getKey(), header.getValue());
             }
+            // A copy of any age, without the network (a 504 without one).
+            if (url instanceof FastImageHttpCacheGlideUrl) builder.cacheControl(CacheControl.FORCE_CACHE);
             return builder.build();
         } catch (IllegalArgumentException e) {
             throw new IOException("Invalid request: " + e.getMessage(), e);
@@ -589,6 +595,10 @@ final class FastImageSharedDownloads {
         // Whether the response came from the HTTP cache of `web` images
         // without the network (set before its bytes are read).
         private volatile boolean fromHttpCache = false;
+        // A `web` download whose request failed (see askHttpCache): the
+        // error, reported if the HTTP cache has no copy either. Null before.
+        @Nullable
+        private volatile IOException staleOf = null;
 
         // With downloads locked.
         private Download(String key, GlideUrl url, OkHttpClient client, Request request, Priority priority) {
@@ -818,7 +828,34 @@ final class FastImageSharedDownloads {
 
         @Override
         public void onFailure(@NonNull Call call, @NonNull IOException e) {
-            fail(e);
+            if (askHttpCache(call, e)) return;
+            fail(staleOf != null ? staleOf : e);
+        }
+
+        // A `web` download that the network failed (no connection, a timeout,
+        // or a server error, 5xx): asks the HTTP cache for its copy instead,
+        // whatever its age, without the network, as a browser's
+        // stale-if-error, so the view shows the image it had rather than an
+        // error. True if it did (this download gets that call's response);
+        // if the cache has none, the download fails with the first error.
+        // Outside the locks.
+        private boolean askHttpCache(Call failed, IOException error) {
+            if (staleOf != null || failed.isCanceled() || !(url instanceof FastImageWebGlideUrl)
+                    || url instanceof FastImageHttpCacheGlideUrl || client.cache() == null) {
+                return false;
+            }
+            staleOf = error;
+            Call stale = client.newCall(failed.request().newBuilder().cacheControl(CacheControl.FORCE_CACHE).build());
+            synchronized (this) {
+                if (cancelled) return false;
+                call = stale;
+            }
+            // It isn't sent: another request can go to the host.
+            synchronized (downloads) {
+                responded();
+            }
+            stale.enqueue(this);
+            return true;
         }
 
         // The download failed: the requests waiting for it fail with the
@@ -888,7 +925,9 @@ final class FastImageSharedDownloads {
             final ResponseBody body = response.body();
             if (!response.isSuccessful() || body == null) {
                 if (body != null) body.close();
-                fail(new HttpException(response.message(), response.code()));
+                HttpException error = new HttpException(response.message(), response.code());
+                if (response.code() >= 500 && askHttpCache(call, error)) return;
+                fail(staleOf != null ? staleOf : error);
                 return;
             }
             // OkHttp has no network response for one it served from the
