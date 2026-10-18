@@ -328,6 +328,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // The hash mPlaceholder shows, or null for defaultSource.
     @Nullable
     private String mPlaceholderHash = null;
+    // The last hash that failed to decode, so it isn't decoded again on every
+    // update.
+    @Nullable
+    private String mInvalidHash = null;
 
     public void setThumbhash(@Nullable String thumbhash) {
         mThumbhash = thumbhash;
@@ -361,6 +365,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         Drawable placeholder;
         if (hash != null && hash.equals(mPlaceholderHash)) {
             placeholder = mPlaceholder;
+        } else if (hash != null && hash.equals(mInvalidHash)) {
+            placeholder = mDefaultSource;
+            mPlaceholderHash = null;
         } else {
             Bitmap bitmap = FastImageThumbHash.bitmap(hash);
             if (bitmap != null) {
@@ -373,6 +380,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             } else {
                 placeholder = mDefaultSource;
                 mPlaceholderHash = null;
+                mInvalidHash = hash;
             }
         }
         if (placeholder == mPlaceholder) return;
