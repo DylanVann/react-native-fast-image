@@ -47,12 +47,11 @@ export interface NativeProps extends ViewProps {
     sources?: CodegenTypes.UnsafeMixed
     // The `placeholder` prop: a resolved asset source ({ uri, width, height,
     // scale }) or a data uri ({ uri } on iOS; the uri on Android).
-    defaultSource?: CodegenTypes.UnsafeMixed
-    // What shows in place of defaultSource while a source loads: its
-    // ThumbHash, or its blurDataUri (blurred natively). One source's, or several
-    // sources' by index ('' for none). Apart from the sources, so a new one
+    placeholder?: CodegenTypes.UnsafeMixed
+    // What shows in place of placeholder while a source loads: its ThumbHash,
+    // or its blurDataUri (blurred natively), by the source's index ('' for
+    // none; one for a single source). Apart from the sources, so a new one
     // for the same image doesn't load it again.
-    sourcePlaceholder?: string
     sourcePlaceholders?: ReadonlyArray<string>
     // objectFit, resolved (fill, contain, cover, none or scale-down).
     objectFit?: CodegenTypes.WithDefault<string, 'cover'>

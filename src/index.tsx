@@ -862,12 +862,7 @@ function FastImageBase({
 
     // Memoized on source, so an unchanged source reaches the native view as
     // the same objects, and React's prop diff stops at them.
-    const {
-        resolvedSource,
-        sources,
-        sourcePlaceholder: picked,
-        sourcePlaceholders,
-    } = useMemo(() => {
+    const { resolvedSource, sources, sourcePlaceholders } = useMemo(() => {
         // Several sources are picked from natively, for the view's size; one
         // in an array is a plain source.
         const sources = Array.isArray(source)
@@ -878,8 +873,8 @@ function FastImageBase({
         const single = Array.isArray(source) ? source[0] : source
         // Sources' thumbhashes and blurDataUris go to the native view apart
         // from the sources, so a new one for the same image doesn't load it
-        // again: one source's, or several sources' by index ('' for none).
-        const placeholders = sources?.map(sourcePlaceholder)
+        // again, by the source's index ('' for none).
+        const placeholders = (sources ?? [single]).map(sourcePlaceholder)
         return {
             resolvedSource: sources
                 ? undefined
@@ -887,10 +882,7 @@ function FastImageBase({
             sources: sources?.some(hasPlaceholders)
                 ? sources.map(withoutPlaceholders)
                 : sources,
-            sourcePlaceholder: sources
-                ? undefined
-                : sourcePlaceholder(single) || undefined,
-            sourcePlaceholders: placeholders?.some(Boolean)
+            sourcePlaceholders: placeholders.some(Boolean)
                 ? placeholders
                 : undefined,
         }
@@ -913,9 +905,8 @@ function FastImageBase({
             )}
             source={resolvedSource}
             sources={sources}
-            sourcePlaceholder={picked}
             sourcePlaceholders={sourcePlaceholders}
-            defaultSource={resolvedPlaceholder}
+            placeholder={resolvedPlaceholder}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

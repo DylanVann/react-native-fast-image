@@ -95,7 +95,7 @@ static folly::dynamic FFFDynamicFromObject(id value)
     return nullptr;
 }
 
-// A prop of any type (a source, sources, defaultSource) as JSON: nil when
+// A prop of any type (a source, sources, placeholder) as JSON: nil when
 // it's null (not set).
 static id _Nullable FFFJSON(const folly::dynamic &value)
 {
@@ -232,12 +232,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         id sources = FFFJSON(newViewProps.sources);
         view.sources = sources ? [RCTConvert FFFastImageSourceArray:sources] : nil;
     }
-    if (all || oldViewProps.defaultSource != newViewProps.defaultSource) {
-        id defaultSource = FFFJSON(newViewProps.defaultSource);
-        view.defaultSource = defaultSource ? [RCTConvert UIImage:defaultSource] : nil;
-    }
-    if (all || oldViewProps.sourcePlaceholder != newViewProps.sourcePlaceholder) {
-        view.sourcePlaceholder = newViewProps.sourcePlaceholder.empty() ? nil : [NSString stringWithUTF8String:newViewProps.sourcePlaceholder.c_str()];
+    if (all || oldViewProps.placeholder != newViewProps.placeholder) {
+        id placeholder = FFFJSON(newViewProps.placeholder);
+        view.placeholder = placeholder ? [RCTConvert UIImage:placeholder] : nil;
     }
     if (all || oldViewProps.sourcePlaceholders != newViewProps.sourcePlaceholders) {
         NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:newViewProps.sourcePlaceholders.size()];

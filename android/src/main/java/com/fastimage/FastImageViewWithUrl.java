@@ -61,7 +61,8 @@ import javax.annotation.Nonnull;
 class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView, ReactHitSlopView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
-    private Drawable mDefaultSource = null;
+    // The `placeholder` prop.
+    private Drawable mPlaceholder = null;
 
     // Null when the view was created in a destroyed Activity (nothing loads).
     @Nullable
@@ -307,37 +308,30 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return true;
     }
 
-    public void setDefaultSource(@Nullable Drawable source) {
+    public void setPlaceholder(@Nullable Drawable placeholder) {
         mNeedsReload = true;
-        mDefaultSource = source;
+        mPlaceholder = placeholder;
     }
 
-    // The `sourcePlaceholder` prop (one source), or `sourcePlaceholders`
-    // (several, by index, "" for none): the picked source's ThumbHash or
-    // blurDataUri (a data uri) shows instead of defaultSource. JS sends them
-    // apart from the sources, so a new one for the same image doesn't reload
-    // it.
-    @Nullable
-    private String mSourcePlaceholder = null;
+    // The `sourcePlaceholders` prop, by the source's index ("" for none; one
+    // for a single source): the picked source's ThumbHash or blurDataUri (a
+    // data uri) shows instead of the placeholder prop. JS sends them apart from
+    // the sources, so a new one for the same image doesn't reload it.
     @Nullable
     private ReadableArray mSourcePlaceholders = null;
     // What shows while the image loads and if it fails: the picked source's
-    // ThumbHash or blurDataUri decoded (FastImageThumbHash), or defaultSource.
-    // FastImage's own drawable either way, which Glide doesn't recycle.
+    // ThumbHash or blurDataUri decoded (FastImageThumbHash), or the placeholder
+    // prop. FastImage's own drawable either way, which Glide doesn't recycle.
     @Nullable
-    private Drawable mPlaceholder = null;
-    // The source placeholder mPlaceholder shows, or null for defaultSource.
+    private Drawable mShownPlaceholder = null;
+    // The source placeholder mShownPlaceholder shows, or null for the
+    // placeholder prop.
     @Nullable
     private String mPlaceholderKey = null;
     // The last source placeholder that failed to decode, so it isn't decoded
     // again on every update.
     @Nullable
     private String mInvalidPlaceholder = null;
-
-    public void setSourcePlaceholder(@Nullable String placeholder) {
-        mSourcePlaceholder = placeholder;
-        updatePlaceholder();
-    }
 
     public void setSourcePlaceholders(@Nullable ReadableArray placeholders) {
         mSourcePlaceholders = placeholders;
@@ -347,27 +341,21 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // The picked source's ThumbHash or blurDataUri, or null.
     @Nullable
     private String pickedSourcePlaceholder() {
-        String key;
-        if (mSources == null) {
-            key = mSourcePlaceholder;
-        } else if (mSourcePlaceholders != null && mSourceIndex >= 0 && mSourceIndex < mSourcePlaceholders.size()
-                && !mSourcePlaceholders.isNull(mSourceIndex)) {
-            key = mSourcePlaceholders.getString(mSourceIndex);
-        } else {
-            key = null;
-        }
+        int index = mSources == null ? 0 : mSourceIndex;
+        String key = mSourcePlaceholders != null && index >= 0 && index < mSourcePlaceholders.size()
+                && !mSourcePlaceholders.isNull(index) ? mSourcePlaceholders.getString(index) : null;
         return key == null || key.isEmpty() ? null : key;
     }
 
-    // Sets mPlaceholder for the picked source. A view showing the previous
+    // Sets mShownPlaceholder for the picked source. A view showing the previous
     // placeholder shows the new one at once, without reloading the image.
     private void updatePlaceholder() {
         String key = pickedSourcePlaceholder();
         Drawable placeholder;
         if (key != null && key.equals(mPlaceholderKey)) {
-            placeholder = mPlaceholder;
+            placeholder = mShownPlaceholder;
         } else if (key != null && key.equals(mInvalidPlaceholder)) {
-            placeholder = mDefaultSource;
+            placeholder = mPlaceholder;
             mPlaceholderKey = null;
         } else {
             Bitmap bitmap = FastImageThumbHash.placeholder(key);
@@ -379,14 +367,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 placeholder = drawable;
                 mPlaceholderKey = key;
             } else {
-                placeholder = mDefaultSource;
+                placeholder = mPlaceholder;
                 mPlaceholderKey = null;
                 mInvalidPlaceholder = key;
             }
         }
-        if (placeholder == mPlaceholder) return;
-        boolean showing = mShowsDefaultSource;
-        mPlaceholder = placeholder;
+        if (placeholder == mShownPlaceholder) return;
+        boolean showing = mShowsPlaceholder;
+        mShownPlaceholder = placeholder;
         if (showing) setImageDrawable(placeholder);
     }
 
@@ -560,7 +548,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private ValueAnimator mFade;
     @Nullable
     private Bitmap mFadeFrom;
-    // Or, instead of a copy, the defaultSource the view showed, with the
+    // Or, instead of a copy, the placeholder prop the view showed, with the
     // matrix it drew it with: FastImage's own drawable, which Glide doesn't
     // recycle, so it's drawn again as it was, rather than copied into a
     // bitmap the size of the view for every image that fades in over it.
@@ -586,7 +574,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         Drawable fromDrawable = null;
         Matrix fromMatrix = null;
         Drawable shown = getDrawable();
-        if (shown != null && mShowsDefaultSource && mFade == null) {
+        if (shown != null && mShowsPlaceholder && mFade == null) {
             // Its own state, so its alpha (see drawFadeFrom) is only its own.
             fromDrawable = shown.mutate();
             fromMatrix = new Matrix(getImageMatrix());
@@ -642,7 +630,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         invalidate();
     }
 
-    // Draws the defaultSource the view showed when the fade started (with
+    // Draws the placeholder prop the view showed when the fade started (with
     // `alpha`), as ImageView draws its drawable: inside the padding
     // (cropToPadding), with the matrix it had then.
     private void drawFadeFrom(Canvas canvas, Drawable drawable, int alpha) {
@@ -1079,14 +1067,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 : null;
     }
 
-    // Whether the image on screen is a cover one Glide cropped to what the
-    // view shows (CenterCrop or FastImageCrop, at the position it was loaded
-    // for). Glide can't crop animated WebPs and AVIFs, APNGs and
-    // defaultSource, and doesn't crop pixelated images or ones decoded at full
-    // size (downsample false).
+    // Whether the image on screen is a cover one Glide cropped to what the view
+    // shows (CenterCrop or FastImageCrop, at the position it was loaded for).
+    // Glide can't crop animated WebPs and AVIFs, APNGs and the placeholder
+    // prop, and doesn't crop pixelated images or ones decoded at full size
+    // (downsample false).
     private boolean shownCropped(Drawable drawable) {
         return mLayoutScaleType == ScaleType.CENTER_CROP && !mLayoutPixelated && mLayoutDownsampled
-                && drawable != mPlaceholder
+                && drawable != mShownPlaceholder
                 && (drawable instanceof BitmapDrawable || drawable instanceof GifDrawable);
     }
 
@@ -1103,13 +1091,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateImageMatrix();
     }
 
-    // Whether the view shows its placeholder (defaultSource, or a source's):
-    // FastImage's own drawable, which Glide doesn't recycle (see startFade).
-    private boolean mShowsDefaultSource = false;
+    // Whether the view shows its placeholder (the placeholder prop, or a
+    // source's): FastImage's own drawable, which Glide doesn't recycle (see
+    // startFade).
+    private boolean mShowsPlaceholder = false;
 
     @Override
     public void setImageDrawable(@Nullable Drawable drawable) {
-        mShowsDefaultSource = drawable != null && drawable == mPlaceholder;
+        mShowsPlaceholder = drawable != null && drawable == mShownPlaceholder;
         super.setImageDrawable(drawable);
         updateImageMatrix();
     }
@@ -1160,7 +1149,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // edges at (view - image) * fraction + offset. Glide decodes a scale-down
     // image no larger than that (CenterInside), a none one at its size, and
     // crops a cover one to what the view shows (FastImageCrop), so it's drawn
-    // at this size. defaultSource (a resource) is already at its size on
+    // at this size. The placeholder prop (a resource) is already at its size on
     // screen, and so is a center image (its size in pixels, as ImageView's
     // CENTER_INSIDE draws it).
     private void updateImageMatrix() {
@@ -1197,14 +1186,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // A source's placeholder (a ThumbHash or a blurDataUri) stands for an
         // image whose size isn't known yet: with scale-down and none (which
         // show an image at its own size), it's shown as with contain.
-        boolean hashFits = drawable == mPlaceholder && mPlaceholderKey != null;
+        boolean hashFits = drawable == mShownPlaceholder && mPlaceholderKey != null;
         if (mLayoutScaleType == ScaleType.CENTER_CROP || mLayoutScaleType == ScaleType.FIT_CENTER || hashFits) {
             float x = viewWidth / drawableWidth;
             float y = viewHeight / drawableHeight;
             float scale = mLayoutScaleType == ScaleType.CENTER_CROP ? Math.max(x, y) : Math.min(x, y);
             width = drawableWidth * scale;
             height = drawableHeight * scale;
-        } else if (drawable == mPlaceholder) {
+        } else if (drawable == mShownPlaceholder) {
             width = drawableWidth;
             height = drawableHeight;
         } else if (mImageWidth > 0 && mImageHeight > 0) {
@@ -1321,12 +1310,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean mRestarting = false;
 
     // The request for the image the view shows (from when it has loaded until
-    // another image or defaultSource replaces it), and the one loading. A new
-    // source starts with the shown one as a thumbnail, from the cache only, so
-    // the image stays until the new one has loaded instead of flashing blank
-    // (#747), also if the source changes again meanwhile. This is Glide's safe
-    // way to do that: the previous bitmap can't be kept in the view itself,
-    // since Glide reuses it once its request is cleared.
+    // another image or the placeholder prop replaces it), and the one loading.
+    // A new source starts with the shown one as a thumbnail, from the cache
+    // only, so the image stays until the new one has loaded instead of flashing
+    // blank (#747), also if the source changes again meanwhile. This is Glide's
+    // safe way to do that: the previous bitmap can't be kept in the view
+    // itself, since Glide reuses it once its request is cleared.
     @Nullable
     private RequestBuilder<Drawable> mShownRequest;
     @Nullable
@@ -1352,8 +1341,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mRecyclingKey = recyclingKey;
         if (changed) {
             // No thumbnail of the current image, so Glide clears the view to
-            // defaultSource (or nothing) while the next one loads, nor a fade
-            // from it. Reload even if the source is the same.
+            // the placeholder prop (or nothing) while the next one loads, nor a
+            // fade from it. Reload even if the source is the same.
             mShownRequest = null;
             endFade();
             mNeedsReload = true;
@@ -1438,12 +1427,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // reloadForSize does: it's decoded again from the cache and blurred or
     // fitted on Glide's threads, and the view keeps the current image (and its
     // layout, see onImageLoaded) until then. If that fails, it shows the image
-    // from Glide's caches; cache: 'web' skips them, so the view shows
-    // defaultSource (or nothing) then. Also while it's loading again that way
-    // (e.g. the blur changes every frame): that load is replaced. A load that
-    // hasn't finished starts again with the new blur, without a second
-    // onLoadStart. Nothing loaded (defaultSource, which isn't blurred, or
-    // nothing): the next load has the new blur.
+    // from Glide's caches; cache: 'web' skips them, so the view shows the
+    // placeholder prop (or nothing) then. Also while it's loading again that
+    // way (e.g. the blur changes every frame): that load is replaced. A load
+    // that hasn't finished starts again with the new blur, without a second
+    // onLoadStart. Nothing loaded (the placeholder prop, which isn't blurred,
+    // or nothing): the next load has the new blur.
     @SuppressLint("CheckResult")
     private void reblur() {
         if (requestManager == null || mBaseRequest == null) return;
@@ -1527,8 +1516,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mLoadEnded = true;
     }
 
-    // The loading image failed (FastImageRequestListener). Glide shows
-    // defaultSource then, but not over a thumbnail: show it here, as iOS does.
+    // The loading image failed (FastImageRequestListener). Glide shows the
+    // placeholder prop then, but not over a thumbnail: show it here, as iOS
+    // does.
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
         endProgress();
@@ -1541,8 +1531,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         post(new Runnable() {
             @Override
             public void run() {
-                if (load == mLoadCount && (hadThumbnail || getDrawable() != mPlaceholder)) {
-                    setImageDrawable(mPlaceholder);
+                if (load == mLoadCount && (hadThumbnail || getDrawable() != mShownPlaceholder)) {
+                    setImageDrawable(mShownPlaceholder);
                 }
             }
         });
@@ -1586,7 +1576,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
         updatePlaceholder();
         // Only reload for changes that affect the request (source,
-        // defaultSource, objectFit), not for every prop update.
+        // the placeholder prop, objectFit), not for every prop update.
         mNeedsReload = false;
         mBlurChanged = false;
         mFitChanged = false;
@@ -1606,7 +1596,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mModel = null;
 
         // Nothing to show.
-        if (mSource == null && mPlaceholder == null) {
+        if (mSource == null && mShownPlaceholder == null) {
             mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
@@ -1627,8 +1617,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 : null;
 
         // A source without a uri (empty, missing or null), or one that can't be
-        // resolved: fire onError and onLoadEnd and show defaultSource, as on iOS
-        // (#1028, #945).
+        // resolved: fire onError and onLoadEnd and show the placeholder prop,
+        // as on iOS (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
             String error = "Invalid source: " + mSource;
             WritableMap event = new WritableNativeMap();
@@ -1641,12 +1631,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             clearView(requestManager);
 
             endProgress();
-            setImageDrawable(mPlaceholder);
+            setImageDrawable(mShownPlaceholder);
             return;
         }
 
-        // `imageSource` may be null and we still continue, if `defaultSource` is not null.
-        // What Glide loads: a FastImageUrl for a remote image.
+        // `imageSource` may be null and we still continue, if the placeholder
+        // prop is not null. What Glide loads: a FastImageUrl for a remote
+        // image.
         Object model = imageSource == null ? null : imageSource.getSourceForLoad();
 
         // Before the view clears (see shownCopy).
@@ -1686,8 +1677,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                             .load(model)
                             .apply(FastImageViewConverter
                                     .getOptions(getContext(), imageSource, mSource)
-                                    .placeholder(mPlaceholder) // show until loaded
-                                    .fallback(mPlaceholder)); // null will not be treated as error
+                                    .placeholder(mShownPlaceholder) // show until loaded
+                                    .fallback(mShownPlaceholder)); // null will not be treated as error
             mBaseRequest = model == null ? null : base;
             mModel = model;
             // What into() would apply for the scale type, with the size
@@ -1695,7 +1686,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
             RequestBuilder<Drawable> request = builder.clone();
 
-            // Only defaultSource: it replaces the image.
+            // Only the placeholder prop: it replaces the image.
             if (model == null) {
                 meanwhile = null;
                 mShownRequest = null;

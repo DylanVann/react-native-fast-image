@@ -32,12 +32,12 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 // Several sources (2 or more) of the same image at different sizes: the view
 // loads the one whose size is closest to its own.
 @property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
-@property (nonatomic, strong) UIImage *defaultSource;
-// The `sourcePlaceholder` prop (one source), or `sourcePlaceholders` (several,
-// by index, an empty string for none): the picked source's ThumbHash or
-// blurDataUri (a data uri) shows instead of defaultSource. JS sends them apart
+// The `placeholder` prop.
+@property (nonatomic, strong) UIImage *placeholder;
+// The `sourcePlaceholders` prop, by the source's index (an empty string for
+// none; one for a single source): the picked source's ThumbHash or
+// blurDataUri (a data uri) shows instead of placeholder. JS sends them apart
 // from the sources, so a new one for the same image doesn't load it again.
-@property (nonatomic, copy) NSString *sourcePlaceholder;
 @property (nonatomic, copy) NSArray<NSString *> *sourcePlaceholders;
 @property (nonatomic, strong) UIColor *imageColor;
 // When it changes, the next image doesn't replace the current one: the view

@@ -316,13 +316,13 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
 
     // The `placeholder` prop: the resolved asset's uri, or a data uri.
     @Override
-    public void setDefaultSource(FastImageViewWithUrl view, Dynamic source) {
+    public void setPlaceholder(FastImageViewWithUrl view, Dynamic source) {
         String uri = source.isNull() ? null : source.asString();
         if (uri != null && FastImageThumbHash.isDataUri(uri)) {
             Bitmap bitmap = FastImageThumbHash.dataUri(uri);
-            view.setDefaultSource(bitmap == null ? null : new BitmapDrawable(view.getResources(), bitmap));
+            view.setPlaceholder(bitmap == null ? null : new BitmapDrawable(view.getResources(), bitmap));
         } else {
-            view.setDefaultSource(ResourceDrawableIdHelper.getResourceDrawable(view.getContext(), uri));
+            view.setPlaceholder(ResourceDrawableIdHelper.getResourceDrawable(view.getContext(), uri));
         }
     }
 
@@ -338,11 +338,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
         view.setRecyclingKey(recyclingKey);
-    }
-
-    @Override
-    public void setSourcePlaceholder(FastImageViewWithUrl view, @Nullable String placeholder) {
-        view.setSourcePlaceholder(placeholder);
     }
 
     @Override

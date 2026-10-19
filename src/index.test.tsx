@@ -406,8 +406,7 @@ describe('thumbhash', () => {
 
     it('goes to the native view apart from the source', () => {
         const view = props(<FastImage source={{ uri, thumbhash: H1 }} />)
-        expect(view.sourcePlaceholder).toBe(H1)
-        expect(view.sourcePlaceholders).toBeUndefined()
+        expect(view.sourcePlaceholders).toEqual([H1])
         // Without it, so a new hash for the same image doesn't reload it.
         expect(view.source).toEqual({ uri })
     })
@@ -422,7 +421,6 @@ describe('thumbhash', () => {
             />,
         )
         expect(view.sourcePlaceholders).toEqual(['', H2])
-        expect(view.sourcePlaceholder).toBeUndefined()
         expect(view.sources).toEqual([
             { uri, width: 100, height: 75 },
             { uri: `${uri}?2`, width: 400, height: 300 },
@@ -433,8 +431,10 @@ describe('thumbhash', () => {
         const view = props(
             <FastImage source={[{ uri, width: 1, height: 1 }, { uri }]} />,
         )
-        expect(view.sourcePlaceholder).toBeUndefined()
         expect(view.sourcePlaceholders).toBeUndefined()
+        expect(
+            props(<FastImage source={{ uri }} />).sourcePlaceholders,
+        ).toBeUndefined()
         expect(props(<FastImage source={{ uri }} />).source).toEqual({ uri })
     })
 
@@ -472,7 +472,7 @@ describe('placeholder', () => {
 
     it("goes to the native view apart from the source, as a source's thumbhash", () => {
         const view = props(<FastImage source={{ uri, blurDataUri: DATA }} />)
-        expect(view.sourcePlaceholder).toBe(DATA)
+        expect(view.sourcePlaceholders).toEqual([DATA])
         expect(view.source).toEqual({ uri })
     })
 
@@ -480,7 +480,7 @@ describe('placeholder', () => {
         const view = props(
             <FastImage source={{ uri, thumbhash: H1, blurDataUri: DATA }} />,
         )
-        expect(view.sourcePlaceholder).toBe(H1)
+        expect(view.sourcePlaceholders).toEqual([H1])
     })
 
     it("goes by index for several sources ('' for none)", () => {
@@ -509,8 +509,8 @@ describe('placeholder', () => {
                 placeholder="https://example.com/small.jpg"
             />,
         )
-        expect(view.sourcePlaceholder).toBeUndefined()
-        expect(view.defaultSource).toBeFalsy()
+        expect(view.sourcePlaceholders).toBeUndefined()
+        expect(view.placeholder).toBeFalsy()
         expect(view.source).toEqual({ uri })
         expect(warn).toHaveBeenCalledTimes(1)
         expect(warn.mock.calls[0][0]).toContain('data uri')
@@ -521,12 +521,12 @@ describe('placeholder', () => {
         Platform.OS = 'ios'
         expect(
             props(<FastImage source={{ uri }} placeholder={DATA} />)
-                .defaultSource,
+                .placeholder,
         ).toEqual({ uri: DATA })
         Platform.OS = 'android'
         expect(
             props(<FastImage source={{ uri }} placeholder={DATA} />)
-                .defaultSource,
+                .placeholder,
         ).toBe(DATA)
     })
 
@@ -537,8 +537,8 @@ describe('placeholder', () => {
         const asDefault = props(
             <FastImage source={{ uri }} defaultSource={jellyfish} />,
         )
-        expect(asPlaceholder.defaultSource).toEqual(asDefault.defaultSource)
-        expect(asPlaceholder.defaultSource).toBeTruthy()
+        expect(asPlaceholder.placeholder).toEqual(asDefault.placeholder)
+        expect(asPlaceholder.placeholder).toBeTruthy()
         const both = props(
             <FastImage
                 source={{ uri }}
@@ -546,7 +546,7 @@ describe('placeholder', () => {
                 defaultSource={jellyfish}
             />,
         )
-        expect(both.defaultSource).toEqual({ uri: DATA })
+        expect(both.placeholder).toEqual({ uri: DATA })
     })
 })
 
