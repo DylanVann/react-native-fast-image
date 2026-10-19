@@ -1,3 +1,10 @@
+# [10.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.2.0...v10.3.0) (2026-10-19)
+
+
+### Features
+
+* **web:** lazy loading by default, fetchpriority from source.priority, and loading and sizes props ([dd7cbdb](https://github.com/DylanVann/react-native-fast-image/commit/dd7cbdb760dfa8e203bb2ec7eae997d683973ec9))
+
 # [10.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.1.1...v10.2.0) (2026-10-19)
 
 
