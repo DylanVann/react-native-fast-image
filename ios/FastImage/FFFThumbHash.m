@@ -1,4 +1,5 @@
 #import "FFFThumbHash.h"
+#import "FFFBoxBlur.h"
 #include <math.h>
 
 // FFFThumbHashToRGBA is Evan Wallace's reference decoder
@@ -150,22 +151,6 @@ static uint8_t* FFFThumbHashToRGBA(const uint8_t* hash, NSUInteger length, int* 
     return rgba;
 }
 
-// One row or column (count values, step apart): each becomes the average of
-// the 2 × radius + 1 around it, the edge values repeated.
-static void FFFBoxBlur(float* values, int step, int count, int radius, float* line) {
-    for (int i = 0; i < count; i++) {
-        line[i] = values[i * step];
-    }
-    float sum = 0;
-    for (int i = -radius; i <= radius; i++) {
-        sum += line[MIN(count - 1, MAX(0, i))];
-    }
-    for (int i = 0; i < count; i++) {
-        values[i * step] = sum / (2 * radius + 1);
-        sum += line[MIN(count - 1, i + radius + 1)] - line[MAX(0, i - radius)];
-    }
-}
-
 // A blurDataUri's image scaled so its longer side is 32 px (a ThumbHash's
 // size) and blurred by about half of one of its pixels, so that a few pixels
 // scale up smoothly instead of in steps: a box blur three times each way
@@ -191,27 +176,7 @@ static UIImage* FFFBlurredPreview(UIImage* image) {
     }
     CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
     CGContextDrawImage(context, CGRectMake(0, 0, w, h), source);
-    uint8_t* rgba = CGBitmapContextGetData(context);
-    float* channel = malloc(sizeof(float) * w * h);
-    float* line = malloc(sizeof(float) * MAX(w, h));
-    for (int c = 0; c < 4; c++) {
-        for (int i = 0; i < w * h; i++) {
-            channel[i] = rgba[i * 4 + c];
-        }
-        for (int pass = 0; pass < 3; pass++) {
-            for (int y = 0; y < h; y++) {
-                FFFBoxBlur(channel + y * w, 1, w, radius, line);
-            }
-            for (int x = 0; x < w; x++) {
-                FFFBoxBlur(channel + x, w, h, radius, line);
-            }
-        }
-        for (int i = 0; i < w * h; i++) {
-            rgba[i * 4 + c] = (uint8_t) MIN(255, lroundf(channel[i]));
-        }
-    }
-    free(channel);
-    free(line);
+    FFFBoxBlur(context, 2 * radius + 1);
     CGImageRef blurred = CGBitmapContextCreateImage(context);
     CGContextRelease(context);
     if (!blurred) {

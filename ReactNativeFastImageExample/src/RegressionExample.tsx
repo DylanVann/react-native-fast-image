@@ -8314,6 +8314,70 @@ function PlaceholderSizesCase() {
     )
 }
 
+// A 48 × 48 PNG of red, green, blue and yellow quadrants.
+const PLACEHOLDER_QUADRANTS_48 =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwAgMAAAAqbBEUAAAADFBMVEX1xRgboUsiT+DlHCOuv+F4AAAAKUlEQVR42mP8z8DAwMAQxsDAwMDAxIAERjn4OCyrGRgYGBhWjwYIaRwAUXoDDQGcsqYAAAAASUVORK5CYII='
+
+// The placeholder prop as a data uri with objectFit none: at its size, one
+// pixel per point (Android drew it one pixel per pixel).
+function PlaceholderDataUriSizeCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(
+        () => () => void releaseThumbhashHold('placeholder-data-uri-size'),
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="none"
+                source={{
+                    uri: thumbhashHeld('placeholder-data-uri-size'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={PLACEHOLDER_QUADRANTS_48}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="placeholder-data-uri-size"
+                status={status}
+                description="placeholder as a 48 px data uri with objectFit none: red, green, blue and yellow quadrants, half as wide as the view and two thirds as tall, centered on gray"
+            />
+        </View>
+    )
+}
+
+// tintColor with a transparent thumbhash: the preview is tinted, as the image
+// will be (a blurred disc in the tint color).
+function ThumbhashTintCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('thumbhash-tint'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="contain"
+                tintColor="#1e40ff"
+                source={{
+                    uri: thumbhashHeld('thumbhash-tint'),
+                    headers: SLOW_HEADERS,
+                    thumbhash: THUMBHASH_DISC,
+                }}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-tint"
+                status={status}
+                description="tintColor blue with a transparent thumbhash while the image loads: tinted as the image will be, a blurred blue disc centered on gray (no magenta)"
+            />
+        </View>
+    )
+}
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9266,6 +9330,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PlaceholderDataUriCase key="placeholder-data-uri" />,
             <BlurDataUriCase key="blur-data-uri" />,
             <PlaceholderSizesCase key="placeholder-sizes" />,
+            <PlaceholderDataUriSizeCase key="placeholder-data-uri-size" />,
+            <ThumbhashTintCase key="thumbhash-tint" />,
         ],
     },
     {

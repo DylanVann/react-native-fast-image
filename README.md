@@ -287,7 +287,7 @@ A url isn't loaded: on iOS and Android it's ignored, with a warning in developme
 
 **Type:** `number`
 
-**Deprecated:** Use `placeholder`, which is the same (React Native's `Image` calls it `defaultSource`). `placeholder` is used if both are set.
+**Deprecated:** Use `placeholder`, which is the same (React Native's `Image` calls it `defaultSource`). `placeholder` is used if both are set, unless it's a `thumbhash` or `blurDataUri`.
 
 ---
 
@@ -498,7 +498,7 @@ The image's style: View's style props (`borderRadius` clips the image, and borde
 
 **Type:** `ColorValue`
 
-If supplied, changes the color of all the non-transparent pixels to the given color.
+If supplied, changes the color of all the non-transparent pixels to the given color, also in the placeholder and a source's `thumbhash` or `blurDataUri` preview.
 
 <!-- api:props end -->
 

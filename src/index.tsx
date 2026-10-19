@@ -407,7 +407,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * @deprecated Use `placeholder`, which is the same (React Native's
      * `Image` calls it `defaultSource`). `placeholder` is used if both are
-     * set.
+     * set, unless it's a `thumbhash` or `blurDataUri`.
      */
     defaultSource?: ImageRequireSource
     /**
@@ -665,7 +665,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * If supplied, changes the color of all the non-transparent pixels to the
-     * given color.
+     * given color, also in the placeholder and a source's `thumbhash` or
+     * `blurDataUri` preview.
      */
     tintColor?: ColorValue
 
@@ -698,10 +699,8 @@ function sourcePlaceholder(source: unknown): string {
 }
 
 const resolvePlaceholder = (
-    placeholder?: ImageRequireSource | string | SourcePlaceholder,
+    placeholder?: ImageRequireSource | string,
 ): string | object | null => {
-    // A source's thumbhash or blurDataUri goes in sourcePlaceholders.
-    if (hasSourcePlaceholder(placeholder)) return null
     if (typeof placeholder === 'string') {
         const uri = dataUri(placeholder)
         if (!uri) return null
@@ -907,7 +906,13 @@ function FastImageBase({
                 : undefined,
         }
     }, [source, shared])
-    const resolvedPlaceholder = resolvePlaceholder(placeholder ?? defaultSource)
+    // A thumbhash or blurDataUri in `placeholder` goes in sourcePlaceholders
+    // instead: it isn't an image to show as it is, but defaultSource still is.
+    const resolvedPlaceholder = resolvePlaceholder(
+        hasSourcePlaceholder(placeholder)
+            ? defaultSource
+            : (placeholder ?? defaultSource),
+    )
 
     return (
         <FastImageView

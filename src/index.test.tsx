@@ -539,6 +539,22 @@ describe('placeholder', () => {
         expect(data.sourcePlaceholders).toEqual([DATA])
     })
 
+    it('as an object, leaves defaultSource as the image', () => {
+        const view = props(
+            <FastImage
+                source={{ uri }}
+                placeholder={{ thumbhash: undefined }}
+                defaultSource={jellyfish}
+            />,
+        )
+        expect(view.sourcePlaceholders).toBeUndefined()
+        expect(view.placeholder).toEqual(
+            props(<FastImage source={{ uri }} placeholder={jellyfish} />)
+                .placeholder,
+        )
+        expect(view.placeholder).toBeTruthy()
+    })
+
     it('as an object made on every render, keeps the same props', () => {
         const source = { uri }
         const view = renderer.create(

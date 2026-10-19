@@ -6,7 +6,7 @@
 #import <SDWebImage/SDImageTransformer.h>
 #import "FFFDownsampledImage.h"
 #import "FFFThumbHash.h"
-#import <Accelerate/Accelerate.h>
+#import "FFFBoxBlur.h"
 
 @interface FFFastImageView ()
 
@@ -669,27 +669,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     [image drawInRect: CGRectMake(0, 0, width, height)];
     UIGraphicsPopContext();
 
-    if (boxSize > 1) {
-        vImage_Buffer buffer = {
-            .data = CGBitmapContextGetData(context),
-            .height = height,
-            .width = width,
-            .rowBytes = CGBitmapContextGetBytesPerRow(context),
-        };
-        vImage_Buffer other = buffer;
-        other.data = malloc(buffer.rowBytes * height);
-        vImage_Error tempSize = vImageBoxConvolve_ARGB8888(&buffer, &other, NULL, 0, 0, boxSize, boxSize, NULL,
-                                                           kvImageGetTempBufferSize | kvImageEdgeExtend);
-        void* temp = tempSize > 0 ? malloc(tempSize) : NULL;
-        if (other.data && temp) {
-            vImageBoxConvolve_ARGB8888(&buffer, &other, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
-            vImageBoxConvolve_ARGB8888(&other, &buffer, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
-            vImageBoxConvolve_ARGB8888(&buffer, &other, temp, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
-            memcpy(buffer.data, other.data, buffer.rowBytes * height);
-        }
-        free(other.data);
-        free(temp);
-    }
+    FFFBoxBlur(context, boxSize);
 
     CGImageRef cgImage = CGBitmapContextCreateImage(context);
     CGContextRelease(context);

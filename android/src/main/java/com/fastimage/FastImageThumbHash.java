@@ -7,6 +7,7 @@ import android.util.LruCache;
 
 import androidx.annotation.Nullable;
 
+import java.nio.IntBuffer;
 import java.util.Locale;
 
 // A source's `thumbhash` (https://evanw.github.io/thumbhash/) decoded into the
@@ -68,56 +69,18 @@ final class FastImageThumbHash {
         float scale = 32f / Math.max(width, height);
         int w = Math.max(1, Math.round(width * scale));
         int h = Math.max(1, Math.round(height * scale));
-        Bitmap scaled = Bitmap.createScaledBitmap(decoded, w, h, true);
+        // Blurred on its premultiplied pixels (as stored), so transparent
+        // pixels don't darken their neighbors.
+        Bitmap bitmap = Bitmap.createScaledBitmap(decoded, w, h, true).copy(Bitmap.Config.ARGB_8888, true);
+        if (bitmap == null) return null;
         int[] pixels = new int[w * h];
-        scaled.getPixels(pixels, 0, w, 0, 0, w, h);
-        blur(pixels, w, h, Math.max(1, Math.round(scale / 2)));
-        Bitmap bitmap = Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888);
+        IntBuffer buffer = IntBuffer.wrap(pixels);
+        bitmap.copyPixelsToBuffer(buffer);
+        FastImageBlur.blur(pixels, w, h, 2 * Math.max(1, Math.round(scale / 2)) + 1);
+        buffer.rewind();
+        bitmap.copyPixelsFromBuffer(buffer);
         cache.put(uri, bitmap);
         return bitmap;
-    }
-
-    // Blurs unpremultiplied ARGB pixels in place: a box blur of the radius
-    // three times each way (about a Gaussian), premultiplied so transparent
-    // pixels don't darken their neighbors, with the edges extended outwards.
-    private static void blur(int[] pixels, int w, int h, int radius) {
-        int n = w * h;
-        float[][] channels = new float[4][n];
-        for (int i = 0; i < n; i++) {
-            int p = pixels[i];
-            float a = (p >>> 24) / 255f;
-            channels[0][i] = a;
-            channels[1][i] = ((p >> 16) & 255) * a;
-            channels[2][i] = ((p >> 8) & 255) * a;
-            channels[3][i] = (p & 255) * a;
-        }
-        float[] line = new float[Math.max(w, h)];
-        for (float[] channel : channels) {
-            for (int pass = 0; pass < 3; pass++) {
-                for (int y = 0; y < h; y++) boxBlur(channel, y * w, 1, w, radius, line);
-                for (int x = 0; x < w; x++) boxBlur(channel, x, w, h, radius, line);
-            }
-        }
-        for (int i = 0; i < n; i++) {
-            float a = channels[0][i];
-            int alpha = Math.round(a * 255);
-            int r = a > 0 ? Math.min(255, Math.round(channels[1][i] / a)) : 0;
-            int g = a > 0 ? Math.min(255, Math.round(channels[2][i] / a)) : 0;
-            int b = a > 0 ? Math.min(255, Math.round(channels[3][i] / a)) : 0;
-            pixels[i] = (alpha << 24) | (r << 16) | (g << 8) | b;
-        }
-    }
-
-    // One row or column (count values, step apart from start): each becomes
-    // the average of the 2 × radius + 1 around it, the edge values repeated.
-    private static void boxBlur(float[] values, int start, int step, int count, int radius, float[] line) {
-        for (int i = 0; i < count; i++) line[i] = values[start + i * step];
-        float sum = 0;
-        for (int i = -radius; i <= radius; i++) sum += line[Math.min(count - 1, Math.max(0, i))];
-        for (int i = 0; i < count; i++) {
-            values[start + i * step] = sum / (2 * radius + 1);
-            sum += line[Math.min(count - 1, i + radius + 1)] - line[Math.max(0, i - radius)];
-        }
     }
 
     static boolean isDataUri(String value) {

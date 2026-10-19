@@ -134,10 +134,11 @@ function FastImageBase({
     const blurUri =
         resolveUri(dataUri(shared(source, 'blurDataUri', preview))) ??
         thumbhashUri(shared(source, 'thumbhash', preview))
-    const standInUri = blurUri
+    // A thumbhash or blurDataUri in `placeholder` isn't an image to show as it
+    // is: defaultSource still is.
     const defaultUri =
-        standInUri ??
-        (preview ? undefined : resolveUri(placeholder ?? defaultSource))
+        blurUri ??
+        resolveUri(preview ? defaultSource : (placeholder ?? defaultSource))
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
@@ -182,14 +183,24 @@ function FastImageBase({
                     // isn't known yet: as contain for scale-down and none,
                     // which show an image at its own size.
                     fit={
-                        standInUri && (fit === 'scale-down' || fit === 'none')
+                        blurUri && (fit === 'scale-down' || fit === 'none')
                             ? 'contain'
                             : fit
                     }
                     position={position}
-                    // A source's preview gets only its own blur (as on iOS
-                    // and Android), not the image's tintColor or blurRadius.
-                    filter={standInUri ? `url(#${blurId})` : filter}
+                    // A source's preview gets its own blur and the tint, not
+                    // blurRadius (it's blurred already), as on iOS and
+                    // Android.
+                    filter={
+                        blurUri
+                            ? [
+                                  `url(#${blurId})`,
+                                  tintColor ? `url(#${tintId})` : '',
+                              ]
+                                  .filter(Boolean)
+                                  .join(' ')
+                            : filter
+                    }
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
                 />
@@ -256,7 +267,11 @@ function shared(
     const values = (Array.isArray(source) ? source : [source]).map((entry) => {
         const own =
             entry && typeof entry === 'object' ? (entry as Source) : undefined
-        return (own?.thumbhash || own?.blurDataUri ? own : preview)?.[key]
+        // A blurDataUri that isn't a data uri is ignored (with a warning), as
+        // on iOS and Android.
+        return (own?.thumbhash || dataUri(own?.blurDataUri) ? own : preview)?.[
+            key
+        ]
     })
     return values.every((value) => value && value === values[0])
         ? values[0]

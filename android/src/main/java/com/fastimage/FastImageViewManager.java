@@ -12,6 +12,7 @@ import android.graphics.PorterDuff;
 import android.util.Log;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.util.DisplayMetrics;
 
 import androidx.annotation.NonNull;
 
@@ -320,6 +321,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         String uri = source.isNull() ? null : source.asString();
         if (uri != null && FastImageThumbHash.isDataUri(uri)) {
             Bitmap bitmap = FastImageThumbHash.dataUri(uri);
+            // One pixel per dp, as on iOS and the web (decoded, it's at the
+            // screen's density: one pixel per pixel).
+            if (bitmap != null) bitmap.setDensity(DisplayMetrics.DENSITY_DEFAULT);
             view.setPlaceholder(bitmap == null ? null : new BitmapDrawable(view.getResources(), bitmap));
         } else {
             view.setPlaceholder(ResourceDrawableIdHelper.getResourceDrawable(view.getContext(), uri));

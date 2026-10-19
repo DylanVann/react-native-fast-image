@@ -790,6 +790,20 @@ describe('placeholder (web)', () => {
         )
     })
 
+    it('is tinted after its blur, without blurRadius', () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: DATA }}
+                tintColor="red"
+                blurRadius={4}
+            />,
+        )
+        const filter = images(tree)[0].props.style.filter
+        expect(filter).toMatch(
+            /^url\(#fast-image-blur-[\w-]+\) url\(#fast-image-tint-[\w-]+\)$/,
+        )
+    })
+
     it("as an object, loses to a source's own", () => {
         const tree = render(
             <FastImage
@@ -798,6 +812,29 @@ describe('placeholder (web)', () => {
             />,
         )
         expect(images(tree)[0].props.src).toBe(OTHER)
+    })
+
+    it("as an object, covers a source whose blurDataUri isn't a data uri", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: 'https://example.com/small.jpg' }}
+                placeholder={{ blurDataUri: DATA }}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(DATA)
+        warn.mockRestore()
+    })
+
+    it('as an object without a value, leaves defaultSource', () => {
+        const tree = render(
+            <FastImage
+                source={A}
+                placeholder={{ thumbhash: undefined }}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
     })
 
     it("ignores a source's url, with a warning", () => {
