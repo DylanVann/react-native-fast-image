@@ -1,3 +1,10 @@
+# [10.5.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.4.0...v10.5.0) (2026-10-19)
+
+
+### Features
+
+* placeholder takes a url, loaded or only from the cache ([5af73eb](https://github.com/DylanVann/react-native-fast-image/commit/5af73eb3da30d850db1913fe38ae74857bf1fb34))
+
 # [10.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.3.0...v10.4.0) (2026-10-19)
 
 
