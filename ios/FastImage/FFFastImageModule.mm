@@ -305,7 +305,7 @@ static NSDictionary *FFFFile(NSString *path)
             SDWebImageOptions options = FFFPreloadOptions(source);
             SDWebImageMutableContext *context = FFFPreloadContext(source);
             // It looks in the memory cache first, for the full-size image.
-            [FFFDownsampledImage forgetSmallerFullSizeImageForURL:source.url context:context];
+            [FFFDownsampledImage forgetUnusableImageForURL:source.url context:context];
             if (!source.memoryCache) {
                 // Not decoded (only its header is read, for the size), and not
                 // kept in memory, also when it comes from the disk cache.

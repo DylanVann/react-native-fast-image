@@ -8378,6 +8378,55 @@ function ThumbhashTintCase() {
     )
 }
 
+// An HDR photo (a gain map: flat gray in standard range, its right half
+// brighter in HDR) with each dynamicRangeLimit. They all load. The simulator
+// can't show HDR: its ImageIO decodes a gain map to a 16-bit image that isn't
+// HDR, drawn gray or black depending on SDWebImage's path, so the HDR ones
+// are left out of the screenshot. Check them on an HDR iPhone.
+function HdrCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [error, setError] = useState<string>()
+    const props = {
+        source: { uri: imageUrl('hdr-half.jpg') },
+        onLoad: () => setLoaded((count) => count + 1),
+        onError: (e: { nativeEvent: { error?: string } }) =>
+            setError(String(e.nativeEvent.error)),
+    }
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                {...props}
+                style={hdrStyles.image}
+                dynamicRangeLimit="standard"
+            />
+            <Masked>
+                <View style={hdrStyles.row}>
+                    {(['constrained', 'no-limit'] as const).map((limit) => (
+                        <FastImage
+                            key={limit}
+                            {...props}
+                            style={hdrStyles.image}
+                            dynamicRangeLimit={limit}
+                        />
+                    ))}
+                </View>
+            </Masked>
+            <CaseStatus
+                id="hdr"
+                status={
+                    error ? `onError: ${error}` : loaded >= 3 ? 'OK' : 'waiting'
+                }
+                description="An HDR photo with dynamicRangeLimit standard, constrained and no-limit: the first flat gray (the others aren't compared in the simulator); on an HDR display, the second's right half brighter, and the third's brighter still"
+            />
+        </View>
+    )
+}
+
+const hdrStyles = StyleSheet.create({
+    row: { flexDirection: 'row' },
+    image: { width: 64, height: 48, marginRight: 6 },
+})
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9333,6 +9382,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PlaceholderDataUriSizeCase key="placeholder-data-uri-size" />,
             <ThumbhashTintCase key="thumbhash-tint" />,
         ],
+    },
+    {
+        name: 'hdr',
+        cases: [<HdrCase key="hdr" />],
     },
     {
         // Recorded (video samples).

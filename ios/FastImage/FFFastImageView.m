@@ -4,6 +4,7 @@
 #import <React/RCTUtils.h>
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
+#import <SDWebImage/SDImageCodersManager.h>
 #import "FFFDownsampledImage.h"
 #import "FFFThumbHash.h"
 #import "FFFBoxBlur.h"
@@ -73,6 +74,9 @@
 // source's), and whether that's the source's (hashImage).
 @property(nonatomic, assign) BOOL showsPlaceholder;
 @property(nonatomic, assign) BOOL showsHash;
+// dynamicRangeLimit switched between HDR and SDR: the image is decoded again,
+// quietly (see reloadForDynamicRange).
+@property(nonatomic, assign) BOOL needsDynamicRangeReload;
 
 @end
 
@@ -643,6 +647,14 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     if (image.size.width <= 0 || image.size.height <= 0) {
         return image;
     }
+    // Blurred in standard range (the bitmap below has 8 bits per channel): an
+    // HDR image (dynamicRangeLimit) tone mapped to it, rather than its
+    // highlights clipped.
+    if (@available(iOS 17.0, tvOS 17.0, *)) {
+        if (image.isHighDynamicRange) {
+            image = [image imageRestrictedToStandardDynamicRange];
+        }
+    }
     double fullWidth = MAX(1, round(image.size.width * image.scale * scale));
     double fullHeight = MAX(1, round(image.size.height * image.scale * scale));
     // At most the image's larger side (a larger box looks the same, and an
@@ -798,6 +810,33 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
+- (void) setDynamicRangeLimit: (NSString*)dynamicRangeLimit {
+    if (_dynamicRangeLimit == dynamicRangeLimit || [_dynamicRangeLimit isEqualToString: dynamicRangeLimit]) {
+        return;
+    }
+    BOOL decodedToHDR = [self decodesToHDR];
+    _dynamicRangeLimit = [dynamicRangeLimit copy];
+    if (@available(iOS 17.0, tvOS 17.0, *)) {
+        // Constrained: the highlights brighter than SDR white, but not as
+        // bright as the display can go, as Apple suggests for images among
+        // other content.
+        self.preferredImageDynamicRange = [_dynamicRangeLimit isEqualToString: @"no-limit"] ? UIImageDynamicRangeHigh
+            : [_dynamicRangeLimit isEqualToString: @"constrained"] ? UIImageDynamicRangeConstrainedHigh
+            : [_dynamicRangeLimit isEqualToString: @"standard"] ? UIImageDynamicRangeStandard
+            : UIImageDynamicRangeUnspecified;
+    }
+    // Decoded again only to switch between HDR and SDR.
+    if ([self decodesToHDR] != decodedToHDR) {
+        self.needsDynamicRangeReload = YES;
+    }
+}
+
+// Whether HDR images are decoded to HDR (dynamicRangeLimit constrained or
+// no-limit), rather than to SDR, their standard range version.
+- (BOOL) decodesToHDR {
+    return [_dynamicRangeLimit isEqualToString: @"constrained"] || [_dynamicRangeLimit isEqualToString: @"no-limit"];
+}
+
 - (void) setPlaceholder: (UIImage*)placeholder {
     if (_placeholder != placeholder) {
         _placeholder = placeholder;
@@ -865,9 +904,34 @@ NSString *FFFErrorMessage(NSError *error)
             return;
         }
         [self reloadImage];
+    } else if (self.needsDynamicRangeReload) {
+        [self reloadForDynamicRange];
     } else {
         [self reloadIfResized];
     }
+}
+
+// The same image decoded again for a dynamicRangeLimit between HDR and SDR,
+// as a resize is (reloadIfResized): without events once it has loaded, and
+// the image showing stays if the load fails. A display setting shouldn't
+// look like a new load.
+- (void) reloadForDynamicRange {
+    self.needsDynamicRangeReload = NO;
+    // Nothing to load, it failed, or it waits for the view's size: the next
+    // load decodes as asked.
+    if (!_source || self.hasErrored || self.waitsForSize) {
+        return;
+    }
+    // A data uri is decoded at once, with its events (see reloadImage).
+    if ([[_source.url absoluteString] hasPrefix: @"data:image"]) {
+        [self reloadImage];
+        return;
+    }
+    SDWebImageOptions options = [self loadOptions];
+    if (self.showsLoadedImage) {
+        options |= SDWebImageDelayPlaceholder;
+    }
+    [self downloadImage: _source options: options context: [self loadContext] events: !self.hasCompleted];
 }
 
 // Whether images are decoded at about the view's size (downsample, and always
@@ -938,6 +1002,7 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) reloadImage {
     _needsReload = NO;
+    self.needsDynamicRangeReload = NO;
     self.waitsForSize = NO;
     self.loadsSwitchedSource = self.switchesSource;
     self.switchesSource = NO;
@@ -961,7 +1026,12 @@ NSString *FFFErrorMessage(NSError *error)
                 self.onFastImageLoadStart(@{});
             }
             // Use SDWebImage API to support external format like WebP images
-            UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
+            // (as sd_imageWithData does), decoded to HDR or SDR as a
+            // download is (see contextForSource).
+            UIImage* image = [[SDImageCodersManager sharedManager] decodedImageWithData: [NSData dataWithContentsOfURL: _source.url] options: @{
+                SDImageCoderDecodeScaleFactor: @1,
+                SDImageCoderDecodeToHDR: @([self decodesToHDR]),
+            }];
             if (!image) {
                 // Not decodable: fail like a remote image, showing the
                 // placeholder.
@@ -1070,10 +1140,15 @@ NSString *FFFErrorMessage(NSError *error)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
+    if (@available(iOS 17.0, tvOS 17.0, *)) {
+        // An HDR image (e.g. a photo with a gain map) decoded to HDR, or to
+        // SDR, its standard range version.
+        context[SDWebImageContextImageDecodeToHDR] = @([self decodesToHDR]);
+    }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         [FFFDownsampledImage addFullSizeToContext: context];
         [self applyCacheOptions: context source: source fullSize: YES];
-        [FFFDownsampledImage forgetSmallerFullSizeImageForURL: source.url context: context];
+        [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];
@@ -1085,6 +1160,7 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
     }
     [self applyCacheOptions: context source: source fullSize: NO];
+    [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
     return context;
 }
 

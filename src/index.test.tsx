@@ -1378,6 +1378,15 @@ describe('objectFit', () => {
         expect(view.props.resizeMode).toBeUndefined()
     })
 
+    it('sends dynamicRangeLimit to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage source={source} dynamicRangeLimit="constrained" />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.dynamicRangeLimit).toBe('constrained')
+    })
+
     it("doesn't send the web-only loading and sizes to the native view", () => {
         const [view] = renderer
             .create(<FastImage source={source} loading="eager" sizes="50vw" />)

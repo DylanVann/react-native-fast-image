@@ -82,6 +82,7 @@ function FastImageBase({
     objectPosition,
     loading,
     sizes,
+    dynamicRangeLimit,
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -179,6 +180,7 @@ function FastImageBase({
                     // Loaded when the image is (a data uri needs no request).
                     loading={loading}
                     priority={priority}
+                    dynamicRangeLimit={dynamicRangeLimit}
                     // A source's placeholder stands for an image whose size
                     // isn't known yet: as contain for scale-down and none,
                     // which show an image at its own size.
@@ -213,6 +215,7 @@ function FastImageBase({
                     sizes={sizes}
                     loading={loading}
                     priority={priority}
+                    dynamicRangeLimit={dynamicRangeLimit}
                     fit={fit}
                     position={position}
                     filter={filter}
@@ -414,6 +417,7 @@ function Picture({
     sizes,
     loading,
     priority,
+    dynamicRangeLimit,
     fit,
     position,
     filter,
@@ -429,6 +433,9 @@ function Picture({
     loading?: 'lazy' | 'eager'
     // source.priority, as the <img>'s fetchpriority.
     priority?: Priority
+    // The prop, as CSS's dynamic-range-limit (the browser's default when
+    // not set).
+    dynamicRangeLimit?: 'standard' | 'constrained' | 'no-limit'
     fit: ObjectFit
     // objectPosition, as CSS.
     position: string
@@ -513,6 +520,8 @@ function Picture({
                 objectPosition: position,
                 filter,
                 opacity: hidden ? 0 : undefined,
+                // Not in React's CSS types yet.
+                ...({ dynamicRangeLimit } as object),
             }}
             onLoad={(event) =>
                 loaded(event.currentTarget as unknown as LoadedImage)

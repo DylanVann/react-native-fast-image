@@ -287,6 +287,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     if (all || oldViewProps.downsample != newViewProps.downsample) {
         view.downsample = newViewProps.downsample;
     }
+    if (all || oldViewProps.dynamicRangeLimit != newViewProps.dynamicRangeLimit) {
+        view.dynamicRangeLimit = FFFString(newViewProps.dynamicRangeLimit);
+    }
     if (all || oldViewProps.blurRadius != newViewProps.blurRadius) {
         view.blurRadius = newViewProps.blurRadius;
     }
