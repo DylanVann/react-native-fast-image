@@ -54,8 +54,7 @@ export type Source = {
      * - `'normal'`: the default.
      * - `'high'`: e.g. the image the screen is about.
      *
-     * On the web, images load as they near the screen, unless they're
-     * `'high'`, which load at once.
+     * On the web, it's the image's `fetchpriority`.
      *
      * @default 'normal'
      */
@@ -478,6 +477,25 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
     /**
+     * Whether the image loads as it nears the screen (`'lazy'`) or at once
+     * (`'eager'`).
+     *
+     * @default 'lazy'
+     * @platform web
+     */
+    loading?: 'lazy' | 'eager'
+    /**
+     * With several sources, the width the image is shown at, as the image's
+     * [`sizes`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#sizes),
+     * so the browser loads the size that fits. The default is the width the
+     * image is laid out at, which needs `loading="lazy"` (otherwise, or in
+     * browsers without it, the window's width).
+     *
+     * @default 'auto, 100vw'
+     * @platform web
+     */
+    sizes?: string
+    /**
      * Pauses an animated image (GIF, animated WebP, APNG, or animated AVIF) on
      * the frame it's showing; `false` plays it again from there
      * (on Android, an animated WebP or AVIF plays again from its first frame:
@@ -814,6 +832,9 @@ function FastImageBase({
     objectPosition,
     loop,
     transition,
+    // Web only.
+    loading: _loading,
+    sizes: _sizes,
     forwardedRef,
     ...viewProps
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {

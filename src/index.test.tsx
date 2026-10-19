@@ -1378,6 +1378,14 @@ describe('objectFit', () => {
         expect(view.props.resizeMode).toBeUndefined()
     })
 
+    it("doesn't send the web-only loading and sizes to the native view", () => {
+        const [view] = renderer
+            .create(<FastImage source={source} loading="eager" sizes="50vw" />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.loading).toBeUndefined()
+        expect(view.props.sizes).toBeUndefined()
+    })
+
     it('keeps the deprecated FastImage.resizeMode, whose values are ignored', () => {
         // Code written for 9.x reads it: it mustn't throw.
         const [view] = renderer

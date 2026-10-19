@@ -11,11 +11,12 @@
 //
 // Works: source (uri, require(), or several sizes: see sizedSources, and
 // thumbhash and blurDataUri), placeholder (and defaultSource), objectFit,
-// objectPosition, tintColor, blurRadius, style,
-// onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
-// accessibility, onLayout, pointerEvents). The native-only props (cache,
-// priority, headers, transition, downsample, loop, paused, imageRendering,
-// recyclingKey) and onProgress are ignored.
+// objectPosition, tintColor, blurRadius, style, source.priority (as
+// fetchpriority), the web-only loading and sizes, onLoadStart, onLoad,
+// onError, onLoadEnd, and View props (testID, accessibility, onLayout,
+// pointerEvents). The native-only props (cache, headers, transition,
+// downsample, loop, paused, imageRendering, recyclingKey) and onProgress
+// are ignored.
 import React, {
     forwardRef,
     memo,
@@ -87,6 +88,8 @@ function FastImageBase({
     children,
     objectFit,
     objectPosition,
+    loading,
+    sizes,
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -182,6 +185,7 @@ function FastImageBase({
                     key={`default ${defaultUri}`}
                     src={defaultUri}
                     // Loaded when the image is (a data uri needs no request).
+                    loading={loading}
                     priority={priority}
                     // A source's placeholder stands for an image whose size
                     // isn't known yet: as contain for scale-down and none,
@@ -214,6 +218,8 @@ function FastImageBase({
                     key={several ? 'sizes' : key}
                     src={src}
                     srcSet={srcSet}
+                    sizes={sizes}
+                    loading={loading}
                     priority={priority}
                     fit={fit}
                     position={position}
@@ -355,9 +361,9 @@ type PackagerAsset = {
 // Several sizes of an image, as a srcset (each size's width, times its
 // scale), from which the browser loads the one for the image's width in
 // device pixels, usually the smallest at least as wide, as expo-image does.
-// sizes="auto" has the browser use the width the image is laid out at; it
-// only applies to lazy images (not a 'high' priority one), and otherwise, or
-// in browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
+// sizes="auto" (the default sizes) has the browser use the width the image
+// is laid out at; it only applies to lazy images, and otherwise, or in
+// browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
 function sizedSources(sources: Source[]) {
     const widths = sources
@@ -429,6 +435,8 @@ const fill = {
 function Picture({
     src,
     srcSet,
+    sizes,
+    loading,
     priority,
     fit,
     position,
@@ -440,8 +448,10 @@ function Picture({
 }: {
     src: string
     srcSet?: string
-    // source.priority: the image loads lazily (as it nears the viewport)
-    // unless it's 'high', and it's the <img>'s fetchpriority.
+    // The props (see sizedSources for sizes).
+    sizes?: string
+    loading?: 'lazy' | 'eager'
+    // source.priority, as the <img>'s fetchpriority.
     priority?: Priority
     fit: ObjectFit
     // objectPosition, as CSS.
@@ -513,8 +523,8 @@ function Picture({
             ref={image}
             src={src}
             srcSet={srcSet}
-            sizes={srcSet ? 'auto, 100vw' : undefined}
-            loading={priority === 'high' ? undefined : 'lazy'}
+            sizes={srcSet ? (sizes ?? 'auto, 100vw') : undefined}
+            loading={loading === 'eager' ? undefined : 'lazy'}
             {...fetchPriority(priority)}
             alt={alt}
             draggable={false}

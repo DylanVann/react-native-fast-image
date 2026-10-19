@@ -149,6 +149,8 @@ export type FastImageProps = $ReadOnly<{|
     recyclingKey?: ?string,
     loop?: ?(boolean | number),
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
+    loading?: ?('lazy' | 'eager'),
+    sizes?: ?string,
     paused?: ?boolean,
     transition?: ?(boolean | number | Transition),
     downsample?: ?boolean,

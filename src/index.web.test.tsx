@@ -73,8 +73,8 @@ describe('FastImage (web)', () => {
         expect(img.props.src).toBe('https://example.com/a.jpg')
         expect(img.props.alt).toBe('An image')
         expect(img.props.draggable).toBe(false)
-        // priority high: at once, not lazily.
-        expect(img.props.loading).toBeUndefined()
+        // Lazily, also with priority high (its fetchpriority).
+        expect(img.props.loading).toBe('lazy')
         expect(img.props.fetchPriority).toBe('high')
         expect(img.props.style).toEqual({
             position: 'absolute',
@@ -643,11 +643,29 @@ describe('priority (web)', () => {
         expect(img.props.fetchPriority).toBeUndefined()
     })
 
-    it('loads a high priority image at once, with fetchpriority', () => {
-        const tree = render(<FastImage source={{ ...A, priority: 'high' }} />)
+    it('loads at once with loading eager', () => {
+        const tree = render(<FastImage source={A} loading="eager" />)
         const [img] = images(tree)
         expect(img.props.loading).toBeUndefined()
-        expect(img.props.fetchPriority).toBe('high')
+    })
+
+    it('takes sizes for several sizes', () => {
+        const sizes = [
+            { ...A, width: 100, height: 75 },
+            { uri: `${A.uri}?2`, width: 400, height: 300 },
+        ]
+        expect(
+            images(render(<FastImage source={sizes} />))[0].props.sizes,
+        ).toBe('auto, 100vw')
+        const [img] = images(
+            render(
+                <FastImage
+                    source={sizes}
+                    sizes="(max-width: 600px) 100vw, 50vw"
+                />,
+            ),
+        )
+        expect(img.props.sizes).toBe('(max-width: 600px) 100vw, 50vw')
     })
 
     it('loads a low priority image lazily, with fetchpriority', () => {
@@ -657,7 +675,7 @@ describe('priority (web)', () => {
         expect(img.props.fetchPriority).toBe('low')
     })
 
-    it('takes the highest of several sizes, for the placeholder too', () => {
+    it('takes the highest of several sizes, and loading, for the placeholder too', () => {
         const tree = render(
             <FastImage
                 source={[
@@ -670,6 +688,7 @@ describe('priority (web)', () => {
                     },
                 ]}
                 placeholder={{ uri: '/assets/placeholder.png' } as any}
+                loading="eager"
             />,
         )
         for (const img of images(tree)) {
