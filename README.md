@@ -26,7 +26,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
-- **Placeholders**: a blurred preview from a [ThumbHash](#sourcethumbhash) or a [tiny image](#sourceblurdatauri) while an image loads, or a bundled image ([`placeholder`](#placeholder)).
+- **Placeholders**: a blurred preview from a [ThumbHash](#sourcethumbhash) or a [tiny image](#sourceblurdatauri) while an image loads, a bundled image, or a url, e.g. a thumbnail that's already cached ([`placeholder`](#placeholder)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios-and-tvos) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
 - **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
@@ -266,7 +266,7 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 #### `placeholder`
 
-**Type:** `string | number | SourcePlaceholder`
+**Type:** `string | number | PlaceholderSource | SourcePlaceholder`
 
 A placeholder shown while the image loads, and if it fails to load:
 
@@ -275,13 +275,15 @@ A placeholder shown while the image loads, and if it fails to load:
 - The name of an image bundled with the app (an iOS asset catalog image or an Android drawable): `placeholder="gray"`.
 - A [ThumbHash](#sourcethumbhash), shown blurred: `placeholder={{ thumbhash }}`.
 - A tiny image as a data uri, shown blurred: `placeholder={{ blurDataUri }}`.
+- A url, loaded and cached like a source: `placeholder="https://example.com/placeholder.png"`, or a source with `headers` or a `cacheKey`: `placeholder={{ uri, headers }}`.
+- A url only shown if it's already cached, e.g. a list's thumbnail while the full-size image loads: `placeholder={{ uri, cache: 'cacheOnly' }}`.
 
-A source's own `thumbhash` or `blurDataUri` is shown instead, if it has one.
+A source's own `thumbhash` or `blurDataUri` is shown instead, if it has one; a url placeholder shows over it once it has loaded.
 
 Notes:
 
-- A url isn't loaded: it's ignored, with a warning in development.
 - On Android, a `require()`d image doesn't show in debug builds, where the dev server serves it. Release builds show it.
+- On the web, a url loads like any image, also with `'cacheOnly'`: a browser can't look only in its cache.
 
 ---
 
@@ -841,6 +843,14 @@ Where the image is in the view: see [`objectPosition`](#objectposition).
 `onProgress`'s event: `nativeEvent` has the bytes `loaded` and the `total`, and `progress`, `loaded / total` from 0 to 1.
 
 - `nativeEvent` (`{ loaded: number; total: number; progress: number }`)
+
+---
+
+### `PlaceholderSource`
+
+**Type:** `Pick<Source, 'uri' | 'headers' | 'cacheKey' | 'cache'>`
+
+A url as `placeholder`, loaded like a source (see `placeholder`).
 
 ---
 

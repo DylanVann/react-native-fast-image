@@ -236,6 +236,10 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         id placeholder = FFFJSON(newViewProps.placeholder);
         view.placeholder = placeholder ? [RCTConvert UIImage:placeholder] : nil;
     }
+    if (all || oldViewProps.placeholderSource != newViewProps.placeholderSource) {
+        id placeholderSource = FFFJSON(newViewProps.placeholderSource);
+        view.placeholderSource = placeholderSource ? [RCTConvert FFFastImageSource:placeholderSource] : nil;
+    }
     if (all || oldViewProps.sourcePlaceholders != newViewProps.sourcePlaceholders) {
         NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:newViewProps.sourcePlaceholders.size()];
         for (const auto &placeholder : newViewProps.sourcePlaceholders) {

@@ -27,7 +27,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 class FastImageViewConverter {
-    private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
+    static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
 
     private static final Map<String, FastImageCacheControl> FAST_IMAGE_CACHE_CONTROL_MAP =
             new HashMap<String, FastImageCacheControl>() {{

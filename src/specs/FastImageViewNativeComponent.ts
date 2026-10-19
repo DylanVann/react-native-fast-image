@@ -70,6 +70,10 @@ export interface NativeProps extends ViewProps {
     transitionBetweenImages?: boolean
     transitionSkipOnCacheHit?: string
     downsample?: CodegenTypes.WithDefault<boolean, true>
+    // A url as `placeholder` ({ uri, headers, cacheKey, cache }), loaded at a
+    // high priority apart from the image (or only looked up in the cache with
+    // cache 'cacheOnly'), shown over the other placeholders once it has.
+    placeholderSource?: CodegenTypes.UnsafeMixed
     // standard, constrained or no-limit ('' when not set). iOS and tvOS 17+
     // (Android ignores it).
     dynamicRangeLimit?: string

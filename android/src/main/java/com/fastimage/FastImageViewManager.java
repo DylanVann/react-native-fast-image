@@ -345,6 +345,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     @Override
+    public void setPlaceholderSource(FastImageViewWithUrl view, Dynamic source) {
+        view.setPlaceholderSource(source.isNull() ? null : source.asMap());
+    }
+
+    @Override
     public void setSourcePlaceholders(FastImageViewWithUrl view, @Nullable ReadableArray placeholders) {
         view.setSourcePlaceholders(placeholders);
     }

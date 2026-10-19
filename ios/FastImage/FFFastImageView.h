@@ -34,6 +34,10 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 @property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
 // The `placeholder` prop.
 @property (nonatomic, strong) UIImage *placeholder;
+// `placeholder` as a url (the placeholderSource prop): loaded apart from the
+// image, at a high priority (or only from the cache, with cache cacheOnly),
+// it shows over the other placeholders once it has.
+@property (nonatomic, strong) FFFastImageSource *placeholderSource;
 // The `sourcePlaceholders` prop, by the source's index (an empty string for
 // none; one for a single source): the picked source's ThumbHash or
 // blurDataUri (a data uri) shows instead of placeholder. JS sends them apart
