@@ -570,6 +570,19 @@ describe('placeholder', () => {
         expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
     })
 
+    it('takes the name of an image bundled with the app', () => {
+        Platform.OS = 'ios'
+        expect(
+            props(<FastImage source={{ uri }} placeholder="gray" />)
+                .placeholder,
+        ).toEqual({ uri: 'gray' })
+        Platform.OS = 'android'
+        expect(
+            props(<FastImage source={{ uri }} placeholder="gray" />)
+                .placeholder,
+        ).toBe('gray')
+    })
+
     it('takes a data uri: an image source on iOS, the uri on Android', () => {
         Platform.OS = 'ios'
         expect(

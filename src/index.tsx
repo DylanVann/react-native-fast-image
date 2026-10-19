@@ -16,7 +16,7 @@ import { fromStyle, resolveObjectFit } from './objectFit'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
-import { dataUri, hasSourcePlaceholder } from './placeholders'
+import { dataUri, hasSourcePlaceholder, isImageName } from './placeholders'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -380,34 +380,29 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     source?: Source | Source[] | ImageRequireSource
     /**
-     * An image shown while the first image loads, and if an image fails to
-     * load: an asset loaded with `require(...)`, or a data uri
-     * (`data:image/…`). When `source` changes, the previous image shows while
-     * the new one loads instead (see `source` and `recyclingKey`). A source's
-     * `thumbhash` or `blurDataUri` shows instead of it. It's shown as it is
-     * (not blurred).
+     * A placeholder shown while the image loads, and if it fails to load:
      *
-     * Or a `thumbhash` or `blurDataUri` as on a source (`{ thumbhash }` or
-     * `{ blurDataUri }`): the blurred preview for every size of `source`
-     * that doesn't have its own, e.g. for several sizes of one image, or a
-     * hash that doesn't come with the source.
+     * - An image loaded with `require()`: `placeholder={require('./gray.png')}`.
+     * - A data uri: `placeholder="data:image/png;base64,…"`.
+     * - The name of an image bundled with the app (an iOS asset catalog image
+     *   or an Android drawable): `placeholder="gray"`.
+     * - A [ThumbHash](#sourcethumbhash), shown blurred:
+     *   `placeholder={{ thumbhash }}`.
+     * - A tiny image as a data uri, shown blurred:
+     *   `placeholder={{ blurDataUri }}`.
      *
-     * A url isn't loaded: on iOS and Android it's ignored, with a warning in
-     * development. On Android, a `require()`d placeholder doesn't show in
-     * debug builds: there the dev server serves `require()`d images, and it's
-     * only loaded from the app's resources.
+     * A source's own `thumbhash` or `blurDataUri` is shown instead, if it has
+     * one.
      *
-     * @example
-     * ```jsx
-     * <FastImage source={{ uri }} placeholder={require('./gray.png')} />
-     * <FastImage source={sizes} placeholder={{ thumbhash: photo.thumbhash }} />
-     * ```
+     * Notes:
+     *
+     * - A url isn't loaded: it's ignored, with a warning in development.
+     * - On Android, a `require()`d image doesn't show in debug builds, where
+     *   the dev server serves it. Release builds show it.
      */
     placeholder?: ImageRequireSource | string | SourcePlaceholder
     /**
-     * @deprecated Use `placeholder`, which is the same (React Native's
-     * `Image` calls it `defaultSource`). `placeholder` is used if both are
-     * set, unless it's a `thumbhash` or `blurDataUri`.
+     * @deprecated Use `placeholder`, which does the same.
      */
     defaultSource?: ImageRequireSource
     /**
@@ -702,6 +697,13 @@ const resolvePlaceholder = (
     placeholder?: ImageRequireSource | string,
 ): string | object | null => {
     if (typeof placeholder === 'string') {
+        // An image bundled with the app, by name, as React Native's Image
+        // takes it ({ uri: name }).
+        if (isImageName(placeholder)) {
+            return Platform.OS === 'android'
+                ? placeholder
+                : { uri: placeholder }
+        }
         const uri = dataUri(placeholder)
         if (!uri) return null
         // Android decodes it; iOS takes it as an image source, as it does a
