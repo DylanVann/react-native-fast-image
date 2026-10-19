@@ -1,3 +1,10 @@
+# [10.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.3.0...v10.4.0) (2026-10-19)
+
+
+### Features
+
+* dynamicRangeLimit, HDR photos in HDR on iOS and the web ([cc2edc0](https://github.com/DylanVann/react-native-fast-image/commit/cc2edc03de9211a4b28800e313f69e1b23349b87))
+
 # [10.3.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.2.0...v10.3.0) (2026-10-19)
 
 
