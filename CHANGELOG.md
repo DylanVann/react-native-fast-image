@@ -1,3 +1,10 @@
+# [10.2.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.1.1...v10.2.0) (2026-10-19)
+
+
+### Features
+
+* blurred previews while images load (source.thumbhash and source.blurDataUri), and the placeholder prop ([3d31a0c](https://github.com/DylanVann/react-native-fast-image/commit/3d31a0cf4bc92a4dc9767506a35fa4d67d495977))
+
 ## [10.1.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.1.0...v10.1.1) (2026-10-18)
 
 
