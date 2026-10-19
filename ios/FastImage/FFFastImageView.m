@@ -5,6 +5,7 @@
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
 #import "FFFDownsampledImage.h"
+#import "FFFThumbHash.h"
 #import <Accelerate/Accelerate.h>
 
 @interface FFFastImageView ()
@@ -28,15 +29,16 @@
 // The image being blurred fades in once it's blurred (transition).
 @property(nonatomic, assign) BOOL fadesBlurredImage;
 // The image being blurred is the first loaded one the view shows: until it's
-// blurred, the view shows no loaded image (nothing, or defaultSource).
+// blurred, the view shows no loaded image (nothing, or the placeholder prop).
 @property(nonatomic, assign) BOOL blursOverNothing;
 // Whether the current load was already restarted after the app came back
 // from the background (see downloadImage:).
 @property(nonatomic, assign) BOOL retriedAfterBackground;
 // Waits for the app to be active again, to restart a load.
 @property(nonatomic, strong) id activeObserver;
-// Whether the view shows an image that loaded (not defaultSource or nothing).
-// A new source then keeps it until the new image has loaded (see reloadImage).
+// Whether the view shows an image that loaded (not the placeholder prop or
+// nothing). A new source then keeps it until the new image has loaded (see
+// reloadImage).
 @property(nonatomic, assign) BOOL showsLoadedImage;
 // downsample, or several sources: a load waits for the view's size (see
 // didSetProps).
@@ -62,6 +64,15 @@
 // The view's own mask, which clips it to the box while it's moved, when React
 // Native gives it none (the view doesn't clip: overflow visible).
 @property(nonatomic, strong) CALayer* ownMask;
+// The picked source's placeholder (its ThumbHash or blurDataUri) decoded, and
+// the string, or nil: it shows instead of the placeholder prop (see
+// shownPlaceholder).
+@property(nonatomic, strong) UIImage* hashImage;
+@property(nonatomic, copy) NSString* hashImageKey;
+// Whether the view shows its placeholder (the placeholder prop or the
+// source's), and whether that's the source's (hashImage).
+@property(nonatomic, assign) BOOL showsPlaceholder;
+@property(nonatomic, assign) BOOL showsHash;
 
 @end
 
@@ -266,12 +277,14 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
             contentMode = UIViewContentModeScaleToFill;
             break;
         case FFFObjectFitNone:
-            contentMode = UIViewContentModeCenter;
+            // A source's placeholder stands for an image whose size isn't
+            // known yet: as with contain, here and for scale-down.
+            contentMode = self.showsHash ? UIViewContentModeScaleAspectFit : UIViewContentModeCenter;
             break;
         case FFFObjectFitScaleDown: {
             CGSize imageSize = super.image.size;
             CGSize viewSize = self.bounds.size;
-            contentMode = imageSize.width > viewSize.width || imageSize.height > viewSize.height
+            contentMode = self.showsHash || imageSize.width > viewSize.width || imageSize.height > viewSize.height
                 ? UIViewContentModeScaleAspectFit
                 : UIViewContentModeCenter;
             break;
@@ -427,6 +440,13 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 
 - (void) setImage: (UIImage*)image {
     self.imageCount++;
+    self.showsHash = image != nil && image == self.hashImage;
+    self.showsPlaceholder = self.showsHash || (image != nil && image == _placeholder);
+    if ([_imageRendering isEqualToString: @"pixelated"]) {
+        // A source's placeholder is a blurred preview, scaled up smoothly
+        // (pixelated is for the image).
+        self.layer.magnificationFilter = self.showsHash ? kCAFilterLinear : kCAFilterNearest;
+    }
     if ([self blurs: image]) {
         self.originalImage = image;
         self.blurredImage = nil;
@@ -513,10 +533,10 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     }
 }
 
-// Whether the image is blurred: a loaded image, not defaultSource (as with
-// React Native's Image, and on Android).
+// Whether the image is blurred: a loaded image, not the placeholder prop (as
+// with React Native's Image, and on Android).
 - (BOOL) blurs: (UIImage*)image {
-    return _blurRadius > 0 && image && image != _defaultSource;
+    return _blurRadius > 0 && image && image != _placeholder && image != self.hashImage;
 }
 
 // Blurs the image off the main thread, and shows it (tinted as any image) unless
@@ -798,10 +818,48 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
-- (void) setDefaultSource: (UIImage*)defaultSource {
-    if (_defaultSource != defaultSource) {
-        _defaultSource = defaultSource;
+- (void) setPlaceholder: (UIImage*)placeholder {
+    if (_placeholder != placeholder) {
+        _placeholder = placeholder;
         _needsReload = YES;
+    }
+}
+
+- (void) setSourcePlaceholders: (NSArray<NSString*>*)sourcePlaceholders {
+    _sourcePlaceholders = [sourcePlaceholders copy];
+    [self updateHashImage];
+}
+
+// What shows while the image loads and if it fails: the picked source's
+// placeholder (its ThumbHash or blurDataUri), or the placeholder prop.
+- (UIImage*) shownPlaceholder {
+    return self.hashImage ?: _placeholder;
+}
+
+// The picked source's ThumbHash or blurDataUri, or nil.
+- (NSString*) pickedSourcePlaceholder {
+    NSUInteger index = 0;
+    if ([self picksSource]) {
+        index = _source ? [_sources indexOfObjectIdenticalTo: _source] : NSNotFound;
+    }
+    NSString* hash = index < _sourcePlaceholders.count ? _sourcePlaceholders[index] : nil;
+    return hash.length > 0 ? hash : nil;
+}
+
+// Decodes the picked source's placeholder. A view showing the previous
+// placeholder shows the new one at once, without loading the image again.
+- (void) updateHashImage {
+    NSString* hash = [self pickedSourcePlaceholder];
+    if (hash == self.hashImageKey || [hash isEqualToString: self.hashImageKey]) {
+        return;
+    }
+    UIImage* previous = [self shownPlaceholder];
+    BOOL showing = self.showsPlaceholder;
+    self.hashImageKey = hash;
+    self.hashImage = [FFFThumbHash imageForPlaceholder: hash];
+    UIImage* placeholder = [self shownPlaceholder];
+    if (showing && placeholder != previous) {
+        [self setImage: placeholder];
     }
 }
 
@@ -906,6 +964,7 @@ NSString *FFFErrorMessage(NSError *error)
     if ([self picksSource]) {
         _source = [self sourceForSize];
     }
+    [self updateHashImage];
     self.decodedBox = CGSizeZero;
     // The previous load, if it's still running, is for a source the view no
     // longer shows: cancel it (a new download would, but a data uri or no
@@ -924,8 +983,9 @@ NSString *FFFErrorMessage(NSError *error)
             // Use SDWebImage API to support external format like WebP images
             UIImage* image = [UIImage sd_imageWithData: [NSData dataWithContentsOfURL: _source.url]];
             if (!image) {
-                // Not decodable: fail like a remote image, showing defaultSource.
-                [self setImage: _defaultSource];
+                // Not decodable: fail like a remote image, showing the
+                // placeholder.
+                [self setImage: [self shownPlaceholder]];
                 self.showsLoadedImage = NO;
                 [self sendOnError: @"Failed to decode the image"];
                 if (self.onFastImageLoadEnd) {
@@ -954,9 +1014,10 @@ NSString *FFFErrorMessage(NSError *error)
         SDWebImageOptions options = [self loadOptions];
 
         // Keep showing the loaded image until the new one has loaded, instead
-        // of clearing it to defaultSource (or nothing) while it loads, which
-        // flashed (#747). defaultSource shows if the new image fails. As React
-        // Native's Image does; a `key` that changes starts from blank instead.
+        // of clearing it to the placeholder prop (or nothing) while it loads,
+        // which flashed (#747). The placeholder prop shows if the new image
+        // fails. As React Native's Image does; a `key` that changes starts from
+        // blank instead.
         if (self.showsLoadedImage) {
             options |= SDWebImageDelayPlaceholder;
         }
@@ -970,8 +1031,8 @@ NSString *FFFErrorMessage(NSError *error)
         [self stopWaitingForActive];
 
         [self downloadImage: _source options: options context: [self loadContext] events: YES];
-    } else if (_defaultSource) {
-        [self setImage: _defaultSource];
+    } else if ([self shownPlaceholder]) {
+        [self setImage: [self shownPlaceholder]];
         self.showsLoadedImage = NO;
     }
 }
@@ -1003,8 +1064,8 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 // Whether the view loads as it's laid out, so its image shows in this frame:
-// one in the memory cache, where SDWebImage finds it as the load starts, or
-// one that isn't downloaded (no source, which shows defaultSource, or a data
+// one in the memory cache, where SDWebImage finds it as the load starts, or one
+// that isn't downloaded (no source, which shows the placeholder prop, or a data
 // uri). Also when that can't be told (an app's own image cache), as before.
 - (BOOL) loadsDuringLayout {
     FFFastImageSource* source = [self picksSource] ? [self sourceForSize] : _source;
@@ -1143,13 +1204,13 @@ NSString *FFFErrorMessage(NSError *error)
     // class to SDAnimatedImage (loadContext sets it). Only while this is the
     // current load: SDWebImage sets the placeholder when a load it cancelled
     // completes, which could replace a newer image.
-    UIImage* placeholder = _defaultSource;
+    UIImage* placeholder = [self shownPlaceholder];
     SDSetImageBlock setImage = ^(UIImage* _Nullable image, NSData* _Nullable data, SDImageCacheType cacheType, NSURL* _Nullable imageURL) {
         if (weakSelf.loadCount != load) {
             return;
         }
-        // The loaded image, not defaultSource (shown while it loads, or if it
-        // fails).
+        // The loaded image, not the placeholder prop (shown while it loads, or
+        // if it fails).
         BOOL loaded = image && image != placeholder;
         [weakSelf showLoadedImage: image fade: loaded && [weakSelf fadesImageFromCache: cacheType]];
     };
@@ -1194,7 +1255,13 @@ NSString *FFFErrorMessage(NSError *error)
                     return;
                 }
                 if (error) {
-                    // SDWebImage shows the placeholder (defaultSource or nothing).
+                    // SDWebImage shows the placeholder the load started with
+                    // (the placeholder prop, a source's, or nothing): the
+                    // current one if the source's changed since.
+                    UIImage* current = [weakSelf shownPlaceholder];
+                    if (current != placeholder) {
+                        [weakSelf setImage: current];
+                    }
                     weakSelf.showsLoadedImage = NO;
                     [weakSelf sendOnError: [source errorMessage: error]];
                     if (weakSelf.onFastImageLoadEnd) {

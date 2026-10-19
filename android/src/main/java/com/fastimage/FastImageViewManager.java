@@ -7,9 +7,11 @@ import static com.fastimage.FastImageRequestListener.REACT_ON_LOAD_EVENT;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.graphics.Bitmap;
 import android.graphics.PorterDuff;
 import android.util.Log;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 
 import androidx.annotation.NonNull;
 
@@ -312,12 +314,16 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         view.setSources(sources.isNull() ? null : sources.asArray());
     }
 
-    // The resolved asset's uri.
+    // The `placeholder` prop: the resolved asset's uri, or a data uri.
     @Override
-    public void setDefaultSource(FastImageViewWithUrl view, Dynamic source) {
-        view.setDefaultSource(
-                ResourceDrawableIdHelper.getResourceDrawable(
-                        view.getContext(), source.isNull() ? null : source.asString()));
+    public void setPlaceholder(FastImageViewWithUrl view, Dynamic source) {
+        String uri = source.isNull() ? null : source.asString();
+        if (uri != null && FastImageThumbHash.isDataUri(uri)) {
+            Bitmap bitmap = FastImageThumbHash.dataUri(uri);
+            view.setPlaceholder(bitmap == null ? null : new BitmapDrawable(view.getResources(), bitmap));
+        } else {
+            view.setPlaceholder(ResourceDrawableIdHelper.getResourceDrawable(view.getContext(), uri));
+        }
     }
 
     @Override
@@ -332,6 +338,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
         view.setRecyclingKey(recyclingKey);
+    }
+
+    @Override
+    public void setSourcePlaceholders(FastImageViewWithUrl view, @Nullable ReadableArray placeholders) {
+        view.setSourcePlaceholders(placeholders);
     }
 
     @Override

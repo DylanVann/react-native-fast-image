@@ -1,0 +1,8 @@
+{
+    "name": "react-native-fast-image-thumbhash",
+    "private": true,
+    "main": "../dist/thumbhash.cjs.js",
+    "module": "../dist/thumbhash.js",
+    "react-native": "../src/thumbhash.ts",
+    "types": "../dist/thumbhash.d.ts"
+}

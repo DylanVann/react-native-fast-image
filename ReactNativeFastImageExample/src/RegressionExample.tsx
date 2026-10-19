@@ -7901,6 +7901,424 @@ const VIEW_STYLE_CASES = [
     />,
 ]
 
+// source.thumbhash: a ThumbHash shows, decoded, while the image loads and if
+// it fails, in place of defaultSource. Made with the reference encoder from
+// flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a
+// magenta disc on transparent, and a 4:3 cyan-to-orange gradient. Checked by
+// screenshot: each case says what it shows.
+const THUMBHASH_RED_BLUE = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+const THUMBHASH_GREEN_YELLOW = 'HWwJNRp4eHB4iIh4iIh4iHhweAiH'
+const THUMBHASH_DISC = 'Y8WDBQA396eIiH52qBd4cI33B1iIiIB5WA=='
+const THUMBHASH_CYAN_ORANGE = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
+
+// A slow server url held before it sends anything (until the case unmounts),
+// so the placeholder stays. Its requests are counted in its group.
+const thumbhashHeld = (name: string) =>
+    slowImageUrl(
+        `picsum/1021-120x120.jpg?group=thumbhash-${name}-${RUN}&hold=thumbhash-${name}-${RUN}&holdAfter=0`,
+    )
+const releaseThumbhashHold = (name: string) =>
+    fetch(imageUrl(`release?hold=thumbhash-${name}-${RUN}`)).catch(() => {})
+const thumbhashRequests = (name: string) =>
+    fetch(imageUrl(`requests?group=thumbhash-${name}-${RUN}`))
+        .then((response) => response.json())
+        .then((stats: { count: number }) => stats.count)
+
+// Reports OK once the load has started (and the placeholder had a frame to
+// show), or its error.
+function useThumbhashStatus(expectError = false) {
+    const [status, setStatus] = useState('waiting')
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return {
+        status,
+        setStatus,
+        onLoadStart: expectError
+            ? undefined
+            : () => {
+                  clearTimeout(timer.current)
+                  timer.current = setTimeout(() => setStatus('OK'), 500)
+              },
+        onLoad: () => setStatus('onLoad: the download should be held'),
+        onError: (e: { nativeEvent: { error?: string } }) => {
+            const error = String(e.nativeEvent.error)
+            setStatus(expectError ? 'OK' : `onError: ${error}`)
+        },
+    }
+}
+
+// The hash shows while the download is held, in place of defaultSource.
+function ThumbhashLoadingCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('loading'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('loading'),
+                    headers: SLOW_HEADERS,
+                    thumbhash: THUMBHASH_RED_BLUE,
+                }}
+                defaultSource={require('./images/magenta.png')}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-loading"
+                status={status}
+                description="thumbhash while the image loads, over defaultSource: red on the left to blue on the right, blurred (no magenta)"
+            />
+        </View>
+    )
+}
+
+// A transparent hash, with objectFit scale-down: drawn as contain (the
+// image's size isn't known yet), the row's background around the disc.
+function ThumbhashScaleDownCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('scale-down'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="scale-down"
+                source={{
+                    uri: thumbhashHeld('scale-down'),
+                    headers: SLOW_HEADERS,
+                    thumbhash: THUMBHASH_DISC,
+                }}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-scale-down"
+                status={status}
+                description="thumbhash with objectFit scale-down and transparency: a soft magenta disc, as tall as the view, centered on gray"
+            />
+        </View>
+    )
+}
+
+// The image fails: the hash shows (contain, in a wide view).
+function ThumbhashFailsCase() {
+    const { status, onLoad, onError } = useThumbhashStatus(true)
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="contain"
+                source={{
+                    uri: slowImageUrl(
+                        `does-not-exist.jpg?thumbhash-fails=${RUN}&delay=50`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    thumbhash: THUMBHASH_GREEN_YELLOW,
+                }}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-fails"
+                status={status}
+                description="thumbhash after the image fails, objectFit contain: green at the top to yellow at the bottom, centered on gray"
+            />
+        </View>
+    )
+}
+
+// The image has loaded; a second later its source gets another hash. Passes
+// when it doesn't load again: one request, one onLoad.
+function ThumbhashChangeLoadedCase() {
+    const [thumbhash, setThumbhash] = useState(THUMBHASH_RED_BLUE)
+    const [status, setStatus] = useState('waiting')
+    const loads = useRef(0)
+    const onLoad = () => {
+        loads.current++
+        if (loads.current > 1) {
+            setStatus('loaded again after the thumbhash changed')
+            return
+        }
+        setTimeout(() => setThumbhash(THUMBHASH_CYAN_ORANGE), 1000)
+        setTimeout(async () => {
+            const requests = await thumbhashRequests('loaded').catch(() => -1)
+            setStatus((previous) =>
+                previous !== 'waiting'
+                    ? previous
+                    : requests === 1 && loads.current === 1
+                      ? 'OK'
+                      : `${requests} requests, ${loads.current} onLoad`,
+            )
+        }, 2500)
+    }
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: slowImageUrl(
+                        `picsum/1021-120x120.jpg?group=thumbhash-loaded-${RUN}&delay=50`,
+                    ),
+                    headers: SLOW_HEADERS,
+                    thumbhash,
+                }}
+                onLoad={onLoad}
+                onError={(e) => setStatus(`onError: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="thumbhash-change-loaded"
+                status={status}
+                description="A new thumbhash for an image that has loaded: no new load, the photo stays"
+            />
+        </View>
+    )
+}
+
+// While the download is held, the source gets another hash: it shows at once,
+// without starting the download again (one request).
+function ThumbhashChangeLoadingCase() {
+    const [thumbhash, setThumbhash] = useState(THUMBHASH_RED_BLUE)
+    const [status, setStatus] = useState('waiting')
+    const started = useRef(false)
+    useEffect(() => () => void releaseThumbhashHold('loading-change'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('loading-change'),
+                    headers: SLOW_HEADERS,
+                    thumbhash,
+                }}
+                onLoadStart={() => {
+                    if (started.current) {
+                        setStatus('the load started again')
+                        return
+                    }
+                    started.current = true
+                    setTimeout(() => setThumbhash(THUMBHASH_CYAN_ORANGE), 500)
+                    setTimeout(async () => {
+                        const requests = await thumbhashRequests(
+                            'loading-change',
+                        ).catch(() => -1)
+                        setStatus((previous) =>
+                            previous !== 'waiting'
+                                ? previous
+                                : requests === 1
+                                  ? 'OK'
+                                  : `${requests} requests`,
+                        )
+                    }, 1500)
+                }}
+                onLoad={() => setStatus('onLoad: the download should be held')}
+                onError={(e) => setStatus(`onError: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="thumbhash-change-loading"
+                status={status}
+                description="A new thumbhash while the image loads: shows at once (cyan on the left to orange on the right), the download isn't restarted"
+            />
+        </View>
+    )
+}
+
+// Several sizes, each with its own hash: the view (40 × 30) picks the small
+// one (100 × 75 px), and shows its hash, not the large one's.
+function ThumbhashSizesCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(
+        () => () => {
+            void releaseThumbhashHold('sizes-small')
+            void releaseThumbhashHold('sizes-large')
+        },
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.small}
+                source={[
+                    {
+                        uri: thumbhashHeld('sizes-small'),
+                        headers: SLOW_HEADERS,
+                        width: 100,
+                        height: 75,
+                        thumbhash: THUMBHASH_CYAN_ORANGE,
+                    },
+                    {
+                        uri: thumbhashHeld('sizes-large'),
+                        headers: SLOW_HEADERS,
+                        width: 1000,
+                        height: 750,
+                        thumbhash: THUMBHASH_RED_BLUE,
+                    },
+                ]}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-sizes"
+                status={status}
+                description="Several sizes with their own thumbhash: the picked size's (cyan on the left to orange on the right, not red to blue)"
+            />
+        </View>
+    )
+}
+
+// A recycled row: once the first image has loaded, the view gets another
+// recyclingKey and a held source with a hash. It shows the new hash, not the
+// previous row's image.
+function ThumbhashRecycledCase() {
+    const [second, setSecond] = useState(false)
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('recycled'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                recyclingKey={second ? 'b' : 'a'}
+                source={
+                    second
+                        ? {
+                              uri: thumbhashHeld('recycled'),
+                              headers: SLOW_HEADERS,
+                              thumbhash: THUMBHASH_GREEN_YELLOW,
+                          }
+                        : {
+                              uri: imageUrl(
+                                  `picsum/1022-120x120.jpg?thumbhash-recycled=${RUN}`,
+                              ),
+                          }
+                }
+                onLoadStart={second ? onLoadStart : undefined}
+                onLoad={second ? onLoad : () => setSecond(true)}
+                onError={onError}
+            />
+            <CaseStatus
+                id="thumbhash-recycled"
+                status={status}
+                description="A recycled row (new recyclingKey) with a thumbhash: green at the top to yellow at the bottom, not the previous photo"
+            />
+        </View>
+    )
+}
+
+// placeholder as a data uri, and a source's blurDataUri: decoded at once,
+// shown while the download is held. A 2 × 2 PNG of red, green, blue and
+// yellow quadrants, and a 2 × 1 one, orange on the left and teal on the right.
+const PLACEHOLDER_QUADRANTS =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mN4Jicnt8qGQSPgzocTIgAh2AVH0x5+BQAAAABJRU5ErkJggg=='
+const PLACEHOLDER_BAND =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR42mP438HA0NEBAApBApjRI1qYAAAAAElFTkSuQmCC'
+
+// The placeholder prop as a data uri, over defaultSource.
+function PlaceholderDataUriCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('placeholder-data-uri'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('placeholder-data-uri'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={PLACEHOLDER_QUADRANTS}
+                defaultSource={require('./images/magenta.png')}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="placeholder-data-uri"
+                status={status}
+                description="placeholder as a data uri while the image loads: red, green, blue and yellow quadrants blending into each other (no magenta)"
+            />
+        </View>
+    )
+}
+
+// A source's blurDataUri, with objectFit scale-down: blurred, and drawn as a
+// thumbhash is, as contain (the image's size isn't known yet), over the
+// placeholder prop.
+function BlurDataUriCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(() => () => void releaseThumbhashHold('blur-data-uri'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                objectFit="scale-down"
+                source={{
+                    uri: thumbhashHeld('blur-data-uri'),
+                    headers: SLOW_HEADERS,
+                    blurDataUri: PLACEHOLDER_BAND,
+                }}
+                placeholder={require('./images/magenta.png')}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="blur-data-uri"
+                status={status}
+                description="a source's blurDataUri with objectFit scale-down: an orange-to-teal band, blurred smoothly from one color to the other, as wide as the view, half as tall, centered on gray (no magenta)"
+            />
+        </View>
+    )
+}
+
+// Several sizes without their own hash, and one for all of them as the
+// placeholder prop: the picked size shows it.
+function PlaceholderSizesCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(
+        () => () => {
+            void releaseThumbhashHold('placeholder-sizes-small')
+            void releaseThumbhashHold('placeholder-sizes-large')
+        },
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={[
+                    {
+                        uri: thumbhashHeld('placeholder-sizes-small'),
+                        headers: SLOW_HEADERS,
+                        width: 100,
+                        height: 75,
+                    },
+                    {
+                        uri: thumbhashHeld('placeholder-sizes-large'),
+                        headers: SLOW_HEADERS,
+                        width: 1000,
+                        height: 750,
+                    },
+                ]}
+                placeholder={{ thumbhash: THUMBHASH_GREEN_YELLOW }}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="placeholder-sizes"
+                status={status}
+                description="Several sizes with one thumbhash as the placeholder prop: green at the top to yellow at the bottom, filling the view"
+            />
+        </View>
+    )
+}
+
+const thumbhashStyles = StyleSheet.create({
+    wide: { width: 96, height: 72, backgroundColor: '#eee' },
+    small: { width: 40, height: 30, backgroundColor: '#eee' },
+})
+
 export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // First, before any view has loaded an image.
@@ -8827,6 +9245,27 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                       />,
                   ]
                 : []),
+        ],
+    },
+    {
+        // source.thumbhash, checked by screenshot (see ThumbhashLoadingCase).
+        name: 'thumbhash',
+        cases: [
+            <ThumbhashLoadingCase key="thumbhash-loading" />,
+            <ThumbhashScaleDownCase key="thumbhash-scale-down" />,
+            <ThumbhashFailsCase key="thumbhash-fails" />,
+            <ThumbhashChangeLoadedCase key="thumbhash-change-loaded" />,
+            <ThumbhashChangeLoadingCase key="thumbhash-change-loading" />,
+            <ThumbhashSizesCase key="thumbhash-sizes" />,
+            <ThumbhashRecycledCase key="thumbhash-recycled" />,
+        ],
+    },
+    {
+        name: 'placeholder',
+        cases: [
+            <PlaceholderDataUriCase key="placeholder-data-uri" />,
+            <BlurDataUriCase key="blur-data-uri" />,
+            <PlaceholderSizesCase key="placeholder-sizes" />,
         ],
     },
     {

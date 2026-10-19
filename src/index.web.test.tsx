@@ -6,6 +6,8 @@ import renderer, { act } from 'react-test-renderer'
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground } from './index.web'
+// Imported: the web version shows thumbhashes only with it.
+import { thumbHashToBlurDataUri } from './thumbhash'
 
 // Renders with effects run, as in a browser.
 function render(element: React.ReactElement, options?: any) {
@@ -629,5 +631,185 @@ describe('FastImage (web)', () => {
         expect(FastImage.resizeMode.contain).toBe('contain')
         expect(FastImage.priority.high).toBe('high')
         expect(FastImage.cacheControl.web).toBe('web')
+    })
+})
+
+describe('thumbhash (web)', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const H2 = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
+
+    it('takes one for every size as the placeholder prop', () => {
+        const tree = render(
+            <FastImage
+                source={[
+                    { ...A, width: 100, height: 75 },
+                    { uri: `${A.uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ thumbhash: H1 }}
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(thumbHashToBlurDataUri(H1))
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
+    })
+
+    it('shows in place of defaultSource until the image loads', async () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, thumbhash: H1 }}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                objectFit="none"
+            />,
+        )
+        const [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe(thumbHashToBlurDataUri(H1))
+        // As contain: it stands for an image whose size isn't known yet.
+        expect(placeholder.props.style.objectFit).toBe('contain')
+        // Blurred, as a blurDataUri.
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
+        expect(image.props.style.objectFit).toBe('none')
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(images(tree)).toHaveLength(1)
+    })
+
+    it('shows for several sizes only if they all have the same one', () => {
+        const sizes = (second: string) => [
+            {
+                uri: 'https://example.com/a.jpg',
+                width: 100,
+                height: 75,
+                thumbhash: H1,
+            },
+            {
+                uri: 'https://example.com/b.jpg',
+                width: 400,
+                height: 300,
+                thumbhash: second,
+            },
+        ]
+        let tree = render(<FastImage source={sizes(H1)} />)
+        expect(images(tree)[0].props.src).toBe(thumbHashToBlurDataUri(H1))
+        tree = render(
+            <FastImage
+                source={sizes(H2)}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
+    })
+
+    it('is ignored without react-native-fast-image/thumbhash, with a warning', () => {
+        const key = Symbol.for('react-native-fast-image/thumbhash')
+        const registry = globalThis as Record<symbol, unknown>
+        const decoder = registry[key]
+        delete registry[key]
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            const tree = render(
+                <FastImage
+                    source={{ ...A, thumbhash: H1 }}
+                    defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                />,
+            )
+            expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain(
+                'react-native-fast-image/thumbhash',
+            )
+        } finally {
+            registry[key] = decoder
+            warn.mockRestore()
+        }
+    })
+})
+
+describe('placeholder (web)', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const DATA = 'data:image/png;base64,iVBORw0KGgo='
+    const OTHER = 'data:image/png;base64,R0lGODlh'
+
+    it('takes a data uri, under the image until it loads', () => {
+        const tree = render(<FastImage source={A} placeholder={DATA} />)
+        const [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        expect(image.props.src).toBe(A.uri)
+    })
+
+    it('wins over defaultSource', () => {
+        const tree = render(
+            <FastImage
+                source={A}
+                placeholder={DATA}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(DATA)
+    })
+
+    it("is a source's blurDataUri, blurred, before its thumbhash", () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, thumbhash: H1, blurDataUri: DATA }}
+                placeholder={OTHER}
+                objectFit="none"
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        // As a thumbhash: it stands for an image whose size isn't known yet.
+        expect(placeholder.props.style.objectFit).toBe('contain')
+        // Blurred, by its own filter only.
+        const filter = placeholder.props.style.filter
+        expect(filter).toMatch(/^url\(#fast-image-blur-/)
+        expect(hosts(tree, 'feGaussianBlur')).toHaveLength(1)
+    })
+
+    it('takes a blurDataUri for every size, blurred, as an object', () => {
+        const tree = render(
+            <FastImage
+                source={[
+                    { ...A, width: 100, height: 75 },
+                    { uri: `${A.uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ blurDataUri: DATA }}
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
+    })
+
+    it("as an object, loses to a source's own", () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: OTHER }}
+                placeholder={{ blurDataUri: DATA }}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(OTHER)
+    })
+
+    it("ignores a source's url, with a warning", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: 'https://example.com/small.jpg' }}
+                placeholder={DATA}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(DATA)
+        expect(warn).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
     })
 })

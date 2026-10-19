@@ -7,6 +7,7 @@ import {
     View,
 } from 'react-native'
 import React from 'react'
+import { act } from 'react-test-renderer'
 import {
     afterEach,
     beforeAll,
@@ -393,6 +394,196 @@ describe('FastImage (iOS)', () => {
             ok: false,
             error: 'Glide failed',
         })
+    })
+})
+
+describe('thumbhash', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const H2 = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
+    const uri = 'https://example.com/a.jpg'
+    const props = (element: React.ReactElement) =>
+        (renderer.create(element).toJSON() as any).props
+
+    it('goes to the native view apart from the source', () => {
+        const view = props(<FastImage source={{ uri, thumbhash: H1 }} />)
+        expect(view.sourcePlaceholders).toEqual([H1])
+        // Without it, so a new hash for the same image doesn't reload it.
+        expect(view.source).toEqual({ uri })
+    })
+
+    it("goes by index for several sources ('' for none)", () => {
+        const view = props(
+            <FastImage
+                source={[
+                    { uri, width: 100, height: 75 },
+                    { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
+                ]}
+            />,
+        )
+        expect(view.sourcePlaceholders).toEqual(['', H2])
+        expect(view.sources).toEqual([
+            { uri, width: 100, height: 75 },
+            { uri: `${uri}?2`, width: 400, height: 300 },
+        ])
+    })
+
+    it("isn't sent without one", () => {
+        const view = props(
+            <FastImage source={[{ uri, width: 1, height: 1 }, { uri }]} />,
+        )
+        expect(view.sourcePlaceholders).toBeUndefined()
+        expect(
+            props(<FastImage source={{ uri }} />).sourcePlaceholders,
+        ).toBeUndefined()
+        expect(props(<FastImage source={{ uri }} />).source).toEqual({ uri })
+    })
+
+    it('keeps an unchanged source as the same objects', () => {
+        const source = { uri, thumbhash: H1 }
+        const sources = [
+            { uri, width: 100, height: 75, thumbhash: H1 },
+            { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
+        ]
+        for (const value of [source, sources]) {
+            const view = renderer.create(<FastImage source={value} />)
+            const before = (view.toJSON() as any).props
+            // Another prop changes: React's prop diff stops at the same
+            // objects instead of comparing them field by field.
+            act(() => view.update(<FastImage source={value} tintColor="red" />))
+            const after = (view.toJSON() as any).props
+            expect(after.source).toBe(before.source)
+            expect(after.sources).toBe(before.sources)
+            expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
+        }
+    })
+})
+
+describe('placeholder', () => {
+    const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
+    const DATA = 'data:image/png;base64,iVBORw0KGgo='
+    const uri = 'https://example.com/a.jpg'
+    const props = (element: React.ReactElement) =>
+        (renderer.create(element).toJSON() as any).props
+    const jellyfish = require('../ReactNativeFastImageExample/src/images/jellyfish.gif')
+
+    afterEach(() => {
+        Platform.OS = 'ios'
+    })
+
+    it("goes to the native view apart from the source, as a source's thumbhash", () => {
+        const view = props(<FastImage source={{ uri, blurDataUri: DATA }} />)
+        expect(view.sourcePlaceholders).toEqual([DATA])
+        expect(view.source).toEqual({ uri })
+    })
+
+    it('loses to the thumbhash natively, which iOS and Android decode', () => {
+        const view = props(
+            <FastImage source={{ uri, thumbhash: H1, blurDataUri: DATA }} />,
+        )
+        expect(view.sourcePlaceholders).toEqual([H1])
+    })
+
+    it("goes by index for several sources ('' for none)", () => {
+        const view = props(
+            <FastImage
+                source={[
+                    { uri, width: 100, height: 75, blurDataUri: DATA },
+                    { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H1 },
+                    { uri: `${uri}?3`, width: 800, height: 600 },
+                ]}
+            />,
+        )
+        expect(view.sourcePlaceholders).toEqual([DATA, H1, ''])
+        expect(view.sources).toEqual([
+            { uri, width: 100, height: 75 },
+            { uri: `${uri}?2`, width: 400, height: 300 },
+            { uri: `${uri}?3`, width: 800, height: 600 },
+        ])
+    })
+
+    it('is a data uri: a url is ignored, with a warning', () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        const view = props(
+            <FastImage
+                source={{ uri, blurDataUri: 'https://example.com/small.jpg' }}
+                placeholder="https://example.com/small.jpg"
+            />,
+        )
+        expect(view.sourcePlaceholders).toBeUndefined()
+        expect(view.placeholder).toBeFalsy()
+        expect(view.source).toEqual({ uri })
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(warn.mock.calls[0][0]).toContain('data uri')
+        warn.mockRestore()
+    })
+
+    it('as a thumbhash or blurDataUri, covers the sources without their own', () => {
+        const one = props(
+            <FastImage source={{ uri }} placeholder={{ thumbhash: H1 }} />,
+        )
+        expect(one.sourcePlaceholders).toEqual([H1])
+        expect(one.placeholder).toBeFalsy()
+        const several = props(
+            <FastImage
+                source={[
+                    { uri, width: 100, height: 75, blurDataUri: DATA },
+                    { uri: `${uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ thumbhash: H1 }}
+            />,
+        )
+        expect(several.sourcePlaceholders).toEqual([DATA, H1])
+        const data = props(
+            <FastImage source={{ uri }} placeholder={{ blurDataUri: DATA }} />,
+        )
+        expect(data.sourcePlaceholders).toEqual([DATA])
+    })
+
+    it('as an object made on every render, keeps the same props', () => {
+        const source = { uri }
+        const view = renderer.create(
+            <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
+        )
+        const before = (view.toJSON() as any).props
+        act(() =>
+            view.update(
+                <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
+            ),
+        )
+        const after = (view.toJSON() as any).props
+        expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
+    })
+
+    it('takes a data uri: an image source on iOS, the uri on Android', () => {
+        Platform.OS = 'ios'
+        expect(
+            props(<FastImage source={{ uri }} placeholder={DATA} />)
+                .placeholder,
+        ).toEqual({ uri: DATA })
+        Platform.OS = 'android'
+        expect(
+            props(<FastImage source={{ uri }} placeholder={DATA} />)
+                .placeholder,
+        ).toBe(DATA)
+    })
+
+    it('takes a require()d image, as defaultSource, and wins over it', () => {
+        const asPlaceholder = props(
+            <FastImage source={{ uri }} placeholder={jellyfish} />,
+        )
+        const asDefault = props(
+            <FastImage source={{ uri }} defaultSource={jellyfish} />,
+        )
+        expect(asPlaceholder.placeholder).toEqual(asDefault.placeholder)
+        expect(asPlaceholder.placeholder).toBeTruthy()
+        const both = props(
+            <FastImage
+                source={{ uri }}
+                placeholder={DATA}
+                defaultSource={jellyfish}
+            />,
+        )
+        expect(both.placeholder).toEqual({ uri: DATA })
     })
 })
 

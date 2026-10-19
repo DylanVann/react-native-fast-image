@@ -145,7 +145,7 @@ class FastImageViewConverter {
                 .set(FastImageGlide.REQUEST, true)
                 .set(FastImageGlide.NO_STORE, noStore);
 
-        // imageSource is null when only a defaultSource is shown.
+        // imageSource is null when only the placeholder prop is shown.
         if (imageSource != null && imageSource.isResource()) {
             // Every local resource (drawable) in Android has its own unique numeric id, which are
             // generated at build time. Although these ids are unique, they are not guaranteed unique
