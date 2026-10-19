@@ -135,6 +135,7 @@ export type FastImageProps = $ReadOnly<{|
 
     source?: ?(FastImageSource | Array<FastImageSource> | number),
     placeholder?: ?(number | string),
+    // Deprecated: use placeholder, which is the same.
     defaultSource?: ?number,
 
     tintColor?: number | string,

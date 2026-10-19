@@ -158,6 +158,8 @@ export type Source = {
      * load, in place of `placeholder`. It's decoded at once, and drawn like a
      * `thumbhash`: where the image will be. iOS and Android show PNG, JPEG,
      * WebP and GIF (its first frame); the web, any image the browser shows.
+     * Any size works, but more than about 32 px adds bytes, not detail: iOS
+     * and Android scale it down to 32 px before blurring it.
      *
      * With several sources, each has its own (on the web, only if they all
      * have the same one). If a source has both, iOS and Android show its
@@ -384,8 +386,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     placeholder?: ImageRequireSource | string
     /**
-     * The same as `placeholder` (React Native's `Image` calls it
-     * `defaultSource`). `placeholder` is used if both are set.
+     * @deprecated Use `placeholder`, which is the same (React Native's
+     * `Image` calls it `defaultSource`). `placeholder` is used if both are
+     * set.
      */
     defaultSource?: ImageRequireSource
     /**

@@ -534,10 +534,10 @@ function SizesChangeCase() {
     )
 }
 
-// Web: with defaultSource, the image isn't hidden while it loads (the browser
-// draws it over defaultSource as it arrives), and defaultSource goes once it
-// has loaded. The <img>s are in the view's element (the ref).
-function DefaultSourceCase() {
+// Web: with a placeholder, the image isn't hidden while it loads (the browser
+// draws it over the placeholder as it arrives), and the placeholder goes once
+// it has loaded. The <img>s are in the view's element (the ref).
+function PlaceholderCase() {
     const view = useRef<any>(null)
     const [status, setStatus] = useState('loading')
     const whileLoading = useRef<string>(undefined)
@@ -559,9 +559,9 @@ function DefaultSourceCase() {
                         `picsum/1025-200x200.jpg?smoke-default=${RUN}`,
                     ),
                 }}
-                defaultSource={require('./images/logo.png')}
+                placeholder={require('./images/logo.png')}
                 onLoad={() =>
-                    // After React has removed defaultSource.
+                    // After React has removed the placeholder.
                     setTimeout(() => {
                         const left =
                             view.current?.querySelectorAll?.('img').length
@@ -574,9 +574,9 @@ function DefaultSourceCase() {
                 }
             />
             <CaseStatus
-                id="smoke-default-source"
+                id="smoke-placeholder"
                 status={status}
-                description="With defaultSource, the image shows as it loads, and defaultSource goes once it has"
+                description="With a placeholder, the image shows as it loads, and the placeholder goes once it has"
             />
         </View>
     )
@@ -595,7 +595,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
             ...(Platform.OS === 'web'
                 ? [
                       <SizesChangeCase key="sizes-change" />,
-                      <DefaultSourceCase key="default-source" />,
+                      <PlaceholderCase key="placeholder" />,
                   ]
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],

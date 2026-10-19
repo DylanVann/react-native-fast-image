@@ -230,7 +230,7 @@ It's drawn where the image will be (`objectFit` and `objectPosition`), as with `
 
 **Type:** `string`
 
-A tiny version of the image as a data uri (`data:image/…`, e.g. an 8 to 20 px PNG, JPEG or WebP made when the image is uploaded, or an image service's LQIP), shown blurred while the image loads, and if it fails to load, in place of `placeholder`. It's decoded at once, and drawn like a `thumbhash`: where the image will be. iOS and Android show PNG, JPEG, WebP and GIF (its first frame); the web, any image the browser shows.
+A tiny version of the image as a data uri (`data:image/…`, e.g. an 8 to 20 px PNG, JPEG or WebP made when the image is uploaded, or an image service's LQIP), shown blurred while the image loads, and if it fails to load, in place of `placeholder`. It's decoded at once, and drawn like a `thumbhash`: where the image will be. iOS and Android show PNG, JPEG, WebP and GIF (its first frame); the web, any image the browser shows. Any size works, but more than about 32 px adds bytes, not detail: iOS and Android scale it down to 32 px before blurring it.
 
 With several sources, each has its own (on the web, only if they all have the same one). If a source has both, iOS and Android show its `thumbhash` (decoded natively), and the web its `blurDataUri` (no decoding). A url isn't loaded: it's ignored, with a warning in development.
 
@@ -282,7 +282,7 @@ A url isn't loaded: on iOS and Android it's ignored, with a warning in developme
 
 **Type:** `number`
 
-The same as `placeholder` (React Native's `Image` calls it `defaultSource`). `placeholder` is used if both are set.
+**Deprecated:** Use `placeholder`, which is the same (React Native's `Image` calls it `defaultSource`). `placeholder` is used if both are set.
 
 ---
 
