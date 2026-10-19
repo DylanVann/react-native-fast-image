@@ -28,9 +28,8 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
 @property (nonatomic, assign) FFFObjectFit objectFit;
-@property (nonatomic, strong) FFFastImageSource *source;
-// Several sources (2 or more) of the same image at different sizes: the view
-// loads the one whose size is closest to its own.
+// The `source` prop: one source, or several (sizes of one image), of which
+// the view loads the one whose size is closest to its own.
 @property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
 // The `placeholder` prop.
 @property (nonatomic, strong) UIImage *placeholder;
@@ -38,11 +37,14 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 // image, at a high priority (or only from the cache, with cache cacheOnly),
 // it shows over the other placeholders once it has.
 @property (nonatomic, strong) FFFastImageSource *placeholderSource;
-// The `sourcePlaceholders` prop, by the source's index (an empty string for
-// none; one for a single source): the picked source's ThumbHash or
-// blurDataUri (a data uri) shows instead of placeholder. JS sends them apart
-// from the sources, so a new one for the same image doesn't load it again.
+// The sources' ThumbHashes or blurDataUris (data uris), by the source's index
+// (an empty string for none): the picked source's shows instead of
+// placeholder. Set apart from the sources, so a new one for the same image
+// doesn't load it again.
 @property (nonatomic, copy) NSArray<NSString *> *sourcePlaceholders;
+// `placeholder` as a thumbhash or blurDataUri: shows for the sources without
+// their own.
+@property (nonatomic, copy) NSString *placeholderHash;
 @property (nonatomic, strong) UIColor *imageColor;
 // When it changes, the next image doesn't replace the current one: the view
 // clears first (for views reused for other content, like list rows).

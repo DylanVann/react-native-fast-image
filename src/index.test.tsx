@@ -404,38 +404,14 @@ describe('thumbhash', () => {
     const props = (element: React.ReactElement) =>
         (renderer.create(element).toJSON() as any).props
 
-    it('goes to the native view apart from the source', () => {
+    it('goes to the native view with the source', () => {
         const view = props(<FastImage source={{ uri, thumbhash: H1 }} />)
-        expect(view.sourcePlaceholders).toEqual([H1])
-        // Without it, so a new hash for the same image doesn't reload it.
-        expect(view.source).toEqual({ uri })
-    })
-
-    it("goes by index for several sources ('' for none)", () => {
-        const view = props(
-            <FastImage
-                source={[
-                    { uri, width: 100, height: 75 },
-                    { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
-                ]}
-            />,
-        )
-        expect(view.sourcePlaceholders).toEqual(['', H2])
-        expect(view.sources).toEqual([
+        expect(view.source).toEqual({ uri, thumbhash: H1 })
+        const sources = [
             { uri, width: 100, height: 75 },
-            { uri: `${uri}?2`, width: 400, height: 300 },
-        ])
-    })
-
-    it("isn't sent without one", () => {
-        const view = props(
-            <FastImage source={[{ uri, width: 1, height: 1 }, { uri }]} />,
-        )
-        expect(view.sourcePlaceholders).toBeUndefined()
-        expect(
-            props(<FastImage source={{ uri }} />).sourcePlaceholders,
-        ).toBeUndefined()
-        expect(props(<FastImage source={{ uri }} />).source).toEqual({ uri })
+            { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H2 },
+        ]
+        expect(props(<FastImage source={sources} />).source).toEqual(sources)
     })
 
     it('keeps an unchanged source as the same objects', () => {
@@ -452,8 +428,6 @@ describe('thumbhash', () => {
             act(() => view.update(<FastImage source={value} tintColor="red" />))
             const after = (view.toJSON() as any).props
             expect(after.source).toBe(before.source)
-            expect(after.sources).toBe(before.sources)
-            expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
         }
     })
 })
@@ -470,74 +444,34 @@ describe('placeholder', () => {
         Platform.OS = 'ios'
     })
 
-    it("goes to the native view apart from the source, as a source's thumbhash", () => {
-        const view = props(<FastImage source={{ uri, blurDataUri: DATA }} />)
-        expect(view.sourcePlaceholders).toEqual([DATA])
-        expect(view.source).toEqual({ uri })
-    })
-
-    it('loses to the thumbhash natively, which iOS and Android decode', () => {
-        const view = props(
-            <FastImage source={{ uri, thumbhash: H1, blurDataUri: DATA }} />,
-        )
-        expect(view.sourcePlaceholders).toEqual([H1])
-    })
-
-    it("goes by index for several sources ('' for none)", () => {
-        const view = props(
-            <FastImage
-                source={[
-                    { uri, width: 100, height: 75, blurDataUri: DATA },
-                    { uri: `${uri}?2`, width: 400, height: 300, thumbhash: H1 },
-                    { uri: `${uri}?3`, width: 800, height: 600 },
-                ]}
-            />,
-        )
-        expect(view.sourcePlaceholders).toEqual([DATA, H1, ''])
-        expect(view.sources).toEqual([
-            { uri, width: 100, height: 75 },
-            { uri: `${uri}?2`, width: 400, height: 300 },
-            { uri: `${uri}?3`, width: 800, height: 600 },
-        ])
-    })
-
-    it('is a data uri: a url is ignored, with a warning', () => {
+    it('is a data uri: a url is ignored natively, with a warning', () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
-        const view = props(
+        props(
             <FastImage
                 source={{ uri, blurDataUri: 'https://example.com/small.jpg' }}
             />,
         )
-        expect(view.sourcePlaceholders).toBeUndefined()
-        expect(view.source).toEqual({ uri })
         expect(warn).toHaveBeenCalledTimes(1)
         expect(warn.mock.calls[0][0]).toContain('data uri')
         warn.mockRestore()
     })
 
-    it('as a thumbhash or blurDataUri, covers the sources without their own', () => {
-        const one = props(
-            <FastImage source={{ uri }} placeholder={{ thumbhash: H1 }} />,
-        )
-        expect(one.sourcePlaceholders).toEqual([H1])
-        expect(one.placeholder).toBeFalsy()
-        const several = props(
+    it('as a thumbhash or blurDataUri, goes as it is, in place of defaultSource', () => {
+        const view = props(
             <FastImage
-                source={[
-                    { uri, width: 100, height: 75, blurDataUri: DATA },
-                    { uri: `${uri}?2`, width: 400, height: 300 },
-                ]}
+                source={{ uri }}
                 placeholder={{ thumbhash: H1 }}
+                defaultSource={jellyfish}
             />,
         )
-        expect(several.sourcePlaceholders).toEqual([DATA, H1])
+        expect(view.placeholder).toEqual({ thumbhash: H1 })
         const data = props(
             <FastImage source={{ uri }} placeholder={{ blurDataUri: DATA }} />,
         )
-        expect(data.sourcePlaceholders).toEqual([DATA])
+        expect(data.placeholder).toEqual({ blurDataUri: DATA })
     })
 
-    it('as an object, leaves defaultSource as the image', () => {
+    it('as an empty thumbhash, leaves defaultSource as the image', () => {
         const view = props(
             <FastImage
                 source={{ uri }}
@@ -545,27 +479,11 @@ describe('placeholder', () => {
                 defaultSource={jellyfish}
             />,
         )
-        expect(view.sourcePlaceholders).toBeUndefined()
         expect(view.placeholder).toEqual(
             props(<FastImage source={{ uri }} placeholder={jellyfish} />)
                 .placeholder,
         )
         expect(view.placeholder).toBeTruthy()
-    })
-
-    it('as an object made on every render, keeps the same props', () => {
-        const source = { uri }
-        const view = renderer.create(
-            <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
-        )
-        const before = (view.toJSON() as any).props
-        act(() =>
-            view.update(
-                <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
-            ),
-        )
-        const after = (view.toJSON() as any).props
-        expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
     })
 
     it('takes a url, loaded natively apart from the image', () => {
@@ -839,14 +757,12 @@ describe('several sources', () => {
 
     it('passes several sources to the native view, which picks one', () => {
         const view = nativeView(<FastImage source={[small, large]} />)
-        expect(view.props.sources).toEqual([small, large])
-        expect(view.props.source).toBeUndefined()
+        expect(view.props.source).toEqual([small, large])
     })
 
     it('treats an array of one as a plain source', () => {
         const view = nativeView(<FastImage source={[small]} />)
         expect(view.props.source).toEqual(small)
-        expect(view.props.sources).toBeUndefined()
     })
 
     it('fails the methods that take one source for an array', async () => {
