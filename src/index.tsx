@@ -16,7 +16,7 @@ import { fromStyle, resolveObjectFit } from './objectFit'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
-import { dataUri } from './placeholders'
+import { dataUri, hasSourcePlaceholder } from './placeholders'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -142,8 +142,9 @@ export type Source = {
      * image's size. A new `thumbhash` for the same image doesn't load it
      * again. With several sources, each has its own: the view shows the one
      * it picks for its size (on the web, where the browser picks, only if
-     * they all have the same `thumbhash`). An invalid one shows nothing, or
-     * `placeholder`.
+     * they all have the same `thumbhash`). One for all of them can go in
+     * `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one
+     * shows nothing, or `placeholder`.
      *
      * @example
      * ```jsx
@@ -186,6 +187,12 @@ export type Source = {
     /** With several sources, the scale `width` and `height` are multiplied by. */
     scale?: number
 }
+
+/**
+ * A source's `thumbhash` or `blurDataUri` on its own: as `placeholder`, it's
+ * the blurred preview for every size of `source` that has none.
+ */
+export type SourcePlaceholder = Pick<Source, 'thumbhash' | 'blurDataUri'>
 
 /** How the image fades in: see [`transition`](#transition). */
 export type Transition = {
@@ -374,6 +381,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * `thumbhash` or `blurDataUri` shows instead of it. It's shown as it is
      * (not blurred).
      *
+     * Or a `thumbhash` or `blurDataUri` as on a source (`{ thumbhash }` or
+     * `{ blurDataUri }`): the blurred preview for every size of `source`
+     * that doesn't have its own, e.g. for several sizes of one image, or a
+     * hash that doesn't come with the source.
+     *
      * A url isn't loaded: on iOS and Android it's ignored, with a warning in
      * development. On Android, a `require()`d placeholder doesn't show in
      * debug builds: there the dev server serves `require()`d images, and it's
@@ -382,9 +394,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * @example
      * ```jsx
      * <FastImage source={{ uri }} placeholder={require('./gray.png')} />
+     * <FastImage source={sizes} placeholder={{ thumbhash: photo.thumbhash }} />
      * ```
      */
-    placeholder?: ImageRequireSource | string
+    placeholder?: ImageRequireSource | string | SourcePlaceholder
     /**
      * @deprecated Use `placeholder`, which is the same (React Native's
      * `Image` calls it `defaultSource`). `placeholder` is used if both are
@@ -659,19 +672,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
 }
 
-// Whether a source has a thumbhash or blurDataUri, which the native view gets
-// as props of their own.
-function hasPlaceholders(source: unknown): boolean {
-    return (
-        !!source &&
-        typeof source === 'object' &&
-        ('thumbhash' in source || 'blurDataUri' in source)
-    )
-}
-
 // A source without its thumbhash and blurDataUri.
 function withoutPlaceholders<T>(source: T): T {
-    if (!hasPlaceholders(source)) return source
+    if (!hasSourcePlaceholder(source)) return source
     const {
         thumbhash: _thumbhash,
         blurDataUri: _blurDataUri,
@@ -689,8 +692,10 @@ function sourcePlaceholder(source: unknown): string {
 }
 
 const resolvePlaceholder = (
-    placeholder?: ImageRequireSource | string,
+    placeholder?: ImageRequireSource | string | SourcePlaceholder,
 ): string | object | null => {
+    // A source's thumbhash or blurDataUri goes in sourcePlaceholders.
+    if (hasSourcePlaceholder(placeholder)) return null
     if (typeof placeholder === 'string') {
         const uri = dataUri(placeholder)
         if (!uri) return null
@@ -862,6 +867,12 @@ function FastImageBase({
 
     // Memoized on source, so an unchanged source reaches the native view as
     // the same objects, and React's prop diff stops at them.
+    // `placeholder` as a thumbhash or blurDataUri, for the sources without
+    // their own: a string, so an object made on every render doesn't make
+    // new sourcePlaceholders.
+    const shared = hasSourcePlaceholder(placeholder)
+        ? sourcePlaceholder(placeholder)
+        : ''
     const { resolvedSource, sources, sourcePlaceholders } = useMemo(() => {
         // Several sources are picked from natively, for the view's size; one
         // in an array is a plain source.
@@ -873,20 +884,23 @@ function FastImageBase({
         const single = Array.isArray(source) ? source[0] : source
         // Sources' thumbhashes and blurDataUris go to the native view apart
         // from the sources, so a new one for the same image doesn't load it
-        // again, by the source's index ('' for none).
-        const placeholders = (sources ?? [single]).map(sourcePlaceholder)
+        // again, by the source's index ('' for none). A source's own wins
+        // over `placeholder`'s.
+        const placeholders = (sources ?? [single]).map(
+            (entry) => sourcePlaceholder(entry) || shared,
+        )
         return {
             resolvedSource: sources
                 ? undefined
                 : Image.resolveAssetSource(withoutPlaceholders(single) as any),
-            sources: sources?.some(hasPlaceholders)
+            sources: sources?.some(hasSourcePlaceholder)
                 ? sources.map(withoutPlaceholders)
                 : sources,
             sourcePlaceholders: placeholders.some(Boolean)
                 ? placeholders
                 : undefined,
         }
-    }, [source])
+    }, [source, shared])
     const resolvedPlaceholder = resolvePlaceholder(placeholder ?? defaultSource)
 
     return (

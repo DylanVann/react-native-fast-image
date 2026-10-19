@@ -517,6 +517,43 @@ describe('placeholder', () => {
         warn.mockRestore()
     })
 
+    it('as a thumbhash or blurDataUri, covers the sources without their own', () => {
+        const one = props(
+            <FastImage source={{ uri }} placeholder={{ thumbhash: H1 }} />,
+        )
+        expect(one.sourcePlaceholders).toEqual([H1])
+        expect(one.placeholder).toBeFalsy()
+        const several = props(
+            <FastImage
+                source={[
+                    { uri, width: 100, height: 75, blurDataUri: DATA },
+                    { uri: `${uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ thumbhash: H1 }}
+            />,
+        )
+        expect(several.sourcePlaceholders).toEqual([DATA, H1])
+        const data = props(
+            <FastImage source={{ uri }} placeholder={{ blurDataUri: DATA }} />,
+        )
+        expect(data.sourcePlaceholders).toEqual([DATA])
+    })
+
+    it('as an object made on every render, keeps the same props', () => {
+        const source = { uri }
+        const view = renderer.create(
+            <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
+        )
+        const before = (view.toJSON() as any).props
+        act(() =>
+            view.update(
+                <FastImage source={source} placeholder={{ thumbhash: H1 }} />,
+            ),
+        )
+        const after = (view.toJSON() as any).props
+        expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
+    })
+
     it('takes a data uri: an image source on iOS, the uri on Android', () => {
         Platform.OS = 'ios'
         expect(

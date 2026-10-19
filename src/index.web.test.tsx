@@ -727,6 +727,33 @@ describe('placeholder (web)', () => {
         expect(hosts(tree, 'feGaussianBlur')).toHaveLength(1)
     })
 
+    it('takes a blurDataUri for every size, blurred, as an object', () => {
+        const tree = render(
+            <FastImage
+                source={[
+                    { ...A, width: 100, height: 75 },
+                    { uri: `${A.uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ blurDataUri: DATA }}
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(DATA)
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
+    })
+
+    it("as an object, loses to a source's own", () => {
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: OTHER }}
+                placeholder={{ blurDataUri: DATA }}
+            />,
+        )
+        expect(images(tree)[0].props.src).toBe(OTHER)
+    })
+
     it("ignores a source's url, with a warning", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         const tree = render(

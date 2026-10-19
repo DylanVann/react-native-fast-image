@@ -8271,6 +8271,49 @@ function BlurDataUriCase() {
     )
 }
 
+// Several sizes without their own hash, and one for all of them as the
+// placeholder prop: the picked size shows it.
+function PlaceholderSizesCase() {
+    const { status, onLoadStart, onLoad, onError } = useThumbhashStatus()
+    useEffect(
+        () => () => {
+            void releaseThumbhashHold('placeholder-sizes-small')
+            void releaseThumbhashHold('placeholder-sizes-large')
+        },
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={[
+                    {
+                        uri: thumbhashHeld('placeholder-sizes-small'),
+                        headers: SLOW_HEADERS,
+                        width: 100,
+                        height: 75,
+                    },
+                    {
+                        uri: thumbhashHeld('placeholder-sizes-large'),
+                        headers: SLOW_HEADERS,
+                        width: 1000,
+                        height: 750,
+                    },
+                ]}
+                placeholder={{ thumbhash: THUMBHASH_GREEN_YELLOW }}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />
+            <CaseStatus
+                id="placeholder-sizes"
+                status={status}
+                description="Several sizes with one thumbhash as the placeholder prop: green at the top to yellow at the bottom, filling the view"
+            />
+        </View>
+    )
+}
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9222,6 +9265,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <PlaceholderDataUriCase key="placeholder-data-uri" />,
             <BlurDataUriCase key="blur-data-uri" />,
+            <PlaceholderSizesCase key="placeholder-sizes" />,
         ],
     },
     {

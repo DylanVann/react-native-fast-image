@@ -218,7 +218,7 @@ Whether the image is kept on disk. With `false` it isn't kept in the disk cache 
 
 A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short string (base64, about 25 to 35 characters) that shows as a blurred preview of the image while it loads, and if it fails to load, in place of `placeholder`. Make it when the image is uploaded (e.g. on your server, with the `thumbhash` package), and send it with the image's url.
 
-It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). An invalid one shows nothing, or `placeholder`.
+It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). One for all of them can go in `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one shows nothing, or `placeholder`.
 
 ```jsx
 <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
@@ -266,14 +266,17 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 #### `placeholder`
 
-**Type:** `string | number`
+**Type:** `string | number | SourcePlaceholder`
 
 An image shown while the first image loads, and if an image fails to load: an asset loaded with `require(...)`, or a data uri (`data:image/…`). When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`). A source's `thumbhash` or `blurDataUri` shows instead of it. It's shown as it is (not blurred).
+
+Or a `thumbhash` or `blurDataUri` as on a source (`{ thumbhash }` or `{ blurDataUri }`): the blurred preview for every size of `source` that doesn't have its own, e.g. for several sizes of one image, or a hash that doesn't come with the source.
 
 A url isn't loaded: on iOS and Android it's ignored, with a warning in development. On Android, a `require()`d placeholder doesn't show in debug builds: there the dev server serves `require()`d images, and it's only loaded from the app's resources.
 
 ```jsx
 <FastImage source={{ uri }} placeholder={require('./gray.png')} />
+<FastImage source={sizes} placeholder={{ thumbhash: photo.thumbhash }} />
 ```
 
 ---
@@ -849,6 +852,14 @@ A preloaded source that loaded (and is now cached).
 **Type:** `'low' | 'normal' | 'high'`
 
 An image's load priority: see [`source.priority`](#sourcepriority).
+
+---
+
+### `SourcePlaceholder`
+
+**Type:** `Pick<Source, 'thumbhash' | 'blurDataUri'>`
+
+A source's `thumbhash` or `blurDataUri` on its own: as `placeholder`, it's the blurred preview for every size of `source` that has none.
 
 ---
 

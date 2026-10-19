@@ -110,6 +110,11 @@ export type PreloadResult = PreloadSuccess | PreloadFailure
 export type PreloadFn = (
     sources: Array<FastImageSource>,
 ) => Promise<Array<PreloadResult>>
+export type SourcePlaceholder = {
+    thumbhash?: string,
+    blurDataUri?: string,
+}
+
 export type FastImageSource = {
     uri?: string,
     headers?: Object,
@@ -134,7 +139,7 @@ export type FastImageProps = $ReadOnly<{|
     onProgress?: ?(event: OnProgressEvent) => void,
 
     source?: ?(FastImageSource | Array<FastImageSource> | number),
-    placeholder?: ?(number | string),
+    placeholder?: ?(number | string | SourcePlaceholder),
     // Deprecated: use placeholder, which is the same.
     defaultSource?: ?number,
 

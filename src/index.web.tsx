@@ -30,7 +30,7 @@ import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
-import { dataUri } from './placeholders'
+import { dataUri, hasSourcePlaceholder } from './placeholders'
 import { thumbHashDataUri } from './thumbhash'
 import { warnIfChildren } from './warnings'
 import type {
@@ -42,6 +42,7 @@ import type {
     ObjectFit,
     PreloadResult,
     Source,
+    SourcePlaceholder,
 } from './index'
 
 export type * from './index'
@@ -126,12 +127,17 @@ function FastImageBase({
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
     // The source's blurDataUri (shown blurred, see PreviewBlur), or its
-    // ThumbHash, decoded, shows in place of `placeholder`. With several sizes
-    // the browser picks one itself (from the srcset, as it loads), so they
-    // only show if all the sizes have the same one.
-    const blurUri = resolveUri(dataUri(shared(source, 'blurDataUri')))
-    const standInUri = blurUri ?? thumbHashDataUri(shared(source, 'thumbhash'))
-    const defaultUri = standInUri ?? resolveUri(placeholder ?? defaultSource)
+    // ThumbHash, decoded, shows in place of `placeholder` (or `placeholder`'s,
+    // for a source without its own). With several sizes the browser picks
+    // one itself (from the srcset, as it loads), so they only show if all the
+    // sizes have the same one.
+    const preview = hasSourcePlaceholder(placeholder) ? placeholder : undefined
+    const blurUri = resolveUri(dataUri(shared(source, 'blurDataUri', preview)))
+    const standInUri =
+        blurUri ?? thumbHashDataUri(shared(source, 'thumbhash', preview))
+    const defaultUri =
+        standInUri ??
+        (preview ? undefined : resolveUri(placeholder ?? defaultSource))
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
@@ -227,19 +233,21 @@ function FastImageBase({
     )
 }
 
-// The source's thumbhash or blurDataUri: one source's, or the one all of
-// several share.
+// The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
+// (preview) if it has neither. With several sources, the one they all show.
 function shared(
     source: FastImageProps['source'],
     key: 'thumbhash' | 'blurDataUri',
+    preview: SourcePlaceholder | undefined,
 ): string | undefined {
-    if (Array.isArray(source)) {
-        const values = source.map((entry) => entry?.[key])
-        return values.every((value) => value && value === values[0])
-            ? values[0]
-            : undefined
-    }
-    return source && typeof source === 'object' ? source[key] : undefined
+    const values = (Array.isArray(source) ? source : [source]).map((entry) => {
+        const own =
+            entry && typeof entry === 'object' ? (entry as Source) : undefined
+        return (own?.thumbhash || own?.blurDataUri ? own : preview)?.[key]
+    })
+    return values.every((value) => value && value === values[0])
+        ? values[0]
+        : undefined
 }
 
 // A source's (or a placeholder's) uri. Expo's web builds make a require()d
