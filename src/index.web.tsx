@@ -281,22 +281,6 @@ function sourcePriority(
     )
 }
 
-// The <img>'s fetchpriority for 'high' and 'low' (the browser's own for
-// 'normal'). React 18.3 and later take it as fetchPriority; earlier versions
-// pass it through only in lowercase.
-const [reactMajor = 0, reactMinor = 0] = (React.version ?? '')
-    .split('.')
-    .map(Number)
-const FETCH_PRIORITY =
-    reactMajor > 18 || (reactMajor === 18 && reactMinor >= 3)
-        ? 'fetchPriority'
-        : 'fetchpriority'
-function fetchPriority(priority: Priority | undefined) {
-    return priority === 'high' || priority === 'low'
-        ? { [FETCH_PRIORITY]: priority }
-        : undefined
-}
-
 // The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
 // (preview) if it has neither. With several sources, the one they all show.
 function shared(
@@ -525,7 +509,10 @@ function Picture({
             srcSet={srcSet}
             sizes={srcSet ? (sizes ?? 'auto, 100vw') : undefined}
             loading={loading === 'eager' ? undefined : 'lazy'}
-            {...fetchPriority(priority)}
+            // For 'high' and 'low' (the browser's own for 'normal').
+            fetchPriority={
+                priority === 'high' || priority === 'low' ? priority : undefined
+            }
             alt={alt}
             draggable={false}
             style={{
