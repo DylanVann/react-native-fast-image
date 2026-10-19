@@ -216,11 +216,9 @@ Whether the image is kept on disk. With `false` it isn't kept in the disk cache 
 
 **Type:** `string`
 
-A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short string (base64, about 25 to 35 characters) that shows as a blurred preview of the image while it loads, and if it fails to load, in place of `placeholder`. Make it when the image is uploaded (e.g. on your server, with the `thumbhash` package), and send it with the image's url.
+A [ThumbHash](https://evanw.github.io/thumbhash/) of the image, shown blurred while the image loads, and if it fails to load. It's a short string you make when the image is uploaded (e.g. with the `thumbhash` package) and send with the image's url.
 
-It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). One for all of them can go in `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one shows nothing, or `placeholder`.
-
-On the web, it shows only with `import 'react-native-fast-image/thumbhash'` (its decoder, about 1.5 KB gzipped), or made into the source's `blurDataUri` before it reaches the browser, e.g. on your server, with that module's `thumbHashToBlurDataUri`, which needs no JavaScript in the browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
+On the web, it needs `import 'react-native-fast-image/thumbhash'` (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
 
 ```jsx
 <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
@@ -232,9 +230,7 @@ On the web, it shows only with `import 'react-native-fast-image/thumbhash'` (its
 
 **Type:** `string`
 
-A tiny version of the image as a data uri (`data:image/…`, e.g. an 8 to 20 px PNG, JPEG or WebP made when the image is uploaded, or an image service's LQIP), shown blurred while the image loads, and if it fails to load, in place of `placeholder`. It's decoded at once, and drawn like a `thumbhash`: where the image will be. iOS and Android show PNG, JPEG, WebP and GIF (its first frame); the web, any image the browser shows. Any size works, but more than about 32 px adds bytes, not detail: iOS and Android scale it down to 32 px before blurring it.
-
-With several sources, each has its own (on the web, only if they all have the same one). If a source has both, iOS and Android show its `thumbhash` (decoded natively), and the web its `blurDataUri` (no decoding). A url isn't loaded: it's ignored, with a warning in development.
+A tiny version of the image (e.g. 8 to 20 px) as a data uri, shown blurred while the image loads, and if it fails to load. On the web it shows without any JavaScript, e.g. in a server-rendered page.
 
 ```jsx
 <FastImage source={{ uri: photo.url, blurDataUri: photo.lqip }} />
@@ -502,7 +498,7 @@ The image's style: View's style props (`borderRadius` clips the image, and borde
 
 **Type:** `ColorValue`
 
-If supplied, changes the color of all the non-transparent pixels to the given color, also in the placeholder and a source's `thumbhash` or `blurDataUri` preview.
+If supplied, changes the color of all the non-transparent pixels to the given color, including the placeholder.
 
 <!-- api:props end -->
 
@@ -865,7 +861,7 @@ An image's load priority: see [`source.priority`](#sourcepriority).
 
 **Type:** `Pick<Source, 'thumbhash' | 'blurDataUri'>`
 
-A source's `thumbhash` or `blurDataUri` on its own: as `placeholder`, it's the blurred preview for every size of `source` that has none.
+A `thumbhash` or `blurDataUri` as `placeholder`.
 
 ---
 
@@ -948,13 +944,13 @@ Support is minimal:
 
 ### ThumbHashes on the web
 
-A [`blurDataUri`](#sourceblurdatauri), on a source or in [`placeholder`](#placeholder), shows on the web without any JavaScript (also before the page's scripts load, when it's rendered on a server): it's an `<img>`, blurred with an SVG filter. A [`thumbhash`](#sourcethumbhash) has to be decoded, so the web version doesn't show one unless you include the decoder (about 1.5 KB gzipped):
+On the web, a [`thumbhash`](#sourcethumbhash) needs a decoder, which isn't included by default. Import it once:
 
 ```js
 import 'react-native-fast-image/thumbhash'
 ```
 
-Or make the hash a `blurDataUri` before it reaches the browser, e.g. where your server loads the page's data, with the same module's `thumbHashToBlurDataUri`: a PNG data uri of at most 8 × 8 pixels (about 300 to 500 characters). It works in browsers, on servers (Node 16+) and in React Native.
+Or, to show the preview without any JavaScript (e.g. in a server-rendered page), make the hash a [`blurDataUri`](#sourceblurdatauri) on your server:
 
 ```js
 import { thumbHashToBlurDataUri } from 'react-native-fast-image/thumbhash'

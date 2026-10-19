@@ -38,10 +38,9 @@ const cache = new Map<string, string | undefined>()
 const CACHE_SIZE = 256
 
 /**
- * A ThumbHash (base64, standard or url-safe, with or without padding) as a
- * source's `blurDataUri`: a PNG data uri of at most 8 × 8 pixels (about 300
- * to 500 characters), or undefined for an empty or invalid hash. Works in
- * browsers, on servers (Node 16+) and in React Native.
+ * Makes a source's `blurDataUri` from a ThumbHash, e.g. on your server, so
+ * the page shows the preview without any JavaScript. Undefined for an invalid
+ * hash. Works in browsers, Node and React Native.
  *
  * @example
  * ```js
@@ -103,6 +102,8 @@ function shrink(w: number, h: number, rgba: Uint8Array, max: number) {
     return { w: sw, h: sh, rgba: out }
 }
 
+// A ThumbHash's bytes: base64, standard or url-safe, with or without
+// padding.
 function base64Bytes(base64: string): Uint8Array | undefined {
     const standard = base64.trim().replace(/-/g, '+').replace(/_/g, '/')
     if (!/^[A-Za-z0-9+/]*=*$/.test(standard)) return undefined
