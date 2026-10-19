@@ -5,12 +5,13 @@
 //
 // The View (a div) has FastImage's style, ref and View props. The <img> fills
 // it inside its borders, with object-fit for objectFit (see Picture).
-// defaultSource is a second <img> under it until the image has loaded (the
+// The placeholder is a second <img> under it until the image has loaded (the
 // browser draws the image over it as it arrives), and tintColor is an SVG
 // filter next to them.
 //
-// Works: source (uri, require(), or several sizes: see sizedSources),
-// defaultSource, objectFit, objectPosition, tintColor, blurRadius, style,
+// Works: source (uri, require(), or several sizes: see sizedSources, and
+// thumbhash and blurDataUri), placeholder (and defaultSource), objectFit,
+// objectPosition, tintColor, blurRadius, style,
 // onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
 // accessibility, onLayout, pointerEvents). The native-only props (cache,
 // priority, headers, transition, downsample, loop, paused, imageRendering,
@@ -29,7 +30,8 @@ import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
-import { warnIfChildren } from './warnings'
+import { dataUri, hasSourcePlaceholder } from './placeholders'
+import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
     CacheState,
@@ -39,6 +41,7 @@ import type {
     ObjectFit,
     PreloadResult,
     Source,
+    SourcePlaceholder,
 } from './index'
 
 export type * from './index'
@@ -71,6 +74,7 @@ declare const __DEV__: boolean | undefined
 
 function FastImageBase({
     source,
+    placeholder,
     defaultSource,
     tintColor,
     blurRadius,
@@ -121,13 +125,28 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
-    const defaultUri = resolveUri(defaultSource)
+    // The source's blurDataUri, or its ThumbHash made into one (with
+    // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
+    // in place of `placeholder` (or `placeholder`'s, for a source without its
+    // own). With several sizes the browser picks one itself (from the srcset,
+    // as it loads), so they only show if all the sizes have the same one.
+    const preview = hasSourcePlaceholder(placeholder) ? placeholder : undefined
+    const blurUri =
+        resolveUri(dataUri(shared(source, 'blurDataUri', preview))) ??
+        thumbhashUri(shared(source, 'thumbhash', preview))
+    // A thumbhash or blurDataUri in `placeholder` isn't an image to show as it
+    // is: defaultSource still is.
+    const defaultUri =
+        blurUri ??
+        resolveUri(preview ? defaultSource : (placeholder ?? defaultSource))
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
-    const tintId = `fast-image-tint-${useSvgId().replace(/[^\w-]/g, '')}`
+    const svgId = useSvgId().replace(/[^\w-]/g, '')
+    const tintId = `fast-image-tint-${svgId}`
+    const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
     const fit = resolveObjectFit(objectFit, style)
     const position = cssPosition(objectPositionOrCentered(objectPosition))
@@ -138,7 +157,7 @@ function FastImageBase({
         ]
             .filter(Boolean)
             .join(' ') || undefined
-    // defaultSource shows until the image has loaded, and if it fails.
+    // The placeholder shows until the image has loaded, and if it fails.
     const showDefault = !!defaultUri && ok !== true
 
     useClientLayoutEffect(() => {
@@ -160,9 +179,28 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
-                    fit={fit}
+                    // A source's placeholder stands for an image whose size
+                    // isn't known yet: as contain for scale-down and none,
+                    // which show an image at its own size.
+                    fit={
+                        blurUri && (fit === 'scale-down' || fit === 'none')
+                            ? 'contain'
+                            : fit
+                    }
                     position={position}
-                    filter={filter}
+                    // A source's preview gets its own blur and the tint, not
+                    // blurRadius (it's blurred already), as on iOS and
+                    // Android.
+                    filter={
+                        blurUri
+                            ? [
+                                  `url(#${blurId})`,
+                                  tintColor ? `url(#${tintId})` : '',
+                              ]
+                                  .filter(Boolean)
+                                  .join(' ')
+                            : filter
+                    }
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
                 />
@@ -176,7 +214,7 @@ function FastImageBase({
                     fit={fit}
                     position={position}
                     filter={filter}
-                    // Shown as it loads, over defaultSource, and not if it
+                    // Shown as it loads, over the placeholder, and not if it
                     // failed (no broken image icon or alt text).
                     hidden={ok === false}
                     alt={label ?? ''}
@@ -195,11 +233,52 @@ function FastImageBase({
                 />
             ) : null}
             {tintColor ? <TintFilter id={tintId} color={tintColor} /> : null}
+            {blurUri && showDefault ? <PreviewBlur id={blurId} /> : null}
         </View>
     )
 }
 
-// A source's (or defaultSource's) uri. Expo's web builds make a require()d
+// A ThumbHash as a blurDataUri, with `react-native-fast-image/thumbhash`
+// imported (see thumbhash.ts). Without it, ignored, with a warning in
+// development: FastImage doesn't bundle the decoder on the web.
+function thumbhashUri(hash: string | undefined): string | undefined {
+    if (!hash) return undefined
+    const decode = (globalThis as Record<symbol, unknown>)[
+        Symbol.for('react-native-fast-image/thumbhash')
+    ] as ((hash: string) => string | undefined) | undefined
+    if (decode) return decode(hash)
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        warnOnce(
+            'thumbhash-web',
+            "react-native-fast-image: on the web, a `thumbhash` shows only with `import 'react-native-fast-image/thumbhash'` (it decodes them). Or make it a `blurDataUri` before it reaches the browser (e.g. on your server) with that module's thumbHashToBlurDataUri, which needs no JavaScript in the browser.",
+            'warn',
+        )
+    }
+    return undefined
+}
+
+// The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
+// (preview) if it has neither. With several sources, the one they all show.
+function shared(
+    source: FastImageProps['source'],
+    key: 'thumbhash' | 'blurDataUri',
+    preview: SourcePlaceholder | undefined,
+): string | undefined {
+    const values = (Array.isArray(source) ? source : [source]).map((entry) => {
+        const own =
+            entry && typeof entry === 'object' ? (entry as Source) : undefined
+        // A blurDataUri that isn't a data uri is ignored (with a warning), as
+        // on iOS and Android.
+        return (own?.thumbhash || dataUri(own?.blurDataUri) ? own : preview)?.[
+            key
+        ]
+    })
+    return values.every((value) => value && value === values[0])
+        ? values[0]
+        : undefined
+}
+
+// A source's (or a placeholder's) uri. Expo's web builds make a require()d
 // image a { uri, width, height } object (or a string). Other setups can make
 // it a number in react-native-web's asset registry, resolved as its Image
 // does: the file for the scale closest to the screen's.
@@ -433,6 +512,35 @@ function TintFilter({ id, color }: { id: string; color: unknown }) {
                     {/* A new element for a new color, which browsers apply. */}
                     <feFlood floodColor={String(color)} key={String(color)} />
                     <feComposite in2="SourceAlpha" operator="in" />
+                </filter>
+            </defs>
+        </svg>
+    )
+}
+
+// A source's blurDataUri, a few pixels, blurred as it's scaled up: by about
+// half a pixel of an 8 px image, in units of its size, so the same filter
+// works for any view, also rendered on a server (no layout needed). The blur
+// fades the edges, which the alpha table restores (transparent areas stay
+// transparent): Chrome ignores edgeMode, and forcing alpha to 1 would fill
+// a transparent image's background.
+function PreviewBlur({ id }: { id: string }) {
+    return (
+        <svg style={tintStyle}>
+            <defs>
+                <filter
+                    id={id}
+                    x="0"
+                    y="0"
+                    width="1"
+                    height="1"
+                    primitiveUnits="objectBoundingBox"
+                    colorInterpolationFilters="sRGB"
+                >
+                    <feGaussianBlur stdDeviation="0.06" />
+                    <feComponentTransfer>
+                        <feFuncA type="table" tableValues="0 1 1 1 1" />
+                    </feComponentTransfer>
                 </filter>
             </defs>
         </svg>

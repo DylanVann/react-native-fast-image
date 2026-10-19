@@ -55,4 +55,15 @@ export default defineConfig([
             { file: 'dist/index.web.js', format: 'esm' },
         ],
     },
+    // react-native-fast-image/thumbhash (thumbhash/package.json), for any
+    // platform; Metro loads src/thumbhash.ts. No Flow types.
+    {
+        ...shared,
+        plugins: [],
+        input: 'src/thumbhash.ts',
+        output: [
+            { file: 'dist/thumbhash.cjs.js', format: 'cjs' },
+            { file: 'dist/thumbhash.js', format: 'esm' },
+        ],
+    },
 ])

@@ -32,9 +32,11 @@
         "app.plugin.js",
         "src",
         "!src/**/*.test.tsx",
+        "!src/**/*.test.ts",
         "!src/__snapshots__",
         "dist",
-        "RNFastImage.podspec"
+        "RNFastImage.podspec",
+        "thumbhash"
     ],
     "scripts": {
         "build": "bun run build:package && bun run build:docs",

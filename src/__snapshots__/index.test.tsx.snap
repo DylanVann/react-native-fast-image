@@ -2,7 +2,6 @@
 
 exports[`FastImage (iOS) renders 1`] = `
 "<FastImageView
-  defaultSource={null}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -10,6 +9,7 @@ exports[`FastImage (iOS) renders 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  placeholder={null}
   source={
     {
       "headers": {
@@ -38,7 +38,6 @@ exports[`FastImage (iOS) renders 1`] = `
 
 exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 "<FastImageView
-  defaultSource={null}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -46,6 +45,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  placeholder={null}
   source={
     {
       "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
@@ -70,11 +70,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 
 exports[`FastImage (iOS) renders defaultSource 1`] = `
 "<FastImageView
-  defaultSource={
-    {
-      "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
-    }
-  }
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -82,6 +77,11 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  placeholder={
+    {
+      "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
+    }
+  }
   source={null}
   style={
     [
@@ -160,7 +160,6 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
 
 exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 "<FastImageView
-  defaultSource={null}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -168,6 +167,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  placeholder={null}
   source={null}
   style={
     [

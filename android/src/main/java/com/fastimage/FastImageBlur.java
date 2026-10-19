@@ -136,8 +136,9 @@ final class FastImageBlur extends BitmapTransformation {
         pool.put(copy);
     }
 
-    // Three box blurs, each across then down, with the edges extended.
-    private static void blur(int[] pixels, int width, int height, int boxSize) {
+    // Three box blurs, each across then down, with the edges extended. Also
+    // for a source's blurDataUri (FastImageThumbHash).
+    static void blur(int[] pixels, int width, int height, int boxSize) {
         int[] other = new int[width * height];
         int radius = boxSize / 2;
         for (int i = 0; i < 3; i++) {

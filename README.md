@@ -26,6 +26,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
+- **Placeholders**: a blurred preview from a [ThumbHash](#sourcethumbhash) or a [tiny image](#sourceblurdatauri) while an image loads, or a bundled image ([`placeholder`](#placeholder)).
 - [**SVG**](docs/formats.md#svg-images) and [**photo library**](#photo-library-images-ios-and-tvos) images.
 - [**`FastImageBackground`**](#fastimagebackground) for content over an image.
 - **Expo and web support**, with a [config plugin](#expo-config-plugin) for Expo.
@@ -211,6 +212,32 @@ Whether the image is kept on disk. With `false` it isn't kept in the disk cache 
 
 ---
 
+##### `source.thumbhash`
+
+**Type:** `string`
+
+A [ThumbHash](https://evanw.github.io/thumbhash/) of the image, shown blurred while the image loads, and if it fails to load. It's a short string you make when the image is uploaded (e.g. with the `thumbhash` package) and send with the image's url.
+
+On the web, it needs `import 'react-native-fast-image/thumbhash'` (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
+
+```jsx
+<FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
+```
+
+---
+
+##### `source.blurDataUri`
+
+**Type:** `string`
+
+A tiny version of the image (e.g. 8 to 20 px) as a data uri, shown blurred while the image loads, and if it fails to load. On the web it shows without any JavaScript, e.g. in a server-rendered page.
+
+```jsx
+<FastImage source={{ uri: photo.url, blurDataUri: photo.lqip }} />
+```
+
+---
+
 ##### `source.width`
 
 **Type:** `number`
@@ -235,13 +262,32 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 ---
 
+#### `placeholder`
+
+**Type:** `string | number | SourcePlaceholder`
+
+A placeholder shown while the image loads, and if it fails to load:
+
+- An image loaded with `require()`: `placeholder={require('./gray.png')}`.
+- A data uri: `placeholder="data:image/png;base64,…"`.
+- The name of an image bundled with the app (an iOS asset catalog image or an Android drawable): `placeholder="gray"`.
+- A [ThumbHash](#sourcethumbhash), shown blurred: `placeholder={{ thumbhash }}`.
+- A tiny image as a data uri, shown blurred: `placeholder={{ blurDataUri }}`.
+
+A source's own `thumbhash` or `blurDataUri` is shown instead, if it has one.
+
+Notes:
+
+- A url isn't loaded: it's ignored, with a warning in development.
+- On Android, a `require()`d image doesn't show in debug builds, where the dev server serves it. Release builds show it.
+
+---
+
 #### `defaultSource`
 
 **Type:** `number`
 
-An asset loaded with `require(...)`, shown while the first image loads, and if an image fails to load. When `source` changes, the previous image shows while the new one loads instead (see `source` and `recyclingKey`).
-
-On Android, `defaultSource` doesn't show in debug builds: there the dev server serves `require()`d images, and `defaultSource` is only loaded from the app's resources.
+**Deprecated:** Use `placeholder`, which does the same.
 
 ---
 
@@ -272,7 +318,7 @@ Where the image is in the view, as CSS's `object-position` places it: where its 
 - A string in CSS's syntax: one or two keywords (`'top'`, `'left bottom'`), lengths in points (`'10px 20px'`, with `px`) or percentages (`'25% 75%'`), or offsets from an edge (`'right 10px bottom 20%'`). A percentage puts that point of the image at that point of the view: `'0% 0%'` is the top-left corner, `'100% 100%'` the bottom-right.
 - An object with one of `top` and `bottom` and one of `left` and `right`, each in points (a number) or a percentage (`'25%'`), e.g. `{ right: 10, bottom: '20%' }`. A missing axis is centered.
 
-Points are dp on Android. An invalid value is ignored (the image is centered), with a warning in development. `defaultSource` is placed the same way.
+Points are dp on Android. An invalid value is ignored (the image is centered), with a warning in development. Placeholders are placed the same way.
 
 ```jsx
 <FastImage source={{ uri }} objectFit="cover" objectPosition="top" />
@@ -284,7 +330,7 @@ Points are dp on Android. An invalid value is ignored (the image is centered), w
 
 **Type:** `string | null`
 
-For views that get reused for other content, such as rows in FlashList or recyclerlistview. Set it to something that identifies the content, e.g. the item's id. When it changes, the image is cleared right away (to `defaultSource`, or blank) instead of staying until the new one has loaded. Unlike changing `key`, this keeps the view, which is what list recycling is for.
+For views that get reused for other content, such as rows in FlashList or recyclerlistview. Set it to something that identifies the content, e.g. the item's id. When it changes, the image is cleared right away (to `placeholder`, or blank) instead of staying until the new one has loaded. Unlike changing `key`, this keeps the view, which is what list recycling is for.
 
 ```jsx
 <FastImage recyclingKey={item.id} source={{ uri: item.imageUrl }} />
@@ -368,7 +414,7 @@ Blurs the image by this radius, in points (the same radius looks about the same 
 
 It's for still images, or a radius that changes now and then (e.g. blurring a photo behind a sheet). Each change blurs the image again on the CPU, so don't animate it.
 
-- Only the loaded image is blurred, not `defaultSource`.
+- Only the loaded image is blurred, not a placeholder.
 - An animated image (GIF, animated WebP, APNG or AVIF) shows its first frame, blurred, and doesn't animate.
 - With `tintColor`, the blurred image is tinted.
 - The image is blurred at about the size it's shown at, off the main thread. The cached file stays the original image, so `getCachePath` and other views of it aren't affected.
@@ -452,7 +498,7 @@ The image's style: View's style props (`borderRadius` clips the image, and borde
 
 **Type:** `ColorValue`
 
-If supplied, changes the color of all the non-transparent pixels to the given color.
+If supplied, changes the color of all the non-transparent pixels to the given color, including the placeholder.
 
 <!-- api:props end -->
 
@@ -811,12 +857,20 @@ An image's load priority: see [`source.priority`](#sourcepriority).
 
 ---
 
+### `SourcePlaceholder`
+
+**Type:** `Pick<Source, 'thumbhash' | 'blurDataUri'>`
+
+A `thumbhash` or `blurDataUri` as `placeholder`.
+
+---
+
 ### `Transition`
 
 How the image fades in: see [`transition`](#transition).
 
 - `duration?` (`number`): How long the fade takes, in milliseconds; 0 means no fade. Defaults to the default transition's (see `FastImage.setDefaults`) if it fades, otherwise the platform's usual length: 300 ms on Android, 250 ms on iOS.
-- `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over `defaultSource`) fades in, and a new source replaces the image showing at once, once it has loaded.
+- `betweenImages?` (`boolean`, default `false`): Also fades between images: a new `source` replacing an image that's showing cross-dissolves from it. Otherwise only an image that appears over nothing (or over a placeholder) fades in, and a new source replaces the image showing at once, once it has loaded.
 - `skipOnCacheHit?` (`'none' | 'memory' | 'all' | null`, default `'memory'`): Skips the fade for an image from a cache, so images already loaded show at once, e.g. in a list scrolled back up or a reused row.
 
     - `'memory'`: skips it for images from the memory cache.
@@ -882,11 +936,31 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes), `defaultSource`, `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
 - Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
-- The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and `defaultSource` is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
+- The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and the placeholder is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
+
+### ThumbHashes on the web
+
+On the web, a [`thumbhash`](#sourcethumbhash) needs a decoder, which isn't included by default. Import it once:
+
+```js
+import 'react-native-fast-image/thumbhash'
+```
+
+Or, to show the preview without any JavaScript (e.g. in a server-rendered page), make the hash a [`blurDataUri`](#sourceblurdatauri) on your server:
+
+```js
+import { thumbHashToBlurDataUri } from 'react-native-fast-image/thumbhash'
+
+const source = {
+    uri: photo.url,
+    thumbhash: photo.thumbhash, // iOS and Android
+    blurDataUri: thumbHashToBlurDataUri(photo.thumbhash), // the web
+}
+```
 
 ## Jest
 
