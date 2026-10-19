@@ -7139,6 +7139,42 @@ function SeveralSourcesCase({
     )
 }
 
+// A require()d image as one of the sizes, at its file's size (48 px magenta),
+// with a 300 px green one from the server: a 16 pt view picks the bundled one,
+// a 120 pt view the green one.
+function SeveralSourcesBundledCase({ id, size }: { id: string; size: number }) {
+    const [status, setStatus] = useState('loading')
+    const expected = size < 50 ? 48 : 300
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: size, height: size }}
+                source={[
+                    require('./images/magenta.png'),
+                    {
+                        uri: imageUrl(`sized-300.png?${id}=${RUN}`),
+                        width: 300,
+                        height: 300,
+                    },
+                ]}
+                onLoad={(e) =>
+                    setStatus(
+                        e.nativeEvent.width === expected
+                            ? 'OK'
+                            : `picked ${e.nativeEvent.width} px, expected ${expected} px`,
+                    )
+                }
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id={id}
+                status={status}
+                description={`a bundled 48 px image and a 300 px one in a ${size} pt view: loads the ${expected === 48 ? 'bundled magenta' : 'green 300 px'} one`}
+            />
+        </View>
+    )
+}
+
 // Borders come after the image loaded: the box inside them is smaller, and the
 // view loads the size that fits it (Android kept the source picked for the
 // whole view).
@@ -8071,6 +8107,57 @@ function ThumbhashChangeLoadedCase() {
                 id="thumbhash-change-loaded"
                 status={status}
                 description="A new thumbhash for an image that has loaded: no new load, the photo stays"
+            />
+        </View>
+    )
+}
+
+// placeholder's thumbhash arrives after the image has loaded, with
+// defaultSource shown until then (none before): the placeholder image goes
+// away without loading the image again (one request, one onLoad).
+function ThumbhashPlaceholderLateCase() {
+    const [thumbhash, setThumbhash] = useState<string>()
+    const [status, setStatus] = useState('waiting')
+    const loads = useRef(0)
+    const onLoad = () => {
+        loads.current++
+        if (loads.current > 1) {
+            setStatus('loaded again after the thumbhash arrived')
+            return
+        }
+        setTimeout(() => setThumbhash(THUMBHASH_CYAN_ORANGE), 1000)
+        setTimeout(async () => {
+            const requests = await thumbhashRequests('placeholder-late').catch(
+                () => -1,
+            )
+            setStatus((previous) =>
+                previous !== 'waiting'
+                    ? previous
+                    : requests === 1 && loads.current === 1
+                      ? 'OK'
+                      : `${requests} requests, ${loads.current} onLoad`,
+            )
+        }, 2500)
+    }
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: slowImageUrl(
+                        `picsum/1021-120x120.jpg?group=thumbhash-placeholder-late-${RUN}&delay=50`,
+                    ),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={{ thumbhash }}
+                defaultSource={MAGENTA_DEFAULT}
+                onLoad={onLoad}
+                onError={(e) => setStatus(`onError: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="thumbhash-placeholder-late"
+                status={status}
+                description="placeholder's thumbhash after the image has loaded (defaultSource until then): no new load, the photo stays"
             />
         </View>
     )
@@ -9553,6 +9640,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ThumbhashFailsCase key="thumbhash-fails" />,
             <ThumbhashChangeLoadedCase key="thumbhash-change-loaded" />,
             <ThumbhashChangeLoadingCase key="thumbhash-change-loading" />,
+            <ThumbhashPlaceholderLateCase key="thumbhash-placeholder-late" />,
             <ThumbhashSizesCase key="thumbhash-sizes" />,
             <ThumbhashRecycledCase key="thumbhash-recycled" />,
         ],
@@ -9754,6 +9842,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 size={120}
             />,
             <SeveralSourcesEdgeCase key="several-edge" />,
+            <SeveralSourcesBundledCase
+                key="several-bundled-16"
+                id="several-bundled-16"
+                size={16}
+            />,
+            <SeveralSourcesBundledCase
+                key="several-bundled-120"
+                id="several-bundled-120"
+                size={120}
+            />,
         ],
     },
     {

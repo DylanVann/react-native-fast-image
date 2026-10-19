@@ -40,21 +40,18 @@ type LoadEndEvent = Readonly<{
 }>
 
 export interface NativeProps extends ViewProps {
-    // A source ({ uri, headers, priority, cache, ... }), as the native
-    // sides read it.
+    // The `source` prop: a source ({ uri, headers, priority, cache, ... },
+    // with its thumbhash or blurDataUri), or several (sizes of one image) in
+    // an array, picked from for the view's size. A change to the thumbhashes
+    // and blurDataUris only doesn't load the image again.
     source?: CodegenTypes.UnsafeMixed
-    // Several sources (sizes of one image), picked from for the view's size.
-    sources?: CodegenTypes.UnsafeMixed
-    // The `placeholder` prop: a url to load apart from the image, as a source
-    // ({ uri, headers, cacheKey, cache }), or an image shown at once: a
-    // resolved asset source ({ uri, width, height, scale }) or a data uri
-    // ({ uri } on iOS; the uri on Android, as a string).
+    // The `placeholder` prop: a thumbhash or blurDataUri ({ thumbhash } or
+    // { blurDataUri }, for the sources without their own), a url to load
+    // apart from the image, as a source ({ uri, headers, cacheKey, cache }),
+    // or an image shown at once: a resolved asset source ({ uri, width,
+    // height, scale }) or a data uri ({ uri } on iOS; the uri on Android, as
+    // a string).
     placeholder?: CodegenTypes.UnsafeMixed
-    // What shows in place of placeholder while a source loads: its ThumbHash,
-    // or its blurDataUri (blurred natively), by the source's index ('' for
-    // none; one for a single source). Apart from the sources, so a new one
-    // for the same image doesn't load it again.
-    sourcePlaceholders?: ReadonlyArray<string>
     // objectFit, resolved (fill, contain, cover, none or scale-down).
     objectFit?: CodegenTypes.WithDefault<string, 'cover'>
     // objectPosition, as CSS computes it: on each axis the image's left or top

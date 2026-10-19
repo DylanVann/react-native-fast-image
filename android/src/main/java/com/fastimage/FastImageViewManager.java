@@ -21,6 +21,7 @@ import com.bumptech.glide.RequestManager;
 import com.facebook.react.bridge.ColorPropConverter;
 import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.DynamicFromObject;
+import com.facebook.react.bridge.JavaOnlyArray;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
@@ -307,23 +308,26 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
 
     @Override
     public void setSource(FastImageViewWithUrl view, Dynamic source) {
-        view.setSource(source.isNull() ? null : source.asMap());
+        // One source, or several (an array).
+        view.setSource(source.isNull() ? null
+                : source.getType() == ReadableType.Array ? source.asArray()
+                : JavaOnlyArray.of(source.asMap()));
     }
 
-    @Override
-    public void setSources(FastImageViewWithUrl view, Dynamic sources) {
-        view.setSources(sources.isNull() ? null : sources.asArray());
-    }
-
-    // The `placeholder` prop: a url to load apart from the image, as a source
-    // (a map), or the resolved asset's uri or a data uri (a string).
+    // The `placeholder` prop: a thumbhash or blurDataUri, or a url to load
+    // apart from the image, as a source (a map), or the resolved asset's uri
+    // or a data uri (a string).
     @Override
     public void setPlaceholder(FastImageViewWithUrl view, Dynamic source) {
         if (source.getType() == ReadableType.Map) {
+            ReadableMap map = source.asMap();
+            boolean hash = map.hasKey("thumbhash") || map.hasKey("blurDataUri");
             view.setPlaceholder(null);
-            view.setPlaceholderSource(source.asMap());
+            view.setPlaceholderHash(hash ? FastImageViewWithUrl.sourcePlaceholder(map) : null);
+            view.setPlaceholderSource(hash ? null : map);
             return;
         }
+        view.setPlaceholderHash(null);
         view.setPlaceholderSource(null);
         String uri = source.isNull() ? null : source.asString();
         if (uri != null && FastImageThumbHash.isDataUri(uri)) {
@@ -349,11 +353,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setRecyclingKey(FastImageViewWithUrl view, @Nullable String recyclingKey) {
         view.setRecyclingKey(recyclingKey);
-    }
-
-    @Override
-    public void setSourcePlaceholders(FastImageViewWithUrl view, @Nullable ReadableArray placeholders) {
-        view.setSourcePlaceholders(placeholders);
     }
 
     @Override

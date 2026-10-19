@@ -107,7 +107,7 @@ It's a single native view, which also takes React Native's View props, such as a
 
 #### `source`
 
-**Type:** `number | Source | Source[]`
+**Type:** `number | Source | (number | Source)[]`
 
 Source for the remote image to load: a `Source`, a `require()`d image, or an array of the same image at different sizes.
 
@@ -129,6 +129,7 @@ When `source` changes, the image that's showing stays until the new one has load
 - When the view's size changes so that another size fits better, it loads that one (with its load events), and keeps showing the current image until then, without a `transition`.
 - Each size is cached separately. A `cacheKey` applies to its own entry: give each size its own key (or none), or the sizes would replace each other in the cache.
 - `FastImage.preload`, `getCachePath` and `writeToCache` take one size: pass the one a view will show. An array fails with `{ ok: false, error }`.
+- A `require()`d image can be one of the sizes: its size is the file's.
 - An array of one is the same as that source.
 
 ---
@@ -291,7 +292,7 @@ Notes:
 
 **Type:** `number`
 
-**Deprecated:** Use `placeholder`, which does the same.
+**Deprecated:** Use `placeholder`, which does the same. With both, `placeholder` shows.
 
 ---
 

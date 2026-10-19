@@ -141,14 +141,18 @@ function FastImageBase({
     // like any image: it can't look in its cache only (cache: 'cacheOnly').
     const urlPlaceholder = placeholderSource(placeholder)?.uri
     const [failedPlaceholder, setFailedPlaceholder] = useState<string>()
-    // A thumbhash or blurDataUri in `placeholder` isn't an image to show as it
-    // is, nor is a url (above): defaultSource still is.
+    // defaultSource only shows without `placeholder`, as on iOS and Android,
+    // or in place of a thumbhash or blurDataUri the web can't show (one of
+    // several sizes', or a thumbhash without react-native-fast-image/thumbhash,
+    // or an empty one). Not with a url (above).
     const defaultUri =
         blurUri ??
         resolveUri(
-            preview || urlPlaceholder
+            preview
                 ? defaultSource
-                : (placeholder ?? defaultSource),
+                : urlPlaceholder
+                  ? undefined
+                  : (placeholder ?? defaultSource),
         )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
@@ -341,14 +345,7 @@ function resolveUri(source: unknown): string | undefined {
     if (typeof source === 'number') {
         const asset: PackagerAsset | undefined = getAssetByID(source)
         if (!asset) return undefined
-        const scale = asset.scales.reduce(
-            (best, scale) =>
-                Math.abs(scale - PixelRatio.get()) <
-                Math.abs(best - PixelRatio.get())
-                    ? scale
-                    : best,
-            asset.scales[0] ?? 1,
-        )
+        const scale = assetScale(asset)
         const suffix = scale !== 1 ? `@${scale}x` : ''
         uri = `${asset.httpServerLocation}/${asset.name}${suffix}.${asset.type}`
     } else if (typeof source === 'string') {
@@ -370,6 +367,36 @@ type PackagerAsset = {
     name: string
     type: string
     scales: number[]
+    width?: number
+    height?: number
+}
+
+// The scale of an asset's file closest to the screen's.
+function assetScale(asset: PackagerAsset): number {
+    return asset.scales.reduce(
+        (best, scale) =>
+            Math.abs(scale - PixelRatio.get()) <
+            Math.abs(best - PixelRatio.get())
+                ? scale
+                : best,
+        asset.scales[0] ?? 1,
+    )
+}
+
+// One of several sizes: a require()d image in react-native-web's asset
+// registry as a source with its file's size (Expo's web builds make it a
+// { uri, width, height } object already).
+function sizedSource(source: Source | number): Source | undefined {
+    if (typeof source !== 'number') return source
+    const asset: PackagerAsset | undefined = getAssetByID(source)
+    return asset
+        ? {
+              uri: resolveUri(source),
+              width: asset.width,
+              height: asset.height,
+              scale: assetScale(asset),
+          }
+        : undefined
 }
 
 // Several sizes of an image, as a srcset (each size's width, times its
@@ -379,9 +406,10 @@ type PackagerAsset = {
 // is laid out at; it only applies to lazy images, and otherwise, or in
 // browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
-function sizedSources(sources: Source[]) {
+function sizedSources(entries: (Source | number)[]) {
+    const sources = entries.map(sizedSource)
     const widths = sources
-        .filter((source) => source?.uri && source.width)
+        .filter((source): source is Source => !!source?.uri && !!source.width)
         .map((source) => ({
             uri: source.uri as string,
             width: Math.round((source.width ?? 0) * (source.scale ?? 1)),

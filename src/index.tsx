@@ -362,9 +362,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - `FastImage.preload`, `getCachePath` and `writeToCache` take one size:
      *   pass the one a view will show. An array fails with
      *   `{ ok: false, error }`.
+     * - A `require()`d image can be one of the sizes: its size is the file's.
      * - An array of one is the same as that source.
      */
-    source?: Source | Source[] | ImageRequireSource
+    source?: Source | Array<Source | ImageRequireSource> | ImageRequireSource
     /**
      * A placeholder shown while the image loads, and if it fails to load:
      *
@@ -398,7 +399,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
         | SourcePlaceholder
         | PlaceholderSource
     /**
-     * @deprecated Use `placeholder`, which does the same.
+     * @deprecated Use `placeholder`, which does the same. With both,
+     * `placeholder` shows.
      */
     defaultSource?: ImageRequireSource
     /**
@@ -707,25 +709,6 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     children?: "FastImage doesn't take children: use FastImageBackground for content over an image"
 }
 
-// A source without its thumbhash and blurDataUri.
-function withoutPlaceholders<T>(source: T): T {
-    if (!hasSourcePlaceholder(source)) return source
-    const {
-        thumbhash: _thumbhash,
-        blurDataUri: _blurDataUri,
-        ...rest
-    } = source as Source
-    return rest as T
-}
-
-// What the native view shows while a source loads: its ThumbHash (decoded
-// natively), or its blurDataUri, or '' for neither.
-function sourcePlaceholder(source: unknown): string {
-    if (!source || typeof source !== 'object') return ''
-    const { thumbhash, blurDataUri } = source as Source
-    return thumbhash || dataUri(blurDataUri) || ''
-}
-
 const resolvePlaceholder = (
     // A source object here has no url (e.g. { uri: name }, a bundled image).
     placeholder?: ImageRequireSource | string | PlaceholderSource,
@@ -911,53 +894,32 @@ function FastImageBase({
     const fit = resolveObjectFit(objectFit, style)
     const position = objectPositionOrCentered(objectPosition)
 
-    // Memoized on source, so an unchanged source reaches the native view as
-    // the same objects, and React's prop diff stops at them.
-    // `placeholder` as a thumbhash or blurDataUri, for the sources without
-    // their own: a string, so an object made on every render doesn't make
-    // new sourcePlaceholders.
-    const shared = hasSourcePlaceholder(placeholder)
-        ? sourcePlaceholder(placeholder)
-        : ''
-    const { resolvedSource, sources, sourcePlaceholders } = useMemo(() => {
-        // Several sources are picked from natively, for the view's size; one
-        // in an array is a plain source.
-        const sources = Array.isArray(source)
-            ? source.length === 1
-                ? undefined
-                : source
-            : undefined
-        const single = Array.isArray(source) ? source[0] : source
-        // Sources' thumbhashes and blurDataUris go to the native view apart
-        // from the sources, so a new one for the same image doesn't load it
-        // again, by the source's index ('' for none). A source's own wins
-        // over `placeholder`'s.
-        const placeholders = (sources ?? [single]).map(
-            (entry) => sourcePlaceholder(entry) || shared,
-        )
-        return {
-            resolvedSource: sources
-                ? undefined
-                : Image.resolveAssetSource(withoutPlaceholders(single) as any),
-            sources: sources?.some(hasSourcePlaceholder)
-                ? sources.map(withoutPlaceholders)
-                : sources,
-            sourcePlaceholders: placeholders.some(Boolean)
-                ? placeholders
-                : undefined,
+    // One source, or several in an array, picked from natively for the
+    // view's size (one in an array is a plain source), with their thumbhashes
+    // and blurDataUris: the native view doesn't load the image again when
+    // only those change. Memoized on source, so an unchanged source reaches
+    // the native view as the same object, and React's prop diff stops at it.
+    const resolvedSource = useMemo(() => {
+        // A blurDataUri that isn't a data uri is ignored, with a warning.
+        for (const entry of [source].flat()) {
+            dataUri((entry as Source | undefined)?.blurDataUri)
         }
-    }, [source, shared])
-    // A url in `placeholder` goes to the native view as a source, loaded
-    // apart from the image, in place of defaultSource. A thumbhash or
-    // blurDataUri goes in sourcePlaceholders instead: it isn't an image to
-    // show as it is, but defaultSource still is.
-    const resolvedPlaceholder =
-        placeholderSource(placeholder) ??
-        resolvePlaceholder(
-            hasSourcePlaceholder(placeholder)
-                ? defaultSource
-                : (placeholder ?? defaultSource),
-        )
+        const single =
+            Array.isArray(source) && source.length === 1 ? source[0] : source
+        return Array.isArray(single)
+            ? single.map((entry) => Image.resolveAssetSource(entry as any))
+            : Image.resolveAssetSource(single as any)
+    }, [source])
+    // `placeholder` as the native view takes it: a thumbhash or blurDataUri
+    // as it is (for the sources without their own), a url as a source loaded
+    // apart from the image, or an image shown at once. defaultSource only
+    // applies without one (an empty thumbhash or blurDataUri is none).
+    const resolvedPlaceholder = hasSourcePlaceholder(placeholder)
+        ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
+            ? placeholder
+            : resolvePlaceholder(defaultSource)
+        : (placeholderSource(placeholder) ??
+          resolvePlaceholder(placeholder ?? defaultSource))
 
     return (
         <FastImageView
@@ -974,8 +936,6 @@ function FastImageBase({
                 defaultTransition ?? builtInTransition(),
             )}
             source={resolvedSource}
-            sources={sources}
-            sourcePlaceholders={sourcePlaceholders}
             placeholder={resolvedPlaceholder}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}

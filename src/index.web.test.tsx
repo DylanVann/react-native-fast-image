@@ -313,6 +313,21 @@ describe('FastImage (web)', () => {
         expect(img.props.src).toBe('https://example.com/450.png')
     })
 
+    it("takes a require()d image as one of the sizes, at its file's size", () => {
+        const id = registerAsset({
+            httpServerLocation: '/assets/images',
+            name: 'photo',
+            type: 'png',
+            width: 200,
+            height: 200,
+            scales: [1, 2],
+        })
+        const [img] = images(render(<FastImage source={[sizes[0], id]} />))
+        expect(img.props.srcSet).toBe(
+            'https://example.com/100.png 100w, /assets/images/photo@2x.png 400w',
+        )
+    })
+
     it('sends onLoad and then onLoadEnd as native does, with the size', async () => {
         const events: unknown[] = []
         const tree = render(
@@ -943,6 +958,31 @@ describe('placeholder (web)', () => {
         expect(placeholder.props.src).toBe(url)
         expect(placeholder.props.style.objectFit).toBe('contain')
         expect(image.props.src).toBe(A.uri)
+    })
+
+    it('leaves out defaultSource, as a url, thumbhash or blurDataUri', () => {
+        const fallback = { uri: '/assets/placeholder.png' } as any
+        const srcs = (placeholder: any) =>
+            images(
+                render(
+                    <FastImage
+                        source={A}
+                        placeholder={placeholder}
+                        defaultSource={fallback}
+                    />,
+                ),
+            ).map((image) => image.props.src)
+        expect(srcs('https://example.com/placeholder.png')).toEqual([
+            'https://example.com/placeholder.png',
+            A.uri,
+        ])
+        expect(srcs({ thumbhash: H1 })).toEqual([
+            thumbHashToBlurDataUri(H1),
+            A.uri,
+        ])
+        expect(srcs({ blurDataUri: DATA })).toEqual([DATA, A.uri])
+        // An empty one is none.
+        expect(srcs({ thumbhash: undefined })).toEqual([fallback.uri, A.uri])
     })
 
     it("ignores a source's url, with a warning", () => {

@@ -8,6 +8,7 @@
 #import <react/renderer/components/RNFastImageSpec/RCTComponentViewHelpers.h>
 
 #import "FFFastImageView.h"
+#import "FFFThumbHash.h"
 #import "RCTConvert+FFFastImage.h"
 
 using namespace facebook::react;
@@ -100,6 +101,41 @@ static folly::dynamic FFFDynamicFromObject(id value)
 static id _Nullable FFFJSON(const folly::dynamic &value)
 {
     return value.isNull() ? nil : FFFObjectFromDynamic(value);
+}
+
+// A source (or `placeholder`) without its thumbhash and blurDataUri, to
+// compare: one source, or each of several.
+static folly::dynamic FFFWithoutPlaceholders(const folly::dynamic &value)
+{
+    if (value.isArray()) {
+        folly::dynamic result = folly::dynamic::array;
+        for (const auto &entry : value) {
+            result.push_back(FFFWithoutPlaceholders(entry));
+        }
+        return result;
+    }
+    if (!value.isObject()) {
+        return value;
+    }
+    folly::dynamic result = value;
+    result.erase("thumbhash");
+    result.erase("blurDataUri");
+    return result;
+}
+
+// A source's (or `placeholder`'s) ThumbHash, or its blurDataUri if it's a data
+// uri (JS warns about another), or nil.
+static NSString *_Nullable FFFSourcePlaceholder(NSDictionary *source)
+{
+    id thumbhash = source[@"thumbhash"];
+    if ([thumbhash isKindOfClass:[NSString class]] && [thumbhash length] > 0) {
+        return thumbhash;
+    }
+    id blurDataUri = source[@"blurDataUri"];
+    if ([blurDataUri isKindOfClass:[NSString class]] && [FFFThumbHash isDataUri:blurDataUri]) {
+        return blurDataUri;
+    }
+    return nil;
 }
 
 // Whether the placeholder prop is a url to load apart from the image (a
@@ -242,24 +278,35 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     FFFastImageView *view = _imageView;
 
     if (all || oldViewProps.source != newViewProps.source) {
-        view.source = [RCTConvert FFFastImageSource:FFFJSON(newViewProps.source)];
-    }
-    if (all || oldViewProps.sources != newViewProps.sources) {
-        id sources = FFFJSON(newViewProps.sources);
-        view.sources = sources ? [RCTConvert FFFastImageSourceArray:sources] : nil;
+        // One source, or several (an array). Only a change besides their
+        // thumbhashes and blurDataUris loads again: a new one for the same
+        // image (e.g. one that arrives later) shows at once.
+        BOOL loads = all || FFFWithoutPlaceholders(oldViewProps.source) != FFFWithoutPlaceholders(newViewProps.source);
+        id json = FFFJSON(newViewProps.source);
+        NSArray *entries = [json isKindOfClass:[NSArray class]] ? json : json ? @[ json ] : @[];
+        NSMutableArray<FFFastImageSource *> *sources = [NSMutableArray arrayWithCapacity:entries.count];
+        NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:entries.count];
+        for (id entry in entries) {
+            if ([entry isKindOfClass:[NSDictionary class]]) {
+                if (loads) {
+                    [sources addObject:[RCTConvert FFFastImageSource:entry]];
+                }
+                [placeholders addObject:FFFSourcePlaceholder(entry) ?: @""];
+            }
+        }
+        if (loads) {
+            view.sources = sources.count > 0 ? sources : nil;
+        }
+        view.sourcePlaceholders = placeholders;
     }
     if (all || oldViewProps.placeholder != newViewProps.placeholder) {
+        // A thumbhash or blurDataUri, a url to load, or an image to show.
         id placeholder = FFFJSON(newViewProps.placeholder);
-        BOOL loads = FFFIsUrlPlaceholder(placeholder);
-        view.placeholder = placeholder && !loads ? [RCTConvert UIImage:placeholder] : nil;
+        BOOL hash = [placeholder isKindOfClass:[NSDictionary class]] && (placeholder[@"thumbhash"] || placeholder[@"blurDataUri"]);
+        BOOL loads = !hash && FFFIsUrlPlaceholder(placeholder);
+        view.placeholderHash = hash ? FFFSourcePlaceholder(placeholder) : nil;
+        view.placeholder = placeholder && !hash && !loads ? [RCTConvert UIImage:placeholder] : nil;
         view.placeholderSource = loads ? [RCTConvert FFFastImageSource:placeholder] : nil;
-    }
-    if (all || oldViewProps.sourcePlaceholders != newViewProps.sourcePlaceholders) {
-        NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:newViewProps.sourcePlaceholders.size()];
-        for (const auto &placeholder : newViewProps.sourcePlaceholders) {
-            [placeholders addObject:[NSString stringWithUTF8String:placeholder.c_str()]];
-        }
-        view.sourcePlaceholders = placeholders.count > 0 ? placeholders : nil;
     }
     if (all || oldViewProps.objectFit != newViewProps.objectFit) {
         view.objectFit = [RCTConvert FFFObjectFit:FFFString(newViewProps.objectFit)];

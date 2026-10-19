@@ -44,9 +44,9 @@
 // downsample, or several sources: a load waits for the view's size (see
 // didSetProps).
 @property(nonatomic, assign) BOOL waitsForSize;
-// The `source` prop. With several `sources`, _source is the one picked for
-// the view's size instead.
-@property(nonatomic, strong) FFFastImageSource* propSource;
+// The source that loads: the `source` prop's, or with several the one
+// picked for the view's size.
+@property(nonatomic, strong) FFFastImageSource* source;
 // Several sources: the next load switches to another one for a new view
 // size, and the one after it is loading. It's the same picture at another
 // size, so it doesn't fade in.
@@ -749,21 +749,11 @@ NSString *FFFErrorMessage(NSError *error)
     return event;
 }
 
-- (void) setSource: (FFFastImageSource*)source {
-    if (self.propSource != source) {
-        self.propSource = source;
-        if (![self picksSource]) {
-            _source = source;
-        }
-        _needsReload = YES;
-    }
-}
-
 - (void) setSources: (NSArray<FFFastImageSource*>*)sources {
     if (_sources != sources) {
         _sources = [sources copy];
         if (![self picksSource]) {
-            _source = self.propSource;
+            _source = _sources.firstObject;
         }
         _needsReload = YES;
     }
@@ -847,15 +837,25 @@ NSString *FFFErrorMessage(NSError *error)
     return [_dynamicRangeLimit isEqualToString: @"constrained"] || [_dynamicRangeLimit isEqualToString: @"no-limit"];
 }
 
+// Shows at once, as a new source placeholder does (see updateHashImage),
+// without loading the image again.
 - (void) setPlaceholder: (UIImage*)placeholder {
-    if (_placeholder != placeholder) {
-        _placeholder = placeholder;
-        _needsReload = YES;
+    if (_placeholder == placeholder) {
+        return;
     }
+    UIImage* previous = [self shownPlaceholder];
+    BOOL showing = self.showsPlaceholder;
+    _placeholder = placeholder;
+    [self showChangedPlaceholder: previous showing: showing];
 }
 
 - (void) setSourcePlaceholders: (NSArray<NSString*>*)sourcePlaceholders {
     _sourcePlaceholders = [sourcePlaceholders copy];
+    [self updateHashImage];
+}
+
+- (void) setPlaceholderHash: (NSString*)placeholderHash {
+    _placeholderHash = [placeholderHash copy];
     [self updateHashImage];
 }
 
@@ -912,6 +912,9 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (void) setPlaceholderSource: (FFFastImageSource*)placeholderSource {
+    if (!placeholderSource && !_placeholderSource) {
+        return;
+    }
     _placeholderSource = placeholderSource;
     [self cancelUrlPlaceholderLoad];
     [self showUrlPlaceholderImage: nil];
@@ -979,14 +982,18 @@ NSString *FFFErrorMessage(NSError *error)
     [self showChangedPlaceholder: previous showing: showing];
 }
 
-// The picked source's ThumbHash or blurDataUri, or nil.
+// The picked source's ThumbHash or blurDataUri, or placeholderHash, or nil.
 - (NSString*) pickedSourcePlaceholder {
     NSUInteger index = 0;
     if ([self picksSource]) {
         index = _source ? [_sources indexOfObjectIdenticalTo: _source] : NSNotFound;
+        // None until one is picked.
+        if (index == NSNotFound) {
+            return nil;
+        }
     }
     NSString* hash = index < _sourcePlaceholders.count ? _sourcePlaceholders[index] : nil;
-    return hash.length > 0 ? hash : nil;
+    return hash.length > 0 ? hash : _placeholderHash.length > 0 ? _placeholderHash : nil;
 }
 
 // Decodes the picked source's placeholder. A view showing the previous
