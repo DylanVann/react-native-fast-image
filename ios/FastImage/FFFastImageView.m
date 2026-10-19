@@ -73,11 +73,11 @@
 // placeholderSource's image once it has loaded, or nil: it shows instead of
 // the other placeholders (see shownPlaceholder). Its load, and which it is.
 @property(nonatomic, strong) UIImage* urlPlaceholderImage;
-@property(nonatomic, strong) id<SDWebImageOperation> placeholderOperation;
-@property(nonatomic, assign) NSUInteger placeholderLoad;
+@property(nonatomic, strong) id<SDWebImageOperation> urlPlaceholderOperation;
+@property(nonatomic, assign) NSUInteger urlPlaceholderLoad;
 // placeholderSource changed: its load starts with the image's, or after the
-// props if the image is still loading (see startPlaceholderLoad).
-@property(nonatomic, assign) BOOL needsPlaceholderLoad;
+// props if the image is still loading (see startUrlPlaceholderLoad).
+@property(nonatomic, assign) BOOL needsUrlPlaceholderLoad;
 // Whether the view shows a placeholder (the placeholder prop, the source's,
 // or placeholderSource's), and whether it stands for the image (the source's
 // or placeholderSource's): drawn as with contain for scale-down and none, as
@@ -913,39 +913,39 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) setPlaceholderSource: (FFFastImageSource*)placeholderSource {
     _placeholderSource = placeholderSource;
-    [self cancelPlaceholderLoad];
+    [self cancelUrlPlaceholderLoad];
     [self showUrlPlaceholderImage: nil];
-    self.needsPlaceholderLoad = YES;
+    self.needsUrlPlaceholderLoad = YES;
 }
 
-- (void) cancelPlaceholderLoad {
-    self.placeholderLoad++;
-    [self.placeholderOperation cancel];
-    self.placeholderOperation = nil;
+- (void) cancelUrlPlaceholderLoad {
+    self.urlPlaceholderLoad++;
+    [self.urlPlaceholderOperation cancel];
+    self.urlPlaceholderOperation = nil;
 }
 
 // Loads placeholderSource's image with the image's load (after layout, so at
 // the view's size, with the props applied), or after the image failed: not
 // if the image shows at once (from the memory cache, or a data uri), or the
 // placeholder is already loaded or loading.
-- (void) startPlaceholderLoad {
-    self.needsPlaceholderLoad = NO;
-    if (!_placeholderSource.url || self.urlPlaceholderImage || self.placeholderOperation) {
+- (void) startUrlPlaceholderLoad {
+    self.needsUrlPlaceholderLoad = NO;
+    if (!_placeholderSource.url || self.urlPlaceholderImage || self.urlPlaceholderOperation) {
         return;
     }
     if (_source && !self.hasErrored && [self loadsDuringLayout]) {
         return;
     }
-    [self loadPlaceholderSource];
+    [self loadUrlPlaceholder];
 }
 
 // Loads placeholderSource's image, as a source would load (its cache,
 // headers and cacheKey), at a high priority, as it only helps if it comes
 // before the image. One a view still shows (or that's still in memory) shows
 // at once. A failure shows nothing more.
-- (void) loadPlaceholderSource {
-    [self cancelPlaceholderLoad];
-    NSUInteger load = self.placeholderLoad;
+- (void) loadUrlPlaceholder {
+    [self cancelUrlPlaceholderLoad];
+    NSUInteger load = self.urlPlaceholderLoad;
     FFFastImageSource* source = _placeholderSource;
     NSString* key = [FFFastImageView shownImageKey: source];
     UIImage* shown = key ? [[FFFastImageView shownImages] objectForKey: key] : nil;
@@ -956,11 +956,11 @@ NSString *FFFErrorMessage(NSError *error)
     SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
     SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO];
     __weak typeof(self) weakSelf = self;
-    self.placeholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
-        if (!finished || weakSelf.placeholderLoad != load) {
+    self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+        if (!finished || weakSelf.urlPlaceholderLoad != load) {
             return;
         }
-        weakSelf.placeholderOperation = nil;
+        weakSelf.urlPlaceholderOperation = nil;
         if (!image) {
             return;
         }
@@ -1032,11 +1032,11 @@ NSString *FFFErrorMessage(NSError *error)
     }
     // A new placeholderSource while the image loads, or after it failed (a
     // load waiting for the view's size starts it with the image's).
-    if (self.needsPlaceholderLoad && !_needsReload && !self.waitsForSize) {
+    if (self.needsUrlPlaceholderLoad && !_needsReload && !self.waitsForSize) {
         if (!self.hasCompleted || self.hasErrored) {
-            [self startPlaceholderLoad];
+            [self startUrlPlaceholderLoad];
         }
-        self.needsPlaceholderLoad = NO;
+        self.needsUrlPlaceholderLoad = NO;
     }
 }
 
@@ -1132,7 +1132,7 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) reloadImage {
     _needsReload = NO;
     self.needsDynamicRangeReload = NO;
-    self.needsPlaceholderLoad = NO;
+    self.needsUrlPlaceholderLoad = NO;
     self.waitsForSize = NO;
     self.loadsSwitchedSource = self.switchesSource;
     self.switchesSource = NO;
@@ -1168,7 +1168,7 @@ NSString *FFFErrorMessage(NSError *error)
                 [self setImage: [self shownPlaceholder]];
                 self.showsLoadedImage = NO;
                 [self sendOnError: @"Failed to decode the image"];
-                [self startPlaceholderLoad];
+                [self startUrlPlaceholderLoad];
                 if (self.onFastImageLoadEnd) {
                     self.onFastImageLoadEnd([self loadEndEvent: NO]);
                 }
@@ -1211,7 +1211,7 @@ NSString *FFFErrorMessage(NSError *error)
         self.retriedAfterBackground = NO;
         [self stopWaitingForActive];
 
-        [self startPlaceholderLoad];
+        [self startUrlPlaceholderLoad];
         [self downloadImage: _source options: options context: [self loadContext] events: YES];
     } else {
         if ([self shownPlaceholder]) {
@@ -1219,7 +1219,7 @@ NSString *FFFErrorMessage(NSError *error)
             self.showsLoadedImage = NO;
         }
         // No image: only placeholders show.
-        [self startPlaceholderLoad];
+        [self startUrlPlaceholderLoad];
     }
 }
 
@@ -1456,7 +1456,7 @@ NSString *FFFErrorMessage(NSError *error)
                     }
                     weakSelf.showsLoadedImage = NO;
                     // Shows instead of the other placeholders once it loads.
-                    [weakSelf startPlaceholderLoad];
+                    [weakSelf startUrlPlaceholderLoad];
                     [weakSelf sendOnError: [source errorMessage: error]];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: NO]);
@@ -1468,7 +1468,7 @@ NSString *FFFErrorMessage(NSError *error)
                     [FFFastImageView rememberShownImage: image source: source];
                     // The image came first: its placeholder isn't needed.
                     if (!weakSelf.urlPlaceholderImage) {
-                        [weakSelf cancelPlaceholderLoad];
+                        [weakSelf cancelUrlPlaceholderLoad];
                     }
                     [weakSelf sendOnLoad: image];
                     if (weakSelf.onFastImageLoadEnd) {
@@ -1519,14 +1519,14 @@ NSString *FFFErrorMessage(NSError *error)
     self.waitsForSize = NO;
     [self stopWaitingForActive];
     [self sd_cancelLatestImageLoad];
-    [self cancelPlaceholderLoad];
+    [self cancelUrlPlaceholderLoad];
 }
 
 - (void) dealloc {
     [self stopWaitingForActive];
     [self sd_cancelLatestImageLoad];
     // Fabric frees views it doesn't recycle without stop.
-    [_placeholderOperation cancel];
+    [_urlPlaceholderOperation cancel];
 }
 
 @end
