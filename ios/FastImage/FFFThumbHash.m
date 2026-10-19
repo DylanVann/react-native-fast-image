@@ -200,8 +200,12 @@ static UIImage* FFFBlurredPreview(UIImage* image) {
     return cache;
 }
 
++ (BOOL) isDataUri: (NSString*)placeholder {
+    return placeholder && [placeholder rangeOfString: @"data:" options: NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound;
+}
+
 + (UIImage*) imageForPlaceholder: (NSString*)placeholder {
-    if ([placeholder rangeOfString: @"data:" options: NSCaseInsensitiveSearch | NSAnchoredSearch].location == NSNotFound) {
+    if (![self isDataUri: placeholder]) {
         return [self imageForThumbHash: placeholder];
     }
     UIImage* cached = [[self cache] objectForKey: placeholder];

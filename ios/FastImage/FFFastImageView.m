@@ -837,11 +837,16 @@ NSString *FFFErrorMessage(NSError *error)
     return [_dynamicRangeLimit isEqualToString: @"constrained"] || [_dynamicRangeLimit isEqualToString: @"no-limit"];
 }
 
+// Shows at once, as a new source placeholder does (see updateHashImage),
+// without loading the image again.
 - (void) setPlaceholder: (UIImage*)placeholder {
-    if (_placeholder != placeholder) {
-        _placeholder = placeholder;
-        _needsReload = YES;
+    if (_placeholder == placeholder) {
+        return;
     }
+    UIImage* previous = [self shownPlaceholder];
+    BOOL showing = self.showsPlaceholder;
+    _placeholder = placeholder;
+    [self showChangedPlaceholder: previous showing: showing];
 }
 
 - (void) setSourcePlaceholders: (NSArray<NSString*>*)sourcePlaceholders {
@@ -982,6 +987,10 @@ NSString *FFFErrorMessage(NSError *error)
     NSUInteger index = 0;
     if ([self picksSource]) {
         index = _source ? [_sources indexOfObjectIdenticalTo: _source] : NSNotFound;
+        // None until one is picked.
+        if (index == NSNotFound) {
+            return nil;
+        }
     }
     NSString* hash = index < _sourcePlaceholders.count ? _sourcePlaceholders[index] : nil;
     return hash.length > 0 ? hash : _placeholderHash.length > 0 ? _placeholderHash : nil;

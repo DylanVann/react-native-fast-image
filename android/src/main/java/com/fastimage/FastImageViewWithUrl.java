@@ -250,14 +250,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         List<Object> key = new ArrayList<>();
         for (int i = 0; i < sources.size(); i++) {
             ReadableMap source = map(sources, i);
-            HashMap<String, Object> entry = source == null ? null : source.toHashMap();
-            if (entry != null) {
-                entry.remove("thumbhash");
-                entry.remove("blurDataUri");
-            }
-            key.add(entry);
+            key.add(source == null ? null : withoutPlaceholders(source));
         }
         return key;
+    }
+
+    // A source without its thumbhash and blurDataUri.
+    private static HashMap<String, Object> withoutPlaceholders(ReadableMap source) {
+        HashMap<String, Object> map = source.toHashMap();
+        map.remove("thumbhash");
+        map.remove("blurDataUri");
+        return map;
     }
 
     @Nullable
@@ -361,11 +364,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return true;
     }
 
+    // Shows at once, as a new source placeholder does (see updatePlaceholder),
+    // without loading the image again.
     public void setPlaceholder(@Nullable Drawable placeholder) {
-        // None again (the placeholder prop is a url) doesn't reload.
-        if (placeholder == null && mPlaceholder == null) return;
-        mNeedsReload = true;
         mPlaceholder = placeholder;
+        updatePlaceholder();
     }
 
     // The sources' ThumbHashes or blurDataUris, by the source's index (null
@@ -508,7 +511,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @Nullable
     private String pickedSourcePlaceholder() {
         int index = mSources == null ? 0 : mSourceIndex;
-        String key = index >= 0 && index < mSourcePlaceholders.size() ? mSourcePlaceholders.get(index) : null;
+        // None until one is picked.
+        if (index < 0) return null;
+        String key = index < mSourcePlaceholders.size() ? mSourcePlaceholders.get(index) : null;
         return key != null ? key : mPlaceholderHash;
     }
 
@@ -1812,7 +1817,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // resolved: fire onError and onLoadEnd and show the placeholder prop,
         // as on iOS (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
-            String error = "Invalid source: " + mSource;
+            // Without its thumbhash or blurDataUri (a data uri can be long).
+            String error = "Invalid source: " + withoutPlaceholders(mSource);
             WritableMap event = new WritableNativeMap();
             event.putString("error", error);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);

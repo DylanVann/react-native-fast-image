@@ -8112,6 +8112,57 @@ function ThumbhashChangeLoadedCase() {
     )
 }
 
+// placeholder's thumbhash arrives after the image has loaded, with
+// defaultSource shown until then (none before): the placeholder image goes
+// away without loading the image again (one request, one onLoad).
+function ThumbhashPlaceholderLateCase() {
+    const [thumbhash, setThumbhash] = useState<string>()
+    const [status, setStatus] = useState('waiting')
+    const loads = useRef(0)
+    const onLoad = () => {
+        loads.current++
+        if (loads.current > 1) {
+            setStatus('loaded again after the thumbhash arrived')
+            return
+        }
+        setTimeout(() => setThumbhash(THUMBHASH_CYAN_ORANGE), 1000)
+        setTimeout(async () => {
+            const requests = await thumbhashRequests('placeholder-late').catch(
+                () => -1,
+            )
+            setStatus((previous) =>
+                previous !== 'waiting'
+                    ? previous
+                    : requests === 1 && loads.current === 1
+                      ? 'OK'
+                      : `${requests} requests, ${loads.current} onLoad`,
+            )
+        }, 2500)
+    }
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: slowImageUrl(
+                        `picsum/1021-120x120.jpg?group=thumbhash-placeholder-late-${RUN}&delay=50`,
+                    ),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={{ thumbhash }}
+                defaultSource={MAGENTA_DEFAULT}
+                onLoad={onLoad}
+                onError={(e) => setStatus(`onError: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id="thumbhash-placeholder-late"
+                status={status}
+                description="placeholder's thumbhash after the image has loaded (defaultSource until then): no new load, the photo stays"
+            />
+        </View>
+    )
+}
+
 // While the download is held, the source gets another hash: it shows at once,
 // without starting the download again (one request).
 function ThumbhashChangeLoadingCase() {
@@ -9589,6 +9640,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ThumbhashFailsCase key="thumbhash-fails" />,
             <ThumbhashChangeLoadedCase key="thumbhash-change-loaded" />,
             <ThumbhashChangeLoadingCase key="thumbhash-change-loading" />,
+            <ThumbhashPlaceholderLateCase key="thumbhash-placeholder-late" />,
             <ThumbhashSizesCase key="thumbhash-sizes" />,
             <ThumbhashRecycledCase key="thumbhash-recycled" />,
         ],

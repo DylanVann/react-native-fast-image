@@ -8,6 +8,7 @@
 #import <react/renderer/components/RNFastImageSpec/RCTComponentViewHelpers.h>
 
 #import "FFFastImageView.h"
+#import "FFFThumbHash.h"
 #import "RCTConvert+FFFastImage.h"
 
 using namespace facebook::react;
@@ -131,7 +132,7 @@ static NSString *_Nullable FFFSourcePlaceholder(NSDictionary *source)
         return thumbhash;
     }
     id blurDataUri = source[@"blurDataUri"];
-    if ([blurDataUri isKindOfClass:[NSString class]] && [blurDataUri rangeOfString:@"data:" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound) {
+    if ([blurDataUri isKindOfClass:[NSString class]] && [FFFThumbHash isDataUri:blurDataUri]) {
         return blurDataUri;
     }
     return nil;

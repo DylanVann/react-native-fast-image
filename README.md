@@ -292,7 +292,7 @@ Notes:
 
 **Type:** `number`
 
-**Deprecated:** Use `placeholder`, which does the same.
+**Deprecated:** Use `placeholder`, which does the same. With both, `placeholder` shows.
 
 ---
 

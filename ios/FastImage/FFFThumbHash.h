@@ -15,6 +15,9 @@ NS_ASSUME_NONNULL_BEGIN
 // Main thread.
 + (nullable UIImage*) imageForPlaceholder: (nullable NSString*)placeholder;
 
+// Whether a placeholder is a data uri (a blurDataUri) rather than a ThumbHash.
++ (BOOL) isDataUri: (nullable NSString*)placeholder;
+
 // The placeholder for a base64 ThumbHash (standard or url-safe, with or
 // without padding), or nil for an empty or invalid one. Main thread.
 + (nullable UIImage*) imageForThumbHash: (nullable NSString*)thumbhash;

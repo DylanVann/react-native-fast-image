@@ -399,7 +399,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
         | SourcePlaceholder
         | PlaceholderSource
     /**
-     * @deprecated Use `placeholder`, which does the same.
+     * @deprecated Use `placeholder`, which does the same. With both,
+     * `placeholder` shows.
      */
     defaultSource?: ImageRequireSource
     /**

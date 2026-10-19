@@ -141,16 +141,15 @@ function FastImageBase({
     // like any image: it can't look in its cache only (cache: 'cacheOnly').
     const urlPlaceholder = placeholderSource(placeholder)?.uri
     const [failedPlaceholder, setFailedPlaceholder] = useState<string>()
-    // defaultSource only shows without `placeholder`, as on iOS and Android
-    // (an empty thumbhash or blurDataUri is none). A thumbhash or blurDataUri
-    // in `placeholder` isn't an image to show as it is, nor is a url (above).
+    // defaultSource only shows without `placeholder`, as on iOS and Android,
+    // or in place of a thumbhash or blurDataUri the web can't show (one of
+    // several sizes', or a thumbhash without react-native-fast-image/thumbhash,
+    // or an empty one). Not with a url (above).
     const defaultUri =
         blurUri ??
         resolveUri(
             preview
-                ? preview.thumbhash || dataUri(preview.blurDataUri)
-                    ? undefined
-                    : defaultSource
+                ? defaultSource
                 : urlPlaceholder
                   ? undefined
                   : (placeholder ?? defaultSource),
