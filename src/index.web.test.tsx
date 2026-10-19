@@ -73,7 +73,9 @@ describe('FastImage (web)', () => {
         expect(img.props.src).toBe('https://example.com/a.jpg')
         expect(img.props.alt).toBe('An image')
         expect(img.props.draggable).toBe(false)
+        // priority high: at once, not lazily.
         expect(img.props.loading).toBeUndefined()
+        expect(img.props.fetchPriority).toBe('high')
         expect(img.props.style).toEqual({
             position: 'absolute',
             top: 0,
@@ -631,6 +633,50 @@ describe('FastImage (web)', () => {
         expect(FastImage.resizeMode.contain).toBe('contain')
         expect(FastImage.priority.high).toBe('high')
         expect(FastImage.cacheControl.web).toBe('web')
+    })
+})
+
+describe('priority (web)', () => {
+    it('loads an image lazily by default', () => {
+        const [img] = images(render(<FastImage source={A} />))
+        expect(img.props.loading).toBe('lazy')
+        expect(img.props.fetchPriority).toBeUndefined()
+    })
+
+    it('loads a high priority image at once, with fetchpriority', () => {
+        const tree = render(<FastImage source={{ ...A, priority: 'high' }} />)
+        const [img] = images(tree)
+        expect(img.props.loading).toBeUndefined()
+        expect(img.props.fetchPriority).toBe('high')
+    })
+
+    it('loads a low priority image lazily, with fetchpriority', () => {
+        const tree = render(<FastImage source={{ ...A, priority: 'low' }} />)
+        const [img] = images(tree)
+        expect(img.props.loading).toBe('lazy')
+        expect(img.props.fetchPriority).toBe('low')
+    })
+
+    it('takes the highest of several sizes, for the placeholder too', () => {
+        const tree = render(
+            <FastImage
+                source={[
+                    { ...A, width: 100, height: 75, priority: 'low' },
+                    {
+                        uri: `${A.uri}?2`,
+                        width: 400,
+                        height: 300,
+                        priority: 'high',
+                    },
+                ]}
+                placeholder={{ uri: '/assets/placeholder.png' } as any}
+            />,
+        )
+        for (const img of images(tree)) {
+            expect(img.props.loading).toBeUndefined()
+            expect(img.props.fetchPriority).toBe('high')
+        }
+        expect(images(tree)).toHaveLength(2)
     })
 })
 

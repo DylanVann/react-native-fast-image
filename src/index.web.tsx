@@ -40,6 +40,7 @@ import type {
     FastImageStaticProperties,
     ObjectFit,
     PreloadResult,
+    Priority,
     Source,
     SourcePlaceholder,
 } from './index'
@@ -125,6 +126,7 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
+    const priority = sourcePriority(source)
     // The source's blurDataUri, or its ThumbHash made into one (with
     // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
     // in place of `placeholder` (or `placeholder`'s, for a source without its
@@ -179,6 +181,8 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
+                    // Loaded when the image is (a data uri needs no request).
+                    priority={priority}
                     // A source's placeholder stands for an image whose size
                     // isn't known yet: as contain for scale-down and none,
                     // which show an image at its own size.
@@ -210,7 +214,7 @@ function FastImageBase({
                     key={several ? 'sizes' : key}
                     src={src}
                     srcSet={srcSet}
-                    lazy={!!several}
+                    priority={priority}
                     fit={fit}
                     position={position}
                     filter={filter}
@@ -255,6 +259,36 @@ function thumbhashUri(hash: string | undefined): string | undefined {
         )
     }
     return undefined
+}
+
+// A source's priority: one source's, or the highest of several sizes'.
+function sourcePriority(
+    source: FastImageProps['source'],
+): Priority | undefined {
+    const values = (Array.isArray(source) ? source : [source]).map((entry) =>
+        entry && typeof entry === 'object'
+            ? (entry as Source).priority
+            : undefined,
+    )
+    return (['high', 'normal', 'low'] as const).find((priority) =>
+        values.includes(priority),
+    )
+}
+
+// The <img>'s fetchpriority for 'high' and 'low' (the browser's own for
+// 'normal'). React 18.3 and later take it as fetchPriority; earlier versions
+// pass it through only in lowercase.
+const [reactMajor = 0, reactMinor = 0] = (React.version ?? '')
+    .split('.')
+    .map(Number)
+const FETCH_PRIORITY =
+    reactMajor > 18 || (reactMajor === 18 && reactMinor >= 3)
+        ? 'fetchPriority'
+        : 'fetchpriority'
+function fetchPriority(priority: Priority | undefined) {
+    return priority === 'high' || priority === 'low'
+        ? { [FETCH_PRIORITY]: priority }
+        : undefined
 }
 
 // The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
@@ -322,8 +356,8 @@ type PackagerAsset = {
 // scale), from which the browser loads the one for the image's width in
 // device pixels, usually the smallest at least as wide, as expo-image does.
 // sizes="auto" has the browser use the width the image is laid out at; it
-// only applies to lazy images, and browsers without it use the next value,
-// 100vw (the viewport's width). src is the largest, for browsers without
+// only applies to lazy images (not a 'high' priority one), and otherwise, or
+// in browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
 function sizedSources(sources: Source[]) {
     const widths = sources
@@ -395,7 +429,7 @@ const fill = {
 function Picture({
     src,
     srcSet,
-    lazy,
+    priority,
     fit,
     position,
     filter,
@@ -406,8 +440,9 @@ function Picture({
 }: {
     src: string
     srcSet?: string
-    // Several sizes load lazily, for sizes="auto" (see sizedSources).
-    lazy?: boolean
+    // source.priority: the image loads lazily (as it nears the viewport)
+    // unless it's 'high', and it's the <img>'s fetchpriority.
+    priority?: Priority
     fit: ObjectFit
     // objectPosition, as CSS.
     position: string
@@ -479,7 +514,8 @@ function Picture({
             src={src}
             srcSet={srcSet}
             sizes={srcSet ? 'auto, 100vw' : undefined}
-            loading={lazy ? 'lazy' : undefined}
+            loading={priority === 'high' ? undefined : 'lazy'}
+            {...fetchPriority(priority)}
             alt={alt}
             draggable={false}
             style={{

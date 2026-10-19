@@ -54,6 +54,9 @@ export type Source = {
      * - `'normal'`: the default.
      * - `'high'`: e.g. the image the screen is about.
      *
+     * On the web, images load as they near the screen, unless they're
+     * `'high'`, which load at once.
+     *
      * @default 'normal'
      */
     priority?: Priority

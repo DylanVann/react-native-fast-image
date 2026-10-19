@@ -161,6 +161,8 @@ A hint for which images to start loading first when several are waiting: `'high'
 - `'normal'`: the default.
 - `'high'`: e.g. the image the screen is about.
 
+On the web, images load as they near the screen, unless they're `'high'`, which load at once.
+
 ---
 
 ##### `source.cache`
@@ -937,9 +939,10 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 Support is minimal:
 
 - Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
-- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
+- Ignored: `source.headers` (a browser can't send them for an image), `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and the placeholder is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
-- Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width.
+- Images load lazily (`loading="lazy"`), unless `source.priority` is `'high'`, and `'high'` and `'low'` are the `<img>`'s `fetchpriority`.
+- Several sizes are shown with an `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"`, or a `'high'` priority image (which isn't lazy), use the viewport's width.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
 
 ### ThumbHashes on the web
