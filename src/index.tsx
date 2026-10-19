@@ -565,11 +565,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   other content (a feed).
      * - `'no-limit'`: in full HDR, e.g. for a full-screen photo viewer.
      *
-     * On iOS and tvOS 17 and later (Android shows them in standard range).
-     * On the web it's CSS's `dynamic-range-limit`, and without it the browser
-     * decides (usually HDR).
+     * Not set, iOS shows them in standard range, and the web as the browser
+     * does by default (usually HDR). On iOS and tvOS 17 and later; Android
+     * shows them in standard range. On the web it's CSS's
+     * `dynamic-range-limit`.
      *
-     * @default 'standard'
      * @platform ios
      * @platform web
      */

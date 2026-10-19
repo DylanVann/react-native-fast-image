@@ -74,6 +74,9 @@
 // source's), and whether that's the source's (hashImage).
 @property(nonatomic, assign) BOOL showsPlaceholder;
 @property(nonatomic, assign) BOOL showsHash;
+// dynamicRangeLimit switched between HDR and SDR: the image is decoded again,
+// quietly (see reloadForDynamicRange).
+@property(nonatomic, assign) BOOL needsDynamicRangeReload;
 
 @end
 
@@ -824,7 +827,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     // Decoded again only to switch between HDR and SDR.
     if ([self decodesToHDR] != decodedToHDR) {
-        _needsReload = YES;
+        self.needsDynamicRangeReload = YES;
     }
 }
 
@@ -901,9 +904,34 @@ NSString *FFFErrorMessage(NSError *error)
             return;
         }
         [self reloadImage];
+    } else if (self.needsDynamicRangeReload) {
+        [self reloadForDynamicRange];
     } else {
         [self reloadIfResized];
     }
+}
+
+// The same image decoded again for a dynamicRangeLimit between HDR and SDR,
+// as a resize is (reloadIfResized): without events once it has loaded, and
+// the image showing stays if the load fails. A display setting shouldn't
+// look like a new load.
+- (void) reloadForDynamicRange {
+    self.needsDynamicRangeReload = NO;
+    // Nothing to load, it failed, or it waits for the view's size: the next
+    // load decodes as asked.
+    if (!_source || self.hasErrored || self.waitsForSize) {
+        return;
+    }
+    // A data uri is decoded at once, with its events (see reloadImage).
+    if ([[_source.url absoluteString] hasPrefix: @"data:image"]) {
+        [self reloadImage];
+        return;
+    }
+    SDWebImageOptions options = [self loadOptions];
+    if (self.showsLoadedImage) {
+        options |= SDWebImageDelayPlaceholder;
+    }
+    [self downloadImage: _source options: options context: [self loadContext] events: !self.hasCompleted];
 }
 
 // Whether images are decoded at about the view's size (downsample, and always
@@ -974,6 +1002,7 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) reloadImage {
     _needsReload = NO;
+    self.needsDynamicRangeReload = NO;
     self.waitsForSize = NO;
     self.loadsSwitchedSource = self.switchesSource;
     self.switchesSource = NO;
@@ -1119,8 +1148,7 @@ NSString *FFFErrorMessage(NSError *error)
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         [FFFDownsampledImage addFullSizeToContext: context];
         [self applyCacheOptions: context source: source fullSize: YES];
-        [FFFDownsampledImage forgetSmallerFullSizeImageForURL: source.url context: context];
-        [FFFDownsampledImage forgetImageOfOtherDynamicRangeForURL: source.url context: context];
+        [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];
@@ -1132,7 +1160,7 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
     }
     [self applyCacheOptions: context source: source fullSize: NO];
-    [FFFDownsampledImage forgetImageOfOtherDynamicRangeForURL: source.url context: context];
+    [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
     return context;
 }
 

@@ -77,7 +77,7 @@ static CGSize FFFPixelSize(NSData* data) {
     return [sourceSize isKindOfClass: [FFFSourceSize class]] ? ((FFFSourceSize*) sourceSize).size : CGSizeZero;
 }
 
-+ (void) forgetSmallerFullSizeImageForURL: (NSURL*)url context: (SDWebImageContext*)context {
++ (void) forgetUnusableImageForURL: (NSURL*)url context: (SDWebImageContext*)context {
     SDWebImageManager* manager = [SDWebImageManager sharedManager];
     if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
         return;
@@ -85,38 +85,32 @@ static CGSize FFFPixelSize(NSData* data) {
     SDImageCache* cache = (SDImageCache*) manager.imageCache;
     NSString* key = [manager cacheKeyForURL: url context: context];
     UIImage* image = [cache imageFromMemoryCacheForKey: key];
-    CGSize fullSize = [self sourceSizeOfImage: image];
-    if (image && fullSize.width > 0 && fullSize.height > 0 && !CGSizeEqualToSize(image.size, fullSize)) {
+    if (image && ([self isSmallerFullSizeImage: image context: context] || [self isOtherDynamicRange: image context: context])) {
         [cache removeImageFromMemoryForKey: key];
     }
 }
 
-+ (void) forgetImageOfOtherDynamicRangeForURL: (NSURL*)url context: (SDWebImageContext*)context {
-    SDWebImageManager* manager = [SDWebImageManager sharedManager];
-    if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
-        return;
+// A smaller image under a full-size load's key.
++ (BOOL) isSmallerFullSizeImage: (UIImage*)image context: (SDWebImageContext*)context {
+    if (context[SDWebImageContextImageThumbnailPixelSize]) {
+        return NO;
     }
-    SDImageCache* cache = (SDImageCache*) manager.imageCache;
-    NSString* key = [manager cacheKeyForURL: url context: context];
-    UIImage* image = [cache imageFromMemoryCacheForKey: key];
-    if (!image) {
-        return;
-    }
-    // Only images SDWebImage decoded say how: not a photo library's, or an
-    // app's own loader's, which are kept.
+    CGSize fullSize = [self sourceSizeOfImage: image];
+    return fullSize.width > 0 && fullSize.height > 0 && !CGSizeEqualToSize(image.size, fullSize);
+}
+
+// An image decoded to SDR for an HDR load, or to HDR for an SDR load. Only
+// images SDWebImage decoded say how: not a photo library's, or an app's own
+// loader's, which are kept. One decoded to HDR that came out SDR (most images
+// have no HDR) is the same as an SDR decode, and an HDR file decoded without
+// asking is HDR either way (e.g. an HDR10 HEIC on iOS 15 and 16).
++ (BOOL) isOtherDynamicRange: (UIImage*)image context: (SDWebImageContext*)context {
     if (!image.sd_decodeOptions) {
-        return;
+        return NO;
     }
-    // An HDR load drops an image decoded to SDR (it may have had HDR); an
-    // SDR load, an HDR image that an HDR load decoded. One decoded to HDR
-    // that came out SDR (most images have no HDR) is the same as an SDR
-    // decode, and an HDR file decoded without asking is HDR either way (e.g.
-    // an HDR10 HEIC on iOS 15 and 16).
     BOOL wantsHDR = [context[SDWebImageContextImageDecodeToHDR] boolValue];
     BOOL decodedToHDR = [image.sd_decodeOptions[SDImageCoderDecodeToHDR] boolValue];
-    if (wantsHDR ? !decodedToHDR : decodedToHDR && image.sd_isHighDynamicRange) {
-        [cache removeImageFromMemoryForKey: key];
-    }
+    return wantsHDR ? !decodedToHDR : decodedToHDR && image.sd_isHighDynamicRange;
 }
 
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {

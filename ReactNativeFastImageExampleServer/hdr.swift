@@ -1,5 +1,5 @@
 // Makes images/hdr-half.jpg, an HDR photo with a gain map (as an iPhone's)
-// for the preferHighDynamicRange cases: flat mid gray in standard range; in
+// for the dynamicRangeLimit case (hdr): flat mid gray in standard range; in
 // HDR, its right half 4 times brighter (linear) than its left half, which
 // matches the standard range image. Committed, so this only needs to run to
 // change it (macOS 15 or later):

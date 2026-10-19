@@ -180,6 +180,7 @@ function FastImageBase({
                     // Loaded when the image is (a data uri needs no request).
                     loading={loading}
                     priority={priority}
+                    dynamicRangeLimit={dynamicRangeLimit}
                     // A source's placeholder stands for an image whose size
                     // isn't known yet: as contain for scale-down and none,
                     // which show an image at its own size.

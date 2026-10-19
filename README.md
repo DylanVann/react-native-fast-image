@@ -426,7 +426,7 @@ If you control the images, serve them at the size they're shown (resized on your
 
 #### `dynamicRangeLimit`
 
-**Type:** `'standard' | 'constrained' | 'no-limit'` · **Default:** `'standard'` · iOS, Web only
+**Type:** `'standard' | 'constrained' | 'no-limit'` · iOS, Web only
 
 How bright HDR photos (e.g. photos taken on an iPhone) can be, on displays that support it:
 
@@ -434,7 +434,7 @@ How bright HDR photos (e.g. photos taken on an iPhone) can be, on displays that 
 - `'constrained'`: in HDR, their highlights brighter than the rest of the screen but held below the display's peak, e.g. for images among other content (a feed).
 - `'no-limit'`: in full HDR, e.g. for a full-screen photo viewer.
 
-On iOS and tvOS 17 and later (Android shows them in standard range). On the web it's CSS's `dynamic-range-limit`, and without it the browser decides (usually HDR).
+Not set, iOS shows them in standard range, and the web as the browser does by default (usually HDR). On iOS and tvOS 17 and later; Android shows them in standard range. On the web it's CSS's `dynamic-range-limit`.
 
 ---
 

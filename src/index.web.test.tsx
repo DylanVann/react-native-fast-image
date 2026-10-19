@@ -637,6 +637,20 @@ describe('FastImage (web)', () => {
 })
 
 describe('dynamicRangeLimit (web)', () => {
+    it("is the placeholder's too", () => {
+        const tree = render(
+            <FastImage
+                source={A}
+                placeholder={{ uri: '/assets/placeholder.png' } as any}
+                dynamicRangeLimit="standard"
+            />,
+        )
+        expect(images(tree)).toHaveLength(2)
+        for (const img of images(tree)) {
+            expect(img.props.style.dynamicRangeLimit).toBe('standard')
+        }
+    })
+
     it("is CSS's dynamic-range-limit, the browser's default when not set", () => {
         const limit = (element: React.ReactElement) =>
             images(render(element))[0].props.style.dynamicRangeLimit
