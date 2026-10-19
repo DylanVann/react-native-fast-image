@@ -220,7 +220,7 @@ A [ThumbHash](https://evanw.github.io/thumbhash/) of the image: a short string (
 
 It's drawn where the image will be (`objectFit` and `objectPosition`), as with `contain` for `scale-down` and `none`, which depend on the image's size. A new `thumbhash` for the same image doesn't load it again. With several sources, each has its own: the view shows the one it picks for its size (on the web, where the browser picks, only if they all have the same `thumbhash`). One for all of them can go in `placeholder` instead (`placeholder={{ thumbhash }}`). An invalid one shows nothing, or `placeholder`.
 
-On the web, it shows only with `import 'react-native-fast-image/thumbhash'` (its decoder, about 1.5 KB gzipped), or made into the source's `blurDataUri` before it reaches the browser, e.g. on your server, with that module's `thumbHashToDataURL`, which needs no JavaScript in the browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
+On the web, it shows only with `import 'react-native-fast-image/thumbhash'` (its decoder, about 1.5 KB gzipped), or made into the source's `blurDataUri` before it reaches the browser, e.g. on your server, with that module's `thumbHashToBlurDataUri`, which needs no JavaScript in the browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
 
 ```jsx
 <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
@@ -950,15 +950,15 @@ A source's [`blurDataUri`](#sourceblurdatauri) shows on the web without any Java
 import 'react-native-fast-image/thumbhash'
 ```
 
-Or make the hash a `blurDataUri` before it reaches the browser, e.g. where your server loads the page's data, with the same module's `thumbHashToDataURL`: a PNG data uri of at most 8 × 8 pixels (about 300 to 500 characters). It works in browsers, on servers (Node 16+) and in React Native.
+Or make the hash a `blurDataUri` before it reaches the browser, e.g. where your server loads the page's data, with the same module's `thumbHashToBlurDataUri`: a PNG data uri of at most 8 × 8 pixels (about 300 to 500 characters). It works in browsers, on servers (Node 16+) and in React Native.
 
 ```js
-import { thumbHashToDataURL } from 'react-native-fast-image/thumbhash'
+import { thumbHashToBlurDataUri } from 'react-native-fast-image/thumbhash'
 
 const source = {
     uri: photo.url,
     thumbhash: photo.thumbhash, // iOS and Android
-    blurDataUri: thumbHashToDataURL(photo.thumbhash), // the web
+    blurDataUri: thumbHashToBlurDataUri(photo.thumbhash), // the web
 }
 ```
 

@@ -239,7 +239,7 @@ function thumbhashUri(hash: string | undefined): string | undefined {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
         warnOnce(
             'thumbhash-web',
-            "react-native-fast-image: on the web, a source's `thumbhash` shows only with `import 'react-native-fast-image/thumbhash'` (it decodes them). Or make it a `blurDataUri` before it reaches the browser (e.g. on your server) with that module's thumbHashToDataURL, which needs no JavaScript in the browser.",
+            "react-native-fast-image: on the web, a source's `thumbhash` shows only with `import 'react-native-fast-image/thumbhash'` (it decodes them). Or make it a `blurDataUri` before it reaches the browser (e.g. on your server) with that module's thumbHashToBlurDataUri, which needs no JavaScript in the browser.",
             'warn',
         )
     }

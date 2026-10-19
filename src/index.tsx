@@ -149,7 +149,7 @@ export type Source = {
      * On the web, it shows only with `import 'react-native-fast-image/thumbhash'`
      * (its decoder, about 1.5 KB gzipped), or made into the source's
      * `blurDataUri` before it reaches the browser, e.g. on your server, with
-     * that module's `thumbHashToDataURL`, which needs no JavaScript in the
+     * that module's `thumbHashToBlurDataUri`, which needs no JavaScript in the
      * browser (see [ThumbHashes on the web](#thumbhashes-on-the-web)).
      *
      * @example

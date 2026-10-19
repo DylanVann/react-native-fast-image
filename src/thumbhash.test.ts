@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { thumbHashToDataURL } from './thumbhash'
+import { thumbHashToBlurDataUri } from './thumbhash'
 
 // Hashes of a 4:3 red-to-blue image and a square transparent one (a magenta
 // disc), and the SHA-256 of the data uris made of them: the reference
@@ -33,47 +33,47 @@ function png(uri: string | undefined) {
     return { width, height, pixel }
 }
 
-describe('thumbHashToDataURL', () => {
+describe('thumbHashToBlurDataUri', () => {
     it('is a PNG of at most 8 × 8 pixels, the reference decode averaged down', () => {
-        const landscape = png(thumbHashToDataURL(LANDSCAPE))
+        const landscape = png(thumbHashToBlurDataUri(LANDSCAPE))
         expect([landscape.width, landscape.height]).toEqual([8, 6])
         const [r, , b] = landscape.pixel(0, 3)
         const [r2, , b2] = landscape.pixel(7, 3)
         // Red on the left, blue on the right.
         expect(r).toBeGreaterThan(b)
         expect(b2).toBeGreaterThan(r2)
-        const disc = png(thumbHashToDataURL(TRANSPARENT))
+        const disc = png(thumbHashToBlurDataUri(TRANSPARENT))
         expect([disc.width, disc.height]).toEqual([8, 8])
         // Transparent in the corner, opaque in the middle.
         expect(disc.pixel(0, 0)[3]).toBeLessThan(64)
         expect(disc.pixel(4, 4)[3]).toBe(255)
-        expect(sha(thumbHashToDataURL(LANDSCAPE))).toBe(LANDSCAPE_SHA)
-        expect(sha(thumbHashToDataURL(TRANSPARENT))).toBe(TRANSPARENT_SHA)
+        expect(sha(thumbHashToBlurDataUri(LANDSCAPE))).toBe(LANDSCAPE_SHA)
+        expect(sha(thumbHashToBlurDataUri(TRANSPARENT))).toBe(TRANSPARENT_SHA)
     })
 
     it('reads url-safe base64, and base64 without padding', () => {
-        const uri = thumbHashToDataURL(TRANSPARENT)
-        expect(thumbHashToDataURL(TRANSPARENT.replace(/=+$/, ''))).toBe(uri)
+        const uri = thumbHashToBlurDataUri(TRANSPARENT)
+        expect(thumbHashToBlurDataUri(TRANSPARENT.replace(/=+$/, ''))).toBe(uri)
         expect(
-            thumbHashToDataURL(
+            thumbHashToBlurDataUri(
                 LANDSCAPE.replace(/\+/g, '-').replace(/\//g, '_'),
             ),
-        ).toBe(thumbHashToDataURL(LANDSCAPE))
+        ).toBe(thumbHashToBlurDataUri(LANDSCAPE))
     })
 
     it('is undefined for an empty or invalid hash', () => {
-        expect(thumbHashToDataURL(undefined)).toBeUndefined()
-        expect(thumbHashToDataURL('')).toBeUndefined()
-        expect(thumbHashToDataURL('not base64!')).toBeUndefined()
+        expect(thumbHashToBlurDataUri(undefined)).toBeUndefined()
+        expect(thumbHashToBlurDataUri('')).toBeUndefined()
+        expect(thumbHashToBlurDataUri('not base64!')).toBeUndefined()
         // Shorter than its header says.
-        expect(thumbHashToDataURL(LANDSCAPE.slice(0, 12))).toBeUndefined()
-        expect(thumbHashToDataURL('AAAA')).toBeUndefined()
+        expect(thumbHashToBlurDataUri(LANDSCAPE.slice(0, 12))).toBeUndefined()
+        expect(thumbHashToBlurDataUri('AAAA')).toBeUndefined()
     })
 
     it("is the web version's decoder once imported", () => {
         const decoder = (globalThis as Record<symbol, unknown>)[
             Symbol.for('react-native-fast-image/thumbhash')
         ]
-        expect(decoder).toBe(thumbHashToDataURL)
+        expect(decoder).toBe(thumbHashToBlurDataUri)
     })
 })

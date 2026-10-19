@@ -1,7 +1,7 @@
 // ThumbHashes (https://evanw.github.io/thumbhash/) on the web, as
 // `react-native-fast-image/thumbhash`: importing it makes the web version
 // show sources' thumbhashes (iOS and Android decode them natively), and
-// thumbHashToDataURL makes a source's `blurDataUri` from one, e.g. on a
+// thumbHashToBlurDataUri makes a source's `blurDataUri` from one, e.g. on a
 // server, so a page shows it without any JavaScript. FastImage doesn't import
 // it, so web bundles only have it if the app does.
 //
@@ -46,10 +46,10 @@ const CACHE_SIZE = 256
  * @example
  * ```js
  * // e.g. on your server, so the page shows the preview without any JavaScript
- * const source = { uri: photo.url, blurDataUri: thumbHashToDataURL(photo.thumbhash) }
+ * const source = { uri: photo.url, blurDataUri: thumbHashToBlurDataUri(photo.thumbhash) }
  * ```
  */
-export function thumbHashToDataURL(
+export function thumbHashToBlurDataUri(
     thumbhash: string | undefined,
 ): string | undefined {
     if (!thumbhash) return undefined
@@ -74,7 +74,7 @@ export function thumbHashToDataURL(
 // this module (the same key from any copy of the package).
 ;(globalThis as Record<symbol, unknown>)[
     Symbol.for('react-native-fast-image/thumbhash')
-] = thumbHashToDataURL
+] = thumbHashToBlurDataUri
 
 // The pixels averaged down so the longer side is at most max.
 function shrink(w: number, h: number, rgba: Uint8Array, max: number) {
