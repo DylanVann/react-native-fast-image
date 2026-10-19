@@ -1,3 +1,10 @@
+# [10.6.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.5.0...v10.6.0) (2026-10-19)
+
+
+### Features
+
+* require()d images among several sizes, and defaultSource only without a placeholder ([3eac944](https://github.com/DylanVann/react-native-fast-image/commit/3eac9443cd7fa024b026666d4f48777c5b262fe9))
+
 # [10.5.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.4.0...v10.5.0) (2026-10-19)
 
 
