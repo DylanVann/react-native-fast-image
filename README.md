@@ -944,7 +944,7 @@ Support is minimal:
 
 ### ThumbHashes on the web
 
-A source's [`blurDataUri`](#sourceblurdatauri) shows on the web without any JavaScript (also before the page's scripts load, when it's rendered on a server): it's an `<img>`, blurred with an SVG filter. A [`thumbhash`](#sourcethumbhash) has to be decoded, so the web version doesn't show one unless you include the decoder (about 1.5 KB gzipped):
+A [`blurDataUri`](#sourceblurdatauri), on a source or in [`placeholder`](#placeholder), shows on the web without any JavaScript (also before the page's scripts load, when it's rendered on a server): it's an `<img>`, blurred with an SVG filter. A [`thumbhash`](#sourcethumbhash) has to be decoded, so the web version doesn't show one unless you include the decoder (about 1.5 KB gzipped):
 
 ```js
 import 'react-native-fast-image/thumbhash'

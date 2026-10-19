@@ -638,6 +638,23 @@ describe('thumbhash (web)', () => {
     const H1 = 'mKYCnZqXl/iIeIiHeIeIiH94+IiI'
     const H2 = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
 
+    it('takes one for every size as the placeholder prop', () => {
+        const tree = render(
+            <FastImage
+                source={[
+                    { ...A, width: 100, height: 75 },
+                    { uri: `${A.uri}?2`, width: 400, height: 300 },
+                ]}
+                placeholder={{ thumbhash: H1 }}
+            />,
+        )
+        const [placeholder] = images(tree)
+        expect(placeholder.props.src).toBe(thumbHashToBlurDataUri(H1))
+        expect(placeholder.props.style.filter).toMatch(
+            /^url\(#fast-image-blur-/,
+        )
+    })
+
     it('shows in place of defaultSource until the image loads', async () => {
         const tree = render(
             <FastImage
