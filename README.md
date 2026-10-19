@@ -950,7 +950,7 @@ The app needs access to the photo library, which it has if it got the url from t
 
 ## Web
 
-FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/). Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/) and React 18 or later. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
 
 Support is minimal:
 

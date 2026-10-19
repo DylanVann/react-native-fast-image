@@ -21,6 +21,7 @@ import React, {
     forwardRef,
     memo,
     useEffect,
+    useId,
     useLayoutEffect,
     useRef,
     useState,
@@ -53,15 +54,6 @@ const notSupported: CachePathResult = {
     ok: false,
     error: 'Not supported on the web',
 }
-
-// An id that's the same on the server and in the browser: React's useId,
-// from React 18 (this package's React types are older), without the
-// characters an SVG id can't have (:r0: in React 18, «r0» in React 19). On
-// React 17, a counter's (which can differ from the server's).
-let ids = 0
-const useCounterId = () => useState(() => `${++ids}`)[0]
-const useSvgId: () => string =
-    (React as unknown as { useId?: () => string }).useId ?? useCounterId
 
 // A layout effect in the browser (it runs before the image can show), and an
 // effect when rendering on a server, where layout effects warn.
@@ -149,7 +141,7 @@ function FastImageBase({
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
-    const svgId = useSvgId().replace(/[^\w-]/g, '')
+    const svgId = useId().replace(/[^\w-]/g, '')
     const tintId = `fast-image-tint-${svgId}`
     const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
