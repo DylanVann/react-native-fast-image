@@ -71,7 +71,7 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
-Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later), iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
+Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later) and React 19, iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
 
 To set the cache's size when the app starts, see [Native config](#native-config).
 
@@ -160,6 +160,8 @@ A hint for which images to start loading first when several are waiting: `'high'
 - `'low'`: e.g. images further down a list.
 - `'normal'`: the default.
 - `'high'`: e.g. the image the screen is about.
+
+On the web, it's the image's `fetchpriority`.
 
 ---
 
@@ -362,6 +364,22 @@ How the image is filtered when it's drawn smaller or larger than its size (like 
 - `'auto'`: the platform's usual filtering.
 - `'smooth'`: iOS only. Keeps a large image drawn much smaller than its size (e.g. a big photo as a thumbnail, or fine lines and text) from looking jagged or noisy. Such an image is already decoded at about the view's size by default (see `downsample`), so this is for images shown at less than half their size with `downsample={false}`, or a little smaller than their size. **It uses more memory:** the image is also kept at smaller sizes for drawing, about a third more than the decoded image. On Android it's the same as `'auto'`.
 - `'pixelated'`: sharp pixels, without smoothing, e.g. for pixel art drawn larger than its size. On Android, animated images are still smoothed.
+
+---
+
+#### `loading`
+
+**Type:** `'lazy' | 'eager'` · **Default:** `'lazy'` · Web only
+
+Whether the image loads as it nears the screen (`'lazy'`) or at once (`'eager'`).
+
+---
+
+#### `sizes`
+
+**Type:** `string` · **Default:** `'auto, 100vw'` · Web only
+
+With several sources, the width the image is shown at, as the image's [`sizes`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#sizes), so the browser loads the size that fits. The default is the width the image is laid out at, which needs `loading="lazy"` (otherwise, or in browsers without it, the window's width).
 
 ---
 
@@ -932,14 +950,15 @@ The app needs access to the photo library, which it has if it got the url from t
 
 ## Web
 
-FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/). Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/) and React 19 or later. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
-- Ignored: `source.headers` (a browser can't send them for an image), `source.priority`, `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `source.priority`, the web-only `loading` and `sizes`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Ignored: `source.headers` (a browser can't send them for an image), `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and the placeholder is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
-- Several sizes are shown with a lazily loaded `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"`: the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"` use the viewport's width.
+- Images load lazily unless [`loading`](#loading) is `'eager'`, and `source.priority` `'high'` and `'low'` are the `<img>`'s `fetchpriority`.
+- Several sizes are shown with an `<img>` whose `srcset` lists them, with `sizes="auto, 100vw"` (or [`sizes`](#sizes)): the browser loads the one for the width the image is shown at, in device pixels (usually the smallest that's at least as wide). Browsers that don't support `sizes="auto"`, or an image with `loading="eager"`, use the viewport's width.
 - `FastImage.preload` loads the images into the browser's cache and resolves with a result per source. `clearMemoryCache`, `clearDiskCache` and `configureCache` resolve without doing anything (the browser manages its cache), and `getCachePath` and `writeToCache` resolve with `{ ok: false, error: 'Not supported on the web' }`.
 
 ### ThumbHashes on the web

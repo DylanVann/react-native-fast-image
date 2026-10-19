@@ -11,15 +11,17 @@
 //
 // Works: source (uri, require(), or several sizes: see sizedSources, and
 // thumbhash and blurDataUri), placeholder (and defaultSource), objectFit,
-// objectPosition, tintColor, blurRadius, style,
-// onLoadStart, onLoad, onError, onLoadEnd, and View props (testID,
-// accessibility, onLayout, pointerEvents). The native-only props (cache,
-// priority, headers, transition, downsample, loop, paused, imageRendering,
-// recyclingKey) and onProgress are ignored.
+// objectPosition, tintColor, blurRadius, style, source.priority (as
+// fetchpriority), the web-only loading and sizes, onLoadStart, onLoad,
+// onError, onLoadEnd, and View props (testID, accessibility, onLayout,
+// pointerEvents). The native-only props (cache, headers, transition,
+// downsample, loop, paused, imageRendering, recyclingKey) and onProgress
+// are ignored.
 import React, {
     forwardRef,
     memo,
     useEffect,
+    useId,
     useLayoutEffect,
     useRef,
     useState,
@@ -40,6 +42,7 @@ import type {
     FastImageStaticProperties,
     ObjectFit,
     PreloadResult,
+    Priority,
     Source,
     SourcePlaceholder,
 } from './index'
@@ -51,15 +54,6 @@ const notSupported: CachePathResult = {
     ok: false,
     error: 'Not supported on the web',
 }
-
-// An id that's the same on the server and in the browser: React's useId,
-// from React 18 (this package's React types are older), without the
-// characters an SVG id can't have (:r0: in React 18, «r0» in React 19). On
-// React 17, a counter's (which can differ from the server's).
-let ids = 0
-const useCounterId = () => useState(() => `${++ids}`)[0]
-const useSvgId: () => string =
-    (React as unknown as { useId?: () => string }).useId ?? useCounterId
 
 // A layout effect in the browser (it runs before the image can show), and an
 // effect when rendering on a server, where layout effects warn.
@@ -86,6 +80,8 @@ function FastImageBase({
     children,
     objectFit,
     objectPosition,
+    loading,
+    sizes,
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -125,6 +121,7 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
+    const priority = sourcePriority(source)
     // The source's blurDataUri, or its ThumbHash made into one (with
     // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
     // in place of `placeholder` (or `placeholder`'s, for a source without its
@@ -144,7 +141,7 @@ function FastImageBase({
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
-    const svgId = useSvgId().replace(/[^\w-]/g, '')
+    const svgId = useId().replace(/[^\w-]/g, '')
     const tintId = `fast-image-tint-${svgId}`
     const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
@@ -179,6 +176,9 @@ function FastImageBase({
                 <Picture
                     key={`default ${defaultUri}`}
                     src={defaultUri}
+                    // Loaded when the image is (a data uri needs no request).
+                    loading={loading}
+                    priority={priority}
                     // A source's placeholder stands for an image whose size
                     // isn't known yet: as contain for scale-down and none,
                     // which show an image at its own size.
@@ -210,7 +210,9 @@ function FastImageBase({
                     key={several ? 'sizes' : key}
                     src={src}
                     srcSet={srcSet}
-                    lazy={!!several}
+                    sizes={sizes}
+                    loading={loading}
+                    priority={priority}
                     fit={fit}
                     position={position}
                     filter={filter}
@@ -255,6 +257,20 @@ function thumbhashUri(hash: string | undefined): string | undefined {
         )
     }
     return undefined
+}
+
+// A source's priority: one source's, or the highest of several sizes'.
+function sourcePriority(
+    source: FastImageProps['source'],
+): Priority | undefined {
+    const values = (Array.isArray(source) ? source : [source]).map((entry) =>
+        entry && typeof entry === 'object'
+            ? (entry as Source).priority
+            : undefined,
+    )
+    return (['high', 'normal', 'low'] as const).find((priority) =>
+        values.includes(priority),
+    )
 }
 
 // The thumbhash or blurDataUri a source shows: its own, or `placeholder`'s
@@ -321,9 +337,9 @@ type PackagerAsset = {
 // Several sizes of an image, as a srcset (each size's width, times its
 // scale), from which the browser loads the one for the image's width in
 // device pixels, usually the smallest at least as wide, as expo-image does.
-// sizes="auto" has the browser use the width the image is laid out at; it
-// only applies to lazy images, and browsers without it use the next value,
-// 100vw (the viewport's width). src is the largest, for browsers without
+// sizes="auto" (the default sizes) has the browser use the width the image
+// is laid out at; it only applies to lazy images, and otherwise, or in
+// browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
 function sizedSources(sources: Source[]) {
     const widths = sources
@@ -395,7 +411,9 @@ const fill = {
 function Picture({
     src,
     srcSet,
-    lazy,
+    sizes,
+    loading,
+    priority,
     fit,
     position,
     filter,
@@ -406,8 +424,11 @@ function Picture({
 }: {
     src: string
     srcSet?: string
-    // Several sizes load lazily, for sizes="auto" (see sizedSources).
-    lazy?: boolean
+    // The props (see sizedSources for sizes).
+    sizes?: string
+    loading?: 'lazy' | 'eager'
+    // source.priority, as the <img>'s fetchpriority.
+    priority?: Priority
     fit: ObjectFit
     // objectPosition, as CSS.
     position: string
@@ -478,8 +499,12 @@ function Picture({
             ref={image}
             src={src}
             srcSet={srcSet}
-            sizes={srcSet ? 'auto, 100vw' : undefined}
-            loading={lazy ? 'lazy' : undefined}
+            sizes={srcSet ? (sizes ?? 'auto, 100vw') : undefined}
+            loading={loading === 'eager' ? undefined : 'lazy'}
+            // For 'high' and 'low' (the browser's own for 'normal').
+            fetchPriority={
+                priority === 'high' || priority === 'low' ? priority : undefined
+            }
             alt={alt}
             draggable={false}
             style={{
