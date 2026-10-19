@@ -636,18 +636,16 @@ describe('FastImage (web)', () => {
     })
 })
 
-describe('preferHighDynamicRange (web)', () => {
-    const limit = (element: React.ReactElement) =>
-        images(render(element))[0].props.style.dynamicRangeLimit
-
-    it("leaves HDR to the browser unless it's false", () => {
+describe('dynamicRangeLimit (web)', () => {
+    it("is CSS's dynamic-range-limit, the browser's default when not set", () => {
+        const limit = (element: React.ReactElement) =>
+            images(render(element))[0].props.style.dynamicRangeLimit
         expect(limit(<FastImage source={A} />)).toBeUndefined()
-        expect(limit(<FastImage source={A} preferHighDynamicRange />)).toBe(
-            'no-limit',
-        )
-        expect(
-            limit(<FastImage source={A} preferHighDynamicRange={false} />),
-        ).toBe('standard')
+        for (const value of ['standard', 'constrained', 'no-limit'] as const) {
+            expect(
+                limit(<FastImage source={A} dynamicRangeLimit={value} />),
+            ).toBe(value)
+        }
     })
 })
 

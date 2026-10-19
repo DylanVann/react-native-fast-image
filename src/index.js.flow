@@ -151,7 +151,7 @@ export type FastImageProps = $ReadOnly<{|
     imageRendering?: ?('auto' | 'smooth' | 'pixelated'),
     loading?: ?('lazy' | 'eager'),
     sizes?: ?string,
-    preferHighDynamicRange?: ?boolean,
+    dynamicRangeLimit?: ?('standard' | 'constrained' | 'no-limit'),
     paused?: ?boolean,
     transition?: ?(boolean | number | Transition),
     downsample?: ?boolean,

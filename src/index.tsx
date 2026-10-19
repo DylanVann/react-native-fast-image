@@ -556,19 +556,24 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      */
     downsample?: boolean
     /**
-     * Shows HDR photos (e.g. photos taken on an iPhone) in high dynamic
-     * range: their highlights brighter than the rest of the screen, on
-     * displays that support it. Otherwise they're shown in standard range.
-     * On iOS and tvOS 17 and later.
+     * How bright HDR photos (e.g. photos taken on an iPhone) can be, on
+     * displays that support it:
      *
-     * On the web, browsers show HDR photos in HDR where they can, unless this
-     * is `false`.
+     * - `'standard'`: in standard range, like the rest of the screen.
+     * - `'constrained'`: in HDR, their highlights brighter than the rest of
+     *   the screen but held below the display's peak, e.g. for images among
+     *   other content (a feed).
+     * - `'no-limit'`: in full HDR, e.g. for a full-screen photo viewer.
      *
-     * @default false
+     * On iOS and tvOS 17 and later (Android shows them in standard range).
+     * On the web it's CSS's `dynamic-range-limit`, and without it the browser
+     * decides (usually HDR).
+     *
+     * @default 'standard'
      * @platform ios
      * @platform web
      */
-    preferHighDynamicRange?: boolean
+    dynamicRangeLimit?: 'standard' | 'constrained' | 'no-limit'
     // The radius is converted from points to the bitmap's pixels on both
     // platforms, so it matches React Native's Image.
     /**

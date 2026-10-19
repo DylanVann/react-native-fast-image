@@ -102,11 +102,19 @@ static CGSize FFFPixelSize(NSData* data) {
     if (!image) {
         return;
     }
-    // An image decoded to SDR may have had HDR. One decoded to HDR that came
-    // out SDR (most images have no HDR) is the same as an SDR decode.
+    // Only images SDWebImage decoded say how: not a photo library's, or an
+    // app's own loader's, which are kept.
+    if (!image.sd_decodeOptions) {
+        return;
+    }
+    // An HDR load drops an image decoded to SDR (it may have had HDR); an
+    // SDR load, an HDR image that an HDR load decoded. One decoded to HDR
+    // that came out SDR (most images have no HDR) is the same as an SDR
+    // decode, and an HDR file decoded without asking is HDR either way (e.g.
+    // an HDR10 HEIC on iOS 15 and 16).
     BOOL wantsHDR = [context[SDWebImageContextImageDecodeToHDR] boolValue];
     BOOL decodedToHDR = [image.sd_decodeOptions[SDImageCoderDecodeToHDR] boolValue];
-    if (wantsHDR ? !decodedToHDR : image.sd_isHighDynamicRange) {
+    if (wantsHDR ? !decodedToHDR : decodedToHDR && image.sd_isHighDynamicRange) {
         [cache removeImageFromMemoryForKey: key];
     }
 }

@@ -149,6 +149,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code. Write image A for a key, show it, then write image B for the same key and show it again on each platform.
 - **How Fast Image handles it:** `writeToCache(source, file)` behaves the same on both platforms for an image that's already cached (it isn't replaced, and the docs say to use a new `cacheKey`), checks the file is an image, and takes `content://` uris on Android ([#1179](https://github.com/DylanVann/react-native-fast-image/pull/1179)).
 
+## iOS: preferHighDynamicRange can show an image decoded the other way
+
+- **What happens:** two views of the same image, one with `preferHighDynamicRange` and one without, can show each other's decode: the HDR view a standard range one (no HDR), or the standard view an HDR one (brighter than the rest of its screen), whichever was decoded first and is in the memory cache.
+- **Where:** `packages/expo-image/ios/ImageView.swift`, `createBaseImageContext` sets SDWebImage's `imageDecodeToHDR` from the prop, but SDWebImage's memory cache key (`SDWebImageManager cacheKeyForURL:context:`) is the url with the thumbnail size and transformer, not the decode mode, so both decodes are stored and found under one key.
+- **How to reproduce:** Found by reading the code. Show an HDR photo (e.g. an iPhone photo with a gain map) in a view without the prop, then the same url in a view with it, on an HDR iPhone.
+- **How Fast Image handles it:** `dynamicRangeLimit` drops a memory-cached copy decoded the other way before a load, so each view decodes the file as it asked for.
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.

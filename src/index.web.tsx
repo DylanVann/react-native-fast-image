@@ -82,7 +82,7 @@ function FastImageBase({
     objectPosition,
     loading,
     sizes,
-    preferHighDynamicRange,
+    dynamicRangeLimit,
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -214,7 +214,7 @@ function FastImageBase({
                     sizes={sizes}
                     loading={loading}
                     priority={priority}
-                    preferHighDynamicRange={preferHighDynamicRange}
+                    dynamicRangeLimit={dynamicRangeLimit}
                     fit={fit}
                     position={position}
                     filter={filter}
@@ -416,7 +416,7 @@ function Picture({
     sizes,
     loading,
     priority,
-    preferHighDynamicRange,
+    dynamicRangeLimit,
     fit,
     position,
     filter,
@@ -432,9 +432,9 @@ function Picture({
     loading?: 'lazy' | 'eager'
     // source.priority, as the <img>'s fetchpriority.
     priority?: Priority
-    // false limits an HDR image to standard range (CSS dynamic-range-limit);
-    // otherwise the browser shows it in HDR where it can.
-    preferHighDynamicRange?: boolean
+    // The prop, as CSS's dynamic-range-limit (the browser's default when
+    // not set).
+    dynamicRangeLimit?: 'standard' | 'constrained' | 'no-limit'
     fit: ObjectFit
     // objectPosition, as CSS.
     position: string
@@ -520,14 +520,7 @@ function Picture({
                 filter,
                 opacity: hidden ? 0 : undefined,
                 // Not in React's CSS types yet.
-                ...({
-                    dynamicRangeLimit:
-                        preferHighDynamicRange === false
-                            ? 'standard'
-                            : preferHighDynamicRange
-                              ? 'no-limit'
-                              : undefined,
-                } as object),
+                ...({ dynamicRangeLimit } as object),
             }}
             onLoad={(event) =>
                 loaded(event.currentTarget as unknown as LoadedImage)

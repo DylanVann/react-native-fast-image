@@ -392,7 +392,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     // iOS only: Android shows an HDR photo (a gain map) in HDR only when its
     // whole window is in HDR color mode.
     @Override
-    public void setPreferHighDynamicRange(FastImageViewWithUrl view, boolean preferHighDynamicRange) {
+    public void setDynamicRangeLimit(FastImageViewWithUrl view, @Nullable String dynamicRangeLimit) {
     }
 
     // Which events JS has a handler for (FastImageEvents); with onProgress,
