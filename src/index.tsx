@@ -16,7 +16,12 @@ import { fromStyle, resolveObjectFit } from './objectFit'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
-import { dataUri, hasSourcePlaceholder, isImageName } from './placeholders'
+import {
+    dataUri,
+    hasSourcePlaceholder,
+    isImageName,
+    placeholderSource,
+} from './placeholders'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -174,6 +179,12 @@ export type Source = {
 
 /** A `thumbhash` or `blurDataUri` as `placeholder`. */
 export type SourcePlaceholder = Pick<Source, 'thumbhash' | 'blurDataUri'>
+
+/** A url as `placeholder`, loaded like a source (see `placeholder`). */
+export type PlaceholderSource = Pick<
+    Source,
+    'uri' | 'headers' | 'cacheKey' | 'cache'
+>
 
 /** How the image fades in: see [`transition`](#transition). */
 export type Transition = {
@@ -365,17 +376,27 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `placeholder={{ thumbhash }}`.
      * - A tiny image as a data uri, shown blurred:
      *   `placeholder={{ blurDataUri }}`.
+     * - A url, loaded and cached like a source:
+     *   `placeholder="https://example.com/placeholder.png"`, or a source with
+     *   `headers` or a `cacheKey`: `placeholder={{ uri, headers }}`.
+     * - A url only shown if it's already cached, e.g. a list's thumbnail while
+     *   the full-size image loads: `placeholder={{ uri, cache: 'cacheOnly' }}`.
      *
      * A source's own `thumbhash` or `blurDataUri` is shown instead, if it has
-     * one.
+     * one; a url placeholder shows over it once it has loaded.
      *
      * Notes:
      *
-     * - A url isn't loaded: it's ignored, with a warning in development.
      * - On Android, a `require()`d image doesn't show in debug builds, where
      *   the dev server serves it. Release builds show it.
+     * - On the web, a url loads like any image, also with `'cacheOnly'`: a
+     *   browser can't look only in its cache.
      */
-    placeholder?: ImageRequireSource | string | SourcePlaceholder
+    placeholder?:
+        | ImageRequireSource
+        | string
+        | SourcePlaceholder
+        | PlaceholderSource
     /**
      * @deprecated Use `placeholder`, which does the same.
      */
@@ -706,7 +727,8 @@ function sourcePlaceholder(source: unknown): string {
 }
 
 const resolvePlaceholder = (
-    placeholder?: ImageRequireSource | string,
+    // A source object here has no url (e.g. { uri: name }, a bundled image).
+    placeholder?: ImageRequireSource | string | PlaceholderSource,
 ): string | object | null => {
     if (typeof placeholder === 'string') {
         // An image bundled with the app, by name, as React Native's Image
@@ -725,7 +747,9 @@ const resolvePlaceholder = (
     if (!placeholder) {
         return null
     }
-    const resolved = Image.resolveAssetSource(placeholder)
+    const resolved = Image.resolveAssetSource(
+        placeholder as ImageRequireSource | { uri: string },
+    )
     if (!resolved) {
         return null
     }
@@ -923,13 +947,17 @@ function FastImageBase({
                 : undefined,
         }
     }, [source, shared])
-    // A thumbhash or blurDataUri in `placeholder` goes in sourcePlaceholders
-    // instead: it isn't an image to show as it is, but defaultSource still is.
-    const resolvedPlaceholder = resolvePlaceholder(
-        hasSourcePlaceholder(placeholder)
-            ? defaultSource
-            : (placeholder ?? defaultSource),
-    )
+    // A url in `placeholder` goes to the native view as a source, loaded
+    // apart from the image, in place of defaultSource. A thumbhash or
+    // blurDataUri goes in sourcePlaceholders instead: it isn't an image to
+    // show as it is, but defaultSource still is.
+    const resolvedPlaceholder =
+        placeholderSource(placeholder) ??
+        resolvePlaceholder(
+            hasSourcePlaceholder(placeholder)
+                ? defaultSource
+                : (placeholder ?? defaultSource),
+        )
 
     return (
         <FastImageView

@@ -8427,6 +8427,190 @@ const hdrStyles = StyleSheet.create({
     image: { width: 64, height: 48, marginRight: 6 },
 })
 
+// `placeholder` as a url: the quadrants (20 × 20), a url per case and run, so
+// it isn't cached from an earlier run.
+const placeholderUrl = (name: string) =>
+    imageUrl(`quadrants.png?placeholder-url=${name}-${RUN}`)
+
+// Reports OK a second after the load started (or failed): a url placeholder
+// from the local server has loaded by then. Or what `check` resolves.
+function usePlaceholderUrlStatus(check?: () => Promise<string>) {
+    const [status, setStatus] = useState('waiting')
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const after = () => {
+        clearTimeout(timer.current)
+        timer.current = setTimeout(() => {
+            if (!check) return setStatus('OK')
+            check().then(setStatus, (error) => setStatus(String(error)))
+        }, 1000)
+    }
+    return { status, setStatus, after }
+}
+
+// A url as `placeholder`, not cached before, while the image's download is
+// held: it loads, and shows.
+function PlaceholderUrlCase() {
+    const { status, setStatus, after } = usePlaceholderUrlStatus()
+    useEffect(() => () => void releaseThumbhashHold('placeholder-url'), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('placeholder-url'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={placeholderUrl('loads')}
+                onLoadStart={after}
+                onLoad={() => setStatus('onLoad: the download should be held')}
+            />
+            <CaseStatus
+                id="placeholder-url"
+                status={status}
+                description="A url as placeholder while the image loads: red, green, blue and yellow quadrants, loaded"
+            />
+        </View>
+    )
+}
+
+// A url as placeholder with cache 'cacheOnly' that isn't cached: nothing
+// shows, and it isn't requested.
+const PLACEHOLDER_URL_MISSING = `/cyan.png?placeholder-url-missing=${RUN}`
+function PlaceholderUrlCacheOnlyCase() {
+    const { status, setStatus, after } = usePlaceholderUrlStatus(() =>
+        fetch(
+            imageUrl(
+                `requests?path=${encodeURIComponent(PLACEHOLDER_URL_MISSING)}`,
+            ),
+        )
+            .then((response) => response.json())
+            .then((json: { count: number }) =>
+                json.count === 0 ? 'OK' : `requested ${json.count} times`,
+            ),
+    )
+    useEffect(
+        () => () => void releaseThumbhashHold('placeholder-url-cache-only'),
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: thumbhashHeld('placeholder-url-cache-only'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={{
+                    uri: imageUrl(PLACEHOLDER_URL_MISSING.slice(1)),
+                    cache: 'cacheOnly',
+                }}
+                onLoadStart={after}
+                onLoad={() => setStatus('onLoad: the download should be held')}
+            />
+            <CaseStatus
+                id="placeholder-url-cache-only"
+                status={status}
+                description="A url as placeholder with cache cacheOnly, not cached: gray (no cyan), and not requested"
+            />
+        </View>
+    )
+}
+
+// A url shown in a small view, then as a larger view's placeholder with cache
+// 'cacheOnly' (a list's thumbnail while the full image loads): it shows.
+function PlaceholderUrlCachedCase() {
+    const url = placeholderUrl('cached')
+    const [shown, setShown] = useState(false)
+    const { status, setStatus, after } = usePlaceholderUrlStatus()
+    useEffect(
+        () => () => void releaseThumbhashHold('placeholder-url-cached'),
+        [],
+    )
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={[thumbhashStyles.small, { marginRight: 8 }]}
+                source={{ uri: url }}
+                onLoad={() => setShown(true)}
+            />
+            {shown ? (
+                <FastImage
+                    style={thumbhashStyles.wide}
+                    source={{
+                        uri: thumbhashHeld('placeholder-url-cached'),
+                        headers: SLOW_HEADERS,
+                    }}
+                    placeholder={{ uri: url, cache: 'cacheOnly' }}
+                    onLoadStart={after}
+                    onLoad={() =>
+                        setStatus('onLoad: the download should be held')
+                    }
+                />
+            ) : (
+                <View style={thumbhashStyles.wide} />
+            )}
+            <CaseStatus
+                id="placeholder-url-cached"
+                status={status}
+                description="A url shown small, then as a larger view's placeholder with cache cacheOnly: the quadrants in both"
+            />
+        </View>
+    )
+}
+
+// The image fails: the url placeholder shows.
+function PlaceholderUrlErrorCase() {
+    const { status, after } = usePlaceholderUrlStatus()
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{ uri: MISSING }}
+                placeholder={imageUrl(`cyan.png?placeholder-url-error=${RUN}`)}
+                onError={after}
+            />
+            <CaseStatus
+                id="placeholder-url-error"
+                status={status}
+                description="A url as placeholder when the image fails (a 404): cyan"
+            />
+        </View>
+    )
+}
+
+// The image loads before the url placeholder (held): the placeholder doesn't
+// replace it when it comes.
+const PLACEHOLDER_URL_LATE_HOLD = `placeholder-url-late-${RUN}`
+const releasePlaceholderUrlLate = () =>
+    fetch(imageUrl(`release?hold=${PLACEHOLDER_URL_LATE_HOLD}`)).catch(() => {})
+function PlaceholderUrlLateCase() {
+    const { status, after } = usePlaceholderUrlStatus()
+    useEffect(() => () => void releasePlaceholderUrlLate(), [])
+    return (
+        <View style={caseStyles.row}>
+            <FastImage
+                style={thumbhashStyles.wide}
+                source={{
+                    uri: imageUrl(`magenta.png?placeholder-url-late=${RUN}`),
+                }}
+                placeholder={slowImageUrl(
+                    `quadrants.png?hold=${PLACEHOLDER_URL_LATE_HOLD}&holdAfter=0`,
+                )}
+                onLoad={() => {
+                    void releasePlaceholderUrlLate()
+                    after()
+                }}
+            />
+            <CaseStatus
+                id="placeholder-url-late"
+                status={status}
+                description="A url placeholder that comes after the image: the image stays (magenta, no quadrants)"
+            />
+        </View>
+    )
+}
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9386,6 +9570,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'hdr',
         cases: [<HdrCase key="hdr" />],
+    },
+    {
+        name: 'placeholder-url',
+        cases: [
+            <PlaceholderUrlCase key="placeholder-url" />,
+            <PlaceholderUrlCacheOnlyCase key="placeholder-url-cache-only" />,
+            <PlaceholderUrlCachedCase key="placeholder-url-cached" />,
+            <PlaceholderUrlErrorCase key="placeholder-url-error" />,
+            <PlaceholderUrlLateCase key="placeholder-url-late" />,
+        ],
     },
     {
         // Recorded (video samples).

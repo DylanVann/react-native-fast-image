@@ -32,7 +32,11 @@ import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
-import { dataUri, hasSourcePlaceholder } from './placeholders'
+import {
+    dataUri,
+    hasSourcePlaceholder,
+    placeholderSource,
+} from './placeholders'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
@@ -132,11 +136,20 @@ function FastImageBase({
     const blurUri =
         resolveUri(dataUri(shared(source, 'blurDataUri', preview))) ??
         thumbhashUri(shared(source, 'thumbhash', preview))
+    // `placeholder` as a url (or a source with one) shows over the other
+    // placeholders as it loads, as on iOS and Android. The browser loads it
+    // like any image: it can't look in its cache only (cache: 'cacheOnly').
+    const urlPlaceholder = placeholderSource(placeholder)?.uri
+    const [failedPlaceholder, setFailedPlaceholder] = useState<string>()
     // A thumbhash or blurDataUri in `placeholder` isn't an image to show as it
-    // is: defaultSource still is.
+    // is, nor is a url (above): defaultSource still is.
     const defaultUri =
         blurUri ??
-        resolveUri(preview ? defaultSource : (placeholder ?? defaultSource))
+        resolveUri(
+            preview || urlPlaceholder
+                ? defaultSource
+                : (placeholder ?? defaultSource),
+        )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     const ok = result && result.key === key ? result.ok : undefined
@@ -156,7 +169,7 @@ function FastImageBase({
             .filter(Boolean)
             .join(' ') || undefined
     // The placeholder shows until the image has loaded, and if it fails.
-    const showDefault = !!defaultUri && ok !== true
+    const showDefault = ok !== true
 
     useClientLayoutEffect(() => {
         if (key) onLoadStart?.()
@@ -205,6 +218,28 @@ function FastImageBase({
                     }
                     // The image has the label, if there is one.
                     alt={key ? '' : (label ?? '')}
+                />
+            ) : null}
+            {urlPlaceholder && showDefault ? (
+                <Picture
+                    key={`placeholder ${urlPlaceholder}`}
+                    src={urlPlaceholder}
+                    loading={loading}
+                    // It only helps if it comes before the image, as on iOS
+                    // and Android.
+                    priority="high"
+                    dynamicRangeLimit={dynamicRangeLimit}
+                    // It stands for the image, as a source's preview does.
+                    fit={
+                        fit === 'scale-down' || fit === 'none' ? 'contain' : fit
+                    }
+                    position={position}
+                    // Tinted, not blurred, as on iOS and Android.
+                    filter={tintColor ? `url(#${tintId})` : undefined}
+                    // Nothing (no broken image icon) if it fails.
+                    hidden={failedPlaceholder === urlPlaceholder}
+                    onError={() => setFailedPlaceholder(urlPlaceholder)}
+                    alt=""
                 />
             ) : null}
             {key && src ? (

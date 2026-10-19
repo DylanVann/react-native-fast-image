@@ -30,6 +30,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.AppCompatImageView;
 
 import com.bumptech.glide.GenericTransitionOptions;
+import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
@@ -39,6 +40,7 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
@@ -309,6 +311,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     public void setPlaceholder(@Nullable Drawable placeholder) {
+        // None again (the placeholder prop is a url) doesn't reload.
+        if (placeholder == null && mPlaceholder == null) return;
         mNeedsReload = true;
         mPlaceholder = placeholder;
     }
@@ -336,6 +340,114 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     public void setSourcePlaceholders(@Nullable ReadableArray placeholders) {
         mSourcePlaceholders = placeholders;
         updatePlaceholder();
+    }
+
+    // `placeholder` as a url (a source): loaded apart from the image, at the
+    // most urgent priority, as it only helps if it comes before the image (or
+    // only from Glide's caches, with cache cacheOnly).
+    // Once it has, a copy shows instead of the other placeholders: FastImage's
+    // own drawable, which Glide doesn't recycle, so a fade can still draw it
+    // after its request is cleared. A failure shows nothing more.
+    @Nullable
+    private ReadableMap mPlaceholderSource = null;
+    @Nullable
+    private Drawable mUrlPlaceholder = null;
+    @Nullable
+    private CustomTarget<Drawable> mUrlPlaceholderTarget = null;
+
+    // Its load waits for the view's size (see startUrlPlaceholderLoad).
+    private boolean mUrlPlaceholderWaitsForSize = false;
+
+    public void setPlaceholderSource(@Nullable ReadableMap source) {
+        if (source == null && mPlaceholderSource == null) return;
+        mPlaceholderSource = source;
+        clearUrlPlaceholderTarget();
+        mUrlPlaceholderWaitsForSize = false;
+        mUrlPlaceholder = null;
+        updatePlaceholder();
+        scheduleUrlPlaceholderLoad();
+    }
+
+    // Starts placeholderSource's load once the current callbacks have run: an
+    // image from the memory cache has shown by then, and needs none.
+    private void scheduleUrlPlaceholderLoad() {
+        post(new Runnable() {
+            @Override
+            public void run() {
+                startUrlPlaceholderLoad();
+            }
+        });
+    }
+
+    // Loads placeholderSource's image while the image loads (or after it
+    // failed), at the view's size, once it has one: not if the image showed,
+    // or it's already loaded or loading.
+    private void startUrlPlaceholderLoad() {
+        if (requestManager == null || mDropped || mUrlPlaceholder != null || mUrlPlaceholderTarget != null
+                || !FastImageViewConverter.hasUri(mPlaceholderSource)) return;
+        if (mLoadEnded && mShownRequest != null) return;
+        if (getWidth() <= 0 || getHeight() <= 0) {
+            mUrlPlaceholderWaitsForSize = true;
+            return;
+        }
+        FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mPlaceholderSource);
+        if (imageSource == null) return;
+        CustomTarget<Drawable> target = new CustomTarget<Drawable>(getWidth(), getHeight()) {
+            @Override
+            public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+                if (this != mUrlPlaceholderTarget) return;
+                mUrlPlaceholder = ownCopy(resource);
+                updatePlaceholder();
+                // With the copy, Glide's can go back to its pools (a load
+                // can't be cleared from its own callback).
+                final CustomTarget<Drawable> done = this;
+                post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (requestManager != null) requestManager.clear(done);
+                    }
+                });
+            }
+
+            @Override
+            public void onLoadCleared(@Nullable Drawable placeholder) {
+            }
+        };
+        mUrlPlaceholderTarget = target;
+        requestManager
+                .load(imageSource.getSourceForLoad())
+                .apply(FastImageViewConverter.getOptions(getContext(), imageSource, mPlaceholderSource)
+                        .priority(Priority.IMMEDIATE)
+                        // Copied on a software canvas (see ownCopy).
+                        .disallowHardwareConfig())
+                .into(target);
+    }
+
+    private void clearUrlPlaceholderTarget() {
+        if (mUrlPlaceholderTarget != null && requestManager != null) requestManager.clear(mUrlPlaceholderTarget);
+        mUrlPlaceholderTarget = null;
+    }
+
+    // A bitmap of the drawable (an animated one's first frame), scaled up
+    // smoothly as the other placeholders are, or null for one with no size.
+    @Nullable
+    private Drawable ownCopy(Drawable drawable) {
+        int width = drawable.getIntrinsicWidth();
+        int height = drawable.getIntrinsicHeight();
+        if (width <= 0 || height <= 0) return null;
+        try {
+            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            Drawable copy = drawable.getConstantState() != null ? drawable.getConstantState().newDrawable().mutate() : drawable;
+            copy.setBounds(0, 0, width, height);
+            copy.draw(canvas);
+            BitmapDrawable own = new BitmapDrawable(getResources(), bitmap);
+            own.setFilterBitmap(true);
+            return own;
+        } catch (OutOfMemoryError | IllegalStateException e) {
+            // As startFade: out of memory, or a hardware bitmap after all.
+            return null;
+        }
     }
 
     // The picked source's ThumbHash or blurDataUri, or null.
@@ -372,10 +484,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 mInvalidPlaceholder = key;
             }
         }
+        // placeholderSource's image, once it has loaded, shows instead.
+        if (mUrlPlaceholder != null) placeholder = mUrlPlaceholder;
         if (placeholder == mShownPlaceholder) return;
         boolean showing = mShowsPlaceholder;
         mShownPlaceholder = placeholder;
-        if (showing) setImageDrawable(placeholder);
+        // Also one that arrives while the view shows nothing (no placeholder
+        // while the image loads, or after it failed): never over an image.
+        Drawable shown = getDrawable();
+        boolean showsNothing = shown == null || shown == FastImageViewConverter.TRANSPARENT_DRAWABLE;
+        if (showing || (placeholder != null && showsNothing)) setImageDrawable(placeholder);
     }
 
     // The events JS has a handler for (the handledEvents prop): the view only
@@ -449,6 +567,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void drop() {
         mDropped = true;
         clearView(requestManager);
+        clearUrlPlaceholderTarget();
         endProgress();
     }
 
@@ -1183,10 +1302,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             setImageMatrix(matrix);
             return;
         }
-        // A source's placeholder (a ThumbHash or a blurDataUri) stands for an
-        // image whose size isn't known yet: with scale-down and none (which
-        // show an image at its own size), it's shown as with contain.
-        boolean hashFits = drawable == mShownPlaceholder && mPlaceholderKey != null;
+        // A source's placeholder (a ThumbHash or a blurDataUri), or
+        // placeholderSource's image, stands for an image whose size isn't
+        // known yet: with scale-down and none (which show an image at its own
+        // size), it's shown as with contain.
+        boolean hashFits = drawable == mShownPlaceholder && (mPlaceholderKey != null || drawable == mUrlPlaceholder);
         if (mLayoutScaleType == ScaleType.CENTER_CROP || mLayoutScaleType == ScaleType.FIT_CENTER || hashFits) {
             float x = viewWidth / drawableWidth;
             float y = viewHeight / drawableHeight;
@@ -1352,6 +1472,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // The loading image loaded (FastImageRequestListener).
     void onImageLoaded() {
         mLoadEnded = true;
+        // The image came first: its placeholder isn't needed (not from
+        // within Glide's callback).
+        if (mUrlPlaceholder == null) {
+            mUrlPlaceholderWaitsForSize = false;
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    if (mUrlPlaceholder == null && mLoadEnded && mShownRequest != null) clearUrlPlaceholderTarget();
+                }
+            });
+        }
         endProgress();
         // Before the view shows it (the target does once this returns).
         applyObjectFit();
@@ -1380,6 +1511,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             invalidate();
         }
         if (!switchSourceIfResized()) reloadIfResized();
+        if (mUrlPlaceholderWaitsForSize && w > 0 && h > 0) {
+            mUrlPlaceholderWaitsForSize = false;
+            scheduleUrlPlaceholderLoad();
+        }
     }
 
     private void reloadIfResized() {
@@ -1508,6 +1643,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             }
         });
         builder.into(target);
+        if (!quiet) scheduleUrlPlaceholderLoad();
     }
 
     // Loading the image that's showing again (at a new size, or with another
@@ -1524,6 +1660,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         endProgress();
         applyObjectFit();
         mShownRequest = null;
+        // Shows instead of the other placeholders once it loads.
+        scheduleUrlPlaceholderLoad();
         final int load = mLoadCount;
         // Not from within Glide's callback. Without a thumbnail Glide shows the
         // placeholder the request started with: a source placeholder that changed since
@@ -1605,6 +1743,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
             // Clear the image.
             setImageDrawable(null);
+            scheduleUrlPlaceholderLoad();
             return;
         }
 
@@ -1632,6 +1771,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
             endProgress();
             setImageDrawable(mShownPlaceholder);
+            scheduleUrlPlaceholderLoad();
             return;
         }
 

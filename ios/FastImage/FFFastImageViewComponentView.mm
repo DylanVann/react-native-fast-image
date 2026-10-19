@@ -102,6 +102,22 @@ static id _Nullable FFFJSON(const folly::dynamic &value)
     return value.isNull() ? nil : FFFObjectFromDynamic(value);
 }
 
+// Whether the placeholder prop is a url to load apart from the image (a
+// source with an http or https uri), rather than an image to show at once: a
+// bundled image (served by the packager in development), a file or a data uri.
+static BOOL FFFIsUrlPlaceholder(id _Nullable placeholder)
+{
+    if (![placeholder isKindOfClass:[NSDictionary class]] || placeholder[@"__packager_asset"]) {
+        return NO;
+    }
+    id uri = placeholder[@"uri"];
+    if (![uri isKindOfClass:[NSString class]]) {
+        return NO;
+    }
+    NSString *scheme = [NSURL URLWithString:uri].scheme.lowercaseString;
+    return [scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"];
+}
+
 // The events JS has a handler for: the handledEvents prop's bits (see
 // src/specs/FastImageViewNativeComponent.ts).
 typedef NS_OPTIONS(int32_t, FFFEvent) {
@@ -234,7 +250,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     }
     if (all || oldViewProps.placeholder != newViewProps.placeholder) {
         id placeholder = FFFJSON(newViewProps.placeholder);
-        view.placeholder = placeholder ? [RCTConvert UIImage:placeholder] : nil;
+        BOOL loads = FFFIsUrlPlaceholder(placeholder);
+        view.placeholder = placeholder && !loads ? [RCTConvert UIImage:placeholder] : nil;
+        view.placeholderSource = loads ? [RCTConvert FFFastImageSource:placeholder] : nil;
     }
     if (all || oldViewProps.sourcePlaceholders != newViewProps.sourcePlaceholders) {
         NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:newViewProps.sourcePlaceholders.size()];

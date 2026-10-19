@@ -929,6 +929,22 @@ describe('placeholder (web)', () => {
         expect(images(tree)[0].props.src).toBe('/assets/placeholder.png')
     })
 
+    it("takes a url, over a source's preview, as contain for none", () => {
+        const url = 'https://example.com/placeholder.png'
+        const tree = render(
+            <FastImage
+                source={{ ...A, blurDataUri: DATA }}
+                placeholder={{ uri: url, cache: 'cacheOnly' }}
+                objectFit="none"
+            />,
+        )
+        const [preview, placeholder, image] = images(tree)
+        expect(preview.props.src).toBe(DATA)
+        expect(placeholder.props.src).toBe(url)
+        expect(placeholder.props.style.objectFit).toBe('contain')
+        expect(image.props.src).toBe(A.uri)
+    })
+
     it("ignores a source's url, with a warning", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         const tree = render(

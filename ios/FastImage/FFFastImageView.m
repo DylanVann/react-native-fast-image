@@ -70,8 +70,18 @@
 // shownPlaceholder).
 @property(nonatomic, strong) UIImage* hashImage;
 @property(nonatomic, copy) NSString* hashImageKey;
-// Whether the view shows its placeholder (the placeholder prop or the
-// source's), and whether that's the source's (hashImage).
+// placeholderSource's image once it has loaded, or nil: it shows instead of
+// the other placeholders (see shownPlaceholder). Its load, and which it is.
+@property(nonatomic, strong) UIImage* urlPlaceholderImage;
+@property(nonatomic, strong) id<SDWebImageOperation> urlPlaceholderOperation;
+@property(nonatomic, assign) NSUInteger urlPlaceholderLoad;
+// placeholderSource changed: its load starts with the image's, or after the
+// props if the image is still loading (see startUrlPlaceholderLoad).
+@property(nonatomic, assign) BOOL needsUrlPlaceholderLoad;
+// Whether the view shows a placeholder (the placeholder prop, the source's,
+// or placeholderSource's), and whether it stands for the image (the source's
+// or placeholderSource's): drawn as with contain for scale-down and none, as
+// the image's size isn't known yet, scaled smoothly and not blurred.
 @property(nonatomic, assign) BOOL showsPlaceholder;
 @property(nonatomic, assign) BOOL showsHash;
 // dynamicRangeLimit switched between HDR and SDR: the image is decoded again,
@@ -444,7 +454,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 
 - (void) setImage: (UIImage*)image {
     self.imageCount++;
-    self.showsHash = image != nil && image == self.hashImage;
+    self.showsHash = image != nil && (image == self.hashImage || image == self.urlPlaceholderImage);
     self.showsPlaceholder = self.showsHash || (image != nil && image == _placeholder);
     if ([_imageRendering isEqualToString: @"pixelated"]) {
         // A source's placeholder is a blurred preview, scaled up smoothly
@@ -540,7 +550,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
 // Whether the image is blurred: a loaded image, not the placeholder prop (as
 // with React Native's Image, and on Android).
 - (BOOL) blurs: (UIImage*)image {
-    return _blurRadius > 0 && image && image != _placeholder && image != self.hashImage;
+    return _blurRadius > 0 && image && image != _placeholder && image != self.hashImage && image != self.urlPlaceholderImage;
 }
 
 // Blurs the image off the main thread, and shows it (tinted as any image) unless
@@ -849,10 +859,124 @@ NSString *FFFErrorMessage(NSError *error)
     [self updateHashImage];
 }
 
-// What shows while the image loads and if it fails: the picked source's
-// placeholder (its ThumbHash or blurDataUri), or the placeholder prop.
+// What shows while the image loads and if it fails: placeholderSource's
+// image once it has loaded, the picked source's placeholder (its ThumbHash or
+// blurDataUri), or the placeholder prop.
 - (UIImage*) shownPlaceholder {
-    return self.hashImage ?: _placeholder;
+    return self.urlPlaceholderImage ?: self.hashImage ?: _placeholder;
+}
+
+// Shows the placeholder that shows now (shownPlaceholder) in place of
+// `previous` if the view showed it, or if it showed nothing (one that arrived
+// while nothing showed): never over a loaded image, or the image kept while
+// a new source loads.
+- (void) showChangedPlaceholder: (UIImage*)previous showing: (BOOL)showing {
+    UIImage* placeholder = [self shownPlaceholder];
+    if (placeholder == previous) {
+        return;
+    }
+    BOOL showsNothing = super.image == nil && !self.showsLoadedImage && !self.blursOverNothing;
+    if (showing || (placeholder && showsNothing)) {
+        [self setImage: placeholder];
+    }
+}
+
+// Images that views showed, by their source's cacheKey or url, while they're
+// still in memory (held by a view or SDWebImage's memory cache), so
+// placeholderSource finds one at once whatever size it was decoded at (the
+// memory cache's key includes the size).
++ (NSMapTable<NSString*, UIImage*>*) shownImages {
+    static NSMapTable* images;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        images = [NSMapTable strongToWeakObjectsMapTable];
+    });
+    return images;
+}
+
+// The key a remote image (http or https) is recorded under: its cacheKey or
+// url. nil for others (data uris, files), which aren't recorded.
++ (NSString*) shownImageKey: (FFFastImageSource*)source {
+    NSString* scheme = source.url.scheme.lowercaseString;
+    if (![scheme isEqualToString: @"http"] && ![scheme isEqualToString: @"https"]) {
+        return nil;
+    }
+    return source.cacheKey.length > 0 ? source.cacheKey : source.url.absoluteString;
+}
+
++ (void) rememberShownImage: (UIImage*)image source: (FFFastImageSource*)source {
+    NSString* key = [self shownImageKey: source];
+    if (image && key) {
+        [[self shownImages] setObject: image forKey: key];
+    }
+}
+
+- (void) setPlaceholderSource: (FFFastImageSource*)placeholderSource {
+    _placeholderSource = placeholderSource;
+    [self cancelUrlPlaceholderLoad];
+    [self showUrlPlaceholderImage: nil];
+    self.needsUrlPlaceholderLoad = YES;
+}
+
+- (void) cancelUrlPlaceholderLoad {
+    self.urlPlaceholderLoad++;
+    [self.urlPlaceholderOperation cancel];
+    self.urlPlaceholderOperation = nil;
+}
+
+// Loads placeholderSource's image with the image's load (after layout, so at
+// the view's size, with the props applied), or after the image failed: not
+// if the image shows at once (from the memory cache, or a data uri), or the
+// placeholder is already loaded or loading.
+- (void) startUrlPlaceholderLoad {
+    self.needsUrlPlaceholderLoad = NO;
+    if (!_placeholderSource.url || self.urlPlaceholderImage || self.urlPlaceholderOperation) {
+        return;
+    }
+    if (_source && !self.hasErrored && [self loadsDuringLayout]) {
+        return;
+    }
+    [self loadUrlPlaceholder];
+}
+
+// Loads placeholderSource's image, as a source would load (its cache,
+// headers and cacheKey), at a high priority, as it only helps if it comes
+// before the image. One a view still shows (or that's still in memory) shows
+// at once. A failure shows nothing more.
+- (void) loadUrlPlaceholder {
+    [self cancelUrlPlaceholderLoad];
+    NSUInteger load = self.urlPlaceholderLoad;
+    FFFastImageSource* source = _placeholderSource;
+    NSString* key = [FFFastImageView shownImageKey: source];
+    UIImage* shown = key ? [[FFFastImageView shownImages] objectForKey: key] : nil;
+    if (shown) {
+        [self showUrlPlaceholderImage: shown];
+        return;
+    }
+    SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
+    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO];
+    __weak typeof(self) weakSelf = self;
+    self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+        if (!finished || weakSelf.urlPlaceholderLoad != load) {
+            return;
+        }
+        weakSelf.urlPlaceholderOperation = nil;
+        if (!image) {
+            return;
+        }
+        [FFFastImageView rememberShownImage: image source: source];
+        [weakSelf showUrlPlaceholderImage: image];
+    }];
+}
+
+- (void) showUrlPlaceholderImage: (UIImage*)image {
+    if (self.urlPlaceholderImage == image) {
+        return;
+    }
+    UIImage* previous = [self shownPlaceholder];
+    BOOL showing = self.showsPlaceholder;
+    self.urlPlaceholderImage = image;
+    [self showChangedPlaceholder: previous showing: showing];
 }
 
 // The picked source's ThumbHash or blurDataUri, or nil.
@@ -876,10 +1000,7 @@ NSString *FFFErrorMessage(NSError *error)
     BOOL showing = self.showsPlaceholder;
     self.hashImageKey = hash;
     self.hashImage = [FFFThumbHash imageForPlaceholder: hash];
-    UIImage* placeholder = [self shownPlaceholder];
-    if (showing && placeholder != previous) {
-        [self setImage: placeholder];
-    }
+    [self showChangedPlaceholder: previous showing: showing];
 }
 
 - (void) didSetProps {
@@ -908,6 +1029,14 @@ NSString *FFFErrorMessage(NSError *error)
         [self reloadForDynamicRange];
     } else {
         [self reloadIfResized];
+    }
+    // A new placeholderSource while the image loads, or after it failed (a
+    // load waiting for the view's size starts it with the image's).
+    if (self.needsUrlPlaceholderLoad && !_needsReload && !self.waitsForSize) {
+        if (!self.hasCompleted || self.hasErrored) {
+            [self startUrlPlaceholderLoad];
+        }
+        self.needsUrlPlaceholderLoad = NO;
     }
 }
 
@@ -1003,6 +1132,7 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) reloadImage {
     _needsReload = NO;
     self.needsDynamicRangeReload = NO;
+    self.needsUrlPlaceholderLoad = NO;
     self.waitsForSize = NO;
     self.loadsSwitchedSource = self.switchesSource;
     self.switchesSource = NO;
@@ -1038,6 +1168,7 @@ NSString *FFFErrorMessage(NSError *error)
                 [self setImage: [self shownPlaceholder]];
                 self.showsLoadedImage = NO;
                 [self sendOnError: @"Failed to decode the image"];
+                [self startUrlPlaceholderLoad];
                 if (self.onFastImageLoadEnd) {
                     self.onFastImageLoadEnd([self loadEndEvent: NO]);
                 }
@@ -1080,10 +1211,15 @@ NSString *FFFErrorMessage(NSError *error)
         self.retriedAfterBackground = NO;
         [self stopWaitingForActive];
 
+        [self startUrlPlaceholderLoad];
         [self downloadImage: _source options: options context: [self loadContext] events: YES];
-    } else if ([self shownPlaceholder]) {
-        [self setImage: [self shownPlaceholder]];
-        self.showsLoadedImage = NO;
+    } else {
+        if ([self shownPlaceholder]) {
+            [self setImage: [self shownPlaceholder]];
+            self.showsLoadedImage = NO;
+        }
+        // No image: only placeholders show.
+        [self startUrlPlaceholderLoad];
     }
 }
 
@@ -1319,6 +1455,8 @@ NSString *FFFErrorMessage(NSError *error)
                         [weakSelf setImage: current];
                     }
                     weakSelf.showsLoadedImage = NO;
+                    // Shows instead of the other placeholders once it loads.
+                    [weakSelf startUrlPlaceholderLoad];
                     [weakSelf sendOnError: [source errorMessage: error]];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: NO]);
@@ -1326,6 +1464,12 @@ NSString *FFFErrorMessage(NSError *error)
                 } else {
                     weakSelf.hasCompleted = YES;
                     weakSelf.showsLoadedImage = YES;
+                    // For other views' placeholderSource.
+                    [FFFastImageView rememberShownImage: image source: source];
+                    // The image came first: its placeholder isn't needed.
+                    if (!weakSelf.urlPlaceholderImage) {
+                        [weakSelf cancelUrlPlaceholderLoad];
+                    }
                     [weakSelf sendOnLoad: image];
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: YES]);
@@ -1375,11 +1519,14 @@ NSString *FFFErrorMessage(NSError *error)
     self.waitsForSize = NO;
     [self stopWaitingForActive];
     [self sd_cancelLatestImageLoad];
+    [self cancelUrlPlaceholderLoad];
 }
 
 - (void) dealloc {
     [self stopWaitingForActive];
     [self sd_cancelLatestImageLoad];
+    // Fabric frees views it doesn't recycle without stop.
+    [_urlPlaceholderOperation cancel];
 }
 
 @end

@@ -506,11 +506,9 @@ describe('placeholder', () => {
         const view = props(
             <FastImage
                 source={{ uri, blurDataUri: 'https://example.com/small.jpg' }}
-                placeholder="https://example.com/small.jpg"
             />,
         )
         expect(view.sourcePlaceholders).toBeUndefined()
-        expect(view.placeholder).toBeFalsy()
         expect(view.source).toEqual({ uri })
         expect(warn).toHaveBeenCalledTimes(1)
         expect(warn.mock.calls[0][0]).toContain('data uri')
@@ -568,6 +566,46 @@ describe('placeholder', () => {
         )
         const after = (view.toJSON() as any).props
         expect(after.sourcePlaceholders).toBe(before.sourcePlaceholders)
+    })
+
+    it('takes a url, loaded natively apart from the image', () => {
+        const url = 'https://example.com/placeholder.png'
+        const view = props(<FastImage source={{ uri }} placeholder={url} />)
+        expect(view.placeholder).toEqual({ uri: url })
+        const object = {
+            uri: url,
+            headers: { Authorization: 'token' },
+            cache: 'cacheOnly' as const,
+        }
+        expect(
+            props(<FastImage source={{ uri }} placeholder={object} />)
+                .placeholder,
+        ).toEqual(object)
+        // In place of defaultSource.
+        expect(
+            props(
+                <FastImage
+                    source={{ uri }}
+                    placeholder={url}
+                    defaultSource={jellyfish}
+                />,
+            ).placeholder,
+        ).toEqual({ uri: url })
+        // A local file is decoded at once, as the image placeholder.
+        Platform.OS = 'android'
+        expect(
+            props(
+                <FastImage
+                    source={{ uri }}
+                    placeholder={{ uri: 'file:///tmp/thumb.png' }}
+                />,
+            ).placeholder,
+        ).toBe('file:///tmp/thumb.png')
+        // A name (no scheme) is a bundled image, not a url.
+        expect(
+            props(<FastImage source={{ uri }} placeholder="gray" />)
+                .placeholder,
+        ).toBe('gray')
     })
 
     it('takes the name of an image bundled with the app', () => {
