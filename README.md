@@ -71,7 +71,7 @@ npx expo install react-native-fast-image
 
 It has native code, so it needs a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (e.g. `npx expo run:ios`), not Expo Go.
 
-Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later), iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
+Needs React Native 0.83 or later with the New Architecture (Expo SDK 55 or later) and React 19, iOS/tvOS 15.1 or later, and Android 7.0 (API 24) or later; on tvOS, it works with [React Native tvOS](https://github.com/react-native-tvos/react-native-tvos). Apps on the legacy architecture or older React Native can use FastImage 9 (`npm install react-native-fast-image@9`). Upgrading from FastImage 9: see [Upgrading from 9.x](docs/upgrading.md).
 
 To set the cache's size when the app starts, see [Native config](#native-config).
 
@@ -950,7 +950,7 @@ The app needs access to the photo library, which it has if it got the url from t
 
 ## Web
 
-FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/) and React 18 or later. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
+FastImage works on the web with [react-native-web](https://necolas.github.io/react-native-web/) and React 19 or later. Bundlers pick the web version through the package's `browser` field, or the `.web.js` files next to the native ones.
 
 Support is minimal:
 
