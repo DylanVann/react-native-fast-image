@@ -760,6 +760,16 @@ describe('several sources', () => {
         expect(view.props.source).toEqual([small, large])
     })
 
+    it("resolves a require()d image among them, with its file's size", () => {
+        const jellyfish = require('../ReactNativeFastImageExample/src/images/jellyfish.gif')
+        const view = nativeView(<FastImage source={[small, jellyfish]} />)
+        expect(view.props.source).toEqual([
+            small,
+            Image.resolveAssetSource(jellyfish),
+        ])
+        expect(typeof view.props.source[1]).toBe('object')
+    })
+
     it('treats an array of one as a plain source', () => {
         const view = nativeView(<FastImage source={[small]} />)
         expect(view.props.source).toEqual(small)

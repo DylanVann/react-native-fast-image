@@ -7139,6 +7139,42 @@ function SeveralSourcesCase({
     )
 }
 
+// A require()d image as one of the sizes, at its file's size (48 px magenta),
+// with a 300 px green one from the server: a 16 pt view picks the bundled one,
+// a 120 pt view the green one.
+function SeveralSourcesBundledCase({ id, size }: { id: string; size: number }) {
+    const [status, setStatus] = useState('loading')
+    const expected = size < 50 ? 48 : 300
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: size, height: size }}
+                source={[
+                    require('./images/magenta.png'),
+                    {
+                        uri: imageUrl(`sized-300.png?${id}=${RUN}`),
+                        width: 300,
+                        height: 300,
+                    },
+                ]}
+                onLoad={(e) =>
+                    setStatus(
+                        e.nativeEvent.width === expected
+                            ? 'OK'
+                            : `picked ${e.nativeEvent.width} px, expected ${expected} px`,
+                    )
+                }
+                onError={(e) => setStatus(`error: ${e.nativeEvent.error}`)}
+            />
+            <CaseStatus
+                id={id}
+                status={status}
+                description={`a bundled 48 px image and a 300 px one in a ${size} pt view: loads the ${expected === 48 ? 'bundled magenta' : 'green 300 px'} one`}
+            />
+        </View>
+    )
+}
+
 // Borders come after the image loaded: the box inside them is smaller, and the
 // view loads the size that fits it (Android kept the source picked for the
 // whole view).
@@ -9754,6 +9790,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 size={120}
             />,
             <SeveralSourcesEdgeCase key="several-edge" />,
+            <SeveralSourcesBundledCase
+                key="several-bundled-16"
+                id="several-bundled-16"
+                size={16}
+            />,
+            <SeveralSourcesBundledCase
+                key="several-bundled-120"
+                id="several-bundled-120"
+                size={120}
+            />,
         ],
     },
     {

@@ -362,9 +362,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - `FastImage.preload`, `getCachePath` and `writeToCache` take one size:
      *   pass the one a view will show. An array fails with
      *   `{ ok: false, error }`.
+     * - A `require()`d image can be one of the sizes: its size is the file's.
      * - An array of one is the same as that source.
      */
-    source?: Source | Source[] | ImageRequireSource
+    source?: Source | Array<Source | ImageRequireSource> | ImageRequireSource
     /**
      * A placeholder shown while the image loads, and if it fails to load:
      *
@@ -905,7 +906,7 @@ function FastImageBase({
         const single =
             Array.isArray(source) && source.length === 1 ? source[0] : source
         return Array.isArray(single)
-            ? single
+            ? single.map((entry) => Image.resolveAssetSource(entry as any))
             : Image.resolveAssetSource(single as any)
     }, [source])
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri

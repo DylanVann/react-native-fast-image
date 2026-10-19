@@ -58,7 +58,9 @@ function typeToString(t: J.SomeType | undefined): string {
                     : '')
             )
         case 'array':
-            return `${typeToString(t.elementType)}[]`
+            return t.elementType.type === 'union'
+                ? `(${typeToString(t.elementType)})[]`
+                : `${typeToString(t.elementType)}[]`
         case 'union':
             return t.types.map(typeToString).join(' | ')
         case 'templateLiteral':

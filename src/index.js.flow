@@ -145,7 +145,7 @@ export type FastImageProps = $ReadOnly<{|
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 
-    source?: ?(FastImageSource | Array<FastImageSource> | number),
+    source?: ?(FastImageSource | Array<FastImageSource | number> | number),
     placeholder?: ?(number | string | SourcePlaceholder | PlaceholderSource),
     // Deprecated: use placeholder, which is the same.
     defaultSource?: ?number,

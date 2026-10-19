@@ -280,17 +280,20 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         // One source, or several (an array). Only a change besides their
         // thumbhashes and blurDataUris loads again: a new one for the same
         // image (e.g. one that arrives later) shows at once.
+        BOOL loads = all || FFFWithoutPlaceholders(oldViewProps.source) != FFFWithoutPlaceholders(newViewProps.source);
         id json = FFFJSON(newViewProps.source);
         NSArray *entries = [json isKindOfClass:[NSArray class]] ? json : json ? @[ json ] : @[];
         NSMutableArray<FFFastImageSource *> *sources = [NSMutableArray arrayWithCapacity:entries.count];
         NSMutableArray<NSString *> *placeholders = [NSMutableArray arrayWithCapacity:entries.count];
         for (id entry in entries) {
             if ([entry isKindOfClass:[NSDictionary class]]) {
-                [sources addObject:[RCTConvert FFFastImageSource:entry]];
+                if (loads) {
+                    [sources addObject:[RCTConvert FFFastImageSource:entry]];
+                }
                 [placeholders addObject:FFFSourcePlaceholder(entry) ?: @""];
             }
         }
-        if (all || FFFWithoutPlaceholders(oldViewProps.source) != FFFWithoutPlaceholders(newViewProps.source)) {
+        if (loads) {
             view.sources = sources.count > 0 ? sources : nil;
         }
         view.sourcePlaceholders = placeholders;

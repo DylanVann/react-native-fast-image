@@ -907,6 +907,9 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (void) setPlaceholderSource: (FFFastImageSource*)placeholderSource {
+    if (!placeholderSource && !_placeholderSource) {
+        return;
+    }
     _placeholderSource = placeholderSource;
     [self cancelUrlPlaceholderLoad];
     [self showUrlPlaceholderImage: nil];
