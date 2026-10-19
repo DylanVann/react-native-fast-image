@@ -947,17 +947,17 @@ function FastImageBase({
                 : undefined,
         }
     }, [source, shared])
-    // A url in `placeholder` is loaded natively, apart from the image
-    // (placeholderSource).
-    const urlPlaceholder = placeholderSource(placeholder)
-    // A thumbhash or blurDataUri in `placeholder` goes in sourcePlaceholders
-    // instead, and a url in placeholderSource: they aren't images to show as
-    // they are, but defaultSource still is.
-    const resolvedPlaceholder = resolvePlaceholder(
-        hasSourcePlaceholder(placeholder) || urlPlaceholder
-            ? defaultSource
-            : (placeholder ?? defaultSource),
-    )
+    // A url in `placeholder` goes to the native view as a source, loaded
+    // apart from the image, in place of defaultSource. A thumbhash or
+    // blurDataUri goes in sourcePlaceholders instead: it isn't an image to
+    // show as it is, but defaultSource still is.
+    const resolvedPlaceholder =
+        placeholderSource(placeholder) ??
+        resolvePlaceholder(
+            hasSourcePlaceholder(placeholder)
+                ? defaultSource
+                : (placeholder ?? defaultSource),
+        )
 
     return (
         <FastImageView
@@ -977,7 +977,6 @@ function FastImageBase({
             sources={sources}
             sourcePlaceholders={sourcePlaceholders}
             placeholder={resolvedPlaceholder}
-            placeholderSource={urlPlaceholder}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

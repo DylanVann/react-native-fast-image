@@ -45,8 +45,10 @@ export interface NativeProps extends ViewProps {
     source?: CodegenTypes.UnsafeMixed
     // Several sources (sizes of one image), picked from for the view's size.
     sources?: CodegenTypes.UnsafeMixed
-    // The `placeholder` prop: a resolved asset source ({ uri, width, height,
-    // scale }) or a data uri ({ uri } on iOS; the uri on Android).
+    // The `placeholder` prop: a url to load apart from the image, as a source
+    // ({ uri, headers, cacheKey, cache }), or an image shown at once: a
+    // resolved asset source ({ uri, width, height, scale }) or a data uri
+    // ({ uri } on iOS; the uri on Android, as a string).
     placeholder?: CodegenTypes.UnsafeMixed
     // What shows in place of placeholder while a source loads: its ThumbHash,
     // or its blurDataUri (blurred natively), by the source's index ('' for
@@ -70,10 +72,6 @@ export interface NativeProps extends ViewProps {
     transitionBetweenImages?: boolean
     transitionSkipOnCacheHit?: string
     downsample?: CodegenTypes.WithDefault<boolean, true>
-    // A url as `placeholder` ({ uri, headers, cacheKey, cache }), loaded at a
-    // high priority apart from the image (or only looked up in the cache with
-    // cache 'cacheOnly'), shown over the other placeholders once it has.
-    placeholderSource?: CodegenTypes.UnsafeMixed
     // standard, constrained or no-limit ('' when not set). iOS and tvOS 17+
     // (Android ignores it).
     dynamicRangeLimit?: string

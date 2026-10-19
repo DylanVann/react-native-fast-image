@@ -34,7 +34,7 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 @property (nonatomic, copy) NSArray<FFFastImageSource *> *sources;
 // The `placeholder` prop.
 @property (nonatomic, strong) UIImage *placeholder;
-// `placeholder` as a url (the placeholderSource prop): loaded apart from the
+// `placeholder` as a url (a source): loaded apart from the
 // image, at a high priority (or only from the cache, with cache cacheOnly),
 // it shows over the other placeholders once it has.
 @property (nonatomic, strong) FFFastImageSource *placeholderSource;

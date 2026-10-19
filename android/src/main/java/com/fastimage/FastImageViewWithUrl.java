@@ -311,6 +311,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     public void setPlaceholder(@Nullable Drawable placeholder) {
+        // None again (the placeholder prop is a url) doesn't reload.
+        if (placeholder == null && mPlaceholder == null) return;
         mNeedsReload = true;
         mPlaceholder = placeholder;
     }
@@ -340,9 +342,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updatePlaceholder();
     }
 
-    // `placeholder` as a url (the placeholderSource prop): loaded apart from
-    // the image, at the most urgent priority, as it only helps if it comes
-    // before the image (or only from Glide's caches, with cache cacheOnly).
+    // `placeholder` as a url (a source): loaded apart from the image, at the
+    // most urgent priority, as it only helps if it comes before the image (or
+    // only from Glide's caches, with cache cacheOnly).
     // Once it has, a copy shows instead of the other placeholders: FastImage's
     // own drawable, which Glide doesn't recycle, so a fade can still draw it
     // after its request is cleared. A failure shows nothing more.
@@ -357,6 +359,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean mUrlPlaceholderWaitsForSize = false;
 
     public void setPlaceholderSource(@Nullable ReadableMap source) {
+        if (source == null && mPlaceholderSource == null) return;
         mPlaceholderSource = source;
         clearUrlPlaceholderTarget();
         mUrlPlaceholderWaitsForSize = false;
