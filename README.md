@@ -424,6 +424,16 @@ If you control the images, serve them at the size they're shown (resized on your
 
 ---
 
+#### `preferHighDynamicRange`
+
+**Type:** `boolean` · **Default:** `false` · iOS, Web only
+
+Shows HDR photos (e.g. photos taken on an iPhone) in high dynamic range: their highlights brighter than the rest of the screen, on displays that support it. Otherwise they're shown in standard range. On iOS and tvOS 17 and later.
+
+On the web, browsers show HDR photos in HDR where they can, unless this is `false`.
+
+---
+
 #### `blurRadius`
 
 **Type:** `number` · **Default:** `0`

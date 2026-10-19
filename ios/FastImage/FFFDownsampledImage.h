@@ -33,4 +33,11 @@
 // decodes the file from the disk cache. Call it before a full-size load.
 + (void) forgetSmallerFullSizeImageForURL: (NSURL*)url context: (SDWebImageContext*)context;
 
+// A view with preferHighDynamicRange decodes HDR images to HDR, and others to
+// SDR, but SDWebImage's memory cache key is the same for both. Drops the
+// memory cache's image for a load when it was decoded the other way (to SDR
+// for an HDR load, or an HDR image for an SDR load), so the load decodes the
+// file again. Call it before a load.
++ (void) forgetImageOfOtherDynamicRangeForURL: (NSURL*)url context: (SDWebImageContext*)context;
+
 @end

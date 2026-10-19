@@ -798,6 +798,23 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
+- (void) setPreferHighDynamicRange: (BOOL)preferHighDynamicRange {
+    if (_preferHighDynamicRange == preferHighDynamicRange) {
+        return;
+    }
+    _preferHighDynamicRange = preferHighDynamicRange;
+    if (@available(iOS 17.0, tvOS 17.0, *)) {
+        // Constrained, as Apple suggests for images among other content: the
+        // highlights brighter than SDR white, but not as bright as the
+        // display can go.
+        self.preferredImageDynamicRange = preferHighDynamicRange
+            ? UIImageDynamicRangeConstrainedHigh
+            : UIImageDynamicRangeUnspecified;
+    }
+    // Decoded again, to HDR or SDR.
+    _needsReload = YES;
+}
+
 - (void) setPlaceholder: (UIImage*)placeholder {
     if (_placeholder != placeholder) {
         _placeholder = placeholder;
@@ -1070,10 +1087,16 @@ NSString *FFFErrorMessage(NSError *error)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
+    if (@available(iOS 17.0, tvOS 17.0, *)) {
+        // An HDR image (e.g. a photo with a gain map) decoded to HDR, or to
+        // SDR, its standard range version.
+        context[SDWebImageContextImageDecodeToHDR] = @(_preferHighDynamicRange);
+    }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         [FFFDownsampledImage addFullSizeToContext: context];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetSmallerFullSizeImageForURL: source.url context: context];
+        [FFFDownsampledImage forgetImageOfOtherDynamicRangeForURL: source.url context: context];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover];
@@ -1085,6 +1108,7 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextOriginalQueryCacheType] = @(SDImageCacheTypeNone);
     }
     [self applyCacheOptions: context source: source fullSize: NO];
+    [FFFDownsampledImage forgetImageOfOtherDynamicRangeForURL: source.url context: context];
     return context;
 }
 

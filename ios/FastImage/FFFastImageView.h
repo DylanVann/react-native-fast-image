@@ -59,6 +59,8 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 @property (nonatomic, copy) NSString *transitionSkipOnCacheHit;
 // Decodes images at about the view's size instead of at full size.
 @property (nonatomic, assign) BOOL downsample;
+// Decodes HDR images to HDR, and shows them in HDR (iOS and tvOS 17+).
+@property (nonatomic, assign) BOOL preferHighDynamicRange;
 // Blurs the loaded image by this radius, in points (0 is no blur).
 @property (nonatomic, assign) CGFloat blurRadius;
 // objectPosition, as CSS computes it: on each axis the image's left or top

@@ -91,6 +91,26 @@ static CGSize FFFPixelSize(NSData* data) {
     }
 }
 
++ (void) forgetImageOfOtherDynamicRangeForURL: (NSURL*)url context: (SDWebImageContext*)context {
+    SDWebImageManager* manager = [SDWebImageManager sharedManager];
+    if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
+        return;
+    }
+    SDImageCache* cache = (SDImageCache*) manager.imageCache;
+    NSString* key = [manager cacheKeyForURL: url context: context];
+    UIImage* image = [cache imageFromMemoryCacheForKey: key];
+    if (!image) {
+        return;
+    }
+    // An image decoded to SDR may have had HDR. One decoded to HDR that came
+    // out SDR (most images have no HDR) is the same as an SDR decode.
+    BOOL wantsHDR = [context[SDWebImageContextImageDecodeToHDR] boolValue];
+    BOOL decodedToHDR = [image.sd_decodeOptions[SDImageCoderDecodeToHDR] boolValue];
+    if (wantsHDR ? !decodedToHDR : image.sd_isHighDynamicRange) {
+        [cache removeImageFromMemoryForKey: key];
+    }
+}
+
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {
     // An SVG isn't decoded smaller: it's a vector image, drawn at any size.
     // This class can't decode it, and SDWebImage would then give it to the

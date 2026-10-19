@@ -82,6 +82,7 @@ function FastImageBase({
     objectPosition,
     loading,
     sizes,
+    preferHighDynamicRange,
     forwardedRef,
     // On the wrapper, the view the layout and touches are for here (on
     // native, FastImage's only view).
@@ -213,6 +214,7 @@ function FastImageBase({
                     sizes={sizes}
                     loading={loading}
                     priority={priority}
+                    preferHighDynamicRange={preferHighDynamicRange}
                     fit={fit}
                     position={position}
                     filter={filter}
@@ -414,6 +416,7 @@ function Picture({
     sizes,
     loading,
     priority,
+    preferHighDynamicRange,
     fit,
     position,
     filter,
@@ -429,6 +432,9 @@ function Picture({
     loading?: 'lazy' | 'eager'
     // source.priority, as the <img>'s fetchpriority.
     priority?: Priority
+    // false limits an HDR image to standard range (CSS dynamic-range-limit);
+    // otherwise the browser shows it in HDR where it can.
+    preferHighDynamicRange?: boolean
     fit: ObjectFit
     // objectPosition, as CSS.
     position: string
@@ -513,6 +519,15 @@ function Picture({
                 objectPosition: position,
                 filter,
                 opacity: hidden ? 0 : undefined,
+                // Not in React's CSS types yet.
+                ...({
+                    dynamicRangeLimit:
+                        preferHighDynamicRange === false
+                            ? 'standard'
+                            : preferHighDynamicRange
+                              ? 'no-limit'
+                              : undefined,
+                } as object),
             }}
             onLoad={(event) =>
                 loaded(event.currentTarget as unknown as LoadedImage)

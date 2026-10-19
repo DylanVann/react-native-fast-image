@@ -8378,6 +8378,35 @@ function ThumbhashTintCase() {
     )
 }
 
+// An HDR photo (a gain map: flat gray in standard range, its right half
+// brighter in HDR) without and with preferHighDynamicRange. Both load. The
+// simulator can't show HDR (its ImageIO decodes a gain map to standard
+// range), so the screenshot has both gray: check it on an HDR iPhone.
+function HdrCase() {
+    const [loaded, setLoaded] = useState(0)
+    const [error, setError] = useState<string>()
+    const props = {
+        style: thumbhashStyles.wide,
+        source: { uri: imageUrl('hdr-half.jpg') },
+        onLoad: () => setLoaded((count) => count + 1),
+        onError: (e: { nativeEvent: { error?: string } }) =>
+            setError(String(e.nativeEvent.error)),
+    }
+    return (
+        <View style={caseStyles.row}>
+            <FastImage {...props} style={[props.style, { marginRight: 8 }]} />
+            <FastImage {...props} preferHighDynamicRange />
+            <CaseStatus
+                id="hdr"
+                status={
+                    error ? `onError: ${error}` : loaded >= 2 ? 'OK' : 'waiting'
+                }
+                description="An HDR photo without and with preferHighDynamicRange: the first flat gray; the second, on an HDR display, brighter on its right half"
+            />
+        </View>
+    )
+}
+
 const thumbhashStyles = StyleSheet.create({
     wide: { width: 96, height: 72, backgroundColor: '#eee' },
     small: { width: 40, height: 30, backgroundColor: '#eee' },
@@ -9333,6 +9362,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PlaceholderDataUriSizeCase key="placeholder-data-uri-size" />,
             <ThumbhashTintCase key="thumbhash-tint" />,
         ],
+    },
+    {
+        name: 'hdr',
+        cases: [<HdrCase key="hdr" />],
     },
     {
         // Recorded (video samples).

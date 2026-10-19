@@ -1378,6 +1378,13 @@ describe('objectFit', () => {
         expect(view.props.resizeMode).toBeUndefined()
     })
 
+    it('sends preferHighDynamicRange to the native view', () => {
+        const [view] = renderer
+            .create(<FastImage source={source} preferHighDynamicRange />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.preferHighDynamicRange).toBe(true)
+    })
+
     it("doesn't send the web-only loading and sizes to the native view", () => {
         const [view] = renderer
             .create(<FastImage source={source} loading="eager" sizes="50vw" />)

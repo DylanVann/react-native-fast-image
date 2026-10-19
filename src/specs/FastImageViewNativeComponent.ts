@@ -70,6 +70,8 @@ export interface NativeProps extends ViewProps {
     transitionBetweenImages?: boolean
     transitionSkipOnCacheHit?: string
     downsample?: CodegenTypes.WithDefault<boolean, true>
+    // iOS and tvOS 17+ (Android ignores it).
+    preferHighDynamicRange?: boolean
     blurRadius?: CodegenTypes.Float
     // The events JS has a handler for, as bits: 1 onFastImageLoadStart,
     // 2 onFastImageProgress, 4 onFastImageLoad, 8 onFastImageError, 16
