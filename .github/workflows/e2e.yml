@@ -112,6 +112,8 @@ jobs:
         app: [main, minimum]
     env:
       ANDROID_AVD: rnfi_ci
+      # Where avdmanager creates it and the emulator looks for it.
+      ANDROID_AVD_HOME: /home/runner/.android/avd
       # No GPU on the runners.
       ANDROID_EMULATOR_GPU: swiftshader_indirect
       ANDROID_IMAGE: system-images;android-36;default;x86_64
@@ -148,7 +150,7 @@ jobs:
           PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sdkmanager --install emulator platform-tools "$ANDROID_IMAGE" > /dev/null
           echo no | avdmanager create avd -n "$ANDROID_AVD" -k "$ANDROID_IMAGE" -d pixel_7
-          printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> ~/.android/avd/$ANDROID_AVD.avd/config.ini
+          printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
       - if: steps.image.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
