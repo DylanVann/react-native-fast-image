@@ -669,14 +669,13 @@ const tintStyle = {
 
 const FastImageMemo = memo(FastImageBase)
 
-// What a ref to FastImage or FastImageBackground gets, typed as in index.tsx:
-// a View's (react-native-web's element). FastImage's has reload() too
-// (FastImageRef).
+// What a ref to FastImageBackground gets, as in index.tsx: a View's
+// (react-native-web's element). FastImage's has reload() too (FastImageRef).
 type ViewRef = React.ComponentRef<typeof View>
 
 const FastImageComponent: React.ForwardRefExoticComponent<
-    FastImageProps & React.RefAttributes<ViewRef>
-> = forwardRef((props: FastImageProps, ref: React.Ref<ViewRef>) => (
+    FastImageProps & React.RefAttributes<FastImageRef>
+> = forwardRef((props: FastImageProps, ref: React.Ref<FastImageRef>) => (
     <FastImageMemo forwardedRef={ref} {...props} />
 ))
 
@@ -694,7 +693,7 @@ function getSize(uri: string) {
 }
 
 const FastImage: React.ForwardRefExoticComponent<
-    FastImageProps & React.RefAttributes<ViewRef>
+    FastImageProps & React.RefAttributes<FastImageRef>
 > &
     FastImageStaticProperties = FastImageComponent as any
 

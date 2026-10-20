@@ -177,7 +177,7 @@ function RefMeasureCase() {
         const size = (width: number, height: number) =>
             `${Math.round(width)}x${Math.round(height)}`
         const measure = (ref: {
-            current: React.ComponentRef<typeof FastImage> | null
+            current: React.ComponentRef<typeof FastImageBackground> | null
         }) =>
             new Promise<string>((resolve) =>
                 ref.current
@@ -187,7 +187,7 @@ function RefMeasureCase() {
                     : resolve('no ref'),
             )
         const measureInWindow = (ref: {
-            current: React.ComponentRef<typeof FastImage> | null
+            current: React.ComponentRef<typeof FastImageBackground> | null
         }) =>
             new Promise<string>((resolve) =>
                 ref.current

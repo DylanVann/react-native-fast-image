@@ -598,7 +598,7 @@ The image's style.
 
 #### `imageRef`
 
-**Type:** `Ref<any>`
+**Type:** `Ref<FastImageRef>`
 
 A ref to the image (the FastImage inside).
 

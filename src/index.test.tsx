@@ -579,7 +579,7 @@ describe('placeholder', () => {
 
 describe('ref', () => {
     it("is FastImage's view", () => {
-        const ref = React.createRef<View>()
+        const ref = React.createRef<FastImageRef>()
         const tree = renderer.create(
             <FastImage
                 ref={ref}
@@ -592,11 +592,13 @@ describe('ref', () => {
         expect(tree.toJSON()).not.toBeNull()
         // The native view itself: FastImage has no wrapper.
         expect(ref.current).toMatchObject({ type: 'FastImageView' })
-        // Typed as the view, with its methods (a type check: the view here
-        // is a stand-in).
-        const measure = (view: React.ComponentRef<typeof FastImage>) =>
+        // Typed as the view, with its methods and reload() (a type check:
+        // the view here is a stand-in).
+        const use = (view: React.ComponentRef<typeof FastImage>) => {
             view.measure(() => {})
-        expect(typeof measure).toBe('function')
+            view.reload()
+        }
+        expect(typeof use).toBe('function')
     })
 })
 
