@@ -11,19 +11,16 @@ export type ReactNativeCache =
     | 'force-cache'
     | 'only-if-cached'
 
-// The source with React Native's cache value as Fast Image's: 'only-if-cached'
-// is 'cacheOnly', and the others are the default, 'immutable' ('reload' with a
-// warning, as the image isn't loaded again each time). Anything else is
-// returned as it is, so an unchanged source stays the same object.
+// The source with React Native's 'only-if-cached' as 'cacheOnly'. Its other
+// values are left to native, which loads a value it doesn't know as the
+// default, 'immutable' ('reload' warns here, as the image isn't loaded again
+// each time). Any other source is returned as it is, so an unchanged source
+// stays the same object.
 export function fromReactNativeCache<T>(source: T): T {
     if (!source || typeof source !== 'object' || !('cache' in source)) {
         return source
     }
-    const { cache, ...rest } = source as { cache?: unknown }
-    if (cache === 'only-if-cached') return { ...rest, cache: 'cacheOnly' } as T
-    if (cache !== 'default' && cache !== 'reload' && cache !== 'force-cache') {
-        return source
-    }
+    const { cache } = source as { cache?: unknown }
     if (cache === 'reload' && typeof __DEV__ !== 'undefined' && __DEV__) {
         warnOnce(
             'cache-reload',
@@ -31,5 +28,7 @@ export function fromReactNativeCache<T>(source: T): T {
             'warn',
         )
     }
-    return rest as T
+    return cache === 'only-if-cached'
+        ? { ...source, cache: 'cacheOnly' }
+        : source
 }

@@ -792,7 +792,7 @@ describe("React Native's source.cache values", () => {
 
     it("takes React Native's ImageURISource on the views only", () => {
         const source: ImageURISource = { uri, cache: 'force-cache' }
-        expect(nativeSource(source)).toEqual({ uri })
+        expect(nativeSource(source)).toBe(source)
         // preload, getCachePath and writeToCache take Fast Image's values.
         const preload = () =>
             // @ts-expect-error React Native's cache values are only for views
@@ -800,13 +800,13 @@ describe("React Native's source.cache values", () => {
         expect(preload).toBeFunction()
     })
 
-    it("sends 'only-if-cached' as 'cacheOnly', and the others as the default", () => {
+    it("sends 'only-if-cached' as 'cacheOnly', and the others as they are (native loads them as the default)", () => {
         expect(nativeSource({ uri, cache: 'only-if-cached' })).toEqual({
             uri,
             cache: 'cacheOnly',
         })
         for (const cache of ['default', 'force-cache'] as const) {
-            expect(nativeSource({ uri, cache })).toEqual({ uri })
+            expect(nativeSource({ uri, cache })).toEqual({ uri, cache })
         }
         expect(
             nativeSource([
@@ -815,7 +815,7 @@ describe("React Native's source.cache values", () => {
             ]),
         ).toEqual([
             { uri, width: 100, cache: 'cacheOnly' },
-            { uri, width: 800 },
+            { uri, width: 800, cache: 'default' },
         ])
     })
 
@@ -827,7 +827,10 @@ describe("React Native's source.cache values", () => {
     it("warns once for 'reload', which loads as the default", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         try {
-            expect(nativeSource({ uri, cache: 'reload' })).toEqual({ uri })
+            expect(nativeSource({ uri, cache: 'reload' })).toEqual({
+                uri,
+                cache: 'reload',
+            })
             nativeSource({ uri, cache: 'reload' })
             expect(warn).toHaveBeenCalledTimes(1)
             expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")

@@ -917,7 +917,8 @@ function FastImageBase({
         for (const entry of [source].flat()) {
             dataUri((entry as Source | undefined)?.blurDataUri)
         }
-        // React Native's cache values as Fast Image's.
+        // React Native's 'only-if-cached' as 'cacheOnly' (native loads its
+        // other values as the default).
         const entries = Array.isArray(source)
             ? source.map(fromReactNativeCache)
             : fromReactNativeCache(source)
