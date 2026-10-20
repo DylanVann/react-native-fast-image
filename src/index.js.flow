@@ -137,6 +137,15 @@ export type FastImageSource = {
     scale?: number,
 }
 
+// React Native's ImageURISource cache values, which the views' `source` takes
+// so a React Native source works as it is: native reads 'only-if-cached' as
+// 'cacheOnly', and the others as the default, 'immutable'.
+type ReactNativeCache = 'default' | 'reload' | 'force-cache' | 'only-if-cached'
+type ViewSource = {
+    ...FastImageSource,
+    cache?: CacheControls | ReactNativeCache,
+}
+
 export type FastImageProps = $ReadOnly<{|
     ...ViewProps,
     onError?: ?(event: OnErrorEvent) => void,
@@ -145,7 +154,7 @@ export type FastImageProps = $ReadOnly<{|
     onLoadStart?: ?() => void,
     onProgress?: ?(event: OnProgressEvent) => void,
 
-    source?: ?(FastImageSource | Array<FastImageSource | number> | number),
+    source?: ?(ViewSource | Array<ViewSource | number> | number),
     placeholder?: ?(number | string | SourcePlaceholder | PlaceholderSource),
     // Deprecated: use placeholder, which is the same.
     defaultSource?: ?number,
