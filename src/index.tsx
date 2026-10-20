@@ -22,7 +22,7 @@ import {
     isImageName,
     placeholderSource,
 } from './placeholders'
-import { withReload } from './reload'
+import { composeRefs } from './composeRefs'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -921,14 +921,8 @@ function FastImageBase({
             : resolvePlaceholder(defaultSource)
         : (placeholderSource(placeholder) ??
           resolvePlaceholder(placeholder ?? defaultSource))
-    // The ref is the native view, with reload().
     const ref = useMemo(
-        () =>
-            forwardedRef
-                ? withReload(forwardedRef, (view) =>
-                      Commands.reload(view as any),
-                  )
-                : undefined,
+        () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],
     )
 
@@ -976,6 +970,12 @@ function FastImageBase({
             objectPositionYOffset={position.y.offset}
         />
     )
+}
+
+// The ref is the native view, with reload() added, as React Native's
+// TextInput adds its methods to its native view.
+function addReload(view: FastImageRef | null) {
+    if (view) view.reload = () => Commands.reload(view as any)
 }
 
 const FastImageMemo = memo(FastImageBase)

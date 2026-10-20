@@ -38,7 +38,7 @@ import {
     hasSourcePlaceholder,
     placeholderSource,
 } from './placeholders'
-import { withReload } from './reload'
+import { composeRefs } from './composeRefs'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
@@ -134,11 +134,9 @@ function FastImageBase({
     const [reloads, setReloads] = useState(0)
     const ref = useMemo(
         () =>
-            forwardedRef
-                ? withReload(forwardedRef, () =>
-                      setReloads((count) => count + 1),
-                  )
-                : undefined,
+            composeRefs((view: { reload?: () => void } | null) => {
+                if (view) view.reload = () => setReloads((count) => count + 1)
+            }, forwardedRef),
         [forwardedRef],
     )
     const priority = sourcePriority(source)
