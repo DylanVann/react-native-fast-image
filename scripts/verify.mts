@@ -1492,13 +1492,19 @@ async function runRegression(
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
-        const failuresBefore = failures.length
+        // This group's failures (screenshot comparisons of earlier groups
+        // finish in the background and add theirs to `failures` too).
+        let groupFailed = false
+        const failGroup = (failure: string) => {
+            failures.push(failure)
+            groupFailed = true
+        }
         const shown = await waitFor(
             () => messages.find((m) => m.type === 'group' && m.index === index),
             GROUP_TIMEOUT,
         )
         if (!shown) {
-            failures.push(
+            failGroup(
                 `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
             )
             break
@@ -1547,14 +1553,14 @@ async function runRegression(
             cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
         )
         if (result === false) {
-            failures.push(`${group}: the app went away`)
+            failGroup(`${group}: the app went away`)
             break
         }
         if (!result) {
             for (const id of cases) {
                 const status = statusOf(index, id)
                 if (status !== 'OK')
-                    failures.push(`${id}: ${status ?? 'no status'}`)
+                    failGroup(`${id}: ${status ?? 'no status'}`)
             }
         }
         // The app measures the masks once the last status's render has been
@@ -1565,9 +1571,9 @@ async function runRegression(
             () => messages.find((m) => m.type === 'masks' && m.id === id),
             5000,
         )
-        if (!measured) failures.push(`${group}: the app didn't send its masks`)
+        if (!measured) failGroup(`${group}: the app didn't send its masks`)
         else if (!measured.safeArea)
-            failures.push(
+            failGroup(
                 `${group}: the app didn't send its safe area (the screenshot isn't cropped)`,
             )
         // Cases below (or beside) the visible screen would be cut off in the
@@ -1580,12 +1586,12 @@ async function runRegression(
             const beside =
                 content.x + content.width - (visible.x + visible.width)
             if (below > 1 || beside > 1) {
-                failures.push(
+                failGroup(
                     `${group}: cut off: its cases end ${Math.ceil(Math.max(below, beside))} dp ${below > 1 ? 'below' : 'right of'} the visible screen (split the group)`,
                 )
             }
         }
-        const groupOk = failures.length === failuresBefore
+        const groupOk = !groupFailed
         takeShot(
             index,
             measured?.masks,
