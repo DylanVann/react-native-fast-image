@@ -9,6 +9,7 @@ import React, {
 import {
     AppState,
     Image,
+    LogBox,
     NativeModules,
     PixelRatio,
     Platform,
@@ -42,6 +43,9 @@ import {
     SampleContext,
     sampleStatus,
 } from './RunnerContext'
+
+// The react-native-reload case's warning, which would cover later cases.
+LogBox.ignoreLogs(["react-native-fast-image: `cache: 'reload'`"])
 
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives. They're in REGRESSION_GROUPS, which the regression runner
@@ -4708,6 +4712,86 @@ function PreloadResultsCase() {
     )
 }
 
+// React Native's cache 'only-if-cached' is 'cacheOnly': an image that isn't
+// cached isn't requested. Checks the request count a moment after the view
+// mounts (9.x's iOS sends no event for a cacheOnly miss).
+const ONLY_IF_CACHED_PATH = `/picsum/1025-200x200.jpg?only-if-cached=${RUN}`
+function OnlyIfCachedMissCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetch(
+                imageUrl(
+                    `requests?path=${encodeURIComponent(ONLY_IF_CACHED_PATH)}`,
+                ),
+            )
+                .then((response) => response.json())
+                .then(({ count }) =>
+                    setStatus(count === 0 ? 'OK' : `requested ${count} times`),
+                )
+                .catch((e) => setStatus(`${e}`))
+        }, 2000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(ONLY_IF_CACHED_PATH.slice(1)),
+                    cache: 'only-if-cached',
+                }}
+            />
+            <CaseStatus
+                id="only-if-cached-miss"
+                status={status}
+                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached isn't requested"
+            />
+        </View>
+    )
+}
+
+// Preloads sources with a cache or priority value Fast Image doesn't know
+// (React Native's cache: 'reload', a number): each loads with the default.
+// Android threw for them.
+const PRELOAD_UNKNOWN_RUN = `unknown-values=${RUN}`
+function PreloadUnknownValuesCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload(
+            [
+                { cache: 'reload' },
+                { priority: 'urgent' },
+                { cache: 1, priority: true },
+            ].map((values, i) => ({
+                uri: imageUrl(
+                    `picsum/1025-200x200.jpg?${PRELOAD_UNKNOWN_RUN}&n=${i}`,
+                ),
+                ...values,
+            })) as unknown as Source[],
+        ).then(
+            (results) => {
+                const got = results
+                    .map((r) => (r.ok ? `${r.width}x${r.height}` : 'failed'))
+                    .join(', ')
+                const expected = '200x200, 200x200, 200x200'
+                setStatus(got === expected ? 'OK' : got)
+            },
+            (error) => setStatus(`rejected: ${error}`),
+        )
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="preload-unknown-values"
+                status={status}
+                description="preload loads sources with an unknown cache or priority"
+            />
+        </View>
+    )
+}
+
 // preload with a url string (or a number) where a source object goes, e.g.
 // preload(['https://…']) instead of preload([{ uri }]): the entry resolves not
 // ok, as a source without a uri, in its place among the results. Native read
@@ -7077,6 +7161,38 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+            <EventCase
+                key="unknown-cache"
+                id="unknown-cache"
+                description="An unknown source.cache loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 'sometimes' }}
+            />,
+            <EventCase
+                key="react-native-reload"
+                id="react-native-reload"
+                description="React Native's cache 'reload' loads as the default"
+                event="onLoad"
+                source={{ uri: LOGO, cache: 'reload' }}
+            />,
+            <OnlyIfCachedMissCase key="only-if-cached-miss" />,
+            <EventCase
+                key="unknown-priority"
+                id="unknown-priority"
+                description="An unknown source.priority loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, priority: 'urgent' }}
+            />,
+            <EventCase
+                key="non-string-cache"
+                id="non-string-cache"
+                description="A source.cache that isn't a string loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 1 }}
+            />,
         ],
     },
     {
@@ -7515,6 +7631,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
             <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+            <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },
     {

@@ -1,8 +1,16 @@
-import { Image, StyleSheet, Platform, NativeModules, View } from 'react-native'
+import {
+    Image,
+    StyleSheet,
+    Platform,
+    NativeModules,
+    View,
+    type ImageURISource,
+} from 'react-native'
 import React from 'react'
 import { beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import renderer from 'react-test-renderer'
-import FastImage, { FastImageBackground } from './index'
+import FastImage, { FastImageBackground, type FastImageProps } from './index'
+import { resetReloadWarning } from './reactNativeCache'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -545,6 +553,69 @@ describe('source.memoryCache', () => {
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
         expect(view.props.source.memoryCache).toBe(false)
+    })
+})
+
+describe("React Native's source.cache values", () => {
+    const nativeView = (source: FastImageProps['source']) =>
+        renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+    const uri = 'https://example.com/a.jpg'
+
+    it("takes React Native's ImageURISource on the views only", () => {
+        const source: ImageURISource = { uri, cache: 'force-cache' }
+        expect(nativeView(source).source).toEqual(source)
+        // preload, getCachePath and writeToCache take Fast Image's values.
+        const preload = () =>
+            // @ts-expect-error React Native's cache values are only for views
+            FastImage.preload([source])
+        expect(preload).toBeFunction()
+    })
+
+    it('sends them to the native view as they are, which reads them', () => {
+        const source = { uri, cache: 'only-if-cached' as const }
+        expect(nativeView(source).source).toEqual(source)
+        const several = [
+            { uri, width: 100, cache: 'only-if-cached' as const },
+            { uri, width: 800, cache: 'default' as const },
+        ]
+        expect(nativeView(several).sources).toBe(several)
+    })
+
+    it("warns once for 'reload'", () => {
+        resetReloadWarning()
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            nativeView({ uri, cache: 'reload' })
+            nativeView({ uri, cache: 'reload' })
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
+        } finally {
+            warn.mockRestore()
+        }
+    })
+
+    it("passes them to React Native's Image with fallback, without the warning", () => {
+        resetReloadWarning()
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            const image = renderer
+                .create(
+                    <FastImage source={{ uri, cache: 'reload' }} fallback />,
+                )
+                .root.findByType(Image)
+            expect(image.props.source).toEqual({ uri, cache: 'reload' })
+            expect(warn).not.toHaveBeenCalled()
+            // Fast Image's own values are removed.
+            const own = renderer
+                .create(<FastImage source={{ uri, cache: 'web' }} fallback />)
+                .root.findByType(Image)
+            expect(own.props.source).toEqual({ uri })
+        } finally {
+            warn.mockRestore()
+        }
     })
 })
 

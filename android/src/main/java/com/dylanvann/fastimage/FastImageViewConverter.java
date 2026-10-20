@@ -16,7 +16,6 @@ import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
-import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
@@ -34,6 +33,10 @@ class FastImageViewConverter {
                 put("immutable", FastImageCacheControl.IMMUTABLE);
                 put("web", FastImageCacheControl.WEB);
                 put("cacheOnly", FastImageCacheControl.CACHE_ONLY);
+                // React Native's ImageURISource value, which views take. Its
+                // others (e.g. 'reload') are immutable, as any value this map
+                // doesn't have (see getValueFromSource).
+                put("only-if-cached", FastImageCacheControl.CACHE_ONLY);
             }};
 
     private static final Map<String, Priority> FAST_IMAGE_PRIORITY_MAP =
@@ -174,13 +177,12 @@ class FastImageViewConverter {
         return value;
     }
 
+    // A value the map doesn't have (e.g. React Native's `cache: 'reload'`, or
+    // one that isn't a string) gets the default, as on iOS.
     private static <T> T getValueFromSource(String propName, String defaultProp, Map<String, T> map, ReadableMap source) {
-        String propValue;
-        try {
-            propValue = source != null ? source.getString(propName) : null;
-        } catch (NoSuchKeyException e) {
-            propValue = null;
-        }
-        return getValue(propName, defaultProp, map, propValue);
+        T value = source != null && source.hasKey(propName) && source.getType(propName) == ReadableType.String
+                ? map.get(source.getString(propName))
+                : null;
+        return value != null ? value : map.get(defaultProp);
     }
 }

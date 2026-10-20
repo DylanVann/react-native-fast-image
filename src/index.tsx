@@ -15,6 +15,11 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import {
+    isReactNativeCache,
+    type ReactNativeCache,
+    warnIfReload,
+} from './reactNativeCache'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -116,6 +121,14 @@ export type Source = {
     /** With several sources, the scale `width` and `height` are multiplied by. */
     scale?: number
 }
+
+// What the views' `source` takes: a Source, or one with React Native's cache
+// values (see reactNativeCache.ts), so a React Native `ImageURISource` works as
+// it is. Only the views: preload, getCachePath and writeToCache take Fast
+// Image's values.
+type ViewSource =
+    | Source
+    | (Omit<Source, 'cache'> & { cache?: ReactNativeCache })
 
 /** How the image fades in: see [`transition`](#transition). */
 export type Transition = {
@@ -296,7 +309,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `{ ok: false, error }`.
      * - An array of one is the same as that source.
      */
-    source?: Source | Source[] | ImageRequireSource
+    source?: ViewSource | ViewSource[] | ImageRequireSource
     /**
      * An asset loaded with `require(...)`, shown while the first image loads,
      * and if an image fails to load. When `source` changes, the previous image
@@ -671,10 +684,11 @@ function transitionProps(transition: FastImageProps['transition']) {
     }
 }
 
-// A copy of the source without `cache`.
-function withoutCache(source: Source | undefined) {
-    const { cache: _cache, ...rest } = source || {}
-    return rest
+// A copy of the source without Fast Image's `cache` values, which React
+// Native's Image doesn't support. React Native's own values stay.
+function withoutCache(source: ViewSource | undefined) {
+    const { cache, ...rest } = source || {}
+    return isReactNativeCache(cache) ? { ...rest, cache } : rest
 }
 
 function FastImageBase({
@@ -771,8 +785,9 @@ function FastImageBase({
     const mode =
         NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
     if (fallback) {
-        // Remove `cache`, which React Native's Image doesn't support. A
-        // require()d source is a number: pass it through (spreading it gave {}).
+        // Remove Fast Image's `cache` values (React Native's Image takes its
+        // own). A require()d source is a number: pass it through (spreading
+        // it gave {}).
         const cleanedSource =
             typeof source === 'number'
                 ? source
@@ -848,6 +863,8 @@ function FastImageBase({
 
     // Several sources are picked from natively, for the view's size; one in
     // an array is a plain source.
+    // React Native's cache: 'reload' warns (native reads its cache values).
+    warnIfReload(source)
     const sources = Array.isArray(source)
         ? source.length === 1
             ? undefined

@@ -240,7 +240,7 @@ type PackagerAsset = {
 // only applies to lazy images, and browsers without it use the next value,
 // 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
-function sizedSources(sources: Source[]) {
+function sizedSources(sources: Pick<Source, 'uri' | 'width' | 'scale'>[]) {
     const widths = sources
         .filter((source) => source?.uri && source.width)
         .map((source) => ({
