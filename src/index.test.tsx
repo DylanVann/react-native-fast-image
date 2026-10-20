@@ -5,6 +5,7 @@ import {
     NativeModules,
     TurboModuleRegistry,
     View,
+    type ImageURISource,
 } from 'react-native'
 import React from 'react'
 import { act } from 'react-test-renderer'
@@ -778,6 +779,47 @@ describe('source.memoryCache', () => {
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
         expect(view.props.source.memoryCache).toBe(false)
+    })
+})
+
+describe("React Native's source.cache values", () => {
+    const nativeSource = (source: FastImageProps['source']) =>
+        renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.source
+    const uri = 'https://example.com/a.jpg'
+
+    it("takes React Native's ImageURISource on the views only", () => {
+        const source: ImageURISource = { uri, cache: 'force-cache' }
+        expect(nativeSource(source)).toBe(source)
+        // preload, getCachePath and writeToCache take Fast Image's values.
+        const preload = () =>
+            // @ts-expect-error React Native's cache values are only for views
+            FastImage.preload([source])
+        expect(preload).toBeFunction()
+    })
+
+    it('sends them to the native view as they are, which reads them', () => {
+        const several = [
+            { uri, width: 100, cache: 'only-if-cached' as const },
+            { uri, width: 800, cache: 'default' as const },
+        ]
+        expect(nativeSource(several)).toEqual(several)
+        const source = { uri, cache: 'only-if-cached' as const }
+        expect(nativeSource(source)).toBe(source)
+    })
+
+    it("warns once for 'reload'", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            nativeSource({ uri, cache: 'reload' })
+            nativeSource([{ uri, cache: 'reload' }, { uri }])
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
+        } finally {
+            warn.mockRestore()
+        }
     })
 })
 

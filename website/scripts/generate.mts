@@ -41,6 +41,12 @@ const bySource = (a: J.Reflection, b: J.Reflection) =>
     (a.sources?.[0]?.line ?? 0) - (b.sources?.[0]?.line ?? 0) ||
     (a.sources?.[0]?.character ?? 0) - (b.sources?.[0]?.character ?? 0)
 
+// Types the docs show as another: a view's source is a Source (React Native's
+// cache values, which it also takes, aren't documented).
+const SHOWN_AS: Record<string, string> = { ViewSource: 'Source' }
+const shownAs = (text: string) =>
+    text.replace(/\w+/g, (name) => SHOWN_AS[name] ?? name)
+
 function typeToString(t: J.SomeType | undefined): string {
     if (!t) return 'unknown'
     switch (t.type) {
@@ -52,13 +58,16 @@ function typeToString(t: J.SomeType | undefined): string {
                 : String(t.value)
         case 'reference':
             return (
-                t.name +
+                shownAs(t.name) +
                 (t.typeArguments
                     ? `<${t.typeArguments.map(typeToString).join(', ')}>`
                     : '')
             )
         case 'array':
-            return t.elementType.type === 'union'
+            // TypeDoc gives some unions as an unknown type with their text.
+            return t.elementType.type === 'union' ||
+                (t.elementType.type === 'unknown' &&
+                    t.elementType.name.includes(' | '))
                 ? `(${typeToString(t.elementType)})[]`
                 : `${typeToString(t.elementType)}[]`
         case 'union':
@@ -89,6 +98,8 @@ function typeToString(t: J.SomeType | undefined): string {
                 )
             return `{ ${props.join('; ')} }`
         }
+        case 'unknown':
+            return shownAs(t.name)
         default:
             return 'unknown'
     }

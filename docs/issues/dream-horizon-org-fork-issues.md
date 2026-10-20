@@ -299,6 +299,13 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **How to reproduce:** Found by reading the code. Import the package in a test of a new React Native app with its default Jest config.
 - **How Fast Image handles it:** its published entry point is plain JavaScript (`dist`, including the Codegen specs), while Metro still reads the TypeScript sources through the `react-native` field, so it renders in an app's Jest tests with no setup ([#1220](https://github.com/DylanVann/react-native-fast-image/pull/1220)).
 
+## Android crashes on a cache or priority value it doesn't know
+
+- **What happens:** on Android, a source whose `cache` or `priority` isn't one of Fast Image's values (e.g. React Native's `cache: 'reload'` in a source typed as React Native's `ImageURISource`, or a typo), or isn't a string, throws `JSApplicationIllegalArgumentException` ("FastImage, invalid cache : reload") or `UnexpectedNativeTypeException`, and the app crashes. iOS loads it with the default.
+- **Where:** `android/src/main/java/com/dylanvann/fastimage/FastImageViewConverter.java`, `getValue()` and `getValueFromSource()`: a value the map doesn't have throws, and `getString()` throws for a value that isn't a string (only `NoSuchKeyException` is caught). Checked on 2026-10-21 against the fork's `main` at `eabb78f`.
+- **How to reproduce:** Found by reading the code. Render `<FastImage source={{ uri, cache: 'reload' }} />` on Android. Fast Image before the fix below, which had the same converter, crashed in its `unknown-cache` and `non-string-cache` regression cases.
+- **How Fast Image handles it:** a value it doesn't know, or that isn't a string, loads with the default (`'immutable'`, `'normal'`) on both platforms, and views take React Native's `cache` values, with `'only-if-cached'` read as `'cacheOnly'` ([#1326](https://github.com/DylanVann/react-native-fast-image/pull/1326)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.

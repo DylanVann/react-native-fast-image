@@ -628,6 +628,8 @@ function PreloadHeadersCase() {
 // show in the screenshots.
 LogBox.ignoreLogs([
     "Deep imports from the 'react-native' package are deprecated ('react-native/Libraries/Core/RawEventEmitter')",
+    // The react-native-reload case's warning, which would cover later cases.
+    "react-native-fast-image: `cache: 'reload'`",
 ])
 const RawEventEmitter: {
     addListener(
@@ -4381,18 +4383,24 @@ const diskCacheStyles = StyleSheet.create({
     large: { width: 84, height: 84, backgroundColor: '#eee' },
 })
 
-// A view with cache 'cacheOnly' of an image that isn't cached: onError and
-// onLoadEnd (not ok), not onLoad (iOS sent onLoad for no image), and no
-// request.
-const CACHE_ONLY_MISS_PATH = `/picsum/1025-200x200.jpg?cache-only-miss=${RUN}`
-function CacheOnlyMissCase() {
+// A view with cache 'cacheOnly' (or React Native's 'only-if-cached', the same)
+// of an image that isn't cached: onError and onLoadEnd (not ok), not onLoad
+// (iOS sent onLoad for no image), and no request.
+function CacheOnlyMissCase({
+    id = 'cache-only-miss',
+    cache = 'cacheOnly',
+    description = "cacheOnly: an image that isn't cached gets onError (not onLoad), without a request",
+}: {
+    id?: string
+    cache?: 'cacheOnly' | 'only-if-cached'
+    description?: string
+}) {
+    const path = `/picsum/1025-200x200.jpg?${id}=${RUN}`
     const [status, setStatus] = useState('waiting')
     const loadEnd = useRef<string | undefined>(undefined)
     const check = async (event: string) => {
         const response = await fetch(
-            imageUrl(
-                `requests?path=${encodeURIComponent(CACHE_ONLY_MISS_PATH)}`,
-            ),
+            imageUrl(`requests?path=${encodeURIComponent(path)}`),
         )
         const { count } = await response.json()
         setStatus(
@@ -4410,8 +4418,8 @@ function CacheOnlyMissCase() {
             <FastImage
                 style={styles.image}
                 source={{
-                    uri: imageUrl(CACHE_ONLY_MISS_PATH.slice(1)),
-                    cache: 'cacheOnly',
+                    uri: imageUrl(path.slice(1)),
+                    cache,
                 }}
                 onLoad={() => check('onLoad').catch((e) => setStatus(`${e}`))}
                 onError={() => check('onError').catch((e) => setStatus(`${e}`))}
@@ -4419,11 +4427,7 @@ function CacheOnlyMissCase() {
                     loadEnd.current = result.ok ? 'ok' : 'not ok'
                 }}
             />
-            <CaseStatus
-                id="cache-only-miss"
-                status={status}
-                description="cacheOnly: an image that isn't cached gets onError (not onLoad), without a request"
-            />
+            <CaseStatus id={id} status={status} description={description} />
         </View>
     )
 }
@@ -5362,6 +5366,47 @@ function PreloadResultsCase() {
                 id="preload-results"
                 status={status}
                 description="preload resolves with each source's result and size"
+            />
+        </View>
+    )
+}
+
+// Preloads sources with a cache or priority value Fast Image doesn't know
+// (React Native's cache: 'reload', a number): each loads with the default.
+// Android threw for them.
+const PRELOAD_UNKNOWN_RUN = `unknown-values=${RUN}`
+function PreloadUnknownValuesCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload(
+            [
+                { cache: 'reload' },
+                { priority: 'urgent' },
+                { cache: 1, priority: true },
+            ].map((values, i) => ({
+                uri: imageUrl(
+                    `picsum/1025-200x200.jpg?${PRELOAD_UNKNOWN_RUN}&n=${i}`,
+                ),
+                ...values,
+            })) as unknown as Source[],
+        ).then(
+            (results) => {
+                const got = results
+                    .map((r) => (r.ok ? `${r.width}x${r.height}` : 'failed'))
+                    .join(', ')
+                const expected = '200x200, 200x200, 200x200'
+                setStatus(got === expected ? 'OK' : got)
+            },
+            (error) => setStatus(`rejected: ${error}`),
+        )
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="preload-unknown-values"
+                status={status}
+                description="preload loads sources with an unknown cache or priority"
             />
         </View>
     )
@@ -8824,6 +8869,37 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+            <EventCase
+                key="unknown-cache"
+                id="unknown-cache"
+                description="An unknown source.cache loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 'sometimes' }}
+            />,
+            <EventCase
+                key="react-native-reload"
+                id="react-native-reload"
+                description="React Native's cache 'reload' loads as the default"
+                event="onLoad"
+                source={{ uri: LOGO, cache: 'reload' }}
+            />,
+            <EventCase
+                key="unknown-priority"
+                id="unknown-priority"
+                description="An unknown source.priority loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, priority: 'urgent' }}
+            />,
+            <EventCase
+                key="non-string-cache"
+                id="non-string-cache"
+                description="A source.cache that isn't a string loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 1 }}
+            />,
             <NoHandlersCase key="no-handlers" />,
         ],
     },
@@ -9275,6 +9351,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
             <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+            <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },
     {
@@ -9316,7 +9393,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'cache-only',
-        cases: [<CacheOnlyMissCase key="cache-only-miss" />],
+        cases: [
+            <CacheOnlyMissCase key="cache-only-miss" />,
+            <CacheOnlyMissCase
+                key="only-if-cached-miss"
+                id="only-if-cached-miss"
+                cache="only-if-cached"
+                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached gets onError, without a request"
+            />,
+        ],
     },
     {
         name: 'disk-cache',
