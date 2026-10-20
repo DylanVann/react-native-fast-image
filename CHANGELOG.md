@@ -1,3 +1,10 @@
+# [9.4.0](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.7...v9.4.0) (2026-10-20)
+
+
+### Features
+
+* a view's source takes React Native's cache values ([612fa6f](https://github.com/DylanVann/react-native-fast-image/commit/612fa6f7a915eff8e5730089b697d638996535a3)), closes [#663](https://github.com/DylanVann/react-native-fast-image/issues/663)
+
 ## [9.3.7](https://github.com/DylanVann/react-native-fast-image/compare/v9.3.6...v9.3.7) (2026-10-12)
 
 
