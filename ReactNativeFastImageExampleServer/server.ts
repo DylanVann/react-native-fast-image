@@ -157,7 +157,11 @@ const server = Bun.serve({
                 })
             }
             const key = url.searchParams.get('path') ?? ''
-            return Response.json({ count: requests.get(key) ?? 0 })
+            // Also asked by the Expo example's web page.
+            return Response.json(
+                { count: requests.get(key) ?? 0 },
+                { headers: { 'Access-Control-Allow-Origin': '*' } },
+            )
         }
         const run = url.searchParams.get('run') ?? ''
         if (url.pathname === '/set-cookie') {

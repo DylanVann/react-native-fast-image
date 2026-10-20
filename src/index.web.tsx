@@ -154,6 +154,8 @@ function FastImageBase({
     // placeholders as it loads, as on iOS and Android. The browser loads it
     // like any image: it can't look in its cache only (cache: 'cacheOnly').
     const urlPlaceholder = placeholderSource(placeholder)?.uri
+    // reload() gives it a new <img> too, so one that failed is asked for again.
+    const placeholderKey = `${urlPlaceholder} ${reloads}`
     const [failedPlaceholder, setFailedPlaceholder] = useState<string>()
     // defaultSource only shows without `placeholder`, as on iOS and Android,
     // or in place of a thumbhash or blurDataUri the web can't show (one of
@@ -240,7 +242,7 @@ function FastImageBase({
             ) : null}
             {urlPlaceholder && showDefault ? (
                 <Picture
-                    key={`placeholder ${urlPlaceholder}`}
+                    key={`placeholder ${placeholderKey}`}
                     src={urlPlaceholder}
                     loading={loading}
                     // It only helps if it comes before the image, as on iOS
@@ -255,8 +257,8 @@ function FastImageBase({
                     // Tinted, not blurred, as on iOS and Android.
                     filter={tintColor ? `url(#${tintId})` : undefined}
                     // Nothing (no broken image icon) if it fails.
-                    hidden={failedPlaceholder === urlPlaceholder}
-                    onError={() => setFailedPlaceholder(urlPlaceholder)}
+                    hidden={failedPlaceholder === placeholderKey}
+                    onError={() => setFailedPlaceholder(placeholderKey)}
                     alt=""
                 />
             ) : null}

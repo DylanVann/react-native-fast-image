@@ -125,6 +125,58 @@ function ReloadCase() {
     )
 }
 
+// A url placeholder that failed is requested again by reload(), with the
+// image.
+const RELOAD_PLACEHOLDER_PATH = `/fail-once/picsum/1025-200x200.jpg?smoke-reload-placeholder=${RUN}`
+function ReloadPlaceholderCase() {
+    const image = useRef<FastImageRef>(null)
+    const [status, setStatus] = useState('loading')
+    const failed = useRef(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `fail-once/picsum/1025-200x200.jpg?smoke-reload-image=${RUN}`,
+                    ),
+                }}
+                placeholder={{
+                    uri: imageUrl(RELOAD_PLACEHOLDER_PATH.slice(1)),
+                }}
+                onError={() => {
+                    if (failed.current) return setStatus('failed again')
+                    failed.current = true
+                    if (!image.current?.reload) return setStatus('no reload()')
+                    image.current.reload()
+                }}
+                onLoad={() =>
+                    fetch(
+                        imageUrl(
+                            `requests?path=${encodeURIComponent(RELOAD_PLACEHOLDER_PATH)}`,
+                        ),
+                    )
+                        .then((response) => response.json())
+                        .then((json: { count: number }) =>
+                            setStatus(
+                                json.count === 2
+                                    ? 'OK'
+                                    : `placeholder requested ${json.count} times`,
+                            ),
+                        )
+                        .catch((e) => setStatus(`error: ${e}`))
+                }
+            />
+            <CaseStatus
+                id="smoke-reload-placeholder"
+                status={status}
+                description="A url placeholder that failed is requested again with reload()"
+            />
+        </View>
+    )
+}
+
 // A bundled (require()d) image loads at its size.
 function BundledCase() {
     const [status, setStatus] = useState('loading')
@@ -669,16 +721,22 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
             <PreloadCase key="preload" />,
             <CachePathCase key="cache-path" />,
             ...(Platform.OS === 'web'
-                ? [
-                      <SizesChangeCase key="sizes-change" />,
-                      <PlaceholderCase key="placeholder" />,
-                      <BlurDataUriCase key="blur-data-uri" />,
-                  ]
+                ? []
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
     ...(Platform.OS === 'web'
-        ? []
+        ? [
+              {
+                  name: 'smoke-web',
+                  cases: [
+                      <SizesChangeCase key="sizes-change" />,
+                      <PlaceholderCase key="placeholder" />,
+                      <ReloadPlaceholderCase key="reload-placeholder" />,
+                      <BlurDataUriCase key="blur-data-uri" />,
+                  ],
+              },
+          ]
         : [
               {
                   name: 'smoke-glide',
