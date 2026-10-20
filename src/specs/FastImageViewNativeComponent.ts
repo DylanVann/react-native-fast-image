@@ -1,15 +1,16 @@
 // The native image view, from React Native's Codegen (the New Architecture's
 // component). FastImage (index.tsx) renders it as its only view, and turns
 // its props into these.
+import type * as React from 'react'
 import type {
     CodegenTypes,
     ColorValue,
     HostComponent,
     ViewProps,
 } from 'react-native'
-// React Native's Babel plugin replaces the call below with the component's
-// view config, so the import isn't used when the app runs.
-import { codegenNativeComponent } from 'react-native'
+// React Native's Babel plugin replaces the calls below with the component's
+// view config and commands, so the imports aren't used when the app runs.
+import { codegenNativeCommands, codegenNativeComponent } from 'react-native'
 
 type LoadStartEvent = Readonly<{}>
 
@@ -85,6 +86,17 @@ export interface NativeProps extends ViewProps {
     onFastImageError?: CodegenTypes.DirectEventHandler<ErrorEvent>
     onFastImageLoadEnd?: CodegenTypes.DirectEventHandler<LoadEndEvent>
 }
+
+interface NativeCommands {
+    // Loads the image again, as a new source would (with its events), keeping
+    // the image showing until then. ElementRef, which React Native 0.83's
+    // Codegen needs (later ones also take ComponentRef).
+    reload: (viewRef: React.ElementRef<HostComponent<NativeProps>>) => void
+}
+
+export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
+    supportedCommands: ['reload'],
+})
 
 export default codegenNativeComponent<NativeProps>(
     'FastImageView',

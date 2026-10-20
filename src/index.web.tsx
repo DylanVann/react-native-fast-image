@@ -23,6 +23,7 @@ import React, {
     useEffect,
     useId,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react'
@@ -37,6 +38,7 @@ import {
     hasSourcePlaceholder,
     placeholderSource,
 } from './placeholders'
+import { withReload } from './reload'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
@@ -126,6 +128,19 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
+    // Counts the ref's reload() calls: each gives the image a new <img>, which
+    // the browser loads again (as a new view would). The image showing stays
+    // (it has loaded), or stays hidden (it failed), until then.
+    const [reloads, setReloads] = useState(0)
+    const ref = useMemo(
+        () =>
+            forwardedRef
+                ? withReload(forwardedRef, () =>
+                      setReloads((count) => count + 1),
+                  )
+                : undefined,
+        [forwardedRef],
+    )
     const priority = sourcePriority(source)
     // The source's blurDataUri, or its ThumbHash made into one (with
     // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
@@ -179,7 +194,7 @@ function FastImageBase({
         if (key) onLoadStart?.()
         // Once per image the browser is asked for.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key])
+    }, [key, reloads])
 
     return (
         <View
@@ -188,7 +203,7 @@ function FastImageBase({
             style={[styles.container, style]}
             onLayout={onLayout}
             pointerEvents={pointerEvents}
-            ref={forwardedRef}
+            ref={ref}
         >
             {defaultUri && showDefault ? (
                 <Picture
@@ -248,7 +263,7 @@ function FastImageBase({
             ) : null}
             {key && src ? (
                 <Picture
-                    key={several ? 'sizes' : key}
+                    key={`${several ? 'sizes' : key} ${reloads}`}
                     src={src}
                     srcSet={srcSet}
                     sizes={sizes}

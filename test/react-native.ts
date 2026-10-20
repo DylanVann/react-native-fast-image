@@ -45,6 +45,22 @@ export function requireNativeComponent(name: string) {
 // react-native): the same host element.
 export const codegenNativeComponent = requireNativeComponent
 
+// Codegen commands (codegenNativeCommands): each one sent is recorded in
+// `commands`, with its view.
+export const commands: { name: string; view: unknown }[] = []
+export function codegenNativeCommands({
+    supportedCommands,
+}: {
+    supportedCommands: string[]
+}) {
+    return Object.fromEntries(
+        supportedCommands.map((name) => [
+            name,
+            (view: unknown) => commands.push({ name, view }),
+        ]),
+    )
+}
+
 // TurboModules are looked up in NativeModules when they're called, so a test
 // can replace or spy on NativeModules[name] after FastImage has loaded.
 function turboModule(name: string) {

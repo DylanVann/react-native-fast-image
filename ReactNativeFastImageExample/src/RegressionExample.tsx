@@ -25,6 +25,7 @@ import FastImage, {
     ClearCacheResult,
     FastImageBackground,
     FastImageProps,
+    FastImageRef,
     LoadResult,
     OnErrorEvent,
     OnProgressEvent,
@@ -4039,6 +4040,60 @@ function ViewRetryCase() {
                 id="view-retry"
                 status={status}
                 description="a url whose first response was an HTML page loads in the next view"
+            />
+        </View>
+    )
+}
+
+// Shows a url whose first request fails (a 503): its ref's reload() downloads
+// it again and shows it. Then reload() once it has loaded: it loads again from
+// the cache, with its events (onLoadStart, then onLoad), and no request.
+function ReloadCase() {
+    const path = `/fail-once/picsum/1025-200x200.jpg?reload=${RUN}`
+    const image = useRef<FastImageRef>(null)
+    const events = useRef<string[]>([])
+    const [status, setStatus] = useState('waiting')
+    const reload = () => {
+        if (!image.current?.reload) return setStatus('no reload()')
+        image.current.reload()
+    }
+    const onLoad = async () => {
+        events.current.push('load')
+        const response = await fetch(
+            imageUrl(`requests?path=${encodeURIComponent(path)}`),
+        )
+        const { count } = (await response.json()) as { count: number }
+        const loads = events.current.filter((e) => e === 'load').length
+        if (count !== 2) return setStatus(`${count} requests`)
+        if (loads === 1) return reload()
+        const expected = 'start error start load start load'
+        setStatus(
+            events.current.join(' ') === expected
+                ? 'OK'
+                : `events: ${events.current.join(' ')}`,
+        )
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{ uri: imageUrl(path.slice(1)) }}
+                onLoadStart={() => events.current.push('start')}
+                onError={() => {
+                    events.current.push('error')
+                    if (events.current.includes('load')) {
+                        setStatus('failed after it loaded')
+                    } else {
+                        reload()
+                    }
+                }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="reload"
+                status={status}
+                description="reload() loads a url that failed again, and a loaded one from the cache, with its events"
             />
         </View>
     )
@@ -9231,6 +9286,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 web
             />,
             <ViewRetryCase key="view-retry" />,
+            <ReloadCase key="reload" />,
             <MislabeledCase key="mislabeled" />,
             <Web404Case key="web-404" />,
         ],

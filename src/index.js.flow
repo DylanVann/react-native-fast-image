@@ -196,4 +196,6 @@ declare export default class FastImage extends React$Component<FastImageProps> {
         source: FastImageSource,
         file: string,
     ) => Promise<CachePathResult>;
+    // On a ref: loads the image again, e.g. to try again after onError.
+    reload(): void;
 }

@@ -435,6 +435,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         view.setObjectFit(FastImageViewConverter.getScaleType(objectFit));
     }
 
+    // The ref's reload() (a command).
+    @Override
+    public void reload(FastImageViewWithUrl view) {
+        view.reload();
+    }
+
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
         // Cancels its request, and nothing loads or tracks progress for it

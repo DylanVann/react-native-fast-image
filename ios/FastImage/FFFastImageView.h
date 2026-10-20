@@ -82,6 +82,10 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 // the view has a size, when it needs one).
 - (void) didSetProps;
 
+// Loads the image again, as a new source would (once the view has a size,
+// when it needs one): the ref's reload().
+- (void) reload;
+
 // Keeps the view's mask (React Native's, for its rounded corners) on the box
 // the view was laid out at, while objectPosition moves the view: after React
 // Native sets or removes it.

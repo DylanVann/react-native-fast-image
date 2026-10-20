@@ -5,7 +5,7 @@ import renderer, { act } from 'react-test-renderer'
 // The stand-in for react-native-web's asset registry (test/setup.ts).
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
-import FastImage, { FastImageBackground } from './index.web'
+import FastImage, { FastImageBackground, type FastImageRef } from './index.web'
 // Imported: the web version shows thumbhashes only with it.
 import { thumbHashToBlurDataUri } from './thumbhash'
 
@@ -441,6 +441,80 @@ describe('FastImage (web)', () => {
         })
         await act(settled)
         expect(onLoad).not.toHaveBeenCalled()
+    })
+
+    it('loads the image again in a new <img> with reload(), with its events', async () => {
+        const onLoadStart = mock()
+        const onLoad = mock()
+        const onError = mock()
+        const ref = React.createRef<FastImageRef>()
+        // The web version's type doesn't say it takes a ref (the package's
+        // types are the native version's).
+        const FastImageWithRef = FastImage as React.ComponentType<
+            React.ComponentProps<typeof FastImage> & {
+                ref: React.Ref<FastImageRef>
+            }
+        >
+        // Called for each host element mounted with a ref.
+        const mounted = mock(
+            (element: { type: string; props: { src?: string } }) => ({
+                type: element.type,
+            }),
+        )
+        const tree = render(
+            <FastImageWithRef
+                ref={ref}
+                source={A}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />,
+            { createNodeMock: mounted },
+        )
+        // The image's <img>s.
+        const imgs = () =>
+            mounted.mock.calls.filter(
+                ([element]) => element.props.src === A.uri,
+            )
+        // The ref is the View, with reload().
+        expect(ref.current).toMatchObject({ type: 'View' })
+        act(() => {
+            images(tree)[1].props.onError({ currentTarget: {} })
+        })
+        expect(onError).toHaveBeenCalledTimes(1)
+
+        // After it failed: hidden until it loads, over defaultSource.
+        act(() => ref.current!.reload())
+        expect(imgs()).toHaveLength(2)
+        expect(onLoadStart).toHaveBeenCalledTimes(2)
+        let [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe('/assets/placeholder.png')
+        expect(image.props.src).toBe(A.uri)
+        expect(image.props.style.opacity).toBe(0)
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(1)
+        expect(images(tree)).toHaveLength(1)
+
+        // After it loaded: it stays shown, without defaultSource.
+        act(() => ref.current!.reload())
+        expect(imgs()).toHaveLength(3)
+        expect(onLoadStart).toHaveBeenCalledTimes(3)
+        ;[image] = images(tree)
+        expect(images(tree)).toHaveLength(1)
+        expect(image.props.style.opacity).toBeUndefined()
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(2)
     })
 
     it('keeps the <img> for new sizes, which the browser shows when loaded', () => {

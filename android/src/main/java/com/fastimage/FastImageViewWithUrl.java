@@ -364,6 +364,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return true;
     }
 
+    // Loads the image again, as a new source would, keeping the image showing
+    // until then (the ref's reload()). Before the first props there's nothing
+    // to load yet.
+    void reload() {
+        if (mManager == null) return;
+        mNeedsReload = true;
+        onAfterUpdate(mManager, requestManager);
+    }
+
     // Shows at once, as a new source placeholder does (see updatePlaceholder),
     // without loading the image again.
     public void setPlaceholder(@Nullable Drawable placeholder) {

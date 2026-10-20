@@ -21,6 +21,9 @@
 //               (status 200, cacheable for an hour, like a captive portal's,
 //               with an inline SVG icon, so it isn't taken for an SVG image),
 //               later ones the image.
+//   /fail-once/ The first request for a path and query fails with a 503 (not
+//               cached, like a server that's down for a moment), later ones
+//               get the image.
 //   /mislabeled/ The image, sent as `Content-Type: text/plain`.
 //
 // GET /set-cookie?run=<run> sets two cookies (`fast-image-a=<run>` and
@@ -225,6 +228,14 @@ const server = Bun.serve({
                 )
             }
             pathname = pathname.slice('/bad-once'.length)
+        } else if (pathname.startsWith('/fail-once/')) {
+            if (requests.get(key) === 1) {
+                return new Response('Service Unavailable', {
+                    status: 503,
+                    headers: { 'Cache-Control': 'no-store' },
+                })
+            }
+            pathname = pathname.slice('/fail-once'.length)
         } else if (pathname.startsWith('/mislabeled/')) {
             contentType = 'text/plain'
             pathname = pathname.slice('/mislabeled'.length)

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { PixelRatio, Platform, View } from 'react-native'
-import FastImage, { LoadResult } from 'react-native-fast-image'
+import FastImage, { FastImageRef, LoadResult } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
 import {
@@ -12,7 +12,8 @@ import {
 
 // A few cases that check FastImage works at all in an app (the Expo example,
 // ReactNativeFastImageExampleExpo, on iOS, Android and the web): an image
-// loads, a missing one fails, a bundled one loads, one of several sizes is
+// loads, a missing one fails, one that failed loads with reload(), a bundled
+// one loads, one of several sizes is
 // picked for the view, preload reports its results, and the cache methods answer (on the web, that they aren't
 // supported). The regression cases (RegressionExample.tsx) cover the rest.
 
@@ -85,6 +86,40 @@ function ErrorCase() {
                 id="smoke-error"
                 status={status}
                 description="A missing image fails: onError with a message, then onLoadEnd with ok false"
+            />
+        </View>
+    )
+}
+
+// An image whose first request fails (a 503) loads with the ref's reload().
+function ReloadCase() {
+    const image = useRef<FastImageRef>(null)
+    const [status, setStatus] = useState('loading')
+    const failed = useRef(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `fail-once/picsum/1025-200x200.jpg?smoke-reload=${RUN}`,
+                    ),
+                }}
+                onError={() => {
+                    if (failed.current) return setStatus('failed again')
+                    failed.current = true
+                    if (!image.current?.reload) return setStatus('no reload()')
+                    image.current.reload()
+                }}
+                onLoad={() =>
+                    setStatus(failed.current ? 'OK' : 'loaded without failing')
+                }
+            />
+            <CaseStatus
+                id="smoke-reload"
+                status={status}
+                description="An image whose first request fails loads with reload()"
             />
         </View>
     )
@@ -628,6 +663,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
         cases: [
             <LoadCase key="load" />,
             <ErrorCase key="error" />,
+            <ReloadCase key="reload" />,
             <BundledCase key="bundled" />,
             <SizesCase key="sizes" />,
             <PreloadCase key="preload" />,
