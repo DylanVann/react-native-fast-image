@@ -628,8 +628,6 @@ function PreloadHeadersCase() {
 // show in the screenshots.
 LogBox.ignoreLogs([
     "Deep imports from the 'react-native' package are deprecated ('react-native/Libraries/Core/RawEventEmitter')",
-    // The react-native-reload case's warning, which would cover later cases.
-    "react-native-fast-image: `cache: 'reload'`",
 ])
 const RawEventEmitter: {
     addListener(
