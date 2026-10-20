@@ -388,6 +388,17 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     }
 }
 
+// The view's commands (reload), from the ref's methods.
+- (void)handleCommand:(const NSString *)commandName args:(const NSArray *)args
+{
+    RCTFastImageViewHandleCommand(self, commandName, args);
+}
+
+- (void)reload
+{
+    [_imageView reload];
+}
+
 // React Native makes the image view's mask again when the appearance changes
 // (as after an update): where objectPosition moved the view, it moves back.
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection

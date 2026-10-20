@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { PixelRatio, Platform, View } from 'react-native'
-import FastImage, { LoadResult } from 'react-native-fast-image'
+import FastImage, { FastImageRef, LoadResult } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
 import {
@@ -12,7 +12,8 @@ import {
 
 // A few cases that check FastImage works at all in an app (the Expo example,
 // ReactNativeFastImageExampleExpo, on iOS, Android and the web): an image
-// loads, a missing one fails, a bundled one loads, one of several sizes is
+// loads, a missing one fails, one that failed loads with reload(), a bundled
+// one loads, one of several sizes is
 // picked for the view, preload reports its results, and the cache methods answer (on the web, that they aren't
 // supported). The regression cases (RegressionExample.tsx) cover the rest.
 
@@ -85,6 +86,92 @@ function ErrorCase() {
                 id="smoke-error"
                 status={status}
                 description="A missing image fails: onError with a message, then onLoadEnd with ok false"
+            />
+        </View>
+    )
+}
+
+// An image whose first request fails (a 503) loads with the ref's reload().
+function ReloadCase() {
+    const image = useRef<FastImageRef>(null)
+    const [status, setStatus] = useState('loading')
+    const failed = useRef(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `fail-once/picsum/1025-200x200.jpg?smoke-reload=${RUN}`,
+                    ),
+                }}
+                onError={() => {
+                    if (failed.current) return setStatus('failed again')
+                    failed.current = true
+                    if (!image.current?.reload) return setStatus('no reload()')
+                    image.current.reload()
+                }}
+                onLoad={() =>
+                    setStatus(failed.current ? 'OK' : 'loaded without failing')
+                }
+            />
+            <CaseStatus
+                id="smoke-reload"
+                status={status}
+                description="An image whose first request fails loads with reload()"
+            />
+        </View>
+    )
+}
+
+// A url placeholder that failed is requested again by reload(), with the
+// image.
+const RELOAD_PLACEHOLDER_PATH = `/fail-once/picsum/1025-200x200.jpg?smoke-reload-placeholder=${RUN}`
+function ReloadPlaceholderCase() {
+    const image = useRef<FastImageRef>(null)
+    const [status, setStatus] = useState('loading')
+    const failed = useRef(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                ref={image}
+                style={styles.image}
+                source={{
+                    uri: imageUrl(
+                        `fail-once/picsum/1025-200x200.jpg?smoke-reload-image=${RUN}`,
+                    ),
+                }}
+                placeholder={{
+                    uri: imageUrl(RELOAD_PLACEHOLDER_PATH.slice(1)),
+                }}
+                onError={() => {
+                    if (failed.current) return setStatus('failed again')
+                    failed.current = true
+                    if (!image.current?.reload) return setStatus('no reload()')
+                    image.current.reload()
+                }}
+                onLoad={() =>
+                    fetch(
+                        imageUrl(
+                            `requests?path=${encodeURIComponent(RELOAD_PLACEHOLDER_PATH)}`,
+                        ),
+                    )
+                        .then((response) => response.json())
+                        .then((json: { count: number }) =>
+                            setStatus(
+                                json.count === 2
+                                    ? 'OK'
+                                    : `placeholder requested ${json.count} times`,
+                            ),
+                        )
+                        .catch((e) => setStatus(`error: ${e}`))
+                }
+            />
+            <CaseStatus
+                id="smoke-reload-placeholder"
+                status={status}
+                description="A url placeholder that failed is requested again with reload()"
             />
         </View>
     )
@@ -628,21 +715,28 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
         cases: [
             <LoadCase key="load" />,
             <ErrorCase key="error" />,
+            <ReloadCase key="reload" />,
             <BundledCase key="bundled" />,
             <SizesCase key="sizes" />,
             <PreloadCase key="preload" />,
             <CachePathCase key="cache-path" />,
             ...(Platform.OS === 'web'
-                ? [
-                      <SizesChangeCase key="sizes-change" />,
-                      <PlaceholderCase key="placeholder" />,
-                      <BlurDataUriCase key="blur-data-uri" />,
-                  ]
+                ? []
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
     ...(Platform.OS === 'web'
-        ? []
+        ? [
+              {
+                  name: 'smoke-web',
+                  cases: [
+                      <SizesChangeCase key="sizes-change" />,
+                      <PlaceholderCase key="placeholder" />,
+                      <ReloadPlaceholderCase key="reload-placeholder" />,
+                      <BlurDataUriCase key="blur-data-uri" />,
+                  ],
+              },
+          ]
         : [
               {
                   name: 'smoke-glide',

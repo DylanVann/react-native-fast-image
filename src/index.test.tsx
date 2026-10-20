@@ -18,7 +18,12 @@ import {
     spyOn,
 } from 'bun:test'
 import renderer from '../test/render'
-import FastImage, { FastImageBackground, FastImageProps } from './index'
+import FastImage, {
+    FastImageBackground,
+    FastImageProps,
+    type FastImageRef,
+} from './index'
+import { commands } from '../test/react-native'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -574,7 +579,7 @@ describe('placeholder', () => {
 
 describe('ref', () => {
     it("is FastImage's view", () => {
-        const ref = React.createRef<View>()
+        const ref = React.createRef<FastImageRef>()
         const tree = renderer.create(
             <FastImage
                 ref={ref}
@@ -586,12 +591,65 @@ describe('ref', () => {
         )
         expect(tree.toJSON()).not.toBeNull()
         // The native view itself: FastImage has no wrapper.
-        expect(ref.current).toEqual({ type: 'FastImageView' } as any)
-        // Typed as the view, with its methods (a type check: the view here
-        // is a stand-in).
-        const measure = (view: React.ComponentRef<typeof FastImage>) =>
+        expect(ref.current).toMatchObject({ type: 'FastImageView' })
+        // Typed as the view, with its methods and reload() (a type check:
+        // the view here is a stand-in).
+        const use = (view: React.ComponentRef<typeof FastImage>) => {
             view.measure(() => {})
-        expect(typeof measure).toBe('function')
+            view.reload()
+        }
+        expect(typeof use).toBe('function')
+    })
+})
+
+describe('reload', () => {
+    afterEach(() => {
+        commands.length = 0
+    })
+
+    it("is on the ref's view, and sends the native view the command", () => {
+        const ref = React.createRef<FastImageRef>()
+        renderer.create(
+            <FastImage
+                ref={ref}
+                source={{ uri: 'https://example.com/a.png' }}
+            />,
+            // Host refs are null without a node.
+            { createNodeMock: (element) => ({ type: element.type }) },
+        )
+        ref.current!.reload()
+        expect(commands).toEqual([{ name: 'reload', view: ref.current }])
+    })
+
+    it('is on the view a ref callback gets, which gets null after', () => {
+        const views: (FastImageRef | null)[] = []
+        const tree = renderer.create(
+            <FastImage
+                ref={(view: FastImageRef | null) => {
+                    views.push(view)
+                }}
+                source={{ uri: 'https://example.com/a.png' }}
+            />,
+            { createNodeMock: (element) => ({ type: element.type }) },
+        )
+        views[0]!.reload()
+        expect(commands).toEqual([{ name: 'reload', view: views[0] }])
+        act(() => tree.unmount())
+        expect(views).toHaveLength(2)
+        expect(views[1]).toBeNull()
+    })
+
+    it("is on FastImageBackground's image (imageRef)", () => {
+        const imageRef = React.createRef<FastImageRef>()
+        renderer.create(
+            <FastImageBackground
+                imageRef={imageRef}
+                source={{ uri: 'https://example.com/a.png' }}
+            />,
+            { createNodeMock: (element) => ({ type: element.type }) },
+        )
+        imageRef.current!.reload()
+        expect(commands).toEqual([{ name: 'reload', view: imageRef.current }])
     })
 })
 

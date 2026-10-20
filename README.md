@@ -101,7 +101,7 @@ const YourImage = () => (
 
 ### `FastImage`
 
-It's a single native view, which also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
+It's a single native view, which also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`), with [`reload()`](#refreload). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
@@ -537,6 +537,27 @@ If supplied, changes the color of all the non-transparent pixels to the given co
 
 <!-- api:props end -->
 
+---
+
+#### `ref.reload()`
+
+Loads the image again, e.g. to try again after `onError`. The image showing stays until the new one has loaded (or the placeholder, if it failed), and the events are sent as for a new source. An image in the cache loads from it. In TypeScript, the ref's type is `FastImageRef`.
+
+```tsx
+const image = useRef<FastImageRef>(null)
+
+<FastImage ref={image} source={{ uri }} onError={() => setFailed(true)} />
+{failed && (
+    <Button
+        title="Try again"
+        onPress={() => {
+            setFailed(false)
+            image.current?.reload()
+        }}
+    />
+)}
+```
+
 ### `FastImageBackground`
 
 An image with content on top of it: a view that the image fills, with the children on top.
@@ -577,7 +598,7 @@ The image's style.
 
 #### `imageRef`
 
-**Type:** `Ref<any>`
+**Type:** `Ref<FastImageRef>`
 
 A ref to the image (the FastImage inside).
 

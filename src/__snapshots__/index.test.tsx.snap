@@ -10,6 +10,7 @@ exports[`FastImage (iOS) renders 1`] = `
   objectPositionY={0.5}
   objectPositionYOffset={0}
   placeholder={null}
+  ref={[Function anonymous]}
   source={
     {
       "headers": {
@@ -46,6 +47,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
   objectPositionY={0.5}
   objectPositionYOffset={0}
   placeholder={null}
+  ref={[Function anonymous]}
   source={
     {
       "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
@@ -82,6 +84,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
       "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
     }
   }
+  ref={[Function anonymous]}
   source={null}
   style={
     [
@@ -109,6 +112,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  ref={[Function anonymous]}
   source={null}
   style={
     [
@@ -136,6 +140,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
+  ref={[Function anonymous]}
   source={
     {
       "uri": "https://www.google.com/image_does_not_exist.png",
@@ -168,6 +173,7 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
   objectPositionY={0.5}
   objectPositionYOffset={0}
   placeholder={null}
+  ref={[Function anonymous]}
   source={null}
   style={
     [

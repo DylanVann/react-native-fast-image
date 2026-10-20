@@ -1047,6 +1047,11 @@ NSString *FFFErrorMessage(NSError *error)
     }
 }
 
+- (void) reload {
+    _needsReload = YES;
+    [self didSetProps];
+}
+
 // The same image decoded again for a dynamicRangeLimit between HDR and SDR,
 // as a resize is (reloadIfResized): without events once it has loaded, and
 // the image showing stays if the load fails. A display setting shouldn't

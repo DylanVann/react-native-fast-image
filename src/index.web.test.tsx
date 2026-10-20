@@ -5,7 +5,7 @@ import renderer, { act } from 'react-test-renderer'
 // The stand-in for react-native-web's asset registry (test/setup.ts).
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
-import FastImage, { FastImageBackground } from './index.web'
+import FastImage, { FastImageBackground, type FastImageRef } from './index.web'
 // Imported: the web version shows thumbhashes only with it.
 import { thumbHashToBlurDataUri } from './thumbhash'
 
@@ -27,6 +27,15 @@ const images = (tree: renderer.ReactTestRenderer) => hosts(tree, 'img')
 const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 10))
 
 const A = { uri: 'https://example.com/a.jpg' }
+
+// Render options that count the <img>s mounted (for their refs).
+function countingImgs() {
+    const createNodeMock = mock((_element: { type: string }) => ({}))
+    const count = () =>
+        createNodeMock.mock.calls.filter(([element]) => element.type === 'img')
+            .length
+    return { createNodeMock, count }
+}
 
 describe('FastImage (web)', () => {
     it('renders the image in an <img>, in a View with the View props', () => {
@@ -402,14 +411,13 @@ describe('FastImage (web)', () => {
     it('loads each new image in a new <img>, with onLoadStart', async () => {
         const onLoadStart = mock()
         const onLoad = mock()
-        // Called for each <img> mounted (for its ref).
-        const mounted = mock(() => ({}))
+        const imgs = countingImgs()
         const tree = render(
             <FastImage source={A} onLoadStart={onLoadStart} onLoad={onLoad} />,
-            { createNodeMock: mounted },
+            imgs,
         )
         const firstLoad = images(tree)[0].props.onLoad
-        expect(mounted).toHaveBeenCalledTimes(1)
+        expect(imgs.count()).toBe(1)
         expect(onLoadStart).toHaveBeenCalledTimes(1)
         // The same image: nothing new.
         act(() => {
@@ -421,7 +429,7 @@ describe('FastImage (web)', () => {
                 />,
             )
         })
-        expect(mounted).toHaveBeenCalledTimes(1)
+        expect(imgs.count()).toBe(1)
         expect(onLoadStart).toHaveBeenCalledTimes(1)
         act(() => {
             tree.update(
@@ -432,7 +440,7 @@ describe('FastImage (web)', () => {
                 />,
             )
         })
-        expect(mounted).toHaveBeenCalledTimes(2)
+        expect(imgs.count()).toBe(2)
         expect(onLoadStart).toHaveBeenCalledTimes(2)
         expect(images(tree)[0].props.src).toBe('https://example.com/b.jpg')
         // The replaced image's load doesn't count.
@@ -443,12 +451,79 @@ describe('FastImage (web)', () => {
         expect(onLoad).not.toHaveBeenCalled()
     })
 
+    it('loads the image again in a new <img> with reload(), with its events', async () => {
+        const onLoadStart = mock()
+        const onLoad = mock()
+        const onError = mock()
+        const ref = React.createRef<FastImageRef>()
+        // Called for each host element mounted with a ref.
+        const mounted = mock(
+            (element: { type: string; props: { src?: string } }) => ({
+                type: element.type,
+            }),
+        )
+        const tree = render(
+            <FastImage
+                ref={ref}
+                source={A}
+                defaultSource={{ uri: '/assets/placeholder.png' } as any}
+                onLoadStart={onLoadStart}
+                onLoad={onLoad}
+                onError={onError}
+            />,
+            { createNodeMock: mounted },
+        )
+        // The image's <img>s.
+        const imgs = () =>
+            mounted.mock.calls.filter(
+                ([element]) => element.props.src === A.uri,
+            )
+        // The ref is the View, with reload().
+        expect(ref.current).toMatchObject({ type: 'View' })
+        act(() => {
+            images(tree)[1].props.onError({ currentTarget: {} })
+        })
+        expect(onError).toHaveBeenCalledTimes(1)
+
+        // After it failed: hidden until it loads, over defaultSource.
+        act(() => ref.current!.reload())
+        expect(imgs()).toHaveLength(2)
+        expect(onLoadStart).toHaveBeenCalledTimes(2)
+        let [placeholder, image] = images(tree)
+        expect(placeholder.props.src).toBe('/assets/placeholder.png')
+        expect(image.props.src).toBe(A.uri)
+        expect(image.props.style.opacity).toBe(0)
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(1)
+        expect(images(tree)).toHaveLength(1)
+
+        // After it loaded: it stays shown, without defaultSource.
+        act(() => ref.current!.reload())
+        expect(imgs()).toHaveLength(3)
+        expect(onLoadStart).toHaveBeenCalledTimes(3)
+        ;[image] = images(tree)
+        expect(images(tree)).toHaveLength(1)
+        expect(image.props.style.opacity).toBeUndefined()
+        act(() => {
+            image.props.onLoad({
+                currentTarget: { naturalWidth: 4, naturalHeight: 3 },
+            })
+        })
+        await act(settled)
+        expect(onLoad).toHaveBeenCalledTimes(2)
+    })
+
     it('keeps the <img> for new sizes, which the browser shows when loaded', () => {
         const onLoadStart = mock()
-        const mounted = mock(() => ({}))
+        const imgs = countingImgs()
         const tree = render(
             <FastImage source={sizes} onLoadStart={onLoadStart} />,
-            { createNodeMock: mounted },
+            imgs,
         )
         act(() => {
             tree.update(
@@ -461,7 +536,7 @@ describe('FastImage (web)', () => {
                 />,
             )
         })
-        expect(mounted).toHaveBeenCalledTimes(1)
+        expect(imgs.count()).toBe(1)
         expect(onLoadStart).toHaveBeenCalledTimes(2)
         expect(images(tree)[0].props.src).toBe('https://example.com/450.png?b')
     })

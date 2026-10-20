@@ -23,6 +23,7 @@ import React, {
     useEffect,
     useId,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react'
@@ -37,12 +38,14 @@ import {
     hasSourcePlaceholder,
     placeholderSource,
 } from './placeholders'
+import { composeRefs } from './composeRefs'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
     CacheState,
     FastImageBackgroundProps,
     FastImageProps,
+    FastImageRef,
     FastImageStaticProperties,
     ObjectFit,
     PreloadResult,
@@ -126,6 +129,17 @@ function FastImageBase({
     // one doesn't stay while it loads; with several sizes, the <img> stays,
     // and the browser shows the previous image until the new one has loaded.
     const key = srcSet ?? src
+    // Counts the ref's reload() calls: each gives the image a new <img>, which
+    // the browser loads again (as a new view would). The image showing stays
+    // (it has loaded), or stays hidden (it failed), until then.
+    const [reloads, setReloads] = useState(0)
+    const ref = useMemo(
+        () =>
+            composeRefs((view: FastImageRef | null) => {
+                if (view) view.reload = () => setReloads((count) => count + 1)
+            }, forwardedRef),
+        [forwardedRef],
+    )
     const priority = sourcePriority(source)
     // The source's blurDataUri, or its ThumbHash made into one (with
     // `react-native-fast-image/thumbhash`), shows blurred (see PreviewBlur)
@@ -140,6 +154,8 @@ function FastImageBase({
     // placeholders as it loads, as on iOS and Android. The browser loads it
     // like any image: it can't look in its cache only (cache: 'cacheOnly').
     const urlPlaceholder = placeholderSource(placeholder)?.uri
+    // reload() gives it a new <img> too, so one that failed is asked for again.
+    const placeholderKey = `${urlPlaceholder} ${reloads}`
     const [failedPlaceholder, setFailedPlaceholder] = useState<string>()
     // defaultSource only shows without `placeholder`, as on iOS and Android,
     // or in place of a thumbhash or blurDataUri the web can't show (one of
@@ -179,7 +195,7 @@ function FastImageBase({
         if (key) onLoadStart?.()
         // Once per image the browser is asked for.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key])
+    }, [key, reloads])
 
     return (
         <View
@@ -188,7 +204,7 @@ function FastImageBase({
             style={[styles.container, style]}
             onLayout={onLayout}
             pointerEvents={pointerEvents}
-            ref={forwardedRef}
+            ref={ref}
         >
             {defaultUri && showDefault ? (
                 <Picture
@@ -226,7 +242,7 @@ function FastImageBase({
             ) : null}
             {urlPlaceholder && showDefault ? (
                 <Picture
-                    key={`placeholder ${urlPlaceholder}`}
+                    key={`placeholder ${placeholderKey}`}
                     src={urlPlaceholder}
                     loading={loading}
                     // It only helps if it comes before the image, as on iOS
@@ -241,14 +257,14 @@ function FastImageBase({
                     // Tinted, not blurred, as on iOS and Android.
                     filter={tintColor ? `url(#${tintId})` : undefined}
                     // Nothing (no broken image icon) if it fails.
-                    hidden={failedPlaceholder === urlPlaceholder}
-                    onError={() => setFailedPlaceholder(urlPlaceholder)}
+                    hidden={failedPlaceholder === placeholderKey}
+                    onError={() => setFailedPlaceholder(placeholderKey)}
                     alt=""
                 />
             ) : null}
             {key && src ? (
                 <Picture
-                    key={several ? 'sizes' : key}
+                    key={`${several ? 'sizes' : key} ${reloads}`}
                     src={src}
                     srcSet={srcSet}
                     sizes={sizes}
@@ -653,11 +669,15 @@ const tintStyle = {
 
 const FastImageMemo = memo(FastImageBase)
 
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
-)
+// What a ref to FastImageBackground gets, as in index.tsx: a View's
+// (react-native-web's element). FastImage's has reload() too (FastImageRef).
+type ViewRef = React.ComponentRef<typeof View>
+
+const FastImageComponent: React.ForwardRefExoticComponent<
+    FastImageProps & React.RefAttributes<FastImageRef>
+> = forwardRef((props: FastImageProps, ref: React.Ref<FastImageRef>) => (
+    <FastImageMemo forwardedRef={ref} {...props} />
+))
 
 FastImageComponent.displayName = 'FastImage'
 
@@ -672,7 +692,9 @@ function getSize(uri: string) {
     })
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
+const FastImage: React.ForwardRefExoticComponent<
+    FastImageProps & React.RefAttributes<FastImageRef>
+> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.cacheControl = cacheControl
@@ -720,33 +742,29 @@ const styles = StyleSheet.create({
     },
 })
 
-// FastImage forwards its ref, which its type doesn't say.
-const FastImageWithRef = FastImageComponent as React.ComponentType<
-    FastImageProps & { ref?: React.Ref<any> }
->
-
-export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> =
-    forwardRef(
-        (
-            {
-                style,
-                imageStyle,
-                imageRef,
-                children,
-                ...props
-            }: FastImageBackgroundProps,
-            ref: React.Ref<any>,
-        ) => (
-            <View style={style} ref={ref}>
-                <FastImageWithRef
-                    {...props}
-                    style={[StyleSheet.absoluteFill, imageStyle]}
-                    ref={imageRef}
-                />
-                {children}
-            </View>
-        ),
-    )
+export const FastImageBackground: React.ForwardRefExoticComponent<
+    FastImageBackgroundProps & React.RefAttributes<ViewRef>
+> = forwardRef(
+    (
+        {
+            style,
+            imageStyle,
+            imageRef,
+            children,
+            ...props
+        }: FastImageBackgroundProps,
+        ref: React.Ref<ViewRef>,
+    ) => (
+        <View style={style} ref={ref}>
+            <FastImageComponent
+                {...props}
+                style={[StyleSheet.absoluteFill, imageStyle]}
+                ref={imageRef}
+            />
+            {children}
+        </View>
+    ),
+)
 
 FastImageBackground.displayName = 'FastImageBackground'
 

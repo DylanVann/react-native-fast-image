@@ -14,7 +14,7 @@ import {
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
-import FastImageView from './specs/FastImageViewNativeComponent'
+import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
 import {
     dataUri,
@@ -22,6 +22,7 @@ import {
     isImageName,
     placeholderSource,
 } from './placeholders'
+import { composeRefs } from './composeRefs'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -920,11 +921,15 @@ function FastImageBase({
             : resolvePlaceholder(defaultSource)
         : (placeholderSource(placeholder) ??
           resolvePlaceholder(placeholder ?? defaultSource))
+    const ref = useMemo(
+        () => composeRefs<FastImageRef>(addReload, forwardedRef),
+        [forwardedRef],
+    )
 
     return (
         <FastImageView
             {...props}
-            ref={forwardedRef}
+            ref={ref}
             // Clips the image to borderRadius by default, as React Native's
             // Image does.
             style={[styles.image, style]}
@@ -967,19 +972,37 @@ function FastImageBase({
     )
 }
 
+// The ref is the native view, with reload() added, as React Native's
+// TextInput adds its methods to its native view.
+function addReload(view: FastImageRef | null) {
+    if (view) view.reload = () => Commands.reload(view as any)
+}
+
 const FastImageMemo = memo(FastImageBase)
 
-// What a ref to FastImage or FastImageBackground gets: FastImage's native
-// view, or FastImageBackground's view. Typed as a View's (they have the same
-// methods, e.g. measure). ComponentRef, as
-// React Native's types declare View as a class, and its Strict TypeScript API
-// (opt-in from 0.80, the default from 0.87) as a function component that takes
-// a ref.
+// What a ref to FastImageBackground gets (its view), and, with reload(), one
+// to FastImage (its native view, which has the same methods, e.g. measure).
+// ComponentRef, as React Native's types declare View as a class, and its
+// Strict TypeScript API (opt-in from 0.80, the default from 0.87) as a
+// function component that takes a ref.
 type ViewRef = React.ComponentRef<typeof View>
 
+/**
+ * What a ref to `FastImage` gets: its native view, with a View's methods
+ * (e.g. `measure`), and `reload()`. E.g. `useRef<FastImageRef>(null)`.
+ */
+export type FastImageRef = ViewRef & {
+    /**
+     * Loads the image again, e.g. to try again after `onError`. The image
+     * showing stays until the new one has loaded, and the events are sent as
+     * for a new source. An image in the cache loads from it.
+     */
+    reload(): void
+}
+
 const FastImageComponent: React.ForwardRefExoticComponent<
-    FastImageProps & React.RefAttributes<ViewRef>
-> = forwardRef((props: FastImageProps, ref: React.Ref<ViewRef>) => (
+    FastImageProps & React.RefAttributes<FastImageRef>
+> = forwardRef((props: FastImageProps, ref: React.Ref<FastImageRef>) => (
     <FastImageMemo forwardedRef={ref} {...props} />
 ))
 
@@ -1112,7 +1135,7 @@ export interface FastImageDefaults {
 }
 
 const FastImage: React.ForwardRefExoticComponent<
-    FastImageProps & React.RefAttributes<ViewRef>
+    FastImageProps & React.RefAttributes<FastImageRef>
 > &
     FastImageStaticProperties = FastImageComponent as any
 
@@ -1223,7 +1246,7 @@ export interface FastImageBackgroundProps extends Omit<
     /** The image's style. */
     imageStyle?: StyleProp<ImageStyle>
     /** A ref to the image (the FastImage inside). */
-    imageRef?: React.Ref<any>
+    imageRef?: React.Ref<FastImageRef>
     /** Content shown on top of the image. */
     children?: React.ReactNode
 }
