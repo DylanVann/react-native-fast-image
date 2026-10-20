@@ -1,3 +1,10 @@
+# [10.7.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.6.0...v10.7.0) (2026-10-20)
+
+
+### Features
+
+* reload() on the ref loads the image again ([8b7933f](https://github.com/DylanVann/react-native-fast-image/commit/8b7933f5b343ecd40d8d28d21fd7fb287762f220)), closes [#204](https://github.com/DylanVann/react-native-fast-image/issues/204)
+
 # [10.6.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.5.0...v10.6.0) (2026-10-19)
 
 
