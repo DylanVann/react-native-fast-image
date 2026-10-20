@@ -40,6 +40,10 @@ const bySource = (a: J.Reflection, b: J.Reflection) =>
     (a.sources?.[0]?.line ?? 0) - (b.sources?.[0]?.line ?? 0) ||
     (a.sources?.[0]?.character ?? 0) - (b.sources?.[0]?.character ?? 0)
 
+// Types the docs show as another: a view's source is a Source (React Native's
+// cache values, which it also takes, aren't documented).
+const SHOWN_AS: Record<string, string> = { ViewSource: 'Source' }
+
 function typeToString(t: J.SomeType | undefined): string {
     if (!t) return 'unknown'
     switch (t.type) {
@@ -51,7 +55,7 @@ function typeToString(t: J.SomeType | undefined): string {
                 : String(t.value)
         case 'reference':
             return (
-                t.name +
+                (SHOWN_AS[t.name] ?? t.name) +
                 (t.typeArguments
                     ? `<${t.typeArguments.map(typeToString).join(', ')}>`
                     : '')

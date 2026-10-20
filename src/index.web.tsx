@@ -28,6 +28,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
+import { fromReactNativeCache } from './reactNativeCache'
 import type {
     CachePathResult,
     CacheState,
@@ -100,6 +101,9 @@ function FastImageBase({
         ...viewProps
     } = props as typeof props & { 'aria-label'?: string }
     const label = ariaLabel || accessibilityLabel || undefined
+    // React Native's cache: 'reload' warns as on native. The browser caches
+    // the images, so source.cache isn't used otherwise.
+    for (const entry of [source].flat()) fromReactNativeCache(entry)
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
     const sized = several ? sizedSources(several) : undefined
@@ -240,7 +244,7 @@ type PackagerAsset = {
 // only applies to lazy images, and browsers without it use the next value,
 // 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
-function sizedSources(sources: Source[]) {
+function sizedSources(sources: Pick<Source, 'uri' | 'width' | 'scale'>[]) {
     const widths = sources
         .filter((source) => source?.uri && source.width)
         .map((source) => ({

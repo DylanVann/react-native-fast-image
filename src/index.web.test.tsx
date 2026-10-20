@@ -1,11 +1,12 @@
 import { Image, Text } from 'react-native'
 import React from 'react'
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, spyOn } from 'bun:test'
 import renderer, { act } from 'react-test-renderer'
 // The stand-in for react-native-web's asset registry (test/setup.ts).
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground } from './index.web'
+import { resetReloadWarning } from './reactNativeCache'
 
 // Renders with effects run, as in a browser.
 function render(element: React.ReactElement, options?: any) {
@@ -25,6 +26,22 @@ const images = (tree: renderer.ReactTestRenderer) => hosts(tree, 'img')
 const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 10))
 
 const A = { uri: 'https://example.com/a.jpg' }
+
+describe("React Native's source.cache values", () => {
+    it("warns once for 'reload'", () => {
+        resetReloadWarning()
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            render(<FastImage source={{ ...A, cache: 'reload' }} />)
+            render(<FastImage source={[{ ...A, cache: 'reload' }]} />)
+            render(<FastImage source={{ ...A, cache: 'force-cache' }} />)
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
+        } finally {
+            warn.mockRestore()
+        }
+    })
+})
 
 describe('FastImage (web)', () => {
     it('renders the image in an <img>, in a View with the View props', () => {

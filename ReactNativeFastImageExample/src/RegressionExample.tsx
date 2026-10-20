@@ -9,6 +9,7 @@ import React, {
 import {
     AppState,
     Image,
+    LogBox,
     NativeModules,
     PixelRatio,
     Platform,
@@ -580,6 +581,9 @@ function PreloadCase() {
 // isn't checked here: preload doesn't report when it's done.) The url is new
 // each launch, since the disk cache would otherwise have it from the last run.
 const RUN = Date.now()
+
+// The react-native-reload case's warning, which would cover later cases.
+LogBox.ignoreLogs(["react-native-fast-image: `cache: 'reload'`"])
 const PRIVATE = imageUrl(`private/picsum/1021-120x120.jpg?run=${RUN}`)
 const NO_TOKEN = imageUrl(`no-token/picsum/1022-120x120.jpg?run=${RUN}`)
 function PreloadHeadersCase() {
@@ -7121,10 +7125,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="unknown-cache"
                 id="unknown-cache"
-                description="An unknown source.cache (React Native's 'reload') loads as the default"
+                description="An unknown source.cache loads as the default"
                 event="onLoad"
                 // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 'sometimes' }}
+            />,
+            <EventCase
+                key="react-native-reload"
+                id="react-native-reload"
+                description="React Native's cache 'reload' loads as the default"
+                event="onLoad"
                 source={{ uri: LOGO, cache: 'reload' }}
+            />,
+            <EventCase
+                key="only-if-cached-miss"
+                id="only-if-cached-miss"
+                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached gets onError"
+                event="onError"
+                source={{
+                    uri: imageUrl(
+                        `picsum/1025-200x200.jpg?only-if-cached=${RUN}`,
+                    ),
+                    cache: 'only-if-cached',
+                }}
             />,
             <EventCase
                 key="unknown-priority"

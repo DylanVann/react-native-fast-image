@@ -1,4 +1,4 @@
-import React, { forwardRef, memo, useRef } from 'react'
+import React, { forwardRef, memo, useMemo, useRef } from 'react'
 import {
     ColorValue,
     View,
@@ -15,6 +15,7 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import { fromReactNativeCache, type ReactNativeCache } from './reactNativeCache'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -116,6 +117,14 @@ export type Source = {
     /** With several sources, the scale `width` and `height` are multiplied by. */
     scale?: number
 }
+
+// What the views' `source` takes: a Source, or one with React Native's cache
+// values (see reactNativeCache.ts), so a React Native `ImageURISource` works as
+// it is. Only the views: preload, getCachePath and writeToCache take Fast
+// Image's values.
+type ViewSource =
+    | Source
+    | (Omit<Source, 'cache'> & { cache?: ReactNativeCache })
 
 /** How the image fades in: see [`transition`](#transition). */
 export type Transition = {
@@ -296,7 +305,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `{ ok: false, error }`.
      * - An array of one is the same as that source.
      */
-    source?: Source | Source[] | ImageRequireSource
+    source?: ViewSource | ViewSource[] | ImageRequireSource
     /**
      * An asset loaded with `require(...)`, shown while the first image loads,
      * and if an image fails to load. When `source` changes, the previous image
@@ -672,7 +681,7 @@ function transitionProps(transition: FastImageProps['transition']) {
 }
 
 // A copy of the source without `cache`.
-function withoutCache(source: Source | undefined) {
+function withoutCache(source: ViewSource | undefined) {
     const { cache: _cache, ...rest } = source || {}
     return rest
 }
@@ -736,6 +745,16 @@ function FastImageBase({
     // React Native's Image (fallback) calls onLoadEnd without the result: take
     // it from the onLoad or onError just before.
     const fallbackResult = useRef<LoadResult | undefined>(undefined)
+    // React Native's 'only-if-cached' as 'cacheOnly' (native loads its other
+    // values as the default). Memoized on source, so an unchanged array of
+    // sources reaches the native view as the same array.
+    const viewSource = useMemo(
+        () =>
+            Array.isArray(source)
+                ? source.map(fromReactNativeCache)
+                : fromReactNativeCache(source),
+        [source],
+    )
     const wrapperProps = {
         onLayout,
         onClick,
@@ -848,12 +867,12 @@ function FastImageBase({
 
     // Several sources are picked from natively, for the view's size; one in
     // an array is a plain source.
-    const sources = Array.isArray(source)
-        ? source.length === 1
+    const sources = Array.isArray(viewSource)
+        ? viewSource.length === 1
             ? undefined
-            : source
+            : viewSource
         : undefined
-    const single = Array.isArray(source) ? source[0] : source
+    const single = Array.isArray(viewSource) ? viewSource[0] : viewSource
     const resolvedSource = sources
         ? undefined
         : Image.resolveAssetSource(single as any)

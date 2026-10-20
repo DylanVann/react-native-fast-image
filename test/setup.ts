@@ -32,3 +32,6 @@ plugin({
         }))
     },
 })
+
+// React Native's development flag, as its Jest preset sets it.
+;(globalThis as { __DEV__?: boolean }).__DEV__ = true
