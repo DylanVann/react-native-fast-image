@@ -5367,6 +5367,47 @@ function PreloadResultsCase() {
     )
 }
 
+// Preloads sources with a cache or priority value Fast Image doesn't know
+// (React Native's cache: 'reload', a number): each loads with the default.
+// Android threw for them.
+const PRELOAD_UNKNOWN_RUN = `unknown-values=${RUN}`
+function PreloadUnknownValuesCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload(
+            [
+                { cache: 'reload' },
+                { priority: 'urgent' },
+                { cache: 1, priority: true },
+            ].map((values, i) => ({
+                uri: imageUrl(
+                    `picsum/1025-200x200.jpg?${PRELOAD_UNKNOWN_RUN}&n=${i}`,
+                ),
+                ...values,
+            })) as unknown as Source[],
+        ).then(
+            (results) => {
+                const got = results
+                    .map((r) => (r.ok ? `${r.width}x${r.height}` : 'failed'))
+                    .join(', ')
+                const expected = '200x200, 200x200, 200x200'
+                setStatus(got === expected ? 'OK' : got)
+            },
+            (error) => setStatus(`rejected: ${error}`),
+        )
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="preload-unknown-values"
+                status={status}
+                description="preload loads sources with an unknown cache or priority"
+            />
+        </View>
+    )
+}
+
 // preload with a url string (or a number) where a source object goes, e.g.
 // preload(['https://…']) instead of preload([{ uri }]): the entry resolves not
 // ok, as a source without a uri, in its place among the results. Native read
@@ -8840,6 +8881,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 // @ts-expect-error not one of Fast Image's values
                 source={{ uri: LOGO, priority: 'urgent' }}
             />,
+            <EventCase
+                key="non-string-cache"
+                id="non-string-cache"
+                description="A source.cache that isn't a string loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 1 }}
+            />,
             <NoHandlersCase key="no-handlers" />,
         ],
     },
@@ -9291,6 +9340,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
             <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+            <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },
     {
