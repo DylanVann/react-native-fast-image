@@ -5,6 +5,7 @@ import {
     NativeModules,
     TurboModuleRegistry,
     View,
+    type ImageURISource,
 } from 'react-native'
 import React from 'react'
 import { act } from 'react-test-renderer'
@@ -778,6 +779,61 @@ describe('source.memoryCache', () => {
             )
             .root.findAll((node) => node.type === ('FastImageView' as any))
         expect(view.props.source.memoryCache).toBe(false)
+    })
+})
+
+describe("React Native's source.cache values", () => {
+    const nativeSource = (source: FastImageProps['source']) =>
+        renderer
+            .create(<FastImage source={source} />)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props.source
+    const uri = 'https://example.com/a.jpg'
+
+    it("takes React Native's ImageURISource on the views only", () => {
+        const source: ImageURISource = { uri, cache: 'force-cache' }
+        expect(nativeSource(source)).toEqual({ uri })
+        // preload, getCachePath and writeToCache take Fast Image's values.
+        const preload = () =>
+            // @ts-expect-error React Native's cache values are only for views
+            FastImage.preload([source])
+        expect(preload).toBeFunction()
+    })
+
+    it("sends 'only-if-cached' as 'cacheOnly', and the others as the default", () => {
+        expect(nativeSource({ uri, cache: 'only-if-cached' })).toEqual({
+            uri,
+            cache: 'cacheOnly',
+        })
+        for (const cache of ['default', 'force-cache'] as const) {
+            expect(nativeSource({ uri, cache })).toEqual({ uri })
+        }
+        expect(
+            nativeSource([
+                { uri, width: 100, cache: 'only-if-cached' },
+                { uri, width: 800, cache: 'default' },
+            ]),
+        ).toEqual([
+            { uri, width: 100, cache: 'cacheOnly' },
+            { uri, width: 800 },
+        ])
+    })
+
+    it("sends a source with Fast Image's values as the same object", () => {
+        const source = { uri, cache: 'web' as const }
+        expect(nativeSource(source)).toBe(source)
+    })
+
+    it("warns once for 'reload', which loads as the default", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            expect(nativeSource({ uri, cache: 'reload' })).toEqual({ uri })
+            nativeSource({ uri, cache: 'reload' })
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
+        } finally {
+            warn.mockRestore()
+        }
     })
 })
 

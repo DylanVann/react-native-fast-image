@@ -39,6 +39,7 @@ import {
     placeholderSource,
 } from './placeholders'
 import { composeRefs } from './composeRefs'
+import { fromReactNativeCache } from './reactNativeCache'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
@@ -108,6 +109,9 @@ function FastImageBase({
     // As on native (a single view there): children aren't rendered.
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
         warnIfChildren(children)
+        // React Native's cache: 'reload' warns as on native. The browser
+        // caches the images, so source.cache isn't used otherwise.
+        for (const entry of [source].flat()) fromReactNativeCache(entry)
     }
     // The label is the wrapper's aria-label, as react-native-web's Image gave
     // it (its View warns that accessibilityLabel is deprecated), and the
@@ -399,10 +403,13 @@ function assetScale(asset: PackagerAsset): number {
     )
 }
 
+// What sizedSources reads of a source.
+type SizedSource = Pick<Source, 'uri' | 'width' | 'height' | 'scale'>
+
 // One of several sizes: a require()d image in react-native-web's asset
 // registry as a source with its file's size (Expo's web builds make it a
 // { uri, width, height } object already).
-function sizedSource(source: Source | number): Source | undefined {
+function sizedSource(source: SizedSource | number): SizedSource | undefined {
     if (typeof source !== 'number') return source
     const asset: PackagerAsset | undefined = getAssetByID(source)
     return asset
@@ -422,10 +429,12 @@ function sizedSource(source: Source | number): Source | undefined {
 // is laid out at; it only applies to lazy images, and otherwise, or in
 // browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
 // srcset.
-function sizedSources(entries: (Source | number)[]) {
+function sizedSources(entries: (SizedSource | number)[]) {
     const sources = entries.map(sizedSource)
     const widths = sources
-        .filter((source): source is Source => !!source?.uri && !!source.width)
+        .filter(
+            (source): source is SizedSource => !!source?.uri && !!source.width,
+        )
         .map((source) => ({
             uri: source.uri as string,
             width: Math.round((source.width ?? 0) * (source.scale ?? 1)),

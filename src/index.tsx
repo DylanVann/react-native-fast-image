@@ -23,6 +23,7 @@ import {
     placeholderSource,
 } from './placeholders'
 import { composeRefs } from './composeRefs'
+import { fromReactNativeCache, type ReactNativeCache } from './reactNativeCache'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -177,6 +178,14 @@ export type Source = {
     /** With several sources, the scale `width` and `height` are multiplied by. */
     scale?: number
 }
+
+// What the views' `source` takes: a Source, or one with React Native's cache
+// values (see reactNativeCache.ts), so a React Native `ImageURISource` works as
+// it is. Only the views: preload, getCachePath, writeToCache and placeholder
+// take Fast Image's values.
+type ViewSource =
+    | Source
+    | (Omit<Source, 'cache'> & { cache?: ReactNativeCache })
 
 /** A `thumbhash` or `blurDataUri` as `placeholder`. */
 export type SourcePlaceholder = Pick<Source, 'thumbhash' | 'blurDataUri'>
@@ -366,7 +375,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - A `require()`d image can be one of the sizes: its size is the file's.
      * - An array of one is the same as that source.
      */
-    source?: Source | Array<Source | ImageRequireSource> | ImageRequireSource
+    source?:
+        | ViewSource
+        | Array<ViewSource | ImageRequireSource>
+        | ImageRequireSource
     /**
      * A placeholder shown while the image loads, and if it fails to load:
      *
@@ -905,8 +917,14 @@ function FastImageBase({
         for (const entry of [source].flat()) {
             dataUri((entry as Source | undefined)?.blurDataUri)
         }
+        // React Native's cache values as Fast Image's.
+        const entries = Array.isArray(source)
+            ? source.map(fromReactNativeCache)
+            : fromReactNativeCache(source)
         const single =
-            Array.isArray(source) && source.length === 1 ? source[0] : source
+            Array.isArray(entries) && entries.length === 1
+                ? entries[0]
+                : entries
         return Array.isArray(single)
             ? single.map((entry) => Image.resolveAssetSource(entry as any))
             : Image.resolveAssetSource(single as any)
