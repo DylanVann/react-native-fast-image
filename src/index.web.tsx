@@ -28,7 +28,6 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import { resolveObjectFit } from './objectFit'
-import { fromReactNativeCache } from './reactNativeCache'
 import type {
     CachePathResult,
     CacheState,
@@ -101,9 +100,6 @@ function FastImageBase({
         ...viewProps
     } = props as typeof props & { 'aria-label'?: string }
     const label = ariaLabel || accessibilityLabel || undefined
-    // React Native's cache: 'reload' warns as on native. The browser caches
-    // the images, so source.cache isn't used otherwise.
-    for (const entry of [source].flat()) fromReactNativeCache(entry)
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
     const sized = several ? sizedSources(several) : undefined

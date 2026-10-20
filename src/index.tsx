@@ -1,4 +1,4 @@
-import React, { forwardRef, memo, useMemo, useRef } from 'react'
+import React, { forwardRef, memo, useRef } from 'react'
 import {
     ColorValue,
     View,
@@ -15,7 +15,11 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
-import { fromReactNativeCache, type ReactNativeCache } from './reactNativeCache'
+import {
+    isReactNativeCache,
+    type ReactNativeCache,
+    warnIfReload,
+} from './reactNativeCache'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -680,10 +684,11 @@ function transitionProps(transition: FastImageProps['transition']) {
     }
 }
 
-// A copy of the source without `cache`.
+// A copy of the source without Fast Image's `cache` values, which React
+// Native's Image doesn't support. React Native's own values stay.
 function withoutCache(source: ViewSource | undefined) {
-    const { cache: _cache, ...rest } = source || {}
-    return rest
+    const { cache, ...rest } = source || {}
+    return isReactNativeCache(cache) ? { ...rest, cache } : rest
 }
 
 function FastImageBase({
@@ -745,16 +750,6 @@ function FastImageBase({
     // React Native's Image (fallback) calls onLoadEnd without the result: take
     // it from the onLoad or onError just before.
     const fallbackResult = useRef<LoadResult | undefined>(undefined)
-    // React Native's 'only-if-cached' as 'cacheOnly' (native loads its other
-    // values as the default). Memoized on source, so an unchanged array of
-    // sources reaches the native view as the same array.
-    const viewSource = useMemo(
-        () =>
-            Array.isArray(source)
-                ? source.map(fromReactNativeCache)
-                : fromReactNativeCache(source),
-        [source],
-    )
     const wrapperProps = {
         onLayout,
         onClick,
@@ -790,8 +785,9 @@ function FastImageBase({
     const mode =
         NATIVE_RESIZE_MODE[resolveObjectFit(objectFit, style, resizeMode)]
     if (fallback) {
-        // Remove `cache`, which React Native's Image doesn't support. A
-        // require()d source is a number: pass it through (spreading it gave {}).
+        // Remove Fast Image's `cache` values (React Native's Image takes its
+        // own). A require()d source is a number: pass it through (spreading
+        // it gave {}).
         const cleanedSource =
             typeof source === 'number'
                 ? source
@@ -867,12 +863,14 @@ function FastImageBase({
 
     // Several sources are picked from natively, for the view's size; one in
     // an array is a plain source.
-    const sources = Array.isArray(viewSource)
-        ? viewSource.length === 1
+    // React Native's cache: 'reload' warns (native reads its cache values).
+    warnIfReload(source)
+    const sources = Array.isArray(source)
+        ? source.length === 1
             ? undefined
-            : viewSource
+            : source
         : undefined
-    const single = Array.isArray(viewSource) ? viewSource[0] : viewSource
+    const single = Array.isArray(source) ? source[0] : source
     const resolvedSource = sources
         ? undefined
         : Image.resolveAssetSource(single as any)

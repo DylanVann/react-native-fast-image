@@ -44,6 +44,9 @@ import {
     sampleStatus,
 } from './RunnerContext'
 
+// The react-native-reload case's warning, which would cover later cases.
+LogBox.ignoreLogs(["react-native-fast-image: `cache: 'reload'`"])
+
 // Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
 // event arrives. They're in REGRESSION_GROUPS, which the regression runner
 // (RegressionRunner.tsx) shows a group at a time and reports over a WebSocket
@@ -581,9 +584,6 @@ function PreloadCase() {
 // isn't checked here: preload doesn't report when it's done.) The url is new
 // each launch, since the disk cache would otherwise have it from the last run.
 const RUN = Date.now()
-
-// The react-native-reload case's warning, which would cover later cases.
-LogBox.ignoreLogs(["react-native-fast-image: `cache: 'reload'`"])
 const PRIVATE = imageUrl(`private/picsum/1021-120x120.jpg?run=${RUN}`)
 const NO_TOKEN = imageUrl(`no-token/picsum/1022-120x120.jpg?run=${RUN}`)
 function PreloadHeadersCase() {
@@ -4712,6 +4712,45 @@ function PreloadResultsCase() {
     )
 }
 
+// React Native's cache 'only-if-cached' is 'cacheOnly': an image that isn't
+// cached isn't requested. Checks the request count a moment after the view
+// mounts (9.x's iOS sends no event for a cacheOnly miss).
+const ONLY_IF_CACHED_PATH = `/picsum/1025-200x200.jpg?only-if-cached=${RUN}`
+function OnlyIfCachedMissCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetch(
+                imageUrl(
+                    `requests?path=${encodeURIComponent(ONLY_IF_CACHED_PATH)}`,
+                ),
+            )
+                .then((response) => response.json())
+                .then(({ count }) =>
+                    setStatus(count === 0 ? 'OK' : `requested ${count} times`),
+                )
+                .catch((e) => setStatus(`${e}`))
+        }, 2000)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{
+                    uri: imageUrl(ONLY_IF_CACHED_PATH.slice(1)),
+                    cache: 'only-if-cached',
+                }}
+            />
+            <CaseStatus
+                id="only-if-cached-miss"
+                status={status}
+                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached isn't requested"
+            />
+        </View>
+    )
+}
+
 // Preloads sources with a cache or priority value Fast Image doesn't know
 // (React Native's cache: 'reload', a number): each loads with the default.
 // Android threw for them.
@@ -7137,18 +7176,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 event="onLoad"
                 source={{ uri: LOGO, cache: 'reload' }}
             />,
-            <EventCase
-                key="only-if-cached-miss"
-                id="only-if-cached-miss"
-                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached gets onError"
-                event="onError"
-                source={{
-                    uri: imageUrl(
-                        `picsum/1025-200x200.jpg?only-if-cached=${RUN}`,
-                    ),
-                    cache: 'only-if-cached',
-                }}
-            />,
+            <OnlyIfCachedMissCase key="only-if-cached-miss" />,
             <EventCase
                 key="unknown-priority"
                 id="unknown-priority"

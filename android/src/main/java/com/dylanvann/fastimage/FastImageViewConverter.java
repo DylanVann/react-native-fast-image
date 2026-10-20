@@ -33,6 +33,10 @@ class FastImageViewConverter {
                 put("immutable", FastImageCacheControl.IMMUTABLE);
                 put("web", FastImageCacheControl.WEB);
                 put("cacheOnly", FastImageCacheControl.CACHE_ONLY);
+                // React Native's ImageURISource value, which views take. Its
+                // others (e.g. 'reload') are immutable, as any value this map
+                // doesn't have (see getValueFromSource).
+                put("only-if-cached", FastImageCacheControl.CACHE_ONLY);
             }};
 
     private static final Map<String, Priority> FAST_IMAGE_PRIORITY_MAP =

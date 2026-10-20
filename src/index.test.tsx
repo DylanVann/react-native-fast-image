@@ -574,23 +574,14 @@ describe("React Native's source.cache values", () => {
         expect(preload).toBeFunction()
     })
 
-    it("sends 'only-if-cached' as 'cacheOnly', and the others as they are (native loads them as the default)", () => {
-        expect(nativeView({ uri, cache: 'only-if-cached' }).source).toEqual({
-            uri,
-            cache: 'cacheOnly',
-        })
-        for (const cache of ['default', 'force-cache'] as const) {
-            expect(nativeView({ uri, cache }).source).toEqual({ uri, cache })
-        }
-        expect(
-            nativeView([
-                { uri, width: 100, cache: 'only-if-cached' },
-                { uri, width: 800, cache: 'default' },
-            ]).sources,
-        ).toEqual([
-            { uri, width: 100, cache: 'cacheOnly' },
-            { uri, width: 800, cache: 'default' },
-        ])
+    it('sends them to the native view as they are, which reads them', () => {
+        const source = { uri, cache: 'only-if-cached' as const }
+        expect(nativeView(source).source).toEqual(source)
+        const several = [
+            { uri, width: 100, cache: 'only-if-cached' as const },
+            { uri, width: 800, cache: 'default' as const },
+        ]
+        expect(nativeView(several).sources).toBe(several)
     })
 
     it("warns once for 'reload'", () => {
@@ -601,6 +592,27 @@ describe("React Native's source.cache values", () => {
             nativeView({ uri, cache: 'reload' })
             expect(warn).toHaveBeenCalledTimes(1)
             expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
+        } finally {
+            warn.mockRestore()
+        }
+    })
+
+    it("passes them to React Native's Image with fallback, without the warning", () => {
+        resetReloadWarning()
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            const image = renderer
+                .create(
+                    <FastImage source={{ uri, cache: 'reload' }} fallback />,
+                )
+                .root.findByType(Image)
+            expect(image.props.source).toEqual({ uri, cache: 'reload' })
+            expect(warn).not.toHaveBeenCalled()
+            // Fast Image's own values are removed.
+            const own = renderer
+                .create(<FastImage source={{ uri, cache: 'web' }} fallback />)
+                .root.findByType(Image)
+            expect(own.props.source).toEqual({ uri })
         } finally {
             warn.mockRestore()
         }
