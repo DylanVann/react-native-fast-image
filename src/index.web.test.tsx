@@ -98,19 +98,6 @@ describe('FastImage (web)', () => {
         })
     })
 
-    it("warns once for React Native's cache: 'reload'", () => {
-        const warn = spyOn(console, 'warn').mockImplementation(() => {})
-        try {
-            render(<FastImage source={{ ...A, cache: 'reload' }} />)
-            render(<FastImage source={[{ ...A, cache: 'reload' }]} />)
-            render(<FastImage source={{ ...A, cache: 'force-cache' }} />)
-            expect(warn).toHaveBeenCalledTimes(1)
-            expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
-        } finally {
-            warn.mockRestore()
-        }
-    })
-
     it('positions the image as objectPosition says, CSS object-position', () => {
         const position = (objectPosition?: any) =>
             images(

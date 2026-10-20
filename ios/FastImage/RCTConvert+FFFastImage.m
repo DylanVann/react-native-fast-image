@@ -21,6 +21,9 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
                                        @"immutable": @(FFFCacheControlImmutable),
                                        @"web": @(FFFCacheControlWeb),
                                        @"cacheOnly": @(FFFCacheControlCacheOnly),
+                                       // React Native's ImageURISource value, which views
+                                       // take. Its others (e.g. 'reload') are the default.
+                                       @"only-if-cached": @(FFFCacheControlCacheOnly),
                                        }), FFFCacheControlImmutable, integerValue);
 
 + (FFFastImageSource *)FFFastImageSource:(id)json {

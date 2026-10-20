@@ -800,38 +800,21 @@ describe("React Native's source.cache values", () => {
         expect(preload).toBeFunction()
     })
 
-    it("sends 'only-if-cached' as 'cacheOnly', and the others as they are (native loads them as the default)", () => {
-        expect(nativeSource({ uri, cache: 'only-if-cached' })).toEqual({
-            uri,
-            cache: 'cacheOnly',
-        })
-        for (const cache of ['default', 'force-cache'] as const) {
-            expect(nativeSource({ uri, cache })).toEqual({ uri, cache })
-        }
-        expect(
-            nativeSource([
-                { uri, width: 100, cache: 'only-if-cached' },
-                { uri, width: 800, cache: 'default' },
-            ]),
-        ).toEqual([
-            { uri, width: 100, cache: 'cacheOnly' },
-            { uri, width: 800, cache: 'default' },
-        ])
-    })
-
-    it("sends a source with Fast Image's values as the same object", () => {
-        const source = { uri, cache: 'web' as const }
+    it('sends them to the native view as they are, which reads them', () => {
+        const several = [
+            { uri, width: 100, cache: 'only-if-cached' as const },
+            { uri, width: 800, cache: 'default' as const },
+        ]
+        expect(nativeSource(several)).toEqual(several)
+        const source = { uri, cache: 'only-if-cached' as const }
         expect(nativeSource(source)).toBe(source)
     })
 
-    it("warns once for 'reload', which loads as the default", () => {
+    it("warns once for 'reload'", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         try {
-            expect(nativeSource({ uri, cache: 'reload' })).toEqual({
-                uri,
-                cache: 'reload',
-            })
             nativeSource({ uri, cache: 'reload' })
+            nativeSource([{ uri, cache: 'reload' }, { uri }])
             expect(warn).toHaveBeenCalledTimes(1)
             expect(warn.mock.calls[0][0]).toContain("cache: 'reload'")
         } finally {

@@ -23,7 +23,7 @@ import {
     placeholderSource,
 } from './placeholders'
 import { composeRefs } from './composeRefs'
-import { fromReactNativeCache, type ReactNativeCache } from './reactNativeCache'
+import { type ReactNativeCache, warnIfReload } from './reactNativeCache'
 import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
@@ -913,17 +913,17 @@ function FastImageBase({
     // only those change. Memoized on source, so an unchanged source reaches
     // the native view as the same object, and React's prop diff stops at it.
     const resolvedSource = useMemo(() => {
-        // A blurDataUri that isn't a data uri is ignored, with a warning.
+        // A blurDataUri that isn't a data uri is ignored, with a warning, and
+        // React Native's cache: 'reload' warns (native reads its cache values).
         for (const entry of [source].flat()) {
             dataUri((entry as Source | undefined)?.blurDataUri)
+            warnIfReload(entry)
         }
-        // React Native's 'only-if-cached' as 'cacheOnly' (native loads its
-        // other values as the default).
-        const resolve = (entry: unknown) =>
-            Image.resolveAssetSource(fromReactNativeCache(entry) as any)
         const single =
             Array.isArray(source) && source.length === 1 ? source[0] : source
-        return Array.isArray(single) ? single.map(resolve) : resolve(single)
+        return Array.isArray(single)
+            ? single.map((entry) => Image.resolveAssetSource(entry as any))
+            : Image.resolveAssetSource(single as any)
     }, [source])
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
