@@ -16,7 +16,6 @@ import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
-import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
@@ -174,13 +173,12 @@ class FastImageViewConverter {
         return value;
     }
 
+    // A value the map doesn't have (e.g. React Native's `cache: 'reload'`, or
+    // one that isn't a string) gets the default, as on iOS.
     private static <T> T getValueFromSource(String propName, String defaultProp, Map<String, T> map, ReadableMap source) {
-        String propValue;
-        try {
-            propValue = source != null ? source.getString(propName) : null;
-        } catch (NoSuchKeyException e) {
-            propValue = null;
-        }
-        return getValue(propName, defaultProp, map, propValue);
+        T value = source != null && source.hasKey(propName) && source.getType(propName) == ReadableType.String
+                ? map.get(source.getString(propName))
+                : null;
+        return value != null ? value : map.get(defaultProp);
     }
 }
