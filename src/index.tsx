@@ -919,16 +919,11 @@ function FastImageBase({
         }
         // React Native's 'only-if-cached' as 'cacheOnly' (native loads its
         // other values as the default).
-        const entries = Array.isArray(source)
-            ? source.map(fromReactNativeCache)
-            : fromReactNativeCache(source)
+        const resolve = (entry: unknown) =>
+            Image.resolveAssetSource(fromReactNativeCache(entry) as any)
         const single =
-            Array.isArray(entries) && entries.length === 1
-                ? entries[0]
-                : entries
-        return Array.isArray(single)
-            ? single.map((entry) => Image.resolveAssetSource(entry as any))
-            : Image.resolveAssetSource(single as any)
+            Array.isArray(source) && source.length === 1 ? source[0] : source
+        return Array.isArray(single) ? single.map(resolve) : resolve(single)
     }, [source])
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
