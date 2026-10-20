@@ -456,13 +456,6 @@ describe('FastImage (web)', () => {
         const onLoad = mock()
         const onError = mock()
         const ref = React.createRef<FastImageRef>()
-        // The web version's type doesn't say it takes a ref (the package's
-        // types are the native version's).
-        const FastImageWithRef = FastImage as React.ComponentType<
-            React.ComponentProps<typeof FastImage> & {
-                ref: React.Ref<FastImageRef>
-            }
-        >
         // Called for each host element mounted with a ref.
         const mounted = mock(
             (element: { type: string; props: { src?: string } }) => ({
@@ -470,7 +463,7 @@ describe('FastImage (web)', () => {
             }),
         )
         const tree = render(
-            <FastImageWithRef
+            <FastImage
                 ref={ref}
                 source={A}
                 defaultSource={{ uri: '/assets/placeholder.png' } as any}

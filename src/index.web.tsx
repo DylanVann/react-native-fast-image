@@ -45,6 +45,7 @@ import type {
     CacheState,
     FastImageBackgroundProps,
     FastImageProps,
+    FastImageRef,
     FastImageStaticProperties,
     ObjectFit,
     PreloadResult,
@@ -134,7 +135,7 @@ function FastImageBase({
     const [reloads, setReloads] = useState(0)
     const ref = useMemo(
         () =>
-            composeRefs((view: { reload?: () => void } | null) => {
+            composeRefs((view: FastImageRef | null) => {
                 if (view) view.reload = () => setReloads((count) => count + 1)
             }, forwardedRef),
         [forwardedRef],
@@ -666,11 +667,16 @@ const tintStyle = {
 
 const FastImageMemo = memo(FastImageBase)
 
-const FastImageComponent: React.ComponentType<FastImageProps> = forwardRef(
-    (props: FastImageProps, ref: React.Ref<any>) => (
-        <FastImageMemo forwardedRef={ref} {...props} />
-    ),
-)
+// What a ref to FastImage or FastImageBackground gets, typed as in index.tsx:
+// a View's (react-native-web's element). FastImage's has reload() too
+// (FastImageRef).
+type ViewRef = React.ComponentRef<typeof View>
+
+const FastImageComponent: React.ForwardRefExoticComponent<
+    FastImageProps & React.RefAttributes<ViewRef>
+> = forwardRef((props: FastImageProps, ref: React.Ref<ViewRef>) => (
+    <FastImageMemo forwardedRef={ref} {...props} />
+))
 
 FastImageComponent.displayName = 'FastImage'
 
@@ -685,7 +691,9 @@ function getSize(uri: string) {
     })
 }
 
-const FastImage: React.ComponentType<FastImageProps> &
+const FastImage: React.ForwardRefExoticComponent<
+    FastImageProps & React.RefAttributes<ViewRef>
+> &
     FastImageStaticProperties = FastImageComponent as any
 
 FastImage.cacheControl = cacheControl
@@ -733,33 +741,29 @@ const styles = StyleSheet.create({
     },
 })
 
-// FastImage forwards its ref, which its type doesn't say.
-const FastImageWithRef = FastImageComponent as React.ComponentType<
-    FastImageProps & { ref?: React.Ref<any> }
->
-
-export const FastImageBackground: React.ComponentType<FastImageBackgroundProps> =
-    forwardRef(
-        (
-            {
-                style,
-                imageStyle,
-                imageRef,
-                children,
-                ...props
-            }: FastImageBackgroundProps,
-            ref: React.Ref<any>,
-        ) => (
-            <View style={style} ref={ref}>
-                <FastImageWithRef
-                    {...props}
-                    style={[StyleSheet.absoluteFill, imageStyle]}
-                    ref={imageRef}
-                />
-                {children}
-            </View>
-        ),
-    )
+export const FastImageBackground: React.ForwardRefExoticComponent<
+    FastImageBackgroundProps & React.RefAttributes<ViewRef>
+> = forwardRef(
+    (
+        {
+            style,
+            imageStyle,
+            imageRef,
+            children,
+            ...props
+        }: FastImageBackgroundProps,
+        ref: React.Ref<ViewRef>,
+    ) => (
+        <View style={style} ref={ref}>
+            <FastImageComponent
+                {...props}
+                style={[StyleSheet.absoluteFill, imageStyle]}
+                ref={imageRef}
+            />
+            {children}
+        </View>
+    ),
+)
 
 FastImageBackground.displayName = 'FastImageBackground'
 
