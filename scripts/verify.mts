@@ -1849,6 +1849,10 @@ async function flowsWeb(app: App) {
 // --- iOS -----------------------------------------------------------------
 
 let iosUdid = ''
+// Resolves once the simulator has booted: it boots while the apps install
+// their pods and build (a first boot takes a minute or two), and buildIos
+// waits for it before installing.
+let iosBooted: Promise<unknown> = Promise.resolve()
 
 // The flows run on a simulator of their own by default, so screenshots and
 // recordings don't show other apps installed on a shared simulator. It's
@@ -1925,7 +1929,10 @@ function iosDevice() {
     if (!pick) return false
     iosUdid = pick.udid
     capture('xcrun', ['simctl', 'boot', iosUdid])
-    capture('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], { timeout: 180 })
+    iosBooted = run('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], {
+        log: path.join(OUT, 'simulator-boot.log'),
+        timeout: 300,
+    })
     return true
 }
 
@@ -2210,6 +2217,7 @@ async function buildIos(app: App) {
         dir,
         `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
     )
+    await iosBooted
     if (
         capture('xcrun', ['simctl', 'install', iosUdid, product], {
             timeout: 120,
@@ -2300,6 +2308,9 @@ async function flowsIos(app: App) {
 // --- Android -------------------------------------------------------------
 
 let androidSerial = ''
+// Resolves once the device has booted: an emulator boots while the apps
+// build, and buildAndroid waits for it before installing.
+let androidBooted: Promise<void> = Promise.resolve()
 
 function ensureJava() {
     const version =
@@ -2355,20 +2366,12 @@ async function androidDevice() {
                 log: path.join(OUT, 'emulator.log'),
             },
         ).unref()
+        // Until adb sees it; it finishes booting while the apps build
+        // (androidBooted).
         const deadline = Date.now() + 180_000
         while (Date.now() < deadline) {
             androidSerial = connectedDevice()
-            if (
-                androidSerial &&
-                capture(ADB, [
-                    '-s',
-                    androidSerial,
-                    'shell',
-                    'getprop',
-                    'sys.boot_completed',
-                ]) === '1'
-            )
-                break
+            if (androidSerial) break
             await sleep(2000)
         }
         if (!androidSerial) return false
@@ -2380,20 +2383,34 @@ async function androidDevice() {
             '    Note: the emulator has a window. Keep it visible while the flows run, or quit it and let this script start one without a window.',
         )
     }
-    // On emulators, don't let "isn't responding" dialogs from background apps
-    // cover the app under test (the runners can't see through them).
-    if (androidSerial.startsWith('emulator-')) {
-        capture(ADB, [
-            '-s',
-            androidSerial,
-            'shell',
-            'settings',
-            'put',
-            'global',
-            'hide_error_dialogs',
-            '1',
-        ])
-    }
+    androidBooted = (async () => {
+        const deadline = Date.now() + 300_000
+        while (
+            Date.now() < deadline &&
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'getprop',
+                'sys.boot_completed',
+            ]) !== '1'
+        )
+            await sleep(2000)
+        // On emulators, don't let "isn't responding" dialogs from background
+        // apps cover the app under test (the runners can't see through them).
+        if (androidSerial.startsWith('emulator-')) {
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'settings',
+                'put',
+                'global',
+                'hide_error_dialogs',
+                '1',
+            ])
+        }
+    })()
     return true
 }
 
@@ -2485,6 +2502,7 @@ async function buildAndroid(app: App) {
             : 'android/app/build/outputs/apk/debug/app-debug.apk',
     )
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
+    await androidBooted
     const installedApk = capture(ADB, [
         '-s',
         androidSerial,
