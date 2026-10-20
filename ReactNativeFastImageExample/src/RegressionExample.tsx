@@ -8824,6 +8824,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 removeAfter
                 source={{ uri: MISSING }}
             />,
+            <EventCase
+                key="unknown-cache"
+                id="unknown-cache"
+                description="An unknown source.cache (React Native's 'reload') loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, cache: 'reload' }}
+            />,
+            <EventCase
+                key="unknown-priority"
+                id="unknown-priority"
+                description="An unknown source.priority loads as the default"
+                event="onLoad"
+                // @ts-expect-error not one of Fast Image's values
+                source={{ uri: LOGO, priority: 'urgent' }}
+            />,
             <NoHandlersCase key="no-handlers" />,
         ],
     },

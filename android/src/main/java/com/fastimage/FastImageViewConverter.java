@@ -189,6 +189,8 @@ class FastImageViewConverter {
         return value;
     }
 
+    // A value the map doesn't have (e.g. React Native's `cache: 'reload'`) gets
+    // the default, as on iOS.
     private static <T> T getValueFromSource(String propName, String defaultProp, Map<String, T> map, ReadableMap source) {
         String propValue;
         try {
@@ -196,6 +198,7 @@ class FastImageViewConverter {
         } catch (NoSuchKeyException e) {
             propValue = null;
         }
+        if (propValue == null || !map.containsKey(propValue)) propValue = defaultProp;
         return getValue(propName, defaultProp, map, propValue);
     }
 }
