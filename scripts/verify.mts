@@ -85,14 +85,16 @@ Environment:
                   /Applications/Google Chrome.app).
   IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
                   of the script's own so screenshots and recordings don't
-                  show other apps; created on first use with the device type
-                  and runtime of the newest iPhone simulator). For the tvOS
-                  example, TVOS_SIMULATOR (default: "RNFI Apple TV", made
-                  from the newest Apple TV simulator).
+                  show other apps; created on first use as an iPhone 17 Pro,
+                  the references' device, with the newest runtime). For the
+                  tvOS example, TVOS_SIMULATOR (default: "RNFI Apple TV", an
+                  Apple TV 4K (3rd generation)).
   ANDROID_AVD     Emulator to start if no device is connected (default: the
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
                   started with -gpu host and no window.
+  ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
+                  swiftshader_indirect without a GPU).
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 180 with --background) and builds
@@ -1856,6 +1858,10 @@ const IOS_SIMULATOR = TV
     : (env.IOS_SIMULATOR ?? 'RNFI iPhone')
 const SIMULATOR_OS = TV ? 'tvOS' : 'iOS'
 const SIMULATOR_SDK = TV ? 'appletvsimulator' : 'iphonesimulator'
+// The device type the reference screenshots were taken on.
+const SIMULATOR_TYPE = TV
+    ? 'com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K'
+    : 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro'
 
 function iosDevice() {
     const list = capture('xcrun', [
@@ -1890,20 +1896,29 @@ function iosDevice() {
         .filter((d) => d.isAvailable)
     let pick = devices.find((d) => d.name === IOS_SIMULATOR)
     if (!pick && !env[TV ? 'TVOS_SIMULATOR' : 'IOS_SIMULATOR']) {
-        // Create it with the newest iPhone's (or Apple TV's) device type and
-        // runtime.
+        // Create it with the newest runtime, and the device type the reference
+        // screenshots were taken on (the newest iPhone's if Xcode doesn't
+        // have it).
         const template = devices.find((d) =>
             d.name.startsWith(TV ? 'Apple TV' : 'iPhone'),
         )
         if (!template) return false
-        say(`Creating simulator "${IOS_SIMULATOR}" (${template.name})`)
-        const udid = capture('xcrun', [
-            'simctl',
-            'create',
-            IOS_SIMULATOR,
-            template.deviceTypeIdentifier,
-            template.runtime,
-        ])
+        say(`Creating simulator "${IOS_SIMULATOR}" (${SIMULATOR_TYPE})`)
+        const udid =
+            capture('xcrun', [
+                'simctl',
+                'create',
+                IOS_SIMULATOR,
+                SIMULATOR_TYPE,
+                template.runtime,
+            ]) ??
+            capture('xcrun', [
+                'simctl',
+                'create',
+                IOS_SIMULATOR,
+                template.deviceTypeIdentifier,
+                template.runtime,
+            ])
         if (!udid) return false
         pick = { ...template, udid, name: IOS_SIMULATOR }
     }
@@ -2320,7 +2335,8 @@ async function androidDevice() {
         if (!avd) return false
         say(`Starting emulator ${avd}`)
         // Detached, so it keeps running after this script exits.
-        // -gpu host: software rendering makes the example too slow for the flows.
+        // -gpu host: software rendering makes the example too slow for the
+        // flows (ANDROID_EMULATOR_GPU for machines without a GPU, e.g. CI).
         // -no-window: macOS throttles the emulator's rendering while its window
         // is hidden or in the background (e.g. behind the iOS Simulator), and
         // the app stalls until the window is brought forward.
@@ -2331,7 +2347,7 @@ async function androidDevice() {
                 avd,
                 '-no-window',
                 '-gpu',
-                'host',
+                env.ANDROID_EMULATOR_GPU ?? 'host',
                 '-no-snapshot-save',
                 '-no-boot-anim',
             ],

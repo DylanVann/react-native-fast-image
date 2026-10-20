@@ -1,0 +1,115 @@
+name: e2e
+# The regression cases (scripts/verify.mts) on the iOS simulator and the
+# Android emulator, for each example app. The JS checks are in ci.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  # CI machines are slower than a laptop.
+  VERIFY_FLOWS_TIMEOUT: 900
+  VERIFY_BUILD_TIMEOUT: 2400
+# A new push to a branch replaces its run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios:
+    # Xcode 27 with the iOS 27.0 simulator runtime the references were
+    # taken on.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [main, minimum]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # CocoaPods' specs and downloads, React Native's prebuilt core and
+      # Hermes, and Xcode's compilation cache (verify.mts), so builds
+      # reuse what earlier runs compiled.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/Library/Caches/CocoaPods
+            ~/Library/Caches/ReactNative
+            ~/Library/Caches/react-native-fast-image
+          key: ios-${{ matrix.app }}-${{ hashFiles('**/bun.lock', 'RNFastImage.podspec') }}-${{ github.sha }}
+          restore-keys: |
+            ios-${{ matrix.app }}-${{ hashFiles('**/bun.lock', 'RNFastImage.podspec') }}-
+            ios-${{ matrix.app }}-
+      # The Xcode the references were taken with (27.1).
+      - run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          xcrun simctl list runtimes
+      - run: command -v ffmpeg || brew install ffmpeg
+      - run: bun install --frozen-lockfile
+      - run: node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verify-ios-${{ matrix.app }}
+          path: verify-output
+          retention-days: 14
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [main, minimum]
+    env:
+      ANDROID_AVD: rnfi_ci
+      # No GPU on the runners.
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      # The emulator needs KVM.
+      - run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.bun/install/cache
+            /usr/local/lib/android/sdk/system-images/android-36
+          key: android-${{ matrix.app }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: android-${{ matrix.app }}-
+      # A plain AOSP image, as the references' emulator (a Pixel 7's
+      # screen); x86_64 here.
+      - run: |
+          sdkmanager --install emulator platform-tools 'system-images;android-36;default;x86_64' > /dev/null
+          echo no | avdmanager create avd -n "$ANDROID_AVD" -k 'system-images;android-36;default;x86_64' -d pixel_7
+          printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> ~/.android/avd/$ANDROID_AVD.avd/config.ini
+      - run: sudo apt-get install -y ffmpeg > /dev/null
+      - run: bun install --frozen-lockfile
+      - run: node scripts/verify.mts --app ${{ matrix.app }} --android --no-js
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verify-android-${{ matrix.app }}
+          path: verify-output
+          retention-days: 14
