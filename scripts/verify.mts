@@ -2433,12 +2433,20 @@ async function buildIos(app: App) {
     const bootStart = Date.now()
     await iosBooted
     const installStart = Date.now()
-    if (
-        capture('xcrun', ['simctl', 'install', iosUdid, product], {
-            timeout: 120,
-        }) === undefined
-    ) {
-        record('FAIL', `${app} ios install`)
+    const install = await run(
+        'xcrun',
+        ['simctl', 'install', iosUdid, product],
+        {
+            log,
+            timeout: 180,
+        },
+    )
+    if (!install.ok) {
+        record(
+            'FAIL',
+            `${app} ios install`,
+            install.timedOut ? 'timed out after 180s' : `see ${rel(log)}`,
+        )
         return false
     }
     // Access to the simulator's photo library, for the photo library (ph://)

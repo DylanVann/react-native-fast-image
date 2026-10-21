@@ -112,9 +112,19 @@ jobs:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: metro-ios-${{ matrix.app }}-
+      # Every 10 s while verify.mts runs: what's using the CPU, and how far the
+      # build log has got (verify-output/cpu.log).
       - run: |
-          mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2
+          mkdir -p "$TMPDIR" verify-output
+          while sleep 10; do
+            echo "== $(date +%T) build log: $(cat verify-output/*/ios-build-*.log 2>/dev/null | wc -l) lines, last: $(tail -qn 1 verify-output/*/ios-build-*.log 2>/dev/null | cut -c1-120)"
+            ps -Ao pcpu,comm -r | head -8 | sed -E 's#/[^ ]*/##'
+          done > verify-output/cpu.log 2>&1 &
+          sampler=$!
+          status=0
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2 || status=$?
+          kill $sampler
+          exit $status
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       # The simulator verify.mts created, for later runs (see above): without
