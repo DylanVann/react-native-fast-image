@@ -1524,7 +1524,21 @@ async function runRegression(
             '-bool',
             'YES',
         ])
-        capture('xcrun', ['simctl', 'launch', device, appId], { timeout: 60 })
+        // A newly installed app's first launch can take minutes on a freshly
+        // booted simulator (a CI machine's); a launch that's cut short still
+        // happens later, after the wait for the app has started.
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const launchStart = Date.now()
+            const launched = capture(
+                'xcrun',
+                ['simctl', 'launch', device, appId],
+                { timeout: 300 },
+            )
+            logLine(
+                `launch: ${launched === undefined ? 'failed' : 'OK'} after ${((Date.now() - launchStart) / 1000).toFixed(1)}s`,
+            )
+            if (launched !== undefined) break
+        }
     } else {
         capture(ADB, ['-s', device, 'shell', 'am', 'force-stop', appId])
         capture(
