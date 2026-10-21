@@ -76,6 +76,18 @@ jobs:
           path: ~/Library/Caches/react-native-fast-image
           key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: ios-build-${{ matrix.app }}-
+      # The app's last build (Xcode's derived data, ios/build), so the build
+      # is incremental: with only the compilation cache, Xcode still spends
+      # minutes planning a build of the Pods' 360 targets. Saved by every run
+      # (the newest is restored).
+      - id: derived
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.APP_DIR }}/ios/build
+          key: ios-derived-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}-${{ github.run_id }}
+          restore-keys: |
+            ios-derived-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}-
+            ios-derived-${{ matrix.app }}-
       # maestro-runner's WebDriverAgent build (for the touch group), kept in
       # its package.
       - id: wda
@@ -104,6 +116,7 @@ jobs:
         run: |
           test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
+          test -d "$APP_DIR/ios/build/Build/Products" && echo derived=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -127,6 +140,12 @@ jobs:
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
+      # One shard saves it (the other's would be the same build).
+      - if: always() && matrix.shard == 1 && steps.made.outputs.derived == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.APP_DIR }}/ios/build
+          key: ${{ steps.derived.outputs.cache-primary-key }}
       - if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

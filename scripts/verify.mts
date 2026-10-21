@@ -606,7 +606,9 @@ async function startMetro(app: App) {
         extraEnv: app === 'expo' ? EXPO_ENV : undefined,
     }).pid
     if (metro !== undefined) groups.add(metro)
-    for (let i = 0; i < 60; i++) {
+    // Up to 5 minutes: it starts while the apps build, which can leave it
+    // little CPU on a small machine.
+    for (let i = 0; i < 300; i++) {
         try {
             const response = await fetch('http://localhost:8081/status')
             if ((await response.text()).includes('running')) return true

@@ -846,19 +846,22 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
 // hour, clears the caches, and loads it again: the server should get a second
 // request. clearDiskCache left the HTTP cache of `web` images (Android's, and
 // on iOS the app's shared NSURLCache), so it came from there. Both clear
-// functions must resolve ok.
-const WEB_CLEAR_PATH = `/max-age/picsum/1025-200x200.jpg?web-clear=${RUN}`
+// functions must resolve ok. A url of its own each time it mounts, so the
+// runner's retry counts its own requests.
 function WebCacheClearCase() {
+    const [webClearPath] = useState(
+        () => `/max-age/picsum/1025-200x200.jpg?web-clear=${RUN}-${Date.now()}`,
+    )
     const [step, setStep] = useState<'first' | 'cleared' | 'done'>('first')
     const [requests, setRequests] = useState<number>()
     const [clearError, setClearError] = useState<string>()
     useEffect(() => {
         if (step !== 'done') return
-        fetch(imageUrl(`requests?path=${encodeURIComponent(WEB_CLEAR_PATH)}`))
+        fetch(imageUrl(`requests?path=${encodeURIComponent(webClearPath)}`))
             .then((response) => response.json())
             .then((json) => setRequests(json.count))
             .catch(() => setRequests(-1))
-    }, [step])
+    }, [step, webClearPath])
     return (
         <View style={styles.row}>
             <FastImage
@@ -867,7 +870,7 @@ function WebCacheClearCase() {
                 key={step === 'first' ? 'first' : 'second'}
                 style={styles.image}
                 source={{
-                    uri: imageUrl(WEB_CLEAR_PATH.slice(1)),
+                    uri: imageUrl(webClearPath.slice(1)),
                     cache: 'web',
                 }}
                 onLoad={() => {
