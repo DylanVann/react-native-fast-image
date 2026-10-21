@@ -62,6 +62,9 @@ Options:
                       and the podspec) from this ref instead of the working
                       tree, e.g. \`--ref main\` for a "before" run. The working
                       tree is restored afterwards.
+  --shard <i>/<n>     Run the i-th of n ranges of each app's regression groups
+                      (e.g. 1/3), to split a run between machines; the first
+                      range starts with \`start\`.
   --background        Also run the flows tagged \`background\`
                       (maestro/background.yaml and
                       background-no-activity.yaml), which send the app to the
@@ -85,18 +88,28 @@ Environment:
                   /Applications/Google Chrome.app).
   IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
                   of the script's own so screenshots and recordings don't
-                  show other apps; created on first use with the device type
-                  and runtime of the newest iPhone simulator). For the tvOS
-                  example, TVOS_SIMULATOR (default: "RNFI Apple TV", made
-                  from the newest Apple TV simulator).
+                  show other apps; created on first use as an iPhone 17 Pro,
+                  the references' device, with the newest runtime). For the
+                  tvOS example, TVOS_SIMULATOR (default: "RNFI Apple TV", an
+                  Apple TV 4K (3rd generation)).
   ANDROID_AVD     Emulator to start if no device is connected (default: the
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
                   started with -gpu host and no window.
-  VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
+  ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
+                  swiftshader_indirect without a GPU).
+  VERIFY_SAMPLE_LEAD_MS
+                  How long a video sample records before its case makes the
+                  change (default 500); longer where recordings start late.
+  VERIFY_SPARSE_RECORDINGS
+                  Set when the screen recorder captures only a few frames a
+                  second (an emulator without a GPU): a video sample whose
+                  recording is too sparse to show its change isn't checked.
+  VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT, VERIFY_HELLO_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 180 with --background) and builds
-                  (default 900).
+                  (default 900), and for the app to connect after it
+                  launches (default 90).
   MAESTRO_RUNNER_BIN
                   maestro-runner binary (default: the dev dependency).
   MAESTRO_RUNNER_ANDROID_DRIVER
@@ -132,6 +145,7 @@ function parseOptions() {
                 package: { type: 'boolean', default: false },
                 release: { type: 'boolean', default: false },
                 ref: { type: 'string' },
+                shard: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 record: { type: 'boolean', default: false },
                 'update-screenshots': { type: 'boolean', default: false },
@@ -160,6 +174,16 @@ if (
     console.error(`Unknown app: ${options.app} (use main, minimum, expo or tv)`)
     process.exit(2)
 }
+// --shard i/n: the i-th of n ranges of each app's regression groups.
+const SHARD = (() => {
+    if (options.shard === undefined) return undefined
+    const [index, count] = options.shard.split('/').map(Number)
+    if (!(count >= 1 && index >= 1 && index <= count)) {
+        console.error(`Invalid --shard ${options.shard} (use i/n, e.g. 1/3)`)
+        process.exit(2)
+    }
+    return { index, count }
+})()
 // The Expo and tvOS examples only run when asked for (--app expo, --app tv).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'minimum']
 if (options.web && !APPS.includes('expo')) {
@@ -589,7 +613,9 @@ async function startMetro(app: App) {
         extraEnv: app === 'expo' ? EXPO_ENV : undefined,
     }).pid
     if (metro !== undefined) groups.add(metro)
-    for (let i = 0; i < 60; i++) {
+    // Up to 5 minutes: it starts while the apps build, which can leave it
+    // little CPU on a small machine.
+    for (let i = 0; i < 300; i++) {
         try {
             const response = await fetch('http://localhost:8081/status')
             if ((await response.text()).includes('running')) return true
@@ -610,7 +636,8 @@ async function startImageServer() {
         log,
     }).pid
     if (pid !== undefined) groups.add(pid)
-    for (let i = 0; i < 20; i++) {
+    // Up to 30 s: slower when a simulator or emulator is starting.
+    for (let i = 0; i < 60; i++) {
         try {
             const url = `http://localhost:${IMAGE_SERVER_PORT}/logo.png`
             if ((await fetch(url)).ok) return true
@@ -692,7 +719,9 @@ async function stopMetro() {
 // of it is saved with simctl or adb, and the next group is asked for. Nothing
 // goes through the accessibility tree, so a group takes about as long as its
 // slowest case. Output: <out>/<app>-<platform>/regression/.
-const HELLO_TIMEOUT = 90_000
+// How long the app has to connect after launching (its first bundle can take
+// minutes on a slow machine without Metro's cache).
+const HELLO_TIMEOUT = seconds('VERIFY_HELLO_TIMEOUT', 90) * 1000
 // How long the app may be disconnected before a group fails with "the app
 // went away": the emulator's network drops for a few seconds now and then,
 // and the runner reconnects and shows the group again.
@@ -854,7 +883,17 @@ const SAMPLE_MAX_RATIO = 0.6
 // frames that were still being drawn, and the case makes its change at least
 // this long after it asked.
 const SAMPLE_TAIL_MS = 500
-const SAMPLE_LEAD_MS = 500
+// (VERIFY_SAMPLE_LEAD_MS: longer where a recording's first frames come late,
+// e.g. a busy CI machine's simulator.)
+const SAMPLE_LEAD_MS = Number(env.VERIFY_SAMPLE_LEAD_MS) || 500
+// With VERIFY_SPARSE_RECORDINGS (a recorder that captures a few frames a
+// second, e.g. an emulator without a GPU), a sample that saw its first and
+// last colors more than this far apart, and nothing between them, isn't
+// checked (see stopSession). Not by default: these recorders only add a
+// frame when the screen changes, so a gap is also how long a color stayed,
+// and an image that cut to the next instead of fading looks the same.
+const SAMPLE_MAX_GAP_MS = 100
+const SPARSE_RECORDINGS = !!env.VERIFY_SPARSE_RECORDINGS
 
 // sRGB to CIE Lab (D65).
 function toLab([r, g, b]: Rgb): Rgb {
@@ -1053,38 +1092,44 @@ function framesBetween(
     frames: { time: number; color: Rgb }[],
     start: number,
     end: number,
-): Rgb[] {
+) {
     const first = frames.findLastIndex((frame) => frame.time <= start)
-    return frames
-        .slice(Math.max(0, first))
-        .filter((frame) => frame.time <= end)
-        .map((frame) => frame.color)
+    return frames.slice(Math.max(0, first)).filter((frame) => frame.time <= end)
+}
+
+// The sample's colors (expected and palette), for sampleColor.
+const sampleColors = (expect: string[], palette: string[]) =>
+    [...new Set([...expect, ...palette])].map((hex) => ({
+        hex,
+        lab: toLab(hexToRgb(hex)),
+    }))
+
+// The color a frame clearly shows, if any.
+function sampleColor(
+    frame: Rgb,
+    colors: { hex: string; lab: [number, number, number] }[],
+) {
+    const lab = toLab(frame)
+    const [best, next] = colors
+        .map(({ hex, lab: c }) => ({
+            hex,
+            distance: Math.hypot(lab[0] - c[0], lab[1] - c[1], lab[2] - c[2]),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+    return best !== undefined &&
+        best.distance <= SAMPLE_MAX_DISTANCE &&
+        (!next || best.distance <= SAMPLE_MAX_RATIO * next.distance)
+        ? best.hex
+        : undefined
 }
 
 // The colors seen (see above) and whether they're `expect`.
 function matchSample(frames: Rgb[], expect: string[], palette: string[]) {
-    const colors = [...new Set([...expect, ...palette])].map((hex) => ({
-        hex,
-        lab: toLab(hexToRgb(hex)),
-    }))
+    const colors = sampleColors(expect, palette)
     const seen: string[] = []
     for (const frame of frames) {
-        const lab = toLab(frame)
-        const [best, next] = colors
-            .map(({ hex, lab: c }) => ({
-                hex,
-                distance: Math.hypot(
-                    lab[0] - c[0],
-                    lab[1] - c[1],
-                    lab[2] - c[2],
-                ),
-            }))
-            .sort((a, b) => a.distance - b.distance)
-        const clear =
-            best !== undefined &&
-            best.distance <= SAMPLE_MAX_DISTANCE &&
-            (!next || best.distance <= SAMPLE_MAX_RATIO * next.distance)
-        if (clear && seen.at(-1) !== best.hex) seen.push(best.hex)
+        const hex = sampleColor(frame, colors)
+        if (hex && seen.at(-1) !== hex) seen.push(hex)
     }
     const ok =
         seen.length === expect.length &&
@@ -1129,9 +1174,19 @@ async function runRegression(
     let scale = 1
     let windowWidth = 0
     const failures: string[] = []
+    // Each group's failures, by index: a group that failed runs once more at
+    // the end, and its second try's replace them.
+    const groupFailures = new Map<number, string[]>()
+    const failuresOf = (index: number) => {
+        let list = groupFailures.get(index)
+        if (!list) groupFailures.set(index, (list = []))
+        return list
+    }
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
+    // Video samples a stalled recording couldn't check (see stopSession).
+    const unchecked: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
     // out), compared with its reference. Comparisons (and video samples) run
     // in the background; `shots` is awaited at the end.
@@ -1184,7 +1239,8 @@ async function runRegression(
             if (result === 'seeded') seeded.push(name)
             else if (result === 'none') noReference.push(name)
             else if (result === 'unseeded') unseeded.push(name)
-            else if (result === 'differs') failures.push(`${name}: ${detail}`)
+            else if (result === 'differs')
+                failuresOf(index).push(`${name}: ${detail}`)
         })
         shots.push(shot)
         return shot
@@ -1299,20 +1355,64 @@ async function runRegression(
                 try {
                     if (error) throw new Error(error)
                     if (!saved) throw new Error('no recording was saved')
-                    const frames = frameColors(
-                        current.file,
-                        message.area as PixelRect,
-                        windowWidth,
+                    const area = message.area as PixelRect
+                    const expect = (message.expect as string[]) ?? []
+                    const palette = (message.palette as string[]) ?? []
+                    const frames = framesBetween(
+                        frameColors(current.file, area, windowWidth),
+                        sample.start / 1000,
+                        ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
                     )
                     result = matchSample(
-                        framesBetween(
-                            frames,
-                            sample.start / 1000,
-                            ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
-                        ),
-                        (message.expect as string[]) ?? [],
-                        (message.palette as string[]) ?? [],
+                        frames.map((frame) => frame.color),
+                        expect,
+                        palette,
                     )
+                    // A recording that couldn't show the change doesn't fail
+                    // it (the sample isn't checked; the summary lists it):
+                    const colors = sampleColors(expect, palette)
+                    const shown = frames.map((frame) => ({
+                        time: frame.time,
+                        hex: sampleColor(frame.color, colors),
+                    }))
+                    const [first] = expect
+                    const last = expect.at(-1)
+                    const end = shown.findIndex((frame) => frame.hex === last)
+                    const before = shown
+                        .slice(0, Math.max(0, end))
+                        .findLastIndex((frame) => frame.hex === first)
+                    let unseen: string | undefined
+                    if (!result.ok && last && end === -1) {
+                        // No frame of the last color: the recorder stalled
+                        // (a CI emulator's does after a few frames), or the
+                        // change wasn't made. The screen now tells them
+                        // apart.
+                        const shot = path.join(dir, `${name}-after.png`)
+                        screenshot(platform, device, shot)
+                        const [after] = frameColors(shot, area, windowWidth)
+                        if (after && sampleColor(after.color, colors) === last)
+                            unseen = `the recording stopped before ${last}, which the area shows now`
+                    } else if (
+                        SPARSE_RECORDINGS &&
+                        !result.ok &&
+                        before !== -1
+                    ) {
+                        // Too few frames between the first and last colors
+                        // to see what came between them.
+                        const gap = Math.round(
+                            (shown[end].time - shown[before].time) * 1000,
+                        )
+                        if (gap > SAMPLE_MAX_GAP_MS)
+                            unseen = `the recording has no frames for ${gap} ms during the change`
+                    }
+                    if (unseen) {
+                        result = {
+                            ok: true,
+                            seen: result.seen,
+                            detail: `not checked: ${unseen}`,
+                        }
+                        unchecked.push(name)
+                    }
                 } catch (e) {
                     result = {
                         ok: false,
@@ -1441,7 +1541,21 @@ async function runRegression(
             '-bool',
             'YES',
         ])
-        capture('xcrun', ['simctl', 'launch', device, appId], { timeout: 60 })
+        // A newly installed app's first launch can take minutes on a freshly
+        // booted simulator (a CI machine's); a launch that's cut short still
+        // happens later, after the wait for the app has started.
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const launchStart = Date.now()
+            const launched = capture(
+                'xcrun',
+                ['simctl', 'launch', device, appId],
+                { timeout: 300 },
+            )
+            logLine(
+                `launch: ${launched === undefined ? 'failed' : 'OK'} after ${((Date.now() - launchStart) / 1000).toFixed(1)}s`,
+            )
+            if (launched !== undefined) break
+        }
     } else {
         capture(ADB, ['-s', device, 'shell', 'am', 'force-stop', appId])
         capture(
@@ -1464,11 +1578,25 @@ async function runRegression(
         )
     }
 
+    // What the app shows if it's slow to connect (e.g. it started as the
+    // example app, not the runner).
+    const slowHello = setTimeout(() => {
+        if (platform !== 'web' && !messages.some((m) => m.type === 'hello'))
+            screenshot(
+                platform,
+                device,
+                path.join(dir, 'waiting-for-hello.png'),
+            )
+    }, 60_000)
     const hello = await waitFor(
         () => messages.find((m) => m.type === 'hello'),
         HELLO_TIMEOUT,
     )
+    clearTimeout(slowHello)
     if (!hello) {
+        // What the app shows instead (e.g. an error, or a system dialog).
+        if (platform !== 'web')
+            screenshot(platform, device, path.join(dir, 'no-hello.png'))
         fail(
             socketError ??
                 `the app didn't connect within ${HELLO_TIMEOUT / 1000}s`,
@@ -1484,30 +1612,47 @@ async function runRegression(
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
-    const statusOf = (index: number, id: string) =>
-        messages.findLast(
-            (m) => m.type === 'status' && m.group === index && m.id === id,
-        )?.status as string | undefined
-    for (let index = 0; index < groups.length; index++) {
+    // A case's latest status, from the messages from `since` on (a retry's).
+    const statusOf = (index: number, id: string, since = 0) => {
+        for (let i = messages.length - 1; i >= since; i--) {
+            const m = messages[i]
+            if (m.type === 'status' && m.group === index && m.id === id)
+                return m.status as string | undefined
+        }
+        return undefined
+    }
+    // With --shard i/n, the i-th of n ranges of the groups, in order (each
+    // shard is a run of its own, e.g. a CI job; the first has `start`, which
+    // must come before any image has loaded).
+    const first = SHARD
+        ? Math.round((groups.length * (SHARD.index - 1)) / SHARD.count)
+        : 0
+    const end = SHARD
+        ? Math.round((groups.length * SHARD.index) / SHARD.count)
+        : groups.length
+    if (first > 0) send({ type: 'show', index: first })
+    // Shows a group's results once it's on screen (index): waits for its cases,
+    // then takes its screenshot. since: where its messages start (a retry's
+    // come after the first try's). connected: false if the app went away.
+    const runGroup = async (index: number, since: number, label: string) => {
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
-        // This group's failures (screenshot comparisons of earlier groups
-        // finish in the background and add theirs to `failures` too).
-        let groupFailed = false
-        const failGroup = (failure: string) => {
-            failures.push(failure)
-            groupFailed = true
-        }
+        const own = failuresOf(index)
+        const failGroup = (failure: string) => own.push(failure)
         const shown = await waitFor(
-            () => messages.find((m) => m.type === 'group' && m.index === index),
+            () =>
+                messages.find(
+                    (m, i) =>
+                        i >= since && m.type === 'group' && m.index === index,
+                ),
             GROUP_TIMEOUT,
         )
         if (!shown) {
             failGroup(
                 `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
             )
-            break
+            return { connected: false }
         }
         const cases = shown.cases as string[]
         // Cases that need a real touch: tap them (maestro/touch.yaml). They
@@ -1542,7 +1687,7 @@ async function runRegression(
         // true once every case is OK, false if the app went away.
         const result = await waitFor(
             () =>
-                cases.every((id) => statusOf(index, id) === 'OK')
+                cases.every((id) => statusOf(index, id, since) === 'OK')
                     ? true
                     : appGone()
                       ? false
@@ -1550,15 +1695,15 @@ async function runRegression(
             GROUP_TIMEOUT - (Date.now() - waitStart),
         )
         statuses[group] = Object.fromEntries(
-            cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
+            cases.map((id) => [id, statusOf(index, id, since) ?? 'no status']),
         )
         if (result === false) {
             failGroup(`${group}: the app went away`)
-            break
+            return { connected: false }
         }
         if (!result) {
             for (const id of cases) {
-                const status = statusOf(index, id)
+                const status = statusOf(index, id, since)
                 if (status !== 'OK')
                     failGroup(`${id}: ${status ?? 'no status'}`)
             }
@@ -1591,26 +1736,59 @@ async function runRegression(
                 )
             }
         }
-        const groupOk = !groupFailed
-        takeShot(
+        const groupOk = own.length === 0
+        const shot = takeShot(
             index,
             measured?.masks,
             measured?.safeArea as PixelRect | undefined,
             groupOk,
         )
         const seconds = ((Date.now() - groupStart) / 1000).toFixed(1)
-        timings.push(`${group} ${seconds}s`)
+        timings.push(`${group}${since > 0 ? ' (retry)' : ''} ${seconds}s`)
         // Progress in the main log, so a slow group doesn't look like a hang
         // (the details are in regression.log). The screenshot's comparison
         // finishes later.
         console.log(
-            `    ${name}: ${index + 1}/${groups.length} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
+            `    ${name}: ${label} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
         )
-        send({ type: 'next' })
+        return { connected: true, shot }
     }
-    await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
+    let connected = true
+    for (let index = first; index < end && connected; index++) {
+        ;({ connected } = await runGroup(
+            index,
+            0,
+            `${index + 1 - first}/${end - first}`,
+        ))
+        if (connected) send({ type: 'next' })
+    }
+    if (end === groups.length && connected)
+        await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
+    // Once more for each group that failed (e.g. a video sample that missed
+    // its change on a busy machine), unless the app went away: the second
+    // try counts, and the summary names the groups that passed on it.
+    await Promise.all(shots)
+    const passedOnRetry: string[] = []
+    const retries = [...groupFailures]
+        .filter(([, list]) => list.length > 0)
+        .map(([index]) => index)
+        .sort((a, b) => a - b)
+    for (const index of connected ? retries : []) {
+        const firstTry = groupFailures.get(index) ?? []
+        groupFailures.set(index, [])
+        const since = messages.length
+        send({ type: 'show', index })
+        const retry = await runGroup(index, since, 'retry')
+        await retry.shot
+        if (!retry.connected) break
+        if (failuresOf(index).length === 0)
+            passedOnRetry.push(`${groups[index]} (${firstTry[0]})`)
+    }
     ws.close()
     await Promise.all(shots)
+    failures.push(...[...groupFailures.values()].flat())
+    // Seeded by a retry that passed.
+    const stillUnseeded = unseeded.filter((group) => !seeded.includes(group))
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),
@@ -1621,7 +1799,9 @@ async function runRegression(
                 failures,
                 seeded,
                 noReference,
-                unseeded,
+                unseeded: stillUnseeded,
+                passedOnRetry,
+                unchecked,
                 timings,
             },
             null,
@@ -1636,8 +1816,14 @@ async function runRegression(
         (noReference.length > 0
             ? `; no reference for ${noReference.join(', ')} (not seeded from a --ref run)`
             : '') +
-        (unseeded.length > 0
-            ? `; no reference for ${unseeded.join(', ')} (not seeded or updated from a failed group)`
+        (stillUnseeded.length > 0
+            ? `; no reference for ${stillUnseeded.join(', ')} (not seeded or updated from a failed group)`
+            : '') +
+        (passedOnRetry.length > 0
+            ? `; passed on retry: ${passedOnRetry.join(', ')}`
+            : '') +
+        (unchecked.length > 0
+            ? `; samples not checked (their recordings couldn't show the change): ${unchecked.join(', ')}`
             : '')
     if (failures.length > 0) {
         record(
@@ -1649,7 +1835,7 @@ async function runRegression(
         record(
             'PASS',
             name,
-            `${groups.length} groups in ${total}s${seededNote}`,
+            `${end - first} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
         )
     }
 }
@@ -1847,6 +2033,10 @@ async function flowsWeb(app: App) {
 // --- iOS -----------------------------------------------------------------
 
 let iosUdid = ''
+// Resolves once the simulator has booted: it boots while the apps install
+// their pods and build (a first boot takes a minute or two), and buildIos
+// waits for it before installing.
+let iosBooted: Promise<unknown> = Promise.resolve()
 
 // The flows run on a simulator of their own by default, so screenshots and
 // recordings don't show other apps installed on a shared simulator. It's
@@ -1856,6 +2046,10 @@ const IOS_SIMULATOR = TV
     : (env.IOS_SIMULATOR ?? 'RNFI iPhone')
 const SIMULATOR_OS = TV ? 'tvOS' : 'iOS'
 const SIMULATOR_SDK = TV ? 'appletvsimulator' : 'iphonesimulator'
+// The device type the reference screenshots were taken on.
+const SIMULATOR_TYPE = TV
+    ? 'com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K'
+    : 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro'
 
 function iosDevice() {
     const list = capture('xcrun', [
@@ -1890,27 +2084,45 @@ function iosDevice() {
         .filter((d) => d.isAvailable)
     let pick = devices.find((d) => d.name === IOS_SIMULATOR)
     if (!pick && !env[TV ? 'TVOS_SIMULATOR' : 'IOS_SIMULATOR']) {
-        // Create it with the newest iPhone's (or Apple TV's) device type and
-        // runtime.
+        // Create it with the newest runtime, and the device type the reference
+        // screenshots were taken on (the newest iPhone's if Xcode doesn't
+        // have it).
         const template = devices.find((d) =>
             d.name.startsWith(TV ? 'Apple TV' : 'iPhone'),
         )
         if (!template) return false
-        say(`Creating simulator "${IOS_SIMULATOR}" (${template.name})`)
-        const udid = capture('xcrun', [
-            'simctl',
-            'create',
-            IOS_SIMULATOR,
-            template.deviceTypeIdentifier,
-            template.runtime,
-        ])
+        say(`Creating simulator "${IOS_SIMULATOR}" (${SIMULATOR_TYPE})`)
+        const udid =
+            capture('xcrun', [
+                'simctl',
+                'create',
+                IOS_SIMULATOR,
+                SIMULATOR_TYPE,
+                template.runtime,
+            ]) ??
+            capture('xcrun', [
+                'simctl',
+                'create',
+                IOS_SIMULATOR,
+                template.deviceTypeIdentifier,
+                template.runtime,
+            ])
         if (!udid) return false
         pick = { ...template, udid, name: IOS_SIMULATOR }
     }
     if (!pick) return false
     iosUdid = pick.udid
-    capture('xcrun', ['simctl', 'boot', iosUdid])
-    capture('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], { timeout: 180 })
+    // simctl boot itself waits a minute or two on a first boot.
+    const log = path.join(OUT, 'simulator-boot.log')
+    iosBooted = run('xcrun', ['simctl', 'boot', iosUdid], {
+        log,
+        timeout: 300,
+    }).then(() =>
+        run('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], {
+            log,
+            timeout: 300,
+        }),
+    )
     return true
 }
 
@@ -2021,7 +2233,8 @@ function reactNativeChanged(dir: string) {
     fs.rmSync(path.join(dir, 'ios/build'), { recursive: true, force: true })
     return true
 }
-function podsCurrent(dir: string) {
+// Why the Pods need installing, or undefined if they're current.
+function podsOutdated(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
         const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
@@ -2032,22 +2245,31 @@ function podsCurrent(dir: string) {
             path.join(dir, 'ios/Pods/Manifest.lock'),
             'utf8',
         )
-        return (
-            pods >= rn.mtimeMs &&
-            builtFrom(path.join(dir, 'ios/Pods')) === podsSource(dir) &&
-            manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
-        )
+        if (pods < rn.mtimeMs) return 'node_modules is newer'
+        if (builtFrom(path.join(dir, 'ios/Pods')) !== podsSource(dir))
+            return 'the library, its specs or React Native changed'
+        // pod install's Codegen output, which the build needs (gone if
+        // ios/build was removed).
+        if (!fs.existsSync(path.join(dir, 'ios/build/generated/ios')))
+            return 'no Codegen output in ios/build'
+        if (!manifest.includes(`PODFILE CHECKSUM: ${podfile}`))
+            return 'the Podfile changed'
+        return undefined
     } catch {
-        return false
+        return 'not installed'
     }
 }
 
 async function iosPods(app: App) {
     const dir = appDir(app)
     if (app === 'expo' && !(await expoPrebuild('ios'))) return false
-    if (!reactNativeChanged(dir) && !options['pods'] && podsCurrent(dir))
-        return true
-    say(`pod install (${app})`)
+    const outdated = reactNativeChanged(dir)
+        ? 'React Native changed'
+        : options['pods']
+          ? '--pods'
+          : podsOutdated(dir)
+    if (!outdated) return true
+    say(`pod install (${app}: ${outdated})`)
     const log = path.join(OUT, `pods-${app}.log`)
     const podInstall = (cmd: string, args: string[]) =>
         run(cmd, args, { cwd: path.join(dir, 'ios'), log, timeout: 600 })
@@ -2056,11 +2278,13 @@ async function iosPods(app: App) {
     const ok =
         app === 'expo'
             ? (await podInstall('pod', ['install'])).ok
-            : (
+            : // Minutes the first time: it compiles the gems' native
+              // extensions.
+              (
                   await run('bundle', ['install'], {
                       cwd: dir,
                       log,
-                      timeout: 300,
+                      timeout: 900,
                   })
               ).ok &&
               (await podInstall('bundle', ['exec', 'pod', 'install'])).ok
@@ -2100,7 +2324,7 @@ function trimCompilationCache() {
 // debugger). So before each build the markers say which build is on disk, read
 // from a symbol only the Debug one has, and the build phase swaps when needed.
 // The marker's path is the app's React Native's own (LAST_BUILD_FILENAME).
-function syncPrebuiltMarkers(dir: string) {
+function syncPrebuiltMarkers(dir: string, log: string) {
     const pods = path.join(dir, 'ios/Pods')
     const rn = path.join(dir, 'node_modules/react-native')
     const slice = `${TV ? 'tvos' : 'ios'}-arm64_x86_64-simulator`
@@ -2125,23 +2349,30 @@ function syncPrebuiltMarkers(dir: string) {
             .readFileSync(source, 'utf8')
             .match(/LAST_BUILD_FILENAME\s*=\s*'([^']+)'/)?.[1]
         if (!marker) continue
-        const built =
-            capture(
-                'sh',
-                [
-                    '-c',
-                    'nm -gU "$0" | grep -q "$1" && echo Debug',
-                    file,
-                    debugSymbol,
-                ],
-                { timeout: 60 },
-            ) === 'Debug'
-                ? 'Debug'
-                : 'Release'
+        // Only from a finished look: nm can take over a minute on a big Debug
+        // framework on a slow machine, and a timeout taken as Release left a
+        // Debug core in a Release build (a crash at launch).
+        const built = capture(
+            'sh',
+            [
+                '-c',
+                'nm -gU "$0" > /dev/null || exit 1; nm -gU "$0" | grep -q "$1" && echo Debug || echo Release',
+                file,
+                debugSymbol,
+            ],
+            { timeout: 300 },
+        )
+        const note = (line: string) =>
+            fs.appendFileSync(log, `verify: ${path.basename(file)}: ${line}\n`)
+        if (built !== 'Debug' && built !== 'Release') {
+            note("couldn't tell its configuration (nm failed)")
+            continue
+        }
         const markerFile = path.join(pods, marker)
         const current = fs.existsSync(markerFile)
             ? fs.readFileSync(markerFile, 'utf8')
             : 'Debug'
+        note(`${built} on disk, marker ${current}`)
         if (current !== built) fs.writeFileSync(markerFile, built)
     }
 }
@@ -2151,7 +2382,8 @@ async function buildIos(app: App) {
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
     trimCompilationCache()
-    syncPrebuiltMarkers(dir)
+    fs.writeFileSync(log, '')
+    syncPrebuiltMarkers(dir, log)
     const result = await run(
         'xcodebuild',
         [
@@ -2167,6 +2399,8 @@ async function buildIos(app: App) {
             `platform=${SIMULATOR_OS} Simulator,id=${iosUdid}`,
             '-derivedDataPath',
             'build',
+            // Where a build's time goes, at the end of the log.
+            '-showBuildTimingSummary',
             'COMPILATION_CACHE_ENABLE_CACHING=YES',
             `COMPILATION_CACHE_CAS_PATH=${COMPILATION_CACHE}`,
         ],
@@ -2195,6 +2429,7 @@ async function buildIos(app: App) {
         dir,
         `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
     )
+    await iosBooted
     if (
         capture('xcrun', ['simctl', 'install', iosUdid, product], {
             timeout: 120,
@@ -2285,6 +2520,9 @@ async function flowsIos(app: App) {
 // --- Android -------------------------------------------------------------
 
 let androidSerial = ''
+// Resolves once the device has booted: an emulator boots while the apps
+// build, and buildAndroid waits for it before installing.
+let androidBooted: Promise<void> = Promise.resolve()
 
 function ensureJava() {
     const version =
@@ -2320,7 +2558,8 @@ async function androidDevice() {
         if (!avd) return false
         say(`Starting emulator ${avd}`)
         // Detached, so it keeps running after this script exits.
-        // -gpu host: software rendering makes the example too slow for the flows.
+        // -gpu host: software rendering makes the example too slow for the
+        // flows (ANDROID_EMULATOR_GPU for machines without a GPU, e.g. CI).
         // -no-window: macOS throttles the emulator's rendering while its window
         // is hidden or in the background (e.g. behind the iOS Simulator), and
         // the app stalls until the window is brought forward.
@@ -2331,7 +2570,7 @@ async function androidDevice() {
                 avd,
                 '-no-window',
                 '-gpu',
-                'host',
+                env.ANDROID_EMULATOR_GPU ?? 'host',
                 '-no-snapshot-save',
                 '-no-boot-anim',
             ],
@@ -2339,20 +2578,12 @@ async function androidDevice() {
                 log: path.join(OUT, 'emulator.log'),
             },
         ).unref()
+        // Until adb sees it; it finishes booting while the apps build
+        // (androidBooted).
         const deadline = Date.now() + 180_000
         while (Date.now() < deadline) {
             androidSerial = connectedDevice()
-            if (
-                androidSerial &&
-                capture(ADB, [
-                    '-s',
-                    androidSerial,
-                    'shell',
-                    'getprop',
-                    'sys.boot_completed',
-                ]) === '1'
-            )
-                break
+            if (androidSerial) break
             await sleep(2000)
         }
         if (!androidSerial) return false
@@ -2364,20 +2595,45 @@ async function androidDevice() {
             '    Note: the emulator has a window. Keep it visible while the flows run, or quit it and let this script start one without a window.',
         )
     }
-    // On emulators, don't let "isn't responding" dialogs from background apps
-    // cover the app under test (the runners can't see through them).
-    if (androidSerial.startsWith('emulator-')) {
-        capture(ADB, [
-            '-s',
-            androidSerial,
-            'shell',
-            'settings',
-            'put',
-            'global',
-            'hide_error_dialogs',
-            '1',
-        ])
-    }
+    androidBooted = (async () => {
+        const deadline = Date.now() + 300_000
+        while (
+            Date.now() < deadline &&
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'getprop',
+                'sys.boot_completed',
+            ]) !== '1'
+        )
+            await sleep(2000)
+        // On emulators, don't let "isn't responding" dialogs from background
+        // apps cover the app under test (the runners can't see through them),
+        // and close one that's already showing (e.g. the system UI's, from a
+        // slow boot).
+        if (androidSerial.startsWith('emulator-')) {
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'settings',
+                'put',
+                'global',
+                'hide_error_dialogs',
+                '1',
+            ])
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'am',
+                'broadcast',
+                '-a',
+                'android.intent.action.CLOSE_SYSTEM_DIALOGS',
+            ])
+        }
+    })()
     return true
 }
 
@@ -2469,6 +2725,7 @@ async function buildAndroid(app: App) {
             : 'android/app/build/outputs/apk/debug/app-debug.apk',
     )
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
+    await androidBooted
     const installedApk = capture(ADB, [
         '-s',
         androidSerial,
@@ -2502,7 +2759,14 @@ async function buildAndroid(app: App) {
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
     record('PASS', `${app} android build`)
-    if (app === 'main' && !RELEASE && !FROM_PACKAGE) await androidUnitTests(dir)
+    // Once per run (in the first shard of a sharded one).
+    if (
+        app === 'main' &&
+        !RELEASE &&
+        !FROM_PACKAGE &&
+        (!SHARD || SHARD.index === 1)
+    )
+        await androidUnitTests(dir)
     return true
 }
 
@@ -2684,7 +2948,8 @@ async function main() {
                 own.includes('ios') && !(await iosPods(app))
                     ? own.filter((p) => p !== 'ios')
                     : own
-            plans.push({ app, platforms })
+            // Not when its only platform's setup failed (e.g. pod install).
+            if (platforms.length > 0) plans.push({ app, platforms })
         }
         // Every app is built before any runs, so builds don't slow the
         // devices while cases are timed. Each platform builds the apps one
@@ -2706,10 +2971,13 @@ async function main() {
             bundleWarm = warmBundles(app, platforms)
             return true
         }
+        // The first app's Metro starts while the apps build (it can take a
+        // minute or two to crawl node_modules without Watchman); its run waits
+        // for it.
         const first = plans[0]
         const firstStarted = first
-            ? await startApp(first.app, first.platforms)
-            : false
+            ? startApp(first.app, first.platforms)
+            : Promise.resolve(false)
         if (plans.length > 0) {
             say(
                 `Building ${plans.map(({ app, platforms }) => `${app} (${platforms.join(' ')})`).join(', ')}`,
@@ -2729,7 +2997,7 @@ async function main() {
         for (const { app } of plans) {
             const toRun = ready.filter((p) => built.get(app)?.includes(p))
             if (app === first?.app) {
-                if (!firstStarted) continue
+                if (!(await firstStarted)) continue
             } else if (toRun.length === 0 || !(await startApp(app, toRun))) {
                 continue
             }

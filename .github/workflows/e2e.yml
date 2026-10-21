@@ -1,0 +1,254 @@
+name: e2e
+# The regression cases (scripts/verify.mts) on the iOS simulator and the
+# Android emulator, for each example app. The JS checks are in ci.yml.
+# Only run by hand for now (Actions tab, or `gh workflow run e2e.yml --ref
+# <branch>`): a run takes about 20 minutes, most of it the iOS builds.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  # CI machines are slower than a laptop.
+  VERIFY_FLOWS_TIMEOUT: 900
+  VERIFY_BUILD_TIMEOUT: 2400
+  VERIFY_HELLO_TIMEOUT: 300
+# A new push to a branch replaces its run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios:
+    # Xcode 27 with the iOS 27.0 simulator runtime the references were taken
+    # on.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      # Each app's groups in 2 shards (--shard), each a job that builds the
+      # app and runs half of them: a build takes a few minutes, a whole run
+      # 4-7. (At most 5 macOS jobs run at once.)
+      matrix:
+        app: [main, minimum]
+        shard: [1, 2]
+    env:
+      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
+      # The simulator's recordings start late on these machines: video
+      # samples record longer before their change.
+      VERIFY_SAMPLE_LEAD_MS: 2000
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # The Xcode the references were taken with (27.1).
+      - run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+      - run: command -v ffmpeg || brew install ffmpeg
+      - run: bun install --frozen-lockfile
+      # The app's dependencies, Pods, pod install's Codegen output and gems
+      # (verify.mts skips pod install while they're current), and React
+      # Native's and CocoaPods' downloads.
+      - id: deps
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.APP_DIR }}/node_modules
+            ${{ env.APP_DIR }}/ios/Pods
+            ${{ env.APP_DIR }}/ios/Podfile.lock
+            ${{ env.APP_DIR }}/ios/build/generated
+            ${{ env.APP_DIR }}/vendor/bundle
+            ~/Library/Caches/ReactNative
+            ~/Library/Caches/CocoaPods
+          key: ios-deps-v3-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
+          restore-keys: ios-deps-v3-${{ matrix.app }}-
+      # An older key's node_modules is brought up to date (verify.mts only
+      # installs when there are none).
+      - if: steps.deps.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
+        working-directory: ${{ env.APP_DIR }}
+      # Xcode's compilation cache (verify.mts), so builds reuse what earlier
+      # runs compiled.
+      - id: build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/react-native-fast-image
+          key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          restore-keys: ios-build-${{ matrix.app }}-
+      # The app's last build (Xcode's derived data, ios/build), so the build
+      # is incremental: with only the compilation cache, Xcode still spends
+      # minutes planning a build of the Pods' 360 targets. Saved by every run
+      # (the newest is restored).
+      - id: derived
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.APP_DIR }}/ios/build
+          key: ios-derived-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}-${{ github.run_id }}
+          restore-keys: |
+            ios-derived-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}-
+            ios-derived-${{ matrix.app }}-
+      # maestro-runner's WebDriverAgent build (for the touch group), kept in
+      # its package.
+      - id: wda
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
+          key: ios-wda-${{ hashFiles('bun.lock') }}
+      # Metro's transform cache (in TMPDIR), so the first bundle doesn't
+      # transform everything again.
+      - id: metro
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          restore-keys: metro-ios-${{ matrix.app }}-
+      - run: |
+          mkdir -p "$TMPDIR"
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
+      # Saved even when cases fail (the builds are still good), but only what
+      # the run got as far as making: a run that stopped early would save an
+      # empty cache under the key, and later runs would use it.
+      - id: made
+        if: always()
+        run: |
+          test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
+          test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
+          test -d "$APP_DIR/ios/build/Build/Products" && echo derived=true >> "$GITHUB_OUTPUT" || true
+          test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+      - if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.APP_DIR }}/node_modules
+            ${{ env.APP_DIR }}/ios/Pods
+            ${{ env.APP_DIR }}/ios/Podfile.lock
+            ${{ env.APP_DIR }}/ios/build/generated
+            ${{ env.APP_DIR }}/vendor/bundle
+            ~/Library/Caches/ReactNative
+            ~/Library/Caches/CocoaPods
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+      - if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/react-native-fast-image
+          key: ${{ steps.build.outputs.cache-primary-key }}
+      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: ${{ steps.metro.outputs.cache-primary-key }}
+      # One shard saves it (the other's would be the same build).
+      - if: always() && matrix.shard == 1 && steps.made.outputs.derived == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.APP_DIR }}/ios/build
+          key: ${{ steps.derived.outputs.cache-primary-key }}
+      - if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
+          key: ${{ steps.wda.outputs.cache-primary-key }}
+      # An upload that fails (it timed out once) doesn't fail the job.
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verify-ios-${{ matrix.app }}-${{ matrix.shard }}
+          path: verify-output
+          retention-days: 14
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      # Each app's groups in 2 shards (--shard), each a job that builds the
+      # app and runs half of them: a build takes a few minutes, a whole run
+      # 4-7. (At most 5 macOS jobs run at once.)
+      matrix:
+        app: [main, minimum]
+        shard: [1, 2]
+    env:
+      ANDROID_AVD: rnfi_ci
+      # Where avdmanager creates it and the emulator looks for it.
+      ANDROID_AVD_HOME: /home/runner/.android/avd
+      # No GPU on the runners: software rendering, whose screen recordings
+      # have a few frames a second.
+      ANDROID_EMULATOR_GPU: swiftshader_indirect
+      VERIFY_SPARSE_RECORDINGS: 1
+      ANDROID_IMAGE: system-images;android-36;default;x86_64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      # Gradle's caches, written from pull requests too (by default only from
+      # the default branch).
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: false
+      # The emulator needs KVM.
+      - run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - id: image
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-36
+          key: android-image-36-x86_64
+      # A plain AOSP image, as the references' emulator (a Pixel 7's screen);
+      # x86_64 here.
+      - run: |
+          PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          sdkmanager --install emulator platform-tools "$ANDROID_IMAGE" > /dev/null
+          echo no | avdmanager create avd -n "$ANDROID_AVD" -k "$ANDROID_IMAGE" -d pixel_7 -p "$ANDROID_AVD_HOME/$ANDROID_AVD.avd"
+          # The index file the emulator finds the AVD by, which avdmanager
+          # writes to a home of its own.
+          printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-36\n' "$ANDROID_AVD_HOME/$ANDROID_AVD.avd" > "$ANDROID_AVD_HOME/$ANDROID_AVD.ini"
+          printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
+      - if: steps.image.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-36
+          key: ${{ steps.image.outputs.cache-primary-key }}
+      - run: sudo apt-get install -y ffmpeg > /dev/null
+      - run: bun install --frozen-lockfile
+      - id: metro
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: metro-android-${{ matrix.app }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: metro-android-${{ matrix.app }}-
+      - run: |
+          mkdir -p "$TMPDIR"
+          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js --shard ${{ matrix.shard }}/2
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
+      - id: made
+        if: always()
+        run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: ${{ steps.metro.outputs.cache-primary-key }}
+      # An upload that fails (it timed out once) doesn't fail the job.
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verify-android-${{ matrix.app }}-${{ matrix.shard }}
+          path: verify-output
+          retention-days: 14
