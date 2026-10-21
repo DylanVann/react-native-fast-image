@@ -287,7 +287,15 @@ const RECORDINGS = path.join(
 
 // --- Helpers -------------------------------------------------------------
 
-const say = (message: string) => console.log(`==> ${message}`)
+// Durations as m:ss, and the time since the run started, so the log shows
+// where a run's time goes.
+const RUN_START = Date.now()
+const duration = (ms: number) => {
+    const seconds = Math.round(ms / 1000)
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+const elapsed = () => `[+${duration(Date.now() - RUN_START)}]`
+const say = (message: string) => console.log(`==> ${elapsed()} ${message}`)
 const rel = (file: string) => path.relative(ROOT, file)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -298,7 +306,9 @@ function record(status: Result['status'], name: string, detail?: string) {
     const line = `${status.padEnd(4)}  ${name}${detail ? `  (${detail})` : ''}`
     // Written as it goes, so a run that's stopped early keeps its results.
     fs.appendFileSync(path.join(OUT, 'results.txt'), line + '\n')
-    console.log(`    ${status}: ${name}${detail ? ` (${detail})` : ''}`)
+    console.log(
+        `    ${elapsed()} ${status}: ${name}${detail ? ` (${detail})` : ''}`,
+    )
 }
 
 // Runs a short command and returns its output, or undefined if it fails.
@@ -1749,7 +1759,7 @@ async function runRegression(
         // (the details are in regression.log). The screenshot's comparison
         // finishes later.
         console.log(
-            `    ${name}: ${label} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
+            `    ${elapsed()} ${name}: ${label} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
         )
         return { connected: true, shot }
     }
@@ -2381,9 +2391,11 @@ async function buildIos(app: App) {
     const dir = appDir(app)
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
+    const prepareStart = Date.now()
     trimCompilationCache()
     fs.writeFileSync(log, '')
     syncPrebuiltMarkers(dir, log)
+    const buildStart = Date.now()
     const result = await run(
         'xcodebuild',
         [
@@ -2432,7 +2444,9 @@ async function buildIos(app: App) {
         dir,
         `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
     )
+    const bootStart = Date.now()
     await iosBooted
+    const installStart = Date.now()
     if (
         capture('xcrun', ['simctl', 'install', iosUdid, product], {
             timeout: 120,
@@ -2452,7 +2466,11 @@ async function buildIos(app: App) {
         iosBundleId(app),
     ])
     addLibraryMedia()
-    record('PASS', `${app} ios build`)
+    record(
+        'PASS',
+        `${app} ios build`,
+        `prepare ${duration(buildStart - prepareStart)}, xcodebuild ${duration(bootStart - buildStart)}, waiting for the simulator ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
+    )
     return true
 }
 
@@ -2682,6 +2700,7 @@ async function buildAndroid(app: App) {
         'getprop',
         'ro.product.cpu.abi',
     ])?.trim()
+    const buildStart = Date.now()
     const result = await run(
         './gradlew',
         [
@@ -2728,7 +2747,9 @@ async function buildAndroid(app: App) {
             : 'android/app/build/outputs/apk/debug/app-debug.apk',
     )
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
+    const bootStart = Date.now()
     await androidBooted
+    const installStart = Date.now()
     const installedApk = capture(ADB, [
         '-s',
         androidSerial,
@@ -2761,7 +2782,11 @@ async function buildAndroid(app: App) {
         }
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
-    record('PASS', `${app} android build`)
+    record(
+        'PASS',
+        `${app} android build`,
+        `gradle ${duration(bootStart - buildStart)}, waiting for the emulator ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
+    )
     // Once per run (in the first shard of a sharded one).
     if (
         app === 'main' &&
