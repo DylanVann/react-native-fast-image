@@ -32,10 +32,6 @@ jobs:
         shard: [1, 2]
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
-      # The runner image's own iPhone 17 simulator (the same screen as the
-      # references' iPhone 17 Pro): a simulator created in the job keeps the
-      # 3 cores busy for about 10 minutes with its first boot.
-      IOS_SIMULATOR: iPhone 17
       # The simulator's recordings start late on these machines: video
       # samples record longer before their change.
       VERIFY_SAMPLE_LEAD_MS: 2000
@@ -45,6 +41,21 @@ jobs:
       - run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+      # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
+      # its first boot: a new simulator's first boot keeps the runner's 3
+      # cores busy for about 10 minutes, a restored one boots in seconds.
+      # CoreSimulator lists the devices in its folder when its service starts.
+      - id: simulator
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/simulator-cache
+          key: ios-simulator-iPhone-17-Pro-xcode-27.1-v1
+      - if: steps.simulator.outputs.cache-hit == 'true'
+        run: |
+          udid=$(cat ~/simulator-cache/udid)
+          mv ~/simulator-cache/"$udid" ~/Library/Developer/CoreSimulator/Devices/
+          killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
+          xcrun simctl list devices | grep "RNFI iPhone"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
@@ -106,6 +117,25 @@ jobs:
           node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
+      # The simulator verify.mts created, for later runs (see above): without
+      # the example apps, shut down.
+      - if: always() && steps.simulator.outputs.cache-hit != 'true'
+        id: savesimulator
+        run: |
+          udid=$(xcrun simctl list devices -j | python3 -c 'import json, sys; print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == "RNFI iPhone"))') || exit 0
+          for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum; do
+            xcrun simctl uninstall "$udid" "org.reactjs.native.example.$app" || true
+          done
+          xcrun simctl shutdown "$udid" || true
+          mkdir -p ~/simulator-cache
+          cp -R ~/Library/Developer/CoreSimulator/Devices/"$udid" ~/simulator-cache/
+          echo "$udid" > ~/simulator-cache/udid
+          echo saved=true >> "$GITHUB_OUTPUT"
+      - if: always() && steps.savesimulator.outputs.saved == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/simulator-cache
+          key: ${{ steps.simulator.outputs.cache-primary-key }}
       # Saved even when cases fail (the builds are still good), but only what
       # the run got as far as making: a run that stopped early would save an
       # empty cache under the key, and later runs would use it.
