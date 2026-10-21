@@ -98,6 +98,9 @@ Environment:
                   started with -gpu host and no window.
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
+  VERIFY_SAMPLE_LEAD_MS
+                  How long a video sample records before its case makes the
+                  change (default 500); longer where recordings start late.
   VERIFY_SPARSE_RECORDINGS
                   Set when the screen recorder captures only a few frames a
                   second (an emulator without a GPU): a video sample whose
@@ -880,7 +883,9 @@ const SAMPLE_MAX_RATIO = 0.6
 // frames that were still being drawn, and the case makes its change at least
 // this long after it asked.
 const SAMPLE_TAIL_MS = 500
-const SAMPLE_LEAD_MS = 500
+// (VERIFY_SAMPLE_LEAD_MS: longer where a recording's first frames come late,
+// e.g. a busy CI machine's simulator.)
+const SAMPLE_LEAD_MS = Number(env.VERIFY_SAMPLE_LEAD_MS) || 500
 // With VERIFY_SPARSE_RECORDINGS (a recorder that captures a few frames a
 // second, e.g. an emulator without a GPU), a sample that saw its first and
 // last colors more than this far apart, and nothing between them, isn't
@@ -2754,7 +2759,14 @@ async function buildAndroid(app: App) {
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
     record('PASS', `${app} android build`)
-    if (app === 'main' && !RELEASE && !FROM_PACKAGE) await androidUnitTests(dir)
+    // Once per run (in the first shard of a sharded one).
+    if (
+        app === 'main' &&
+        !RELEASE &&
+        !FROM_PACKAGE &&
+        (!SHARD || SHARD.index === 1)
+    )
+        await androidUnitTests(dir)
     return true
 }
 

@@ -33,6 +33,9 @@ jobs:
         shard: [1, 2]
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
+      # The simulator's recordings start late on these machines: video
+      # samples record longer before their change.
+      VERIFY_SAMPLE_LEAD_MS: 2000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -151,7 +154,9 @@ jobs:
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ${{ steps.wda.outputs.cache-primary-key }}
+      # An upload that fails (it timed out once) doesn't fail the job.
       - if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verify-ios-${{ matrix.app }}-${{ matrix.shard }}
@@ -240,7 +245,9 @@ jobs:
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
+      # An upload that fails (it timed out once) doesn't fail the job.
       - if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verify-android-${{ matrix.app }}-${{ matrix.shard }}
