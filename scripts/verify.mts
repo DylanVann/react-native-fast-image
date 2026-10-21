@@ -1497,10 +1497,11 @@ async function runRegression(
         ws.close()
     }
 
+    // Connecting took over 5 s on a busy CI runner.
     if (
         !(await waitFor(
             () => (ws.readyState === WebSocket.OPEN ? true : undefined),
-            5000,
+            30_000,
         ))
     ) {
         fail(socketError ?? "couldn't connect to the image server's relay")
