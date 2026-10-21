@@ -98,10 +98,11 @@ Environment:
                   started with -gpu host and no window.
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
-  VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT
+  VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT, VERIFY_HELLO_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 180 with --background) and builds
-                  (default 900).
+                  (default 900), and for the app to connect after it
+                  launches (default 90).
   MAESTRO_RUNNER_BIN
                   maestro-runner binary (default: the dev dependency).
   MAESTRO_RUNNER_ANDROID_DRIVER
@@ -709,7 +710,9 @@ async function stopMetro() {
 // of it is saved with simctl or adb, and the next group is asked for. Nothing
 // goes through the accessibility tree, so a group takes about as long as its
 // slowest case. Output: <out>/<app>-<platform>/regression/.
-const HELLO_TIMEOUT = 90_000
+// How long the app has to connect after launching (its first bundle can take
+// minutes on a slow machine without Metro's cache).
+const HELLO_TIMEOUT = seconds('VERIFY_HELLO_TIMEOUT', 90) * 1000
 // How long the app may be disconnected before a group fails with "the app
 // went away": the emulator's network drops for a few seconds now and then,
 // and the runner reconnects and shows the group again.
@@ -1486,6 +1489,9 @@ async function runRegression(
         HELLO_TIMEOUT,
     )
     if (!hello) {
+        // What the app shows instead (e.g. an error, or a system dialog).
+        if (platform !== 'web')
+            screenshot(platform, device, path.join(dir, 'no-hello.png'))
         fail(
             socketError ??
                 `the app didn't connect within ${HELLO_TIMEOUT / 1000}s`,
@@ -2426,7 +2432,9 @@ async function androidDevice() {
         )
             await sleep(2000)
         // On emulators, don't let "isn't responding" dialogs from background
-        // apps cover the app under test (the runners can't see through them).
+        // apps cover the app under test (the runners can't see through them),
+        // and close one that's already showing (e.g. the system UI's, from a
+        // slow boot).
         if (androidSerial.startsWith('emulator-')) {
             capture(ADB, [
                 '-s',
@@ -2437,6 +2445,15 @@ async function androidDevice() {
                 'global',
                 'hide_error_dialogs',
                 '1',
+            ])
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'am',
+                'broadcast',
+                '-a',
+                'android.intent.action.CLOSE_SYSTEM_DIALOGS',
             ])
         }
     })()

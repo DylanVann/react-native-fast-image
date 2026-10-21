@@ -285,6 +285,10 @@ const server = Bun.serve({
         return new Response(image, { headers })
     },
     websocket: {
+        // The script's connection can be quiet for minutes (e.g. while the
+        // app loads its first bundle on a slow CI machine): Bun closes idle
+        // connections after 120 s by default; 960 s is its longest.
+        idleTimeout: 960,
         open(ws: Socket) {
             const { role, platform } = ws.data
             if (role === 'app') {

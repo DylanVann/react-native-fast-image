@@ -12,6 +12,7 @@ env:
   # CI machines are slower than a laptop.
   VERIFY_FLOWS_TIMEOUT: 900
   VERIFY_BUILD_TIMEOUT: 2400
+  VERIFY_HELLO_TIMEOUT: 300
 # A new push to a branch replaces its run.
 concurrency:
   group: e2e-${{ github.ref }}
@@ -77,7 +78,19 @@ jobs:
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ios-wda-${{ hashFiles('bun.lock') }}
-      - run: node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js
+      # Metro's transform cache (in TMPDIR), so the first bundle doesn't
+      # transform everything again.
+      - id: metro
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          restore-keys: metro-ios-${{ matrix.app }}-
+      - run: |
+          mkdir -p "$TMPDIR"
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
       # Saved even when cases fail: the builds are still good.
       - if: always() && steps.deps.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -95,6 +108,11 @@ jobs:
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
+      - if: always() && steps.metro.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: ${{ steps.metro.outputs.cache-primary-key }}
       - if: always() && steps.wda.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -164,7 +182,22 @@ jobs:
           key: ${{ steps.image.outputs.cache-primary-key }}
       - run: sudo apt-get install -y ffmpeg > /dev/null
       - run: bun install --frozen-lockfile
-      - run: node scripts/verify.mts --app ${{ matrix.app }} --android --no-js
+      - id: metro
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: metro-android-${{ matrix.app }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: metro-android-${{ matrix.app }}-
+      - run: |
+          mkdir -p "$TMPDIR"
+          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
+      - if: always() && steps.metro.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tmp/metro-cache
+          key: ${{ steps.metro.outputs.cache-primary-key }}
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
