@@ -62,6 +62,9 @@ Options:
                       and the podspec) from this ref instead of the working
                       tree, e.g. \`--ref main\` for a "before" run. The working
                       tree is restored afterwards.
+  --shard <i>/<n>     Run the i-th of n ranges of each app's regression groups
+                      (e.g. 1/3), to split a run between machines; the first
+                      range starts with \`start\`.
   --background        Also run the flows tagged \`background\`
                       (maestro/background.yaml and
                       background-no-activity.yaml), which send the app to the
@@ -134,6 +137,7 @@ function parseOptions() {
                 package: { type: 'boolean', default: false },
                 release: { type: 'boolean', default: false },
                 ref: { type: 'string' },
+                shard: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 record: { type: 'boolean', default: false },
                 'update-screenshots': { type: 'boolean', default: false },
@@ -162,6 +166,16 @@ if (
     console.error(`Unknown app: ${options.app} (use main, minimum, expo or tv)`)
     process.exit(2)
 }
+// --shard i/n: the i-th of n ranges of each app's regression groups.
+const SHARD = (() => {
+    if (options.shard === undefined) return undefined
+    const [index, count] = options.shard.split('/').map(Number)
+    if (!(count >= 1 && index >= 1 && index <= count)) {
+        console.error(`Invalid --shard ${options.shard} (use i/n, e.g. 1/3)`)
+        process.exit(2)
+    }
+    return { index, count }
+})()
 // The Expo and tvOS examples only run when asked for (--app expo, --app tv).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'minimum']
 if (options.web && !APPS.includes('expo')) {
@@ -1490,7 +1504,17 @@ async function runRegression(
         messages.findLast(
             (m) => m.type === 'status' && m.group === index && m.id === id,
         )?.status as string | undefined
-    for (let index = 0; index < groups.length; index++) {
+    // With --shard i/n, the i-th of n ranges of the groups, in order (each
+    // shard is a run of its own, e.g. a CI job; the first has `start`, which
+    // must come before any image has loaded).
+    const first = SHARD
+        ? Math.round((groups.length * (SHARD.index - 1)) / SHARD.count)
+        : 0
+    const end = SHARD
+        ? Math.round((groups.length * SHARD.index) / SHARD.count)
+        : groups.length
+    if (first > 0) send({ type: 'show', index: first })
+    for (let index = first; index < end; index++) {
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
@@ -1606,11 +1630,12 @@ async function runRegression(
         // (the details are in regression.log). The screenshot's comparison
         // finishes later.
         console.log(
-            `    ${name}: ${index + 1}/${groups.length} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
+            `    ${name}: ${index + 1 - first}/${end - first} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
         )
         send({ type: 'next' })
     }
-    await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
+    if (end === groups.length)
+        await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
     ws.close()
     await Promise.all(shots)
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
@@ -1651,7 +1676,7 @@ async function runRegression(
         record(
             'PASS',
             name,
-            `${groups.length} groups in ${total}s${seededNote}`,
+            `${end - first} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
         )
     }
 }
