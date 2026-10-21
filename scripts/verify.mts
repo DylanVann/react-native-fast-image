@@ -2282,7 +2282,7 @@ function trimCompilationCache() {
 // debugger). So before each build the markers say which build is on disk, read
 // from a symbol only the Debug one has, and the build phase swaps when needed.
 // The marker's path is the app's React Native's own (LAST_BUILD_FILENAME).
-function syncPrebuiltMarkers(dir: string) {
+function syncPrebuiltMarkers(dir: string, log: string) {
     const pods = path.join(dir, 'ios/Pods')
     const rn = path.join(dir, 'node_modules/react-native')
     const slice = `${TV ? 'tvos' : 'ios'}-arm64_x86_64-simulator`
@@ -2307,23 +2307,30 @@ function syncPrebuiltMarkers(dir: string) {
             .readFileSync(source, 'utf8')
             .match(/LAST_BUILD_FILENAME\s*=\s*'([^']+)'/)?.[1]
         if (!marker) continue
-        const built =
-            capture(
-                'sh',
-                [
-                    '-c',
-                    'nm -gU "$0" | grep -q "$1" && echo Debug',
-                    file,
-                    debugSymbol,
-                ],
-                { timeout: 60 },
-            ) === 'Debug'
-                ? 'Debug'
-                : 'Release'
+        // Only from a finished look: nm can take over a minute on a big Debug
+        // framework on a slow machine, and a timeout taken as Release left a
+        // Debug core in a Release build (a crash at launch).
+        const built = capture(
+            'sh',
+            [
+                '-c',
+                'nm -gU "$0" > /dev/null || exit 1; nm -gU "$0" | grep -q "$1" && echo Debug || echo Release',
+                file,
+                debugSymbol,
+            ],
+            { timeout: 300 },
+        )
+        const note = (line: string) =>
+            fs.appendFileSync(log, `verify: ${path.basename(file)}: ${line}\n`)
+        if (built !== 'Debug' && built !== 'Release') {
+            note("couldn't tell its configuration (nm failed)")
+            continue
+        }
         const markerFile = path.join(pods, marker)
         const current = fs.existsSync(markerFile)
             ? fs.readFileSync(markerFile, 'utf8')
             : 'Debug'
+        note(`${built} on disk, marker ${current}`)
         if (current !== built) fs.writeFileSync(markerFile, built)
     }
 }
@@ -2333,7 +2340,8 @@ async function buildIos(app: App) {
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
     trimCompilationCache()
-    syncPrebuiltMarkers(dir)
+    fs.writeFileSync(log, '')
+    syncPrebuiltMarkers(dir, log)
     const result = await run(
         'xcodebuild',
         [
