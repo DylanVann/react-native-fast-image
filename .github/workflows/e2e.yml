@@ -136,6 +136,27 @@ jobs:
         with:
           path: ~/simulator-cache
           key: ${{ steps.simulator.outputs.cache-primary-key }}
+      # Where xcodebuild's time went, from Xcode's activity log (the timing
+      # summary leaves out planning): the slowest steps here, the whole report
+      # in the run's verify-output.
+      - if: always()
+        continue-on-error: true
+        run: |
+          log=$(ls -t "$APP_DIR"/ios/build/Logs/Build/*.xcactivitylog | head -1)
+          brew install xclogparser > /dev/null
+          xclogparser parse --file "$log" --reporter json --output verify-output/xcode-build.json
+          python3 - <<'PY'
+          import json
+          steps = []
+          def walk(step, depth):
+              steps.append((step.get('duration', 0), depth, step.get('type'), step.get('title', '')))
+              for sub in step.get('subSteps', []):
+                  walk(sub, depth + 1)
+          walk(json.load(open('verify-output/xcode-build.json')), 0)
+          print('slowest steps (s, depth, type, title):')
+          for duration, depth, kind, title in sorted(steps, reverse=True)[:25]:
+              print(f'{duration:8.1f}  {depth}  {kind}  {title[:100]}')
+          PY
       # Saved even when cases fail (the builds are still good), but only what
       # the run got as far as making: a run that stopped early would save an
       # empty cache under the key, and later runs would use it.
