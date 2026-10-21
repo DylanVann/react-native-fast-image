@@ -43,7 +43,7 @@ jobs:
           xcodebuild -version
       - run: command -v ffmpeg || brew install ffmpeg
       - run: bun install --frozen-lockfile
-      # The app's dependencies, Pods and pod install's Codegen output
+      # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current), and React
       # Native's and CocoaPods' downloads.
       - id: deps
@@ -54,10 +54,11 @@ jobs:
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
+            ${{ env.APP_DIR }}/vendor/bundle
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
-          key: ios-deps-v2-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
-          restore-keys: ios-deps-v2-${{ matrix.app }}-
+          key: ios-deps-v3-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
+          restore-keys: ios-deps-v3-${{ matrix.app }}-
       # An older key's node_modules is brought up to date (verify.mts only
       # installs when there are none).
       - if: steps.deps.outputs.cache-hit != 'true'
@@ -91,8 +92,16 @@ jobs:
           node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js
         env:
           TMPDIR: ${{ runner.temp }}/tmp
-      # Saved even when cases fail: the builds are still good.
-      - if: always() && steps.deps.outputs.cache-hit != 'true'
+      # Saved even when cases fail (the builds are still good), but only what
+      # the run got as far as making: a run that stopped early would save an
+      # empty cache under the key, and later runs would use it.
+      - id: made
+        if: always()
+        run: |
+          test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
+          test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
+          test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+      - if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -100,20 +109,21 @@ jobs:
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
+            ${{ env.APP_DIR }}/vendor/bundle
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
           key: ${{ steps.deps.outputs.cache-primary-key }}
-      - if: always() && steps.build.outputs.cache-hit != 'true'
+      - if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
-      - if: always() && steps.metro.outputs.cache-hit != 'true'
+      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
-      - if: always() && steps.wda.outputs.cache-hit != 'true'
+      - if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
@@ -193,7 +203,10 @@ jobs:
           node scripts/verify.mts --app ${{ matrix.app }} --android --no-js
         env:
           TMPDIR: ${{ runner.temp }}/tmp
-      - if: always() && steps.metro.outputs.cache-hit != 'true'
+      - id: made
+        if: always()
+        run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tmp/metro-cache

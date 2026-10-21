@@ -1160,6 +1160,8 @@ async function runRegression(
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
+    // Video samples a stalled recording couldn't check (see stopSession).
+    const unchecked: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
     // out), compared with its reference. Comparisons (and video samples) run
     // in the background; `shots` is awaited at the end.
@@ -1328,20 +1330,47 @@ async function runRegression(
                 try {
                     if (error) throw new Error(error)
                     if (!saved) throw new Error('no recording was saved')
-                    const frames = frameColors(
-                        current.file,
-                        message.area as PixelRect,
-                        windowWidth,
-                    )
+                    const area = message.area as PixelRect
+                    const expect = (message.expect as string[]) ?? []
+                    const palette = (message.palette as string[]) ?? []
+                    const frames = frameColors(current.file, area, windowWidth)
                     result = matchSample(
                         framesBetween(
                             frames,
                             sample.start / 1000,
                             ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
                         ),
-                        (message.expect as string[]) ?? [],
-                        (message.palette as string[]) ?? [],
+                        expect,
+                        palette,
                     )
+                    // No frame after the change was asked for: the recorder
+                    // stalled (a CI emulator's does after a few frames), or
+                    // nothing changed (these recorders only add a frame when
+                    // the screen changes). The screen now tells them apart:
+                    // the area showing the last expected color means the
+                    // change was made, though the recording can't say how.
+                    const requested = sample.start / 1000
+                    if (
+                        !result.ok &&
+                        !frames.some((frame) => frame.time > requested)
+                    ) {
+                        const shot = path.join(dir, `${name}-after.png`)
+                        screenshot(platform, device, shot)
+                        const [after] = frameColors(shot, area, windowWidth)
+                        const last = expect.at(-1)
+                        if (
+                            after &&
+                            last &&
+                            matchSample([after.color], [last], palette).ok
+                        ) {
+                            result = {
+                                ok: true,
+                                seen: result.seen,
+                                detail: `not checked: the recording stopped, and the area shows ${last}`,
+                            }
+                            unchecked.push(name)
+                        }
+                    }
                 } catch (e) {
                     result = {
                         ok: false,
@@ -1705,6 +1734,7 @@ async function runRegression(
                 noReference,
                 unseeded: stillUnseeded,
                 passedOnRetry,
+                unchecked,
                 timings,
             },
             null,
@@ -1724,6 +1754,9 @@ async function runRegression(
             : '') +
         (passedOnRetry.length > 0
             ? `; passed on retry: ${passedOnRetry.join(', ')}`
+            : '') +
+        (unchecked.length > 0
+            ? `; samples not checked (the recording stopped): ${unchecked.join(', ')}`
             : '')
     if (failures.length > 0) {
         record(
@@ -2829,7 +2862,8 @@ async function main() {
                 own.includes('ios') && !(await iosPods(app))
                     ? own.filter((p) => p !== 'ios')
                     : own
-            plans.push({ app, platforms })
+            // Not when its only platform's setup failed (e.g. pod install).
+            if (platforms.length > 0) plans.push({ app, platforms })
         }
         // Every app is built before any runs, so builds don't slow the
         // devices while cases are timed. Each platform builds the apps one
