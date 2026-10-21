@@ -875,6 +875,10 @@ const SAMPLE_MAX_RATIO = 0.6
 // this long after it asked.
 const SAMPLE_TAIL_MS = 500
 const SAMPLE_LEAD_MS = 500
+// A recording whose frames are further apart than this while a sample's
+// change happens can't show it (e.g. an emulator without a GPU records a few
+// frames a second): such a sample isn't checked (see stopSession).
+const SAMPLE_MAX_GAP_MS = 100
 
 // sRGB to CIE Lab (D65).
 function toLab([r, g, b]: Rgb): Rgb {
@@ -1073,38 +1077,44 @@ function framesBetween(
     frames: { time: number; color: Rgb }[],
     start: number,
     end: number,
-): Rgb[] {
+) {
     const first = frames.findLastIndex((frame) => frame.time <= start)
-    return frames
-        .slice(Math.max(0, first))
-        .filter((frame) => frame.time <= end)
-        .map((frame) => frame.color)
+    return frames.slice(Math.max(0, first)).filter((frame) => frame.time <= end)
+}
+
+// The sample's colors (expected and palette), for sampleColor.
+const sampleColors = (expect: string[], palette: string[]) =>
+    [...new Set([...expect, ...palette])].map((hex) => ({
+        hex,
+        lab: toLab(hexToRgb(hex)),
+    }))
+
+// The color a frame clearly shows, if any.
+function sampleColor(
+    frame: Rgb,
+    colors: { hex: string; lab: [number, number, number] }[],
+) {
+    const lab = toLab(frame)
+    const [best, next] = colors
+        .map(({ hex, lab: c }) => ({
+            hex,
+            distance: Math.hypot(lab[0] - c[0], lab[1] - c[1], lab[2] - c[2]),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+    return best !== undefined &&
+        best.distance <= SAMPLE_MAX_DISTANCE &&
+        (!next || best.distance <= SAMPLE_MAX_RATIO * next.distance)
+        ? best.hex
+        : undefined
 }
 
 // The colors seen (see above) and whether they're `expect`.
 function matchSample(frames: Rgb[], expect: string[], palette: string[]) {
-    const colors = [...new Set([...expect, ...palette])].map((hex) => ({
-        hex,
-        lab: toLab(hexToRgb(hex)),
-    }))
+    const colors = sampleColors(expect, palette)
     const seen: string[] = []
     for (const frame of frames) {
-        const lab = toLab(frame)
-        const [best, next] = colors
-            .map(({ hex, lab: c }) => ({
-                hex,
-                distance: Math.hypot(
-                    lab[0] - c[0],
-                    lab[1] - c[1],
-                    lab[2] - c[2],
-                ),
-            }))
-            .sort((a, b) => a.distance - b.distance)
-        const clear =
-            best !== undefined &&
-            best.distance <= SAMPLE_MAX_DISTANCE &&
-            (!next || best.distance <= SAMPLE_MAX_RATIO * next.distance)
-        if (clear && seen.at(-1) !== best.hex) seen.push(best.hex)
+        const hex = sampleColor(frame, colors)
+        if (hex && seen.at(-1) !== hex) seen.push(hex)
     }
     const ok =
         seen.length === expect.length &&
@@ -1333,43 +1343,56 @@ async function runRegression(
                     const area = message.area as PixelRect
                     const expect = (message.expect as string[]) ?? []
                     const palette = (message.palette as string[]) ?? []
-                    const frames = frameColors(current.file, area, windowWidth)
+                    const frames = framesBetween(
+                        frameColors(current.file, area, windowWidth),
+                        sample.start / 1000,
+                        ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
+                    )
                     result = matchSample(
-                        framesBetween(
-                            frames,
-                            sample.start / 1000,
-                            ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
-                        ),
+                        frames.map((frame) => frame.color),
                         expect,
                         palette,
                     )
-                    // No frame after the change was asked for: the recorder
-                    // stalled (a CI emulator's does after a few frames), or
-                    // nothing changed (these recorders only add a frame when
-                    // the screen changes). The screen now tells them apart:
-                    // the area showing the last expected color means the
-                    // change was made, though the recording can't say how.
-                    const requested = sample.start / 1000
-                    if (
-                        !result.ok &&
-                        !frames.some((frame) => frame.time > requested)
-                    ) {
+                    // A recording that couldn't show the change doesn't fail
+                    // it (the sample isn't checked; the summary lists it):
+                    const colors = sampleColors(expect, palette)
+                    const shown = frames.map((frame) => ({
+                        time: frame.time,
+                        hex: sampleColor(frame.color, colors),
+                    }))
+                    const [first] = expect
+                    const last = expect.at(-1)
+                    const end = shown.findIndex((frame) => frame.hex === last)
+                    const before = shown
+                        .slice(0, Math.max(0, end))
+                        .findLastIndex((frame) => frame.hex === first)
+                    let unseen: string | undefined
+                    if (!result.ok && last && end === -1) {
+                        // No frame of the last color: the recorder stalled
+                        // (a CI emulator's does after a few frames), or the
+                        // change wasn't made. The screen now tells them
+                        // apart.
                         const shot = path.join(dir, `${name}-after.png`)
                         screenshot(platform, device, shot)
                         const [after] = frameColors(shot, area, windowWidth)
-                        const last = expect.at(-1)
-                        if (
-                            after &&
-                            last &&
-                            matchSample([after.color], [last], palette).ok
-                        ) {
-                            result = {
-                                ok: true,
-                                seen: result.seen,
-                                detail: `not checked: the recording stopped, and the area shows ${last}`,
-                            }
-                            unchecked.push(name)
+                        if (after && sampleColor(after.color, colors) === last)
+                            unseen = `the recording stopped before ${last}, which the area shows now`
+                    } else if (!result.ok && before !== -1) {
+                        // Too few frames between the first and last colors
+                        // to see what came between them.
+                        const gap = Math.round(
+                            (shown[end].time - shown[before].time) * 1000,
+                        )
+                        if (gap > SAMPLE_MAX_GAP_MS)
+                            unseen = `the recording has no frames for ${gap} ms during the change`
+                    }
+                    if (unseen) {
+                        result = {
+                            ok: true,
+                            seen: result.seen,
+                            detail: `not checked: ${unseen}`,
                         }
+                        unchecked.push(name)
                     }
                 } catch (e) {
                     result = {
@@ -1756,7 +1779,7 @@ async function runRegression(
             ? `; passed on retry: ${passedOnRetry.join(', ')}`
             : '') +
         (unchecked.length > 0
-            ? `; samples not checked (the recording stopped): ${unchecked.join(', ')}`
+            ? `; samples not checked (their recordings couldn't show the change): ${unchecked.join(', ')}`
             : '')
     if (failures.length > 0) {
         record(
