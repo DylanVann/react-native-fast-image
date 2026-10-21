@@ -2342,16 +2342,13 @@ function syncPrebuiltMarkers(dir: string, log: string) {
         {
             script: 'scripts/replace-rncore-version.js',
             binary: `React-Core-prebuilt/React.xcframework/${slice}/React.framework/React`,
-            debugSymbol: 'DebugStringConvertible',
         },
         ...['hermesvm', 'hermes'].map((name) => ({
             script: 'sdks/hermes-engine/utils/replace_hermes_version.js',
             binary: `hermes-engine/destroot/Library/Frameworks/universal/${name}.xcframework/${slice}/${name}.framework/${name}`,
-            // hermes::debugger
-            debugSymbol: 'hermes8debugger',
         })),
     ]
-    for (const { script, binary, debugSymbol } of frameworks) {
+    for (const { script, binary } of frameworks) {
         const file = path.join(pods, binary)
         const source = path.join(rn, script)
         if (!fs.existsSync(file) || !fs.existsSync(source)) continue
@@ -2359,30 +2356,19 @@ function syncPrebuiltMarkers(dir: string, log: string) {
             .readFileSync(source, 'utf8')
             .match(/LAST_BUILD_FILENAME\s*=\s*'([^']+)'/)?.[1]
         if (!marker) continue
-        // Only from a finished look: nm can take over a minute on a big Debug
-        // framework on a slow machine, and a timeout taken as Release left a
-        // Debug core in a Release build (a crash at launch).
-        const built = capture(
-            'sh',
-            [
-                '-c',
-                'nm -gU "$0" > /dev/null || exit 1; nm -gU "$0" | grep -q "$1" && echo Debug || echo Release',
-                file,
-                debugSymbol,
-            ],
-            { timeout: 300 },
-        )
-        const note = (line: string) =>
-            fs.appendFileSync(log, `verify: ${path.basename(file)}: ${line}\n`)
-        if (built !== 'Debug' && built !== 'Release') {
-            note("couldn't tell its configuration (nm failed)")
-            continue
-        }
+        // Hermes' debugger (CDPDebugAPI) is only in the Debug builds of both:
+        // read from the file's bytes (nm hung on React's framework on CI).
+        const built = fs.readFileSync(file).includes('CDPDebugAPI')
+            ? 'Debug'
+            : 'Release'
         const markerFile = path.join(pods, marker)
         const current = fs.existsSync(markerFile)
             ? fs.readFileSync(markerFile, 'utf8')
             : 'Debug'
-        note(`${built} on disk, marker ${current}`)
+        fs.appendFileSync(
+            log,
+            `verify: ${path.basename(file)}: ${built} on disk, marker ${current}\n`,
+        )
         if (current !== built) fs.writeFileSync(markerFile, built)
     }
 }
