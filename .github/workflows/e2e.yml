@@ -25,8 +25,12 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Each app's groups in 2 shards (--shard), each a job that builds the
+      # app and runs half of them: a build takes a few minutes, a whole run
+      # 4-7. (At most 5 macOS jobs run at once.)
       matrix:
         app: [main, minimum]
+        shard: [1, 2]
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
@@ -89,7 +93,7 @@ jobs:
           restore-keys: metro-ios-${{ matrix.app }}-
       - run: |
           mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       # Saved even when cases fail (the builds are still good), but only what
@@ -131,7 +135,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verify-ios-${{ matrix.app }}
+          name: verify-ios-${{ matrix.app }}-${{ matrix.shard }}
           path: verify-output
           retention-days: 14
   android:
@@ -139,8 +143,12 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Each app's groups in 2 shards (--shard), each a job that builds the
+      # app and runs half of them: a build takes a few minutes, a whole run
+      # 4-7. (At most 5 macOS jobs run at once.)
       matrix:
         app: [main, minimum]
+        shard: [1, 2]
     env:
       ANDROID_AVD: rnfi_ci
       # Where avdmanager creates it and the emulator looks for it.
@@ -200,7 +208,7 @@ jobs:
           restore-keys: metro-android-${{ matrix.app }}-
       - run: |
           mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js
+          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       - id: made
@@ -214,6 +222,6 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verify-android-${{ matrix.app }}
+          name: verify-android-${{ matrix.app }}-${{ matrix.shard }}
           path: verify-output
           retention-days: 14

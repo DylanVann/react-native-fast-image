@@ -2345,6 +2345,8 @@ async function buildIos(app: App) {
             `platform=${SIMULATOR_OS} Simulator,id=${iosUdid}`,
             '-derivedDataPath',
             'build',
+            // Where a build's time goes, at the end of the log.
+            '-showBuildTimingSummary',
             'COMPILATION_CACHE_ENABLE_CACHING=YES',
             `COMPILATION_CACHE_CAS_PATH=${COMPILATION_CACHE}`,
         ],
@@ -2908,10 +2910,13 @@ async function main() {
             bundleWarm = warmBundles(app, platforms)
             return true
         }
+        // The first app's Metro starts while the apps build (it can take a
+        // minute or two to crawl node_modules without Watchman); its run waits
+        // for it.
         const first = plans[0]
         const firstStarted = first
-            ? await startApp(first.app, first.platforms)
-            : false
+            ? startApp(first.app, first.platforms)
+            : Promise.resolve(false)
         if (plans.length > 0) {
             say(
                 `Building ${plans.map(({ app, platforms }) => `${app} (${platforms.join(' ')})`).join(', ')}`,
@@ -2931,7 +2936,7 @@ async function main() {
         for (const { app } of plans) {
             const toRun = ready.filter((p) => built.get(app)?.includes(p))
             if (app === first?.app) {
-                if (!firstStarted) continue
+                if (!(await firstStarted)) continue
             } else if (toRun.length === 0 || !(await startApp(app, toRun))) {
                 continue
             }
