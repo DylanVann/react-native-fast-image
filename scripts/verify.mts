@@ -2012,11 +2012,17 @@ function iosDevice() {
     }
     if (!pick) return false
     iosUdid = pick.udid
-    capture('xcrun', ['simctl', 'boot', iosUdid])
-    iosBooted = run('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], {
-        log: path.join(OUT, 'simulator-boot.log'),
+    // simctl boot itself waits a minute or two on a first boot.
+    const log = path.join(OUT, 'simulator-boot.log')
+    iosBooted = run('xcrun', ['simctl', 'boot', iosUdid], {
+        log,
         timeout: 300,
-    })
+    }).then(() =>
+        run('xcrun', ['simctl', 'bootstatus', iosUdid, '-b'], {
+            log,
+            timeout: 300,
+        }),
+    )
     return true
 }
 
@@ -2127,7 +2133,8 @@ function reactNativeChanged(dir: string) {
     fs.rmSync(path.join(dir, 'ios/build'), { recursive: true, force: true })
     return true
 }
-function podsCurrent(dir: string) {
+// Why the Pods need installing, or undefined if they're current.
+function podsOutdated(dir: string) {
     try {
         const pods = fs.statSync(path.join(dir, 'ios/Pods')).mtimeMs
         const rn = fs.statSync(path.join(dir, 'node_modules/react-native'))
@@ -2138,25 +2145,31 @@ function podsCurrent(dir: string) {
             path.join(dir, 'ios/Pods/Manifest.lock'),
             'utf8',
         )
-        return (
-            pods >= rn.mtimeMs &&
-            builtFrom(path.join(dir, 'ios/Pods')) === podsSource(dir) &&
-            // pod install's Codegen output, which the build needs (gone if
-            // ios/build was removed).
-            fs.existsSync(path.join(dir, 'ios/build/generated/ios')) &&
-            manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
-        )
+        if (pods < rn.mtimeMs) return 'node_modules is newer'
+        if (builtFrom(path.join(dir, 'ios/Pods')) !== podsSource(dir))
+            return 'the library, its specs or React Native changed'
+        // pod install's Codegen output, which the build needs (gone if
+        // ios/build was removed).
+        if (!fs.existsSync(path.join(dir, 'ios/build/generated/ios')))
+            return 'no Codegen output in ios/build'
+        if (!manifest.includes(`PODFILE CHECKSUM: ${podfile}`))
+            return 'the Podfile changed'
+        return undefined
     } catch {
-        return false
+        return 'not installed'
     }
 }
 
 async function iosPods(app: App) {
     const dir = appDir(app)
     if (app === 'expo' && !(await expoPrebuild('ios'))) return false
-    if (!reactNativeChanged(dir) && !options['pods'] && podsCurrent(dir))
-        return true
-    say(`pod install (${app})`)
+    const outdated = reactNativeChanged(dir)
+        ? 'React Native changed'
+        : options['pods']
+          ? '--pods'
+          : podsOutdated(dir)
+    if (!outdated) return true
+    say(`pod install (${app}: ${outdated})`)
     const log = path.join(OUT, `pods-${app}.log`)
     const podInstall = (cmd: string, args: string[]) =>
         run(cmd, args, { cwd: path.join(dir, 'ios'), log, timeout: 600 })
