@@ -32,20 +32,19 @@ jobs:
         shard: [1, 2]
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
+      # The runner image's own iPhone 17 simulator (the same screen as the
+      # references' iPhone 17 Pro): a simulator created in the job keeps the
+      # 3 cores busy for about 10 minutes with its first boot.
+      IOS_SIMULATOR: iPhone 17
       # The simulator's recordings start late on these machines: video
       # samples record longer before their change.
       VERIFY_SAMPLE_LEAD_MS: 2000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The Xcode the references were taken with (27.1), and the simulator
-      # verify.mts uses, booting now: a first boot takes minutes of CPU, which
-      # slowed the build when it ran alongside it (3 cores). The steps until
-      # the build mostly wait on the network and disk.
+      # The Xcode the references were taken with (27.1).
       - run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
-          udid=$(xcrun simctl create "RNFI iPhone" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro)
-          nohup xcrun simctl boot "$udid" > /dev/null 2>&1 &
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
