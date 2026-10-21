@@ -98,6 +98,10 @@ Environment:
                   started with -gpu host and no window.
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
+  VERIFY_SPARSE_RECORDINGS
+                  Set when the screen recorder captures only a few frames a
+                  second (an emulator without a GPU): a video sample whose
+                  recording is too sparse to show its change isn't checked.
   VERIFY_FLOWS_TIMEOUT, VERIFY_BUILD_TIMEOUT, VERIFY_HELLO_TIMEOUT
                   Time limits in seconds for each app and platform's flows
                   (default 240, plus 180 with --background) and builds
@@ -877,10 +881,14 @@ const SAMPLE_MAX_RATIO = 0.6
 // this long after it asked.
 const SAMPLE_TAIL_MS = 500
 const SAMPLE_LEAD_MS = 500
-// A recording whose frames are further apart than this while a sample's
-// change happens can't show it (e.g. an emulator without a GPU records a few
-// frames a second): such a sample isn't checked (see stopSession).
+// With VERIFY_SPARSE_RECORDINGS (a recorder that captures a few frames a
+// second, e.g. an emulator without a GPU), a sample that saw its first and
+// last colors more than this far apart, and nothing between them, isn't
+// checked (see stopSession). Not by default: these recorders only add a
+// frame when the screen changes, so a gap is also how long a color stayed,
+// and an image that cut to the next instead of fading looks the same.
 const SAMPLE_MAX_GAP_MS = 100
+const SPARSE_RECORDINGS = !!env.VERIFY_SPARSE_RECORDINGS
 
 // sRGB to CIE Lab (D65).
 function toLab([r, g, b]: Rgb): Rgb {
@@ -1379,7 +1387,11 @@ async function runRegression(
                         const [after] = frameColors(shot, area, windowWidth)
                         if (after && sampleColor(after.color, colors) === last)
                             unseen = `the recording stopped before ${last}, which the area shows now`
-                    } else if (!result.ok && before !== -1) {
+                    } else if (
+                        SPARSE_RECORDINGS &&
+                        !result.ok &&
+                        before !== -1
+                    ) {
                         // Too few frames between the first and last colors
                         // to see what came between them.
                         const gap = Math.round(

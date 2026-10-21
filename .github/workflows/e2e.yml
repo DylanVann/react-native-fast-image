@@ -172,8 +172,10 @@ jobs:
       ANDROID_AVD: rnfi_ci
       # Where avdmanager creates it and the emulator looks for it.
       ANDROID_AVD_HOME: /home/runner/.android/avd
-      # No GPU on the runners.
+      # No GPU on the runners: software rendering, whose screen recordings
+      # have a few frames a second.
       ANDROID_EMULATOR_GPU: swiftshader_indirect
+      VERIFY_SPARSE_RECORDINGS: 1
       ANDROID_IMAGE: system-images;android-36;default;x86_64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
