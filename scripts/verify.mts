@@ -2236,11 +2236,13 @@ async function iosPods(app: App) {
     const ok =
         app === 'expo'
             ? (await podInstall('pod', ['install'])).ok
-            : (
+            : // Minutes the first time: it compiles the gems' native
+              // extensions.
+              (
                   await run('bundle', ['install'], {
                       cwd: dir,
                       log,
-                      timeout: 300,
+                      timeout: 900,
                   })
               ).ok &&
               (await podInstall('bundle', ['exec', 'pod', 'install'])).ok
