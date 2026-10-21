@@ -3,7 +3,12 @@
 //
 //   node scripts/verify.mts [options]
 
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import {
+    type ChildProcess,
+    execFileSync,
+    spawn,
+    spawnSync,
+} from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -423,7 +428,29 @@ function restoreLibrary() {
         fs.rmSync(path.join(ROOT, p), { recursive: true, force: true })
         fs.cpSync(path.join(backup, p), path.join(ROOT, p), { recursive: true })
     }
-    execFileSync('git', ['-C', ROOT, 'reset', '-q', '--', ...LIB_PATHS])
+    // Unstages the ref's files. Another git process (an editor's) can hold
+    // .git/index.lock for a moment: try again, then say how to finish.
+    for (let attempt = 1; ; attempt++) {
+        try {
+            execFileSync(
+                'git',
+                ['-C', ROOT, 'reset', '-q', '--', ...LIB_PATHS],
+                {
+                    stdio: 'pipe',
+                },
+            )
+            break
+        } catch (error) {
+            if (attempt < 5) {
+                sleepSync(1000)
+                continue
+            }
+            console.error(
+                `The library code is restored, but unstaging it failed (${String(error).split('\n')[0]}): run \`git reset -- ${LIB_PATHS.join(' ')}\`.`,
+            )
+            break
+        }
+    }
     fs.rmSync(backup, { recursive: true, force: true })
     backup = ''
 }
@@ -431,10 +458,14 @@ function restoreLibrary() {
 let metro: number | undefined
 // The bundles Metro was asked for while the current app built (warmBundles).
 let bundleWarm: Promise<void> = Promise.resolve()
+// Screen recordings in progress (recordScreen), stopped on exit: a simulator
+// whose recording isn't stopped refuses to start another.
+const recorders = new Set<ChildProcess>()
 let cleanedUp = false
 function cleanup() {
     if (cleanedUp) return
     cleanedUp = true
+    for (const child of recorders) child.kill('SIGINT')
     // Ask everything still running to stop, give it a moment, then force what's
     // left (this runs on exit, so it can't wait asynchronously).
     for (const pgid of groups) killGroup(pgid)
@@ -662,6 +693,10 @@ async function stopMetro() {
 // goes through the accessibility tree, so a group takes about as long as its
 // slowest case. Output: <out>/<app>-<platform>/regression/.
 const HELLO_TIMEOUT = 90_000
+// How long the app may be disconnected before a group fails with "the app
+// went away": the emulator's network drops for a few seconds now and then,
+// and the runner reconnects and shows the group again.
+const RECONNECT_GRACE_MS = 10_000
 const GROUP_TIMEOUT = 30_000
 
 type RunnerMessage = { type: string } & Record<string, unknown>
@@ -720,8 +755,13 @@ async function compareScreenshot(
     name: string,
     file: string,
     masks: PixelRect[],
+    // false for a group that failed, or a screenshot that couldn't be cropped
+    // to the safe area: it may show an error screen, a case that didn't
+    // finish, or the status bar, so it doesn't become (or replace) a
+    // reference.
+    canSeed: boolean,
 ): Promise<{
-    result: 'match' | 'seeded' | 'none' | 'differs'
+    result: 'match' | 'seeded' | 'none' | 'unseeded' | 'differs'
     detail?: string
 }> {
     const dir = path.join(SCREENSHOTS, `${app}-${platform}`)
@@ -729,6 +769,7 @@ async function compareScreenshot(
     if (!fs.existsSync(reference) || UPDATE_SCREENSHOTS) {
         // Not from a --ref run: it shows the library as it was.
         if (REF) return { result: 'none' }
+        if (!canSeed) return { result: 'unseeded' }
         fs.mkdirSync(dir, { recursive: true })
         fs.copyFileSync(file, reference)
         return { result: 'seeded' }
@@ -874,14 +915,22 @@ function recordScreen(platform: Platform, device: string, file: string) {
     const child = spawn(platform === 'ios' ? 'xcrun' : ADB, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
     })
+    recorders.add(child)
     const exited = new Promise<void>((resolve) =>
-        child.on('close', () => resolve()),
+        child.on('close', () => {
+            recorders.delete(child)
+            resolve()
+        }),
     )
+    // A simulator whose recording wasn't stopped (a run that was killed)
+    // refuses to start another until it restarts.
+    let busy = false
     // simctl says "Recording started"; screenrecord --verbose says which
     // encoder it configured, just before its first frame.
     const started = new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), 10_000)
         const look = (data: Buffer) => {
+            if (/already in progress/i.test(String(data))) busy = true
             if (/Recording started|Configuring recorder/.test(String(data))) {
                 clearTimeout(timer)
                 // screenrecord's first frame follows its configuration.
@@ -910,7 +959,7 @@ function recordScreen(platform: Platform, device: string, file: string) {
         }
         return fs.existsSync(file)
     }
-    return { started, stop }
+    return { started, stop, busy: () => busy }
 }
 
 // The average color of the middle half of `area` (dp) in each frame of the
@@ -1065,7 +1114,16 @@ async function runRegression(
     const waiters = new Set<() => void>()
     const notify = () => waiters.forEach((waiter) => waiter())
     let appConnected = false
+    // When the app disconnected, if it hasn't reconnected since.
+    let disconnectedAt: number | undefined
     let socketError: string | undefined
+    // Whether the app is gone: disconnected for longer than the grace period
+    // (or never connected), or the relay's socket failed.
+    const appGone = () =>
+        !!socketError ||
+        (!appConnected &&
+            (disconnectedAt === undefined ||
+                Date.now() - disconnectedAt >= RECONNECT_GRACE_MS))
     // From hello.
     let groups: string[] = []
     let scale = 1
@@ -1073,6 +1131,7 @@ async function runRegression(
     const failures: string[] = []
     const seeded: string[] = []
     const noReference: string[] = []
+    const unseeded: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
     // out), compared with its reference. Comparisons (and video samples) run
     // in the background; `shots` is awaited at the end.
@@ -1084,6 +1143,7 @@ async function runRegression(
         index: number,
         masksDp: unknown,
         area: PixelRect | undefined,
+        groupOk: boolean,
     ) => {
         // The web version's cases are checked by their statuses only.
         if (platform === 'web') return Promise.resolve()
@@ -1108,19 +1168,24 @@ async function runRegression(
             width: m.width * scale,
             height: m.height * scale,
         }))
-        const shot = compareScreenshot(app, platform, name, file, masks).then(
-            ({ result, detail }) => {
-                logLine(
-                    `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
-                        masks.length > 0 ? `, ${masks.length} masked` : ''
-                    }`,
-                )
-                if (result === 'seeded') seeded.push(name)
-                else if (result === 'none') noReference.push(name)
-                else if (result === 'differs')
-                    failures.push(`${name}: ${detail}`)
-            },
-        )
+        const shot = compareScreenshot(
+            app,
+            platform,
+            name,
+            file,
+            masks,
+            groupOk && !!crop,
+        ).then(({ result, detail }) => {
+            logLine(
+                `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
+                    masks.length > 0 ? `, ${masks.length} masked` : ''
+                }`,
+            )
+            if (result === 'seeded') seeded.push(name)
+            else if (result === 'none') noReference.push(name)
+            else if (result === 'unseeded') unseeded.push(name)
+            else if (result === 'differs') failures.push(`${name}: ${detail}`)
+        })
         shots.push(shot)
         return shot
     }
@@ -1143,6 +1208,8 @@ async function runRegression(
         // only says "Recording started" about a second after that).
         started: Promise<number | undefined>
         stop: Promise<() => Promise<boolean>>
+        // Whether the simulator said a recording was already in progress.
+        busy: Promise<() => boolean>
         samples: Sample[]
         active: number
         stopTimer?: ReturnType<typeof setTimeout>
@@ -1174,6 +1241,7 @@ async function runRegression(
                     .then((r) => r.started)
                     .then((ok) => (ok ? launchedAt : undefined)),
                 stop: recording.then((r) => r.stop),
+                busy: recording.then((r) => r.busy),
                 samples: [],
                 active: 0,
             }
@@ -1219,7 +1287,10 @@ async function runRegression(
             const t0 = await current.started
             const saved = await (await current.stop)()
             let error: string | undefined
-            if (t0 === undefined) error = "the recording didn't start"
+            if (t0 === undefined)
+                error = (await current.busy)()
+                    ? 'the simulator says a recording is already in progress (from a run that was stopped): restart the simulator'
+                    : "the recording didn't start"
             for (const sample of current.samples) {
                 const { message } = sample
                 const name = String(message.name)
@@ -1268,8 +1339,12 @@ async function runRegression(
     ws.onmessage = (event) => {
         const message = JSON.parse(String(event.data)) as RunnerMessage
         logLine(`<- ${JSON.stringify(message)}`)
-        if (message.type === 'app') appConnected = message.connected === true
-        else messages.push(message)
+        if (message.type === 'app') {
+            appConnected = message.connected === true
+            disconnectedAt = appConnected ? undefined : Date.now()
+            // Look again once the grace period is over.
+            if (!appConnected) setTimeout(notify, RECONNECT_GRACE_MS + 100)
+        } else messages.push(message)
         if (message.type === 'hello' && showing !== undefined) {
             send({ type: 'show', index: showing })
         }
@@ -1417,12 +1492,19 @@ async function runRegression(
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
+        // This group's failures (screenshot comparisons of earlier groups
+        // finish in the background and add theirs to `failures` too).
+        let groupFailed = false
+        const failGroup = (failure: string) => {
+            failures.push(failure)
+            groupFailed = true
+        }
         const shown = await waitFor(
             () => messages.find((m) => m.type === 'group' && m.index === index),
             GROUP_TIMEOUT,
         )
         if (!shown) {
-            failures.push(
+            failGroup(
                 `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
             )
             break
@@ -1462,23 +1544,23 @@ async function runRegression(
             () =>
                 cases.every((id) => statusOf(index, id) === 'OK')
                     ? true
-                    : appConnected && !socketError
-                      ? undefined
-                      : false,
+                    : appGone()
+                      ? false
+                      : undefined,
             GROUP_TIMEOUT - (Date.now() - waitStart),
         )
         statuses[group] = Object.fromEntries(
             cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
         )
         if (result === false) {
-            failures.push(`${group}: the app went away`)
+            failGroup(`${group}: the app went away`)
             break
         }
         if (!result) {
             for (const id of cases) {
                 const status = statusOf(index, id)
                 if (status !== 'OK')
-                    failures.push(`${id}: ${status ?? 'no status'}`)
+                    failGroup(`${id}: ${status ?? 'no status'}`)
             }
         }
         // The app measures the masks once the last status's render has been
@@ -1489,7 +1571,11 @@ async function runRegression(
             () => messages.find((m) => m.type === 'masks' && m.id === id),
             5000,
         )
-        if (!measured) failures.push(`${group}: the app didn't send its masks`)
+        if (!measured) failGroup(`${group}: the app didn't send its masks`)
+        else if (!measured.safeArea)
+            failGroup(
+                `${group}: the app didn't send its safe area (the screenshot isn't cropped)`,
+            )
         // Cases below (or beside) the visible screen would be cut off in the
         // screenshot: split the group.
         const content = measured?.content as PixelRect | undefined
@@ -1500,18 +1586,25 @@ async function runRegression(
             const beside =
                 content.x + content.width - (visible.x + visible.width)
             if (below > 1 || beside > 1) {
-                failures.push(
+                failGroup(
                     `${group}: cut off: its cases end ${Math.ceil(Math.max(below, beside))} dp ${below > 1 ? 'below' : 'right of'} the visible screen (split the group)`,
                 )
             }
         }
+        const groupOk = !groupFailed
         takeShot(
             index,
             measured?.masks,
             measured?.safeArea as PixelRect | undefined,
+            groupOk,
         )
-        timings.push(
-            `${group} ${((Date.now() - groupStart) / 1000).toFixed(1)}s`,
+        const seconds = ((Date.now() - groupStart) / 1000).toFixed(1)
+        timings.push(`${group} ${seconds}s`)
+        // Progress in the main log, so a slow group doesn't look like a hang
+        // (the details are in regression.log). The screenshot's comparison
+        // finishes later.
+        console.log(
+            `    ${name}: ${index + 1}/${groups.length} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
         )
         send({ type: 'next' })
     }
@@ -1522,7 +1615,15 @@ async function runRegression(
     fs.writeFileSync(
         path.join(dir, 'results.json'),
         JSON.stringify(
-            { hello, statuses, failures, seeded, noReference, timings },
+            {
+                hello,
+                statuses,
+                failures,
+                seeded,
+                noReference,
+                unseeded,
+                timings,
+            },
             null,
             2,
         ) + '\n',
@@ -1534,6 +1635,9 @@ async function runRegression(
             : '') +
         (noReference.length > 0
             ? `; no reference for ${noReference.join(', ')} (not seeded from a --ref run)`
+            : '') +
+        (unseeded.length > 0
+            ? `; no reference for ${unseeded.join(', ')} (not seeded or updated from a failed group)`
             : '')
     if (failures.length > 0) {
         record(
@@ -1856,8 +1960,9 @@ async function expoPrebuild(platform: 'ios' | 'android') {
 // the Podfile's SHA-1 they were installed for. And after FastImage's podspec
 // changed (e.g. a dependency added), or a file was added to or removed from
 // its ios folder (the podspec's `ios/**/*.{h,m,mm}` is resolved by `pod
-// install`), or its package.json changed (`pod install` runs Codegen from its
-// codegenConfig): the source marker keeps the SHA-1 of all three.
+// install`), or its package.json or Codegen specs (src/specs) changed (`pod
+// install` runs Codegen from them): the source marker keeps the SHA-1 of all
+// four, and the app's React Native version (see reactNativeChanged).
 const libraryDir = (dir: string) =>
     FROM_PACKAGE ? path.join(dir, 'node_modules', PACKAGE_NAME) : ROOT
 const packageJsonSha = (dir: string) =>
@@ -1870,11 +1975,51 @@ const podspecSha = (dir: string) => {
         .readdirSync(path.join(lib, 'ios'), { recursive: true })
         .map(String)
         .sort()
-    return createHash('sha1')
+    const hash = createHash('sha1')
         .update(fs.readFileSync(path.join(lib, 'RNFastImage.podspec')))
         .update(files.join('\n'))
         .update(packageJsonSha(dir))
-        .digest('hex')
+    const specs = path.join(lib, 'src/specs')
+    for (const file of fs.readdirSync(specs).sort())
+        hash.update(fs.readFileSync(path.join(specs, file)))
+    return hash.digest('hex')
+}
+const reactNativeVersion = (dir: string) =>
+    String(
+        JSON.parse(
+            fs.readFileSync(
+                path.join(dir, 'node_modules/react-native/package.json'),
+                'utf8',
+            ),
+        ).version,
+    )
+const podsSource = (dir: string) =>
+    `${SOURCE} ${podspecSha(dir)} react-native@${reactNativeVersion(dir)}`
+// Whether the app's Podfile.lock or iOS build is for another React Native
+// version than node_modules' (e.g. a copy of a checkout on another branch):
+// pod install then fails on the lock's React-Core-prebuilt, and the build's
+// prebuilt React Native shows "React Native version mismatch". Both are
+// untracked, so they're removed and made again.
+function reactNativeChanged(dir: string) {
+    const version = reactNativeVersion(dir)
+    const lock = path.join(dir, 'ios/Podfile.lock')
+    const locked = fs.existsSync(lock)
+        ? /^ {2}- React-Core \(([^)]+)\)/m.exec(
+              fs.readFileSync(lock, 'utf8'),
+          )?.[1]
+        : undefined
+    const built = builtFrom(path.join(dir, 'ios/build'))
+    const stale = [
+        locked && locked !== version && `Podfile.lock (${locked})`,
+        built && built !== version && `ios/build (${built})`,
+    ].filter(Boolean)
+    if (stale.length === 0) return false
+    say(
+        `${stale.join(' and ')} for another React Native version than node_modules' (${version}): removing them`,
+    )
+    fs.rmSync(lock, { force: true })
+    fs.rmSync(path.join(dir, 'ios/build'), { recursive: true, force: true })
+    return true
 }
 function podsCurrent(dir: string) {
     try {
@@ -1889,8 +2034,7 @@ function podsCurrent(dir: string) {
         )
         return (
             pods >= rn.mtimeMs &&
-            builtFrom(path.join(dir, 'ios/Pods')) ===
-                `${SOURCE} ${podspecSha(dir)}` &&
+            builtFrom(path.join(dir, 'ios/Pods')) === podsSource(dir) &&
             manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
         )
     } catch {
@@ -1901,7 +2045,8 @@ function podsCurrent(dir: string) {
 async function iosPods(app: App) {
     const dir = appDir(app)
     if (app === 'expo' && !(await expoPrebuild('ios'))) return false
-    if (!options['pods'] && podsCurrent(dir)) return true
+    if (!reactNativeChanged(dir) && !options['pods'] && podsCurrent(dir))
+        return true
     say(`pod install (${app})`)
     const log = path.join(OUT, `pods-${app}.log`)
     const podInstall = (cmd: string, args: string[]) =>
@@ -1925,7 +2070,7 @@ async function iosPods(app: App) {
         fs.utimesSync(path.join(dir, 'ios/Pods'), now, now)
         fs.writeFileSync(
             sourceMarker(path.join(dir, 'ios/Pods')),
-            `${SOURCE} ${podspecSha(dir)}`,
+            podsSource(dir),
         )
     }
     return ok
@@ -2041,6 +2186,11 @@ async function buildIos(app: App) {
         )
         return false
     }
+    // The React Native version it was built with (see reactNativeChanged).
+    fs.writeFileSync(
+        sourceMarker(path.join(dir, 'ios/build')),
+        reactNativeVersion(dir),
+    )
     const product = path.join(
         dir,
         `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
@@ -2365,12 +2515,18 @@ async function androidUnitTests(dir: string) {
         [':react-native-fast-image:testDebugUnitTest', '--console=plain', '-q'],
         { cwd: path.join(dir, 'android'), log, timeout: 600 },
     )
+    // The library's android/build, where Gradle writes the reports, is
+    // removed when --ref restores android/: keep a copy in the output.
+    const reports = path.join(OUT, 'android-unit-tests')
+    for (const sub of ['test-results', 'reports/tests']) {
+        const from = path.join(ROOT, 'android/build', sub)
+        if (fs.existsSync(from))
+            fs.cpSync(from, path.join(reports, sub), { recursive: true })
+    }
     record(
         result.ok ? 'PASS' : 'FAIL',
         'android unit tests',
-        result.ok
-            ? undefined
-            : `see ${rel(log)} and android/build/reports/tests/testDebugUnitTest`,
+        result.ok ? undefined : `see ${rel(log)} and ${rel(reports)}`,
     )
 }
 
@@ -2597,6 +2753,14 @@ async function main() {
     console.log(`\nSummary${REF ? ` (library from ${REF})` : ''}:`)
     for (const line of lines) console.log(`  ${line}`)
     console.log(`Output: ${rel(OUT)}`)
+    if (!APPS.includes('tv')) {
+        const stale = tvReferencesBehind()
+        if (stale.length > 0) {
+            console.log(
+                `The main or minimum references of ${stale.join(', ')} changed on this branch, but not tvOS's (which this run didn't check): run with --app tv.`,
+            )
+        }
+    }
     if (
         results.some(
             (r) =>
@@ -2609,6 +2773,42 @@ async function main() {
         )
     }
     process.exitCode = results.some((r) => r.status === 'FAIL') ? 1 : 0
+}
+
+// Groups whose main or minimum app reference screenshot changed on this branch
+// (against origin/main, or uncommitted) while the tvOS app's didn't. The tvOS
+// app runs the same cases, but only with --app tv, so its references can be
+// left behind (e.g. a case moved to another group).
+function tvReferencesBehind() {
+    const changed = (args: string[]) =>
+        capture('git', ['-C', ROOT, ...args])
+            ?.split('\n')
+            .filter(Boolean) ?? []
+    const base = capture('git', [
+        '-C',
+        ROOT,
+        'merge-base',
+        'HEAD',
+        'origin/main',
+    ])
+    if (!base) return []
+    const files = [
+        ...changed(['diff', '--name-only', base.trim(), '--', 'screenshots']),
+        ...changed(['ls-files', '--others', '--', 'screenshots']),
+    ]
+    const groupsChanged = (dirs: RegExp) =>
+        new Set(
+            files
+                .map((f) => /^screenshots\/([^/]+)\/(.+)\.png$/.exec(f))
+                .filter((m) => m && dirs.test(m[1]))
+                .map((m) => m![2]),
+        )
+    const tv = groupsChanged(/^tv-ios$/)
+    return [...groupsChanged(/^(main|minimum)-(ios|android)$/)].filter(
+        (group) =>
+            !tv.has(group) &&
+            fs.existsSync(path.join(SCREENSHOTS, 'tv-ios', `${group}.png`)),
+    )
 }
 
 await main()

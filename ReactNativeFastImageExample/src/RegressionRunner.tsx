@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
     Dimensions,
+    LogBox,
     PixelRatio,
     Platform,
     StatusBar,
@@ -119,6 +120,10 @@ export default function RegressionRunner({
     // renders; the fade-default group checks the built-in default.
     useState(() => FastImage.setDefaults({ transition: false }))
     useEffect(() => () => FastImage.setDefaults({ transition: null }), [])
+    // No LogBox toasts: a case's development warning (e.g. React Native's
+    // cache: 'reload') would cover later cases in the screenshots. Fatal
+    // errors still show, and fail their group.
+    useState(() => LogBox.ignoreAllLogs())
     const [index, setIndex] = useState(0)
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)
