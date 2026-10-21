@@ -37,6 +37,27 @@ jobs:
       VERIFY_SAMPLE_LEAD_MS: 2000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The history, for the files' times below.
+          fetch-depth: 0
+      # A restored ios/build (below) is only reused if Xcode sees the same
+      # inputs: each tracked file gets its last commit's time instead of the
+      # checkout's, and Xcode ignores the files' device and inode numbers,
+      # which differ on every machine.
+      - run: |
+          git log --format=%ct --name-only HEAD | python3 -c '
+          import os, sys
+          seen, time = set(), 0
+          for line in sys.stdin:
+              line = line.strip()
+              if line.isdigit():
+                  time = int(line)
+              elif line and line not in seen:
+                  seen.add(line)
+                  if os.path.isfile(line):
+                      os.utime(line, (time, time))
+          '
+          defaults write com.apple.dt.XCBuild IgnoreFileSystemDeviceInodeChanges -bool YES
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version

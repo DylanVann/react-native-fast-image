@@ -2401,6 +2401,9 @@ async function buildIos(app: App) {
             'build',
             // Where a build's time goes, at the end of the log.
             '-showBuildTimingSummary',
+            // Nothing here uses the index or debug symbol files.
+            'COMPILER_INDEX_STORE_ENABLE=NO',
+            'DEBUG_INFORMATION_FORMAT=dwarf',
             'COMPILATION_CACHE_ENABLE_CACHING=YES',
             `COMPILATION_CACHE_CAS_PATH=${COMPILATION_CACHE}`,
         ],
