@@ -55,8 +55,8 @@ jobs:
             ${{ env.APP_DIR }}/ios/build/generated
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
-          key: ios-deps-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
-          restore-keys: ios-deps-${{ matrix.app }}-
+          key: ios-deps-v2-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
+          restore-keys: ios-deps-v2-${{ matrix.app }}-
       # An older key's node_modules is brought up to date (verify.mts only
       # installs when there are none).
       - if: steps.deps.outputs.cache-hit != 'true'
