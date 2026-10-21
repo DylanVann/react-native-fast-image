@@ -626,7 +626,8 @@ async function startImageServer() {
         log,
     }).pid
     if (pid !== undefined) groups.add(pid)
-    for (let i = 0; i < 20; i++) {
+    // Up to 30 s: slower when a simulator or emulator is starting.
+    for (let i = 0; i < 60; i++) {
         try {
             const url = `http://localhost:${IMAGE_SERVER_PORT}/logo.png`
             if ((await fetch(url)).ok) return true
