@@ -42,8 +42,9 @@ jobs:
           xcodebuild -version
       - run: command -v ffmpeg || brew install ffmpeg
       - run: bun install --frozen-lockfile
-      # The app's dependencies and Pods (verify.mts skips pod install while
-      # they're current), and React Native's and CocoaPods' downloads.
+      # The app's dependencies, Pods and pod install's Codegen output
+      # (verify.mts skips pod install while they're current), and React
+      # Native's and CocoaPods' downloads.
       - id: deps
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -51,6 +52,7 @@ jobs:
             ${{ env.APP_DIR }}/node_modules
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
+            ${{ env.APP_DIR }}/ios/build/generated
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
           key: ios-deps-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
@@ -84,6 +86,7 @@ jobs:
             ${{ env.APP_DIR }}/node_modules
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
+            ${{ env.APP_DIR }}/ios/build/generated
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
           key: ${{ steps.deps.outputs.cache-primary-key }}
@@ -149,7 +152,8 @@ jobs:
       - run: |
           PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sdkmanager --install emulator platform-tools "$ANDROID_IMAGE" > /dev/null
-          echo no | avdmanager create avd -n "$ANDROID_AVD" -k "$ANDROID_IMAGE" -d pixel_7
+          echo no | avdmanager create avd -n "$ANDROID_AVD" -k "$ANDROID_IMAGE" -d pixel_7 -p "$ANDROID_AVD_HOME/$ANDROID_AVD.avd"
+          avdmanager list avd
           printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
       - if: steps.image.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

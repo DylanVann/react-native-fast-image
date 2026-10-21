@@ -2082,6 +2082,9 @@ function podsCurrent(dir: string) {
         return (
             pods >= rn.mtimeMs &&
             builtFrom(path.join(dir, 'ios/Pods')) === podsSource(dir) &&
+            // pod install's Codegen output, which the build needs (gone if
+            // ios/build was removed).
+            fs.existsSync(path.join(dir, 'ios/build/generated/ios')) &&
             manifest.includes(`PODFILE CHECKSUM: ${podfile}`)
         )
     } catch {
