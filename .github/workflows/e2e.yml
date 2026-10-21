@@ -95,19 +95,17 @@ jobs:
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ios-wda-${{ hashFiles('bun.lock') }}
-      # Release builds (--release): the bundle is built into the app, so
-      # there's no Metro to start and wait for (minutes on these machines),
-      # and the JS runs faster. Metro's transform cache (in TMPDIR) still
-      # speeds up the build's bundling.
+      # Metro's transform cache (in TMPDIR), so the first bundle doesn't
+      # transform everything again.
       - id: metro
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
-          key: metro-ios-release-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
-          restore-keys: metro-ios-release-${{ matrix.app }}-
+          key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          restore-keys: metro-ios-${{ matrix.app }}-
       - run: |
           mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --release --shard ${{ matrix.shard }}/2
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       # Saved even when cases fail (the builds are still good), but only what

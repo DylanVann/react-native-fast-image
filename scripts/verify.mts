@@ -1547,10 +1547,21 @@ async function runRegression(
         )
     }
 
+    // What the app shows if it's slow to connect (e.g. it started as the
+    // example app, not the runner).
+    const slowHello = setTimeout(() => {
+        if (platform !== 'web' && !messages.some((m) => m.type === 'hello'))
+            screenshot(
+                platform,
+                device,
+                path.join(dir, 'waiting-for-hello.png'),
+            )
+    }, 60_000)
     const hello = await waitFor(
         () => messages.find((m) => m.type === 'hello'),
         HELLO_TIMEOUT,
     )
+    clearTimeout(slowHello)
     if (!hello) {
         // What the app shows instead (e.g. an error, or a system dialog).
         if (platform !== 'web')
