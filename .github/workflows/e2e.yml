@@ -42,6 +42,11 @@ jobs:
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
+      # Spotlight indexes what the job writes (the checkout, builds,
+      # screenshots, recordings): about half a core on average, up to two of
+      # the runner's three at times, which stalled the simulator mid-fade.
+      - name: Turn off Spotlight
+        run: sudo mdutil -a -i off
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # Without the other apps' and platforms' reference screenshots (most of
