@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   actions: read # when the run started (scripts/group-times.ts)
+  pull-requests: read # the files a pull request changes (changes)
 env:
   # The minimum example's groups (React Native 0.83, Fast Image's minimum): a
   # smoke test of each area, which the main example's runs cover in full.
@@ -28,24 +29,45 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # The iOS jobs: the main example's groups in 2 shards (--shard), each a job
+  # that builds the app and runs half of them (by their times in recent runs);
+  # the minimum example's smoke groups (SMOKE_GROUPS) in one; and, when a pull
+  # request changes the iOS code, the tvOS example, its references, or how the
+  # cases run (and in a run by hand), the tvOS example's groups in 2 shards.
+  # (At most 5 macOS jobs run at once.)
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.matrix.outputs.ios }}
+    steps:
+      - name: Choose the iOS jobs
+        id: matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          jobs='{"app":"main","shard":1},{"app":"main","shard":2},{"app":"minimum","shard":1}'
+          if [ -z "$PR" ] || gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' |
+            grep -qE '^(ios/|ReactNativeFastImageExampleTV/|screenshots/tv-ios/|RNFastImage\.podspec$|scripts/verify\.mts$|\.github/workflows/e2e\.yml$)'; then
+            jobs="$jobs"',{"app":"tv","shard":1},{"app":"tv","shard":2}'
+          fi
+          echo "ios={\"include\":[$jobs]}" >> "$GITHUB_OUTPUT"
   ios:
-    # Xcode 27 with the iOS 27.0 simulator runtime the references were taken
-    # on.
+    needs: changes
+    # Xcode 27 with the iOS 27.0 and tvOS 27.0 simulator runtimes the
+    # references were taken on.
     runs-on: xcode-27
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      # The main example's groups in 2 shards (--shard), each a job that
-      # builds the app and runs half of them (by their times in recent runs);
-      # the minimum example's smoke groups (SMOKE_GROUPS) in one. (At most 5
-      # macOS jobs run at once.)
-      matrix:
-        include:
-          - { app: main, shard: 1 }
-          - { app: main, shard: 2 }
-          - { app: minimum, shard: 1 }
+      matrix: ${{ fromJSON(needs.changes.outputs.ios) }}
     env:
-      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
+      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || matrix.app == 'tv' && 'ReactNativeFastImageExampleTV' || 'ReactNativeFastImageExampleMinimum' }}
+      # verify.mts's simulator (an Apple TV 4K (3rd generation) for the tvOS
+      # example, an iPhone 17 Pro otherwise).
+      SIMULATOR: ${{ matrix.app == 'tv' && 'RNFI Apple TV' || 'RNFI iPhone' }}
+      SIMULATOR_KEY: ${{ matrix.app == 'tv' && 'tvos-simulator-Apple-TV-4K-3rd-generation-xcode-27.1-v1' || 'ios-simulator-iPhone-17-Pro-xcode-27.1-v3' }}
     steps:
       # Spotlight indexes what the job writes (the checkout, builds,
       # screenshots, recordings): about half a core on average, up to two of
@@ -105,19 +127,18 @@ jobs:
           EOF
           unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      # idb's companion, for the regression screenshots (verify.mts's
-      # VERIFY_IDB_COMPANION): about 80 ms each, where simctl's take about 450,
-      # and the same pixels. From its release, checked against its SHA-256.
+      # idb's companion, for the regression screenshots and video samples
+      # (verify.mts's VERIFY_IDB_COMPANION): screenshots in about 100 ms,
+      # where simctl's take about 450, with the same pixels. idb 1.7.7 with a
+      # fix for Apple TV simulators (.github/idb-companion/README.md).
       - name: Install idb's companion
         run: |
-          mkdir -p "$RUNNER_TEMP/idb" && cd "$RUNNER_TEMP/idb"
-          curl -fsSL -O https://github.com/facebook/idb/releases/download/v1.7.6/idb-companion.macos-arm64.tar.gz
-          echo "f81e5ff131c8c91fb6927cb445a7267a4e80c543e51e4b26ebcaa00eff4e3c1f  idb-companion.macos-arm64.tar.gz" | shasum -a 256 -c
-          tar -xzf idb-companion.macos-arm64.tar.gz && rm idb-companion.macos-arm64.tar.gz
+          mkdir -p "$RUNNER_TEMP/idb"
+          tar -xzf .github/idb-companion/idb-companion.macos-arm64.tar.gz -C "$RUNNER_TEMP/idb"
           echo "VERIFY_IDB_COMPANION=$RUNNER_TEMP/idb/idb_companion" >> "$GITHUB_ENV"
       - name: "Install the repo's dependencies"
         run: bun install --frozen-lockfile
-      # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
+      # verify.mts's simulator (SIMULATOR), saved by an earlier run after
       # its first boot, slimmed: a new simulator's first boot keeps the
       # runner's 3 cores busy for about 10 minutes, and every boot runs
       # background services (wallpapers, widgets, Siri, Spotlight) for minutes
@@ -141,7 +162,7 @@ jobs:
           AWS_REGION: auto
         with:
           path: ~/simulator-cache
-          key: ios-simulator-iPhone-17-Pro-xcode-27.1-v3-${{ hashFiles('.github/simslim.json') }}
+          key: ${{ env.SIMULATOR_KEY }}-${{ hashFiles('.github/simslim.json') }}
       - name: Move the restored simulator into place and boot it
         if: steps.simulator.outputs.cache-hit == 'true'
         run: |
@@ -150,7 +171,7 @@ jobs:
           mkdir -p /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"
           cp ~/simulator-cache/disabled.plist /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/
           killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
-          xcrun simctl list devices | grep "RNFI iPhone"
+          xcrun simctl list devices | grep "$SIMULATOR"
           # Booting in the background while the rest restores, so its first
           # minute of background work doesn't slow the build (verify.mts waits
           # for it); and Xcode's device discovery, which xcodebuild otherwise
@@ -261,12 +282,12 @@ jobs:
       # after its cases passed (a simulator that broke isn't kept for later
       # runs); not saved if slimming fails.
       - name: Slim the simulator for later runs
-        if: env.R2_WRITE == 'true' && steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app == 'main' && matrix.shard == 1
+        if: env.R2_WRITE == 'true' && steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app != 'minimum' && matrix.shard == 1
         id: savesimulator
         continue-on-error: true
         run: |
-          udid=$(xcrun simctl list devices -j | python3 -c 'import json, sys; print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == "RNFI iPhone"))') || exit 0
-          for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum; do
+          udid=$(xcrun simctl list devices -j | python3 -c 'import json, sys; print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == sys.argv[1]))' "$SIMULATOR") || exit 0
+          for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum ReactNativeFastImageExampleTV; do
             xcrun simctl uninstall "$udid" "org.reactjs.native.example.$app" || true
           done
           curl -fsSL -o "$RUNNER_TEMP/simslim.tar.gz" https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
