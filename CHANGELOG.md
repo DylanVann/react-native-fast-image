@@ -1,3 +1,10 @@
+## [10.8.5](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.4...v10.8.5) (2026-10-22)
+
+
+### Bug Fixes
+
+* parse sources once on Android, and keep the other headers on iOS when one isn't a string ([#1359](https://github.com/DylanVann/react-native-fast-image/issues/1359)) ([a3b392e](https://github.com/DylanVann/react-native-fast-image/commit/a3b392eaea83e700ff620005ac18344dfa825f44))
+
 ## [10.8.4](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.3...v10.8.4) (2026-10-22)
 
 
