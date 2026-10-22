@@ -1,3 +1,10 @@
+## [10.8.7](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.6...v10.8.7) (2026-10-22)
+
+
+### Bug Fixes
+
+* **android:** report a failed preload once when the network comes back ([#1356](https://github.com/DylanVann/react-native-fast-image/issues/1356)) ([73b1375](https://github.com/DylanVann/react-native-fast-image/commit/73b1375b017a73c596a99378c7fc6479ac9066c3))
+
 ## [10.8.6](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.5...v10.8.6) (2026-10-22)
 
 
