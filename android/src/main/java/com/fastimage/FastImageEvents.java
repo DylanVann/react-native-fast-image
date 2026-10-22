@@ -1,5 +1,8 @@
 package com.fastimage;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
@@ -14,6 +17,8 @@ final class FastImageEvents {
     static final int LOAD = 1 << 2;
     static final int ERROR = 1 << 3;
     static final int LOAD_END = 1 << 4;
+
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private FastImageEvents() {
     }
@@ -57,8 +62,20 @@ final class FastImageEvents {
         send(view, FastImageRequestListener.REACT_ON_LOAD_END_EVENT, event);
     }
 
-    // Only the events JS has a handler for: most images have none.
+    // Only the events JS has a handler for: most images have none. Posted to
+    // the main thread rather than dispatched here: this is called from Glide's
+    // onResourceReady and onLoadFailed, and EventDispatcher calls its listeners
+    // inline. Reanimated's flushes pending mount items, which can drop this
+    // view, and the drop clears the request inside its own callback, which
+    // Glide doesn't allow (it throws). One Handler keeps the events in order.
     static void send(FastImageViewWithUrl view, String name, WritableMap data) {
+        if (!view.handles(bit(name))) return;
+        MAIN.post(() -> dispatch(view, name, data));
+    }
+
+    // Dispatches the event now: for callers on the main thread outside Glide's
+    // callbacks (e.g. progress, which is posted already).
+    static void dispatch(FastImageViewWithUrl view, String name, WritableMap data) {
         if (!view.handles(bit(name))) return;
         ReactContext context = FastImageViewManager.getReactContext(view.getContext());
         if (context == null) return;
