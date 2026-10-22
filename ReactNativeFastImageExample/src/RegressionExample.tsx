@@ -627,7 +627,7 @@ function PreloadHeadersCase() {
 // an object) next to a string one. The private urls fail without the string
 // header, so they check it's still sent: iOS dropped every header when one
 // wasn't a string, and Android crashed on all of these. (Numbers and booleans
-// are sent as strings: FastImageSourcePropsTest.)
+// are sent as strings, converted in JS: src/index.test.tsx's headers tests.)
 const INVALID_HEADERS = {
     'x-token': 'fast-image',
     'x-null': null,
