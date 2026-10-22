@@ -876,11 +876,11 @@ function protobufField1(message: Buffer) {
     return undefined
 }
 
-// A screenshot from the companion, saved to file: whether it worked.
-function idbScreenshot(file: string) {
+// A screenshot from the companion (PNG), or undefined.
+function idbScreenshot() {
     const session = idb
-    if (!session) return Promise.resolve(false)
-    return new Promise<boolean>((resolve) => {
+    if (!session) return Promise.resolve(undefined)
+    return new Promise<Buffer | undefined>((resolve) => {
         // An empty ScreenshotRequest (a PNG of the whole screen), in a gRPC
         // frame.
         const stream = session.request({
@@ -895,28 +895,43 @@ function idbScreenshot(file: string) {
         stream.on('end', () => {
             clearTimeout(timer)
             const body = Buffer.concat(chunks)
-            const png =
+            resolve(
                 body.length > 5
                     ? protobufField1(body.subarray(5, 5 + body.readUInt32BE(1)))
-                    : undefined
-            if (png) fs.writeFileSync(file, png)
-            resolve(!!png)
+                    : undefined,
+            )
         })
         stream.on('error', () => {
             clearTimeout(timer)
-            resolve(false)
+            resolve(undefined)
         })
         stream.end(Buffer.alloc(5))
     })
 }
 
-// A regression group's screenshot: from the companion when there is one.
+// A regression group's screenshot: from the companion when there is one,
+// once the screen has settled. A case's last status can reach the script
+// before the simulator has drawn it (simctl's slower start hid that), so it
+// takes screenshots until two in a row are the same, for up to a second (an
+// animated image doesn't settle).
 async function captureScreenshot(
     platform: Platform,
     device: string,
     file: string,
 ) {
-    if (platform === 'ios' && (await idbScreenshot(file))) return
+    let png = platform === 'ios' ? await idbScreenshot() : undefined
+    if (png) {
+        const until = Date.now() + 1000
+        while (Date.now() < until) {
+            const next = await idbScreenshot()
+            if (!next) break
+            const settled = next.equals(png)
+            png = next
+            if (settled) break
+        }
+        fs.writeFileSync(file, png)
+        return
+    }
     screenshot(platform, device, file)
 }
 
