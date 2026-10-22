@@ -12,6 +12,14 @@ env:
   VERIFY_FLOWS_TIMEOUT: 900
   VERIFY_BUILD_TIMEOUT: 2400
   VERIFY_HELLO_TIMEOUT: 300
+  # The caches (runs-on/cache, which takes actions/cache's inputs) are in
+  # Cloudflare R2, which restores them faster than GitHub's cache and shares
+  # them between branches; GitHub's cache without the R2 secrets.
+  RUNS_ON_S3_BUCKET_CACHE: ${{ secrets.R2_ACCESS_KEY_ID != '' && 'react-native-fast-image-ci-cache' || '' }}
+  RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  AWS_REGION: auto
 # A new push to a branch replaces its run.
 concurrency:
   group: e2e-${{ github.ref }}
@@ -48,7 +56,7 @@ jobs:
       # more, while the app builds. CoreSimulator lists the devices in its
       # folder when its service starts.
       - id: simulator
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ~/simulator-cache
           key: ios-simulator-iPhone-17-Pro-xcode-27.1-v2-${{ hashFiles('.github/simslim.json') }}
@@ -64,13 +72,24 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
-      - run: command -v ffmpeg || brew install ffmpeg
+      # ffmpeg and ffprobe, for the video samples: static builds, checked
+      # against their SHA-256 (Homebrew took about 20 s).
+      - run: |
+          base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
+          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
+          shasum -a 256 -c <<'EOF'
+          c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
+          fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
+          EOF
+          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current), and React
       # Native's and CocoaPods' downloads.
       - id: deps
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: |
             ${{ env.APP_DIR }}/node_modules
@@ -90,7 +109,7 @@ jobs:
       # Xcode's compilation cache (verify.mts), so builds reuse what earlier
       # runs compiled.
       - id: build
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
@@ -98,14 +117,14 @@ jobs:
       # maestro-runner's WebDriverAgent build (for the touch group), kept in
       # its package.
       - id: wda
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ios-wda-${{ hashFiles('bun.lock') }}
       # Metro's transform cache (in TMPDIR), so the first bundle doesn't
       # transform everything again.
       - id: metro
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
@@ -150,7 +169,7 @@ jobs:
           echo "$udid" > ~/simulator-cache/udid
           echo saved=true >> "$GITHUB_OUTPUT"
       - if: always() && steps.savesimulator.outputs.saved == 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ~/simulator-cache
           key: ${{ steps.simulator.outputs.cache-primary-key }}
@@ -185,7 +204,7 @@ jobs:
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: |
             ${{ env.APP_DIR }}/node_modules
@@ -197,17 +216,17 @@ jobs:
             ~/Library/Caches/CocoaPods
           key: ${{ steps.deps.outputs.cache-primary-key }}
       - if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
       - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
       - if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ${{ steps.wda.outputs.cache-primary-key }}
@@ -262,7 +281,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - id: image
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
           key: android-image-36-x86_64
@@ -277,14 +296,24 @@ jobs:
           printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-36\n' "$ANDROID_AVD_HOME/$ANDROID_AVD.avd" > "$ANDROID_AVD_HOME/$ANDROID_AVD.ini"
           printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
       - if: steps.image.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
           key: ${{ steps.image.outputs.cache-primary-key }}
-      - run: sudo apt-get install -y ffmpeg > /dev/null
+      # ffmpeg and ffprobe, as in the iOS jobs (apt took about 14 s).
+      - run: |
+          base=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
+          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
+          shasum -a 256 -c <<'EOF'
+          fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f  ffmpeg.zip
+          3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32  ffprobe.zip
+          EOF
+          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - id: metro
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-android-${{ matrix.app }}-${{ hashFiles('**/bun.lock') }}
@@ -298,7 +327,7 @@ jobs:
         if: always()
         run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
