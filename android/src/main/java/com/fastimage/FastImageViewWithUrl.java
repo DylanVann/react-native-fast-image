@@ -179,32 +179,35 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mHitSlopRect = hitSlopRect;
     }
 
-    // `accessible` and `focusable`: the view takes focus (TalkBack's as its
-    // own element, and the keyboard's or D-pad's) while either is true. React
-    // Native's Image sets focus from `accessible`; its View sets it from both,
-    // and the last prop set wins there, where here either one is enough.
-    // Without either, the view is back to Android's default (focusable if
-    // clickable).
-    private boolean mAccessible = false;
-    private boolean mFocusableProp = false;
+    // `accessible` and `focusable` (null when not set): the view takes focus
+    // (TalkBack's as its own element, and the keyboard's or D-pad's) while
+    // either is true, and not while either is false, as React Native's Image
+    // sets it from `accessible`. (Its View sets it from both, and the last
+    // prop set wins there.) Without either, the view has Android's default
+    // (focusable if clickable).
+    @Nullable
+    private Boolean mAccessible = null;
+    @Nullable
+    private Boolean mFocusableProp = null;
 
-    void setAccessible(boolean accessible) {
+    void setAccessible(@Nullable Boolean accessible) {
         mAccessible = accessible;
         updateFocusable();
     }
 
-    void setFocusableProp(boolean focusable) {
+    void setFocusableProp(@Nullable Boolean focusable) {
         mFocusableProp = focusable;
         updateFocusable();
     }
 
     private void updateFocusable() {
-        if (mAccessible || mFocusableProp) {
+        if (Boolean.TRUE.equals(mAccessible) || Boolean.TRUE.equals(mFocusableProp)) {
             setFocusable(true);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setFocusable(View.FOCUSABLE_AUTO);
-        } else {
+        } else if (mAccessible != null || mFocusableProp != null
+                || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             setFocusable(false);
+        } else {
+            setFocusable(View.FOCUSABLE_AUTO);
         }
     }
 

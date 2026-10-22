@@ -44,8 +44,12 @@ public class FastImageAccessibilityTest {
     public void focusableMakesTheImageFocusable() {
         delegate.setProperty(view, "focusable", true);
         assertTrue(view.isFocusable());
+        // False: not focusable, even if it becomes clickable.
         delegate.setProperty(view, "focusable", false);
-        assertFalse(view.isFocusable());
+        assertEquals(View.NOT_FOCUSABLE, view.getFocusable());
+        // Removed: back to Android's default.
+        delegate.setProperty(view, "focusable", null);
+        assertEquals(View.FOCUSABLE_AUTO, view.getFocusable());
     }
 
     // Either one keeps it focusable: focusable false doesn't take away the
@@ -57,7 +61,7 @@ public class FastImageAccessibilityTest {
         delegate.setProperty(view, "focusable", false);
         assertTrue(view.isFocusable());
         delegate.setProperty(view, "accessible", false);
-        assertFalse(view.isFocusable());
+        assertEquals(View.NOT_FOCUSABLE, view.getFocusable());
         // And the other way round: accessible false doesn't take away the
         // focus focusable gives (tabIndex={0} accessible={false}).
         delegate.setProperty(view, "focusable", true);

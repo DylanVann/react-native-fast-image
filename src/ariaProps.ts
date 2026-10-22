@@ -99,13 +99,15 @@ export function resolveAriaProps<P extends AriaProps>(
     }
     if (id !== undefined) native.nativeID = id
     if (tabIndex !== undefined) native.focusable = !tabIndex
-    // A labelled image is an accessibility element unless `accessible` says
-    // otherwise or accessibilityElementsHidden hides it, as an <img
-    // aria-label> on the web and React Native's Image with `alt`: iOS reads
-    // `accessible` for it (Android reads the label either way, and its
-    // importantForAccessibility, which iOS ignores). An empty label is none,
+    // On iOS, a labelled image is an accessibility element unless
+    // `accessible` says otherwise or accessibilityElementsHidden hides it, as
+    // an <img aria-label> on the web and React Native's Image with `alt`: iOS
+    // reads `accessible` for it. Android reads the label either way, and its
+    // `accessible` also makes the image a keyboard and D-pad stop, which a
+    // labelled image in a Pressable shouldn't become. An empty label is none,
     // as on the web (a decorative image), and so is a blank one.
     if (
+        Platform.OS === 'ios' &&
         typeof ariaLabel === 'string' &&
         ariaLabel.trim() !== '' &&
         native.accessible === undefined &&
