@@ -284,6 +284,19 @@ jobs:
           name: verify-ios-${{ matrix.app }}-${{ matrix.shard }}
           path: verify-output
           retention-days: 14
+      # The same without the screenshots, recordings and Xcode's timing
+      # report: the results and logs, a small download for reading a failure.
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-ios-${{ matrix.app }}-${{ matrix.shard }}
+          path: |
+            verify-output
+            !verify-output/**/*.png
+            !verify-output/**/*.mp4
+            !verify-output/xcode-build.json
+          retention-days: 14
   android:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -395,4 +408,17 @@ jobs:
         with:
           name: verify-android-${{ matrix.app }}-${{ matrix.shard }}
           path: verify-output
+          retention-days: 14
+      # The same without the screenshots, recordings and Xcode's timing
+      # report: the results and logs, a small download for reading a failure.
+      - if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-android-${{ matrix.app }}-${{ matrix.shard }}
+          path: |
+            verify-output
+            !verify-output/**/*.png
+            !verify-output/**/*.mp4
+            !verify-output/xcode-build.json
           retention-days: 14

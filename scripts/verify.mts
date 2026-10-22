@@ -2549,11 +2549,75 @@ function addLibraryMedia() {
     }
 }
 
+// The app's log while its cases and flows run (<app>-<platform>/app.log): the
+// errors, warnings and native log lines a screenshot doesn't show. Returns a
+// function that stops it.
+function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
+    const log = path.join(OUT, `${app}-${platform}`, 'app.log')
+    fs.mkdirSync(path.dirname(log), { recursive: true })
+    let args: [string, string[]]
+    if (platform === 'ios') {
+        args = [
+            'xcrun',
+            [
+                'simctl',
+                'spawn',
+                device,
+                'log',
+                'stream',
+                '--style',
+                'compact',
+                '--level',
+                'info',
+                // The app's own code (the app and its frameworks), and errors
+                // from anything in it: Apple's frameworks log thousands of
+                // lines a minute otherwise.
+                '--predicate',
+                `process == "${appName(app)}" AND (messageType == error OR messageType == fault OR senderImagePath CONTAINS "/${appName(app)}.app/")`,
+            ],
+        ]
+    } else {
+        // Only the app's lines (its user ID), from now on.
+        const uid = capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            'cmd',
+            'package',
+            'list',
+            'packages',
+            '-U',
+            androidPackage(app),
+        ])?.match(/uid:(\d+)/)?.[1]
+        args = [
+            ADB,
+            [
+                '-s',
+                device,
+                'logcat',
+                '-T',
+                '1',
+                '-v',
+                'threadtime',
+                ...(uid ? [`--uid=${uid}`] : []),
+                // Info and above (the codecs' debug lines are most of it).
+                '*:I',
+            ],
+        ]
+    }
+    const pgid = start(...args, { log }).pid
+    if (pgid === undefined) return () => {}
+    groups.add(pgid)
+    return () => stop(pgid)
+}
+
 async function flowsIos(app: App) {
     const startedAt = Date.now()
+    const stopAppLog = recordAppLog(app, 'ios', iosUdid)
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
     if (options.background && app !== 'expo' && app !== 'tv')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
+    stopAppLog()
     // The banner again when the app is used by hand (see runRegression).
     capture('xcrun', [
         'simctl',
@@ -2865,9 +2929,11 @@ async function androidUnitTests(dir: string) {
 async function flowsAndroid(app: App) {
     const pkg = androidPackage(app)
     capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-c'])
+    const stopAppLog = recordAppLog(app, 'android', androidSerial)
     await runRegression(app, 'android', androidSerial, pkg)
     if (options.background && app !== 'expo')
         await runFlows(app, 'android', androidSerial, pkg)
+    stopAppLog()
     const crashes =
         capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-d']) ?? ''
     if (crashes.includes(pkg)) {
