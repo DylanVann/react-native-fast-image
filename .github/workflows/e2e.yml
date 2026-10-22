@@ -44,6 +44,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Without the other apps' and platforms' reference screenshots (most of
+        # the repo's size), the docs, the website and the benchmark: only the
+        # files it checks out are downloaded.
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/screenshots/*
+            /screenshots/${{ matrix.app }}-ios/
+            !/docs/
+            !/website/
+            !/benchmark/
       # The Xcode the references were taken with (27.1).
       - name: Select Xcode 27.1
         run: |
@@ -385,6 +397,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Without the other apps' and platforms' reference screenshots (most of
+        # the repo's size), the docs, the website and the benchmark: only the
+        # files it checks out are downloaded.
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/screenshots/*
+            /screenshots/${{ matrix.app }}-android/
+            !/docs/
+            !/website/
+            !/benchmark/
       # Node at .node-version's version, with npm and npx (React Native's
       # Gradle autolinking runs npx): from nodejs.org's release, checked
       # against the release's SHA-256 list (setup-node also looks the version
