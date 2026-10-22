@@ -1,13 +1,12 @@
 name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
 # Android emulator, for each example app. The JS checks are in ci.yml.
-# Runs for pull requests, except changes to docs alone (main only takes them
-# rebased and passing, so its tree is one that ran), and by hand (Actions tab,
-# or `gh workflow run e2e.yml --ref <branch>`): a run takes about 10 minutes
-# with its caches.
+# Runs for pull requests, with no app for changes to docs alone (main only
+# takes them rebased and passing, so its tree is one that ran), and by hand
+# (Actions tab, or `gh workflow run e2e.yml --ref <branch>`): a run takes about
+# 10 minutes with its caches.
 on:
   pull_request:
-    paths-ignore: ['docs/**', 'website/**', '**.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +28,8 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # The iOS jobs: the main example's groups in 2 shards (--shard), each a job
+  # Whether the apps run: not for a pull request that only changes docs. And
+  # the iOS jobs: the main example's groups in 2 shards (--shard), each a job
   # that builds the app and runs half of them (by their times in recent runs);
   # the minimum example's smoke groups (SMOKE_GROUPS) in one; and, when a pull
   # request changes the iOS code, the tvOS example, its references, or how the
@@ -39,22 +39,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      apps: ${{ steps.matrix.outputs.apps }}
       ios: ${{ steps.matrix.outputs.ios }}
     steps:
-      - name: Choose the iOS jobs
+      - name: Choose the jobs
         id: matrix
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
+          files=
+          if [ -n "$PR" ]; then
+            files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+          fi
+          if [ -n "$PR" ] && ! grep -qvE '^(docs/|website/)|\.md$' <<< "$files"; then
+            echo apps=false >> "$GITHUB_OUTPUT"
+          else
+            echo apps=true >> "$GITHUB_OUTPUT"
+          fi
           jobs='{"app":"main","shard":1},{"app":"main","shard":2},{"app":"minimum","shard":1}'
-          if [ -z "$PR" ] || gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' |
-            grep -qE '^(ios/|ReactNativeFastImageExampleTV/|screenshots/tv-ios/|RNFastImage\.podspec$|scripts/verify\.mts$|\.github/workflows/e2e\.yml$)'; then
+          if [ -z "$PR" ] || grep -qE '^(ios/|ReactNativeFastImageExampleTV/|screenshots/tv-ios/|RNFastImage\.podspec$|scripts/verify\.mts$|\.github/workflows/e2e\.yml$)' <<< "$files"; then
             jobs="$jobs"',{"app":"tv","shard":1},{"app":"tv","shard":2}'
           fi
           echo "ios={\"include\":[$jobs]}" >> "$GITHUB_OUTPUT"
   ios:
     needs: changes
+    if: needs.changes.outputs.apps == 'true'
     # Xcode 27 with the iOS 27.0 and tvOS 27.0 simulator runtimes the
     # references were taken on.
     runs-on: xcode-27
@@ -420,6 +430,8 @@ jobs:
             !verify-output/xcode-build.json
           retention-days: 14
   android:
+    needs: changes
+    if: needs.changes.outputs.apps == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -636,3 +648,23 @@ jobs:
             !verify-output/**/*.mp4
             !verify-output/xcode-build.json
           retention-days: 14
+  # The check the ruleset on main requires (a matrix's job names change with
+  # it): passes when every job did, or when the apps didn't run (docs alone).
+  # It also runs when the run is cancelled, and fails then: skipped, it would
+  # count as passing.
+  e2e:
+    needs: [changes, ios, android]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the jobs
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          APPS: ${{ needs.changes.outputs.apps }}
+          IOS: ${{ needs.ios.result }}
+          ANDROID: ${{ needs.android.result }}
+        run: |
+          echo "changes: $CHANGES, apps: $APPS, ios: $IOS, android: $ANDROID"
+          [ "$CHANGES" = success ] || exit 1
+          [ "$APPS" = false ] || { [ "$IOS" = success ] && [ "$ANDROID" = success ]; }
