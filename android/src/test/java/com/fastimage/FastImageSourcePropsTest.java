@@ -128,27 +128,21 @@ public class FastImageSourcePropsTest {
                 FastImageSourceProps.parse(JavaOnlyMap.of("cache", "only-if-cached")).cache);
     }
 
-    // Numbers and booleans are sent as strings, as fetch's Headers converts
-    // them; null (a header built only when signed in) and objects are left
-    // out.
+    // Only string values are sent: JS converts numbers and booleans (as
+    // fetch does), so anything else here (null for a header that isn't set,
+    // an object) is left out.
     @Test
-    public void headersSendStringsNumbersAndBooleans() {
+    public void headersKeepOnlyStringValues() {
         Map<String, String> headers = FastImageSourceProps.parse(JavaOnlyMap.of("headers", JavaOnlyMap.of(
                 "x-token", "fast-image",
-                "x-number", 3,
-                "x-decimal", 1.5,
-                "x-negative", -2.0,
-                "x-boolean", true,
-                "x-false", false,
+                "x-number", 1,
                 "x-null", null,
+                "x-boolean", true,
                 "x-object", JavaOnlyMap.of()))).headers.getHeaders();
         assertEquals("fast-image", headers.get("x-token"));
-        assertEquals("3", headers.get("x-number"));
-        assertEquals("1.5", headers.get("x-decimal"));
-        assertEquals("-2", headers.get("x-negative"));
-        assertEquals("true", headers.get("x-boolean"));
-        assertEquals("false", headers.get("x-false"));
+        assertFalse(headers.containsKey("x-number"));
         assertFalse(headers.containsKey("x-null"));
+        assertFalse(headers.containsKey("x-boolean"));
         assertFalse(headers.containsKey("x-object"));
         // None left: the same headers (and cache key) as no headers.
         assertSame(Headers.DEFAULT,

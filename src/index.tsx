@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import { withStringHeaders } from './headers'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
@@ -926,8 +927,10 @@ function FastImageBase({
         const single =
             Array.isArray(source) && source.length === 1 ? source[0] : source
         return Array.isArray(single)
-            ? single.map((entry) => Image.resolveAssetSource(entry as any))
-            : Image.resolveAssetSource(single as any)
+            ? single.map((entry) =>
+                  Image.resolveAssetSource(withStringHeaders(entry) as any),
+              )
+            : Image.resolveAssetSource(withStringHeaders(single) as any)
     }, [source])
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
@@ -937,7 +940,7 @@ function FastImageBase({
         ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
             ? placeholder
             : resolvePlaceholder(defaultSource)
-        : (placeholderSource(placeholder) ??
+        : (withStringHeaders(placeholderSource(placeholder)) ??
           resolvePlaceholder(placeholder ?? defaultSource))
     // A url placeholder's headers, as the sources' (see resolvedSource).
     warnIfInvalidHeaders(placeholder)
@@ -1188,7 +1191,7 @@ const isSourceObject = (source: unknown): source is Source =>
 // with headers native would leave out warned about in development.
 function nativeSource(source: unknown) {
     warnIfInvalidHeaders(source)
-    return isSourceObject(source) ? source : {}
+    return isSourceObject(source) ? withStringHeaders(source) : {}
 }
 
 FastImage.preload = (sources: Source[]) =>

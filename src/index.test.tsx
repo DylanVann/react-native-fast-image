@@ -823,6 +823,63 @@ describe("React Native's source.cache values", () => {
     })
 })
 
+describe('headers that are numbers or booleans', () => {
+    const uri = 'https://example.com/a.jpg'
+    const view = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+
+    it('go to native as strings, as fetch sends them', () => {
+        const headers = {
+            'x-token': 'a',
+            'x-number': 3,
+            'x-decimal': 1.5,
+            'x-boolean': true,
+            'x-null': null,
+        }
+        const expected = {
+            'x-token': 'a',
+            'x-number': '3',
+            'x-decimal': '1.5',
+            'x-boolean': 'true',
+            'x-null': null,
+        }
+        const source = { uri, headers } as unknown as { uri: string }
+        expect(view(<FastImage source={source} />).source.headers).toEqual(
+            expected,
+        )
+        expect(
+            view(<FastImage source={[source, { uri, width: 10 }]} />).source[0]
+                .headers,
+        ).toEqual(expected)
+        expect(
+            view(
+                <FastImage
+                    source={{ uri }}
+                    placeholder={{ uri, headers } as any}
+                />,
+            ).placeholder.headers,
+        ).toEqual(expected)
+        const preload = spyOn(NativeModules.FastImageModule, 'preload')
+        try {
+            FastImage.preload([source as any])
+            const [sent] = preload.mock.calls[0] as unknown as [
+                { headers: unknown }[],
+            ]
+            expect(sent[0].headers).toEqual(expected)
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
+    it('leave a source with only strings as it is', () => {
+        const source = { uri, headers: { 'x-token': 'a' } }
+        expect(view(<FastImage source={source} />).source).toBe(source)
+    })
+})
+
 describe('headers native leaves out', () => {
     const uri = 'https://example.com/a.jpg'
     const render = (source: unknown) =>
