@@ -77,7 +77,7 @@ To set the cache's size when the app starts, see [Native config](#native-config)
 
 If your Android app has its own Glide `AppGlideModule`, read [using FastImage with an AppGlideModule](docs/android-build-settings.md#if-your-app-has-its-own-appglidemodule) first, or FastImage may not work.
 
-If `pod install` can't find a compatible SDWebImage (FastImage needs 5.21.4 or later), update it with `cd ios && pod update SDWebImage`.
+If `pod install` can't find a compatible SDWebImage (FastImage needs 5.21.5 or later), update it with `cd ios && pod update SDWebImage`.
 
 ## Usage
 
