@@ -1174,7 +1174,7 @@ function ProgressSharedUrlCase() {
                     frame % 2 === 0 &&
                     Array.from({ length: SHARED_URL_CHURN }, (_, i) => (
                         <SharedUrlChurnImage
-                            key={`churn-${i}`}
+                            key={`churn-${round}-${i}`}
                             source={source}
                             onError={onError}
                             fail={fail}
@@ -1198,8 +1198,8 @@ function ProgressSharedUrlCase() {
     )
 }
 
-// One of ProgressSharedUrlCase's churned images, a new one each mount: its
-// onProgress mustn't come before its onLoadStart.
+// One of ProgressSharedUrlCase's churned images, a new one each mount (and
+// each round): its onProgress mustn't come before its onLoadStart.
 function SharedUrlChurnImage({
     source,
     onError,
