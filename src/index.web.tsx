@@ -760,7 +760,8 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
         }: FastImageBackgroundProps,
         ref: React.Ref<ViewRef>,
     ) => (
-        <View style={style} ref={ref}>
+        // aria-hidden hides the children too, as on iOS and Android.
+        <View style={style} aria-hidden={props['aria-hidden']} ref={ref}>
             <FastImageComponent
                 {...props}
                 style={[StyleSheet.absoluteFill, imageStyle]}

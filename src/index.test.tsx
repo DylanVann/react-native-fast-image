@@ -1792,6 +1792,10 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(false)
+        // An empty label is none.
+        expect(
+            viewProps(<FastImage source={source} aria-label="" />).accessible,
+        ).toBeUndefined()
         // aria-hidden wins on iOS.
         expect(
             viewProps(

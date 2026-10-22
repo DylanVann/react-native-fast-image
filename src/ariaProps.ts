@@ -31,7 +31,10 @@ type AriaProps = Pick<
     | 'accessibilityValue'
 >
 
-type NativeProps<P> = Omit<P, (typeof ARIA_KEYS)[number]> & FastImageProps
+const ARIA_KEY_SET: ReadonlySet<string> = new Set(ARIA_KEYS)
+
+// The props without the ARIA keys, with the accessibility props they map to.
+type NativeProps<P> = Omit<P & FastImageProps, (typeof ARIA_KEYS)[number]>
 
 export function resolveAriaProps<P extends AriaProps>(
     props: P,
@@ -43,6 +46,13 @@ export function resolveAriaProps<P extends AriaProps>(
         any = props[ARIA_KEYS[i]] !== undefined
     }
     if (!any) return props as NativeProps<P>
+    // A copy without them (ARIA_KEYS is the one list of them).
+    const native: FastImageProps = {}
+    for (const key in props) {
+        if (!ARIA_KEY_SET.has(key)) {
+            ;(native as Record<string, unknown>)[key] = props[key]
+        }
+    }
     const {
         'aria-busy': ariaBusy,
         'aria-checked': ariaChecked,
@@ -59,16 +69,16 @@ export function resolveAriaProps<P extends AriaProps>(
         'aria-valuetext': ariaValueText,
         id,
         tabIndex,
-        ...resolved
-    } = props
-    const native = resolved as NativeProps<P>
+    } = props as AriaProps
     if (ariaLabel !== undefined) {
         native.accessibilityLabel = ariaLabel
         // A labelled image is an accessibility element unless `accessible`
         // says otherwise, as an <img aria-label> on the web and React
         // Native's Image with `alt`: iOS reads `accessible` for it (Android
-        // reads the label either way).
-        if (native.accessible === undefined) native.accessible = true
+        // reads the label either way). An empty label is none, as on the
+        // web (a decorative image).
+        if (ariaLabel && native.accessible === undefined)
+            native.accessible = true
     }
     if (ariaLabelledBy !== undefined) {
         native.accessibilityLabelledBy = ariaLabelledBy.split(/\s*,\s*/g)
@@ -118,5 +128,5 @@ export function resolveAriaProps<P extends AriaProps>(
             text: ariaValueText ?? value?.text,
         }
     }
-    return native
+    return native as NativeProps<P>
 }
