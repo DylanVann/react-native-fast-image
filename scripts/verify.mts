@@ -1204,26 +1204,35 @@ async function compareScreenshot(
 // palette? }; the screen is recorded (recordScreen), { type: 'recording',
 // group, name } tells the case to make the change, and the case sends
 // { type: 'sampleDone', group, name } once it's done (durationMs is the most
-// it's given). A group's samples share a
-// recording, which starts with the first and stops once they're all done, so
-// they can run at the same time; each is checked in its own part of it, from
-// the last frame before its change. Each frame's color in the middle of the
-// area is matched
-// to the nearest of `expect` and `palette` (hex colors), or to none if it's
-// far from all of them or about as near to two (e.g. halfway through a fade
-// that doesn't list a color for it). Colors are compared perceptually (CIE
-// Lab), with some tolerance for video compression. Then repeats are
-// collapsed, and the sample passes if what's left is `expect`,
-// in order. How many frames each color lasted doesn't matter. `palette`
-// lists colors that mustn't appear (so they're matched rather than left
-// out). The result goes back as { type: 'sampled', group, name, ok, seen,
-// detail? }, which the case shows as its status. The recording is kept in
-// verify-output/.
+// it's given). A group's samples share a recording, which starts with the
+// first and stops once they're all done, so they can run at the same time;
+// each is checked in its own part of it, from the last frame before its
+// change. Each frame's color in the middle of the area is matched to the
+// nearest of `expect` and `palette` (hex colors), or to none if it's far from
+// all of them or about as near to two (e.g. halfway through a fade that
+// doesn't list a color for it). Colors are compared perceptually (CIE Lab),
+// with some tolerance for video compression. A color `expect` lists halfway
+// between its neighbors (e.g. half cyan between black and cyan) stands for
+// the fade between them: any frame on the way from one to the other counts as
+// it (see SAMPLE_FADE_MIN), and the fade must only go one way. Then repeats
+// are collapsed, and the sample passes if what's left is `expect`, in order.
+// How many frames each color lasted doesn't matter. `palette` lists colors
+// that mustn't appear (so they're matched rather than left out). The result
+// goes back as { type: 'sampled', group, name, ok, seen, detail? }, which the
+// case shows as its status. The recording is kept in verify-output/.
 type Rgb = [number, number, number]
 // ΔE (CIE76): a frame is a color if it's within this of it, and at most
 // SAMPLE_MAX_RATIO times as far from it as from the next nearest color.
 const SAMPLE_MAX_DISTANCE = 40
 const SAMPLE_MAX_RATIO = 0.6
+// A frame is part of a fade (see above) if it's this far (a fraction) or more
+// from both of its ends, along the line between them (alpha blending mixes
+// sRGB colors), and at most SAMPLE_FADE_DISTANCE (sRGB, 0-255) off that line.
+// Within a fade, a frame may be up to SAMPLE_FADE_BACK behind the one before
+// it (compression), no more.
+const SAMPLE_FADE_MIN = 0.15
+const SAMPLE_FADE_DISTANCE = 30
+const SAMPLE_FADE_BACK = 0.1
 // A sample's recording goes on this long after the case is done, for the
 // frames that were still being drawn, and the case makes its change at least
 // this long after it asked.
@@ -1479,18 +1488,64 @@ function sampleColor(
         : undefined
 }
 
+// Where `frame` is on the way from `from` to `to` (0 to 1), if it's on the
+// line between them (see SAMPLE_FADE_DISTANCE).
+function fadePosition(frame: Rgb, from: Rgb, to: Rgb) {
+    const d = to.map((c, i) => c - from[i])
+    const f = frame.map((c, i) => c - from[i])
+    const length2 = d.reduce((sum, c) => sum + c * c, 0)
+    if (length2 === 0) return undefined
+    const t = f.reduce((sum, c, i) => sum + c * d[i], 0) / length2
+    const off = Math.hypot(...f.map((c, i) => c - t * d[i]))
+    return t >= 0 && t <= 1 && off <= SAMPLE_FADE_DISTANCE ? t : undefined
+}
+
 // The colors seen (see above) and whether they're `expect`.
 function matchSample(frames: Rgb[], expect: string[], palette: string[]) {
     const colors = sampleColors(expect, palette)
+    // The fades: the colors `expect` lists halfway between their neighbors.
+    const fades = new Map<string, { from: Rgb; to: Rgb }>()
+    for (let i = 1; i < expect.length - 1; i++) {
+        const [from, mid, to] = expect.slice(i - 1, i + 2).map(hexToRgb)
+        if (mid.every((c, j) => Math.abs(c - (from[j] + to[j]) / 2) <= 2))
+            fades.set(expect[i], { from, to })
+    }
     const seen: string[] = []
+    // Where the fade being seen has got to, and whether it went back.
+    let position = 0
+    let back = false
     for (const frame of frames) {
-        const hex = sampleColor(frame, colors)
-        if (hex && seen.at(-1) !== hex) seen.push(hex)
+        let hex = sampleColor(frame, colors)
+        let at: number | undefined
+        for (const [mid, { from, to }] of fades) {
+            if (hex !== undefined && hex !== mid) continue
+            const t = fadePosition(frame, from, to)
+            if (
+                t !== undefined &&
+                t >= SAMPLE_FADE_MIN &&
+                t <= 1 - SAMPLE_FADE_MIN
+            ) {
+                hex = mid
+                at = t
+            }
+        }
+        if (!hex) continue
+        if (at !== undefined) {
+            if (seen.at(-1) !== hex) position = at
+            else if (at < position - SAMPLE_FADE_BACK) back = true
+            else position = Math.max(position, at)
+        }
+        if (seen.at(-1) !== hex) seen.push(hex)
     }
     const ok =
+        !back &&
         seen.length === expect.length &&
         seen.every((color, i) => color === expect[i])
-    return { ok, seen }
+    return {
+        ok,
+        seen,
+        ...(back ? { detail: `a fade went back (saw ${seen.join(' ')})` } : {}),
+    }
 }
 
 async function runRegression(
