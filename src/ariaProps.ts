@@ -4,29 +4,45 @@
 import { Platform } from 'react-native'
 import type { FastImageProps } from './index'
 
+// The props mapped here.
+const ARIA_KEYS = [
+    'aria-busy',
+    'aria-checked',
+    'aria-disabled',
+    'aria-expanded',
+    'aria-hidden',
+    'aria-label',
+    'aria-labelledby',
+    'aria-live',
+    'aria-selected',
+    'aria-valuemax',
+    'aria-valuemin',
+    'aria-valuenow',
+    'aria-valuetext',
+    'id',
+    'tabIndex',
+] as const
+
 type AriaProps = Pick<
     FastImageProps,
-    | 'aria-busy'
-    | 'aria-checked'
-    | 'aria-disabled'
-    | 'aria-expanded'
-    | 'aria-hidden'
-    | 'aria-label'
-    | 'aria-labelledby'
-    | 'aria-live'
-    | 'aria-selected'
-    | 'aria-valuemax'
-    | 'aria-valuemin'
-    | 'aria-valuenow'
-    | 'aria-valuetext'
-    | 'id'
-    | 'tabIndex'
+    | (typeof ARIA_KEYS)[number]
     | 'accessible'
     | 'accessibilityState'
     | 'accessibilityValue'
 >
 
-export function resolveAriaProps<P extends AriaProps>(props: P) {
+type NativeProps<P> = Omit<P, (typeof ARIA_KEYS)[number]> & FastImageProps
+
+export function resolveAriaProps<P extends AriaProps>(
+    props: P,
+): NativeProps<P> {
+    // Most images have none of them: their props go on as they are, without
+    // a copy.
+    let any = false
+    for (let i = 0; i < ARIA_KEYS.length && !any; i++) {
+        any = props[ARIA_KEYS[i]] !== undefined
+    }
+    if (!any) return props as NativeProps<P>
     const {
         'aria-busy': ariaBusy,
         'aria-checked': ariaChecked,
@@ -45,7 +61,7 @@ export function resolveAriaProps<P extends AriaProps>(props: P) {
         tabIndex,
         ...resolved
     } = props
-    const native = resolved as Omit<P, keyof AriaProps> & FastImageProps
+    const native = resolved as NativeProps<P>
     if (ariaLabel !== undefined) {
         native.accessibilityLabel = ariaLabel
         // A labelled image is an accessibility element unless `accessible`

@@ -25,6 +25,7 @@ import FastImage, {
     type FastImageRef,
 } from './index'
 import { commands } from '../test/react-native'
+import { resolveAriaProps } from './ariaProps'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -1797,6 +1798,15 @@ describe('ARIA props', () => {
                 <FastImage source={source} aria-label="A cat" aria-hidden />,
             ).accessible,
         ).toBe(false)
+    })
+
+    it('pass props without them on as they are, without a copy', () => {
+        const props: FastImageProps = {
+            source,
+            accessibilityLabel: 'A dog',
+            accessible: true,
+        }
+        expect(resolveAriaProps(props)).toBe(props)
     })
 
     it('leave the props alone without them', () => {
