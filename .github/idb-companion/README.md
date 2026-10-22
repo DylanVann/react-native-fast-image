@@ -22,3 +22,7 @@ git apply ../react-native-fast-image/.github/idb-companion/no-integrated-display
 ```
 
 Then replace `idb_companion` in the release's tarball with the one built.
+
+The fix is proposed upstream in
+[facebook/idb#987](https://github.com/facebook/idb/pull/987): once it's in a
+release, the workflow can download that release again and this folder can go.
