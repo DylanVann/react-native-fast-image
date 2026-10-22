@@ -64,11 +64,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
-      # Watchman, which Metro uses to find the project's files (without it,
-      # Metro crawls node_modules itself, minutes of CPU here).
-      - run: |
-          command -v ffmpeg || brew install ffmpeg
-          command -v watchman || brew install watchman
+      - run: command -v ffmpeg || brew install ffmpeg
       - run: bun install --frozen-lockfile
       # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current), and React

@@ -623,12 +623,18 @@ async function startMetro(app: App) {
         extraEnv: app === 'expo' ? EXPO_ENV : undefined,
     }).pid
     if (metro !== undefined) groups.add(metro)
+    const metroStart = Date.now()
     // Up to 5 minutes: it starts while the apps build, which can leave it
     // little CPU on a small machine.
     for (let i = 0; i < 300; i++) {
         try {
             const response = await fetch('http://localhost:8081/status')
-            if ((await response.text()).includes('running')) return true
+            if ((await response.text()).includes('running')) {
+                say(
+                    `Metro for ${app} ready after ${duration(Date.now() - metroStart)}`,
+                )
+                return true
+            }
         } catch {
             // Not up yet.
         }
@@ -2994,9 +3000,9 @@ async function main() {
             bundleWarm = warmBundles(app, platforms)
             return true
         }
-        // The first app's Metro starts while the apps build (it can take a
-        // minute or two to crawl node_modules without Watchman); its run waits
-        // for it.
+        // The first app's Metro starts while the apps build (crawling
+        // node_modules takes longer without Watchman, or on a busy machine);
+        // its run waits for it.
         const first = plans[0]
         const firstStarted = first
             ? startApp(first.app, first.platforms)
