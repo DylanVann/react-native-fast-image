@@ -15,6 +15,16 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **How to reproduce:** Found by reading the code. Render `<FastImage source={{ uri: 'not-a-real-image.jpg' }} />` on Android, or call `FastImage.preload([{ uri: '' }, {}, { uri: null }, { uri: 'not-a-real-image.jpg' }])`. Fast Image before the fixes below, which had the same preload code, crashed in its `preload-no-uri` and `preload-unresolved` regression cases.
 - **How Fast Image handles it:** a uri that's missing or can't be resolved fires `onError` and `onLoadEnd` and shows `defaultSource`, on both platforms, and `preload` skips such sources (and resolves them as not ok) instead of loading them ([#1091](https://github.com/DylanVann/react-native-fast-image/pull/1091), [#1099](https://github.com/DylanVann/react-native-fast-image/pull/1099), [#1109](https://github.com/DylanVann/react-native-fast-image/pull/1109)). Its raw resource lookup keeps the empty uri when there's no raw resource.
 
+## Android crashes on a header value that isn't a string
+
+- **What happens:** on Android, a source whose `headers` has a value that isn't a string, such as `{ 'X-App-Version': 3 }`, crashes the app with `UnexpectedNativeTypeException` when the view loads. TypeScript rejects it, but plain JS and loosely typed values reach it.
+- **Where:** `android/src/main/java/com/dylanvann/fastimage/FastImageViewConverter.java`, `getHeaders()`.
+    - The JS (`src/index.tsx`) turns `headers` into an array of `{ name, value }` with the values unchanged.
+    - `getHeaders()` reads each value with `getString("value")`, on the UI thread, which throws for a number or a boolean.
+    - Null values and `headers: null` are skipped (since the fork's `8637965` and `f1ef489`).
+- **How to reproduce:** Found by reading the code. Render `<FastImage source={{ uri, headers: { 'x-n': 1 } }} />` on Android. Fast Image's `headers-non-string` regression case crashed on Android before its fix.
+- **How Fast Image handles it:** both platforms send numbers and booleans as strings, as fetch does, and leave out `headers` that isn't an object and values they can't send (null, objects), and send the rest, in views, url placeholders, `preload`, `getCachePath` and `writeToCache` ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
+
 ## iOS crashes when Fast Image is a Touchable's direct child on the legacy architecture
 
 - **What happens:** on React Native 0.73+ with the legacy architecture, a Fast Image directly inside a `TouchableWithoutFeedback` (or anything that passes Pressability's handlers to its child) crashes with `-[FFFastImageView setOnClick:]: unrecognized selector sent to instance`.

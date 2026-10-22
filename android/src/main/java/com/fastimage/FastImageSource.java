@@ -173,12 +173,13 @@ public class FastImageSource extends ImageSource {
         return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
     }
 
-    // `cacheKey`: the key to cache the image under instead of its url.
+    // `cacheKey`: the key to cache the image under instead of its url (null
+    // without one, or for an empty one: see FastImageSourceProps).
     @Nullable
     private String mCacheKey = null;
 
     void setCacheKey(@Nullable String cacheKey) {
-        mCacheKey = cacheKey == null || cacheKey.isEmpty() ? null : cacheKey;
+        mCacheKey = cacheKey;
     }
 
     public GlideUrl getGlideUrl() {

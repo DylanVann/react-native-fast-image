@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
+import { withStringHeaders } from './headers'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
@@ -913,28 +914,38 @@ function FastImageBase({
     // only those change. Memoized on source, so an unchanged source reaches
     // the native view as the same object, and React's prop diff stops at it.
     const resolvedSource = useMemo(() => {
-        // A blurDataUri that isn't a data uri is ignored, with a warning, and
-        // React Native's cache: 'reload' warns (native reads its cache values).
-        for (const entry of [source].flat()) {
-            dataUri((entry as Source | undefined)?.blurDataUri)
-            warnIfReload(entry)
+        // In development, a blurDataUri that isn't a data uri warns (native
+        // ignores it), and so does React Native's cache: 'reload' (native
+        // reads its cache values).
+        if (__DEV__) {
+            for (const entry of [source].flat()) {
+                dataUri((entry as Source | undefined)?.blurDataUri)
+                warnIfReload(entry)
+            }
         }
         const single =
             Array.isArray(source) && source.length === 1 ? source[0] : source
         return Array.isArray(single)
-            ? single.map((entry) => Image.resolveAssetSource(entry as any))
-            : Image.resolveAssetSource(single as any)
+            ? single.map((entry) =>
+                  Image.resolveAssetSource(withStringHeaders(entry) as any),
+              )
+            : Image.resolveAssetSource(withStringHeaders(single) as any)
     }, [source])
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
     // applies without one (an empty thumbhash or blurDataUri is none).
-    const resolvedPlaceholder = hasSourcePlaceholder(placeholder)
-        ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
-            ? placeholder
-            : resolvePlaceholder(defaultSource)
-        : (placeholderSource(placeholder) ??
-          resolvePlaceholder(placeholder ?? defaultSource))
+    // Memoized, as the source is.
+    const resolvedPlaceholder = useMemo(
+        () =>
+            hasSourcePlaceholder(placeholder)
+                ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
+                    ? placeholder
+                    : resolvePlaceholder(defaultSource)
+                : (withStringHeaders(placeholderSource(placeholder)) ??
+                  resolvePlaceholder(placeholder ?? defaultSource)),
+        [placeholder, defaultSource],
+    )
     const ref = useMemo(
         () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],
@@ -1178,14 +1189,20 @@ const ONE_SOURCE =
 const isSourceObject = (source: unknown): source is Source =>
     typeof source === 'object' && source !== null && !Array.isArray(source)
 
+// A source as the module's functions send it to native (see isSourceObject),
+// with string headers (see withStringHeaders).
+function nativeSource(source: unknown) {
+    return isSourceObject(source) ? withStringHeaders(source) : {}
+}
+
 FastImage.preload = (sources: Source[]) =>
     // Entries that aren't source objects are sent as {}, so native results
     // line up with the sources (iOS drops null entries). Arrays' results are
     // replaced.
     Promise.resolve(
-        nativeModule().preload(
-            sources.map((s) => (isSourceObject(s) ? s : {})),
-        ) as Promise<NativePreloadResult[]>,
+        nativeModule().preload(sources.map(nativeSource)) as Promise<
+            NativePreloadResult[]
+        >,
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
             if (Array.isArray(source)) {
@@ -1231,7 +1248,7 @@ FastImage.writeToCache = (
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : Promise.resolve(
               nativeModule().writeToCache(
-                  isSourceObject(source) ? source : {},
+                  nativeSource(source),
                   file,
               ) as Promise<CachePathResult>,
           )
@@ -1241,7 +1258,7 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : Promise.resolve(
               nativeModule().getCachePath(
-                  isSourceObject(source) ? source : {},
+                  nativeSource(source),
               ) as Promise<CachePathResult>,
           )
 

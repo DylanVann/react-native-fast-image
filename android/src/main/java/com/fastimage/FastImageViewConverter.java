@@ -11,14 +11,9 @@ import android.widget.ImageView.ScaleType;
 
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.load.model.Headers;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
-import com.facebook.react.bridge.ReadableType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,24 +22,6 @@ import javax.annotation.Nullable;
 
 class FastImageViewConverter {
     static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
-
-    private static final Map<String, FastImageCacheControl> FAST_IMAGE_CACHE_CONTROL_MAP =
-            new HashMap<String, FastImageCacheControl>() {{
-                put("immutable", FastImageCacheControl.IMMUTABLE);
-                put("web", FastImageCacheControl.WEB);
-                put("cacheOnly", FastImageCacheControl.CACHE_ONLY);
-                // React Native's ImageURISource value, which views take. Its
-                // others (e.g. 'reload') are immutable, as any value this map
-                // doesn't have (see getValueFromSource).
-                put("only-if-cached", FastImageCacheControl.CACHE_ONLY);
-            }};
-
-    private static final Map<String, Priority> FAST_IMAGE_PRIORITY_MAP =
-            new HashMap<String, Priority>() {{
-                put("low", Priority.LOW);
-                put("normal", Priority.NORMAL);
-                put("high", Priority.HIGH);
-            }};
 
     // objectFit's scale types. scale-down and none are laid out by the view
     // itself, at the image's own size in dp (see
@@ -58,62 +35,22 @@ class FastImageViewConverter {
                 put("none", ScaleType.CENTER);
             }};
 
-    // Whether the source has a uri to load (not null, missing or blank).
-    static boolean hasUri(@Nullable ReadableMap source) {
-        if (source == null || !source.hasKey("uri") || source.isNull("uri")) return false;
-        String uri = source.getString("uri");
-        return uri != null && !uri.trim().isEmpty();
-    }
-
-    // `diskCache`: whether the image is kept in the disk cache (true unless
-    // the source sets false).
-    static boolean isDiskCache(@Nullable ReadableMap source) {
-        return source == null || !source.hasKey("diskCache") || source.getType("diskCache") != ReadableType.Boolean
-                || source.getBoolean("diskCache");
-    }
-
-    // Resolve the source uri to a file path that android understands.
+    // The source to load, with its uri resolved to one Android understands, or
+    // null without a uri.
     static @Nullable
-    FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
-        if (source == null) return null;
-        FastImageSource imageSource = new FastImageSource(context, source.getString("uri"), getHeaders(source));
-        imageSource.setWebCache(getCacheControl(source) == FastImageCacheControl.WEB);
-        if (source.hasKey("memoryCache") && source.getType("memoryCache") == ReadableType.Boolean) {
-            imageSource.setMemoryCache(source.getBoolean("memoryCache"));
-        }
-        imageSource.setDiskCache(isDiskCache(source));
-        if (source.hasKey("cacheKey") && source.getType("cacheKey") == ReadableType.String) {
-            imageSource.setCacheKey(source.getString("cacheKey"));
-        }
+    FastImageSource getImageSource(Context context, @Nullable FastImageSourceProps source) {
+        if (source == null || !source.hasUri()) return null;
+        FastImageSource imageSource = new FastImageSource(context, source.uri, source.headers);
+        imageSource.setWebCache(source.cache == FastImageCacheControl.WEB);
+        imageSource.setMemoryCache(source.memoryCache);
+        imageSource.setDiskCache(source.diskCache);
+        imageSource.setCacheKey(source.cacheKey);
         return imageSource;
     }
 
-    static Headers getHeaders(ReadableMap source) {
-        Headers headers = Headers.DEFAULT;
-
-        if (source.hasKey("headers")) {
-            ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
-            LazyHeaders.Builder builder = new LazyHeaders.Builder();
-
-            while (iterator.hasNextKey()) {
-                String header = iterator.nextKey();
-                String value = headersMap.getString(header);
-
-                builder.addHeader(header, value);
-            }
-
-            headers = builder.build();
-        }
-
-        return headers;
-    }
-
-    static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, @Nullable ReadableMap source) {
-        // Get priority.
-        final Priority priority = FastImageViewConverter.getPriority(source);
-        // Get cache control method.
-        final FastImageCacheControl cacheControl = FastImageViewConverter.getCacheControl(source);
+    static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, @Nullable FastImageSourceProps source) {
+        final Priority priority = source != null ? source.priorityOrNormal() : Priority.NORMAL;
+        final FastImageCacheControl cacheControl = source != null ? source.cache : FastImageCacheControl.IMMUTABLE;
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
         boolean onlyFromCache = false;
         boolean skipMemoryCache = false;
@@ -162,24 +99,6 @@ class FastImageViewConverter {
         return options;
     }
 
-    // The source's cacheKey, or null without one.
-    @Nullable
-    static String getCacheKey(@Nullable ReadableMap source) {
-        if (source == null || !source.hasKey("cacheKey") || source.getType("cacheKey") != ReadableType.String) {
-            return null;
-        }
-        String cacheKey = source.getString("cacheKey");
-        return cacheKey == null || cacheKey.isEmpty() ? null : cacheKey;
-    }
-
-    static FastImageCacheControl getCacheControl(ReadableMap source) {
-        return getValueFromSource("cache", "immutable", FAST_IMAGE_CACHE_CONTROL_MAP, source);
-    }
-
-    private static Priority getPriority(ReadableMap source) {
-        return getValueFromSource("priority", "normal", FAST_IMAGE_PRIORITY_MAP, source);
-    }
-
     static ScaleType getScaleType(String propValue) {
         return getValue("objectFit", "cover", FAST_IMAGE_OBJECT_FIT_MAP, propValue);
     }
@@ -190,14 +109,5 @@ class FastImageViewConverter {
         if (value == null)
             throw new JSApplicationIllegalArgumentException("FastImage, invalid " + propName + " : " + propValue);
         return value;
-    }
-
-    // A value the map doesn't have (e.g. React Native's `cache: 'reload'`, or
-    // one that isn't a string) gets the default, as on iOS.
-    private static <T> T getValueFromSource(String propName, String defaultProp, Map<String, T> map, ReadableMap source) {
-        T value = source != null && source.hasKey(propName) && source.getType(propName) == ReadableType.String
-                ? map.get(source.getString(propName))
-                : null;
-        return value != null ? value : map.get(defaultProp);
     }
 }

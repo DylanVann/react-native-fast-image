@@ -38,21 +38,19 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     FFFPriority priority = [self FFFPriority:json[@"priority"]];
     FFFCacheControl cacheControl = [self FFFCacheControl:json[@"cache"]];
     
-    NSDictionary *headers = [self NSDictionary:json[@"headers"]];
-    if (headers) {
-        __block BOOL allHeadersAreStrings = YES;
-        [headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, id header, BOOL *stop) {
-            if (![header isKindOfClass:[NSString class]]) {
-                RCTLogError(@"Values of HTTP headers passed must be  of type string. "
-                            "Value of header '%@' is not a string.", key);
-                allHeadersAreStrings = NO;
-                *stop = YES;
+    // Only the values that are strings: JS sends numbers and booleans as
+    // strings (as fetch's Headers converts them, see src/headers.ts), and
+    // `headers` that isn't an object, and other values (null, objects), are
+    // left out, as on Android.
+    NSMutableDictionary<NSString *, NSString *> *headers = nil;
+    id headersJSON = json[@"headers"];
+    if ([headersJSON isKindOfClass:[NSDictionary class]]) {
+        headers = [NSMutableDictionary new];
+        [headersJSON enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
+            if ([key isKindOfClass:[NSString class]] && [value isKindOfClass:[NSString class]]) {
+                headers[key] = value;
             }
         }];
-        if (!allHeadersAreStrings) {
-            // Set headers to nil here to avoid crashing later.
-            headers = nil;
-        }
     }
     
     FFFastImageSource *imageSource = [[FFFastImageSource alloc] initWithURL:uri priority:priority headers:headers cacheControl:cacheControl];

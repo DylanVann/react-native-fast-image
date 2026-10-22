@@ -823,6 +823,102 @@ describe("React Native's source.cache values", () => {
     })
 })
 
+describe('headers', () => {
+    const uri = 'https://example.com/a.jpg'
+    const view = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+    const headers = {
+        'x-token': 'a',
+        'x-number': 3,
+        'x-decimal': 1.5,
+        'x-boolean': true,
+        'x-null': null,
+        'x-undefined': undefined,
+    }
+    // As fetch sends them; null and undefined are headers that aren't set.
+    const sent = {
+        'x-token': 'a',
+        'x-number': '3',
+        'x-decimal': '1.5',
+        'x-boolean': 'true',
+    }
+
+    it('go to native as strings: numbers and booleans converted, null and undefined left out', () => {
+        const source = { uri, headers } as unknown as { uri: string }
+        expect(view(<FastImage source={source} />).source.headers).toEqual(sent)
+        expect(
+            view(<FastImage source={[source, { uri, width: 10 }]} />).source[0]
+                .headers,
+        ).toEqual(sent)
+        expect(
+            view(
+                <FastImage
+                    source={{ uri }}
+                    placeholder={{ uri, headers } as any}
+                />,
+            ).placeholder.headers,
+        ).toEqual(sent)
+        const preload = spyOn(NativeModules.FastImageModule, 'preload')
+        try {
+            FastImage.preload([source as any])
+            const [sources] = preload.mock.calls[0] as unknown as [
+                { headers: unknown }[],
+            ]
+            expect(sources[0].headers).toEqual(sent)
+        } finally {
+            preload.mockRestore()
+        }
+    })
+
+    it('leave a source with only strings as it is', () => {
+        const source = { uri, headers: { 'x-token': 'a' } }
+        expect(view(<FastImage source={source} />).source).toBe(source)
+    })
+
+    it("warn once in development about values that can't be sent, or headers that aren't an object", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            view(<FastImage source={{ uri, headers } as any} />)
+            view(<FastImage source={{ uri, headers: null } as any} />)
+            expect(warn).not.toHaveBeenCalled()
+            const props = view(
+                <FastImage
+                    source={
+                        {
+                            uri,
+                            headers: {
+                                'x-token': 'a',
+                                'x-object': {},
+                                'x-array': [],
+                            },
+                        } as any
+                    }
+                />,
+            )
+            expect(props.source.headers).toEqual({ 'x-token': 'a' })
+            expect(
+                view(
+                    <FastImage source={{ uri, headers: ['x-token'] } as any} />,
+                ).source.headers,
+            ).toBeUndefined()
+            // Each warning once.
+            view(<FastImage source={{ uri, headers: ['x-token'] } as any} />)
+            expect(warn).toHaveBeenCalledTimes(2)
+            expect(warn.mock.calls[0][0]).toContain(
+                'the headers "x-object", "x-array" are objects or functions, so they aren\'t sent',
+            )
+            expect(warn.mock.calls[1][0]).toContain(
+                "`headers` isn't an object, so none are sent",
+            )
+        } finally {
+            warn.mockRestore()
+        }
+    })
+})
+
 describe('source.diskCache', () => {
     it('is passed to the native view with the source', () => {
         const [view] = renderer

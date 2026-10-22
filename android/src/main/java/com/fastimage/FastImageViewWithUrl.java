@@ -46,9 +46,6 @@ import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
 import com.bumptech.glide.request.transition.TransitionFactory;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.i18nmanager.I18nUtil;
@@ -59,15 +56,13 @@ import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.ReactPointerEventsView;
 import com.facebook.react.uimanager.style.LogicalEdge;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
 class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView, ReactHitSlopView {
     private boolean mNeedsReload = false;
-    private ReadableMap mSource = null;
+    private FastImageSourceProps mSource = null;
     // The `placeholder` prop.
     private Drawable mPlaceholder = null;
 
@@ -222,72 +217,31 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // with its thumbhash or blurDataUri if it has one. Only a change besides
     // those loads again: a new thumbhash for the same image (e.g. one that
     // arrives later) shows at once (see updatePlaceholder).
-    public void setSource(@Nullable ReadableArray sources) {
-        List<Object> key = sourceKey(sources);
-        if (!mHasSource || !Objects.equals(key, mSourceKey)) {
+    public void setSource(@Nullable FastImageSourceProps[] sources) {
+        boolean same = mHasSource && Arrays.equals(sources, mAllSources);
+        mAllSources = sources;
+        if (!same) {
             mHasSource = true;
-            mSourceKey = key;
             mNeedsReload = true;
-            mSources = sources != null && sources.size() > 1 ? sources : null;
             mSourceIndex = -1;
-            if (mSources == null) mSource = sources != null && sources.size() == 1 ? map(sources, 0) : null;
-        }
-        mSourcePlaceholders = new ArrayList<>();
-        for (int i = 0; sources != null && i < sources.size(); i++) {
-            mSourcePlaceholders.add(sourcePlaceholder(map(sources, i)));
+            if (severalSources() == null) mSource = sources != null && sources.length == 1 ? sources[0] : null;
         }
         updatePlaceholder();
     }
 
-    // The sources without their thumbhashes and blurDataUris, to compare.
+    // The `source` prop's sources (with their latest placeholders), and
+    // whether it has been set.
+    @Nullable
+    private FastImageSourceProps[] mAllSources = null;
     private boolean mHasSource = false;
-    @Nullable
-    private List<Object> mSourceKey = null;
-
-    @Nullable
-    private static List<Object> sourceKey(@Nullable ReadableArray sources) {
-        if (sources == null) return null;
-        List<Object> key = new ArrayList<>();
-        for (int i = 0; i < sources.size(); i++) {
-            ReadableMap source = map(sources, i);
-            key.add(source == null ? null : withoutPlaceholders(source));
-        }
-        return key;
-    }
-
-    // A source without its thumbhash and blurDataUri.
-    private static HashMap<String, Object> withoutPlaceholders(ReadableMap source) {
-        HashMap<String, Object> map = source.toHashMap();
-        map.remove("thumbhash");
-        map.remove("blurDataUri");
-        return map;
-    }
-
-    @Nullable
-    private static ReadableMap map(ReadableArray array, int index) {
-        return array.getType(index) == ReadableType.Map ? array.getMap(index) : null;
-    }
-
-    // A source's (or `placeholder`'s) ThumbHash, or its blurDataUri if it's a
-    // data uri (JS warns about another), or null.
-    @Nullable
-    static String sourcePlaceholder(@Nullable ReadableMap source) {
-        if (source == null) return null;
-        String thumbhash = string(source, "thumbhash");
-        if (thumbhash != null && !thumbhash.isEmpty()) return thumbhash;
-        String blurDataUri = string(source, "blurDataUri");
-        return blurDataUri != null && FastImageThumbHash.isDataUri(blurDataUri) ? blurDataUri : null;
-    }
-
-    @Nullable
-    private static String string(ReadableMap map, String key) {
-        return map.hasKey(key) && map.getType(key) == ReadableType.String ? map.getString(key) : null;
-    }
 
     // Several sources (2 or more) of the same image at different sizes, or
     // null: the view loads the one whose size is closest to its own.
     @Nullable
-    private ReadableArray mSources = null;
+    private FastImageSourceProps[] severalSources() {
+        return mAllSources != null && mAllSources.length > 1 ? mAllSources : null;
+    }
+
     // Several sources: the index of the one picked (-1 before one is), and
     // whether the load waits for the view's size (after layout), or has
     // waited (then it loads the largest if the view still has no size).
@@ -316,16 +270,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // count), or of the largest while it has no size (e.g. a view sized from
     // onLoad).
     private int sourceIndexForSize() {
-        ReadableArray sources = mSources;
+        FastImageSourceProps[] sources = severalSources();
         if (sources == null) return -1;
         double viewPixels = (double) Math.max(0, contentWidth()) * Math.max(0, contentHeight());
         int best = -1;
         double bestFit = Double.MAX_VALUE;
-        for (int i = 0; i < sources.size(); i++) {
-            ReadableMap source = sources.getMap(i);
+        for (int i = 0; i < sources.length; i++) {
+            FastImageSourceProps source = sources[i];
             if (source == null) continue;
-            double scale = number(source, "scale", 1);
-            double pixels = number(source, "width", 0) * number(source, "height", 0) * scale * scale;
+            double pixels = source.width * source.height * source.scale * source.scale;
             double fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels;
             if (best < 0 || fit < bestFit) {
                 best = i;
@@ -338,18 +291,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Picks the source for the view's size (several sources).
     private void pickSource() {
         mSourceIndex = sourceIndexForSize();
-        mSource = mSourceIndex >= 0 && mSources != null ? mSources.getMap(mSourceIndex) : null;
-    }
-
-    private static double number(ReadableMap map, String key, double fallback) {
-        return map.hasKey(key) && !map.isNull(key) ? map.getDouble(key) : fallback;
+        FastImageSourceProps[] sources = severalSources();
+        mSource = mSourceIndex >= 0 && sources != null ? sources[mSourceIndex] : null;
     }
 
     // Several sources: another one fits the view's new size (or the box inside
     // its new borders) better. Loads it (after layout), keeping the image
     // showing until then, without a fade.
     private boolean switchSourceIfResized() {
-        if (mSources == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
+        if (severalSources() == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
                 || mManager == null || sourceIndexForSize() == mSourceIndex) {
             return false;
         }
@@ -380,9 +330,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updatePlaceholder();
     }
 
-    // The sources' ThumbHashes or blurDataUris, by the source's index (null
-    // for none): the picked source's shows instead of the placeholder prop.
-    private List<String> mSourcePlaceholders = new ArrayList<>();
     // `placeholder` as a thumbhash or blurDataUri: shows for the sources
     // without their own.
     @Nullable
@@ -414,7 +361,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // own drawable, which Glide doesn't recycle, so a fade can still draw it
     // after its request is cleared. A failure shows nothing more.
     @Nullable
-    private ReadableMap mPlaceholderSource = null;
+    private FastImageSourceProps mPlaceholderSource = null;
     @Nullable
     private Drawable mUrlPlaceholder = null;
     @Nullable
@@ -423,7 +370,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Its load waits for the view's size (see startUrlPlaceholderLoad).
     private boolean mUrlPlaceholderWaitsForSize = false;
 
-    public void setPlaceholderSource(@Nullable ReadableMap source) {
+    public void setPlaceholderSource(@Nullable FastImageSourceProps source) {
         if (source == null && mPlaceholderSource == null) return;
         mPlaceholderSource = source;
         clearUrlPlaceholderTarget();
@@ -449,7 +396,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // or it's already loaded or loading.
     private void startUrlPlaceholderLoad() {
         if (requestManager == null || mDropped || mUrlPlaceholder != null || mUrlPlaceholderTarget != null
-                || !FastImageViewConverter.hasUri(mPlaceholderSource)) return;
+                || mPlaceholderSource == null || !mPlaceholderSource.hasUri()) return;
         if (mLoadEnded && mShownRequest != null) return;
         if (getWidth() <= 0 || getHeight() <= 0) {
             mUrlPlaceholderWaitsForSize = true;
@@ -519,10 +466,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // null.
     @Nullable
     private String pickedSourcePlaceholder() {
-        int index = mSources == null ? 0 : mSourceIndex;
+        int index = severalSources() == null ? 0 : mSourceIndex;
         // None until one is picked.
         if (index < 0) return null;
-        String key = index < mSourcePlaceholders.size() ? mSourcePlaceholders.get(index) : null;
+        FastImageSourceProps source = mAllSources != null && index < mAllSources.length ? mAllSources[index] : null;
+        String key = source != null ? source.placeholder : null;
         return key != null ? key : mPlaceholderHash;
     }
 
@@ -1761,7 +1709,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // hasn't been laid out yet loads after layout (props and layout are
         // applied in the same batch). A view that still has no size then
         // (e.g. one sized from onLoad) loads the largest source.
-        if (mSources != null) {
+        if (severalSources() != null) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
                 mWaitsForSize = true;
@@ -1814,20 +1762,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             return;
         }
 
-        mLoadingScale = mSource != null && mSource.hasKey("__packager_asset")
-                ? Math.max(number(mSource, "scale", 1), 0.01)
-                : 1;
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
-        final FastImageSource imageSource = FastImageViewConverter.hasUri(mSource)
-                ? FastImageViewConverter.getImageSource(getContext(), mSource)
-                : null;
+        mLoadingScale = mSource != null && mSource.packagerAsset ? Math.max(mSource.scale, 0.01) : 1;
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
         // A source without a uri (empty, missing or null), or one that can't be
         // resolved: fire onError and onLoadEnd and show the placeholder prop,
         // as on iOS (#1028, #945).
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
             // Without its thumbhash or blurDataUri (a data uri can be long).
-            String error = "Invalid source: " + withoutPlaceholders(mSource);
+            String error = "Invalid source: " + mSource.describe();
             WritableMap event = new WritableNativeMap();
             event.putString("error", error);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
