@@ -21,11 +21,7 @@ module.exports = {
         android: {
             package: `com.dylanvann.rnfibenchmark.${subject.replace(/[^a-z0-9]/gi, '')}`,
         },
-        plugins: [
-            './plugins/withSceneLifecycle',
-            './plugins/withSubject',
-            './plugins/withAndroidBenchmark',
-        ],
+        plugins: ['./plugins/withSubject', './plugins/withAndroidBenchmark'],
         extra: { subject },
     },
 }

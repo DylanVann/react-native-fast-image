@@ -13,6 +13,8 @@ const adapter: Adapter = {
     Image: ({ uri, style, priority }) => (
         <NitroImage
             image={{ url: uri, options: priority ? { priority } : undefined }}
+            // @ts-expect-error Nitro 0.37's view types (Nitro Image 0.15's)
+            // don't find React Native 0.88's ViewProps, so style is missing.
             style={style}
             resizeMode="cover"
         />

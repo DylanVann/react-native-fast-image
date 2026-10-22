@@ -153,7 +153,11 @@ export type ScenarioProps = {
 
 const now = () => performance.now()
 
-const measure = (view: View | null) =>
+// A View's instance, as refs get it (React Native's types declare View as a
+// function component since its Strict TypeScript API).
+type ViewRef = React.ComponentRef<typeof View>
+
+const measure = (view: ViewRef | null) =>
     new Promise<Rect | undefined>((resolve) => {
         if (!view) return resolve(undefined)
         view.measure((_x, _y, width, height, x, y) =>
@@ -210,13 +214,13 @@ export function Scenario({
     const [open, setOpen] = useState(false)
     const [message, setMessage] = useState('')
     const started = useRef(0)
-    const views = useRef(new Map<number, View>())
+    const views = useRef(new Map<number, ViewRef>())
     // Each image's first load or error time (and the detail photo's opening
     // time), by cell index. Not state: the results aren't shown, so a load
     // doesn't render the cells again.
     const settled = useRef(new Map<number, Partial<Cell>>())
-    const marker = useRef<View>(null)
-    const clockView = useRef<View>(null)
+    const marker = useRef<ViewRef>(null)
+    const clockView = useRef<ViewRef>(null)
     const [clock] = useState(() => new Animated.Value(0))
     // Bit k is 1 while the clock modulo 2^(k+1) is at least 2^k.
     const [clockBits] = useState(() =>
