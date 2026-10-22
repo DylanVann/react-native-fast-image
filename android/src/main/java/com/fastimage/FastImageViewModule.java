@@ -15,6 +15,7 @@ import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.FutureTarget;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
@@ -33,6 +34,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -156,6 +158,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     final ResultCallback done = new ResultCallback() {
                         @Override
                         public void run(WritableMap result) {
+                            // Once per source: a second result would build
+                            // the results again from consumed maps, and free
+                            // the slot twice.
+                            if (results[index] != null) return;
                             results[index] = result;
                             preloadsInFlight--;
                             finishOne.run();
@@ -205,19 +211,17 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                                     // (file://, content://, asset:/) work too.
                                     .load(imageSource.getSourceForLoad())
                                     .apply(preloadOptions)
-                                    .listener(new RequestListener<Drawable>() {
+                                    .listener(new FirstResult<Drawable>(context) {
                                         @Override
-                                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                                        void failed(@Nullable GlideException e) {
                                             done.run(failure(FastImageRequestListener.errorMessage(e)));
-                                            return false;
                                         }
 
                                         @Override
-                                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                                        void ready(Drawable resource) {
                                             // Preloaded at its original size, so this is
                                             // the image's own size.
                                             done.run(success(resource.getIntrinsicWidth(), resource.getIntrinsicHeight()));
-                                            return false;
                                         }
                                     })
                                     .preload();
@@ -261,7 +265,52 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         return source.priority != null ? options : options.priority(Priority.LOW);
     }
 
-    private interface FileCallback {
+    // A preload's listener: it passes on only the load's first result, and
+    // clears the load each time it fails, so Glide doesn't start it again.
+    // (Glide keeps a failed request, and with ACCESS_NETWORK_STATE, which apps
+    // often have through other libraries, starts it again when the network
+    // comes back.)
+    private abstract static class FirstResult<T> implements RequestListener<T> {
+        private final Context context;
+        private boolean finished;
+
+        FirstResult(Context context) {
+            this.context = context;
+        }
+
+        abstract void failed(@Nullable GlideException e);
+
+        abstract void ready(T resource);
+
+        @Override
+        public final boolean onLoadFailed(@Nullable GlideException e, Object model, final Target<T> target, boolean isFirstResource) {
+            // Every failure, also one after the first result (a load started
+            // again before the clear ran). Glide doesn't allow clearing a load
+            // from its own callback. At the front of the queue, so it runs
+            // before a restart Glide already queued (the network coming back
+            // as the load failed).
+            UiThreadUtil.getUiThreadHandler().postAtFrontOfQueue(new Runnable() {
+                @Override
+                public void run() {
+                    Glide.with(context).clear(target);
+                }
+            });
+            if (finished) return false;
+            finished = true;
+            failed(e);
+            return false;
+        }
+
+        @Override
+        public final boolean onResourceReady(T resource, Object model, Target<T> target, DataSource dataSource, boolean isFirstResource) {
+            if (finished) return false;
+            finished = true;
+            ready(resource);
+            return false;
+        }
+    }
+
+    interface FileCallback {
         void run(@Nullable File file, @Nullable String error);
     }
 
@@ -270,7 +319,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     // thread. Views that load the image meanwhile share its download
     // (FastImageSharedDownloads); for a preload (`shared`), those whose
     // request gets to downloading just after it finished read its file.
-    private static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
+    static void loadFile(Context context, Object model, RequestOptions options, boolean shared, final FileCallback callback) {
         final String key = shared && model instanceof FastImageUrl
                 ? FastImageSharedDownloads.key(((FastImageUrl) model).url)
                 : null;
@@ -284,19 +333,17 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                 // while the disk cache keeps it, and Glide gave the path of
                 // one that clearDiskCache had deleted.
                 .skipMemoryCache(true)
-                .listener(new RequestListener<File>() {
+                .listener(new FirstResult<File>(context) {
                     @Override
-                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<File> target, boolean isFirstResource) {
+                    void failed(@Nullable GlideException e) {
                         if (key != null) FastImageSharedDownloads.finished(key, null);
                         callback.run(null, FastImageRequestListener.errorMessage(e));
-                        return false;
                     }
 
                     @Override
-                    public boolean onResourceReady(File file, Object model, Target<File> target, DataSource dataSource, boolean isFirstResource) {
+                    void ready(File file) {
                         if (key != null) FastImageSharedDownloads.finished(key, file);
                         callback.run(file, null);
-                        return false;
                     }
                 })
                 .preload();
@@ -307,17 +354,28 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     private static File cachedFile(Context context, Object model, RequestOptions options) {
         try {
             FastImageGlide.get(context);
-            return Glide.with(context)
+            return getAndClear(context, Glide.with(context)
                     .asFile()
                     .load(model)
                     .apply(options)
                     // On disk only, as in loadFile.
                     .skipMemoryCache(true)
                     .onlyRetrieveFromCache(true)
-                    .submit()
-                    .get();
+                    .submit());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    // A blocking load's result. Its request is cleared once it's in: Glide
+    // keeps a request until then, and starts one that failed again when the
+    // network comes back (see FirstResult), which would look the image up or
+    // store it again after its result was reported.
+    private static <T> T getAndClear(Context context, FutureTarget<T> future) throws ExecutionException, InterruptedException {
+        try {
+            return future.get();
+        } finally {
+            Glide.with(context).clear(future);
         }
     }
 
@@ -540,13 +598,12 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     return;
                 }
                 try {
-                    File cached = Glide.with(context)
+                    File cached = getAndClear(context, Glide.with(context)
                             .asFile()
                             .load(new FastImageCacheWrite(key, fileUri))
                             .diskCacheStrategy(DiskCacheStrategy.DATA)
                             .skipMemoryCache(true)
-                            .submit()
-                            .get();
+                            .submit());
                     promise.resolve(pathResult(cached));
                 } catch (Exception e) {
                     promise.resolve(failure("Couldn't store it: " + e));

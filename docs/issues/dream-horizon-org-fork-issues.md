@@ -316,6 +316,13 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **How to reproduce:** Found by reading the code. Render `<FastImage source={{ uri, cache: 'reload' }} />` on Android. Fast Image before the fix below, which had the same converter, crashed in its `unknown-cache` and `non-string-cache` regression cases.
 - **How Fast Image handles it:** a value it doesn't know, or that isn't a string, loads with the default (`'immutable'`, `'normal'`) on both platforms, and views take React Native's `cache` values, with `'only-if-cached'` read as `'cacheOnly'` ([#1326](https://github.com/DylanVann/react-native-fast-image/pull/1326)).
 
+## Android: a failed preload is downloaded again when the network comes back
+
+- **What happens:** in an app with `ACCESS_NETWORK_STATE` (common through other libraries), an image that `FastImage.preload()` failed to load is requested again each time the network comes back, until Glide drops the request.
+- **Where:** `preload()` in `android/src/main/java/com/dylanvann/fastimage/FastImageViewModuleImplementation.java` calls Glide's `.preload()` without a listener and never clears a failed load. Glide's `PreloadTarget` clears itself only on success, and its connectivity monitor calls `RequestTracker.restartRequests()` when the network comes back, which starts every request that hasn't completed, failed ones included (Glide internals).
+- **How to reproduce:** Found by reading the code. Preload a url that fails, turn the network off and on, and count the requests the server gets. Fast Image's unit test `failedPreloadDownloadIsntStartedAgainWhenTheNetworkComesBack` saw the second request before its fix.
+- **How Fast Image handles it:** a preload's failed load is cleared once its result is in, so Glide doesn't start it again, and each source reports once ([#1356](https://github.com/DylanVann/react-native-fast-image/pull/1356)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
