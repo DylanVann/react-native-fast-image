@@ -904,6 +904,61 @@ function WebCacheClearCase() {
     )
 }
 
+// Preloads a `cache: 'web'` image, clears the caches and preloads it again as
+// soon as the clears resolve, 10 times: each image must be requested twice.
+// On iOS, the HTTP cache's removal took effect a few milliseconds after
+// clearDiskCache resolved, and a load in that time got the old response.
+function WebCacheClearPreloadCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const run = async () => {
+            for (let round = 0; round < 10; round++) {
+                const path = `/max-age/picsum/1025-200x200.jpg?web-clear-preload=${RUN}-${Date.now()}-${round}`
+                const source = {
+                    uri: imageUrl(path.slice(1)),
+                    cache: 'web' as const,
+                }
+                const [first] = await FastImage.preload([source])
+                if (!first.ok)
+                    return setStatus(
+                        `round ${round + 1}: the first preload failed`,
+                    )
+                const cleared = await Promise.all([
+                    FastImage.clearMemoryCache(),
+                    FastImage.clearDiskCache(),
+                ])
+                const failed = cleared.find((result) => !result.ok)
+                if (failed) return setStatus(`clear failed: ${failed.error}`)
+                const [second] = await FastImage.preload([source])
+                if (!second.ok)
+                    return setStatus(
+                        `round ${round + 1}: the second preload failed`,
+                    )
+                const response = await fetch(
+                    imageUrl(`requests?path=${encodeURIComponent(path)}`),
+                )
+                const { count } = (await response.json()) as { count: number }
+                if (count !== 2)
+                    return setStatus(
+                        `round ${round + 1}: requested ${count} times`,
+                    )
+            }
+            setStatus('OK')
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="web-cache-clear-preload"
+                status={status}
+                description="a cache web image preloaded right after clearDiskCache resolves is downloaded again (10 times)"
+            />
+        </View>
+    )
+}
+
 // Checks each onProgress event as it comes: a total above 0, loaded from 0 to
 // the total and never going down, and progress equal to loaded / total (0 to
 // 1). At onLoad, the last event (if there were any; with `required`, there
@@ -9338,6 +9393,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Clears the caches, so on its own.
         name: 'web-cache-clear',
         cases: [<WebCacheClearCase key="web-cache-clear" />],
+    },
+    {
+        // Clears the caches, so on its own.
+        name: 'web-cache-clear-preload',
+        cases: [<WebCacheClearPreloadCase key="web-cache-clear-preload" />],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and

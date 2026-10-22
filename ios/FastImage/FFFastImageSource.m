@@ -215,6 +215,12 @@ static NSString *FFFBundleAssetName(NSURL *url)
 @interface FFFWebDownloaderOperation : SDWebImageDownloaderOperation
 @end
 
+// The key of the time a response was stored at, in its userInfo.
+static NSString *const FFFStoredAtKey = @"FFFastImageStoredAt";
+
+// When clearWebURLCache last ran, or nil.
+static NSDate *FFFWebURLCacheClearedAt;
+
 @implementation FFFWebDownloaderOperation
 
 // Whether data is an SVG document: its first element (after an XML
@@ -279,7 +285,14 @@ static BOOL FFFLooksLikeSVG(NSData *data)
         completionHandler(nil);
         return;
     }
-    [super URLSession:session dataTask:dataTask willCacheResponse:proposedResponse completionHandler:completionHandler];
+    // When it was stored (see clearWebURLCache).
+    NSMutableDictionary *userInfo = [proposedResponse.userInfo mutableCopy] ?: [NSMutableDictionary dictionary];
+    userInfo[FFFStoredAtKey] = [NSDate date];
+    NSCachedURLResponse *response = [[NSCachedURLResponse alloc] initWithResponse:proposedResponse.response
+                                                                             data:proposedResponse.data
+                                                                         userInfo:userInfo
+                                                                    storagePolicy:proposedResponse.storagePolicy];
+    [super URLSession:session dataTask:dataTask willCacheResponse:response completionHandler:completionHandler];
 }
 
 @end
@@ -481,14 +494,45 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     return cache;
 }
 
++ (void)clearWebURLCache
+{
+    @synchronized (self) {
+        FFFWebURLCacheClearedAt = [NSDate date];
+    }
+    [self.webURLCache removeAllCachedResponses];
+}
+
+// Whether the HTTP cache's response to the request was stored before the last
+// clearWebURLCache (or has no time: stored by an app's own operation class).
++ (BOOL)isCachedBeforeClear:(NSURLRequest *)request
+{
+    NSDate *clearedAt;
+    @synchronized (self) {
+        clearedAt = FFFWebURLCacheClearedAt;
+    }
+    if (!clearedAt) {
+        return NO;
+    }
+    NSCachedURLResponse *cached = [self.webURLCache cachedResponseForRequest:request];
+    if (!cached) {
+        return NO;
+    }
+    NSDate *storedAt = cached.userInfo[FFFStoredAtKey];
+    return ![storedAt isKindOfClass:NSDate.class] || [storedAt compare:clearedAt] == NSOrderedAscending;
+}
+
 - (SDWebImageDownloaderRequestModifier *)requestModifier
 {
     NSDictionary* headers = _headers;
+    BOOL web = _cacheControl == FFFCacheControlWeb;
     return [SDWebImageDownloaderRequestModifier requestModifierWithBlock: ^NSURLRequest* _Nullable (NSURLRequest* _Nonnull request) {
         NSMutableURLRequest* mutableRequest = [request mutableCopy];
         for (NSString* header in headers) {
             NSString* value = headers[header];
             [mutableRequest setValue: value forHTTPHeaderField: header];
+        }
+        if (web && [FFFastImageSource isCachedBeforeClear:mutableRequest]) {
+            mutableRequest.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
         }
         return [mutableRequest copy];
     }];
