@@ -1696,3 +1696,85 @@ describe('fallback (removed in 10.0)', () => {
         }
     })
 })
+
+describe('ARIA props', () => {
+    const viewProps = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+    const source = { uri: 'https://example.com/a.png' }
+    afterEach(() => {
+        Platform.OS = 'ios'
+    })
+
+    it('go to the native view as its accessibility props, as with View', () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                aria-label="A cat"
+                aria-labelledby="name, caption"
+                aria-live="off"
+                aria-busy
+                aria-selected={false}
+                accessibilityState={{ checked: true, busy: false }}
+                aria-valuenow={2}
+                accessibilityValue={{ min: 0, max: 5 }}
+                id="cat"
+                tabIndex={0}
+            />,
+        )
+        expect(props).toMatchObject({
+            accessibilityLabel: 'A cat',
+            accessibilityLabelledBy: ['name', 'caption'],
+            accessibilityLiveRegion: 'none',
+            accessibilityState: {
+                busy: true,
+                checked: true,
+                disabled: undefined,
+                expanded: undefined,
+                selected: false,
+            },
+            accessibilityValue: { min: 0, max: 5, now: 2, text: undefined },
+            nativeID: 'cat',
+            focusable: true,
+        })
+        expect(Object.keys(props).some((key) => key.startsWith('aria-'))).toBe(
+            false,
+        )
+        expect(props.id).toBeUndefined()
+        expect(props.tabIndex).toBeUndefined()
+    })
+
+    it('aria-hidden hides the image (not accessible on iOS)', () => {
+        expect(
+            viewProps(<FastImage source={source} accessible aria-hidden />),
+        ).toMatchObject({
+            accessible: false,
+            accessibilityElementsHidden: true,
+            importantForAccessibility: 'no-hide-descendants',
+        })
+        Platform.OS = 'android'
+        expect(
+            viewProps(<FastImage source={source} accessible aria-hidden />),
+        ).toMatchObject({
+            accessible: true,
+            importantForAccessibility: 'no-hide-descendants',
+        })
+    })
+
+    it('leave the props alone without them', () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                accessible
+                accessibilityLabel="A dog"
+                accessibilityState={{ selected: true }}
+            />,
+        )
+        expect(props.accessibilityLabel).toBe('A dog')
+        expect(props.accessibilityState).toEqual({ selected: true })
+        expect(props.importantForAccessibility).toBeUndefined()
+        expect(props.nativeID).toBeUndefined()
+    })
+})
