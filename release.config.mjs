@@ -61,6 +61,9 @@ export default {
     // the npm dist-tag latest-9 (a tag can't look like a version range, such
     // as 9.x); main releases 10.0 and later.
     branches: [{ name: '9.x', range: '9.x', channel: 'latest-9' }, 'main'],
+    // Pushes over SSH, with CI's deploy key (see ci.yml's release job): the
+    // job's token can't bypass main's ruleset.
+    repositoryUrl: 'git@github.com:DylanVann/react-native-fast-image.git',
     plugins: [
         [
             '@semantic-release/commit-analyzer',

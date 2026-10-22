@@ -1,5 +1,7 @@
 name: ci
-# Pushes to main, and pull requests: a pull request's own branch isn't built
+# Pull requests run the checks (build); pushes to main only release. main's
+# ruleset only takes a pull request that's up to date with it and passed, so
+# its tree is one that was checked. A pull request's own branch isn't built
 # twice (on its push and on the pull request).
 on:
   push:
@@ -10,6 +12,7 @@ permissions:
   contents: read
 jobs:
   build:
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     steps:
       # Actions are pinned to commits (tag in the comment) so a moved tag
@@ -31,7 +34,6 @@ jobs:
       - run: bun install --frozen-lockfile && bun run check
         working-directory: website
   release:
-    needs: build
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     # Waits for a maintainer to approve the run (the environment's required
@@ -56,6 +58,11 @@ jobs:
           # local branch is behind.
           ref: ${{ github.ref }}
           fetch-depth: 0
+          # The release commit is pushed with this deploy key (write access,
+          # kept in the release environment): main's ruleset requires checks
+          # the commit can't have run yet, and only the repo's deploy keys
+          # bypass it.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version

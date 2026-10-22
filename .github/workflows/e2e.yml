@@ -1,13 +1,12 @@
 name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
 # Android emulator, for each example app. The JS checks are in ci.yml.
-# Runs for pull requests, except changes to docs alone (main only takes them
-# rebased and passing, so its tree is one that ran), and by hand (Actions tab,
-# or `gh workflow run e2e.yml --ref <branch>`): a run takes about 10 minutes
-# with its caches.
+# Runs for pull requests (skipping the apps for one that only changes docs),
+# and by hand (Actions tab, or `gh workflow run e2e.yml --ref <branch>`): a run
+# takes about 10 minutes with its caches. main only takes pull requests rebased
+# on it and passing, so it doesn't run again there.
 on:
   pull_request:
-    paths-ignore: ['docs/**', 'website/**', '**.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,18 +28,41 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # The iOS jobs: the main example's groups in 2 shards (--shard), each a job
-  # that builds the app and runs half of them (by their times in recent runs);
-  # the minimum example's smoke groups (SMOKE_GROUPS) in one; and, when a pull
-  # request changes the iOS code, the tvOS example, its references, or how the
-  # cases run (and in a run by hand), the tvOS example's groups in 2 shards.
-  # (At most 5 macOS jobs run at once.)
+  # Detects a pull request that only changes docs, so it can skip the e2e
+  # tests, which it doesn't need (the e2e job at the end still reports, so it
+  # can be merged). And chooses the iOS jobs: the main example's groups in 2 shards
+  # (--shard), each a job that builds the app and runs half of them (by their
+  # times in recent runs); the minimum example's smoke groups (SMOKE_GROUPS) in
+  # one; and, when a pull request changes the iOS code, the tvOS example, its
+  # references, or how the cases run (and in a run by hand), the tvOS example's
+  # groups in 2 shards. (At most 5 macOS jobs run at once.)
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      docs_only: ${{ steps.docs.outputs.docs_only }}
       ios: ${{ steps.matrix.outputs.ios }}
     steps:
+      # So that pull requests that don't need the e2e tests skip them: when
+      # every file a pull request changes is docs (under docs/ or website/, or
+      # a .md file), docs_only is true, and the ios and android jobs don't run.
+      # (A run by hand has no pull request, and runs everything.)
+      - name: Detect a docs-only pull request
+        id: docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          docs_only=false
+          if [ -n "$PR" ]; then
+            files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+            # The files that aren't docs ("|| true": grep fails when there are none).
+            not_docs=$(grep -vE '^(docs/|website/)|\.md$' <<< "$files" || true)
+            if [ -z "$not_docs" ]; then
+              docs_only=true
+            fi
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
       - name: Choose the iOS jobs
         id: matrix
         env:
@@ -55,6 +77,7 @@ jobs:
           echo "ios={\"include\":[$jobs]}" >> "$GITHUB_OUTPUT"
   ios:
     needs: changes
+    if: needs.changes.outputs.docs_only == 'false'
     # Xcode 27 with the iOS 27.0 and tvOS 27.0 simulator runtimes the
     # references were taken on.
     runs-on: xcode-27
@@ -420,6 +443,8 @@ jobs:
             !verify-output/xcode-build.json
           retention-days: 14
   android:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -636,3 +661,29 @@ jobs:
             !verify-output/**/*.mp4
             !verify-output/xcode-build.json
           retention-days: 14
+  # The one check main's ruleset requires (the ios and android jobs' names
+  # change with their matrices, so the ruleset can't list them). Passes when
+  # every job passed, or for a docs-only pull request, whose ios and android
+  # jobs were skipped. It runs even when the run is cancelled, and fails then:
+  # skipped, it would count as passing.
+  e2e:
+    needs: [changes, ios, android]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the jobs
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          IOS: ${{ needs.ios.result }}
+          ANDROID: ${{ needs.android.result }}
+        run: |
+          echo "changes: $CHANGES, docs only: $DOCS_ONLY, ios: $IOS, android: $ANDROID"
+          if [ "$CHANGES" != success ]; then
+            exit 1
+          fi
+          if [ "$DOCS_ONLY" = true ]; then
+            exit 0
+          fi
+          [ "$IOS" = success ] && [ "$ANDROID" = success ]
