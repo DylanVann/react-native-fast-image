@@ -1,3 +1,10 @@
+## [10.8.6](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.5...v10.8.6) (2026-10-22)
+
+
+### Bug Fixes
+
+* map aria-label, aria-hidden and the other ARIA props on iOS and Android ([#1360](https://github.com/DylanVann/react-native-fast-image/issues/1360)) ([34565a5](https://github.com/DylanVann/react-native-fast-image/commit/34565a56c6f27527b3a750f1beb33f66c4b4e8ac))
+
 ## [10.8.5](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.4...v10.8.5) (2026-10-22)
 
 
