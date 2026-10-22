@@ -1069,14 +1069,16 @@ function idbRecordScreen(file: string) {
 // once the screen has settled. A case's last status can reach the script
 // before the simulator has drawn it (simctl's slower start hid that), so it
 // takes screenshots until two in a row are the same outside `masks` (pixels;
-// animated images), for up to a second.
+// animated images), for up to a second. Not on tvOS: there each of the
+// companion's screenshots takes about 5 s (simctl's, 0.35), whatever its
+// format or scale.
 async function captureScreenshot(
     platform: Platform,
     device: string,
     file: string,
     masks: PixelRect[],
 ) {
-    let png = platform === 'ios' ? await idbScreenshot() : undefined
+    let png = platform === 'ios' && !TV ? await idbScreenshot() : undefined
     if (png) {
         const until = Date.now() + 1000
         while (Date.now() < until) {
