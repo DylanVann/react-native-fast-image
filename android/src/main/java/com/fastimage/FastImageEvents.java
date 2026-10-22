@@ -67,16 +67,16 @@ final class FastImageEvents {
     // onResourceReady and onLoadFailed, and EventDispatcher calls its listeners
     // inline. Reanimated's listener flushes pending mount items, which can
     // drop this view, and the drop clears the request inside its own
-    // callback, which Glide doesn't allow (it throws). One Handler keeps the
-    // events in order.
+    // callback, which Glide doesn't allow (it throws). Every event goes through
+    // here, so they keep their order: e.g. a view's onProgress comes after its
+    // onLoadStart, even from progress the UI thread had waiting before the
+    // load started.
     static void send(FastImageViewWithUrl view, String name, WritableMap data) {
         if (!view.handles(bit(name))) return;
         MAIN.post(() -> dispatch(view, name, data));
     }
 
-    // Dispatches the event now: for callers on the main thread outside Glide's
-    // callbacks (e.g. progress, which is posted already).
-    static void dispatch(FastImageViewWithUrl view, String name, WritableMap data) {
+    private static void dispatch(FastImageViewWithUrl view, String name, WritableMap data) {
         if (!view.handles(bit(name))) return;
         ReactContext context = FastImageViewManager.getReactContext(view.getContext());
         if (context == null) return;
