@@ -65,9 +65,10 @@ final class FastImageEvents {
     // Only the events JS has a handler for: most images have none. Posted to
     // the main thread rather than dispatched here: this is called from Glide's
     // onResourceReady and onLoadFailed, and EventDispatcher calls its listeners
-    // inline. Reanimated's flushes pending mount items, which can drop this
-    // view, and the drop clears the request inside its own callback, which
-    // Glide doesn't allow (it throws). One Handler keeps the events in order.
+    // inline. Reanimated's listener flushes pending mount items, which can
+    // drop this view, and the drop clears the request inside its own
+    // callback, which Glide doesn't allow (it throws). One Handler keeps the
+    // events in order.
     static void send(FastImageViewWithUrl view, String name, WritableMap data) {
         if (!view.handles(bit(name))) return;
         MAIN.post(() -> dispatch(view, name, data));
