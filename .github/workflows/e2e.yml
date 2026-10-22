@@ -57,9 +57,17 @@ jobs:
       - run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
+      # Node at .node-version's version: only its binary, from nodejs.org's
+      # release, checked against the release's SHA-256 list (setup-node also
+      # looks the version up and copies the whole release into a tool cache).
+      - run: |
+          v=v$(cat .node-version)
+          n=node-$v-darwin-arm64
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
+          curl -fsSL -O "https://nodejs.org/dist/$v/$n.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
+          tar xzf "$n.tar.gz" -C bin --strip-components 2 "$n/bin/node" && rm "$n.tar.gz"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
@@ -325,9 +333,17 @@ jobs:
       ANDROID_IMAGE: system-images;android-36;default;x86_64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
+      # Node at .node-version's version: only its binary, from nodejs.org's
+      # release, checked against the release's SHA-256 list (setup-node also
+      # looks the version up and copies the whole release into a tool cache).
+      - run: |
+          v=v$(cat .node-version)
+          n=node-$v-linux-x64
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
+          curl -fsSL -O "https://nodejs.org/dist/$v/$n.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
+          tar xzf "$n.tar.gz" -C bin --strip-components 2 "$n/bin/node" && rm "$n.tar.gz"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
