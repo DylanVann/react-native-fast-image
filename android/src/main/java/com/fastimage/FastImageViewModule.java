@@ -4,8 +4,6 @@ import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.annotation.Nullable;
 
@@ -261,8 +259,6 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         return source.priority != null ? options : options.priority(Priority.LOW);
     }
 
-    private static final Handler MAIN = new Handler(Looper.getMainLooper());
-
     // A preload's listener, which passes on only the load's first result, and
     // clears a load that failed. Glide keeps the request of a failed preload,
     // and with ACCESS_NETWORK_STATE (which apps often have through other
@@ -287,7 +283,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
             if (finished) return false;
             finished = true;
             // Glide doesn't allow clearing a load from its own callback.
-            MAIN.post(new Runnable() {
+            UiThreadUtil.getUiThreadHandler().post(new Runnable() {
                 @Override
                 public void run() {
                     Glide.with(context).clear(target);

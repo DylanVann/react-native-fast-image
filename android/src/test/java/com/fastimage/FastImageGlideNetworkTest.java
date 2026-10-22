@@ -1,6 +1,7 @@
 package com.fastimage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
 import android.Manifest;
@@ -29,13 +30,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import okhttp3.OkHttpClient;
 
-// Images an app loads with Glide itself (a plain GlideUrl, not FastImage's
-// source), from its own native code or another library, as Glide starts with
-// FastImage's modules: they go through React Native's OkHttp client, as
-// FastImage's images do, so the app's interceptors and cookies apply to them.
+// Glide's network behavior with FastImage's modules: images an app loads with
+// Glide itself (a plain GlideUrl, not FastImage's source), from its own native
+// code or another library, go through React Native's OkHttp client, as
+// FastImage's images do, so the app's interceptors and cookies apply to them;
+// and a failed preload isn't started again when the network comes back.
 @RunWith(RobolectricTestRunner.class)
 public class FastImageGlideNetworkTest {
     private TestServer server;
@@ -117,7 +120,9 @@ public class FastImageGlideNetworkTest {
         // The network lost and back, as Glide's connectivity monitor sees it.
         ConnectivityManager manager = context.getSystemService(ConnectivityManager.class);
         Network network = manager.getActiveNetwork();
-        for (ConnectivityManager.NetworkCallback callback : ((ShadowConnectivityManager) Shadow.extract(manager)).getNetworkCallbacks()) {
+        Set<ConnectivityManager.NetworkCallback> callbacks = ((ShadowConnectivityManager) Shadow.extract(manager)).getNetworkCallbacks();
+        assertFalse("Glide watches the network", callbacks.isEmpty());
+        for (ConnectivityManager.NetworkCallback callback : callbacks) {
             callback.onLost(network);
             callback.onAvailable(network);
         }
