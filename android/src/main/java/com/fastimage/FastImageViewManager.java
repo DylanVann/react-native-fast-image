@@ -212,7 +212,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
                 view.setBackfaceVisibility(value instanceof String ? (String) value : "visible");
                 return true;
             // Not Codegen props, and BaseViewManager doesn't set them (React
-            // Native's Image and View managers do).
+            // Native's Image and View managers do): see setAccessible.
             case "accessible":
                 view.setAccessible(Boolean.TRUE.equals(value));
                 return true;
