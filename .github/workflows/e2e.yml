@@ -42,16 +42,19 @@ jobs:
       # samples record longer before their change.
       VERIFY_SAMPLE_LEAD_MS: 2000
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The Xcode the references were taken with (27.1).
-      - run: |
+      - name: Select Xcode 27.1
+        run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
       # Node at .node-version's version, with npm and npx (React Native's
       # Gradle autolinking runs npx): from nodejs.org's release, checked
       # against the release's SHA-256 list (setup-node also looks the version
       # up and copies the release into a tool cache).
-      - run: |
+      - name: Install Node
+        run: |
           v=v$(cat .node-version)
           n=node-$v-darwin-arm64
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
@@ -59,12 +62,14 @@ jobs:
           curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
           mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
           echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
       # ffmpeg and ffprobe, for the video samples: static builds, checked
       # against their SHA-256 (Homebrew took about 20 s).
-      - run: |
+      - name: Install ffmpeg and ffprobe
+        run: |
           base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
           curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
@@ -74,7 +79,8 @@ jobs:
           EOF
           unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - run: bun install --frozen-lockfile
+      - name: "Install the repo's dependencies"
+        run: bun install --frozen-lockfile
       # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
       # its first boot, slimmed: a new simulator's first boot keeps the
       # runner's 3 cores busy for about 10 minutes, and every boot runs
@@ -82,7 +88,8 @@ jobs:
       # more, while the app builds. CoreSimulator lists the devices in its
       # folder when its service starts. The services simslim turned off are
       # in a file outside the device's folder, read when it boots.
-      - id: simulator
+      - name: Restore the simulator
+        id: simulator
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         # The caches (runs-on/cache, which takes actions/cache's inputs) are
         # in Cloudflare R2, which restores them faster than GitHub's cache and
@@ -98,7 +105,8 @@ jobs:
         with:
           path: ~/simulator-cache
           key: ios-simulator-iPhone-17-Pro-xcode-27.1-v3-${{ hashFiles('.github/simslim.json') }}
-      - if: steps.simulator.outputs.cache-hit == 'true'
+      - name: Move the restored simulator into place and boot it
+        if: steps.simulator.outputs.cache-hit == 'true'
         run: |
           udid=$(cat ~/simulator-cache/udid)
           mv ~/simulator-cache/"$udid" ~/Library/Developer/CoreSimulator/Devices/
@@ -114,7 +122,8 @@ jobs:
           (xcrun xcdevice list > /dev/null 2>&1 &)
       # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current).
-      - id: deps
+      - name: "Restore the app's dependencies and Pods"
+        id: deps
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -128,7 +137,8 @@ jobs:
           restore-keys: ios-deps-v4-${{ matrix.app }}-
       # React Native's and CocoaPods' downloads, for pod install: only when
       # the dependencies aren't current.
-      - id: downloads
+      - name: "Restore React Native's and CocoaPods' downloads"
+        id: downloads
         if: steps.deps.outputs.cache-hit != 'true'
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
@@ -140,12 +150,14 @@ jobs:
           restore-keys: ios-downloads-${{ matrix.app }}-
       # An older key's node_modules is brought up to date (verify.mts only
       # installs when there are none).
-      - if: steps.deps.outputs.cache-hit != 'true'
+      - name: "Update the app's dependencies"
+        if: steps.deps.outputs.cache-hit != 'true'
         run: bun install --frozen-lockfile
         working-directory: ${{ env.APP_DIR }}
       # Xcode's compilation cache (verify.mts), so builds reuse what earlier
       # runs compiled.
-      - id: build
+      - name: "Restore Xcode's compilation cache"
+        id: build
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -154,7 +166,8 @@ jobs:
           restore-keys: ios-build-${{ matrix.app }}-
       # maestro-runner's WebDriverAgent build (for the touch group), kept in
       # its package.
-      - id: wda
+      - name: "Restore WebDriverAgent's build"
+        id: wda
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -162,7 +175,8 @@ jobs:
           key: ios-wda-${{ hashFiles('bun.lock') }}
       # Metro's transform cache (in TMPDIR), so the first bundle doesn't
       # transform everything again.
-      - id: metro
+      - name: "Restore Metro's cache"
+        id: metro
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -171,7 +185,8 @@ jobs:
           restore-keys: metro-ios-${{ matrix.app }}-
       # The groups' times in recent runs, so --shard splits them into halves
       # that take about as long (scripts/group-times.ts).
-      - run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
+      - name: "Fetch the groups' times in recent runs"
+        run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
         env: &group-times
           GH_TOKEN: ${{ github.token }}
           RUNS_ON_S3_BUCKET_CACHE: ${{ secrets.R2_ACCESS_KEY_ID != '' && 'react-native-fast-image-ci-cache' || '' }}
@@ -181,7 +196,8 @@ jobs:
           AWS_REGION: auto
       # Every 10 s while verify.mts runs: what's using the CPU, and how far the
       # build log has got (verify-output/cpu.log).
-      - id: verify
+      - name: Build the app and run its cases
+        id: verify
         run: |
           mkdir -p "$TMPDIR" verify-output
           while sleep 10; do
@@ -197,7 +213,8 @@ jobs:
           TMPDIR: ${{ runner.temp }}/tmp
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
       # This job's group times, for later runs' shards.
-      - if: always()
+      - name: "Record the groups' times"
+        if: always()
         continue-on-error: true
         run: bun scripts/group-times.ts record ios-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
@@ -206,7 +223,8 @@ jobs:
       # services stay off on later boots), shut down. From one job, and only
       # after its cases passed (a simulator that broke isn't kept for later
       # runs); not saved if slimming fails.
-      - if: steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app == 'main' && matrix.shard == 1
+      - name: Slim the simulator for later runs
+        if: steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app == 'main' && matrix.shard == 1
         id: savesimulator
         continue-on-error: true
         run: |
@@ -227,7 +245,8 @@ jobs:
           cp /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/disabled.plist ~/simulator-cache/
           echo "$udid" > ~/simulator-cache/udid
           echo saved=true >> "$GITHUB_OUTPUT"
-      - if: always() && steps.savesimulator.outputs.saved == 'true'
+      - name: Save the simulator
+        if: always() && steps.savesimulator.outputs.saved == 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -236,7 +255,8 @@ jobs:
       # Where xcodebuild's time went, from Xcode's activity log (the timing
       # summary leaves out planning): the slowest steps here, the whole report
       # in the run's verify-output.
-      - if: always()
+      - name: "Report where xcodebuild's time went"
+        if: always()
         continue-on-error: true
         run: |
           log=$(ls -t "$APP_DIR"/ios/build/Logs/Build/*.xcactivitylog | head -1)
@@ -259,13 +279,15 @@ jobs:
       # Saved even when cases fail (the builds are still good), but only what
       # the run got as far as making: a run that stopped early would save an
       # empty cache under the key, and later runs would use it.
-      - id: made
+      - name: Check what the run made
+        id: made
         if: always()
         run: |
           test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
-      - if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
+      - name: "Save the app's dependencies and Pods"
+        if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -276,7 +298,8 @@ jobs:
             ${{ env.APP_DIR }}/ios/build/generated
             ${{ env.APP_DIR }}/vendor/bundle
           key: ${{ steps.deps.outputs.cache-primary-key }}
-      - if: always() && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
+      - name: "Save React Native's and CocoaPods' downloads"
+        if: always() && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -284,19 +307,22 @@ jobs:
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
           key: ${{ steps.downloads.outputs.cache-primary-key }}
-      - if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
+      - name: "Save Xcode's compilation cache"
+        if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
-      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+      - name: "Save Metro's cache"
+        if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
-      - if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
+      - name: "Save WebDriverAgent's build"
+        if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -304,7 +330,8 @@ jobs:
           key: ${{ steps.wda.outputs.cache-primary-key }}
       # After a failure, the simulator's logs and the run's crash reports (a
       # simulator stopped once), with the run's output.
-      - if: failure()
+      - name: "Collect the simulator's logs and crash reports"
+        if: failure()
         continue-on-error: true
         run: |
           mkdir -p verify-output/simulator
@@ -312,7 +339,8 @@ jobs:
           cp /private/var/tmp/com.apple.CoreSimulator.SimDevice.*/launchd.log verify-output/simulator/ || true
           find ~/Library/Logs/DiagnosticReports -type f -mmin -60 -exec cp {} verify-output/simulator/ \; || true
       # An upload that fails (it timed out once) doesn't fail the job.
-      - if: always()
+      - name: "Upload the run's output"
+        if: always()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -321,7 +349,8 @@ jobs:
           retention-days: 14
       # The same without the screenshots, recordings and Xcode's timing
       # report: the results and logs, a small download for reading a failure.
-      - if: always()
+      - name: "Upload the run's results and logs"
+        if: always()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -354,12 +383,14 @@ jobs:
       VERIFY_SPARSE_RECORDINGS: 1
       ANDROID_IMAGE: system-images;android-36;default;x86_64
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Node at .node-version's version, with npm and npx (React Native's
       # Gradle autolinking runs npx): from nodejs.org's release, checked
       # against the release's SHA-256 list (setup-node also looks the version
       # up and copies the release into a tool cache).
-      - run: |
+      - name: Install Node
+        run: |
           v=v$(cat .node-version)
           n=node-$v-linux-x64
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
@@ -367,24 +398,29 @@ jobs:
           curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
           mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
           echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - name: Install Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: 17
       # Gradle's caches, written from pull requests too (by default only from
       # the default branch).
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Set up Gradle and its caches
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-read-only: false
       # The emulator needs KVM.
-      - run: |
+      - name: Let the emulator use KVM
+        run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - id: image
+      - name: Restore the emulator image
+        id: image
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -392,7 +428,8 @@ jobs:
           key: android-image-36-x86_64
       # A plain AOSP image, as the references' emulator (a Pixel 7's screen);
       # x86_64 here.
-      - run: |
+      - name: Install the emulator and create its device
+        run: |
           PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sdkmanager --install emulator platform-tools "$ANDROID_IMAGE" > /dev/null
           echo no | avdmanager create avd -n "$ANDROID_AVD" -k "$ANDROID_IMAGE" -d pixel_7 -p "$ANDROID_AVD_HOME/$ANDROID_AVD.avd"
@@ -400,14 +437,16 @@ jobs:
           # writes to a home of its own.
           printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-36\n' "$ANDROID_AVD_HOME/$ANDROID_AVD.avd" > "$ANDROID_AVD_HOME/$ANDROID_AVD.ini"
           printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
-      - if: steps.image.outputs.cache-hit != 'true'
+      - name: Save the emulator image
+        if: steps.image.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
           key: ${{ steps.image.outputs.cache-primary-key }}
       # ffmpeg and ffprobe, as in the iOS jobs (apt took about 14 s).
-      - run: |
+      - name: Install ffmpeg and ffprobe
+        run: |
           base=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
           curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
@@ -417,8 +456,10 @@ jobs:
           EOF
           unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - run: bun install --frozen-lockfile
-      - id: metro
+      - name: "Install the repo's dependencies"
+        run: bun install --frozen-lockfile
+      - name: "Restore Metro's cache"
+        id: metro
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -427,30 +468,36 @@ jobs:
           restore-keys: metro-android-${{ matrix.app }}-
       # The groups' times in recent runs, so --shard splits them into halves
       # that take about as long (scripts/group-times.ts).
-      - run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
+      - name: "Fetch the groups' times in recent runs"
+        run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
         env: *group-times
-      - run: |
+      - name: Build the app and run its cases
+        run: |
           mkdir -p "$TMPDIR"
           node scripts/verify.mts --app ${{ matrix.app }} --android --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
       # This job's group times, for later runs' shards.
-      - if: always()
+      - name: "Record the groups' times"
+        if: always()
         continue-on-error: true
         run: bun scripts/group-times.ts record android-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
-      - id: made
+      - name: Check what the run made
+        id: made
         if: always()
         run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
-      - if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+      - name: "Save Metro's cache"
+        if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
       # An upload that fails (it timed out once) doesn't fail the job.
-      - if: always()
+      - name: "Upload the run's output"
+        if: always()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -459,7 +506,8 @@ jobs:
           retention-days: 14
       # The same without the screenshots, recordings and Xcode's timing
       # report: the results and logs, a small download for reading a failure.
-      - if: always()
+      - name: "Upload the run's results and logs"
+        if: always()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
