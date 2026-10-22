@@ -63,7 +63,8 @@
 // held whole); once released, a name isn't held again. `?holdAfter=<n>` holds
 // after n parts instead (0: before the headers), and with `?trickle` it sends
 // a byte a second while held, so the download is never idle long enough for a
-// client's timeout (15 s on both platforms). With `?chunked`, it's sent
+// client's timeout (15 s on both platforms); held at 0, it sends the headers
+// first then. With `?chunked`, it's sent
 // without a Content-Length. It's a node:http server because Bun.serve
 // sends streamed responses chunked, ignoring their Content-Length
 // (oven-sh/bun#10507, still the case in Bun 1.4.2).
@@ -383,7 +384,8 @@ http.createServer(async (request, response) => {
     const bytes = new Uint8Array(await image.arrayBuffer())
     const parts = 8
     const holdAfter = Number(url.searchParams.get('holdAfter') ?? parts / 2)
-    if (hold !== null && holdAfter === 0) {
+    const trickle = url.searchParams.has('trickle')
+    if (hold !== null && holdAfter === 0 && !trickle) {
         await holdUntilReleased(hold)
         if (response.destroyed) return
     }
@@ -398,28 +400,33 @@ http.createServer(async (request, response) => {
         Math.max(50, Number(url.searchParams.get('delay')) || 1000),
     )
     const size = Math.ceil(bytes.length / parts)
-    const trickle = url.searchParams.has('trickle')
     // How far it has sent.
     let sent = 0
+    // A byte a second until the hold is released (or 60 s).
+    const trickleWhileHeld = async (name: string) => {
+        const until = Date.now() + 60_000
+        while (
+            !released.has(name) &&
+            Date.now() < until &&
+            sent < bytes.length - 1 &&
+            !response.destroyed
+        ) {
+            await Bun.sleep(1000)
+            response.write(bytes.subarray(sent, sent + 1))
+            sent++
+        }
+    }
+    if (hold !== null && holdAfter === 0 && trickle)
+        await trickleWhileHeld(hold)
     for (let part = 0; part < parts; part++) {
         // The client went away (e.g. the app cancelled the load).
         if (response.destroyed) return
         const end = Math.min(bytes.length, (part + 1) * size)
-        response.write(bytes.subarray(sent, end))
-        sent = end
+        response.write(bytes.subarray(Math.min(sent, end), end))
+        sent = Math.max(sent, end)
         if (hold !== null && part === holdAfter - 1) {
             if (trickle) {
-                const until = Date.now() + 60_000
-                while (
-                    !released.has(hold) &&
-                    Date.now() < until &&
-                    sent < bytes.length - 1 &&
-                    !response.destroyed
-                ) {
-                    await Bun.sleep(1000)
-                    response.write(bytes.subarray(sent, sent + 1))
-                    sent++
-                }
+                await trickleWhileHeld(hold)
             } else {
                 await holdUntilReleased(hold)
             }

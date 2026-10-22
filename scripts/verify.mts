@@ -184,6 +184,46 @@ const SHARD = (() => {
     }
     return { index, count }
 })()
+// Each regression group's usual time in seconds, by <app>-<platform>, from the
+// JSON file VERIFY_GROUP_TIMES names (the e2e workflow's, from
+// scripts/group-times.ts): with --shard, the ranges are split so they take
+// about as long as each other. Without it, each group counts the same.
+const GROUP_TIMES: Record<string, Record<string, number>> = (() => {
+    const file = process.env.VERIFY_GROUP_TIMES
+    if (!file) return {}
+    try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'))
+    } catch {
+        return {}
+    }
+})()
+
+// The range [first, end) of the groups for --shard: contiguous ranges whose
+// times add up to about the same (a group without a time counts as the median
+// one).
+function shardRange(groups: string[], times: Record<string, number> = {}) {
+    if (!SHARD) return [0, groups.length]
+    const known = groups
+        .map((group) => times[group])
+        .filter((seconds) => seconds > 0)
+        .sort((a, b) => a - b)
+    const usual = known[Math.floor(known.length / 2)] ?? 1
+    // The time before each group (and after the last).
+    const before = [0]
+    for (const group of groups)
+        before.push(before.at(-1)! + (times[group] > 0 ? times[group] : usual))
+    const { index, count } = SHARD
+    // The first group whose time before it is closest to j/n of the total.
+    const boundary = (j: number) => {
+        const target = (before.at(-1)! * j) / count
+        let best = 0
+        for (let i = 1; i < before.length; i++)
+            if (Math.abs(before[i] - target) < Math.abs(before[best] - target))
+                best = i
+        return best
+    }
+    return [boundary(index - 1), boundary(index)]
+}
 // The Expo and tvOS examples only run when asked for (--app expo, --app tv).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'minimum']
 if (options.web && !APPS.includes('expo')) {
@@ -287,7 +327,15 @@ const RECORDINGS = path.join(
 
 // --- Helpers -------------------------------------------------------------
 
-const say = (message: string) => console.log(`==> ${message}`)
+// Durations as m:ss, and the time since the run started, so the log shows
+// where a run's time goes.
+const RUN_START = Date.now()
+const duration = (ms: number) => {
+    const seconds = Math.round(ms / 1000)
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+const elapsed = () => `[+${duration(Date.now() - RUN_START)}]`
+const say = (message: string) => console.log(`==> ${elapsed()} ${message}`)
 const rel = (file: string) => path.relative(ROOT, file)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -298,7 +346,9 @@ function record(status: Result['status'], name: string, detail?: string) {
     const line = `${status.padEnd(4)}  ${name}${detail ? `  (${detail})` : ''}`
     // Written as it goes, so a run that's stopped early keeps its results.
     fs.appendFileSync(path.join(OUT, 'results.txt'), line + '\n')
-    console.log(`    ${status}: ${name}${detail ? ` (${detail})` : ''}`)
+    console.log(
+        `    ${elapsed()} ${status}: ${name}${detail ? ` (${detail})` : ''}`,
+    )
 }
 
 // Runs a short command and returns its output, or undefined if it fails.
@@ -613,12 +663,18 @@ async function startMetro(app: App) {
         extraEnv: app === 'expo' ? EXPO_ENV : undefined,
     }).pid
     if (metro !== undefined) groups.add(metro)
+    const metroStart = Date.now()
     // Up to 5 minutes: it starts while the apps build, which can leave it
     // little CPU on a small machine.
     for (let i = 0; i < 300; i++) {
         try {
             const response = await fetch('http://localhost:8081/status')
-            if ((await response.text()).includes('running')) return true
+            if ((await response.text()).includes('running')) {
+                say(
+                    `Metro for ${app} ready after ${duration(Date.now() - metroStart)}`,
+                )
+                return true
+            }
         } catch {
             // Not up yet.
         }
@@ -1487,10 +1543,11 @@ async function runRegression(
         ws.close()
     }
 
+    // Connecting took over 5 s on a busy CI runner.
     if (
         !(await waitFor(
             () => (ws.readyState === WebSocket.OPEN ? true : undefined),
-            5000,
+            30_000,
         ))
     ) {
         fail(socketError ?? "couldn't connect to the image server's relay")
@@ -1624,12 +1681,11 @@ async function runRegression(
     // With --shard i/n, the i-th of n ranges of the groups, in order (each
     // shard is a run of its own, e.g. a CI job; the first has `start`, which
     // must come before any image has loaded).
-    const first = SHARD
-        ? Math.round((groups.length * (SHARD.index - 1)) / SHARD.count)
-        : 0
-    const end = SHARD
-        ? Math.round((groups.length * SHARD.index) / SHARD.count)
-        : groups.length
+    const [first, end] = shardRange(groups, GROUP_TIMES[`${app}-${platform}`])
+    if (SHARD)
+        logLine(
+            `shard ${SHARD.index}/${SHARD.count}: groups ${first + 1}-${end} of ${groups.length}`,
+        )
     if (first > 0) send({ type: 'show', index: first })
     // Shows a group's results once it's on screen (index): waits for its cases,
     // then takes its screenshot. since: where its messages start (a retry's
@@ -1749,7 +1805,7 @@ async function runRegression(
         // (the details are in regression.log). The screenshot's comparison
         // finishes later.
         console.log(
-            `    ${name}: ${label} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
+            `    ${elapsed()} ${name}: ${label} ${group} ${groupOk ? 'OK' : 'failed'} (${seconds}s)`,
         )
         return { connected: true, shot }
     }
@@ -2332,16 +2388,13 @@ function syncPrebuiltMarkers(dir: string, log: string) {
         {
             script: 'scripts/replace-rncore-version.js',
             binary: `React-Core-prebuilt/React.xcframework/${slice}/React.framework/React`,
-            debugSymbol: 'DebugStringConvertible',
         },
         ...['hermesvm', 'hermes'].map((name) => ({
             script: 'sdks/hermes-engine/utils/replace_hermes_version.js',
             binary: `hermes-engine/destroot/Library/Frameworks/universal/${name}.xcframework/${slice}/${name}.framework/${name}`,
-            // hermes::debugger
-            debugSymbol: 'hermes8debugger',
         })),
     ]
-    for (const { script, binary, debugSymbol } of frameworks) {
+    for (const { script, binary } of frameworks) {
         const file = path.join(pods, binary)
         const source = path.join(rn, script)
         if (!fs.existsSync(file) || !fs.existsSync(source)) continue
@@ -2349,30 +2402,19 @@ function syncPrebuiltMarkers(dir: string, log: string) {
             .readFileSync(source, 'utf8')
             .match(/LAST_BUILD_FILENAME\s*=\s*'([^']+)'/)?.[1]
         if (!marker) continue
-        // Only from a finished look: nm can take over a minute on a big Debug
-        // framework on a slow machine, and a timeout taken as Release left a
-        // Debug core in a Release build (a crash at launch).
-        const built = capture(
-            'sh',
-            [
-                '-c',
-                'nm -gU "$0" > /dev/null || exit 1; nm -gU "$0" | grep -q "$1" && echo Debug || echo Release',
-                file,
-                debugSymbol,
-            ],
-            { timeout: 300 },
-        )
-        const note = (line: string) =>
-            fs.appendFileSync(log, `verify: ${path.basename(file)}: ${line}\n`)
-        if (built !== 'Debug' && built !== 'Release') {
-            note("couldn't tell its configuration (nm failed)")
-            continue
-        }
+        // Hermes' debugger (CDPDebugAPI) is only in the Debug builds of both:
+        // read from the file's bytes (nm hung on React's framework on CI).
+        const built = fs.readFileSync(file).includes('CDPDebugAPI')
+            ? 'Debug'
+            : 'Release'
         const markerFile = path.join(pods, marker)
         const current = fs.existsSync(markerFile)
             ? fs.readFileSync(markerFile, 'utf8')
             : 'Debug'
-        note(`${built} on disk, marker ${current}`)
+        fs.appendFileSync(
+            log,
+            `verify: ${path.basename(file)}: ${built} on disk, marker ${current}\n`,
+        )
         if (current !== built) fs.writeFileSync(markerFile, built)
     }
 }
@@ -2381,9 +2423,11 @@ async function buildIos(app: App) {
     const dir = appDir(app)
     const name = appName(app)
     const log = path.join(OUT, `ios-build-${app}.log`)
+    const prepareStart = Date.now()
     trimCompilationCache()
     fs.writeFileSync(log, '')
     syncPrebuiltMarkers(dir, log)
+    const buildStart = Date.now()
     const result = await run(
         'xcodebuild',
         [
@@ -2401,6 +2445,9 @@ async function buildIos(app: App) {
             'build',
             // Where a build's time goes, at the end of the log.
             '-showBuildTimingSummary',
+            // Nothing here uses the index or debug symbol files.
+            'COMPILER_INDEX_STORE_ENABLE=NO',
+            'DEBUG_INFORMATION_FORMAT=dwarf',
             'COMPILATION_CACHE_ENABLE_CACHING=YES',
             `COMPILATION_CACHE_CAS_PATH=${COMPILATION_CACHE}`,
         ],
@@ -2429,13 +2476,23 @@ async function buildIos(app: App) {
         dir,
         `ios/build/Build/Products/${CONFIGURATION}-${SIMULATOR_SDK}/${name}.app`,
     )
+    const bootStart = Date.now()
     await iosBooted
-    if (
-        capture('xcrun', ['simctl', 'install', iosUdid, product], {
-            timeout: 120,
-        }) === undefined
-    ) {
-        record('FAIL', `${app} ios install`)
+    const installStart = Date.now()
+    const install = await run(
+        'xcrun',
+        ['simctl', 'install', iosUdid, product],
+        {
+            log,
+            timeout: 180,
+        },
+    )
+    if (!install.ok) {
+        record(
+            'FAIL',
+            `${app} ios install`,
+            install.timedOut ? 'timed out after 180s' : `see ${rel(log)}`,
+        )
         return false
     }
     // Access to the simulator's photo library, for the photo library (ph://)
@@ -2449,7 +2506,11 @@ async function buildIos(app: App) {
         iosBundleId(app),
     ])
     addLibraryMedia()
-    record('PASS', `${app} ios build`)
+    record(
+        'PASS',
+        `${app} ios build`,
+        `prepare ${duration(buildStart - prepareStart)}, xcodebuild ${duration(bootStart - buildStart)}, waiting for the simulator ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
+    )
     return true
 }
 
@@ -2488,11 +2549,75 @@ function addLibraryMedia() {
     }
 }
 
+// The app's log while its cases and flows run (<app>-<platform>/app.log): the
+// errors, warnings and native log lines a screenshot doesn't show. Returns a
+// function that stops it.
+function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
+    const log = path.join(OUT, `${app}-${platform}`, 'app.log')
+    fs.mkdirSync(path.dirname(log), { recursive: true })
+    let args: [string, string[]]
+    if (platform === 'ios') {
+        args = [
+            'xcrun',
+            [
+                'simctl',
+                'spawn',
+                device,
+                'log',
+                'stream',
+                '--style',
+                'compact',
+                '--level',
+                'info',
+                // The app's own code (the app and its frameworks), and errors
+                // from anything in it: Apple's frameworks log thousands of
+                // lines a minute otherwise.
+                '--predicate',
+                `process == "${appName(app)}" AND (messageType == error OR messageType == fault OR senderImagePath CONTAINS "/${appName(app)}.app/")`,
+            ],
+        ]
+    } else {
+        // Only the app's lines (its user ID), from now on.
+        const uid = capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            'cmd',
+            'package',
+            'list',
+            'packages',
+            '-U',
+            androidPackage(app),
+        ])?.match(/uid:(\d+)/)?.[1]
+        args = [
+            ADB,
+            [
+                '-s',
+                device,
+                'logcat',
+                '-T',
+                '1',
+                '-v',
+                'threadtime',
+                ...(uid ? [`--uid=${uid}`] : []),
+                // Info and above (the codecs' debug lines are most of it).
+                '*:I',
+            ],
+        ]
+    }
+    const pgid = start(...args, { log }).pid
+    if (pgid === undefined) return () => {}
+    groups.add(pgid)
+    return () => stop(pgid)
+}
+
 async function flowsIos(app: App) {
     const startedAt = Date.now()
+    const stopAppLog = recordAppLog(app, 'ios', iosUdid)
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
     if (options.background && app !== 'expo' && app !== 'tv')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
+    stopAppLog()
     // The banner again when the app is used by hand (see runRegression).
     capture('xcrun', [
         'simctl',
@@ -2679,6 +2804,7 @@ async function buildAndroid(app: App) {
         'getprop',
         'ro.product.cpu.abi',
     ])?.trim()
+    const buildStart = Date.now()
     const result = await run(
         './gradlew',
         [
@@ -2725,7 +2851,9 @@ async function buildAndroid(app: App) {
             : 'android/app/build/outputs/apk/debug/app-debug.apk',
     )
     const hash = createHash('sha1').update(fs.readFileSync(apk)).digest('hex')
+    const bootStart = Date.now()
     await androidBooted
+    const installStart = Date.now()
     const installedApk = capture(ADB, [
         '-s',
         androidSerial,
@@ -2758,7 +2886,11 @@ async function buildAndroid(app: App) {
         }
     }
     capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
-    record('PASS', `${app} android build`)
+    record(
+        'PASS',
+        `${app} android build`,
+        `gradle ${duration(bootStart - buildStart)}, waiting for the emulator ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
+    )
     // Once per run (in the first shard of a sharded one).
     if (
         app === 'main' &&
@@ -2797,9 +2929,11 @@ async function androidUnitTests(dir: string) {
 async function flowsAndroid(app: App) {
     const pkg = androidPackage(app)
     capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-c'])
+    const stopAppLog = recordAppLog(app, 'android', androidSerial)
     await runRegression(app, 'android', androidSerial, pkg)
     if (options.background && app !== 'expo')
         await runFlows(app, 'android', androidSerial, pkg)
+    stopAppLog()
     const crashes =
         capture(ADB, ['-s', androidSerial, 'logcat', '-b', 'crash', '-d']) ?? ''
     if (crashes.includes(pkg)) {
@@ -2971,9 +3105,9 @@ async function main() {
             bundleWarm = warmBundles(app, platforms)
             return true
         }
-        // The first app's Metro starts while the apps build (it can take a
-        // minute or two to crawl node_modules without Watchman); its run waits
-        // for it.
+        // The first app's Metro starts while the apps build (crawling
+        // node_modules takes longer without Watchman, or on a busy machine);
+        // its run waits for it.
         const first = plans[0]
         const firstStarted = first
             ? startApp(first.app, first.platforms)
