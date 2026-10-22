@@ -306,7 +306,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setSource(FastImageViewWithUrl view, Dynamic source) {
         // One source, or several (an array). Something else (e.g. a string)
-        // is one invalid source, as on iOS.
+        // is no source.
         switch (source.getType()) {
             case Null:
                 view.setSource(null);

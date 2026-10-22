@@ -823,6 +823,39 @@ describe("React Native's source.cache values", () => {
     })
 })
 
+describe('headers native leaves out', () => {
+    const uri = 'https://example.com/a.jpg'
+    const render = (source: unknown) =>
+        renderer.create(
+            <FastImage source={source as FastImageProps['source']} />,
+        )
+
+    it("warn once in development: values that aren't strings, or headers that aren't an object", () => {
+        const warn = spyOn(console, 'warn').mockImplementation(() => {})
+        try {
+            render({ uri, headers: { 'x-token': 'a' } })
+            render({ uri, headers: null })
+            expect(warn).not.toHaveBeenCalled()
+            render({
+                uri,
+                headers: {
+                    'x-token': 'a',
+                    'x-number': 1,
+                    'x-undefined': undefined,
+                },
+            })
+            render({ uri, headers: ['x-token'] })
+            FastImage.preload([{ uri, headers: { 'x-number': 1 } as any }])
+            expect(warn).toHaveBeenCalledTimes(1)
+            expect(warn.mock.calls[0][0]).toContain(
+                'the headers "x-number", "x-undefined" aren\'t strings, so they aren\'t sent',
+            )
+        } finally {
+            warn.mockRestore()
+        }
+    })
+})
+
 describe('source.diskCache', () => {
     it('is passed to the native view with the source', () => {
         const [view] = renderer

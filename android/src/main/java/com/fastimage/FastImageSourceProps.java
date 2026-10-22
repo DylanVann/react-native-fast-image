@@ -19,8 +19,9 @@ import java.util.Objects;
 // where it comes in (the view's props, the module's functions): everything
 // else reads these fields, not the map. The specs can't type a source (one or
 // several, and headers, are UnsafeMixed/UnsafeObject), so a value that's
-// missing, of another type or unknown gets its default here, as on iOS
-// (RCTConvert+FFFastImage), instead of throwing where it's read.
+// missing, of another type or unknown gets its default here instead of
+// throwing where it's read. (iOS's RCTConvert+FFFastImage also defaults
+// unknown values, but converts some of another type, e.g. a number string.)
 final class FastImageSourceProps {
     private static final Map<String, FastImageCacheControl> CACHE_CONTROLS = new HashMap<>();
     private static final Map<String, Priority> PRIORITIES = new HashMap<>();
@@ -44,7 +45,8 @@ final class FastImageSourceProps {
     // any (the same cache key as no headers).
     final Headers headers;
     final FastImageCacheControl cache;
-    // Null if the source doesn't set one (preload then uses low).
+    // Null if the source doesn't set one (preload then uses low): a value it
+    // doesn't know, or one of another type, is set, as on iOS (hasPriority).
     @Nullable
     final Priority priority;
     final boolean memoryCache;
@@ -73,10 +75,10 @@ final class FastImageSourceProps {
         this.map = map;
         uri = string(map, "uri");
         headers = headers(map);
-        FastImageCacheControl cacheControl = CACHE_CONTROLS.get(string(map, "cache"));
-        cache = cacheControl != null ? cacheControl : FastImageCacheControl.IMMUTABLE;
-        String priorityName = string(map, "priority");
-        priority = priorityName == null ? null : orDefault(PRIORITIES.get(priorityName), Priority.NORMAL);
+        cache = orDefault(CACHE_CONTROLS.get(string(map, "cache")), FastImageCacheControl.IMMUTABLE);
+        priority = map.hasKey("priority") && !map.isNull("priority")
+                ? orDefault(PRIORITIES.get(string(map, "priority")), Priority.NORMAL)
+                : null;
         memoryCache = bool(map, "memoryCache", true);
         diskCache = bool(map, "diskCache", true);
         String key = string(map, "cacheKey");
@@ -160,9 +162,10 @@ final class FastImageSourceProps {
         FastImageSourceProps other = (FastImageSourceProps) o;
         return memoryCache == other.memoryCache
                 && diskCache == other.diskCache
-                && width == other.width
-                && height == other.height
-                && scale == other.scale
+                // As Double.equals: NaN (from JS) equals itself.
+                && Double.compare(width, other.width) == 0
+                && Double.compare(height, other.height) == 0
+                && Double.compare(scale, other.scale) == 0
                 && packagerAsset == other.packagerAsset
                 && cache == other.cache
                 && priority == other.priority

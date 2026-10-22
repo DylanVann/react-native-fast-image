@@ -35,3 +35,27 @@ export function warnIfChildren(children: unknown) {
         )
     }
 }
+
+// A source's `headers` that native leaves out: one that isn't an object, or a
+// value that isn't a string (e.g. a token that's undefined, or a number from
+// JSON). The image loads without them, so a server that needs them refuses it.
+export function warnIfInvalidHeaders(source: unknown) {
+    const headers = (source as { headers?: unknown } | null | undefined)
+        ?.headers
+    if (headers == null) return
+    let message: string | undefined
+    if (typeof headers !== 'object' || Array.isArray(headers)) {
+        message = "`headers` isn't an object, so none are sent"
+    } else {
+        const names = Object.keys(headers).filter(
+            (name) =>
+                typeof (headers as Record<string, unknown>)[name] !== 'string',
+        )
+        if (names.length > 0) {
+            message = `the headers ${names.map((name) => `"${name}"`).join(', ')} aren't strings, so they aren't sent`
+        }
+    }
+    if (message) {
+        warnOnce('headers', `react-native-fast-image: ${message}.`, 'warn')
+    }
+}

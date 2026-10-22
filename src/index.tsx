@@ -24,7 +24,7 @@ import {
 } from './placeholders'
 import { composeRefs } from './composeRefs'
 import { type ReactNativeCache, warnIfReload } from './reactNativeCache'
-import { warnIfChildren, warnOnce } from './warnings'
+import { warnIfChildren, warnIfInvalidHeaders, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -914,12 +914,13 @@ function FastImageBase({
     // the native view as the same object, and React's prop diff stops at it.
     const resolvedSource = useMemo(() => {
         // In development, a blurDataUri that isn't a data uri warns (native
-        // ignores it), and so does React Native's cache: 'reload' (native
-        // reads its cache values).
+        // ignores it), and so do React Native's cache: 'reload' (native reads
+        // its cache values) and headers native leaves out.
         if (__DEV__) {
             for (const entry of [source].flat()) {
                 dataUri((entry as Source | undefined)?.blurDataUri)
                 warnIfReload(entry)
+                warnIfInvalidHeaders(entry)
             }
         }
         const single =
@@ -1181,14 +1182,21 @@ const ONE_SOURCE =
 const isSourceObject = (source: unknown): source is Source =>
     typeof source === 'object' && source !== null && !Array.isArray(source)
 
+// A source as the module's functions send it to native (see isSourceObject),
+// with headers native would leave out warned about in development.
+function nativeSource(source: unknown) {
+    if (__DEV__) warnIfInvalidHeaders(source)
+    return isSourceObject(source) ? source : {}
+}
+
 FastImage.preload = (sources: Source[]) =>
     // Entries that aren't source objects are sent as {}, so native results
     // line up with the sources (iOS drops null entries). Arrays' results are
     // replaced.
     Promise.resolve(
-        nativeModule().preload(
-            sources.map((s) => (isSourceObject(s) ? s : {})),
-        ) as Promise<NativePreloadResult[]>,
+        nativeModule().preload(sources.map(nativeSource)) as Promise<
+            NativePreloadResult[]
+        >,
     ).then((results?: NativePreloadResult[]) =>
         sources.map((source, i): PreloadResult => {
             if (Array.isArray(source)) {
@@ -1234,7 +1242,7 @@ FastImage.writeToCache = (
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : Promise.resolve(
               nativeModule().writeToCache(
-                  isSourceObject(source) ? source : {},
+                  nativeSource(source),
                   file,
               ) as Promise<CachePathResult>,
           )
@@ -1244,7 +1252,7 @@ FastImage.getCachePath = (source: Source): Promise<CachePathResult> =>
         ? Promise.resolve({ ok: false, error: ONE_SOURCE })
         : Promise.resolve(
               nativeModule().getCachePath(
-                  isSourceObject(source) ? source : {},
+                  nativeSource(source),
               ) as Promise<CachePathResult>,
           )
 

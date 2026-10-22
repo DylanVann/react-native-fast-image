@@ -100,6 +100,15 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 - **How to reproduce:** Found by reading the code for React Native's `Image`; Fast Image's single native view went through the same code and kept its rounded corners in a regression case that switches `overflow` from `hidden` to `visible` with a `borderRadius`, before the fix. To try: render an `Image` with `borderRadius: 40`, then change its style to `overflow: 'visible'`.
 - **How Fast Image handles it:** Fast Image's view removes its image view's mask when `overflow` becomes `visible` ([#1262](https://github.com/DylanVann/react-native-fast-image/pull/1262)).
 
+## iOS drops every header when one value isn't a string
+
+- **What happens:** on iOS, a source whose `headers` has one value that isn't a string, such as a number from JSON (`{ Authorization: token, 'X-App-Version': 3 }`), loads with no headers at all, so a server that needs the others refuses the image. On Android, `getString` throws for a number value. Found by reading the code; whether that fails the load or crashes the app wasn't checked.
+- **Where:**
+    - iOS: `packages/react-native/React/Base/RCTConvert.mm`, `NSURLRequest:` sets `headers = nil` as soon as one value isn't an `NSString`, and logs it with `RCTLogInfo`.
+    - Android: `packages/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/fresco/ReactOkHttpNetworkFetcher.kt`, `getHeaders()` reads each value with `readableMap.getString(key)`. That skips nulls but throws `UnexpectedNativeTypeException` for a number or a boolean.
+- **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Show `<Image source={{ uri, headers: { 'x-token': 'a', 'x-n': 1 } }} />` with a url that needs `x-token`.
+- **How Fast Image handles it:** both platforms leave out only the values that aren't strings and send the others, with a warning in development ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
+
 ## Other issues
 
 These were found while comparing implementations, but Fast Image has no counterpart for them, so there's no fix to point to.

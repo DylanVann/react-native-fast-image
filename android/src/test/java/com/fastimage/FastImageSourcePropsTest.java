@@ -95,7 +95,8 @@ public class FastImageSourcePropsTest {
         assertFalse(source.hasUri());
         assertSame(Headers.DEFAULT, source.headers);
         assertEquals(FastImageCacheControl.IMMUTABLE, source.cache);
-        assertNull(source.priority);
+        // Set, as on iOS (so preload doesn't lower it), but to the default.
+        assertEquals(Priority.NORMAL, source.priority);
         assertTrue(source.memoryCache);
         assertTrue(source.diskCache);
         assertNull(source.cacheKey);
@@ -166,6 +167,10 @@ public class FastImageSourcePropsTest {
                 "uri", "https://example.com/a.jpg", "headers", JavaOnlyMap.of("x-token", "c")));
         assertEquals(a, b);
         assertNotEquals(a, c);
+        // NaN (e.g. a size worked out from an undefined value) is the same
+        // NaN: an unchanged source doesn't load again.
+        assertEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)),
+                FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)));
     }
 
     @Test
