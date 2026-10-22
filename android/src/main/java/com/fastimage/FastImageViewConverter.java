@@ -60,7 +60,7 @@ class FastImageViewConverter {
 
     // Whether the source has a uri to load (not null, missing or blank).
     static boolean hasUri(@Nullable ReadableMap source) {
-        if (source == null || !source.hasKey("uri") || source.isNull("uri")) return false;
+        if (source == null || !source.hasKey("uri") || source.getType("uri") != ReadableType.String) return false;
         String uri = source.getString("uri");
         return uri != null && !uri.trim().isEmpty();
     }
@@ -88,25 +88,22 @@ class FastImageViewConverter {
         return imageSource;
     }
 
+    // The source's headers. `headers` that isn't an object, and values that
+    // aren't strings (e.g. null from `Authorization: token && ...`), are left
+    // out, as on iOS.
     static Headers getHeaders(ReadableMap source) {
-        Headers headers = Headers.DEFAULT;
+        if (!source.hasKey("headers") || source.getType("headers") != ReadableType.Map) return Headers.DEFAULT;
+        ReadableMap headersMap = source.getMap("headers");
+        ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
+        LazyHeaders.Builder builder = new LazyHeaders.Builder();
 
-        if (source.hasKey("headers")) {
-            ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
-            LazyHeaders.Builder builder = new LazyHeaders.Builder();
-
-            while (iterator.hasNextKey()) {
-                String header = iterator.nextKey();
-                String value = headersMap.getString(header);
-
-                builder.addHeader(header, value);
-            }
-
-            headers = builder.build();
+        while (iterator.hasNextKey()) {
+            String header = iterator.nextKey();
+            if (headersMap.getType(header) != ReadableType.String) continue;
+            builder.addHeader(header, headersMap.getString(header));
         }
 
-        return headers;
+        return builder.build();
     }
 
     static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, @Nullable ReadableMap source) {

@@ -622,6 +622,53 @@ function PreloadHeadersCase() {
     )
 }
 
+// `headers` that isn't an object of strings: null (e.g. a header object
+// built only when signed in), an array, and values that are numbers or null
+// next to a string one. The private urls fail without the string header, so
+// they check it's still sent: iOS dropped every header when one wasn't a
+// string, and Android crashed on all of these.
+const INVALID_HEADERS = {
+    'x-token': 'fast-image',
+    'x-number': 1,
+    'x-null': null,
+} as unknown as { [key: string]: string }
+const HEADERS_PRIVATE = imageUrl(
+    `private/picsum/1020-120x120.jpg?invalid-headers=${RUN}`,
+)
+const HEADERS_PRELOAD_PRIVATE = imageUrl(
+    `private/picsum/1021-120x120.jpg?invalid-headers-preload=${RUN}`,
+)
+function PreloadInvalidHeadersCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        FastImage.preload([
+            { uri: LOGO, headers: null as unknown as {} },
+            { uri: LOGO, headers: ['x-token'] as unknown as {} },
+            { uri: HEADERS_PRELOAD_PRIVATE, headers: INVALID_HEADERS },
+        ])
+            .then((results) => {
+                const failed = results.findIndex((result) => !result.ok)
+                const result = results[failed]
+                setStatus(
+                    result && !result.ok
+                        ? `source ${failed + 1} failed: ${result.error}`
+                        : 'OK',
+                )
+            })
+            .catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="headers-invalid-preload"
+                status={status}
+                description="preload with headers null, an array, or values that aren't strings loads, and sends the string ones (Android crashed)"
+            />
+        </View>
+    )
+}
+
 // React Native's RawEventEmitter, which gets each native event before React
 // looks for its handler (it's there for performance monitoring). Not in React
 // Native's types. Its deep import logs a warning in development, which would
@@ -9058,6 +9105,40 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 downsample
             />,
             <ErrorMessageCase key="error-message" />,
+        ],
+    },
+    {
+        name: 'headers-invalid',
+        cases: [
+            <EventCase
+                key="headers-null"
+                id="headers-null"
+                description="headers: null loads (Android crashed)"
+                event="onLoad"
+                source={{ uri: LOGO, headers: null as unknown as {} }}
+            />,
+            <EventCase
+                key="headers-array"
+                id="headers-array"
+                description="headers as an array loads (Android crashed)"
+                event="onLoad"
+                source={{ uri: LOGO, headers: ['x-token'] as unknown as {} }}
+            />,
+            <EventCase
+                key="headers-non-string"
+                id="headers-non-string"
+                description="header values that aren't strings are left out, and the string ones sent (Android crashed, iOS sent none)"
+                event="onLoad"
+                source={{ uri: HEADERS_PRIVATE, headers: INVALID_HEADERS }}
+            />,
+            <EventCase
+                key="uri-non-string"
+                id="uri-non-string"
+                description="a uri that isn't a string fires onError"
+                event="onError"
+                source={{ uri: 1 as unknown as string }}
+            />,
+            <PreloadInvalidHeadersCase key="headers-invalid-preload" />,
         ],
     },
     {
