@@ -158,6 +158,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     final ResultCallback done = new ResultCallback() {
                         @Override
                         public void run(WritableMap result) {
+                            // Once per source: a second result would build
+                            // the results again from consumed maps, and free
+                            // the slot twice.
+                            if (results[index] != null) return;
                             results[index] = result;
                             preloadsInFlight--;
                             finishOne.run();
@@ -261,13 +265,11 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         return source.priority != null ? options : options.priority(Priority.LOW);
     }
 
-    // A preload's listener, which passes on only the load's first result, and
-    // clears a load that failed. Glide keeps the request of a failed preload,
-    // and with ACCESS_NETWORK_STATE (which apps often have through other
-    // libraries) starts it again when the network comes back: it downloaded
-    // the image again, and its second result resolved preload before its
-    // other sources had finished, or built its results again and crashed, and
-    // freed its slot twice.
+    // A preload's listener: it passes on only the load's first result, and
+    // clears the load each time it fails, so Glide doesn't start it again.
+    // (Glide keeps a failed request, and with ACCESS_NETWORK_STATE, which apps
+    // often have through other libraries, starts it again when the network
+    // comes back.)
     private abstract static class FirstResult<T> implements RequestListener<T> {
         private final Context context;
         private boolean finished;
@@ -282,17 +284,19 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
 
         @Override
         public final boolean onLoadFailed(@Nullable GlideException e, Object model, final Target<T> target, boolean isFirstResource) {
-            if (finished) return false;
-            finished = true;
-            // Glide doesn't allow clearing a load from its own callback. At the
-            // front of the queue, so it runs before a restart Glide already
-            // queued (the network coming back as the load failed).
+            // Every failure, also one after the first result (a load started
+            // again before the clear ran). Glide doesn't allow clearing a load
+            // from its own callback. At the front of the queue, so it runs
+            // before a restart Glide already queued (the network coming back
+            // as the load failed).
             UiThreadUtil.getUiThreadHandler().postAtFrontOfQueue(new Runnable() {
                 @Override
                 public void run() {
                     Glide.with(context).clear(target);
                 }
             });
+            if (finished) return false;
+            finished = true;
             failed(e);
             return false;
         }
