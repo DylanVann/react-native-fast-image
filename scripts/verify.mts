@@ -5,6 +5,7 @@
 
 import {
     type ChildProcess,
+    execFile,
     execFileSync,
     spawn,
     spawnSync,
@@ -13,7 +14,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { parseArgs } from 'node:util'
+import { parseArgs, promisify } from 'node:util'
 import { compare } from 'odiff-bin'
 
 const HELP = `Checks the library and runs the example apps on iOS and Android.
@@ -804,19 +805,28 @@ function screenshot(platform: Platform, device: string, file: string) {
     }
 }
 
-// Crops a screenshot (pixels) in place.
-function cropScreenshot(file: string, crop: PixelRect) {
+// Crops a screenshot (pixels) in place. Asynchronous: the app can go on to
+// the next group meanwhile.
+async function cropScreenshot(file: string, crop: PixelRect) {
     const cropped = file.replace(/\.png$/, '-cropped.png')
-    capture('ffmpeg', [
-        '-v',
-        'error',
-        '-y',
-        '-i',
-        file,
-        '-vf',
-        `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
-        cropped,
-    ])
+    try {
+        await promisify(execFile)(
+            'ffmpeg',
+            [
+                '-v',
+                'error',
+                '-y',
+                '-i',
+                file,
+                '-vf',
+                `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
+                cropped,
+            ],
+            { timeout: 30_000 },
+        )
+    } catch {
+        // Compared uncropped, then (and failing: the size differs).
+    }
     if (fs.existsSync(cropped)) fs.renameSync(cropped, file)
 }
 
@@ -1270,7 +1280,6 @@ async function runRegression(
             width: Math.round(area.width * scale),
             height: Math.round(area.height * scale),
         }
-        if (crop) cropScreenshot(file, crop)
         const masks = (
             Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
         ).map((m) => ({
@@ -1279,25 +1288,29 @@ async function runRegression(
             width: m.width * scale,
             height: m.height * scale,
         }))
-        const shot = compareScreenshot(
-            app,
-            platform,
-            name,
-            file,
-            masks,
-            groupOk && !!crop,
-        ).then(({ result, detail }) => {
-            logLine(
-                `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
-                    masks.length > 0 ? `, ${masks.length} masked` : ''
-                }`,
+        const shot = (crop ? cropScreenshot(file, crop) : Promise.resolve())
+            .then(() =>
+                compareScreenshot(
+                    app,
+                    platform,
+                    name,
+                    file,
+                    masks,
+                    groupOk && !!crop,
+                ),
             )
-            if (result === 'seeded') seeded.push(name)
-            else if (result === 'none') noReference.push(name)
-            else if (result === 'unseeded') unseeded.push(name)
-            else if (result === 'differs')
-                failuresOf(index).push(`${name}: ${detail}`)
-        })
+            .then(({ result, detail }) => {
+                logLine(
+                    `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
+                        masks.length > 0 ? `, ${masks.length} masked` : ''
+                    }`,
+                )
+                if (result === 'seeded') seeded.push(name)
+                else if (result === 'none') noReference.push(name)
+                else if (result === 'unseeded') unseeded.push(name)
+                else if (result === 'differs')
+                    failuresOf(index).push(`${name}: ${detail}`)
+            })
         shots.push(shot)
         return shot
     }
