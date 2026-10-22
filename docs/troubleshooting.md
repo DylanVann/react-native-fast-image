@@ -20,7 +20,7 @@ After installing or updating FastImage, or when a build fails for no clear reaso
 - Watchman: `watchman watch-del-all`.
 - Dependencies: delete `node_modules` and install them again.
 
-If `pod install` says it can't find compatible versions for `SDWebImage` after updating FastImage (which needs 5.21.4 or later), update it: `cd ios && pod update SDWebImage`. If another pod pins an older SDWebImage, update that pod too.
+If `pod install` says it can't find compatible versions for `SDWebImage` after updating FastImage (which needs 5.21.5 or later), update it: `cd ios && pod update SDWebImage`. If another pod pins an older SDWebImage, update that pod too.
 
 ## Duplicate AndroidSVG classes
 

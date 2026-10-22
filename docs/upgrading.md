@@ -6,7 +6,7 @@ FastImage 10 is a native New Architecture component. Apart from the changes belo
 
 - React Native 0.83 or later, with the New Architecture (the legacy architecture isn't supported).
 - Expo SDK 55 or later.
-- iOS and tvOS 15.1 or later, with SDWebImage 5.21.4 or later. If `pod install` can't find a compatible SDWebImage (your `Podfile.lock` has an older one), update it with `cd ios && pod update SDWebImage`.
+- iOS and tvOS 15.1 or later, with SDWebImage 5.21.5 or later. If `pod install` can't find a compatible SDWebImage (your `Podfile.lock` has an older one), update it with `cd ios && pod update SDWebImage`.
 - Android 7.0 (API 24) or later. FastImage builds with `compileSdkVersion` and `targetSdkVersion` 36 by default, and uses Glide 5.0.7 (`glideVersion` 4.15 or later works too): see [Android build settings](android-build-settings.md).
 
 ## Changes
