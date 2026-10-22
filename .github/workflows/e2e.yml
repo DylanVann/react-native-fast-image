@@ -28,9 +28,9 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # Detects a pull request that only changes docs, so the rest of the workflow
-  # can skip the apps for it (the e2e job at the end still reports, so it can
-  # be merged). And chooses the iOS jobs: the main example's groups in 2 shards
+  # Detects a pull request that only changes docs, so it can skip the e2e
+  # tests, which it doesn't need (the e2e job at the end still reports, so it
+  # can be merged). And chooses the iOS jobs: the main example's groups in 2 shards
   # (--shard), each a job that builds the app and runs half of them (by their
   # times in recent runs); the minimum example's smoke groups (SMOKE_GROUPS) in
   # one; and, when a pull request changes the iOS code, the tvOS example, its
@@ -43,9 +43,10 @@ jobs:
       docs_only: ${{ steps.docs.outputs.docs_only }}
       ios: ${{ steps.matrix.outputs.ios }}
     steps:
-      # docs_only is true when every file the pull request changes is docs:
-      # under docs/ or website/, or a .md file. (A run by hand has no pull
-      # request, and runs everything.)
+      # So that pull requests that don't need the e2e tests skip them: when
+      # every file a pull request changes is docs (under docs/ or website/, or
+      # a .md file), docs_only is true, and the ios and android jobs don't run.
+      # (A run by hand has no pull request, and runs everything.)
       - name: Detect a docs-only pull request
         id: docs
         env:
