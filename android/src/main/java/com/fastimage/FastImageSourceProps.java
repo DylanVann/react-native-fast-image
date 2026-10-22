@@ -70,11 +70,12 @@ final class FastImageSourceProps {
     // Whether it has a thumbhash or blurDataUri key, even an empty one: the
     // `placeholder` prop is then a preview, not a url to load.
     final boolean hasPlaceholderKey;
-    // A source without a uri as JS sent it, for its error (null for one with
-    // a uri, which is described by it): kept only for these, so a source
-    // doesn't keep its map.
+    // A source without a uri as JS sent it (without its thumbhash and
+    // blurDataUri, as a data uri can be long), to compare it and for its
+    // error; null for one with a uri, which its uri describes. Kept only for
+    // these, so a source doesn't keep its map.
     @Nullable
-    private final String invalidDescription;
+    private final HashMap<String, Object> invalidSource;
 
     private FastImageSourceProps(ReadableMap map) {
         uri = string(map, "uri");
@@ -97,7 +98,7 @@ final class FastImageSourceProps {
         placeholder = thumbhash != null && !thumbhash.isEmpty() ? thumbhash
                 : blurDataUri != null && FastImageThumbHash.isDataUri(blurDataUri) ? blurDataUri
                 : null;
-        invalidDescription = hasUri() ? null : describe(map);
+        invalidSource = hasUri() ? null : withoutPlaceholders(map);
     }
 
     static FastImageSourceProps parse(ReadableMap map) {
@@ -122,15 +123,14 @@ final class FastImageSourceProps {
     // The source, for an error: as JS sent it if it has no uri, or its uri
     // (one that can't be resolved).
     String describe() {
-        return invalidDescription != null ? invalidDescription : "{uri=" + uri + "}";
+        return invalidSource != null ? invalidSource.toString() : "{uri=" + uri + "}";
     }
 
-    // A map without its thumbhash and blurDataUri (a data uri can be long).
-    private static String describe(ReadableMap map) {
-        HashMap<String, Object> described = map.toHashMap();
-        described.remove("thumbhash");
-        described.remove("blurDataUri");
-        return described.toString();
+    private static HashMap<String, Object> withoutPlaceholders(ReadableMap map) {
+        HashMap<String, Object> source = map.toHashMap();
+        source.remove("thumbhash");
+        source.remove("blurDataUri");
+        return source;
     }
 
     private static Headers headers(ReadableMap map) {
@@ -179,7 +179,7 @@ final class FastImageSourceProps {
                 && priority == other.priority
                 && Objects.equals(uri, other.uri)
                 && Objects.equals(cacheKey, other.cacheKey)
-                && Objects.equals(invalidDescription, other.invalidDescription)
+                && Objects.equals(invalidSource, other.invalidSource)
                 && headers.equals(other.headers);
     }
 

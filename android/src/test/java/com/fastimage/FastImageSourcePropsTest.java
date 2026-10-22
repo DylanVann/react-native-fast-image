@@ -176,6 +176,9 @@ public class FastImageSourcePropsTest {
         // onError too.
         assertNotEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1)),
                 FastImageSourceProps.parse(JavaOnlyMap.of("uri", 2)));
+        // The same one with its keys in another order is the same.
+        assertEquals(FastImageSourceProps.parse(JavaOnlyMap.of("cacheKey", "a", "uri", 1, "thumbhash", "x")),
+                FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1, "cacheKey", "a")));
     }
 
     // An invalid source's error: one without a uri as JS sent it (without its
