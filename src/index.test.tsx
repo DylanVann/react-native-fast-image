@@ -1756,9 +1756,23 @@ describe('ARIA props', () => {
         })
         Platform.OS = 'android'
         expect(
-            viewProps(<FastImage source={source} accessible aria-hidden />),
+            viewProps(<FastImage source={source} aria-hidden />),
         ).toMatchObject({
-            accessible: true,
+            importantForAccessibility: 'no-hide-descendants',
+        })
+    })
+
+    it('aria-hidden on FastImageBackground hides its children too', () => {
+        const tree = renderer.create(
+            <FastImageBackground source={source} aria-hidden>
+                <View />
+            </FastImageBackground>,
+        )
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props['aria-hidden']).toBe(true)
+        expect(
+            viewProps(<FastImageBackground source={source} aria-hidden />),
+        ).toMatchObject({
             importantForAccessibility: 'no-hide-descendants',
         })
     })
