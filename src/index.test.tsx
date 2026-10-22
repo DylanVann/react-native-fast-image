@@ -1776,11 +1776,12 @@ describe('ARIA props', () => {
         )
         const container = tree.root.findAllByType(View)[0]
         expect(container.props['aria-hidden']).toBe(true)
+        // The container hides the image too.
         expect(
-            viewProps(<FastImageBackground source={source} aria-hidden />),
-        ).toMatchObject({
-            importantForAccessibility: 'no-hide-descendants',
-        })
+            viewProps(<FastImageBackground source={source} aria-hidden />)[
+                'aria-hidden'
+            ],
+        ).toBeUndefined()
     })
 
     it('aria-label makes the image accessible unless accessible says otherwise', () => {
@@ -1797,7 +1798,8 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(false)
-        // Hidden by another prop: not made accessible.
+        // Hidden for iOS: not made accessible (importantForAccessibility is
+        // Android's, which iOS ignores).
         expect(
             viewProps(
                 <FastImage
@@ -1815,7 +1817,7 @@ describe('ARIA props', () => {
                     importantForAccessibility="no-hide-descendants"
                 />,
             ).accessible,
-        ).toBeUndefined()
+        ).toBe(true)
         // An empty label is none.
         expect(
             viewProps(<FastImage source={source} aria-label="" />).accessible,
@@ -1850,7 +1852,7 @@ describe('ARIA props', () => {
         }
     })
 
-    it('ignore null values', () => {
+    it("take null values as View does: they clear what they map to, and don't throw", () => {
         const props = viewProps(
             <FastImage
                 source={source}
@@ -1862,7 +1864,22 @@ describe('ARIA props', () => {
             />,
         )
         expect(props.accessibilityLabelledBy).toBeUndefined()
+        expect(props.accessibilityLabel).toBeNull()
+        expect(props.nativeID).toBeNull()
         expect(props.accessible).toBeUndefined()
+        expect(props['aria-label']).toBeUndefined()
+    })
+
+    it('tabIndex is also isTVSelectable on TV', () => {
+        const isTV = Platform.isTV
+        ;(Platform as { isTV: boolean }).isTV = true
+        try {
+            expect(
+                viewProps(<FastImage source={source} tabIndex={0} />),
+            ).toMatchObject({ focusable: true, isTVSelectable: true })
+        } finally {
+            ;(Platform as { isTV: boolean }).isTV = isTV
+        }
     })
 
     it('pass props without them on as they are, without a copy', () => {

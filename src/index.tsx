@@ -1304,8 +1304,8 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
         }: FastImageBackgroundProps,
         ref: React.Ref<ViewRef>,
     ) => (
-        // Hiding it hides the children too, as for the container's own
-        // importantForAccessibility.
+        // aria-hidden goes to the container, which hides the image and the
+        // children (as its importantForAccessibility does).
         <View
             accessibilityIgnoresInvertColors
             importantForAccessibility={importantForAccessibility}
@@ -1316,7 +1316,6 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
             <FastImageComponent
                 {...props}
                 importantForAccessibility={importantForAccessibility}
-                aria-hidden={ariaHidden}
                 style={[StyleSheet.absoluteFill, imageStyle]}
                 ref={imageRef}
             />

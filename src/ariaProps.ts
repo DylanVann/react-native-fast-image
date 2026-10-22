@@ -41,7 +41,7 @@ export function resolveAriaProps<P extends AriaProps>(
     // a copy.
     let any = false
     for (let i = 0; i < ARIA_KEYS.length && !any; i++) {
-        any = props[ARIA_KEYS[i]] != null
+        any = props[ARIA_KEYS[i]] !== undefined
     }
     if (!any) return props as NativeProps<P>
     // The same keys as ARIA_KEYS (a test checks each one is mapped).
@@ -64,14 +64,14 @@ export function resolveAriaProps<P extends AriaProps>(
         ...rest
     } = props
     const native = rest as FastImageProps
-    if (ariaLabel != null) native.accessibilityLabel = ariaLabel
-    if (ariaLabelledBy != null) {
-        native.accessibilityLabelledBy = ariaLabelledBy.split(/\s*,\s*/g)
-    }
-    if (ariaLive != null) {
+    // As View.js: a value given, null too, replaces the prop it maps to.
+    if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
+    const labelledBy = ariaLabelledBy?.split(/\s*,\s*/g)
+    if (labelledBy !== undefined) native.accessibilityLabelledBy = labelledBy
+    if (ariaLive !== undefined) {
         native.accessibilityLiveRegion = ariaLive === 'off' ? 'none' : ariaLive
     }
-    if (ariaHidden != null) {
+    if (ariaHidden !== undefined) {
         native.accessibilityElementsHidden = ariaHidden
         if (ariaHidden === true) {
             native.importantForAccessibility = 'no-hide-descendants'
@@ -81,19 +81,25 @@ export function resolveAriaProps<P extends AriaProps>(
             if (Platform.OS === 'ios') native.accessible = false
         }
     }
-    if (id != null) native.nativeID = id
-    if (tabIndex != null) native.focusable = !tabIndex
-    // A labelled image is an accessibility element unless it's hidden or
-    // `accessible` says otherwise, as an <img aria-label> on the web and
-    // React Native's Image with `alt`: iOS reads `accessible` for it (Android
-    // reads the label either way). An empty label is none, as on the web (a
-    // decorative image).
+    if (id !== undefined) native.nativeID = id
+    if (tabIndex !== undefined) {
+        native.focusable = !tabIndex
+        // React Native tvOS makes a view focusable with isTVSelectable (its
+        // View.js sets it from focusable).
+        if (Platform.isTV) {
+            ;(native as { isTVSelectable?: boolean }).isTVSelectable = !tabIndex
+        }
+    }
+    // A labelled image is an accessibility element unless `accessible` says
+    // otherwise or accessibilityElementsHidden hides it, as an <img
+    // aria-label> on the web and React Native's Image with `alt`: iOS reads
+    // `accessible` for it (Android reads the label either way, and its
+    // importantForAccessibility, which iOS ignores). An empty label is none,
+    // as on the web (a decorative image).
     if (
         ariaLabel &&
         native.accessible === undefined &&
-        !native.accessibilityElementsHidden &&
-        native.importantForAccessibility !== 'no' &&
-        native.importantForAccessibility !== 'no-hide-descendants'
+        !native.accessibilityElementsHidden
     ) {
         native.accessible = true
     }
