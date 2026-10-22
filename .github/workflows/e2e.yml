@@ -42,7 +42,7 @@ jobs:
       # samples record longer before their change.
       VERIFY_SAMPLE_LEAD_MS: 2000
     steps:
-      - name: Check out
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The Xcode the references were taken with (27.1).
       - name: Select Xcode 27.1
@@ -383,7 +383,7 @@ jobs:
       VERIFY_SPARSE_RECORDINGS: 1
       ANDROID_IMAGE: system-images;android-36;default;x86_64
     steps:
-      - name: Check out
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Node at .node-version's version, with npm and npx (React Native's
       # Gradle autolinking runs npx): from nodejs.org's release, checked
