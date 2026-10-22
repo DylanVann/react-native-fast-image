@@ -412,6 +412,7 @@ jobs:
       ANDROID_EMULATOR_GPU: swiftshader_indirect
       VERIFY_SPARSE_RECORDINGS: 1
       ANDROID_IMAGE: system-images;android-36;default;x86_64
+      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -453,12 +454,31 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      # Gradle's caches, written from pull requests too (by default only from
-      # the default branch).
-      - name: Set up Gradle and its caches
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      # Gradle's caches (the dependencies, their transforms, the build cache
+      # and Gradle itself), shared by the app's two jobs. In R2 like the
+      # others: setup-gradle's, in GitHub's cache, were about 1.4 GB a job and
+      # evicted before the next run.
+      - name: "Restore Gradle's caches"
+        id: gradle
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
         with:
-          cache-read-only: false
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-gradle-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/android/**/*.gradle', env.APP_DIR), format('{0}/android/gradle.properties', env.APP_DIR), format('{0}/android/gradle/wrapper/gradle-wrapper.properties', env.APP_DIR)) }}
+          restore-keys: android-gradle-${{ matrix.app }}-
+      # The NDK and CMake versions the apps build with, which Gradle installs
+      # otherwise.
+      - name: Restore the NDK and CMake
+        id: ndk
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/27.1.12297006
+            /usr/local/lib/android/sdk/cmake/3.22.1
+          key: android-ndk-27.1.12297006-cmake-3.22.1
       # The emulator needs KVM.
       - name: Let the emulator use KVM
         run: |
@@ -533,7 +553,10 @@ jobs:
       - name: Check what the run made
         id: made
         if: always()
-        run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+        run: |
+          test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
+          test -d ~/.gradle/caches/modules-2 && echo gradle=true >> "$GITHUB_OUTPUT" || true
+          test -d /usr/local/lib/android/sdk/ndk/27.1.12297006 && test -d /usr/local/lib/android/sdk/cmake/3.22.1 && echo ndk=true >> "$GITHUB_OUTPUT" || true
       - name: "Save Metro's cache"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
@@ -541,6 +564,25 @@ jobs:
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
+      # From one of the app's jobs: both build the same.
+      - name: "Save Gradle's caches"
+        if: always() && env.R2_WRITE == 'true' && matrix.shard == 1 && steps.made.outputs.gradle == 'true' && steps.gradle.outputs.cache-hit != 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle.outputs.cache-primary-key }}
+      - name: Save the NDK and CMake
+        if: always() && env.R2_WRITE == 'true' && matrix.app == 'main' && matrix.shard == 1 && steps.made.outputs.ndk == 'true' && steps.ndk.outputs.cache-hit != 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/27.1.12297006
+            /usr/local/lib/android/sdk/cmake/3.22.1
+          key: ${{ steps.ndk.outputs.cache-primary-key }}
       # An upload that fails (it timed out once) doesn't fail the job.
       - name: "Upload the run's output"
         if: always()
