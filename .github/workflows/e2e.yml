@@ -1,12 +1,19 @@
 name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
 # Android emulator, for each example app. The JS checks are in ci.yml.
-# Only run by hand for now (Actions tab, or `gh workflow run e2e.yml --ref
-# <branch>`): a run takes about 10 minutes with its caches.
+# Runs for pull requests and pushes to main, except changes to docs alone, and
+# by hand (Actions tab, or `gh workflow run e2e.yml --ref <branch>`): a run
+# takes about 10 minutes with its caches.
 on:
+  pull_request:
+    paths-ignore: ['docs/**', 'website/**', '**.md']
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', 'website/**', '**.md']
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read # when the run started (scripts/group-times.ts)
 env:
   # CI machines are slower than a laptop.
   VERIFY_FLOWS_TIMEOUT: 900
@@ -20,10 +27,10 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   AWS_REGION: auto
-# A new push to a branch replaces its run.
+# A new push to a pull request replaces its run; main's runs all finish.
 concurrency:
   group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   ios:
     # Xcode 27 with the iOS 27.0 simulator runtime the references were taken
@@ -33,8 +40,9 @@ jobs:
     strategy:
       fail-fast: false
       # Each app's groups in 2 shards (--shard), each a job that builds the
-      # app and runs half of them: a build takes a few minutes, a whole run
-      # 4-7. (At most 5 macOS jobs run at once.)
+      # app and runs half of them (by their times in recent runs): a build
+      # takes a few minutes, a whole run 4-7. (At most 5 macOS jobs run at
+      # once.)
       matrix:
         app: [main, minimum]
         shard: [1, 2]
@@ -89,8 +97,7 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       # The app's dependencies, Pods, pod install's Codegen output and gems
-      # (verify.mts skips pod install while they're current), and React
-      # Native's and CocoaPods' downloads.
+      # (verify.mts skips pod install while they're current).
       - id: deps
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
@@ -100,10 +107,19 @@ jobs:
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
             ${{ env.APP_DIR }}/vendor/bundle
+          key: ios-deps-v4-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
+          restore-keys: ios-deps-v4-${{ matrix.app }}-
+      # React Native's and CocoaPods' downloads, for pod install: only when
+      # the dependencies aren't current.
+      - id: downloads
+        if: steps.deps.outputs.cache-hit != 'true'
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        with:
+          path: |
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
-          key: ios-deps-v3-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
-          restore-keys: ios-deps-v3-${{ matrix.app }}-
+          key: ios-downloads-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR)) }}
+          restore-keys: ios-downloads-${{ matrix.app }}-
       # An older key's node_modules is brought up to date (verify.mts only
       # installs when there are none).
       - if: steps.deps.outputs.cache-hit != 'true'
@@ -132,6 +148,11 @@ jobs:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: metro-ios-${{ matrix.app }}-
+      # The groups' times in recent runs, so --shard splits them into halves
+      # that take about as long (scripts/group-times.ts).
+      - run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
       # Every 10 s while verify.mts runs: what's using the CPU, and how far the
       # build log has got (verify-output/cpu.log).
       - run: |
@@ -147,6 +168,11 @@ jobs:
           exit $status
         env:
           TMPDIR: ${{ runner.temp }}/tmp
+          VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
+      # This job's group times, for later runs' shards.
+      - if: always()
+        continue-on-error: true
+        run: bun scripts/group-times.ts record ios-${{ matrix.app }}-${{ matrix.shard }}
       # The simulator verify.mts created, for later runs (see above): without
       # the example apps, with simslim's .github/simslim.json profile (its
       # services stay off on later boots), shut down. Not saved if slimming
@@ -184,7 +210,9 @@ jobs:
         continue-on-error: true
         run: |
           log=$(ls -t "$APP_DIR"/ios/build/Logs/Build/*.xcactivitylog | head -1)
-          brew install xclogparser > /dev/null
+          curl -fsSL -o "$RUNNER_TEMP/xclogparser.zip" https://github.com/MobileNativeFoundation/XCLogParser/releases/download/v0.2.49/XCLogParser-macOS-arm64-v0.2.49.zip
+          echo "96e4793d6c3c23a0238e18520c6742f5a1f3ac495857e13253223b0b9cbea5fa  $RUNNER_TEMP/xclogparser.zip" | shasum -a 256 -c
+          unzip -q -o "$RUNNER_TEMP/xclogparser.zip" -d "$RUNNER_TEMP/bin"
           xclogparser parse --file "$log" --reporter json --output verify-output/xcode-build.json
           python3 - <<'PY'
           import json
@@ -216,9 +244,14 @@ jobs:
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
             ${{ env.APP_DIR }}/vendor/bundle
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+      - if: always() && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        with:
+          path: |
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
-          key: ${{ steps.deps.outputs.cache-primary-key }}
+          key: ${{ steps.downloads.outputs.cache-primary-key }}
       - if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         with:
@@ -257,8 +290,9 @@ jobs:
     strategy:
       fail-fast: false
       # Each app's groups in 2 shards (--shard), each a job that builds the
-      # app and runs half of them: a build takes a few minutes, a whole run
-      # 4-7. (At most 5 macOS jobs run at once.)
+      # app and runs half of them (by their times in recent runs): a build
+      # takes a few minutes, a whole run 4-7. (At most 5 macOS jobs run at
+      # once.)
       matrix:
         app: [main, minimum]
         shard: [1, 2]
@@ -331,11 +365,21 @@ jobs:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-android-${{ matrix.app }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: metro-android-${{ matrix.app }}-
+      # The groups' times in recent runs, so --shard splits them into halves
+      # that take about as long (scripts/group-times.ts).
+      - run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: |
           mkdir -p "$TMPDIR"
           node scripts/verify.mts --app ${{ matrix.app }} --android --no-js --shard ${{ matrix.shard }}/2
         env:
           TMPDIR: ${{ runner.temp }}/tmp
+          VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
+      # This job's group times, for later runs' shards.
+      - if: always()
+        continue-on-error: true
+        run: bun scripts/group-times.ts record android-${{ matrix.app }}-${{ matrix.shard }}
       - id: made
         if: always()
         run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true

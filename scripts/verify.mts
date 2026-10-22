@@ -184,6 +184,46 @@ const SHARD = (() => {
     }
     return { index, count }
 })()
+// Each regression group's usual time in seconds, by <app>-<platform>, from the
+// JSON file VERIFY_GROUP_TIMES names (the e2e workflow's, from
+// scripts/group-times.ts): with --shard, the ranges are split so they take
+// about as long as each other. Without it, each group counts the same.
+const GROUP_TIMES: Record<string, Record<string, number>> = (() => {
+    const file = process.env.VERIFY_GROUP_TIMES
+    if (!file) return {}
+    try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'))
+    } catch {
+        return {}
+    }
+})()
+
+// The range [first, end) of the groups for --shard: contiguous ranges whose
+// times add up to about the same (a group without a time counts as the median
+// one).
+function shardRange(groups: string[], times: Record<string, number> = {}) {
+    if (!SHARD) return [0, groups.length]
+    const known = groups
+        .map((group) => times[group])
+        .filter((seconds) => seconds > 0)
+        .sort((a, b) => a - b)
+    const usual = known[Math.floor(known.length / 2)] ?? 1
+    // The time before each group (and after the last).
+    const before = [0]
+    for (const group of groups)
+        before.push(before.at(-1)! + (times[group] > 0 ? times[group] : usual))
+    const { index, count } = SHARD
+    // The first group whose time before it is closest to j/n of the total.
+    const boundary = (j: number) => {
+        const target = (before.at(-1)! * j) / count
+        let best = 0
+        for (let i = 1; i < before.length; i++)
+            if (Math.abs(before[i] - target) < Math.abs(before[best] - target))
+                best = i
+        return best
+    }
+    return [boundary(index - 1), boundary(index)]
+}
 // The Expo and tvOS examples only run when asked for (--app expo, --app tv).
 const APPS: App[] = options.app ? [options.app as App] : ['main', 'minimum']
 if (options.web && !APPS.includes('expo')) {
@@ -1641,12 +1681,11 @@ async function runRegression(
     // With --shard i/n, the i-th of n ranges of the groups, in order (each
     // shard is a run of its own, e.g. a CI job; the first has `start`, which
     // must come before any image has loaded).
-    const first = SHARD
-        ? Math.round((groups.length * (SHARD.index - 1)) / SHARD.count)
-        : 0
-    const end = SHARD
-        ? Math.round((groups.length * SHARD.index) / SHARD.count)
-        : groups.length
+    const [first, end] = shardRange(groups, GROUP_TIMES[`${app}-${platform}`])
+    if (SHARD)
+        logLine(
+            `shard ${SHARD.index}/${SHARD.count}: groups ${first + 1}-${end} of ${groups.length}`,
+        )
     if (first > 0) send({ type: 'show', index: first })
     // Shows a group's results once it's on screen (index): waits for its cases,
     // then takes its screenshot. since: where its messages start (a retry's
