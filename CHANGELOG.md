@@ -1,3 +1,10 @@
+## [10.8.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.1...v10.8.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* **android:** send view events after Glide's callbacks return ([#1338](https://github.com/DylanVann/react-native-fast-image/issues/1338)) ([0d8e288](https://github.com/DylanVann/react-native-fast-image/commit/0d8e2882df92247bf9d5b11c95cd6fbe725e6de8)), closes [#1337](https://github.com/DylanVann/react-native-fast-image/issues/1337), thanks [@lewiscasewell](https://github.com/lewiscasewell)
+
 ## [10.8.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.0...v10.8.1) (2026-10-22)
 
 
