@@ -10,7 +10,7 @@
 //       groups the same way. Fails rather than write different times for one
 //       shard than for another.
 //   bun scripts/group-times.ts record <platform>-<app>-<shard>
-//       Saves this job's first-try times, from verify-output's results.json
+//       Saves this job's times, from verify-output's results.json
 //       files, as group-times/<run id>/<platform>-<app>-<shard>-<attempt>.json.
 //
 // Uses the cache's R2 settings (RUNS_ON_S3_BUCKET_CACHE, ...): without them,
@@ -159,7 +159,7 @@ async function medians(s3: Bun.S3Client) {
 }
 
 // verify-output/<run>/<app>-<platform>/regression/results.json's timings
-// ("fade 8.4s", "fade (retry) 9.1s"), without the retries.
+// ("fade 8.4s").
 function recorded() {
     const times: Times = {}
     const out = path.join(import.meta.dir, '..', 'verify-output')
@@ -172,8 +172,7 @@ function recorded() {
         ) as { timings?: string[] }
         for (const timing of timings) {
             const match = timing.match(/^(.+) ([\d.]+)s$/)
-            if (match && !match[1].endsWith(' (retry)'))
-                (times[app] ??= {})[match[1]] = Number(match[2])
+            if (match) (times[app] ??= {})[match[1]] = Number(match[2])
         }
     }
     return times
