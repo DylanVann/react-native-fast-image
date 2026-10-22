@@ -80,7 +80,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     private static final class Progress {
         final Set<FastImageViewWithUrl> views = new LinkedHashSet<>();
         // A step waits to be sent: later ones replace it meanwhile, so a url
-        // has at most one post to the UI thread at a time.
+        // has at most one step waiting at a time.
         boolean posted;
         long loaded;
         long total;
