@@ -128,17 +128,17 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                 };
                 for (int i = 0; i < count; i++) {
                     final int index = i;
-                    final ReadableMap source = sources.isNull(i) ? null : sources.getMap(i);
+                    final FastImageSourceProps source = FastImageSourceProps.parse(sources, i);
                     // Glide throws on an empty url. Invalid sources fail
                     // without taking a slot.
-                    if (!FastImageViewConverter.hasUri(source)) {
+                    if (source == null || !source.hasUri()) {
                         results[i] = failure("Invalid source: no uri");
                         finishOne.run();
                         continue;
                     }
                     // Views decode an image for their own size, so one only
                     // preloaded into memory would be downloaded again.
-                    if (!FastImageViewConverter.isDiskCache(source)) {
+                    if (!source.diskCache) {
                         results[i] = failure(NOT_ON_DISK);
                         finishOne.run();
                         continue;
@@ -147,7 +147,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     // A uri that can't be resolved (e.g. a relative path) resolves
                     // to an empty one.
                     if (imageSource.getUri().toString().isEmpty()) {
-                        results[i] = failure("Invalid source: can't resolve " + source.getString("uri"));
+                        results[i] = failure("Invalid source: can't resolve " + source.uri);
                         finishOne.run();
                         continue;
                     }
@@ -256,9 +256,9 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
 
     // A preload's options: low priority unless the source sets one, as on
     // iOS (the prefetcher's options), so the images the app shows load first.
-    private static RequestOptions preloadOptions(Context context, FastImageSource imageSource, ReadableMap source) {
+    private static RequestOptions preloadOptions(Context context, FastImageSource imageSource, FastImageSourceProps source) {
         RequestOptions options = FastImageViewConverter.getOptions(context, imageSource, source);
-        return source.hasKey("priority") && !source.isNull("priority") ? options : options.priority(Priority.LOW);
+        return source.priority != null ? options : options.priority(Priority.LOW);
     }
 
     private interface FileCallback {
@@ -351,17 +351,16 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     // With `cacheOnly`, or a cacheKey without a uri, it doesn't download. A
     // local file is its own path.
     @Override
-    public void getCachePath(final ReadableMap source, final Promise promise) {
+    public void getCachePath(final ReadableMap map, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
-        if (!FastImageViewConverter.isDiskCache(source)) {
+        final FastImageSourceProps source = FastImageSourceProps.parse(map);
+        if (!source.diskCache) {
             promise.resolve(failure(NOT_ON_DISK));
             return;
         }
-        if (!FastImageViewConverter.hasUri(source)) {
+        if (!source.hasUri()) {
             // `web` images ignore cacheKey.
-            final String cacheKey = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB
-                    ? null
-                    : FastImageViewConverter.getCacheKey(source);
+            final String cacheKey = source.cache == FastImageCacheControl.WEB ? null : source.cacheKey;
             if (cacheKey == null) {
                 promise.resolve(failure("Invalid source: no uri or cacheKey"));
                 return;
@@ -377,7 +376,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         }
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
         if (imageSource.getUri().toString().isEmpty()) {
-            promise.resolve(failure("Invalid source: can't resolve " + source.getString("uri")));
+            promise.resolve(failure("Invalid source: can't resolve " + source.uri));
             return;
         }
         if ("file".equalsIgnoreCase(imageSource.getUri().getScheme())) {
@@ -390,7 +389,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
             promise.resolve(failure("Not a remote image"));
             return;
         }
-        final boolean cacheOnly = FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.CACHE_ONLY;
+        final boolean cacheOnly = source.cache == FastImageCacheControl.CACHE_ONLY;
         final RequestOptions options = preloadOptions(context, imageSource, source);
         cachePathExecutor.execute(new Runnable() {
             @Override
@@ -487,22 +486,21 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     // cacheKey), and doesn't store `web` sources (kept only in an HTTP cache,
     // which can't be added to).
     @Override
-    public void writeToCache(final ReadableMap source, final String file, final Promise promise) {
+    public void writeToCache(final ReadableMap map, final String file, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
-        if (!FastImageViewConverter.isDiskCache(source)) {
+        final FastImageSourceProps source = FastImageSourceProps.parse(map);
+        if (!source.diskCache) {
             promise.resolve(failure(NOT_ON_DISK));
             return;
         }
-        if (FastImageViewConverter.getCacheControl(source) == FastImageCacheControl.WEB) {
+        if (source.cache == FastImageCacheControl.WEB) {
             promise.resolve(failure("Can't store cache: 'web' images (they're kept in an HTTP cache)"));
             return;
         }
-        final FastImageSource imageSource = FastImageViewConverter.hasUri(source)
-                ? FastImageViewConverter.getImageSource(context, source)
-                : null;
+        final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
         // A cacheKey is enough (the image doesn't need a url yet); otherwise a
         // remote url.
-        final String cacheKey = FastImageViewConverter.getCacheKey(source);
+        final String cacheKey = source.cacheKey;
         if (cacheKey == null && (imageSource == null || !imageSource.isRemote())) {
             promise.resolve(failure("Invalid source: no remote uri or cacheKey"));
             return;

@@ -20,7 +20,6 @@ import com.bumptech.glide.RequestManager;
 import com.facebook.react.bridge.ColorPropConverter;
 import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.DynamicFromObject;
-import com.facebook.react.bridge.JavaOnlyArray;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
@@ -306,10 +305,25 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
 
     @Override
     public void setSource(FastImageViewWithUrl view, Dynamic source) {
-        // One source, or several (an array).
-        view.setSource(source.isNull() ? null
-                : source.getType() == ReadableType.Array ? source.asArray()
-                : JavaOnlyArray.of(source.asMap()));
+        // One source, or several (an array). Something else (e.g. a string)
+        // is one invalid source, as on iOS.
+        switch (source.getType()) {
+            case Null:
+                view.setSource(null);
+                break;
+            case Array: {
+                ReadableArray array = source.asArray();
+                FastImageSourceProps[] sources = new FastImageSourceProps[array.size()];
+                for (int i = 0; i < sources.length; i++) sources[i] = FastImageSourceProps.parse(array, i);
+                view.setSource(sources);
+                break;
+            }
+            case Map:
+                view.setSource(new FastImageSourceProps[]{FastImageSourceProps.parse(source.asMap())});
+                break;
+            default:
+                view.setSource(new FastImageSourceProps[]{null});
+        }
     }
 
     // The `placeholder` prop: a thumbhash or blurDataUri, or a url to load
@@ -318,16 +332,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setPlaceholder(FastImageViewWithUrl view, Dynamic source) {
         if (source.getType() == ReadableType.Map) {
-            ReadableMap map = source.asMap();
-            boolean hash = map.hasKey("thumbhash") || map.hasKey("blurDataUri");
+            FastImageSourceProps placeholder = FastImageSourceProps.parse(source.asMap());
             view.setPlaceholder(null);
-            view.setPlaceholderHash(hash ? FastImageViewWithUrl.sourcePlaceholder(map) : null);
-            view.setPlaceholderSource(hash ? null : map);
+            view.setPlaceholderHash(placeholder.hasPlaceholderKey ? placeholder.placeholder : null);
+            view.setPlaceholderSource(placeholder.hasPlaceholderKey ? null : placeholder);
             return;
         }
         view.setPlaceholderHash(null);
         view.setPlaceholderSource(null);
-        String uri = source.isNull() ? null : source.asString();
+        String uri = source.getType() == ReadableType.String ? source.asString() : null;
         if (uri != null && FastImageThumbHash.isDataUri(uri)) {
             Bitmap bitmap = FastImageThumbHash.dataUri(uri);
             // One pixel per dp, as on iOS and the web (decoded, it's at the
