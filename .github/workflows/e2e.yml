@@ -13,6 +13,9 @@ permissions:
   contents: read
   actions: read # when the run started (scripts/group-times.ts)
 env:
+  # Whether this run can save caches and group times to R2 (see "Restore the
+  # simulator").
+  R2_WRITE: ${{ secrets.R2_ACCESS_KEY_ID != '' }}
   # CI machines are slower than a laptop.
   VERIFY_FLOWS_TIMEOUT: 900
   VERIFY_BUILD_TIMEOUT: 2400
@@ -105,14 +108,15 @@ jobs:
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         # The caches (runs-on/cache, which takes actions/cache's inputs) are
         # in Cloudflare R2, which restores them faster than GitHub's cache and
-        # shares them between branches; GitHub's cache without the R2
-        # secrets. Only the cache steps get the R2 keys, not the steps that
-        # run the dependencies' code.
+        # shares them between branches. Pull requests from forks get no
+        # secrets: they restore with a read-only key (public, so it's here)
+        # and don't save (R2_WRITE). Only the cache steps get the R2 keys, not
+        # the steps that run the dependencies' code.
         env: &r2
-          RUNS_ON_S3_BUCKET_CACHE: ${{ secrets.R2_ACCESS_KEY_ID != '' && 'react-native-fast-image-ci-cache' || '' }}
+          RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
           RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || 'b79e3041f2757de0f8b46278a8497283' }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || '98143e2ef97e7cb405200a89f0d2e0553a39ff0724b8e4c3199bcef7e22cf9fd' }}
           AWS_REGION: auto
         with:
           path: ~/simulator-cache
@@ -201,10 +205,10 @@ jobs:
         run: bun scripts/group-times.ts fetch "$RUNNER_TEMP/group-times.json"
         env: &group-times
           GH_TOKEN: ${{ github.token }}
-          RUNS_ON_S3_BUCKET_CACHE: ${{ secrets.R2_ACCESS_KEY_ID != '' && 'react-native-fast-image-ci-cache' || '' }}
+          RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
           RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || 'b79e3041f2757de0f8b46278a8497283' }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || '98143e2ef97e7cb405200a89f0d2e0553a39ff0724b8e4c3199bcef7e22cf9fd' }}
           AWS_REGION: auto
       # Every 10 s while verify.mts runs: what's using the CPU, and how far the
       # build log has got (verify-output/cpu.log).
@@ -226,7 +230,7 @@ jobs:
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
       # This job's group times, for later runs' shards.
       - name: "Record the groups' times"
-        if: always()
+        if: always() && env.R2_WRITE == 'true'
         continue-on-error: true
         run: bun scripts/group-times.ts record ios-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
@@ -236,7 +240,7 @@ jobs:
       # after its cases passed (a simulator that broke isn't kept for later
       # runs); not saved if slimming fails.
       - name: Slim the simulator for later runs
-        if: steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app == 'main' && matrix.shard == 1
+        if: env.R2_WRITE == 'true' && steps.simulator.outputs.cache-hit != 'true' && steps.verify.outcome == 'success' && matrix.app == 'main' && matrix.shard == 1
         id: savesimulator
         continue-on-error: true
         run: |
@@ -258,7 +262,7 @@ jobs:
           echo "$udid" > ~/simulator-cache/udid
           echo saved=true >> "$GITHUB_OUTPUT"
       - name: Save the simulator
-        if: always() && steps.savesimulator.outputs.saved == 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.savesimulator.outputs.saved == 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -299,7 +303,7 @@ jobs:
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - name: "Save the app's dependencies and Pods"
-        if: always() && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -311,7 +315,7 @@ jobs:
             ${{ env.APP_DIR }}/vendor/bundle
           key: ${{ steps.deps.outputs.cache-primary-key }}
       - name: "Save React Native's and CocoaPods' downloads"
-        if: always() && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -320,21 +324,21 @@ jobs:
             ~/Library/Caches/CocoaPods
           key: ${{ steps.downloads.outputs.cache-primary-key }}
       - name: "Save Xcode's compilation cache"
-        if: always() && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
       - name: "Save Metro's cache"
-        if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
       - name: "Save WebDriverAgent's build"
-        if: always() && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
+        if: always() && env.R2_WRITE == 'true' && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -462,7 +466,7 @@ jobs:
           printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-36\n' "$ANDROID_AVD_HOME/$ANDROID_AVD.avd" > "$ANDROID_AVD_HOME/$ANDROID_AVD.ini"
           printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
       - name: Save the emulator image
-        if: steps.image.outputs.cache-hit != 'true'
+        if: env.R2_WRITE == 'true' && steps.image.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
@@ -504,7 +508,7 @@ jobs:
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
       # This job's group times, for later runs' shards.
       - name: "Record the groups' times"
-        if: always()
+        if: always() && env.R2_WRITE == 'true'
         continue-on-error: true
         run: bun scripts/group-times.ts record android-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
@@ -513,7 +517,7 @@ jobs:
         if: always()
         run: test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - name: "Save Metro's cache"
-        if: always() && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
