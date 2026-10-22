@@ -842,6 +842,19 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
     )
 }
 
+// Clears the memory and disk caches. Resolves with the first one's error, or
+// undefined if both cleared.
+async function clearCaches() {
+    const results = await Promise.all([
+        FastImage.clearMemoryCache(),
+        FastImage.clearDiskCache(),
+    ])
+    for (const result of results) {
+        if (!result.ok) return result.error
+    }
+    return undefined
+}
+
 // Loads an image with `cache: 'web'` that the server marks as cacheable for an
 // hour, clears the caches, and loads it again: the server should get a second
 // request. clearDiskCache left the HTTP cache of `web` images (Android's, and
@@ -875,13 +888,8 @@ function WebCacheClearCase() {
                 }}
                 onLoad={() => {
                     if (step === 'first') {
-                        Promise.all([
-                            FastImage.clearMemoryCache(),
-                            FastImage.clearDiskCache(),
-                        ]).then((results) => {
-                            for (const result of results) {
-                                if (!result.ok) setClearError(result.error)
-                            }
+                        clearCaches().then((error) => {
+                            if (error) setClearError(error)
                             setStep('cleared')
                         })
                     } else setStep('done')
@@ -899,6 +907,57 @@ function WebCacheClearCase() {
                             : `requested ${requests} times`
                 }
                 description="clearDiskCache also clears the HTTP cache of cache web images (loaded again after clearing)"
+            />
+        </View>
+    )
+}
+
+// Preloads a `cache: 'web'` image, clears the caches and preloads it again as
+// soon as the clears resolve, 10 times: each image must be requested twice.
+// On iOS, the HTTP cache's removal took effect a few milliseconds after
+// clearDiskCache resolved, and a load in that time got the old response.
+function WebCacheClearPreloadCase() {
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const run = async () => {
+            for (let round = 0; round < 10; round++) {
+                const path = `/max-age/picsum/1025-200x200.jpg?web-clear-preload=${RUN}-${Date.now()}-${round}`
+                const source = {
+                    uri: imageUrl(path.slice(1)),
+                    cache: 'web' as const,
+                }
+                const [first] = await FastImage.preload([source])
+                if (!first.ok)
+                    return setStatus(
+                        `round ${round + 1}: the first preload failed`,
+                    )
+                const clearError = await clearCaches()
+                if (clearError) return setStatus(`clear failed: ${clearError}`)
+                const [second] = await FastImage.preload([source])
+                if (!second.ok)
+                    return setStatus(
+                        `round ${round + 1}: the second preload failed`,
+                    )
+                const response = await fetch(
+                    imageUrl(`requests?path=${encodeURIComponent(path)}`),
+                )
+                const { count } = (await response.json()) as { count: number }
+                if (count !== 2)
+                    return setStatus(
+                        `round ${round + 1}: requested ${count} times`,
+                    )
+            }
+            setStatus('OK')
+        }
+        run().catch((e) => setStatus(`error: ${e}`))
+    }, [])
+    return (
+        <View style={styles.row}>
+            <View style={styles.image} />
+            <CaseStatus
+                id="web-cache-clear-preload"
+                status={status}
+                description="a cache web image preloaded right after clearDiskCache resolves is downloaded again (10 times)"
             />
         </View>
     )
@@ -9338,6 +9397,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Clears the caches, so on its own.
         name: 'web-cache-clear',
         cases: [<WebCacheClearCase key="web-cache-clear" />],
+    },
+    {
+        // Clears the caches, so on its own.
+        name: 'web-cache-clear-preload',
+        cases: [<WebCacheClearPreloadCase key="web-cache-clear-preload" />],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and

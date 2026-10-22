@@ -84,6 +84,14 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // responses. 50 MB, as on Android.
 + (NSURLCache *)webURLCache;
 
+// Empties webURLCache (for clearDiskCache). Its removal takes effect a few
+// milliseconds after removeAllCachedResponses returns, and NSURLCache doesn't
+// say when: until then a `cache: 'web'` load could still get a response from
+// before the clear. So each response the web loader stores records the clear
+// it came after, and for 5 s after a clear, a load ignores a cached response
+// stored before it.
++ (void)clearWebURLCache;
+
 // After a load of this source failed: for a `cache: 'web'` image whose data
 // isn't an image, removes the response from the HTTP cache, which stored it as
 // it downloaded. Otherwise the next loads would get it from there until it

@@ -89,6 +89,13 @@ Fast Image's maintainers found these while comparing Fast Image with Turbo Image
 - **How to reproduce:** Found by reading the code. Load a list of images without `onProgress` and count the `onProgress` events dispatched (for example with a breakpoint in the listener's `update`), or load an image served with chunked encoding with `onProgress` and log `total`.
 - **How Fast Image handles it:** progress is tracked only for views with an `onProgress` handler ([#1225](https://github.com/DylanVann/react-native-fast-image/pull/1225)), and isn't sent when the total size is unknown ([#1134](https://github.com/DylanVann/react-native-fast-image/pull/1134)); the event also has a 0–1 `progress` ([#1194](https://github.com/DylanVann/react-native-fast-image/pull/1194)).
 
+## iOS clearDiskCache resolves before the HTTP cache is empty
+
+- **What happens:** on iOS, an image loaded right after `TurboImage.clearDiskCache()` resolves can still come from the HTTP cache (`urlCache`, the default) without a request.
+- **Where:** `ios/TurboImageViewManager.swift`, `clearDiskCache`: `DataLoader.sharedUrlCache.removeAllCachedResponses()` and then `resolve` at once. `NSURLCache`'s removal takes effect about 10 ms after `removeAllCachedResponses()` returns, and it gives no way to know when.
+- **How to reproduce:** Found by reading the code, and from the same behavior in Fast Image. Load a url whose server sends `Cache-Control: max-age=3600`, call `clearDiskCache()`, and load it again as soon as it resolves: on a busy device the server gets no second request.
+- **How Fast Image handles it:** each response in its `web` HTTP cache records the clear it came after, and a load in the few seconds after `clearDiskCache` ignores one stored before the clear ([#1336](https://github.com/DylanVann/react-native-fast-image/pull/1336)).
+
 ## Other issues
 
 These were found while comparing the code; Fast Image has no counterpart for them, so there's no fix to point to.

@@ -505,7 +505,7 @@ static NSDictionary *FFFFile(NSString *path)
 - (void)clearDiskCache:(RCTPromiseResolveBlock)resolve reject:(__unused RCTPromiseRejectBlock)reject
 {
     // And the HTTP cache of `cache: 'web'` images.
-    [FFFastImageSource.webURLCache removeAllCachedResponses];
+    [FFFastImageSource clearWebURLCache];
     [SDImageCache.sharedImageCache clearDiskOnCompletion:^(){
         resolve(@{@"ok": @YES});
     }];
