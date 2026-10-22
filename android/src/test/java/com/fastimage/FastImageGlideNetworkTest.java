@@ -3,11 +3,15 @@ package com.fastimage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import android.Manifest;
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.request.FutureTarget;
+import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import org.junit.After;
@@ -16,10 +20,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.shadow.api.Shadow;
+import org.robolectric.shadows.ShadowApplication;
+import org.robolectric.shadows.ShadowConnectivityManager;
 import org.robolectric.shadows.ShadowLooper;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.OkHttpClient;
 
@@ -87,5 +96,37 @@ public class FastImageGlideNetworkTest {
             busy = FastImageSharedDownloads.busy();
         }
         assertNull("the downloads still hold " + busy, busy);
+    }
+
+    // With ACCESS_NETWORK_STATE, which apps often have through other
+    // libraries, Glide starts the requests it holds that haven't completed,
+    // failed ones too, again when the network comes back. A preload's
+    // download that failed isn't: its result has already been reported.
+    @Test
+    public void failedPreloadDownloadIsntStartedAgainWhenTheNetworkComesBack() throws Exception {
+        Context context = RuntimeEnvironment.getApplication();
+        ((ShadowApplication) Shadow.extract(context)).grantPermissions(Manifest.permission.ACCESS_NETWORK_STATE);
+        server.route("/missing").status(404);
+        final List<String> results = new ArrayList<>();
+        FastImageViewModule.loadFile(context, new FastImageUrl(new GlideUrl(server.url("/missing"))),
+                new RequestOptions(), false, (file, error) -> results.add(file != null ? "file" : error));
+        for (long end = System.currentTimeMillis() + 10_000; results.isEmpty() && System.currentTimeMillis() < end; ) {
+            ShadowLooper.idleMainLooper();
+            Thread.sleep(20);
+        }
+        // The network lost and back, as Glide's connectivity monitor sees it.
+        ConnectivityManager manager = context.getSystemService(ConnectivityManager.class);
+        Network network = manager.getActiveNetwork();
+        for (ConnectivityManager.NetworkCallback callback : ((ShadowConnectivityManager) Shadow.extract(manager)).getNetworkCallbacks()) {
+            callback.onLost(network);
+            callback.onAvailable(network);
+        }
+        // Time for a download started again to be requested and fail.
+        for (long end = System.currentTimeMillis() + 1_000; System.currentTimeMillis() < end; ) {
+            ShadowLooper.idleMainLooper();
+            Thread.sleep(20);
+        }
+        assertEquals(1, server.count("/missing"));
+        assertEquals("one result: " + results, 1, results.size());
     }
 }
