@@ -127,15 +127,14 @@ jobs:
           EOF
           unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      # idb's companion, for the regression screenshots (verify.mts's
-      # VERIFY_IDB_COMPANION): about 80 ms each, where simctl's take about 450,
-      # and the same pixels. From its release, checked against its SHA-256.
+      # idb's companion, for the regression screenshots and video samples
+      # (verify.mts's VERIFY_IDB_COMPANION): screenshots in about 100 ms,
+      # where simctl's take about 450, with the same pixels. idb 1.7.7 with a
+      # fix for Apple TV simulators (.github/idb-companion/README.md).
       - name: Install idb's companion
         run: |
-          mkdir -p "$RUNNER_TEMP/idb" && cd "$RUNNER_TEMP/idb"
-          curl -fsSL -O https://github.com/facebook/idb/releases/download/v1.7.6/idb-companion.macos-arm64.tar.gz
-          echo "f81e5ff131c8c91fb6927cb445a7267a4e80c543e51e4b26ebcaa00eff4e3c1f  idb-companion.macos-arm64.tar.gz" | shasum -a 256 -c
-          tar -xzf idb-companion.macos-arm64.tar.gz && rm idb-companion.macos-arm64.tar.gz
+          mkdir -p "$RUNNER_TEMP/idb"
+          tar -xzf .github/idb-companion/idb-companion.macos-arm64.tar.gz -C "$RUNNER_TEMP/idb"
           echo "VERIFY_IDB_COMPANION=$RUNNER_TEMP/idb/idb_companion" >> "$GITHUB_ENV"
       - name: "Install the repo's dependencies"
         run: bun install --frozen-lockfile
