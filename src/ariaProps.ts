@@ -92,8 +92,14 @@ export function resolveAriaProps<P extends AriaProps>(
         native.focusable = !tabIndex
         // On Apple TV, React Native tvOS makes a view focusable with
         // isTVSelectable (its View.js sets it from focusable on iOS).
-        if (Platform.isTV && Platform.OS === 'ios') {
-            ;(native as { isTVSelectable?: boolean }).isTVSelectable = !tabIndex
+        // An isTVSelectable given wins, as there.
+        const tv = native as { isTVSelectable?: boolean }
+        if (
+            Platform.isTV &&
+            Platform.OS === 'ios' &&
+            tv.isTVSelectable === undefined
+        ) {
+            tv.isTVSelectable = !tabIndex
         }
     }
     // A labelled image is an accessibility element unless `accessible` says
@@ -101,9 +107,10 @@ export function resolveAriaProps<P extends AriaProps>(
     // aria-label> on the web and React Native's Image with `alt`: iOS reads
     // `accessible` for it (Android reads the label either way, and its
     // importantForAccessibility, which iOS ignores). An empty label is none,
-    // as on the web (a decorative image).
+    // as on the web (a decorative image), and so is a blank one.
     if (
-        ariaLabel &&
+        typeof ariaLabel === 'string' &&
+        ariaLabel.trim() !== '' &&
         native.accessible === undefined &&
         !native.accessibilityElementsHidden
     ) {

@@ -1818,6 +1818,10 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(true)
+        // A blank label is none too.
+        expect(
+            viewProps(<FastImage source={source} aria-label=" " />).accessible,
+        ).toBeUndefined()
         // An empty label is none.
         expect(
             viewProps(<FastImage source={source} aria-label="" />).accessible,
@@ -1888,6 +1892,16 @@ describe('ARIA props', () => {
             expect(
                 viewProps(<FastImage source={source} tabIndex={0} />),
             ).toMatchObject({ focusable: true, isTVSelectable: true })
+            // An isTVSelectable given wins.
+            expect(
+                viewProps(
+                    <FastImage
+                        source={source}
+                        tabIndex={0}
+                        {...({ isTVSelectable: false } as {})}
+                    />,
+                ),
+            ).toMatchObject({ isTVSelectable: false })
         } finally {
             ;(Platform as { isTV: boolean }).isTV = isTV
         }
