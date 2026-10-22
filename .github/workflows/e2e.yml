@@ -77,6 +77,11 @@ jobs:
           cp ~/simulator-cache/disabled.plist /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/
           killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
           xcrun simctl list devices | grep "RNFI iPhone"
+          # Booted now, while the rest restores, so its first minute of
+          # background work doesn't slow the build; and Xcode's device
+          # discovery, which xcodebuild otherwise waits for when it starts.
+          xcrun simctl boot "$udid"
+          (xcrun xcdevice list > /dev/null 2>&1 &)
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
