@@ -223,9 +223,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (!same) {
             mHasSource = true;
             mNeedsReload = true;
-            mSources = sources != null && sources.length > 1 ? sources : null;
             mSourceIndex = -1;
-            if (mSources == null) mSource = sources != null && sources.length == 1 ? sources[0] : null;
+            if (severalSources() == null) mSource = sources != null && sources.length == 1 ? sources[0] : null;
         }
         updatePlaceholder();
     }
@@ -239,7 +238,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Several sources (2 or more) of the same image at different sizes, or
     // null: the view loads the one whose size is closest to its own.
     @Nullable
-    private FastImageSourceProps[] mSources = null;
+    private FastImageSourceProps[] severalSources() {
+        return mAllSources != null && mAllSources.length > 1 ? mAllSources : null;
+    }
+
     // Several sources: the index of the one picked (-1 before one is), and
     // whether the load waits for the view's size (after layout), or has
     // waited (then it loads the largest if the view still has no size).
@@ -268,7 +270,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // count), or of the largest while it has no size (e.g. a view sized from
     // onLoad).
     private int sourceIndexForSize() {
-        FastImageSourceProps[] sources = mSources;
+        FastImageSourceProps[] sources = severalSources();
         if (sources == null) return -1;
         double viewPixels = (double) Math.max(0, contentWidth()) * Math.max(0, contentHeight());
         int best = -1;
@@ -289,14 +291,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Picks the source for the view's size (several sources).
     private void pickSource() {
         mSourceIndex = sourceIndexForSize();
-        mSource = mSourceIndex >= 0 && mSources != null ? mSources[mSourceIndex] : null;
+        FastImageSourceProps[] sources = severalSources();
+        mSource = mSourceIndex >= 0 && sources != null ? sources[mSourceIndex] : null;
     }
 
     // Several sources: another one fits the view's new size (or the box inside
     // its new borders) better. Loads it (after layout), keeping the image
     // showing until then, without a fade.
     private boolean switchSourceIfResized() {
-        if (mSources == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
+        if (severalSources() == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
                 || mManager == null || sourceIndexForSize() == mSourceIndex) {
             return false;
         }
@@ -463,7 +466,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // null.
     @Nullable
     private String pickedSourcePlaceholder() {
-        int index = mSources == null ? 0 : mSourceIndex;
+        int index = severalSources() == null ? 0 : mSourceIndex;
         // None until one is picked.
         if (index < 0) return null;
         FastImageSourceProps source = mAllSources != null && index < mAllSources.length ? mAllSources[index] : null;
@@ -1706,7 +1709,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // hasn't been laid out yet loads after layout (props and layout are
         // applied in the same batch). A view that still has no size then
         // (e.g. one sized from onLoad) loads the largest source.
-        if (mSources != null) {
+        if (severalSources() != null) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
                 mWaitsForSize = true;

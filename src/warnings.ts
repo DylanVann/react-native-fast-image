@@ -4,6 +4,9 @@
 import { Children } from 'react'
 import type { ReactNode } from 'react'
 
+// React Native's global: true in development.
+declare const __DEV__: boolean | undefined
+
 const warned = new Set<string>()
 
 export function warnOnce(
@@ -42,6 +45,7 @@ export function warnIfChildren(children: unknown) {
 // are left out without a warning: a header that isn't set, e.g. a token while
 // signed out.)
 export function warnIfInvalidHeaders(source: unknown) {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return
     const headers = (source as { headers?: unknown } | null | undefined)
         ?.headers
     if (headers == null) return

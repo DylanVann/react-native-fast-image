@@ -940,7 +940,7 @@ function FastImageBase({
         : (placeholderSource(placeholder) ??
           resolvePlaceholder(placeholder ?? defaultSource))
     // A url placeholder's headers, as the sources' (see resolvedSource).
-    if (__DEV__) warnIfInvalidHeaders(placeholder)
+    warnIfInvalidHeaders(placeholder)
     const ref = useMemo(
         () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],
@@ -1187,7 +1187,7 @@ const isSourceObject = (source: unknown): source is Source =>
 // A source as the module's functions send it to native (see isSourceObject),
 // with headers native would leave out warned about in development.
 function nativeSource(source: unknown) {
-    if (__DEV__) warnIfInvalidHeaders(source)
+    warnIfInvalidHeaders(source)
     return isSourceObject(source) ? source : {}
 }
 
