@@ -1,7 +1,6 @@
 name: ci
 # Pushes to main, and pull requests: a pull request's own branch isn't built
-# twice (on its push and on the pull request). 9.x has its own copy of this
-# file, which a push to 9.x runs.
+# twice (on its push and on the pull request).
 on:
   push:
     branches: [main]
