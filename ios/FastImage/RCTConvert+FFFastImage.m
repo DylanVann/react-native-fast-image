@@ -38,15 +38,22 @@ RCT_ENUM_CONVERTER(FFFCacheControl, (@{
     FFFPriority priority = [self FFFPriority:json[@"priority"]];
     FFFCacheControl cacheControl = [self FFFCacheControl:json[@"cache"]];
     
-    // `headers` that isn't an object, and values that aren't strings (e.g.
-    // null from `Authorization: token && ...`), are left out, as on Android.
+    // String values, and numbers and booleans as strings (as fetch's Headers
+    // converts them, and Android); `headers` that isn't an object, and other
+    // values (null, objects), are left out.
     NSMutableDictionary<NSString *, NSString *> *headers = nil;
     id headersJSON = json[@"headers"];
     if ([headersJSON isKindOfClass:[NSDictionary class]]) {
         headers = [NSMutableDictionary new];
         [headersJSON enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
-            if ([key isKindOfClass:[NSString class]] && [value isKindOfClass:[NSString class]]) {
+            if (![key isKindOfClass:[NSString class]]) return;
+            if ([value isKindOfClass:[NSString class]]) {
                 headers[key] = value;
+            } else if ([value isKindOfClass:[NSNumber class]]) {
+                // A boolean's stringValue is "1" or "0".
+                headers[key] = CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID()
+                    ? ([value boolValue] ? @"true" : @"false")
+                    : [value stringValue];
             }
         }];
     }

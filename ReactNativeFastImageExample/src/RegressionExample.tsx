@@ -623,14 +623,15 @@ function PreloadHeadersCase() {
 }
 
 // `headers` that isn't an object of strings: null (e.g. a header object
-// built only when signed in), an array, and values that are numbers or null
-// next to a string one. The private urls fail without the string header, so
-// they check it's still sent: iOS dropped every header when one wasn't a
-// string, and Android crashed on all of these.
+// built only when signed in), an array, and values native can't send (null,
+// an object) next to a string one. The private urls fail without the string
+// header, so they check it's still sent: iOS dropped every header when one
+// wasn't a string, and Android crashed on all of these. (Numbers and booleans
+// are sent as strings: FastImageSourcePropsTest.)
 const INVALID_HEADERS = {
     'x-token': 'fast-image',
-    'x-number': 1,
     'x-null': null,
+    'x-object': {},
 } as unknown as { [key: string]: string }
 const HEADERS_PRIVATE = imageUrl(
     `private/picsum/1020-120x120.jpg?invalid-headers=${RUN}`,

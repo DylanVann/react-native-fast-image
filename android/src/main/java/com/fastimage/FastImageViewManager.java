@@ -308,9 +308,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         // One source, or several (an array). Something else (e.g. a string)
         // is no source.
         switch (source.getType()) {
-            case Null:
-                view.setSource(null);
-                break;
             case Array: {
                 ReadableArray array = source.asArray();
                 FastImageSourceProps[] sources = new FastImageSourceProps[array.size()];
@@ -322,7 +319,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
                 view.setSource(new FastImageSourceProps[]{FastImageSourceProps.parse(source.asMap())});
                 break;
             default:
-                view.setSource(new FastImageSourceProps[]{null});
+                view.setSource(null);
         }
     }
 

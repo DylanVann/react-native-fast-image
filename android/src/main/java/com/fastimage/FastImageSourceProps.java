@@ -41,8 +41,9 @@ final class FastImageSourceProps {
     // A string, or null.
     @Nullable
     final String uri;
-    // Only the values that are strings, as iOS sends. Headers.DEFAULT without
-    // any (the same cache key as no headers).
+    // String values, and numbers and booleans as strings (as fetch's Headers
+    // converts them, and iOS); others (null, objects) are left out.
+    // Headers.DEFAULT without any (the same cache key as no headers).
     final Headers headers;
     final FastImageCacheControl cache;
     // Null if the source doesn't set one (preload then uses low): a value it
@@ -130,11 +131,32 @@ final class FastImageSourceProps {
         LazyHeaders.Builder builder = null;
         while (iterator.hasNextKey()) {
             String name = iterator.nextKey();
-            if (headers.getType(name) != ReadableType.String) continue;
+            String value = headerValue(headers, name);
+            if (value == null) continue;
             if (builder == null) builder = new LazyHeaders.Builder();
-            builder.addHeader(name, headers.getString(name));
+            builder.addHeader(name, value);
         }
         return builder != null ? builder.build() : Headers.DEFAULT;
+    }
+
+    // A header's value as a string, as JS's String() gives it (a whole
+    // number without ".0"), or null for one that can't be sent.
+    @Nullable
+    private static String headerValue(ReadableMap headers, String name) {
+        switch (headers.getType(name)) {
+            case String:
+                return headers.getString(name);
+            case Boolean:
+                return headers.getBoolean(name) ? "true" : "false";
+            case Number: {
+                double number = headers.getDouble(name);
+                return number == Math.rint(number) && Math.abs(number) < 1e15
+                        ? Long.toString((long) number)
+                        : Double.toString(number);
+            }
+            default:
+                return null;
+        }
     }
 
     @Nullable

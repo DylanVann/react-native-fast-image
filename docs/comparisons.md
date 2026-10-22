@@ -65,9 +65,9 @@ Potential issues in React Native's `Image`: [issues/react-native-image-issues.md
 - **onProgress.** Fast Image sends bytes and a 0–1 `progress` on both platforms. React Native's `Image` sends Fresco's level out of 10000 on Android and a total of -1 on iOS when the size is unknown. _(Code.)_
 - **Several sizes in `source`.** Both pick the source closest to the view's size in pixels, natively. Fast Image also loads the largest when the view has no size yet, where React Native's `Image` waits, so an image sized from its own `onLoad` never loads. _(Code.)_
 - **What React Native's `Image` has that Fast Image doesn't.** `capInsets`, `loadingIndicatorSource`, `progressiveRenderingEnabled`, `resizeMethod`/`resizeMultiplier`, tiling (`resizeMode="repeat"`, which Fast Image no longer has), and web-style props (`src`, `srcSet`, `width`, `height`, `alt`, `crossOrigin`, `referrerPolicy`); and a fuller web version through react-native-web, where Fast Image's is minimal ([web](../README.md#web)). _(Code.)_
-- **Headers.** Both send a source's `headers`. Fast Image leaves out only the values that aren't strings, with a warning in development. React Native's `Image` drops every header on iOS when one value isn't a string, and on Android `getString` throws for a number value. _(Code.)_
+- **Headers.** Both send a source's `headers`. Fast Image sends numbers and booleans as strings (as fetch does) and leaves out only values it can't send (null, objects), with a warning in development. React Native's `Image` drops every header on iOS when one value isn't a string, and on Android `getString` throws for a number value. _(Code.)_
 - **Padding.** Fast Image ignores padding on both platforms (the image fills the view inside its borders). React Native's `Image` insets the image by padding on iOS and ignores it on Android. _(Code.)_
-- **At parity:** headers, cookies on Android (both use React Native's cookie jar), sharing one download between sizes on Android, tvOS, View props and accessibility on a single native view, and `tintColor` on still images. _(Code.)_
+- **At parity:** cookies on Android (both use React Native's cookie jar), sharing one download between sizes on Android, tvOS, View props and accessibility on a single native view, and `tintColor` on still images. _(Code.)_
 
 ## The dream-horizon-org fork
 

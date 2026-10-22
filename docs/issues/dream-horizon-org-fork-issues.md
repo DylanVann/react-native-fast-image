@@ -23,7 +23,7 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
     - `getHeaders()` reads each value with `getString("value")`, on the UI thread, which throws for a number or a boolean.
     - Null values and `headers: null` are skipped (since the fork's `8637965` and `f1ef489`).
 - **How to reproduce:** Found by reading the code. Render `<FastImage source={{ uri, headers: { 'x-n': 1 } }} />` on Android. Fast Image's `headers-non-string` regression case crashed on Android before its fix.
-- **How Fast Image handles it:** both platforms leave out `headers` that isn't an object, and values that aren't strings, and send the string ones, in views, url placeholders, `preload`, `getCachePath` and `writeToCache` ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
+- **How Fast Image handles it:** both platforms send numbers and booleans as strings, as fetch does, and leave out `headers` that isn't an object and values they can't send (null, objects), and send the rest, in views, url placeholders, `preload`, `getCachePath` and `writeToCache` ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
 
 ## iOS crashes when Fast Image is a Touchable's direct child on the legacy architecture
 

@@ -107,7 +107,7 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
     - iOS: `packages/react-native/React/Base/RCTConvert.mm`, `NSURLRequest:` sets `headers = nil` as soon as one value isn't an `NSString`, and logs it with `RCTLogInfo`.
     - Android: `packages/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/fresco/ReactOkHttpNetworkFetcher.kt`, `getHeaders()` reads each value with `readableMap.getString(key)`. That skips nulls but throws `UnexpectedNativeTypeException` for a number or a boolean.
 - **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Show `<Image source={{ uri, headers: { 'x-token': 'a', 'x-n': 1 } }} />` with a url that needs `x-token`.
-- **How Fast Image handles it:** both platforms leave out only the values that aren't strings and send the others, with a warning in development ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
+- **How Fast Image handles it:** both platforms send numbers and booleans as strings, as fetch does, and leave out only values they can't send (null, objects), with a warning in development ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
 
 ## Other issues
 

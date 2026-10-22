@@ -939,6 +939,8 @@ function FastImageBase({
             : resolvePlaceholder(defaultSource)
         : (placeholderSource(placeholder) ??
           resolvePlaceholder(placeholder ?? defaultSource))
+    // A url placeholder's headers, as the sources' (see resolvedSource).
+    if (__DEV__) warnIfInvalidHeaders(placeholder)
     const ref = useMemo(
         () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],
