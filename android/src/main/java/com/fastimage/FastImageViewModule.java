@@ -129,10 +129,9 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                 for (int i = 0; i < count; i++) {
                     final int index = i;
                     final FastImageSourceProps source = FastImageSourceProps.parse(sources, i);
-                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
                     // Glide throws on an empty url. Invalid sources fail
                     // without taking a slot.
-                    if (imageSource == null) {
+                    if (source == null || !source.hasUri()) {
                         results[i] = failure("Invalid source: no uri");
                         finishOne.run();
                         continue;
@@ -144,6 +143,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                         finishOne.run();
                         continue;
                     }
+                    final FastImageSource imageSource = FastImageViewConverter.getImageSource(context, source);
                     // A uri that can't be resolved (e.g. a relative path) resolves
                     // to an empty one.
                     if (imageSource.getUri().toString().isEmpty()) {

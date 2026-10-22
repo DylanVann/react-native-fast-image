@@ -15,7 +15,7 @@ export function withStringHeaders<T>(source: T): T {
         ?.headers
     if (headers == null) return source
     if (typeof headers !== 'object' || Array.isArray(headers)) {
-        warn("`headers` isn't an object, so none are sent")
+        warn('headers', "`headers` isn't an object, so none are sent")
         const { headers: _, ...rest } = source as { headers?: unknown }
         return rest as T
     }
@@ -47,14 +47,15 @@ export function withStringHeaders<T>(source: T): T {
     }
     if (left) {
         warn(
+            'header-values',
             `the headers ${left.join(', ')} are objects or functions, so they aren't sent`,
         )
     }
     return sent ? ({ ...source, headers: sent } as T) : source
 }
 
-function warn(message: string) {
+function warn(key: string, message: string) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        warnOnce('headers', `react-native-fast-image: ${message}.`, 'warn')
+        warnOnce(key, `react-native-fast-image: ${message}.`, 'warn')
     }
 }

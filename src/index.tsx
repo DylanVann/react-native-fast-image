@@ -935,12 +935,17 @@ function FastImageBase({
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
     // applies without one (an empty thumbhash or blurDataUri is none).
-    const resolvedPlaceholder = hasSourcePlaceholder(placeholder)
-        ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
-            ? placeholder
-            : resolvePlaceholder(defaultSource)
-        : (withStringHeaders(placeholderSource(placeholder)) ??
-          resolvePlaceholder(placeholder ?? defaultSource))
+    // Memoized, as the source is.
+    const resolvedPlaceholder = useMemo(
+        () =>
+            hasSourcePlaceholder(placeholder)
+                ? placeholder.thumbhash || dataUri(placeholder.blurDataUri)
+                    ? placeholder
+                    : resolvePlaceholder(defaultSource)
+                : (withStringHeaders(placeholderSource(placeholder)) ??
+                  resolvePlaceholder(placeholder ?? defaultSource)),
+        [placeholder, defaultSource],
+    )
     const ref = useMemo(
         () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],

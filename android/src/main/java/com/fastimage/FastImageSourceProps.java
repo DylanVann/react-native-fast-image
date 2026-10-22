@@ -160,7 +160,9 @@ final class FastImageSourceProps {
         return map.hasKey(key) && map.getType(key) == ReadableType.Number ? map.getDouble(key) : fallback;
     }
 
-    // The same image, loaded the same way: everything but the placeholder.
+    // The same image, loaded the same way: everything but the placeholder. Two
+    // sources without a uri are the same only as JS sent them, so a new
+    // invalid source fires onError again.
     @Override
     public boolean equals(@Nullable Object o) {
         if (this == o) return true;
@@ -177,6 +179,7 @@ final class FastImageSourceProps {
                 && priority == other.priority
                 && Objects.equals(uri, other.uri)
                 && Objects.equals(cacheKey, other.cacheKey)
+                && Objects.equals(invalidDescription, other.invalidDescription)
                 && headers.equals(other.headers);
     }
 

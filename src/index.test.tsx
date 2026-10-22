@@ -904,9 +904,14 @@ describe('headers', () => {
                     <FastImage source={{ uri, headers: ['x-token'] } as any} />,
                 ).source.headers,
             ).toBeUndefined()
-            expect(warn).toHaveBeenCalledTimes(1)
+            // Each warning once.
+            view(<FastImage source={{ uri, headers: ['x-token'] } as any} />)
+            expect(warn).toHaveBeenCalledTimes(2)
             expect(warn.mock.calls[0][0]).toContain(
                 'the headers "x-object", "x-array" are objects or functions, so they aren\'t sent',
+            )
+            expect(warn.mock.calls[1][0]).toContain(
+                "`headers` isn't an object, so none are sent",
             )
         } finally {
             warn.mockRestore()

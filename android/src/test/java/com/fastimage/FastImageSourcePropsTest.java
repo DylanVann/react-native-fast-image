@@ -172,6 +172,10 @@ public class FastImageSourcePropsTest {
         // NaN: an unchanged source doesn't load again.
         assertEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)),
                 FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)));
+        // Two different invalid sources aren't the same: the second fires
+        // onError too.
+        assertNotEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1)),
+                FastImageSourceProps.parse(JavaOnlyMap.of("uri", 2)));
     }
 
     // An invalid source's error: one without a uri as JS sent it (without its
