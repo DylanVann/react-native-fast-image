@@ -46,7 +46,14 @@ export function resolveAriaProps<P extends AriaProps>(props: P) {
         ...resolved
     } = props
     const native = resolved as Omit<P, keyof AriaProps> & FastImageProps
-    if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
+    if (ariaLabel !== undefined) {
+        native.accessibilityLabel = ariaLabel
+        // A labelled image is an accessibility element unless `accessible`
+        // says otherwise, as an <img aria-label> on the web and React
+        // Native's Image with `alt`: iOS reads `accessible` for it (Android
+        // reads the label either way).
+        if (native.accessible === undefined) native.accessible = true
+    }
     if (ariaLabelledBy !== undefined) {
         native.accessibilityLabelledBy = ariaLabelledBy.split(/\s*,\s*/g)
     }

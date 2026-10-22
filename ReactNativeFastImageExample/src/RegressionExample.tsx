@@ -371,15 +371,15 @@ function AccessibleCase() {
     )
 }
 
-// AccessibleCase with aria-label instead of accessibilityLabel: React Native's
-// views don't read the aria props, so FastImage maps them in JS, as View and
-// Image do. maestro/touch.yaml finds it by that label and taps it.
+// AccessibleCase with aria-label instead of accessibilityLabel and
+// `accessible` (which aria-label implies): React Native's views don't read
+// the aria props, so FastImage maps them in JS, as View and Image do.
+// maestro/touch.yaml finds it by that label and taps it.
 function AriaLabelCase() {
     const [pressed, setPressed] = useState(false)
     return (
         <View style={styles.row}>
             <FastImage
-                accessible
                 aria-label="regression aria-label image"
                 onStartShouldSetResponder={() => true}
                 onResponderRelease={() => setPressed(true)}

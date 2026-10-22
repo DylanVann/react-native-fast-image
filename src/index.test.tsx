@@ -1777,6 +1777,28 @@ describe('ARIA props', () => {
         })
     })
 
+    it('aria-label makes the image accessible unless accessible says otherwise', () => {
+        expect(
+            viewProps(<FastImage source={source} aria-label="A cat" />)
+                .accessible,
+        ).toBe(true)
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    accessible={false}
+                />,
+            ).accessible,
+        ).toBe(false)
+        // aria-hidden wins on iOS.
+        expect(
+            viewProps(
+                <FastImage source={source} aria-label="A cat" aria-hidden />,
+            ).accessible,
+        ).toBe(false)
+    })
+
     it('leave the props alone without them', () => {
         const props = viewProps(
             <FastImage
