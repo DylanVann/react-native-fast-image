@@ -823,37 +823,36 @@ describe("React Native's source.cache values", () => {
     })
 })
 
-describe('headers that are numbers or booleans', () => {
+describe('headers', () => {
     const uri = 'https://example.com/a.jpg'
     const view = (element: React.ReactElement) =>
         renderer
             .create(element)
             .root.findAll((node) => node.type === ('FastImageView' as any))[0]
             .props
+    const headers = {
+        'x-token': 'a',
+        'x-number': 3,
+        'x-decimal': 1.5,
+        'x-boolean': true,
+        'x-null': null,
+        'x-undefined': undefined,
+    }
+    // As fetch sends them; null and undefined are headers that aren't set.
+    const sent = {
+        'x-token': 'a',
+        'x-number': '3',
+        'x-decimal': '1.5',
+        'x-boolean': 'true',
+    }
 
-    it('go to native as strings, as fetch sends them', () => {
-        const headers = {
-            'x-token': 'a',
-            'x-number': 3,
-            'x-decimal': 1.5,
-            'x-boolean': true,
-            'x-null': null,
-        }
-        const expected = {
-            'x-token': 'a',
-            'x-number': '3',
-            'x-decimal': '1.5',
-            'x-boolean': 'true',
-            'x-null': null,
-        }
+    it('go to native as strings: numbers and booleans converted, null and undefined left out', () => {
         const source = { uri, headers } as unknown as { uri: string }
-        expect(view(<FastImage source={source} />).source.headers).toEqual(
-            expected,
-        )
+        expect(view(<FastImage source={source} />).source.headers).toEqual(sent)
         expect(
             view(<FastImage source={[source, { uri, width: 10 }]} />).source[0]
                 .headers,
-        ).toEqual(expected)
+        ).toEqual(sent)
         expect(
             view(
                 <FastImage
@@ -861,14 +860,14 @@ describe('headers that are numbers or booleans', () => {
                     placeholder={{ uri, headers } as any}
                 />,
             ).placeholder.headers,
-        ).toEqual(expected)
+        ).toEqual(sent)
         const preload = spyOn(NativeModules.FastImageModule, 'preload')
         try {
             FastImage.preload([source as any])
-            const [sent] = preload.mock.calls[0] as unknown as [
+            const [sources] = preload.mock.calls[0] as unknown as [
                 { headers: unknown }[],
             ]
-            expect(sent[0].headers).toEqual(expected)
+            expect(sources[0].headers).toEqual(sent)
         } finally {
             preload.mockRestore()
         }
@@ -878,40 +877,36 @@ describe('headers that are numbers or booleans', () => {
         const source = { uri, headers: { 'x-token': 'a' } }
         expect(view(<FastImage source={source} />).source).toBe(source)
     })
-})
 
-describe('headers native leaves out', () => {
-    const uri = 'https://example.com/a.jpg'
-    const render = (source: unknown) =>
-        renderer.create(
-            <FastImage source={source as FastImageProps['source']} />,
-        )
-
-    it("warn once in development: values that are objects, or headers that aren't an object", () => {
+    it("warn once in development about values that can't be sent, or headers that aren't an object", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         try {
-            // Numbers and booleans are sent as strings, null and undefined
-            // values are headers that aren't set, and null is no headers.
-            render({
-                uri,
-                headers: { 'x-token': 'a', 'x-number': 1, 'x-boolean': true },
-            })
-            render({
-                uri,
-                headers: { 'x-null': null, 'x-undefined': undefined },
-            })
-            render({ uri, headers: null })
-            FastImage.preload([{ uri, headers: { 'x-null': null } as any }])
+            view(<FastImage source={{ uri, headers } as any} />)
+            view(<FastImage source={{ uri, headers: null } as any} />)
             expect(warn).not.toHaveBeenCalled()
-            render({
-                uri,
-                headers: { 'x-token': 'a', 'x-object': {}, 'x-array': [] },
-            })
-            render({ uri, headers: ['x-token'] })
-            render({ uri, placeholder: { uri, headers: { 'x-object': {} } } })
+            const props = view(
+                <FastImage
+                    source={
+                        {
+                            uri,
+                            headers: {
+                                'x-token': 'a',
+                                'x-object': {},
+                                'x-array': [],
+                            },
+                        } as any
+                    }
+                />,
+            )
+            expect(props.source.headers).toEqual({ 'x-token': 'a' })
+            expect(
+                view(
+                    <FastImage source={{ uri, headers: ['x-token'] } as any} />,
+                ).source.headers,
+            ).toBeUndefined()
             expect(warn).toHaveBeenCalledTimes(1)
             expect(warn.mock.calls[0][0]).toContain(
-                'the headers "x-object", "x-array" are objects, so they aren\'t sent',
+                'the headers "x-object", "x-array" are objects or functions, so they aren\'t sent',
             )
         } finally {
             warn.mockRestore()

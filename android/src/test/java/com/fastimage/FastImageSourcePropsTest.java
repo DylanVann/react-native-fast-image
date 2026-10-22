@@ -174,6 +174,16 @@ public class FastImageSourcePropsTest {
                 FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)));
     }
 
+    // An invalid source's error: one without a uri as JS sent it (without its
+    // thumbhash, which can be long), one with a uri by its uri.
+    @Test
+    public void describesASourceForItsError() {
+        String noUri = FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1, "thumbhash", "a")).describe();
+        assertTrue(noUri, noUri.contains("uri=1"));
+        assertFalse(noUri, noUri.contains("thumbhash"));
+        assertEquals("{uri=photo.jpg}", FastImageSourceProps.parse(JavaOnlyMap.of("uri", "photo.jpg")).describe());
+    }
+
     @Test
     public void anArrayEntryThatIsntAnObjectIsNoSource() {
         JavaOnlyArray sources = JavaOnlyArray.of(JavaOnlyMap.of("uri", "a"), null, "b");

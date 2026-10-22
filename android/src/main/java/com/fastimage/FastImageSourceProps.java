@@ -70,16 +70,18 @@ final class FastImageSourceProps {
     // Whether it has a thumbhash or blurDataUri key, even an empty one: the
     // `placeholder` prop is then a preview, not a url to load.
     final boolean hasPlaceholderKey;
-    // Only for describing an invalid source in its error.
-    private final ReadableMap map;
+    // A source without a uri as JS sent it, for its error (null for one with
+    // a uri, which is described by it): kept only for these, so a source
+    // doesn't keep its map.
+    @Nullable
+    private final String invalidDescription;
 
     private FastImageSourceProps(ReadableMap map) {
-        this.map = map;
         uri = string(map, "uri");
         headers = headers(map);
-        cache = orDefault(CACHE_CONTROLS.get(string(map, "cache")), FastImageCacheControl.IMMUTABLE);
+        cache = CACHE_CONTROLS.getOrDefault(string(map, "cache"), FastImageCacheControl.IMMUTABLE);
         priority = map.hasKey("priority") && !map.isNull("priority")
-                ? orDefault(PRIORITIES.get(string(map, "priority")), Priority.NORMAL)
+                ? PRIORITIES.getOrDefault(string(map, "priority"), Priority.NORMAL)
                 : null;
         memoryCache = bool(map, "memoryCache", true);
         diskCache = bool(map, "diskCache", true);
@@ -95,6 +97,7 @@ final class FastImageSourceProps {
         placeholder = thumbhash != null && !thumbhash.isEmpty() ? thumbhash
                 : blurDataUri != null && FastImageThumbHash.isDataUri(blurDataUri) ? blurDataUri
                 : null;
+        invalidDescription = hasUri() ? null : describe(map);
     }
 
     static FastImageSourceProps parse(ReadableMap map) {
@@ -116,9 +119,14 @@ final class FastImageSourceProps {
         return priority != null ? priority : Priority.NORMAL;
     }
 
-    // The source as JS sent it, without its thumbhash and blurDataUri (a data
-    // uri can be long), for an error.
+    // The source, for an error: as JS sent it if it has no uri, or its uri
+    // (one that can't be resolved).
     String describe() {
+        return invalidDescription != null ? invalidDescription : "{uri=" + uri + "}";
+    }
+
+    // A map without its thumbhash and blurDataUri (a data uri can be long).
+    private static String describe(ReadableMap map) {
         HashMap<String, Object> described = map.toHashMap();
         described.remove("thumbhash");
         described.remove("blurDataUri");
@@ -150,10 +158,6 @@ final class FastImageSourceProps {
 
     private static double number(ReadableMap map, String key, double fallback) {
         return map.hasKey(key) && map.getType(key) == ReadableType.Number ? map.getDouble(key) : fallback;
-    }
-
-    private static <T> T orDefault(@Nullable T value, T fallback) {
-        return value != null ? value : fallback;
     }
 
     // The same image, loaded the same way: everything but the placeholder.

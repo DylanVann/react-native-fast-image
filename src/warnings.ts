@@ -4,9 +4,6 @@
 import { Children } from 'react'
 import type { ReactNode } from 'react'
 
-// React Native's global: true in development.
-declare const __DEV__: boolean | undefined
-
 const warned = new Set<string>()
 
 export function warnOnce(
@@ -36,32 +33,5 @@ export function warnIfChildren(children: unknown) {
             "react-native-fast-image: FastImage doesn't render children (since 10.0): use FastImageBackground for content over an image.",
             'error',
         )
-    }
-}
-
-// A source's `headers` that native leaves out by mistake, most likely: one
-// that isn't an object, or a value that's an object or an array. (Numbers and
-// booleans are sent as strings, as fetch does: see withStringHeaders. Null and
-// undefined values are left out without a warning: a header that isn't set,
-// e.g. a token while signed out.)
-export function warnIfInvalidHeaders(source: unknown) {
-    if (typeof __DEV__ === 'undefined' || !__DEV__) return
-    const headers = (source as { headers?: unknown } | null | undefined)
-        ?.headers
-    if (headers == null) return
-    let message: string | undefined
-    if (typeof headers !== 'object' || Array.isArray(headers)) {
-        message = "`headers` isn't an object, so none are sent"
-    } else {
-        const names = Object.keys(headers).filter((name) => {
-            const value = (headers as Record<string, unknown>)[name]
-            return typeof value === 'object' && value !== null
-        })
-        if (names.length > 0) {
-            message = `the headers ${names.map((name) => `"${name}"`).join(', ')} are objects, so they aren't sent`
-        }
-    }
-    if (message) {
-        warnOnce('headers', `react-native-fast-image: ${message}.`, 'warn')
     }
 }

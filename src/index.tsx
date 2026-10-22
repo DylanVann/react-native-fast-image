@@ -25,7 +25,7 @@ import {
 } from './placeholders'
 import { composeRefs } from './composeRefs'
 import { type ReactNativeCache, warnIfReload } from './reactNativeCache'
-import { warnIfChildren, warnIfInvalidHeaders, warnOnce } from './warnings'
+import { warnIfChildren, warnOnce } from './warnings'
 
 /** How the image fits the view: see [`objectFit`](#objectfit). */
 export type ObjectFit = 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -915,13 +915,12 @@ function FastImageBase({
     // the native view as the same object, and React's prop diff stops at it.
     const resolvedSource = useMemo(() => {
         // In development, a blurDataUri that isn't a data uri warns (native
-        // ignores it), and so do React Native's cache: 'reload' (native reads
-        // its cache values) and headers native leaves out.
+        // ignores it), and so does React Native's cache: 'reload' (native
+        // reads its cache values).
         if (__DEV__) {
             for (const entry of [source].flat()) {
                 dataUri((entry as Source | undefined)?.blurDataUri)
                 warnIfReload(entry)
-                warnIfInvalidHeaders(entry)
             }
         }
         const single =
@@ -942,8 +941,6 @@ function FastImageBase({
             : resolvePlaceholder(defaultSource)
         : (withStringHeaders(placeholderSource(placeholder)) ??
           resolvePlaceholder(placeholder ?? defaultSource))
-    // A url placeholder's headers, as the sources' (see resolvedSource).
-    warnIfInvalidHeaders(placeholder)
     const ref = useMemo(
         () => composeRefs<FastImageRef>(addReload, forwardedRef),
         [forwardedRef],
@@ -1188,9 +1185,8 @@ const isSourceObject = (source: unknown): source is Source =>
     typeof source === 'object' && source !== null && !Array.isArray(source)
 
 // A source as the module's functions send it to native (see isSourceObject),
-// with headers native would leave out warned about in development.
+// with string headers (see withStringHeaders).
 function nativeSource(source: unknown) {
-    warnIfInvalidHeaders(source)
     return isSourceObject(source) ? withStringHeaders(source) : {}
 }
 
