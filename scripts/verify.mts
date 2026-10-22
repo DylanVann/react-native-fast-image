@@ -972,12 +972,25 @@ function streamRecording(file: string, input = ['-f', 'h264']) {
             'error',
             '-y',
             ...input,
+            // Raw frames' times are in units of the input's frame rate (25
+            // by default): at ffmpeg's default it kept 53 of 90 frames sent
+            // at 45 a second, on a 40 ms grid. Milliseconds, and as they are.
+            ...(raw ? ['-framerate', '1000'] : []),
             '-use_wallclock_as_timestamps',
             '1',
             '-i',
             'pipe:0',
             ...(raw
-                ? ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '10']
+                ? [
+                      '-fps_mode',
+                      'passthrough',
+                      '-c:v',
+                      'libx264',
+                      '-preset',
+                      'ultrafast',
+                      '-crf',
+                      '10',
+                  ]
                 : ['-c', 'copy']),
             file,
         ],
