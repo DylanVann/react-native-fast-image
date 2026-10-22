@@ -3,13 +3,15 @@
 // take about as long as each other (VERIFY_GROUP_TIMES).
 //
 //   bun scripts/group-times.ts fetch <file>
-//       Writes each group's median time in the last 5 runs, by
-//       <app>-<platform>. Only runs that recorded their times before this run
-//       started count, so every shard of a run reads the same times and splits
-//       the groups the same way.
-//   bun scripts/group-times.ts record <name>
+//       Writes each group's median time in the last 5 runs that recorded its
+//       app and platform, by <app>-<platform>. Only files recorded before this
+//       run started count, and a file never changes (each attempt of a job has
+//       its own), so every shard of a run reads the same times and splits the
+//       groups the same way. Fails rather than write different times for one
+//       shard than for another.
+//   bun scripts/group-times.ts record <platform>-<app>-<shard>
 //       Saves this job's first-try times, from verify-output's results.json
-//       files, as group-times/<run id>/<name>.json.
+//       files, as group-times/<run id>/<platform>-<app>-<shard>-<attempt>.json.
 //
 // Uses the cache's R2 settings (RUNS_ON_S3_BUCKET_CACHE, ...): without them,
 // fetch writes {} and the shards split by count.
@@ -39,15 +41,29 @@ if (command === 'fetch' && arg) {
 } else if (command === 'record' && arg) {
     const times = recorded()
     if (s3 && Object.keys(times).length > 0)
-        await s3.write(
-            `${PREFIX}${env.GITHUB_RUN_ID}/${arg}.json`,
-            JSON.stringify(times),
+        await retry(() =>
+            s3.write(
+                `${PREFIX}${env.GITHUB_RUN_ID}/${arg}-${env.GITHUB_RUN_ATTEMPT ?? 1}.json`,
+                JSON.stringify(times),
+            ),
         )
 } else {
     console.error(
         'Usage: bun scripts/group-times.ts fetch <file> | record <name>',
     )
     process.exit(2)
+}
+
+// Tries again after a failure (a network or server error), 3 times in all.
+async function retry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
+    for (let i = 1; ; i++) {
+        try {
+            return await attempt()
+        } catch (error) {
+            if (i >= tries) throw error
+            await Bun.sleep(2000 * i)
+        }
+    }
 }
 
 // When this workflow run was created: the same for all of its jobs.
@@ -62,35 +78,66 @@ async function runCreatedAt() {
 }
 
 async function medians(s3: Bun.S3Client) {
-    const created = await runCreatedAt()
+    const created = await retry(runCreatedAt)
     const files: { key: string; lastModified?: string }[] = []
     let continuationToken: string | undefined
     do {
-        const page = await s3.list({ prefix: PREFIX, continuationToken })
+        const page = await retry(() =>
+            s3.list({ prefix: PREFIX, continuationToken }),
+        )
         files.push(...(page.contents ?? []))
         continuationToken = page.isTruncated
             ? page.nextContinuationToken
             : undefined
     } while (continuationToken)
-    // group-times/<run id>/<name>.json
-    const runOf = (key: string) => Number(key.split('/')[1])
-    const before = files.filter(
-        (file) =>
-            file.lastModified !== undefined &&
-            Date.parse(file.lastModified) < created,
-    )
-    const runs = [...new Set(before.map((file) => runOf(file.key)))]
-        .sort((a, b) => b - a)
-        .slice(0, RUNS)
-    const samples: Record<string, Record<string, number[]>> = {}
-    for (const file of before.filter((file) =>
-        runs.includes(runOf(file.key)),
-    )) {
-        const times = (await s3.file(file.key).json()) as Times
-        for (const [app, groups] of Object.entries(times))
-            for (const [group, seconds] of Object.entries(groups))
-                ((samples[app] ??= {})[group] ??= []).push(seconds)
+    // group-times/<run id>/<platform>-<app>-<shard>[-<attempt>].json, recorded
+    // before this run started; of a job's attempts, the last.
+    const latest = new Map<
+        string,
+        { file: string; run: number; app: string; attempt: number }
+    >()
+    for (const { key, lastModified } of files) {
+        const match = key.match(
+            /^group-times\/(\d+)\/(\w+)-(\w+)-(\d+)(?:-(\d+))?\.json$/,
+        )
+        if (!match || !lastModified || Date.parse(lastModified) >= created)
+            continue
+        const [, run, platform, app, shard, attempt = '1'] = match
+        const job = `${run}/${platform}-${app}-${shard}`
+        const found = latest.get(job)
+        if (!found || found.attempt < Number(attempt))
+            latest.set(job, {
+                file: key,
+                run: Number(run),
+                app: `${app}-${platform}`,
+                attempt: Number(attempt),
+            })
     }
+    // For each app and platform, the last runs that recorded it.
+    const chosen = [...latest.values()].filter((job) => {
+        const runs = [
+            ...new Set(
+                [...latest.values()]
+                    .filter((other) => other.app === job.app)
+                    .map((other) => other.run),
+            ),
+        ]
+            .sort((a, b) => b - a)
+            .slice(0, RUNS)
+        return runs.includes(job.run)
+    })
+    const contents = await Promise.all(
+        chosen.map((job) =>
+            retry(() => s3.file(job.file).json() as Promise<Times>),
+        ),
+    )
+    const samples: Record<string, Record<string, number[]>> = {}
+    chosen.forEach((job, i) => {
+        for (const [group, seconds] of Object.entries(
+            contents[i][job.app] ?? {},
+        ))
+            ((samples[job.app] ??= {})[group] ??= []).push(seconds)
+    })
     const median = (values: number[]) => {
         const sorted = [...values].sort((a, b) => a - b)
         const middle = Math.floor(sorted.length / 2)
