@@ -13,6 +13,9 @@ permissions:
   contents: read
   actions: read # when the run started (scripts/group-times.ts)
 env:
+  # The minimum example's groups (React Native 0.83, Fast Image's minimum): a
+  # smoke test of each area, which the main example's runs cover in full.
+  SMOKE_GROUPS: start,load-end,events,errors,layout,object-fit,downsampling,loading,preload,cache-only,cache-path,write-to-cache,fade,thumbhash,tint,formats,svg,photo-library,configure-cache,non-object-sources
   # Whether this run can save caches and group times to R2 (see "Restore the
   # simulator").
   R2_WRITE: ${{ secrets.R2_ACCESS_KEY_ID != '' }}
@@ -32,13 +35,15 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      # Each app's groups in 2 shards (--shard), each a job that builds the
-      # app and runs half of them (by their times in recent runs): a build
-      # takes a few minutes, a whole run 4-7. (At most 5 macOS jobs run at
-      # once.)
+      # The main example's groups in 2 shards (--shard), each a job that
+      # builds the app and runs half of them (by their times in recent runs);
+      # the minimum example's smoke groups (SMOKE_GROUPS) in one. (At most 5
+      # macOS jobs run at once.)
       matrix:
-        app: [main, minimum]
-        shard: [1, 2]
+        include:
+          - { app: main, shard: 1 }
+          - { app: main, shard: 2 }
+          - { app: minimum, shard: 1 }
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
@@ -238,7 +243,7 @@ jobs:
           done > verify-output/cpu.log 2>&1 &
           sampler=$!
           status=0
-          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js --shard ${{ matrix.shard }}/2 || status=$?
+          node scripts/verify.mts --app ${{ matrix.app }} --ios --no-js ${{ matrix.app == 'minimum' && format('--groups {0}', env.SMOKE_GROUPS) || format('--shard {0}/2', matrix.shard) }} || status=$?
           kill $sampler
           exit $status
         env:
@@ -398,13 +403,15 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      # Each app's groups in 2 shards (--shard), each a job that builds the
-      # app and runs half of them (by their times in recent runs): a build
-      # takes a few minutes, a whole run 4-7. (At most 5 macOS jobs run at
-      # once.)
+      # The main example's groups in 2 shards (--shard), each a job that
+      # builds the app and runs half of them (by their times in recent runs);
+      # the minimum example's smoke groups (SMOKE_GROUPS) in one. (At most 5
+      # macOS jobs run at once.)
       matrix:
-        app: [main, minimum]
-        shard: [1, 2]
+        include:
+          - { app: main, shard: 1 }
+          - { app: main, shard: 2 }
+          - { app: minimum, shard: 1 }
     env:
       ANDROID_AVD: rnfi_ci
       # Where avdmanager creates it and the emulator looks for it.
@@ -542,7 +549,7 @@ jobs:
       - name: Build the app and run its cases
         run: |
           mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js --shard ${{ matrix.shard }}/2
+          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js ${{ matrix.app == 'minimum' && format('--groups {0}', env.SMOKE_GROUPS) || format('--shard {0}/2', matrix.shard) }}
         env:
           TMPDIR: ${{ runner.temp }}/tmp
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json

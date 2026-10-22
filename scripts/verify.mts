@@ -67,6 +67,8 @@ Options:
   --shard <i>/<n>     Run the i-th of n ranges of each app's regression groups
                       (e.g. 1/3), to split a run between machines; the first
                       range starts with \`start\`.
+  --groups <names>    Run only these regression groups (comma-separated, e.g.
+                      for a smoke test), after \`start\`.
   --background        Also run the flows tagged \`background\`
                       (maestro/background.yaml and
                       background-no-activity.yaml), which send the app to the
@@ -153,6 +155,7 @@ function parseOptions() {
                 release: { type: 'boolean', default: false },
                 ref: { type: 'string' },
                 shard: { type: 'string' },
+                groups: { type: 'string' },
                 background: { type: 'boolean', default: false },
                 record: { type: 'boolean', default: false },
                 'update-screenshots': { type: 'boolean', default: false },
@@ -191,6 +194,15 @@ const SHARD = (() => {
     }
     return { index, count }
 })()
+// --groups a,b: only these regression groups (after `start`).
+const GROUP_NAMES = options.groups
+    ?.split(',')
+    .map((group) => group.trim())
+    .filter(Boolean)
+if (GROUP_NAMES && SHARD) {
+    console.error('Use --groups or --shard, not both')
+    process.exit(2)
+}
 // Each regression group's usual time in seconds, by <app>-<platform>, from the
 // JSON file VERIFY_GROUP_TIMES names (the e2e workflow's, from
 // scripts/group-times.ts): with --shard, the ranges are split so they take
@@ -960,12 +972,25 @@ function streamRecording(file: string, input = ['-f', 'h264']) {
             'error',
             '-y',
             ...input,
+            // Raw frames' times are in units of the input's frame rate (25
+            // by default): at ffmpeg's default it kept 53 of 90 frames sent
+            // at 45 a second, on a 40 ms grid. Milliseconds, and as they are.
+            ...(raw ? ['-framerate', '1000'] : []),
             '-use_wallclock_as_timestamps',
             '1',
             '-i',
             'pipe:0',
             ...(raw
-                ? ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '10']
+                ? [
+                      '-fps_mode',
+                      'passthrough',
+                      '-c:v',
+                      'libx264',
+                      '-preset',
+                      'ultrafast',
+                      '-crf',
+                      '10',
+                  ]
                 : ['-c', 'copy']),
             file,
         ],
@@ -2140,7 +2165,19 @@ async function runRegression(
         logLine(
             `shard ${SHARD.index}/${SHARD.count}: groups ${first + 1}-${end} of ${groups.length}`,
         )
-    if (first > 0) send({ type: 'show', index: first })
+    // The groups to run, in order: the shard's range, or with --groups those
+    // (and `start`).
+    const unknown = GROUP_NAMES?.filter((name) => !groups.includes(name))
+    if (unknown?.length) {
+        fail(`no group ${unknown.join(', ')}`)
+        return
+    }
+    const indices = GROUP_NAMES
+        ? groups.flatMap((group, index) =>
+              index === 0 || GROUP_NAMES.includes(group) ? [index] : [],
+          )
+        : Array.from({ length: end - first }, (_, i) => first + i)
+    if (indices[0] > 0) send({ type: 'show', index: indices[0] })
     // Shows a group's results once it's on screen (index): waits for its cases,
     // then takes its screenshot. since: where its messages start (a retry's
     // come after the first try's). connected: false if the app went away.
@@ -2264,15 +2301,22 @@ async function runRegression(
         return { connected: true, shot }
     }
     let connected = true
-    for (let index = first; index < end && connected; index++) {
+    for (const [i, index] of indices.entries()) {
         ;({ connected } = await runGroup(
             index,
             0,
-            `${index + 1 - first}/${end - first}`,
+            `${i + 1}/${indices.length}`,
         ))
-        if (connected) send({ type: 'next' })
+        if (!connected) break
+        // The next group (shown if it isn't the one after this).
+        const next = indices[i + 1]
+        send(
+            next === undefined || next === index + 1
+                ? { type: 'next' }
+                : { type: 'show', index: next },
+        )
     }
-    if (end === groups.length && connected)
+    if (indices.at(-1) === groups.length - 1 && connected)
         await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
     // Once more for each group that failed (e.g. a video sample that missed
     // its change on a busy machine), unless the app went away: the second
@@ -2345,7 +2389,7 @@ async function runRegression(
         record(
             'PASS',
             name,
-            `${end - first} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
+            `${indices.length} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
         )
     }
 }
