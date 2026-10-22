@@ -66,8 +66,14 @@ export function resolveAriaProps<P extends AriaProps>(
     const native = rest as FastImageProps
     // As View.js: a value given, null too, replaces the prop it maps to.
     if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
-    const labelledBy = ariaLabelledBy?.split(/\s*,\s*/g)
-    if (labelledBy !== undefined) native.accessibilityLabelledBy = labelledBy
+    // A string is a list of ids, as in View.js; another value (e.g. an array,
+    // accessibilityLabelledBy's form) goes on as it is, as in Image.
+    if (ariaLabelledBy != null) {
+        native.accessibilityLabelledBy =
+            typeof ariaLabelledBy === 'string'
+                ? ariaLabelledBy.split(/\s*,\s*/g)
+                : ariaLabelledBy
+    }
     if (ariaLive !== undefined) {
         native.accessibilityLiveRegion = ariaLive === 'off' ? 'none' : ariaLive
     }
@@ -84,9 +90,9 @@ export function resolveAriaProps<P extends AriaProps>(
     if (id !== undefined) native.nativeID = id
     if (tabIndex !== undefined) {
         native.focusable = !tabIndex
-        // React Native tvOS makes a view focusable with isTVSelectable (its
-        // View.js sets it from focusable).
-        if (Platform.isTV) {
+        // On Apple TV, React Native tvOS makes a view focusable with
+        // isTVSelectable (its View.js sets it from focusable on iOS).
+        if (Platform.isTV && Platform.OS === 'ios') {
             ;(native as { isTVSelectable?: boolean }).isTVSelectable = !tabIndex
         }
     }

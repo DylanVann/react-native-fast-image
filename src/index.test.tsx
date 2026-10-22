@@ -1870,6 +1870,17 @@ describe('ARIA props', () => {
         expect(props['aria-label']).toBeUndefined()
     })
 
+    it("aria-labelledby that isn't a string goes on as it is", () => {
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    {...({ 'aria-labelledby': ['name', 'caption'] } as {})}
+                />,
+            ).accessibilityLabelledBy,
+        ).toEqual(['name', 'caption'])
+    })
+
     it('tabIndex is also isTVSelectable on TV', () => {
         const isTV = Platform.isTV
         ;(Platform as { isTV: boolean }).isTV = true
