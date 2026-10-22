@@ -97,7 +97,9 @@ Environment:
   ANDROID_AVD     Emulator to start if no device is connected (default: the
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
-                  started with -gpu host and no window.
+                  started with -gpu host, no window and its gRPC API on port
+                  8554 (the video samples are recorded through it; an
+                  emulator started otherwise records with screenrecord).
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
   VERIFY_IDB_COMPANION
@@ -912,6 +914,30 @@ function idbScreenshot() {
     })
 }
 
+// Calls `onMessage` with each message of a gRPC response stream. The chunks
+// are joined once a message is complete (an emulator frame is about 8 MB, in
+// 16 KB chunks).
+function onGrpcMessages(
+    stream: http2.ClientHttp2Stream,
+    onMessage: (message: Buffer) => void,
+) {
+    let chunks: Buffer[] = []
+    let length = 0
+    stream.on('data', (chunk: Buffer) => {
+        chunks.push(chunk)
+        length += chunk.length
+        while (length >= 5) {
+            if (chunks[0].length < 5) chunks = [Buffer.concat(chunks)]
+            const size = 5 + chunks[0].readUInt32BE(1)
+            if (length < size) break
+            const all = Buffer.concat(chunks, length)
+            onMessage(all.subarray(5, size))
+            chunks = length > size ? [all.subarray(size)] : []
+            length -= size
+        }
+    })
+}
+
 // A gRPC frame of a protobuf message given as bytes.
 function grpcFrame(message: number[]) {
     const frame = Buffer.alloc(5 + message.length)
@@ -920,25 +946,27 @@ function grpcFrame(message: number[]) {
     return frame
 }
 
-// A raw H.264 stream written to `file` (mp4) by ffmpeg, each frame timed by
-// when it arrives, so the video starts at its first frame: `write` takes the
+// A video stream written to `file` (mp4) by ffmpeg, each frame timed by when
+// it arrives, so the video starts at its first frame: `write` takes the
 // stream's next bytes, `started` resolves with the time (wall clock) the first
-// came (undefined if none did), and `finish` completes the file.
-function h264Recording(file: string) {
+// came (undefined if none did), and `finish` completes the file. Raw H.264 by
+// default (copied), or `input`'s format (encoded).
+function streamRecording(file: string, input = ['-f', 'h264']) {
+    const raw = input[1] !== 'h264'
     const ffmpeg = spawn(
         'ffmpeg',
         [
             '-v',
             'error',
             '-y',
-            '-f',
-            'h264',
+            ...input,
             '-use_wallclock_as_timestamps',
             '1',
             '-i',
             'pipe:0',
-            '-c',
-            'copy',
+            ...(raw
+                ? ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '10']
+                : ['-c', 'copy']),
             file,
         ],
         { stdio: ['pipe', 'ignore', 'ignore'] },
@@ -983,7 +1011,7 @@ function h264Recording(file: string) {
 function idbRecordScreen(file: string) {
     const session = idb
     if (!session) return undefined
-    const video = h264Recording(file)
+    const video = streamRecording(file)
     // A VideoStreamRequest's start: { fps: 60 } (H.264 is the default format).
     const stream = session.request({
         ':method': 'POST',
@@ -996,19 +1024,10 @@ function idbRecordScreen(file: string) {
     ended.then(video.ended)
     // VideoStreamResponses, each with a Payload (2) whose data (2) is the
     // next part of the video.
-    let pending = Buffer.alloc(0)
-    stream.on('data', (chunk: Buffer) => {
-        pending = Buffer.concat([pending, chunk])
-        while (
-            pending.length >= 5 &&
-            pending.length >= 5 + pending.readUInt32BE(1)
-        ) {
-            const message = pending.subarray(5, 5 + pending.readUInt32BE(1))
-            pending = pending.subarray(5 + message.length)
-            const payload = protobufField(message, 2)
-            const data = payload && protobufField(payload, 2)
-            if (data) video.write(data)
-        }
+    onGrpcMessages(stream, (message) => {
+        const payload = protobufField(message, 2)
+        const data = payload && protobufField(payload, 2)
+        if (data) video.write(data)
     })
     stream.on('error', () => {})
     const stop = async () => {
@@ -1275,14 +1294,72 @@ const hexToRgb = (hex: string): Rgb => {
 // the file is complete. The emulator's and the companion's recordings start
 // at their first frame; without the companion, simctl's.
 function recordScreen(platform: Platform, device: string, file: string) {
-    if (platform === 'android') return adbRecordScreen(device, file)
+    if (platform === 'android')
+        return (
+            emulatorRecordScreen(device, file) ?? adbRecordScreen(device, file)
+        )
     return idbRecordScreen(file) ?? simctlRecordScreen(device, file)
 }
 
+// The emulator's screen from the emulator itself, over its gRPC API, when the
+// script started it (with -grpc): screenrecord runs in the emulated device,
+// whose encoder stalls after a few frames without a GPU (CI), while
+// streamScreenshot copies each frame the emulator draws, when the screen
+// changes. At full size (a sample's area can be 4 pixels wide), RGB: about
+// 8 MB a frame, so the connection's flow control windows are as large as
+// they go (with the default 64 KB it got about 4 frames a second, about 45
+// with these). undefined otherwise.
+function emulatorRecordScreen(device: string, file: string) {
+    if (!emulatorGrpc) return undefined
+    // ffmpeg starts before the first frame comes, so it's timed when it came
+    // (as the first one ffmpeg reads): it needs the size up front.
+    const size = /(\d+)x(\d+)\s*$/.exec(
+        capture(ADB, ['-s', device, 'shell', 'wm', 'size']) ?? '',
+    )
+    if (!size) return undefined
+    const video = streamRecording(file, [
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'rgb24',
+        '-s',
+        `${size[1]}x${size[2]}`,
+    ])
+    const session = http2.connect(`http://127.0.0.1:${EMULATOR_GRPC_PORT}`, {
+        settings: { initialWindowSize: 2 ** 31 - 1 },
+    })
+    session.on('connect', () => session.setLocalWindowSize(2 ** 31 - 1))
+    session.on('error', () => {})
+    // An ImageFormat: { format: RGB888 (2) }, at the device's size.
+    const stream = session.request({
+        ':method': 'POST',
+        ':path':
+            '/android.emulation.control.EmulatorController/streamScreenshot',
+        'content-type': 'application/grpc',
+        te: 'trailers',
+    })
+    stream.end(grpcFrame([0x08, 2]))
+    const ended = new Promise<void>((resolve) => stream.on('close', resolve))
+    ended.then(video.ended)
+    // Images: the pixels are field 4 (empty while the display is off).
+    onGrpcMessages(stream, (message) => {
+        const pixels = protobufField(message, 4)
+        if (pixels?.length) video.write(pixels)
+    })
+    stream.on('error', () => {})
+    const stop = async () => {
+        stream.close()
+        session.close()
+        await Promise.race([ended, sleep(5000)])
+        return video.finish()
+    }
+    return { started: video.started, stop, busy: () => false }
+}
+
 // The emulator's screen: screenrecord's raw H.264 through adb (see
-// h264Recording). It only adds a frame when the screen changes.
+// streamRecording). It only adds a frame when the screen changes.
 function adbRecordScreen(device: string, file: string) {
-    const video = h264Recording(file)
+    const video = streamRecording(file)
     const child = spawn(
         ADB,
         [
@@ -3012,6 +3089,10 @@ let androidSerial = ''
 // Resolves once the device has booted: an emulator boots while the apps
 // build, and buildAndroid waits for it before installing.
 let androidBooted: Promise<void> = Promise.resolve()
+// Whether the emulator has the gRPC API without authentication (started with
+// -grpc), for its screen recordings (emulatorRecordScreen).
+const EMULATOR_GRPC_PORT = 8554
+let emulatorGrpc = false
 
 function ensureJava() {
     const version =
@@ -3062,6 +3143,8 @@ async function androidDevice() {
                 env.ANDROID_EMULATOR_GPU ?? 'host',
                 '-no-snapshot-save',
                 '-no-boot-anim',
+                '-grpc',
+                String(EMULATOR_GRPC_PORT),
             ],
             {
                 log: path.join(OUT, 'emulator.log'),
@@ -3076,6 +3159,7 @@ async function androidDevice() {
             await sleep(2000)
         }
         if (!androidSerial) return false
+        emulatorGrpc = true
     } else if (
         capture('pgrep', ['-f', 'qemu-system']) &&
         !capture('pgrep', ['-f', 'qemu-system.*-no-window'])
@@ -3084,6 +3168,10 @@ async function androidDevice() {
             '    Note: the emulator has a window. Keep it visible while the flows run, or quit it and let this script start one without a window.',
         )
     }
+    emulatorGrpc ||= !!capture('pgrep', [
+        '-f',
+        `qemu-system.*-grpc ${EMULATOR_GRPC_PORT}`,
+    ])
     androidBooted = (async () => {
         const deadline = Date.now() + 300_000
         while (
