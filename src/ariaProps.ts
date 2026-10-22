@@ -5,7 +5,7 @@ import { Platform } from 'react-native'
 import type { FastImageProps } from './index'
 
 // The props mapped here.
-const ARIA_KEYS = [
+export const ARIA_KEYS = [
     'aria-busy',
     'aria-checked',
     'aria-disabled',
@@ -31,8 +31,6 @@ type AriaProps = Pick<
     | 'accessibilityValue'
 >
 
-const ARIA_KEY_SET: ReadonlySet<string> = new Set(ARIA_KEYS)
-
 // The props without the ARIA keys, with the accessibility props they map to.
 type NativeProps<P> = Omit<P & FastImageProps, (typeof ARIA_KEYS)[number]>
 
@@ -43,16 +41,10 @@ export function resolveAriaProps<P extends AriaProps>(
     // a copy.
     let any = false
     for (let i = 0; i < ARIA_KEYS.length && !any; i++) {
-        any = props[ARIA_KEYS[i]] !== undefined
+        any = props[ARIA_KEYS[i]] != null
     }
     if (!any) return props as NativeProps<P>
-    // A copy without them (ARIA_KEYS is the one list of them).
-    const native: FastImageProps = {}
-    for (const key in props) {
-        if (!ARIA_KEY_SET.has(key)) {
-            ;(native as Record<string, unknown>)[key] = props[key]
-        }
-    }
+    // The same keys as ARIA_KEYS (a test checks each one is mapped).
     const {
         'aria-busy': ariaBusy,
         'aria-checked': ariaChecked,
@@ -69,24 +61,17 @@ export function resolveAriaProps<P extends AriaProps>(
         'aria-valuetext': ariaValueText,
         id,
         tabIndex,
-    } = props as AriaProps
-    if (ariaLabel !== undefined) {
-        native.accessibilityLabel = ariaLabel
-        // A labelled image is an accessibility element unless `accessible`
-        // says otherwise, as an <img aria-label> on the web and React
-        // Native's Image with `alt`: iOS reads `accessible` for it (Android
-        // reads the label either way). An empty label is none, as on the
-        // web (a decorative image).
-        if (ariaLabel && native.accessible === undefined)
-            native.accessible = true
-    }
-    if (ariaLabelledBy !== undefined) {
+        ...rest
+    } = props
+    const native = rest as FastImageProps
+    if (ariaLabel != null) native.accessibilityLabel = ariaLabel
+    if (ariaLabelledBy != null) {
         native.accessibilityLabelledBy = ariaLabelledBy.split(/\s*,\s*/g)
     }
-    if (ariaLive !== undefined) {
+    if (ariaLive != null) {
         native.accessibilityLiveRegion = ariaLive === 'off' ? 'none' : ariaLive
     }
-    if (ariaHidden !== undefined) {
+    if (ariaHidden != null) {
         native.accessibilityElementsHidden = ariaHidden
         if (ariaHidden === true) {
             native.importantForAccessibility = 'no-hide-descendants'
@@ -96,8 +81,22 @@ export function resolveAriaProps<P extends AriaProps>(
             if (Platform.OS === 'ios') native.accessible = false
         }
     }
-    if (id !== undefined) native.nativeID = id
-    if (tabIndex !== undefined) native.focusable = !tabIndex
+    if (id != null) native.nativeID = id
+    if (tabIndex != null) native.focusable = !tabIndex
+    // A labelled image is an accessibility element unless it's hidden or
+    // `accessible` says otherwise, as an <img aria-label> on the web and
+    // React Native's Image with `alt`: iOS reads `accessible` for it (Android
+    // reads the label either way). An empty label is none, as on the web (a
+    // decorative image).
+    if (
+        ariaLabel &&
+        native.accessible === undefined &&
+        !native.accessibilityElementsHidden &&
+        native.importantForAccessibility !== 'no' &&
+        native.importantForAccessibility !== 'no-hide-descendants'
+    ) {
+        native.accessible = true
+    }
     if (
         ariaBusy != null ||
         ariaChecked != null ||

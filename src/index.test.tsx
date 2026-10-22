@@ -25,7 +25,7 @@ import FastImage, {
     type FastImageRef,
 } from './index'
 import { commands } from '../test/react-native'
-import { resolveAriaProps } from './ariaProps'
+import { ARIA_KEYS, resolveAriaProps } from './ariaProps'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -1759,8 +1759,13 @@ describe('ARIA props', () => {
         expect(
             viewProps(<FastImage source={source} aria-hidden />),
         ).toMatchObject({
+            accessibilityElementsHidden: true,
             importantForAccessibility: 'no-hide-descendants',
         })
+        // Android reads importantForAccessibility, not `accessible`.
+        expect(
+            viewProps(<FastImage source={source} aria-hidden />).accessible,
+        ).toBeUndefined()
     })
 
     it('aria-hidden on FastImageBackground hides its children too', () => {
@@ -1792,6 +1797,25 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(false)
+        // Hidden by another prop: not made accessible.
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    accessibilityElementsHidden
+                />,
+            ).accessible,
+        ).toBeUndefined()
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    importantForAccessibility="no-hide-descendants"
+                />,
+            ).accessible,
+        ).toBeUndefined()
         // An empty label is none.
         expect(
             viewProps(<FastImage source={source} aria-label="" />).accessible,
@@ -1802,6 +1826,43 @@ describe('ARIA props', () => {
                 <FastImage source={source} aria-label="A cat" aria-hidden />,
             ).accessible,
         ).toBe(false)
+    })
+
+    it('map each one on its own: none reaches the native view as it is', () => {
+        const values: Record<string, unknown> = {
+            'aria-labelledby': 'a',
+            'aria-live': 'polite',
+            'aria-valuenow': 1,
+            'aria-valuemax': 1,
+            'aria-valuemin': 1,
+            'aria-valuetext': 'a',
+            tabIndex: 0,
+            id: 'a',
+        }
+        for (const key of ARIA_KEYS) {
+            const props = viewProps(
+                <FastImage
+                    source={source}
+                    {...{ [key]: values[key] ?? true }}
+                />,
+            )
+            expect(props[key]).toBeUndefined()
+        }
+    })
+
+    it('ignore null values', () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                {...({
+                    'aria-labelledby': null,
+                    'aria-label': null,
+                    id: null,
+                } as {})}
+            />,
+        )
+        expect(props.accessibilityLabelledBy).toBeUndefined()
+        expect(props.accessible).toBeUndefined()
     })
 
     it('pass props without them on as they are, without a copy', () => {

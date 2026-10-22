@@ -111,10 +111,10 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 
 ## Some ARIA props do nothing
 
-- **What happens:** `aria-live`, `aria-valuemax`, `aria-valuemin`, `aria-valuenow`, `aria-valuetext`, `id` and `tabIndex` on an `Image` have no effect on iOS and Android, though `Image` takes `View`'s props and `View` maps them all. So `<Image id="avatar" />` has no `nativeID`, and `aria-live` doesn't make it a live region.
+- **What happens:** `aria-live`, `aria-valuemax`, `aria-valuemin`, `aria-valuenow`, `aria-valuetext` and `id` on an `Image` have no effect on iOS and Android, though `Image` takes `View`'s props and `View` maps them all. So `<Image id="avatar" />` has no `nativeID`, and `aria-live` doesn't make it a live region.
 - **Where:** `packages/react-native/Libraries/Image/Image.ios.js` and `Image.android.js` map only `aria-label`, `aria-labelledby`, `aria-hidden` and the state props (`aria-busy`, `aria-checked`, `aria-disabled`, `aria-expanded`, `aria-selected`). `Libraries/Components/View/View.js` maps the rest. The native views read none of the `aria-*` props.
 - **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<Image id="avatar" source={...} />` and look for a view with `nativeID` "avatar" in the inspector.
-- **How Fast Image handles it:** it maps all of `View`'s ARIA props, and `id` and `tabIndex` ([#1360](https://github.com/DylanVann/react-native-fast-image/pull/1360)).
+- **How Fast Image handles it:** it maps all of `View`'s ARIA props, and `id` ([#1360](https://github.com/DylanVann/react-native-fast-image/pull/1360)).
 
 ## Other issues
 
