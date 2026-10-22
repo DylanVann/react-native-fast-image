@@ -1577,6 +1577,18 @@ function fadePosition(frame: Rgb, from: Rgb, to: Rgb) {
     return t >= 0 && t <= 1 && off <= SAMPLE_FADE_DISTANCE ? t : undefined
 }
 
+// Whether `seen` is `expect` without some of the colors between its first and
+// last.
+function skippedMiddle(seen: string[], expect: string[]) {
+    let i = 0
+    for (const color of expect) if (seen[i] === color) i++
+    return (
+        i === seen.length &&
+        seen[0] === expect[0] &&
+        seen.at(-1) === expect.at(-1)
+    )
+}
+
 // The colors seen (see above) and whether they're `expect`.
 function matchSample(frames: Rgb[], expect: string[], palette: string[]) {
     const colors = sampleColors(expect, palette)
@@ -1890,10 +1902,13 @@ async function runRegression(
                     } else if (
                         SPARSE_RECORDINGS &&
                         !result.ok &&
-                        before !== -1
+                        before !== -1 &&
+                        skippedMiddle(result.seen, expect)
                     ) {
                         // Too few frames between the first and last colors
-                        // to see what came between them.
+                        // to see what came between them. (Not an animation's
+                        // colors, whose frames are as far apart as it shows
+                        // them: the case checks those itself.)
                         const gap = Math.round(
                             (shown[end].time - shown[before].time) * 1000,
                         )
