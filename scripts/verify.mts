@@ -5,15 +5,17 @@
 
 import {
     type ChildProcess,
+    execFile,
     execFileSync,
     spawn,
     spawnSync,
 } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import http2 from 'node:http2'
 import os from 'node:os'
 import path from 'node:path'
-import { parseArgs } from 'node:util'
+import { parseArgs, promisify } from 'node:util'
 import { compare } from 'odiff-bin'
 
 const HELP = `Checks the library and runs the example apps on iOS and Android.
@@ -98,6 +100,9 @@ Environment:
                   started with -gpu host and no window.
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
+  VERIFY_IDB_COMPANION
+                  The path of idb_companion: the iOS screenshots come from it
+                  (about 80 ms each, where simctl's take about 450).
   VERIFY_SAMPLE_LEAD_MS
                   How long a video sample records before its case makes the
                   change (default 500); longer where recordings start late.
@@ -804,19 +809,154 @@ function screenshot(platform: Platform, device: string, file: string) {
     }
 }
 
-// Crops a screenshot (pixels) in place.
-function cropScreenshot(file: string, crop: PixelRect) {
+// With VERIFY_IDB_COMPANION (the path of idb_companion), the regression groups'
+// screenshots on iOS come from a companion connected to the simulator, over
+// its gRPC API: about 80 ms each, where `simctl io screenshot` takes about 450
+// (it starts and connects each time). Its images match simctl's within the
+// comparison's threshold, the device's mask aside, which the crop leaves out.
+// Without it (or if it fails), simctl.
+const IDB_COMPANION_PORT = 10882
+let idb: http2.ClientHttp2Session | undefined
+let idbCompanion: number | undefined
+
+async function startIdbCompanion(udid: string) {
+    const binary = env.VERIFY_IDB_COMPANION
+    if (!binary || idb || portInUse(IDB_COMPANION_PORT)) return
+    const log = path.join(OUT, 'idb-companion.log')
+    idbCompanion = start(
+        binary,
+        ['--udid', udid, '--grpc-port', String(IDB_COMPANION_PORT)],
+        { log },
+    ).pid
+    if (idbCompanion !== undefined) groups.add(idbCompanion)
+    // It prints its port once it listens.
+    for (let i = 0; i < 60; i++) {
+        if (fs.readFileSync(log, 'utf8').includes('"grpc_port"')) break
+        await sleep(500)
+    }
+    const session = http2.connect(`http://127.0.0.1:${IDB_COMPANION_PORT}`)
+    session.on('error', () => (idb = undefined))
+    idb = session
+}
+
+function stopIdbCompanion() {
+    idb?.close()
+    idb = undefined
+    if (idbCompanion !== undefined) stop(idbCompanion)
+    idbCompanion = undefined
+}
+
+// The bytes of a protobuf message's first length-delimited field 1 (a
+// ScreenshotResponse's image_data).
+function protobufField1(message: Buffer) {
+    let i = 0
+    const varint = () => {
+        let value = 0
+        let shift = 0
+        let byte
+        do {
+            byte = message[i++]
+            value += (byte & 0x7f) * 2 ** shift
+            shift += 7
+        } while (byte & 0x80)
+        return value
+    }
+    while (i < message.length) {
+        const key = varint()
+        const type = key & 7
+        if (type === 2) {
+            const length = varint()
+            if (key >> 3 === 1) return message.subarray(i, i + length)
+            i += length
+        } else if (type === 0) varint()
+        else if (type === 1) i += 8
+        else if (type === 5) i += 4
+        else return undefined
+    }
+    return undefined
+}
+
+// A screenshot from the companion (PNG), or undefined.
+function idbScreenshot() {
+    const session = idb
+    if (!session) return Promise.resolve(undefined)
+    return new Promise<Buffer | undefined>((resolve) => {
+        // An empty ScreenshotRequest (a PNG of the whole screen), in a gRPC
+        // frame.
+        const stream = session.request({
+            ':method': 'POST',
+            ':path': '/idb.CompanionService/screenshot',
+            'content-type': 'application/grpc',
+            te: 'trailers',
+        })
+        const chunks: Buffer[] = []
+        const timer = setTimeout(() => stream.close(), 10_000)
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk))
+        stream.on('end', () => {
+            clearTimeout(timer)
+            const body = Buffer.concat(chunks)
+            resolve(
+                body.length > 5
+                    ? protobufField1(body.subarray(5, 5 + body.readUInt32BE(1)))
+                    : undefined,
+            )
+        })
+        stream.on('error', () => {
+            clearTimeout(timer)
+            resolve(undefined)
+        })
+        stream.end(Buffer.alloc(5))
+    })
+}
+
+// A regression group's screenshot: from the companion when there is one,
+// once the screen has settled. A case's last status can reach the script
+// before the simulator has drawn it (simctl's slower start hid that), so it
+// takes screenshots until two in a row are the same, for up to a second (an
+// animated image doesn't settle).
+async function captureScreenshot(
+    platform: Platform,
+    device: string,
+    file: string,
+) {
+    let png = platform === 'ios' ? await idbScreenshot() : undefined
+    if (png) {
+        const until = Date.now() + 1000
+        while (Date.now() < until) {
+            const next = await idbScreenshot()
+            if (!next) break
+            const settled = next.equals(png)
+            png = next
+            if (settled) break
+        }
+        fs.writeFileSync(file, png)
+        return
+    }
+    screenshot(platform, device, file)
+}
+
+// Crops a screenshot (pixels) in place. Asynchronous: the app can go on to
+// the next group meanwhile.
+async function cropScreenshot(file: string, crop: PixelRect) {
     const cropped = file.replace(/\.png$/, '-cropped.png')
-    capture('ffmpeg', [
-        '-v',
-        'error',
-        '-y',
-        '-i',
-        file,
-        '-vf',
-        `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
-        cropped,
-    ])
+    try {
+        await promisify(execFile)(
+            'ffmpeg',
+            [
+                '-v',
+                'error',
+                '-y',
+                '-i',
+                file,
+                '-vf',
+                `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
+                cropped,
+            ],
+            { timeout: 30_000 },
+        )
+    } catch {
+        // Compared uncropped, then (and failing: the size differs).
+    }
     if (fs.existsSync(cropped)) fs.renameSync(cropped, file)
 }
 
@@ -1250,27 +1390,28 @@ async function runRegression(
     // masks: the areas the app measured just before (dp), to leave out.
     // area: the part of the screen to keep (dp), the safe area: not the
     // status bar or the system's bars at the bottom.
-    const takeShot = (
+    // Takes a group's screenshot, and resolves once it's taken with its
+    // comparison (which goes on while the app shows the next group).
+    const takeShot = async (
         index: number,
         masksDp: unknown,
         area: PixelRect | undefined,
         groupOk: boolean,
-    ) => {
+    ): Promise<{ shot: Promise<void> }> => {
         // The web version's cases are checked by their statuses only.
-        if (platform === 'web') return Promise.resolve()
+        if (platform === 'web') return { shot: Promise.resolve() }
         const name = groups[index]
         const file = path.join(
             dir,
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
         )
-        screenshot(platform, device, file)
+        await captureScreenshot(platform, device, file)
         const crop = area && {
             x: Math.round(area.x * scale),
             y: Math.round(area.y * scale),
             width: Math.round(area.width * scale),
             height: Math.round(area.height * scale),
         }
-        if (crop) cropScreenshot(file, crop)
         const masks = (
             Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
         ).map((m) => ({
@@ -1279,27 +1420,31 @@ async function runRegression(
             width: m.width * scale,
             height: m.height * scale,
         }))
-        const shot = compareScreenshot(
-            app,
-            platform,
-            name,
-            file,
-            masks,
-            groupOk && !!crop,
-        ).then(({ result, detail }) => {
-            logLine(
-                `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
-                    masks.length > 0 ? `, ${masks.length} masked` : ''
-                }`,
+        const shot = (crop ? cropScreenshot(file, crop) : Promise.resolve())
+            .then(() =>
+                compareScreenshot(
+                    app,
+                    platform,
+                    name,
+                    file,
+                    masks,
+                    groupOk && !!crop,
+                ),
             )
-            if (result === 'seeded') seeded.push(name)
-            else if (result === 'none') noReference.push(name)
-            else if (result === 'unseeded') unseeded.push(name)
-            else if (result === 'differs')
-                failuresOf(index).push(`${name}: ${detail}`)
-        })
+            .then(({ result, detail }) => {
+                logLine(
+                    `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
+                        masks.length > 0 ? `, ${masks.length} masked` : ''
+                    }`,
+                )
+                if (result === 'seeded') seeded.push(name)
+                else if (result === 'none') noReference.push(name)
+                else if (result === 'unseeded') unseeded.push(name)
+                else if (result === 'differs')
+                    failuresOf(index).push(`${name}: ${detail}`)
+            })
         shots.push(shot)
-        return shot
+        return { shot }
     }
     // Video samples (see matchSample), keyed by `${group}/${name}`. A group's
     // share a recording (a session), checked once it stops.
@@ -1793,7 +1938,7 @@ async function runRegression(
             }
         }
         const groupOk = own.length === 0
-        const shot = takeShot(
+        const { shot } = await takeShot(
             index,
             measured?.masks,
             measured?.safeArea as PixelRect | undefined,
@@ -2614,7 +2759,9 @@ function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     const stopAppLog = recordAppLog(app, 'ios', iosUdid)
+    await startIdbCompanion(iosUdid)
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
+    stopIdbCompanion()
     if (options.background && app !== 'expo' && app !== 'tv')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     stopAppLog()

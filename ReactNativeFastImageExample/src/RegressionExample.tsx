@@ -6568,18 +6568,22 @@ function DownsampleCase({
 // A small view of a large image, then a larger one of the same image (like a
 // list and a detail screen): the larger one is decoded again from the disk
 // cache, at its own size (sharp), not downloaded again.
-const DETAIL_PATH = `/picsum/1016-2048x2048.jpg?downsample=${RUN}`
 function DownsampleDetailCase() {
+    // A url of its own each time it mounts, so the runner's retry counts its
+    // own requests.
+    const [detailPath] = useState(
+        () => `/picsum/1016-2048x2048.jpg?downsample=${RUN}-${Date.now()}`,
+    )
     const [loads, setLoads] = useState(0)
     const [requests, setRequests] = useState<number>()
     useEffect(() => {
         if (loads !== 2) return
-        fetch(imageUrl(`requests?path=${encodeURIComponent(DETAIL_PATH)}`))
+        fetch(imageUrl(`requests?path=${encodeURIComponent(detailPath)}`))
             .then((response) => response.json())
             .then((json) => setRequests(json.count))
             .catch(() => setRequests(-1))
-    }, [loads])
-    const source = { uri: imageUrl(DETAIL_PATH.slice(1)) }
+    }, [loads, detailPath])
+    const source = { uri: imageUrl(detailPath.slice(1)) }
     const onLoad = () => setLoads((n) => n + 1)
     return (
         <View style={styles.row}>
@@ -6704,12 +6708,16 @@ function DownsampleNoSizeCase() {
 // download with the first load's image class. Android (Glide) downloads it
 // again for the view, which has another size, so the requests aren't checked
 // there.
-const PRELOADING_GROUP = `downsample-preloading-${RUN}`
-const PRELOADING = {
-    uri: slowImageUrl(`text-page.png?delay=120&group=${PRELOADING_GROUP}`),
-    headers: { 'x-token': 'fast-image' },
-}
 function DownsamplePreloadingCase() {
+    // A url and request group of their own each time it mounts, so the
+    // runner's retry counts its own requests.
+    const [preloadingGroup] = useState(
+        () => `downsample-preloading-${RUN}-${Date.now()}`,
+    )
+    const [preloading] = useState(() => ({
+        uri: slowImageUrl(`text-page.png?delay=120&group=${preloadingGroup}`),
+        headers: { 'x-token': 'fast-image' },
+    }))
     const [size, setSize] = useState<string>()
     const [requests, setRequests] = useState<number>()
     // The view loads once the server has the preload's request, so it
@@ -6718,11 +6726,11 @@ function DownsamplePreloadingCase() {
     const [shown, setShown] = useState(false)
     useEffect(() => {
         let cancelled = false
-        FastImage.preload([PRELOADING])
+        FastImage.preload([preloading])
         ;(async () => {
             for (let i = 0; i < 100 && !cancelled; i++) {
                 const response = await fetch(
-                    imageUrl(`requests?group=${PRELOADING_GROUP}`),
+                    imageUrl(`requests?group=${preloadingGroup}`),
                 ).catch(() => undefined)
                 const count = (await response?.json())?.count ?? 0
                 if (count > 0) break
@@ -6733,19 +6741,19 @@ function DownsamplePreloadingCase() {
         return () => {
             cancelled = true
         }
-    }, [])
+    }, [preloading, preloadingGroup])
     return (
         <View style={styles.row}>
             {shown ? (
                 <FastImage
                     style={downsampleStyles.tall}
-                    source={PRELOADING}
+                    source={preloading}
                     downsample
                     onLoad={(e) => {
                         setSize(
                             `${e.nativeEvent.width}x${e.nativeEvent.height}`,
                         )
-                        fetch(imageUrl(`requests?group=${PRELOADING_GROUP}`))
+                        fetch(imageUrl(`requests?group=${preloadingGroup}`))
                             .then((response) => response.json())
                             .then((json) => setRequests(json.count))
                             .catch(() => setRequests(-1))

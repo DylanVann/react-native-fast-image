@@ -42,8 +42,8 @@ jobs:
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
       # The simulator's recordings start late on these machines: video
-      # samples record longer before their change.
-      VERIFY_SAMPLE_LEAD_MS: 2000
+      # samples record longer before their change (500 ms by default).
+      VERIFY_SAMPLE_LEAD_MS: 1000
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,6 +94,16 @@ jobs:
           EOF
           unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # idb's companion, for the regression screenshots (verify.mts's
+      # VERIFY_IDB_COMPANION): about 80 ms each, where simctl's take about 450,
+      # and the same pixels. From its release, checked against its SHA-256.
+      - name: Install idb's companion
+        run: |
+          mkdir -p "$RUNNER_TEMP/idb" && cd "$RUNNER_TEMP/idb"
+          curl -fsSL -O https://github.com/facebook/idb/releases/download/v1.7.6/idb-companion.macos-arm64.tar.gz
+          echo "f81e5ff131c8c91fb6927cb445a7267a4e80c543e51e4b26ebcaa00eff4e3c1f  idb-companion.macos-arm64.tar.gz" | shasum -a 256 -c
+          tar -xzf idb-companion.macos-arm64.tar.gz && rm idb-companion.macos-arm64.tar.gz
+          echo "VERIFY_IDB_COMPANION=$RUNNER_TEMP/idb/idb_companion" >> "$GITHUB_ENV"
       - name: "Install the repo's dependencies"
         run: bun install --frozen-lockfile
       # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
