@@ -11,6 +11,7 @@ import android.net.Network;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.manager.GlideConnectivity;
 import com.bumptech.glide.request.FutureTarget;
 import com.bumptech.glide.request.RequestOptions;
 import com.facebook.react.modules.network.OkHttpClientProvider;
@@ -62,6 +63,7 @@ public class FastImageGlideNetworkTest {
     public void tearDown() throws IOException {
         server.close();
         Glide.tearDown();
+        GlideConnectivity.reset();
         OkHttpClientProvider.setOkHttpClientFactory(null);
     }
 

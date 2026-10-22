@@ -284,8 +284,10 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         public final boolean onLoadFailed(@Nullable GlideException e, Object model, final Target<T> target, boolean isFirstResource) {
             if (finished) return false;
             finished = true;
-            // Glide doesn't allow clearing a load from its own callback.
-            UiThreadUtil.getUiThreadHandler().post(new Runnable() {
+            // Glide doesn't allow clearing a load from its own callback. At the
+            // front of the queue, so it runs before a restart Glide already
+            // queued (the network coming back as the load failed).
+            UiThreadUtil.getUiThreadHandler().postAtFrontOfQueue(new Runnable() {
                 @Override
                 public void run() {
                     Glide.with(context).clear(target);
