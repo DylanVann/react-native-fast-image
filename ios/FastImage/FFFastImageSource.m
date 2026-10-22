@@ -215,15 +215,30 @@ static NSString *FFFBundleAssetName(NSURL *url)
 @interface FFFWebDownloaderOperation : SDWebImageDownloaderOperation
 @end
 
-// The key of the time a response was stored at, in its userInfo.
-static NSString *const FFFStoredAtKey = @"FFFastImageStoredAt";
+// The key, in a stored response's userInfo, of the clear it came after (see
+// clearWebURLCache).
+static NSString *const FFFCacheTokenKey = @"FFFastImageCacheToken";
 
-// When clearWebURLCache last ran, or nil.
-static NSDate *FFFWebURLCacheClearedAt;
+// A new value at each clearWebURLCache (and one for the launch until then).
+// Not the time: a change of the device's clock would move it.
+static NSString *FFFWebURLCacheToken;
+
+// When clearWebURLCache last ran, in seconds since the device started, or 0.
+static NSTimeInterval FFFWebURLCacheClearedAt;
 
 // How long after a clear loads check the response they'd get: the removal
 // takes about 10 ms, longer on a busy device. Each check is a cache lookup.
 static const NSTimeInterval FFFWebURLCacheClearCheck = 5;
+
+static NSString *FFFCurrentWebURLCacheToken(void)
+{
+    @synchronized ([FFFastImageSource class]) {
+        if (!FFFWebURLCacheToken) {
+            FFFWebURLCacheToken = NSUUID.UUID.UUIDString;
+        }
+        return FFFWebURLCacheToken;
+    }
+}
 
 @implementation FFFWebDownloaderOperation
 
@@ -289,9 +304,9 @@ static BOOL FFFLooksLikeSVG(NSData *data)
         completionHandler(nil);
         return;
     }
-    // When it was stored (see clearWebURLCache).
+    // The clear it came after (see clearWebURLCache).
     NSMutableDictionary *userInfo = [proposedResponse.userInfo mutableCopy] ?: [NSMutableDictionary dictionary];
-    userInfo[FFFStoredAtKey] = [NSDate date];
+    userInfo[FFFCacheTokenKey] = FFFCurrentWebURLCacheToken();
     NSCachedURLResponse *response = [[NSCachedURLResponse alloc] initWithResponse:proposedResponse.response
                                                                              data:proposedResponse.data
                                                                          userInfo:userInfo
@@ -501,29 +516,28 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 + (void)clearWebURLCache
 {
     @synchronized (self) {
-        FFFWebURLCacheClearedAt = [NSDate date];
+        FFFWebURLCacheToken = NSUUID.UUID.UUIDString;
+        FFFWebURLCacheClearedAt = NSProcessInfo.processInfo.systemUptime;
     }
     [self.webURLCache removeAllCachedResponses];
 }
 
 // Whether the HTTP cache's response to the request was stored before the last
-// clearWebURLCache (or has no time: stored by an app's own operation class),
+// clearWebURLCache (or has no token: stored by an app's own operation class),
 // in the few seconds after it.
 + (BOOL)isCachedBeforeClear:(NSURLRequest *)request
 {
-    NSDate *clearedAt;
+    NSString *token;
+    NSTimeInterval clearedAt;
     @synchronized (self) {
+        token = FFFWebURLCacheToken;
         clearedAt = FFFWebURLCacheClearedAt;
     }
-    if (!clearedAt || -clearedAt.timeIntervalSinceNow > FFFWebURLCacheClearCheck) {
+    if (clearedAt == 0 || NSProcessInfo.processInfo.systemUptime - clearedAt > FFFWebURLCacheClearCheck) {
         return NO;
     }
     NSCachedURLResponse *cached = [self.webURLCache cachedResponseForRequest:request];
-    if (!cached) {
-        return NO;
-    }
-    NSDate *storedAt = cached.userInfo[FFFStoredAtKey];
-    return ![storedAt isKindOfClass:NSDate.class] || [storedAt compare:clearedAt] == NSOrderedAscending;
+    return cached && ![cached.userInfo[FFFCacheTokenKey] isEqual:token];
 }
 
 - (SDWebImageDownloaderRequestModifier *)requestModifier

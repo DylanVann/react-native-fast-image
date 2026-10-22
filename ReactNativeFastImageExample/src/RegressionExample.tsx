@@ -842,6 +842,19 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
     )
 }
 
+// Clears the memory and disk caches. Resolves with the first one's error, or
+// undefined if both cleared.
+async function clearCaches() {
+    const results = await Promise.all([
+        FastImage.clearMemoryCache(),
+        FastImage.clearDiskCache(),
+    ])
+    for (const result of results) {
+        if (!result.ok) return result.error
+    }
+    return undefined
+}
+
 // Loads an image with `cache: 'web'` that the server marks as cacheable for an
 // hour, clears the caches, and loads it again: the server should get a second
 // request. clearDiskCache left the HTTP cache of `web` images (Android's, and
@@ -875,13 +888,8 @@ function WebCacheClearCase() {
                 }}
                 onLoad={() => {
                     if (step === 'first') {
-                        Promise.all([
-                            FastImage.clearMemoryCache(),
-                            FastImage.clearDiskCache(),
-                        ]).then((results) => {
-                            for (const result of results) {
-                                if (!result.ok) setClearError(result.error)
-                            }
+                        clearCaches().then((error) => {
+                            if (error) setClearError(error)
                             setStep('cleared')
                         })
                     } else setStep('done')
@@ -923,12 +931,8 @@ function WebCacheClearPreloadCase() {
                     return setStatus(
                         `round ${round + 1}: the first preload failed`,
                     )
-                const cleared = await Promise.all([
-                    FastImage.clearMemoryCache(),
-                    FastImage.clearDiskCache(),
-                ])
-                const failed = cleared.find((result) => !result.ok)
-                if (failed) return setStatus(`clear failed: ${failed.error}`)
+                const clearError = await clearCaches()
+                if (clearError) return setStatus(`clear failed: ${clearError}`)
                 const [second] = await FastImage.preload([source])
                 if (!second.ok)
                     return setStatus(

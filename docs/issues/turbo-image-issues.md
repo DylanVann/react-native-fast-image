@@ -94,7 +94,7 @@ Fast Image's maintainers found these while comparing Fast Image with Turbo Image
 - **What happens:** on iOS, an image loaded right after `TurboImage.clearDiskCache()` resolves can still come from the HTTP cache (`urlCache`, the default) without a request.
 - **Where:** `ios/TurboImageViewManager.swift`, `clearDiskCache`: `DataLoader.sharedUrlCache.removeAllCachedResponses()` and then `resolve` at once. `NSURLCache`'s removal takes effect about 10 ms after `removeAllCachedResponses()` returns, and it gives no way to know when.
 - **How to reproduce:** Found by reading the code, and from the same behavior in Fast Image. Load a url whose server sends `Cache-Control: max-age=3600`, call `clearDiskCache()`, and load it again as soon as it resolves: on a busy device the server gets no second request.
-- **How Fast Image handles it:** each response in its `web` HTTP cache records when it was stored, and a load after `clearDiskCache` ignores one stored before the clear ([#1336](https://github.com/DylanVann/react-native-fast-image/pull/1336)).
+- **How Fast Image handles it:** each response in its `web` HTTP cache records the clear it came after, and a load in the few seconds after `clearDiskCache` ignores one stored before the clear ([#1336](https://github.com/DylanVann/react-native-fast-image/pull/1336)).
 
 ## Other issues
 
