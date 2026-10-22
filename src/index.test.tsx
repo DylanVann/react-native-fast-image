@@ -830,31 +830,31 @@ describe('headers native leaves out', () => {
             <FastImage source={source as FastImageProps['source']} />,
         )
 
-    it("warn once in development: values native can't send, or headers that aren't an object", () => {
+    it("warn once in development: values that are objects, or headers that aren't an object", () => {
         const warn = spyOn(console, 'warn').mockImplementation(() => {})
         try {
-            // Numbers and booleans are sent as strings, and null is no
-            // headers.
+            // Numbers and booleans are sent as strings, null and undefined
+            // values are headers that aren't set, and null is no headers.
             render({
                 uri,
                 headers: { 'x-token': 'a', 'x-number': 1, 'x-boolean': true },
             })
+            render({
+                uri,
+                headers: { 'x-null': null, 'x-undefined': undefined },
+            })
             render({ uri, headers: null })
+            FastImage.preload([{ uri, headers: { 'x-null': null } as any }])
             expect(warn).not.toHaveBeenCalled()
             render({
                 uri,
-                headers: {
-                    'x-token': 'a',
-                    'x-null': null,
-                    'x-undefined': undefined,
-                },
+                headers: { 'x-token': 'a', 'x-object': {}, 'x-array': [] },
             })
             render({ uri, headers: ['x-token'] })
-            FastImage.preload([{ uri, headers: { 'x-null': null } as any }])
             render({ uri, placeholder: { uri, headers: { 'x-object': {} } } })
             expect(warn).toHaveBeenCalledTimes(1)
             expect(warn.mock.calls[0][0]).toContain(
-                'the headers "x-null", "x-undefined" aren\'t strings, so they aren\'t sent',
+                'the headers "x-object", "x-array" are objects, so they aren\'t sent',
             )
         } finally {
             warn.mockRestore()
