@@ -1,14 +1,12 @@
 name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
 # Android emulator, for each example app. The JS checks are in ci.yml.
-# Runs for pull requests and pushes to main, except changes to docs alone, and
-# by hand (Actions tab, or `gh workflow run e2e.yml --ref <branch>`): a run
-# takes about 10 minutes with its caches.
+# Runs for pull requests, except changes to docs alone (main only takes them
+# rebased and passing, so its tree is one that ran), and by hand (Actions tab,
+# or `gh workflow run e2e.yml --ref <branch>`): a run takes about 10 minutes
+# with its caches.
 on:
   pull_request:
-    paths-ignore: ['docs/**', 'website/**', '**.md']
-  push:
-    branches: [main]
     paths-ignore: ['docs/**', 'website/**', '**.md']
   workflow_dispatch:
 permissions:
@@ -19,11 +17,10 @@ env:
   VERIFY_FLOWS_TIMEOUT: 900
   VERIFY_BUILD_TIMEOUT: 2400
   VERIFY_HELLO_TIMEOUT: 300
-# A new push to a pull request replaces its run; every push to main (and run
-# by hand) gets one of its own.
+# A new push to a pull request (or run by hand) replaces its run.
 concurrency:
-  group: e2e-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   ios:
     # Xcode 27 with the iOS 27.0 simulator runtime the references were taken
