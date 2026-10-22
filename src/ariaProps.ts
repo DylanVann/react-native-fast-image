@@ -31,6 +31,8 @@ type AriaProps = Pick<
     | 'accessibilityValue'
 >
 
+const ARIA_KEY_SET: ReadonlySet<string> = new Set(ARIA_KEYS)
+
 // The props without the ARIA keys, with the accessibility props they map to.
 type NativeProps<P> = Omit<P & FastImageProps, (typeof ARIA_KEYS)[number]>
 
@@ -38,10 +40,14 @@ export function resolveAriaProps<P extends AriaProps>(
     props: P,
 ): NativeProps<P> {
     // Most images have none of them: their props go on as they are, without
-    // a copy.
+    // a copy. Their own keys are checked (a few), not ARIA_KEYS (15 lookups of
+    // keys they don't have, several times slower).
     let any = false
-    for (let i = 0; i < ARIA_KEYS.length && !any; i++) {
-        any = props[ARIA_KEYS[i]] !== undefined
+    for (const key in props) {
+        if (ARIA_KEY_SET.has(key) && props[key as keyof P] !== undefined) {
+            any = true
+            break
+        }
     }
     if (!any) return props as NativeProps<P>
     // The same keys as ARIA_KEYS (a test checks each one is mapped).
