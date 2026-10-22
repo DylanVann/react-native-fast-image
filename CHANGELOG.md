@@ -1,3 +1,10 @@
+## [10.8.4](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.3...v10.8.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ios:** require SDWebImage 5.21.5 or later ([#1355](https://github.com/DylanVann/react-native-fast-image/issues/1355)) ([9191fdf](https://github.com/DylanVann/react-native-fast-image/commit/9191fdfdfed9d3f9b84375fc79619df7b7c8386f))
+
 ## [10.8.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.2...v10.8.3) (2026-10-22)
 
 
