@@ -1,3 +1,10 @@
+## [10.8.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.0...v10.8.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ios:** don't load cache web images stored before clearDiskCache ([#1336](https://github.com/DylanVann/react-native-fast-image/issues/1336)) ([3a62d51](https://github.com/DylanVann/react-native-fast-image/commit/3a62d51acc5f2af89f91ebea3fc7e10caae134e8))
+
 # [10.8.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.7.0...v10.8.0) (2026-10-20)
 
 
