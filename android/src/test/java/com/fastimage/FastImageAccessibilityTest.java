@@ -16,9 +16,10 @@ import org.robolectric.RuntimeEnvironment;
 
 // `accessible` and `focusable`, as Fabric sets them through the view manager's
 // delegate: the image takes focus (TalkBack's as its own element, and the
-// keyboard's or D-pad's) while either is true, as React Native's Image does
-// for `accessible` and View for `focusable`. They aren't Codegen props, and
-// React Native's base delegate drops them.
+// keyboard's or D-pad's) while either is true, and not while either is false,
+// as React Native's Image does for `accessible`. (React Native's View leaves
+// focus as it is for focusable false.) They aren't Codegen props, and React
+// Native's base delegate drops them.
 @RunWith(RobolectricTestRunner.class)
 public class FastImageAccessibilityTest {
     private FastImageViewWithUrl view;
@@ -46,7 +47,9 @@ public class FastImageAccessibilityTest {
         assertTrue(view.isFocusable());
         // False: not focusable, even if it becomes clickable.
         delegate.setProperty(view, "focusable", false);
-        assertEquals(View.NOT_FOCUSABLE, view.getFocusable());
+        view.setClickable(true);
+        assertFalse(view.isFocusable());
+        view.setClickable(false);
         // Removed: back to Android's default.
         delegate.setProperty(view, "focusable", null);
         assertEquals(View.FOCUSABLE_AUTO, view.getFocusable());

@@ -190,7 +190,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @Nullable
     private Boolean mFocusableProp = null;
 
-    void setAccessible(@Nullable Boolean accessible) {
+    void setAccessibleProp(@Nullable Boolean accessible) {
         mAccessible = accessible;
         updateFocusable();
     }
