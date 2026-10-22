@@ -1086,11 +1086,14 @@ function ProgressGzipCase() {
 // them, on the same url, mount and unmount every frame, for several rounds (a
 // new url each). A round ends once each of the images has loaded; passes when
 // every round does with no onError, and each image got onProgress before its
-// onLoad, never going back, the last 1, and none after. Android went through
+// onLoad, never going back, the last 1, and none after, and each mount of the
+// churned ones got onLoadStart before any onProgress. Android went through
 // the url's list of views on the download's thread to send progress, while the
 // UI thread added and removed views: that threw a
 // ConcurrentModificationException, which failed the download (every image on
-// the url got onError).
+// the url got onError). And a view that mounted while the url's progress was
+// waiting to be sent could get it before its own onLoadStart, which was
+// posted after it.
 const SHARED_URL_ROUNDS = 8
 const SHARED_URL_VIEWS = 40
 const SHARED_URL_CHURN = 10
@@ -1170,12 +1173,11 @@ function ProgressSharedUrlCase() {
                 {!done &&
                     frame % 2 === 0 &&
                     Array.from({ length: SHARED_URL_CHURN }, (_, i) => (
-                        <FastImage
+                        <SharedUrlChurnImage
                             key={`churn-${i}`}
-                            style={sharedUrlStyles.image}
                             source={source}
-                            onProgress={() => {}}
                             onError={onError}
+                            fail={fail}
                         />
                     ))}
             </View>
@@ -1190,9 +1192,38 @@ function ProgressSharedUrlCase() {
                             ? 'OK'
                             : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
                 }
-                description="onProgress for images on one url while others on it mount and unmount: every image loads, with onProgress only before its onLoad"
+                description="onProgress for images on one url while others on it mount and unmount: every image loads, with onProgress only after its onLoadStart and before its onLoad"
             />
         </View>
+    )
+}
+
+// One of ProgressSharedUrlCase's churned images, a new one each mount: its
+// onProgress mustn't come before its onLoadStart.
+function SharedUrlChurnImage({
+    source,
+    onError,
+    fail,
+}: {
+    source: Source
+    onError: (e: OnErrorEvent) => void
+    fail: (message: string) => void
+}) {
+    const started = useRef(false)
+    return (
+        <FastImage
+            style={sharedUrlStyles.image}
+            source={source}
+            onLoadStart={() => {
+                started.current = true
+            }}
+            onProgress={() => {
+                if (!started.current) {
+                    fail('a mounted image: onProgress before onLoadStart')
+                }
+            }}
+            onError={onError}
+        />
     )
 }
 
