@@ -8123,9 +8123,12 @@ const thumbhashHeld = (name: string) =>
     slowImageUrl(
         `picsum/1021-120x120.jpg?group=${thumbhashName(name)}&hold=${thumbhashName(name)}&holdAfter=0&trickle`,
     )
+// Moves a case to its next hold and group, for its next mount.
+const nextThumbhashName = (name: string) =>
+    thumbhashReleases.set(name, (thumbhashReleases.get(name) ?? 0) + 1)
 const releaseThumbhashHold = (name: string) => {
     const hold = thumbhashName(name)
-    thumbhashReleases.set(name, (thumbhashReleases.get(name) ?? 0) + 1)
+    nextThumbhashName(name)
     return fetch(imageUrl(`release?hold=${hold}`)).catch(() => {})
 }
 const thumbhashRequests = (name: string) =>
@@ -8241,6 +8244,9 @@ function ThumbhashFailsCase() {
 // The image has loaded; a second later its source gets another hash. Passes
 // when it doesn't load again: one request, one onLoad.
 function ThumbhashChangeLoadedCase() {
+    // Its requests counted afresh when it's mounted again (the runner's
+    // retry).
+    useEffect(() => () => void nextThumbhashName('loaded'), [])
     const [thumbhash, setThumbhash] = useState(THUMBHASH_RED_BLUE)
     const [status, setStatus] = useState('waiting')
     const loads = useRef(0)
@@ -8289,6 +8295,9 @@ function ThumbhashChangeLoadedCase() {
 // defaultSource shown until then (none before): the placeholder image goes
 // away without loading the image again (one request, one onLoad).
 function ThumbhashPlaceholderLateCase() {
+    // Its requests counted afresh when it's mounted again (the runner's
+    // retry).
+    useEffect(() => () => void nextThumbhashName('placeholder-late'), [])
     const [thumbhash, setThumbhash] = useState<string>()
     const [status, setStatus] = useState('waiting')
     const loads = useRef(0)
