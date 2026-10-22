@@ -9,7 +9,6 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.Bitmap;
 import android.graphics.PorterDuff;
-import android.util.Log;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.DisplayMetrics;
@@ -64,7 +63,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     static final String REACT_CLASS = "FastImageView";
     static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
     static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
-    static final String LOG_TAG = "FastImage";
     // Download progress, by the key downloads are shared by
     // (FastImageSharedDownloads.key): the views that get it, those with an onProgress from
     // their load's onLoadStart to its onLoad or onError, and the latest step a
@@ -554,14 +552,8 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             event.putInt("total", (int) total);
             // Downloads only report a known length (see FastImageSharedDownloads).
             event.putDouble("progress", Math.min(1.0, Math.max(0.0, (double) loaded / total)));
-            try {
-                FastImageEvents.dispatch(view, REACT_ON_PROGRESS_EVENT, event);
-            } catch (RuntimeException e) {
-                // E.g. the view's React instance is gone: progress isn't worth
-                // crashing the app for.
-                // (Not the key: it has the request's headers.)
-                Log.w(LOG_TAG, "Couldn't send onProgress", e);
-            }
+            // Posted after the view's onLoadStart, which may still be waiting.
+            FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
         }
     }
 
