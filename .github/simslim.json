@@ -1,0 +1,5 @@
+{
+    "name": "e2e",
+    "description": "The e2e workflow's simulator: the background services a run doesn't use turned off, except the photo library (assetsd) the ph:// cases read.",
+    "keep": ["com.apple.assetsd"]
+}

@@ -42,14 +42,16 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
       # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
-      # its first boot: a new simulator's first boot keeps the runner's 3
-      # cores busy for about 10 minutes, a restored one boots in seconds.
-      # CoreSimulator lists the devices in its folder when its service starts.
+      # its first boot, slimmed: a new simulator's first boot keeps the
+      # runner's 3 cores busy for about 10 minutes, and every boot runs
+      # background services (wallpapers, widgets, Siri, Spotlight) for minutes
+      # more, while the app builds. CoreSimulator lists the devices in its
+      # folder when its service starts.
       - id: simulator
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/simulator-cache
-          key: ios-simulator-iPhone-17-Pro-xcode-27.1-v1
+          key: ios-simulator-iPhone-17-Pro-xcode-27.1-v2-${{ hashFiles('.github/simslim.json') }}
       - if: steps.simulator.outputs.cache-hit == 'true'
         run: |
           udid=$(cat ~/simulator-cache/udid)
@@ -128,14 +130,24 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       # The simulator verify.mts created, for later runs (see above): without
-      # the example apps, shut down.
+      # the example apps, with simslim's .github/simslim.json profile (its
+      # services stay off on later boots), shut down. Not saved if slimming
+      # fails.
       - if: always() && steps.simulator.outputs.cache-hit != 'true'
         id: savesimulator
+        continue-on-error: true
         run: |
           udid=$(xcrun simctl list devices -j | python3 -c 'import json, sys; print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == "RNFI iPhone"))') || exit 0
           for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum; do
             xcrun simctl uninstall "$udid" "org.reactjs.native.example.$app" || true
           done
+          curl -fsSL -o "$RUNNER_TEMP/simslim.tar.gz" https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
+          echo "b47302da6fb83b8b4c21f4fdd61507469770c07b0ff07fd1f48207bda4270887  $RUNNER_TEMP/simslim.tar.gz" | shasum -a 256 -c
+          tar -xzf "$RUNNER_TEMP/simslim.tar.gz" -C "$RUNNER_TEMP"
+          # Slow runners need longer than simslim's default time limits.
+          export SIMSLIM_BOOT_TIMEOUT=20m SIMSLIM_SPAWN_TIMEOUT=5m
+          "$RUNNER_TEMP/simslim" on "$udid" --profile .github/simslim.json
+          "$RUNNER_TEMP/simslim" verify "$udid" --profile .github/simslim.json
           xcrun simctl shutdown "$udid" || true
           mkdir -p ~/simulator-cache
           cp -R ~/Library/Developer/CoreSimulator/Devices/"$udid" ~/simulator-cache/
