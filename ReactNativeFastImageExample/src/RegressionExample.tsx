@@ -4756,12 +4756,14 @@ function CachePathAfterClearCase({
 // without awaiting either, after queueing cache 'cacheOnly' lookups the clear
 // waits behind. Passes when the file:// call resolves first. On Android the
 // clear ran on the native modules' thread, where React Native runs every
-// module's async methods, so they waited while it deleted the cache.
+// module's async methods, so they waited while it deleted the cache. 200
+// lookups: with 20, a busy machine sometimes finished them and the clear
+// before the module's queue got to the file:// call.
 function ClearDiskCacheThreadCase() {
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         const order: string[] = []
-        const lookups = Array.from({ length: 20 }, (_, n) =>
+        const lookups = Array.from({ length: 200 }, (_, n) =>
             FastImage.getCachePath({
                 uri: imageUrl(
                     `picsum/1022-120x120.jpg?clear-disk-cache-thread=${RUN}&n=${n}`,
@@ -8107,16 +8109,27 @@ const THUMBHASH_GREEN_YELLOW = 'HWwJNRp4eHB4iIh4iIh4iHhweAiH'
 const THUMBHASH_DISC = 'Y8WDBQA396eIiH52qBd4cI33B1iIiIB5WA=='
 const THUMBHASH_CYAN_ORANGE = 'YdgFjaSPiIiIiHh4h4iIh4B4CId3'
 
-// A slow server url held before it sends anything (until the case unmounts),
-// so the placeholder stays. Its requests are counted in its group.
+// A case's hold and request group: a new one once its hold is released, so
+// the case mounted again (the runner's retry) is held again (the server
+// doesn't hold a released name again).
+const thumbhashReleases = new Map<string, number>()
+const thumbhashName = (name: string) =>
+    `thumbhash-${name}-${RUN}-${thumbhashReleases.get(name) ?? 0}`
+// A slow server url held before it sends any of the image (until the case
+// unmounts), so the placeholder stays. A byte a second while held (trickle),
+// so the download doesn't time out (15 s without data) if the group takes
+// long. Its requests are counted in its group.
 const thumbhashHeld = (name: string) =>
     slowImageUrl(
-        `picsum/1021-120x120.jpg?group=thumbhash-${name}-${RUN}&hold=thumbhash-${name}-${RUN}&holdAfter=0`,
+        `picsum/1021-120x120.jpg?group=${thumbhashName(name)}&hold=${thumbhashName(name)}&holdAfter=0&trickle`,
     )
-const releaseThumbhashHold = (name: string) =>
-    fetch(imageUrl(`release?hold=thumbhash-${name}-${RUN}`)).catch(() => {})
+const releaseThumbhashHold = (name: string) => {
+    const hold = thumbhashName(name)
+    thumbhashReleases.set(name, (thumbhashReleases.get(name) ?? 0) + 1)
+    return fetch(imageUrl(`release?hold=${hold}`)).catch(() => {})
+}
 const thumbhashRequests = (name: string) =>
-    fetch(imageUrl(`requests?group=thumbhash-${name}-${RUN}`))
+    fetch(imageUrl(`requests?group=${thumbhashName(name)}`))
         .then((response) => response.json())
         .then((stats: { count: number }) => stats.count)
 
@@ -8255,7 +8268,7 @@ function ThumbhashChangeLoadedCase() {
                 style={thumbhashStyles.wide}
                 source={{
                     uri: slowImageUrl(
-                        `picsum/1021-120x120.jpg?group=thumbhash-loaded-${RUN}&delay=50`,
+                        `picsum/1021-120x120.jpg?group=${thumbhashName('loaded')}&delay=50`,
                     ),
                     headers: SLOW_HEADERS,
                     thumbhash,
@@ -8305,7 +8318,7 @@ function ThumbhashPlaceholderLateCase() {
                 style={thumbhashStyles.wide}
                 source={{
                     uri: slowImageUrl(
-                        `picsum/1021-120x120.jpg?group=thumbhash-placeholder-late-${RUN}&delay=50`,
+                        `picsum/1021-120x120.jpg?group=${thumbhashName('placeholder-late')}&delay=50`,
                     ),
                     headers: SLOW_HEADERS,
                 }}
