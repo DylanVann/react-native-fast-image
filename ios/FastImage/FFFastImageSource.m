@@ -221,6 +221,10 @@ static NSString *const FFFStoredAtKey = @"FFFastImageStoredAt";
 // When clearWebURLCache last ran, or nil.
 static NSDate *FFFWebURLCacheClearedAt;
 
+// How long after a clear loads check the response they'd get: the removal
+// takes about 10 ms, longer on a busy device. Each check is a cache lookup.
+static const NSTimeInterval FFFWebURLCacheClearCheck = 5;
+
 @implementation FFFWebDownloaderOperation
 
 // Whether data is an SVG document: its first element (after an XML
@@ -503,14 +507,15 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 }
 
 // Whether the HTTP cache's response to the request was stored before the last
-// clearWebURLCache (or has no time: stored by an app's own operation class).
+// clearWebURLCache (or has no time: stored by an app's own operation class),
+// in the few seconds after it.
 + (BOOL)isCachedBeforeClear:(NSURLRequest *)request
 {
     NSDate *clearedAt;
     @synchronized (self) {
         clearedAt = FFFWebURLCacheClearedAt;
     }
-    if (!clearedAt) {
+    if (!clearedAt || -clearedAt.timeIntervalSinceNow > FFFWebURLCacheClearCheck) {
         return NO;
     }
     NSCachedURLResponse *cached = [self.webURLCache cachedResponseForRequest:request];

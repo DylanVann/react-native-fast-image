@@ -88,7 +88,7 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // milliseconds after removeAllCachedResponses returns, and NSURLCache doesn't
 // say when: until then a `cache: 'web'` load could still get a response from
 // before the clear. So the web loader stores the time with each response, and
-// after a clear, a load ignores a cached response stored before it.
+// for 5 s after a clear, a load ignores a cached response stored before it.
 + (void)clearWebURLCache;
 
 // After a load of this source failed: for a `cache: 'web'` image whose data
