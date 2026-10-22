@@ -1,3 +1,10 @@
+## [10.8.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.2...v10.8.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **android:** send onProgress after the view's onLoadStart ([#1343](https://github.com/DylanVann/react-native-fast-image/issues/1343)) ([8907e6b](https://github.com/DylanVann/react-native-fast-image/commit/8907e6b80f2c916bf1cc987d17a30eb541442885))
+
 ## [10.8.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.1...v10.8.2) (2026-10-22)
 
 
