@@ -104,6 +104,7 @@ function FastImageBase({
     paused: _paused,
     transition: _transition,
     downsample: _downsample,
+    maxBufferSize: _maxBufferSize,
     onProgress: _onProgress,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {

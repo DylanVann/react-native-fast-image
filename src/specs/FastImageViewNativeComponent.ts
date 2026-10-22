@@ -74,6 +74,9 @@ export interface NativeProps extends ViewProps {
     // (Android ignores it).
     dynamicRangeLimit?: string
     blurRadius?: CodegenTypes.Float
+    // Bytes of decoded frames an animated image keeps, 0 for automatic. iOS
+    // and tvOS (Android ignores it).
+    maxBufferSize?: CodegenTypes.Double
     // The events JS has a handler for, as bits: 1 onFastImageLoadStart,
     // 2 onFastImageProgress, 4 onFastImageLoad, 8 onFastImageError, 16
     // onFastImageLoadEnd. The native views only send those (most images have

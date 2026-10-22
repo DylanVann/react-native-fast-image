@@ -763,6 +763,26 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     alt?: string
 
     /**
+     * The most memory, in bytes, an animated image (GIF, animated WebP, APNG
+     * or AVIF) keeps for its decoded frames. `0` lets it choose from the
+     * device's free memory, and can keep every frame of a large animation
+     * decoded.
+     *
+     * With a smaller buffer it decodes frames again as it plays instead of
+     * keeping them all: less memory, more CPU. It's for screens that show many
+     * animated images at once (e.g. a grid of GIFs or stickers), where all of
+     * them keeping every frame adds up.
+     *
+     * Android decodes an animated image's frames as it draws them, so there's
+     * no buffer to cap.
+     *
+     * @default 0
+     * @platform ios
+     * @platform tvos
+     */
+    maxBufferSize?: number
+
+    /**
      * Called when the image starts to load.
      *
      * @platform android
