@@ -2,7 +2,7 @@ name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
 # Android emulator, for each example app. The JS checks are in ci.yml.
 # Only run by hand for now (Actions tab, or `gh workflow run e2e.yml --ref
-# <branch>`): a run takes about 20 minutes, most of it the iOS builds.
+# <branch>`): a run takes about 10 minutes with its caches.
 on:
   workflow_dispatch:
 permissions:
