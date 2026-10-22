@@ -15,6 +15,7 @@ import com.bumptech.glide.load.ImageHeaderParserUtils;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.request.FutureTarget;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.Target;
@@ -33,6 +34,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -346,17 +348,28 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     private static File cachedFile(Context context, Object model, RequestOptions options) {
         try {
             FastImageGlide.get(context);
-            return Glide.with(context)
+            return getAndClear(context, Glide.with(context)
                     .asFile()
                     .load(model)
                     .apply(options)
                     // On disk only, as in loadFile.
                     .skipMemoryCache(true)
                     .onlyRetrieveFromCache(true)
-                    .submit()
-                    .get();
+                    .submit());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    // A blocking load's result. Its request is cleared once it's in: Glide
+    // keeps a request until then, and starts one that failed again when the
+    // network comes back (see FirstResult), which would look the image up or
+    // store it again after its result was reported.
+    private static <T> T getAndClear(Context context, FutureTarget<T> future) throws ExecutionException, InterruptedException {
+        try {
+            return future.get();
+        } finally {
+            Glide.with(context).clear(future);
         }
     }
 
@@ -579,13 +592,12 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     return;
                 }
                 try {
-                    File cached = Glide.with(context)
+                    File cached = getAndClear(context, Glide.with(context)
                             .asFile()
                             .load(new FastImageCacheWrite(key, fileUri))
                             .diskCacheStrategy(DiskCacheStrategy.DATA)
                             .skipMemoryCache(true)
-                            .submit()
-                            .get();
+                            .submit());
                     promise.resolve(pathResult(cached));
                 } catch (Exception e) {
                     promise.resolve(failure("Couldn't store it: " + e));
