@@ -42,8 +42,8 @@ jobs:
     env:
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
       # The simulator's recordings start late on these machines: video
-      # samples record longer before their change.
-      VERIFY_SAMPLE_LEAD_MS: 2000
+      # samples record longer before their change (500 ms by default).
+      VERIFY_SAMPLE_LEAD_MS: 1000
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
