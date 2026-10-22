@@ -846,9 +846,9 @@ function stopIdbCompanion() {
     idbCompanion = undefined
 }
 
-// The bytes of a protobuf message's first length-delimited field 1 (a
-// ScreenshotResponse's image_data).
-function protobufField1(message: Buffer) {
+// The bytes of a protobuf message's first length-delimited field `field` (a
+// ScreenshotResponse's image_data is 1).
+function protobufField(message: Buffer, field: number) {
     let i = 0
     const varint = () => {
         let value = 0
@@ -866,7 +866,7 @@ function protobufField1(message: Buffer) {
         const type = key & 7
         if (type === 2) {
             const length = varint()
-            if (key >> 3 === 1) return message.subarray(i, i + length)
+            if (key >> 3 === field) return message.subarray(i, i + length)
             i += length
         } else if (type === 0) varint()
         else if (type === 1) i += 8
@@ -897,7 +897,10 @@ function idbScreenshot() {
             const body = Buffer.concat(chunks)
             resolve(
                 body.length > 5
-                    ? protobufField1(body.subarray(5, 5 + body.readUInt32BE(1)))
+                    ? protobufField(
+                          body.subarray(5, 5 + body.readUInt32BE(1)),
+                          1,
+                      )
                     : undefined,
             )
         })
@@ -909,15 +912,125 @@ function idbScreenshot() {
     })
 }
 
+// A gRPC frame of a protobuf message given as bytes.
+function grpcFrame(message: number[]) {
+    const frame = Buffer.alloc(5 + message.length)
+    frame.writeUInt32BE(message.length, 1)
+    Buffer.from(message).copy(frame, 5)
+    return frame
+}
+
+// A raw H.264 stream written to `file` (mp4) by ffmpeg, each frame timed by
+// when it arrives, so the video starts at its first frame: `write` takes the
+// stream's next bytes, `started` resolves with the time (wall clock) the first
+// came (undefined if none did), and `finish` completes the file.
+function h264Recording(file: string) {
+    const ffmpeg = spawn(
+        'ffmpeg',
+        [
+            '-v',
+            'error',
+            '-y',
+            '-f',
+            'h264',
+            '-use_wallclock_as_timestamps',
+            '1',
+            '-i',
+            'pipe:0',
+            '-c',
+            'copy',
+            file,
+        ],
+        { stdio: ['pipe', 'ignore', 'ignore'] },
+    )
+    recorders.add(ffmpeg)
+    const exited = new Promise<void>((resolve) =>
+        ffmpeg.on('close', () => {
+            recorders.delete(ffmpeg)
+            resolve()
+        }),
+    )
+    ffmpeg.stdin?.on('error', () => {})
+    let settle: (at: number | undefined) => void = () => {}
+    const started = new Promise<number | undefined>((resolve) => {
+        const timer = setTimeout(() => resolve(undefined), 10_000)
+        settle = (at) => {
+            clearTimeout(timer)
+            resolve(at)
+        }
+    })
+    return {
+        started,
+        write(data: Buffer) {
+            settle(Date.now())
+            ffmpeg.stdin?.write(data)
+        },
+        // The recorder stopped (before its first frame, if none came).
+        ended: () => settle(undefined),
+        async finish() {
+            ffmpeg.stdin?.end()
+            await Promise.race([exited, sleep(15_000)])
+            ffmpeg.kill('SIGKILL')
+            return fs.existsSync(file) && fs.statSync(file).size > 0
+        },
+    }
+}
+
+// A screen recording from the companion (see recordScreen), or undefined
+// without one. Its video_stream sends the screen as H.264, 60 frames a second
+// whether it changes or not, from about 100 ms after it's asked (the first
+// stream of a companion takes about 600).
+function idbRecordScreen(file: string) {
+    const session = idb
+    if (!session) return undefined
+    const video = h264Recording(file)
+    // A VideoStreamRequest's start: { fps: 60 } (H.264 is the default format).
+    const stream = session.request({
+        ':method': 'POST',
+        ':path': '/idb.CompanionService/video_stream',
+        'content-type': 'application/grpc',
+        te: 'trailers',
+    })
+    stream.write(grpcFrame([0x0a, 0x02, 0x10, 60]))
+    const ended = new Promise<void>((resolve) => stream.on('close', resolve))
+    ended.then(video.ended)
+    // VideoStreamResponses, each with a Payload (2) whose data (2) is the
+    // next part of the video.
+    let pending = Buffer.alloc(0)
+    stream.on('data', (chunk: Buffer) => {
+        pending = Buffer.concat([pending, chunk])
+        while (
+            pending.length >= 5 &&
+            pending.length >= 5 + pending.readUInt32BE(1)
+        ) {
+            const message = pending.subarray(5, 5 + pending.readUInt32BE(1))
+            pending = pending.subarray(5 + message.length)
+            const payload = protobufField(message, 2)
+            const data = payload && protobufField(payload, 2)
+            if (data) video.write(data)
+        }
+    })
+    stream.on('error', () => {})
+    const stop = async () => {
+        // A VideoStreamRequest's stop: {}.
+        if (!stream.closed) stream.end(grpcFrame([0x12, 0x00]))
+        await Promise.race([ended, sleep(5000)])
+        stream.close()
+        return video.finish()
+    }
+    return { started: video.started, stop, busy: () => false }
+}
+
 // A regression group's screenshot: from the companion when there is one,
 // once the screen has settled. A case's last status can reach the script
 // before the simulator has drawn it (simctl's slower start hid that), so it
-// takes screenshots until two in a row are the same, for up to a second (an
-// animated image doesn't settle).
+// takes screenshots until two in a row are the same outside `masks` (pixels;
+// animated images), for up to a second.
 async function captureScreenshot(
     platform: Platform,
     device: string,
     file: string,
+    masks: PixelRect[],
 ) {
     let png = platform === 'ios' ? await idbScreenshot() : undefined
     if (png) {
@@ -925,7 +1038,8 @@ async function captureScreenshot(
         while (Date.now() < until) {
             const next = await idbScreenshot()
             if (!next) break
-            const settled = next.equals(png)
+            const settled =
+                next.equals(png) || (await sameOutside(png, next, masks, file))
             png = next
             if (settled) break
         }
@@ -933,6 +1047,37 @@ async function captureScreenshot(
         return
     }
     screenshot(platform, device, file)
+}
+
+// Whether two screenshots are the same outside `masks` (pixels), with odiff
+// (see compareScreenshot); `file` names the temporary files.
+async function sameOutside(
+    a: Buffer,
+    b: Buffer,
+    masks: PixelRect[],
+    file: string,
+) {
+    const ignoreRegions = odiffRegions(masks)
+    if (ignoreRegions.length === 0) return false
+    const [fileA, fileB] = ['a', 'b'].map((n) =>
+        file.replace(/\.png$/, `-settle-${n}.png`),
+    )
+    fs.writeFileSync(fileA, a)
+    fs.writeFileSync(fileB, b)
+    try {
+        const result = await compare(fileA, fileB, fileA, {
+            antialiasing: true,
+            failOnLayoutDiff: true,
+            noFailOnFsErrors: true,
+            ignoreRegions,
+        })
+        return result.match
+    } catch {
+        return false
+    } finally {
+        fs.rmSync(fileA, { force: true })
+        fs.rmSync(fileB, { force: true })
+    }
 }
 
 // Crops a screenshot (pixels) in place. Asynchronous: the app can go on to
@@ -974,6 +1119,23 @@ const SCREENSHOT_MAX_DIFF = 0.1
 
 type PixelRect = { x: number; y: number; width: number; height: number }
 
+// Masks (pixels) as odiff's ignoreRegions.
+const odiffRegions = (masks: PixelRect[]) =>
+    masks
+        .map((m) => ({
+            x1: Math.max(0, Math.floor(m.x)),
+            y1: Math.max(0, Math.floor(m.y)),
+            x2: Math.ceil(m.x + m.width),
+            y2: Math.ceil(m.y + m.height),
+        }))
+        // odiff hangs on an inverted region, and rejects an empty list.
+        .filter(
+            (r) =>
+                [r.x1, r.y1, r.x2, r.y2].every(Number.isFinite) &&
+                r.x2 > r.x1 &&
+                r.y2 > r.y1,
+        )
+
 async function compareScreenshot(
     app: App,
     platform: Platform,
@@ -1000,20 +1162,7 @@ async function compareScreenshot(
         return { result: 'seeded' }
     }
     const diffFile = file.replace(/\.png$/, '-diff.png')
-    const ignoreRegions = masks
-        .map((m) => ({
-            x1: Math.max(0, Math.floor(m.x)),
-            y1: Math.max(0, Math.floor(m.y)),
-            x2: Math.ceil(m.x + m.width),
-            y2: Math.ceil(m.y + m.height),
-        }))
-        // odiff hangs on an inverted region, and rejects an empty list.
-        .filter(
-            (r) =>
-                [r.x1, r.y1, r.x2, r.y2].every(Number.isFinite) &&
-                r.x2 > r.x1 &&
-                r.y2 > r.y1,
-        )
+    const ignoreRegions = odiffRegions(masks)
     let result: Awaited<ReturnType<typeof compare>>
     try {
         result = await compare(reference, file, diffFile, {
@@ -1052,10 +1201,10 @@ async function compareScreenshot(
 // screenshot catches at one moment only (and not at a reliable one): e.g. an
 // image fading in, or a source change that must never show a blank view. It
 // sends { type: 'sample', group, name, area (dp), durationMs, expect,
-// palette? }; the screen is recorded (simctl io recordVideo, adb shell
-// screenrecord), { type: 'recording', group, name } tells the case to make
-// the change, and the case sends { type: 'sampleDone', group, name } once
-// it's done (durationMs is the most it's given). A group's samples share a
+// palette? }; the screen is recorded (recordScreen), { type: 'recording',
+// group, name } tells the case to make the change, and the case sends
+// { type: 'sampleDone', group, name } once it's done (durationMs is the most
+// it's given). A group's samples share a
 // recording, which starts with the first and stops once they're all done, so
 // they can run at the same time; each is checked in its own part of it, from
 // the last frame before its change. Each frame's color in the middle of the
@@ -1080,7 +1229,7 @@ const SAMPLE_MAX_RATIO = 0.6
 // this long after it asked.
 const SAMPLE_TAIL_MS = 500
 // (VERIFY_SAMPLE_LEAD_MS: longer where a recording's first frames come late,
-// e.g. a busy CI machine's simulator.)
+// e.g. simctl's on a busy machine, without the companion.)
 const SAMPLE_LEAD_MS = Number(env.VERIFY_SAMPLE_LEAD_MS) || 500
 // With VERIFY_SPARSE_RECORDINGS (a recorder that captures a few frames a
 // second, e.g. an emulator without a GPU), a sample that saw its first and
@@ -1112,44 +1261,70 @@ const hexToRgb = (hex: string): Rgb => {
 }
 
 // Starts recording the screen to `file`. `started` resolves once frames are
-// being recorded (false if the recorder didn't start); `stop` ends the
-// recording and resolves once the file is complete.
+// being recorded, with the time (wall clock) of the video's start (undefined
+// if the recorder didn't start); `stop` ends the recording and resolves once
+// the file is complete. The emulator's and the companion's recordings start
+// at their first frame; without the companion, simctl's.
 function recordScreen(platform: Platform, device: string, file: string) {
-    const args =
-        platform === 'ios'
-            ? [
-                  'simctl',
-                  'io',
-                  device,
-                  'recordVideo',
-                  '--codec=h264',
-                  '--force',
-                  file,
-              ]
-            : [
-                  '-s',
-                  device,
-                  'shell',
-                  'screenrecord',
-                  '--verbose',
-                  '--time-limit',
-                  '60',
-                  '/sdcard/fast-image-sample.mp4',
-              ]
-    // Not the previous sample's, if this one isn't saved.
-    if (platform === 'android') {
-        capture(ADB, [
+    if (platform === 'android') return adbRecordScreen(device, file)
+    return idbRecordScreen(file) ?? simctlRecordScreen(device, file)
+}
+
+// The emulator's screen: screenrecord's raw H.264 through adb (see
+// h264Recording). It only adds a frame when the screen changes.
+function adbRecordScreen(device: string, file: string) {
+    const video = h264Recording(file)
+    const child = spawn(
+        ADB,
+        [
             '-s',
             device,
-            'shell',
-            'rm',
-            '-f',
-            '/sdcard/fast-image-sample.mp4',
-        ])
+            'exec-out',
+            'screenrecord',
+            '--output-format=h264',
+            '--time-limit',
+            '60',
+            '-',
+        ],
+        { stdio: ['ignore', 'pipe', 'ignore'] },
+    )
+    recorders.add(child)
+    const exited = new Promise<void>((resolve) =>
+        child.on('close', () => {
+            recorders.delete(child)
+            resolve()
+        }),
+    )
+    exited.then(video.ended)
+    child.stdout?.on('data', (data: Buffer) => video.write(data))
+    const stop = async () => {
+        capture(ADB, ['-s', device, 'shell', 'pkill', '-2', 'screenrecord'])
+        await Promise.race([exited, sleep(15_000)])
+        child.kill('SIGKILL')
+        return video.finish()
     }
-    const child = spawn(platform === 'ios' ? 'xcrun' : ADB, args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    return { started: video.started, stop, busy: () => false }
+}
+
+// The simulator's screen without the companion. simctl only writes its file
+// once it stops, so the video's start is when it was launched: its first frame
+// can come later (up to a second after it says "Recording started" on a busy
+// CI machine), which the sample's lead has to cover.
+function simctlRecordScreen(device: string, file: string) {
+    const launchedAt = Date.now()
+    const child = spawn(
+        'xcrun',
+        [
+            'simctl',
+            'io',
+            device,
+            'recordVideo',
+            '--codec=h264',
+            '--force',
+            file,
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+    )
     recorders.add(child)
     const exited = new Promise<void>((resolve) =>
         child.on('close', () => {
@@ -1160,38 +1335,23 @@ function recordScreen(platform: Platform, device: string, file: string) {
     // A simulator whose recording wasn't stopped (a run that was killed)
     // refuses to start another until it restarts.
     let busy = false
-    // simctl says "Recording started"; screenrecord --verbose says which
-    // encoder it configured, just before its first frame.
-    const started = new Promise<boolean>((resolve) => {
-        const timer = setTimeout(() => resolve(false), 10_000)
+    const started = new Promise<number | undefined>((resolve) => {
+        const timer = setTimeout(() => resolve(undefined), 10_000)
         const look = (data: Buffer) => {
             if (/already in progress/i.test(String(data))) busy = true
-            if (/Recording started|Configuring recorder/.test(String(data))) {
+            if (/Recording started/.test(String(data))) {
                 clearTimeout(timer)
-                // screenrecord's first frame follows its configuration.
-                setTimeout(() => resolve(true), platform === 'ios' ? 0 : 300)
+                resolve(launchedAt)
             }
         }
         child.stdout?.on('data', look)
         child.stderr?.on('data', look)
-        exited.then(() => resolve(false))
+        exited.then(() => resolve(undefined))
     })
     const stop = async () => {
-        if (platform === 'ios') {
-            child.kill('SIGINT')
-        } else {
-            // SIGINT makes screenrecord finish the file.
-            capture(ADB, ['-s', device, 'shell', 'pkill', '-2', 'screenrecord'])
-        }
-        await Promise.race([exited, new Promise((r) => setTimeout(r, 15_000))])
+        child.kill('SIGINT')
+        await Promise.race([exited, sleep(15_000)])
         child.kill('SIGKILL')
-        if (platform === 'android') {
-            capture(
-                ADB,
-                ['-s', device, 'pull', '/sdcard/fast-image-sample.mp4', file],
-                { timeout: 60 },
-            )
-        }
         return fs.existsSync(file)
     }
     return { started, stop, busy: () => busy }
@@ -1405,20 +1565,25 @@ async function runRegression(
             dir,
             `${String(index + 1).padStart(2, '0')}-${name}.png`,
         )
-        await captureScreenshot(platform, device, file)
+        const screenMasks = (
+            Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
+        ).map((m) => ({
+            x: m.x * scale,
+            y: m.y * scale,
+            width: m.width * scale,
+            height: m.height * scale,
+        }))
+        await captureScreenshot(platform, device, file, screenMasks)
         const crop = area && {
             x: Math.round(area.x * scale),
             y: Math.round(area.y * scale),
             width: Math.round(area.width * scale),
             height: Math.round(area.height * scale),
         }
-        const masks = (
-            Array.isArray(masksDp) ? (masksDp as PixelRect[]) : []
-        ).map((m) => ({
-            x: m.x * scale - (crop?.x ?? 0),
-            y: m.y * scale - (crop?.y ?? 0),
-            width: m.width * scale,
-            height: m.height * scale,
+        const masks = screenMasks.map((m) => ({
+            ...m,
+            x: m.x - (crop?.x ?? 0),
+            y: m.y - (crop?.y ?? 0),
         }))
         const shot = (crop ? cropScreenshot(file, crop) : Promise.resolve())
             .then(() =>
@@ -1460,9 +1625,8 @@ async function runRegression(
     type Session = {
         index: number
         file: string
-        // When the recorder was launched (wall time), undefined if it didn't
-        // start. Its first frame is at most a few hundred ms later (simctl
-        // only says "Recording started" about a second after that).
+        // When the video starts (wall time; see recordScreen), undefined if
+        // the recorder didn't start.
         started: Promise<number | undefined>
         stop: Promise<() => Promise<boolean>>
         // Whether the simulator said a recording was already in progress.
@@ -1486,17 +1650,13 @@ async function runRegression(
                 dir,
                 `${String(index + 1).padStart(2, '0')}-${groups[index]}-samples${count > 1 ? `-${count}` : ''}.mp4`,
             )
-            let launchedAt = 0
-            const recording = stopped.then(() => {
-                launchedAt = Date.now()
-                return recordScreen(platform, device, file)
-            })
+            const recording = stopped.then(() =>
+                recordScreen(platform, device, file),
+            )
             session = {
                 index,
                 file,
-                started: recording
-                    .then((r) => r.started)
-                    .then((ok) => (ok ? launchedAt : undefined)),
+                started: recording.then((r) => r.started),
                 stop: recording.then((r) => r.stop),
                 busy: recording.then((r) => r.busy),
                 samples: [],
@@ -1511,11 +1671,13 @@ async function runRegression(
         current.active++
         openSamples.set(`${index}/${name}`, sample)
         current.started.then(async (t0) => {
-            sample.start = t0 === undefined ? 0 : Math.max(0, requested - t0)
-            // Some of the video before the change, in case the first frame
-            // came a little after the launch.
+            // Some of the video before the change (and, from simctl, time
+            // for its first frame). A case can ask once its first image has
+            // loaded, before it's drawn, so its part of the video starts at
+            // the change.
             const lead = requested + SAMPLE_LEAD_MS - Date.now()
             if (lead > 0) await new Promise((r) => setTimeout(r, lead))
+            sample.start = t0 === undefined ? 0 : Math.max(0, Date.now() - t0)
             // The case makes its change now (even without a recording).
             send({ type: 'recording', group: index, name })
             const limit = setTimeout(
