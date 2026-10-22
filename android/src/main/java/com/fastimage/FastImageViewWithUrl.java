@@ -179,6 +179,22 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mHitSlopRect = hitSlopRect;
     }
 
+    // `accessible` and `focusable`: the view takes focus (TalkBack's as its
+    // own element, and the keyboard's or D-pad's) while either is true, as
+    // React Native's Image sets it for `accessible` and View for `focusable`.
+    private boolean mAccessible = false;
+    private boolean mFocusableProp = false;
+
+    void setAccessible(boolean accessible) {
+        mAccessible = accessible;
+        setFocusable(mAccessible || mFocusableProp);
+    }
+
+    void setFocusableProp(boolean focusable) {
+        mFocusableProp = focusable;
+        setFocusable(mAccessible || mFocusableProp);
+    }
+
     void setOverflow(@Nullable String overflow) {
         mOverflowVisible = "visible".equals(overflow);
         invalidate();
