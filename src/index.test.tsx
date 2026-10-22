@@ -1952,6 +1952,40 @@ describe('ARIA props', () => {
         ).toEqual(['name', 'caption'])
     })
 
+    it('focusable, or tabIndex, is isTVSelectable on Apple TV', () => {
+        const isTV = Platform.isTV
+        ;(Platform as { isTV: boolean }).isTV = true
+        try {
+            for (const props of [
+                { focusable: true },
+                { tabIndex: 0 },
+            ] as const) {
+                const native = viewProps(
+                    <FastImage source={source} {...props} />,
+                )
+                expect(native.isTVSelectable).toBe(true)
+                expect(native.focusable).toBeUndefined()
+            }
+            // Without focusable, an isTVSelectable given goes on as it is.
+            expect(
+                viewProps(
+                    <FastImage
+                        source={source}
+                        {...({ isTVSelectable: true } as {})}
+                    />,
+                ).isTVSelectable,
+            ).toBe(true)
+            // Android TV reads focusable.
+            Platform.OS = 'android'
+            expect(
+                viewProps(<FastImage source={source} focusable />),
+            ).toMatchObject({ focusable: true })
+        } finally {
+            ;(Platform as { isTV: boolean }).isTV = isTV
+            Platform.OS = 'ios'
+        }
+    })
+
     it('pass props without them on as they are, without a copy', () => {
         const props: FastImageProps = {
             source,
