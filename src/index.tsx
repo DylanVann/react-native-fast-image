@@ -14,6 +14,7 @@ import {
 import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
+import { resolveAriaProps } from './ariaProps'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
@@ -953,7 +954,7 @@ function FastImageBase({
 
     return (
         <FastImageView
-            {...props}
+            {...resolveAriaProps(props)}
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
             // Image does.
@@ -1298,13 +1299,17 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
             imageRef,
             children,
             importantForAccessibility,
+            'aria-hidden': ariaHidden,
             ...props
         }: FastImageBackgroundProps,
         ref: React.Ref<ViewRef>,
     ) => (
+        // aria-hidden goes to the container, which hides the image and the
+        // children (as its importantForAccessibility does).
         <View
             accessibilityIgnoresInvertColors
             importantForAccessibility={importantForAccessibility}
+            aria-hidden={ariaHidden}
             style={style}
             ref={ref}
         >

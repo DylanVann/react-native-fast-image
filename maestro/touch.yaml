@@ -1,5 +1,5 @@
 # Taps the regression runner's `touch` cases, which need a real touch: the
-# touchable, pointer-events, accessibility-label and hitSlop images.
+# touchable, pointer-events, accessibility-label, aria-label and hitSlop images.
 # scripts/verify.mts runs it while the runner shows that group, and the cases
 # report their OK to the runner (see
 # ReactNativeFastImageExample/src/RegressionRunner.tsx). A crash fails the
@@ -30,6 +30,9 @@ tags:
 # By its accessibility label.
 - tapOn:
       text: 'regression accessible image'
+# By its aria-label.
+- tapOn:
+      text: 'regression aria-label image'
 # Beside the image, inside its hitSlop.
 - tapOn:
       id: 'regression-hit-slop-target'

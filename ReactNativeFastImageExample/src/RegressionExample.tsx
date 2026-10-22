@@ -371,6 +371,30 @@ function AccessibleCase() {
     )
 }
 
+// AccessibleCase with aria-label instead of accessibilityLabel and
+// `accessible` (which aria-label implies): React Native's views don't read
+// the aria props, so FastImage maps them in JS, as View and Image do.
+// maestro/touch.yaml finds it by that label and taps it.
+function AriaLabelCase() {
+    const [pressed, setPressed] = useState(false)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                aria-label="regression aria-label image"
+                onStartShouldSetResponder={() => true}
+                onResponderRelease={() => setPressed(true)}
+                style={styles.image}
+                source={{ uri: LOGO }}
+            />
+            <CaseStatus
+                id="aria-label"
+                status={pressed ? 'OK' : 'tap the image'}
+                description="aria-label is the image's accessibility label: found by it and touched (it had none)"
+            />
+        </View>
+    )
+}
+
 // A FastImage with hitSlop to its right and responder props. maestro/touch.yaml
 // taps the gray square beside it, which has pointerEvents="none" (the touch
 // goes to what's under it, the image's slop); passes when the image gets it.
@@ -10665,6 +10689,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PointerEventsCase key="pointer-events" />,
             <PointerEventsBoxNoneCase key="pointer-events-box-none" />,
             <AccessibleCase key="accessible" />,
+            <AriaLabelCase key="aria-label" />,
             <HitSlopCase key="hit-slop" />,
         ],
     },

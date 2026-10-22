@@ -109,6 +109,13 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 - **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Show `<Image source={{ uri, headers: { 'x-token': 'a', 'x-n': 1 } }} />` with a url that needs `x-token`.
 - **How Fast Image handles it:** both platforms send numbers and booleans as strings, as fetch does, leave out null and undefined values (headers that aren't set), and warn in development about values they can't send (objects) ([#1359](https://github.com/DylanVann/react-native-fast-image/pull/1359)).
 
+## Some ARIA props do nothing
+
+- **What happens:** `aria-live`, `aria-valuemax`, `aria-valuemin`, `aria-valuenow`, `aria-valuetext` and `id` on an `Image` have no effect on iOS and Android, though `Image` takes `View`'s props and `View` maps them all. So `<Image id="avatar" />` has no `nativeID`, and `aria-live` doesn't make it a live region.
+- **Where:** `packages/react-native/Libraries/Image/Image.ios.js` and `Image.android.js` map only `aria-label`, `aria-labelledby`, `aria-hidden` and the state props (`aria-busy`, `aria-checked`, `aria-disabled`, `aria-expanded`, `aria-selected`). `Libraries/Components/View/View.js` maps the rest. The native views read none of the `aria-*` props.
+- **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<Image id="avatar" source={...} />` and look for a view with `nativeID` "avatar" in the inspector.
+- **How Fast Image handles it:** it maps all of `View`'s ARIA props, and `id`, on iOS and Android. Its Android view doesn't handle `focusable` (from `tabIndex`) or `accessible` yet ([#1360](https://github.com/DylanVann/react-native-fast-image/pull/1360)).
+
 ## Other issues
 
 These were found while comparing implementations, but Fast Image has no counterpart for them, so there's no fix to point to.

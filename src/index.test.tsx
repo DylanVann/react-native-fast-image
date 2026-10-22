@@ -25,6 +25,7 @@ import FastImage, {
     type FastImageRef,
 } from './index'
 import { commands } from '../test/react-native'
+import { ARIA_KEYS, resolveAriaProps } from './ariaProps'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -1694,5 +1695,276 @@ describe('fallback (removed in 10.0)', () => {
         } finally {
             warn.mockRestore()
         }
+    })
+})
+
+describe('ARIA props', () => {
+    const viewProps = (element: React.ReactElement) =>
+        renderer
+            .create(element)
+            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .props
+    const source = { uri: 'https://example.com/a.png' }
+    afterEach(() => {
+        Platform.OS = 'ios'
+    })
+
+    it('go to the native view as its accessibility props, as with View', () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                aria-label="A cat"
+                aria-labelledby="name, caption"
+                aria-live="off"
+                aria-busy
+                aria-selected={false}
+                accessibilityState={{ checked: true, busy: false }}
+                aria-valuenow={2}
+                accessibilityValue={{ min: 0, max: 5 }}
+                id="cat"
+                tabIndex={0}
+            />,
+        )
+        expect(props).toMatchObject({
+            accessibilityLabel: 'A cat',
+            accessibilityLabelledBy: ['name', 'caption'],
+            accessibilityLiveRegion: 'none',
+            accessibilityState: {
+                busy: true,
+                checked: true,
+                disabled: undefined,
+                expanded: undefined,
+                selected: false,
+            },
+            accessibilityValue: { min: 0, max: 5, now: 2, text: undefined },
+            nativeID: 'cat',
+            focusable: true,
+        })
+        expect(Object.keys(props).some((key) => key.startsWith('aria-'))).toBe(
+            false,
+        )
+        expect(props.id).toBeUndefined()
+        expect(props.tabIndex).toBeUndefined()
+    })
+
+    it('aria-hidden hides the image (not accessible on iOS)', () => {
+        expect(
+            viewProps(<FastImage source={source} accessible aria-hidden />),
+        ).toMatchObject({
+            accessible: false,
+            accessibilityElementsHidden: true,
+            importantForAccessibility: 'no-hide-descendants',
+        })
+        Platform.OS = 'android'
+        expect(
+            viewProps(<FastImage source={source} aria-hidden />),
+        ).toMatchObject({
+            accessibilityElementsHidden: true,
+            importantForAccessibility: 'no-hide-descendants',
+        })
+        // Android reads importantForAccessibility, not `accessible`.
+        expect(
+            viewProps(<FastImage source={source} aria-hidden />).accessible,
+        ).toBeUndefined()
+    })
+
+    it('aria-hidden on FastImageBackground hides its children too', () => {
+        const tree = renderer.create(
+            <FastImageBackground source={source} aria-hidden>
+                <View />
+            </FastImageBackground>,
+        )
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props['aria-hidden']).toBe(true)
+        // The container hides the image too.
+        expect(
+            viewProps(<FastImageBackground source={source} aria-hidden />)[
+                'aria-hidden'
+            ],
+        ).toBeUndefined()
+    })
+
+    it('aria-label makes the image accessible unless accessible says otherwise', () => {
+        expect(
+            viewProps(<FastImage source={source} aria-label="A cat" />)
+                .accessible,
+        ).toBe(true)
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    accessible={false}
+                />,
+            ).accessible,
+        ).toBe(false)
+        // Hidden for iOS: not made accessible (importantForAccessibility is
+        // Android's, which iOS ignores).
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    accessibilityElementsHidden
+                />,
+            ).accessible,
+        ).toBeUndefined()
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    aria-label="A cat"
+                    importantForAccessibility="no-hide-descendants"
+                />,
+            ).accessible,
+        ).toBe(true)
+        // A blank label is none too.
+        expect(
+            viewProps(<FastImage source={source} aria-label=" " />).accessible,
+        ).toBeUndefined()
+        // An empty label is none.
+        expect(
+            viewProps(<FastImage source={source} aria-label="" />).accessible,
+        ).toBeUndefined()
+        // aria-hidden wins on iOS.
+        expect(
+            viewProps(
+                <FastImage source={source} aria-label="A cat" aria-hidden />,
+            ).accessible,
+        ).toBe(false)
+    })
+
+    it('map each one on its own', () => {
+        const cases: [string, unknown, Record<string, unknown>][] = [
+            [
+                'aria-busy',
+                true,
+                { accessibilityState: expect.objectContaining({ busy: true }) },
+            ],
+            [
+                'aria-checked',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        checked: true,
+                    }),
+                },
+            ],
+            [
+                'aria-disabled',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        disabled: true,
+                    }),
+                },
+            ],
+            [
+                'aria-expanded',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        expanded: true,
+                    }),
+                },
+            ],
+            ['aria-hidden', true, { accessibilityElementsHidden: true }],
+            ['aria-label', 'a', { accessibilityLabel: 'a' }],
+            ['aria-labelledby', 'a', { accessibilityLabelledBy: ['a'] }],
+            ['aria-live', 'polite', { accessibilityLiveRegion: 'polite' }],
+            [
+                'aria-selected',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        selected: true,
+                    }),
+                },
+            ],
+            [
+                'aria-valuemax',
+                1,
+                { accessibilityValue: expect.objectContaining({ max: 1 }) },
+            ],
+            [
+                'aria-valuemin',
+                1,
+                { accessibilityValue: expect.objectContaining({ min: 1 }) },
+            ],
+            [
+                'aria-valuenow',
+                1,
+                { accessibilityValue: expect.objectContaining({ now: 1 }) },
+            ],
+            [
+                'aria-valuetext',
+                'a',
+                { accessibilityValue: expect.objectContaining({ text: 'a' }) },
+            ],
+            ['id', 'a', { nativeID: 'a' }],
+            ['tabIndex', 0, { focusable: true }],
+        ]
+        // Every key, so a key without a mapping fails here.
+        expect(cases.map(([key]) => key).sort()).toEqual([...ARIA_KEYS].sort())
+        for (const [key, value, mapped] of cases) {
+            const props = viewProps(
+                <FastImage source={source} {...{ [key]: value }} />,
+            )
+            expect(props).toMatchObject(mapped)
+            expect(props[key]).toBeUndefined()
+        }
+    })
+
+    it("take null values as View does: they clear what they map to, and don't throw", () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                {...({
+                    'aria-labelledby': null,
+                    'aria-label': null,
+                    id: null,
+                } as {})}
+            />,
+        )
+        expect(props.accessibilityLabelledBy).toBeUndefined()
+        expect(props.accessibilityLabel).toBeNull()
+        expect(props.nativeID).toBeNull()
+        expect(props.accessible).toBeUndefined()
+        expect(props['aria-label']).toBeUndefined()
+    })
+
+    it("aria-labelledby that isn't a string goes on as it is", () => {
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    {...({ 'aria-labelledby': ['name', 'caption'] } as {})}
+                />,
+            ).accessibilityLabelledBy,
+        ).toEqual(['name', 'caption'])
+    })
+
+    it('pass props without them on as they are, without a copy', () => {
+        const props: FastImageProps = {
+            source,
+            accessibilityLabel: 'A dog',
+            accessible: true,
+        }
+        expect(resolveAriaProps(props)).toBe(props)
+    })
+
+    it('leave the props alone without them', () => {
+        const props = viewProps(
+            <FastImage
+                source={source}
+                accessible
+                accessibilityLabel="A dog"
+                accessibilityState={{ selected: true }}
+            />,
+        )
+        expect(props.accessibilityLabel).toBe('A dog')
+        expect(props.accessibilityState).toEqual({ selected: true })
+        expect(props.importantForAccessibility).toBeUndefined()
+        expect(props.nativeID).toBeUndefined()
     })
 })
