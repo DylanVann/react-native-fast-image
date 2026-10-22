@@ -913,11 +913,14 @@ function FastImageBase({
     // only those change. Memoized on source, so an unchanged source reaches
     // the native view as the same object, and React's prop diff stops at it.
     const resolvedSource = useMemo(() => {
-        // A blurDataUri that isn't a data uri is ignored, with a warning, and
-        // React Native's cache: 'reload' warns (native reads its cache values).
-        for (const entry of [source].flat()) {
-            dataUri((entry as Source | undefined)?.blurDataUri)
-            warnIfReload(entry)
+        // In development, a blurDataUri that isn't a data uri warns (native
+        // ignores it), and so does React Native's cache: 'reload' (native
+        // reads its cache values).
+        if (__DEV__) {
+            for (const entry of [source].flat()) {
+                dataUri((entry as Source | undefined)?.blurDataUri)
+                warnIfReload(entry)
+            }
         }
         const single =
             Array.isArray(source) && source.length === 1 ? source[0] : source
