@@ -57,6 +57,25 @@ jobs:
       - run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      # ffmpeg and ffprobe, for the video samples: static builds, checked
+      # against their SHA-256 (Homebrew took about 20 s).
+      - run: |
+          base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
+          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
+          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
+          shasum -a 256 -c <<'EOF'
+          c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
+          fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
+          EOF
+          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: bun install --frozen-lockfile
       # verify.mts's simulator ("RNFI iPhone"), saved by an earlier run after
       # its first boot, slimmed: a new simulator's first boot keeps the
       # runner's 3 cores busy for about 10 minutes, and every boot runs
@@ -82,25 +101,6 @@ jobs:
           # discovery, which xcodebuild otherwise waits for when it starts.
           xcrun simctl boot "$udid"
           (xcrun xcdevice list > /dev/null 2>&1 &)
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
-      # ffmpeg and ffprobe, for the video samples: static builds, checked
-      # against their SHA-256 (Homebrew took about 20 s).
-      - run: |
-          base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
-          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
-          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
-          shasum -a 256 -c <<'EOF'
-          c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
-          fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
-          EOF
-          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - run: bun install --frozen-lockfile
       # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current).
       - id: deps
