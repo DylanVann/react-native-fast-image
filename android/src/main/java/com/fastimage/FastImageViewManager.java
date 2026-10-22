@@ -555,7 +555,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             // Downloads only report a known length (see FastImageSharedDownloads).
             event.putDouble("progress", Math.min(1.0, Math.max(0.0, (double) loaded / total)));
             try {
-                FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
+                FastImageEvents.dispatch(view, REACT_ON_PROGRESS_EVENT, event);
             } catch (RuntimeException e) {
                 // E.g. the view's React instance is gone: progress isn't worth
                 // crashing the app for.
