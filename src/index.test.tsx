@@ -1834,24 +1834,83 @@ describe('ARIA props', () => {
         ).toBe(false)
     })
 
-    it('map each one on its own: none reaches the native view as it is', () => {
-        const values: Record<string, unknown> = {
-            'aria-labelledby': 'a',
-            'aria-live': 'polite',
-            'aria-valuenow': 1,
-            'aria-valuemax': 1,
-            'aria-valuemin': 1,
-            'aria-valuetext': 'a',
-            tabIndex: 0,
-            id: 'a',
-        }
-        for (const key of ARIA_KEYS) {
+    it('map each one on its own', () => {
+        const cases: [string, unknown, Record<string, unknown>][] = [
+            [
+                'aria-busy',
+                true,
+                { accessibilityState: expect.objectContaining({ busy: true }) },
+            ],
+            [
+                'aria-checked',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        checked: true,
+                    }),
+                },
+            ],
+            [
+                'aria-disabled',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        disabled: true,
+                    }),
+                },
+            ],
+            [
+                'aria-expanded',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        expanded: true,
+                    }),
+                },
+            ],
+            ['aria-hidden', true, { accessibilityElementsHidden: true }],
+            ['aria-label', 'a', { accessibilityLabel: 'a' }],
+            ['aria-labelledby', 'a', { accessibilityLabelledBy: ['a'] }],
+            ['aria-live', 'polite', { accessibilityLiveRegion: 'polite' }],
+            [
+                'aria-selected',
+                true,
+                {
+                    accessibilityState: expect.objectContaining({
+                        selected: true,
+                    }),
+                },
+            ],
+            [
+                'aria-valuemax',
+                1,
+                { accessibilityValue: expect.objectContaining({ max: 1 }) },
+            ],
+            [
+                'aria-valuemin',
+                1,
+                { accessibilityValue: expect.objectContaining({ min: 1 }) },
+            ],
+            [
+                'aria-valuenow',
+                1,
+                { accessibilityValue: expect.objectContaining({ now: 1 }) },
+            ],
+            [
+                'aria-valuetext',
+                'a',
+                { accessibilityValue: expect.objectContaining({ text: 'a' }) },
+            ],
+            ['id', 'a', { nativeID: 'a' }],
+            ['tabIndex', 0, { focusable: true }],
+        ]
+        // Every key, so a key without a mapping fails here.
+        expect(cases.map(([key]) => key).sort()).toEqual([...ARIA_KEYS].sort())
+        for (const [key, value, mapped] of cases) {
             const props = viewProps(
-                <FastImage
-                    source={source}
-                    {...{ [key]: values[key] ?? true }}
-                />,
+                <FastImage source={source} {...{ [key]: value }} />,
             )
+            expect(props).toMatchObject(mapped)
             expect(props[key]).toBeUndefined()
         }
     })
@@ -1883,28 +1942,6 @@ describe('ARIA props', () => {
                 />,
             ).accessibilityLabelledBy,
         ).toEqual(['name', 'caption'])
-    })
-
-    it('tabIndex is also isTVSelectable on TV', () => {
-        const isTV = Platform.isTV
-        ;(Platform as { isTV: boolean }).isTV = true
-        try {
-            expect(
-                viewProps(<FastImage source={source} tabIndex={0} />),
-            ).toMatchObject({ focusable: true, isTVSelectable: true })
-            // An isTVSelectable given wins.
-            expect(
-                viewProps(
-                    <FastImage
-                        source={source}
-                        tabIndex={0}
-                        {...({ isTVSelectable: false } as {})}
-                    />,
-                ),
-            ).toMatchObject({ isTVSelectable: false })
-        } finally {
-            ;(Platform as { isTV: boolean }).isTV = isTV
-        }
     })
 
     it('pass props without them on as they are, without a copy', () => {

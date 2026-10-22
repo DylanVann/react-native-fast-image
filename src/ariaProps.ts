@@ -42,14 +42,14 @@ export function resolveAriaProps<P extends AriaProps>(
     // Most images have none of them: their props go on as they are, without
     // a copy. Their own keys are checked (a few), not ARIA_KEYS (15 lookups of
     // keys they don't have, several times slower).
-    let any = false
+    let hasAria = false
     for (const key in props) {
         if (ARIA_KEY_SET.has(key) && props[key as keyof P] !== undefined) {
-            any = true
+            hasAria = true
             break
         }
     }
-    if (!any) return props as NativeProps<P>
+    if (!hasAria) return props as NativeProps<P>
     // The same keys as ARIA_KEYS (a test checks each one is mapped).
     const {
         'aria-busy': ariaBusy,
@@ -94,20 +94,7 @@ export function resolveAriaProps<P extends AriaProps>(
         }
     }
     if (id !== undefined) native.nativeID = id
-    if (tabIndex !== undefined) {
-        native.focusable = !tabIndex
-        // On Apple TV, React Native tvOS makes a view focusable with
-        // isTVSelectable (its View.js sets it from focusable on iOS).
-        // An isTVSelectable given wins, as there.
-        const tv = native as { isTVSelectable?: boolean }
-        if (
-            Platform.isTV &&
-            Platform.OS === 'ios' &&
-            tv.isTVSelectable === undefined
-        ) {
-            tv.isTVSelectable = !tabIndex
-        }
-    }
+    if (tabIndex !== undefined) native.focusable = !tabIndex
     // A labelled image is an accessibility element unless `accessible` says
     // otherwise or accessibilityElementsHidden hides it, as an <img
     // aria-label> on the web and React Native's Image with `alt`: iOS reads
