@@ -801,7 +801,10 @@ const HELLO_TIMEOUT = seconds('VERIFY_HELLO_TIMEOUT', 90) * 1000
 // went away": the emulator's network drops for a few seconds now and then,
 // and the runner reconnects and shows the group again.
 const RECONNECT_GRACE_MS = 10_000
-const GROUP_TIMEOUT = 30_000
+// How long a group's cases have to be all OK. The slowest groups take about
+// 16 s (shared-downloads, on CI too). A group that isn't OK by then fails, and
+// isn't run again: a flaky case shows as a failure to track and fix.
+const GROUP_TIMEOUT = 20_000
 
 type RunnerMessage = { type: string } & Record<string, unknown>
 
@@ -1699,8 +1702,7 @@ async function runRegression(
     let scale = 1
     let windowWidth = 0
     const failures: string[] = []
-    // Each group's failures, by index: a group that failed runs once more at
-    // the end, and its second try's replace them.
+    // Each group's failures, by index.
     const groupFailures = new Map<number, string[]>()
     const failuresOf = (index: number) => {
         let list = groupFailures.get(index)
@@ -2148,9 +2150,9 @@ async function runRegression(
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
-    // A case's latest status, from the messages from `since` on (a retry's).
-    const statusOf = (index: number, id: string, since = 0) => {
-        for (let i = messages.length - 1; i >= since; i--) {
+    // A case's latest status.
+    const statusOf = (index: number, id: string) => {
+        for (let i = messages.length - 1; i >= 0; i--) {
             const m = messages[i]
             if (m.type === 'status' && m.group === index && m.id === id)
                 return m.status as string | undefined
@@ -2179,20 +2181,15 @@ async function runRegression(
         : Array.from({ length: end - first }, (_, i) => first + i)
     if (indices[0] > 0) send({ type: 'show', index: indices[0] })
     // Shows a group's results once it's on screen (index): waits for its cases,
-    // then takes its screenshot. since: where its messages start (a retry's
-    // come after the first try's). connected: false if the app went away.
-    const runGroup = async (index: number, since: number, label: string) => {
+    // then takes its screenshot. connected: false if the app went away.
+    const runGroup = async (index: number, label: string) => {
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
         const own = failuresOf(index)
         const failGroup = (failure: string) => own.push(failure)
         const shown = await waitFor(
-            () =>
-                messages.find(
-                    (m, i) =>
-                        i >= since && m.type === 'group' && m.index === index,
-                ),
+            () => messages.find((m) => m.type === 'group' && m.index === index),
             GROUP_TIMEOUT,
         )
         if (!shown) {
@@ -2234,7 +2231,7 @@ async function runRegression(
         // true once every case is OK, false if the app went away.
         const result = await waitFor(
             () =>
-                cases.every((id) => statusOf(index, id, since) === 'OK')
+                cases.every((id) => statusOf(index, id) === 'OK')
                     ? true
                     : appGone()
                       ? false
@@ -2242,7 +2239,7 @@ async function runRegression(
             GROUP_TIMEOUT - (Date.now() - waitStart),
         )
         statuses[group] = Object.fromEntries(
-            cases.map((id) => [id, statusOf(index, id, since) ?? 'no status']),
+            cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
         )
         if (result === false) {
             failGroup(`${group}: the app went away`)
@@ -2250,7 +2247,7 @@ async function runRegression(
         }
         if (!result) {
             for (const id of cases) {
-                const status = statusOf(index, id, since)
+                const status = statusOf(index, id)
                 if (status !== 'OK')
                     failGroup(`${id}: ${status ?? 'no status'}`)
             }
@@ -2291,7 +2288,7 @@ async function runRegression(
             groupOk,
         )
         const seconds = ((Date.now() - groupStart) / 1000).toFixed(1)
-        timings.push(`${group}${since > 0 ? ' (retry)' : ''} ${seconds}s`)
+        timings.push(`${group} ${seconds}s`)
         // Progress in the main log, so a slow group doesn't look like a hang
         // (the details are in regression.log). The screenshot's comparison
         // finishes later.
@@ -2302,11 +2299,7 @@ async function runRegression(
     }
     let connected = true
     for (const [i, index] of indices.entries()) {
-        ;({ connected } = await runGroup(
-            index,
-            0,
-            `${i + 1}/${indices.length}`,
-        ))
+        ;({ connected } = await runGroup(index, `${i + 1}/${indices.length}`))
         if (!connected) break
         // The next group (shown if it isn't the one after this).
         const next = indices[i + 1]
@@ -2318,31 +2311,9 @@ async function runRegression(
     }
     if (indices.at(-1) === groups.length - 1 && connected)
         await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
-    // Once more for each group that failed (e.g. a video sample that missed
-    // its change on a busy machine), unless the app went away: the second
-    // try counts, and the summary names the groups that passed on it.
-    await Promise.all(shots)
-    const passedOnRetry: string[] = []
-    const retries = [...groupFailures]
-        .filter(([, list]) => list.length > 0)
-        .map(([index]) => index)
-        .sort((a, b) => a - b)
-    for (const index of connected ? retries : []) {
-        const firstTry = groupFailures.get(index) ?? []
-        groupFailures.set(index, [])
-        const since = messages.length
-        send({ type: 'show', index })
-        const retry = await runGroup(index, since, 'retry')
-        await retry.shot
-        if (!retry.connected) break
-        if (failuresOf(index).length === 0)
-            passedOnRetry.push(`${groups[index]} (${firstTry[0]})`)
-    }
     ws.close()
     await Promise.all(shots)
     failures.push(...[...groupFailures.values()].flat())
-    // Seeded by a retry that passed.
-    const stillUnseeded = unseeded.filter((group) => !seeded.includes(group))
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),
@@ -2353,8 +2324,7 @@ async function runRegression(
                 failures,
                 seeded,
                 noReference,
-                unseeded: stillUnseeded,
-                passedOnRetry,
+                unseeded,
                 unchecked,
                 timings,
             },
@@ -2370,11 +2340,8 @@ async function runRegression(
         (noReference.length > 0
             ? `; no reference for ${noReference.join(', ')} (not seeded from a --ref run)`
             : '') +
-        (stillUnseeded.length > 0
-            ? `; no reference for ${stillUnseeded.join(', ')} (not seeded or updated from a failed group)`
-            : '') +
-        (passedOnRetry.length > 0
-            ? `; passed on retry: ${passedOnRetry.join(', ')}`
+        (unseeded.length > 0
+            ? `; no reference for ${unseeded.join(', ')} (not seeded or updated from a failed group)`
             : '') +
         (unchecked.length > 0
             ? `; samples not checked (their recordings couldn't show the change): ${unchecked.join(', ')}`
