@@ -104,10 +104,11 @@ jobs:
           cp ~/simulator-cache/disabled.plist /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/
           killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
           xcrun simctl list devices | grep "RNFI iPhone"
-          # Booted now, while the rest restores, so its first minute of
-          # background work doesn't slow the build; and Xcode's device
-          # discovery, which xcodebuild otherwise waits for when it starts.
-          xcrun simctl boot "$udid"
+          # Booting in the background while the rest restores, so its first
+          # minute of background work doesn't slow the build (verify.mts waits
+          # for it); and Xcode's device discovery, which xcodebuild otherwise
+          # waits for when it starts.
+          (xcrun simctl boot "$udid" > /dev/null 2>&1 &)
           (xcrun xcdevice list > /dev/null 2>&1 &)
       # The app's dependencies, Pods, pod install's Codegen output and gems
       # (verify.mts skips pod install while they're current).
