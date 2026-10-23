@@ -907,32 +907,37 @@ function NoHandlersCase() {
 
 // Loads an image into a 60×60 view and checks onLoad reports the image's own
 // size, as iOS does. Android reported the size of the bitmap it decoded to fit
-// the view.
+// the view. An animated one is masked (its frame differs between runs).
 function SourceSizeCase({
     id,
     description,
     uri,
     width,
     height,
+    animated = false,
 }: {
     id: string
     description: Description
     uri: string
     width: number
     height: number
+    animated?: boolean
 }) {
     const [size, setSize] = useState<string>()
     const expected = `${width}x${height}`
+    const image = (
+        <FastImage
+            style={styles.image}
+            objectFit="contain"
+            source={{ uri }}
+            onLoad={(e) =>
+                setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
+            }
+        />
+    )
     return (
         <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                objectFit="contain"
-                source={{ uri }}
-                onLoad={(e) =>
-                    setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
-                }
-            />
+            {animated ? <Masked>{image}</Masked> : image}
             <CaseStatus
                 id={id}
                 status={
@@ -10074,11 +10079,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 description={{
                     checks: "onLoad reports a GIF's own size too, not the size it was decoded at for the view (#608).",
                     steps: 'Loads a 500×281 animated GIF of a jellyfish into a 48×48 view with objectFit="contain". Passes when onLoad reports 500x281.',
-                    shows: 'The jellyfish GIF (a pink and orange jellyfish on deep blue), letterboxed: gray above and below it.',
+                    shows: "The jellyfish GIF (a pink and orange jellyfish on deep blue), letterboxed: gray above and below it. Animated, so it isn't compared.",
                 }}
                 uri={imageUrl('jellyfish.gif')}
                 width={500}
                 height={281}
+                animated
             />,
             <SourceSizeCachedCase key="source-size-cached" />,
         ],
