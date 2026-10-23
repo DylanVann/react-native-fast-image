@@ -148,16 +148,15 @@ export function resolveAriaProps<P extends AriaProps>(
     return native as NativeProps<P>
 }
 
-// On Apple TV, `focusable` (or tabIndex, mapped to it above) as the
-// isTVSelectable React Native tvOS reads for focus, as its View.js sets it
-// (`focusable ?? isTVSelectable`). Elsewhere, and without focusable, the
+// On iOS, `focusable` (or tabIndex, mapped to it above) is also the
+// isTVSelectable React Native tvOS reads for focus, on Apple TV and iPhone
+// alike, as its View.js sets it (`focusable ?? isTVSelectable`). `focusable`
+// stays: React Native reads it on Apple TV from 0.88, and a version without
+// isTVSelectable leaves that out. Elsewhere, and without focusable, the
 // props go on as they are.
 export function resolveTVFocus<P extends { focusable?: boolean | null }>(
     props: P,
 ): P {
-    if (!Platform.isTV || Platform.OS !== 'ios' || props.focusable == null) {
-        return props
-    }
-    const { focusable, ...rest } = props
-    return { ...rest, isTVSelectable: focusable } as unknown as P
+    if (Platform.OS !== 'ios' || props.focusable == null) return props
+    return { ...props, isTVSelectable: props.focusable }
 }

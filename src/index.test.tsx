@@ -1952,38 +1952,29 @@ describe('ARIA props', () => {
         ).toEqual(['name', 'caption'])
     })
 
-    it('focusable, or tabIndex, is isTVSelectable on Apple TV', () => {
-        const isTV = Platform.isTV
-        ;(Platform as { isTV: boolean }).isTV = true
-        try {
-            for (const props of [
-                { focusable: true },
-                { tabIndex: 0 },
-            ] as const) {
-                const native = viewProps(
-                    <FastImage source={source} {...props} />,
-                )
-                expect(native.isTVSelectable).toBe(true)
-                expect(native.focusable).toBeUndefined()
-            }
-            // Without focusable, an isTVSelectable given goes on as it is.
+    it('focusable, or tabIndex, is also isTVSelectable on iOS (React Native tvOS)', () => {
+        for (const [props, focusable] of [
+            [{ focusable: true }, true],
+            [{ tabIndex: 0 }, true],
+            [{ tabIndex: -1 }, false],
+            // focusable wins, as in View.js.
+            [{ focusable: false, isTVSelectable: true }, false],
+        ] as const) {
             expect(
-                viewProps(
-                    <FastImage
-                        source={source}
-                        {...({ isTVSelectable: true } as {})}
-                    />,
-                ).isTVSelectable,
-            ).toBe(true)
-            // Android TV reads focusable.
-            Platform.OS = 'android'
-            expect(
-                viewProps(<FastImage source={source} focusable />),
-            ).toMatchObject({ focusable: true })
-        } finally {
-            ;(Platform as { isTV: boolean }).isTV = isTV
-            Platform.OS = 'ios'
+                viewProps(<FastImage source={source} {...(props as {})} />),
+            ).toMatchObject({ focusable, isTVSelectable: focusable })
         }
+        // Without focusable, an isTVSelectable given goes on as it is.
+        const native = viewProps(
+            <FastImage source={source} {...({ isTVSelectable: true } as {})} />,
+        )
+        expect(native.isTVSelectable).toBe(true)
+        expect(native.focusable).toBeUndefined()
+        // Android reads focusable.
+        Platform.OS = 'android'
+        expect(
+            viewProps(<FastImage source={source} focusable />).isTVSelectable,
+        ).toBeUndefined()
     })
 
     it('pass props without them on as they are, without a copy', () => {
