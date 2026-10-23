@@ -46,13 +46,14 @@ import {
     sampleStatus,
 } from './RunnerContext'
 
-// Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
-// event arrives. They're in REGRESSION_GROUPS, which the regression runner
-// (RegressionRunner.tsx) shows a group at a time and reports over a WebSocket
-// to scripts/verify.mts (which taps the `touch` group's cases with
-// maestro/touch.yaml); the Regression tab shows all of them at once for a look
-// by hand, plus the cases that send the app to the background
-// (maestro/background.yaml). A crash fails the run because the app is gone.
+// Cases for bugs that have been fixed. Each reports OK once its expected event
+// arrives (the Regression tab shows "<id>: OK"). They're in REGRESSION_GROUPS,
+// which the regression runner (RegressionRunner.tsx) shows a group at a time
+// and reports over a WebSocket to scripts/verify.mts (which taps the `touch`
+// group's cases with maestro/touch.yaml); the Regression tab shows all of
+// them at once for a look by hand, plus the cases that send the app to the
+// background (maestro/background.yaml). A crash fails the run because the app
+// is gone.
 
 // In debug builds, Android only resolves a defaultSource that's bundled as a
 // drawable (require() images come from Metro instead), so use one the app

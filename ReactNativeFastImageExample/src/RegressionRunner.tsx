@@ -14,7 +14,6 @@ import {
     useSafeAreaInsets,
 } from 'react-native-safe-area-context'
 import FastImage from 'react-native-fast-image'
-import { caseStyles } from './CaseStatus'
 import {
     InRunnerContext,
     Masked,
@@ -305,24 +304,17 @@ function Group({
     >
 }) {
     const statuses = useRef(new Map<string, string>())
-    const [summary, setSummary] = useState('')
     // Cases that haven't passed (yet), with their statuses in full.
     const [notOk, setNotOk] = useState<string[]>([])
     const report = useCallback(
         (id: string, status: string) => {
             statuses.current.set(id, status)
             send({ type: 'status', group: index, id, status })
-            const all = [...statuses.current.entries()]
-            const ok = all.filter(([, s]) => s === 'OK').length
-            const rest = all
-                .filter(([, s]) => s !== 'OK')
-                .map(([caseId, s]) => `${caseId}: ${s}`)
-            setSummary(
-                ok === all.length
-                    ? 'OK'
-                    : `${ok}/${all.length} OK; ${rest.join(', ')}`,
+            setNotOk(
+                [...statuses.current.entries()]
+                    .filter(([, s]) => s !== 'OK')
+                    .map(([caseId, s]) => `${caseId}: ${s}`),
             )
-            setNotOk(rest)
         },
         [index, send],
     )
@@ -384,18 +376,6 @@ function Group({
                                 { paddingBottom: insets.bottom },
                             ]}
                         >
-                            {/* The summary changes as cases settle, so the
-                        screenshot leaves it out. One line, so that doesn't
-                        move the cases below (areas they measured for a video
-                        sample, while it records). */}
-                            <Masked>
-                                <Text
-                                    style={caseStyles.title}
-                                    numberOfLines={1}
-                                >
-                                    {group.name}: {summary}
-                                </Text>
-                            </Masked>
                             {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
@@ -407,8 +387,8 @@ function Group({
                             >
                                 {group.cases}
                             </View>
-                            {/* Statuses in full (cases show one line each), below
-                        the cases so they can take as many lines as they need
+                            {/* Statuses in full (cases show none here), below the
+                        cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
                             <Masked>
                                 {notOk.map((line) => (
