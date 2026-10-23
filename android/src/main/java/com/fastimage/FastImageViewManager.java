@@ -86,14 +86,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         long step;
     }
 
-    // Codegen's delegate, plus the style props that React Native's View
-    // handles itself (ReactViewManager) and its base delegate drops for other
-    // views. FastImage is a single native view: they're the image's.
+    // Codegen's delegate, plus the View props that React Native's View and
+    // Image managers handle themselves and its base delegate drops for other
+    // views (see setViewProperty). FastImage is a single native view: they're
+    // the image's.
     private final ViewManagerDelegate<FastImageViewWithUrl> delegate =
             new FastImageViewManagerDelegate<FastImageViewWithUrl, FastImageViewManager>(this) {
                 @Override
                 public void setProperty(FastImageViewWithUrl view, String propName, @Nullable Object value) {
-                    if (!setViewStyleProperty(view, propName, value)) {
+                    if (!setViewProperty(view, propName, value)) {
                         super.setProperty(view, propName, value);
                     }
                 }
@@ -150,10 +151,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             Spacing.BLOCK_START,
     };
 
-    // A View style prop, as ReactViewManager sets it (borders and background
-    // through BackgroundStyleApplicator, which also clips to the padding box:
-    // see FastImageViewWithUrl.onDraw). Returns whether it was one.
-    private static boolean setViewStyleProperty(FastImageViewWithUrl view, String propName, @Nullable Object value) {
+    // A View prop that React Native's View or Image manager sets itself, and
+    // its base delegate drops for other views: style props as ReactViewManager
+    // sets them (borders and background through BackgroundStyleApplicator,
+    // which also clips to the padding box: see FastImageViewWithUrl.onDraw),
+    // and `accessible` and `focusable`. Returns whether it was one.
+    private static boolean setViewProperty(FastImageViewWithUrl view, String propName, @Nullable Object value) {
         for (int i = 0; i < BORDER_RADIUS_PROPS.length; i++) {
             if (BORDER_RADIUS_PROPS[i].equals(propName)) {
                 BackgroundStyleApplicator.setBorderRadius(
@@ -210,6 +213,19 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
                 return true;
             case "backfaceVisibility":
                 view.setBackfaceVisibility(value instanceof String ? (String) value : "visible");
+                return true;
+            // Not Codegen props, and BaseViewManager doesn't set accessible or
+            // focusable (React Native's Image and View managers do, both as
+            // keyboard focus): see setAccessibleProp. screenReaderFocusable is
+            // BaseViewManager's, here so the two don't undo each other.
+            case "accessible":
+                view.setAccessibleProp(Boolean.TRUE.equals(value));
+                return true;
+            case "screenReaderFocusable":
+                view.setScreenReaderFocusableProp(Boolean.TRUE.equals(value));
+                return true;
+            case "focusable":
+                view.setFocusableProp(value instanceof Boolean ? (Boolean) value : null);
                 return true;
             default:
                 return false;
