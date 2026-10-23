@@ -270,6 +270,21 @@ describe('FastImage (web)', () => {
         expect(alone[0].props.alt).toBe('An image')
     })
 
+    it("uses alt as the image's alt text, after aria-label and accessibilityLabel", () => {
+        const tree = render(<FastImage source={A} alt="A cat" />)
+        expect(images(tree)[0].props.alt).toBe('A cat')
+        expect(hosts(tree, 'View')[0].props['aria-label']).toBe('A cat')
+        expect(hosts(tree, 'View')[0].props.alt).toBeUndefined()
+        const labelled = render(
+            <FastImage source={A} alt="A cat" accessibilityLabel="A dog" />,
+        )
+        expect(images(labelled)[0].props.alt).toBe('A dog')
+        // An empty one is a decorative image.
+        expect(
+            images(render(<FastImage source={A} alt="" />))[0].props.alt,
+        ).toBe('')
+    })
+
     it("hides an image that failed (the browser's broken image)", () => {
         const tree = render(<FastImage source={A} accessibilityLabel="A" />)
         act(() => {

@@ -789,6 +789,18 @@ describe('FastImageBackground', () => {
         ).toBe(true)
     })
 
+    it('gives alt to the image, which it describes', () => {
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                alt="A beach"
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        expect(tree.root.findByType(FastImage as any).props.alt).toBe('A beach')
+        expect(tree.root.findAllByType(View)[0].props.alt).toBeUndefined()
+    })
+
     it('gives imageProps to the image, over the others', () => {
         const a = { uri: 'https://example.com/a.png' }
         const b = { uri: 'https://example.com/b.png' }
@@ -1919,6 +1931,62 @@ describe('ARIA props', () => {
         ).toBeUndefined()
     })
 
+    it('passes onFocus and onBlur to the native view, which sends them as a View does', () => {
+        const onFocus = () => {}
+        const onBlur = () => {}
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    focusable
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                />,
+            ),
+        ).toMatchObject({ onFocus, onBlur })
+    })
+
+    it('alt is the label after aria-label and accessibilityLabel, and makes the image accessible on iOS', () => {
+        expect(
+            viewProps(<FastImage source={source} alt="A cat" />),
+        ).toMatchObject({ accessibilityLabel: 'A cat', accessible: true })
+        expect(
+            viewProps(
+                <FastImage source={source} alt="A cat" aria-label="A dog" />,
+            ).accessibilityLabel,
+        ).toBe('A dog')
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    alt="A cat"
+                    accessibilityLabel="A dog"
+                />,
+            ).accessibilityLabel,
+        ).toBe('A dog')
+        // An explicit accessible, or aria-hidden, wins.
+        expect(
+            viewProps(
+                <FastImage source={source} alt="A cat" accessible={false} />,
+            ).accessible,
+        ).toBe(false)
+        expect(
+            viewProps(<FastImage source={source} alt="A cat" aria-hidden />)
+                .accessible,
+        ).toBe(false)
+        // An empty or blank one is a decorative image: no label.
+        for (const alt of ['', ' ']) {
+            const native = viewProps(<FastImage source={source} alt={alt} />)
+            expect(native.accessibilityLabel).toBeUndefined()
+            expect(native.accessible).toBeUndefined()
+        }
+        // On Android TalkBack reads the label without it, as for aria-label.
+        Platform.OS = 'android'
+        const android = viewProps(<FastImage source={source} alt="A cat" />)
+        expect(android.accessibilityLabel).toBe('A cat')
+        expect(android.accessible).toBeUndefined()
+    })
+
     it('aria-label makes the image accessible unless accessible says otherwise', () => {
         expect(
             viewProps(<FastImage source={source} aria-label="A cat" />)
@@ -2005,6 +2073,7 @@ describe('ARIA props', () => {
             ],
             ['aria-hidden', true, { accessibilityElementsHidden: true }],
             ['aria-label', 'a', { accessibilityLabel: 'a' }],
+            ['alt', 'a', { accessibilityLabel: 'a' }],
             ['aria-labelledby', 'a', { accessibilityLabelledBy: ['a'] }],
             ['aria-live', 'polite', { accessibilityLiveRegion: 'polite' }],
             [

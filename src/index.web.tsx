@@ -112,15 +112,16 @@ function FastImageBase({
     }
     // The label is the wrapper's aria-label, as react-native-web's Image gave
     // it (its View warns that accessibilityLabel is deprecated), and the
-    // <img>'s alt text.
+    // <img>'s alt text. alt comes after the others, as on iOS and Android.
     const {
         accessibilityLabel,
         'aria-label': ariaLabel,
+        alt,
         // Removed in 10.0 (objectFit instead): ignored.
         resizeMode: _resizeMode,
         ...viewProps
     } = props as typeof props & { 'aria-label'?: string; resizeMode?: unknown }
-    const label = ariaLabel || accessibilityLabel || undefined
+    const label = ariaLabel || accessibilityLabel || alt || undefined
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
     const sized = several ? sizedSources(several) : undefined

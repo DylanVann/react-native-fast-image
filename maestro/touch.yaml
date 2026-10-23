@@ -1,5 +1,6 @@
 # Taps the regression runner's `touch` cases, which need a real touch: the
-# touchable, pointer-events, accessibility-label, aria-label and hitSlop images.
+# touchable, pointer-events, accessibility-label, aria-label and hitSlop images,
+# and on Android moves keyboard focus through the focus case's image.
 # scripts/verify.mts runs it while the runner shows that group, and the cases
 # report their OK to the runner (see
 # ReactNativeFastImageExample/src/RegressionRunner.tsx). A crash fails the
@@ -36,3 +37,13 @@ tags:
 # Beside the image, inside its hitSlop.
 - tapOn:
       id: 'regression-hit-slop-target'
+# Android: focus the text field before the focus case's image, then Tab to the
+# image (onFocus) and on (onBlur).
+- runFlow:
+      when:
+          platform: Android
+      commands:
+          - tapOn:
+                id: 'regression-focus-input'
+          - pressKey: Tab
+          - pressKey: Tab
