@@ -121,7 +121,17 @@ function FastImageBase({
         resizeMode: _resizeMode,
         ...viewProps
     } = props as typeof props & { 'aria-label'?: string; resizeMode?: unknown }
-    const label = ariaLabel || accessibilityLabel || alt || undefined
+    // A value given wins, an empty one too (a decorative image), as on iOS
+    // and Android; a blank alt is none.
+    const given =
+        ariaLabel !== undefined
+            ? ariaLabel
+            : accessibilityLabel != null
+              ? accessibilityLabel
+              : isLabel(alt)
+                ? alt
+                : undefined
+    const label = given || undefined
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
     const sized = several ? sizedSources(several) : undefined
@@ -781,3 +791,8 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
 FastImageBackground.displayName = 'FastImageBackground'
 
 export default FastImage
+
+// A label to read: a string that isn't empty or blank.
+function isLabel(value: unknown): value is string {
+    return typeof value === 'string' && value.trim() !== ''
+}

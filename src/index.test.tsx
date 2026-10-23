@@ -1974,6 +1974,31 @@ describe('ARIA props', () => {
             viewProps(<FastImage source={source} alt="A cat" aria-hidden />)
                 .accessible,
         ).toBe(false)
+        // A label that wins over it, even an empty one, decides.
+        for (const props of [
+            { 'aria-label': '' },
+            { 'aria-label': null },
+            { accessibilityLabel: '' },
+        ]) {
+            expect(
+                viewProps(
+                    <FastImage
+                        source={source}
+                        alt="A cat"
+                        {...(props as {})}
+                    />,
+                ).accessible,
+            ).toBeUndefined()
+        }
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    alt="A cat"
+                    accessibilityLabel="A dog"
+                />,
+            ).accessible,
+        ).toBe(true)
         // An empty or blank one is a decorative image: no label.
         for (const alt of ['', ' ']) {
             const native = viewProps(<FastImage source={source} alt={alt} />)

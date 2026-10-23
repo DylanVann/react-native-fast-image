@@ -279,6 +279,15 @@ describe('FastImage (web)', () => {
             <FastImage source={A} alt="A cat" accessibilityLabel="A dog" />,
         )
         expect(images(labelled)[0].props.alt).toBe('A dog')
+        // An empty label given wins, as on native, and a blank alt is none.
+        expect(
+            images(
+                render(<FastImage source={A} alt="A cat" aria-label="" />),
+            )[0].props.alt,
+        ).toBe('')
+        expect(
+            images(render(<FastImage source={A} alt=" " />))[0].props.alt,
+        ).toBe('')
         // An empty one is a decorative image.
         expect(
             images(render(<FastImage source={A} alt="" />))[0].props.alt,

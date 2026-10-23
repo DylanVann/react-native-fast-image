@@ -149,6 +149,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code (Expo's `main` at `cae0f09b4`, 2026-10-23). Render `<ImageBackground focusable source={...}><Text>Title</Text></ImageBackground>` on Android TV and move focus with the D-pad.
 - **How Fast Image handles it:** `FastImageBackground` gives View props, accessibility and focus among them, to its view and its own props to the image, with `imageProps` for any prop on the image instead ([#1364](https://github.com/DylanVann/react-native-fast-image/pull/1364)).
 
+## iOS: an image with only alt isn't read by VoiceOver
+
+- **What happens:** `<Image alt="A cat" source={...} />` gets the label, but VoiceOver skips the image on iOS, as it's not an accessibility element: `alt` is only another name for `accessibilityLabel`, and on iOS a view's label is read only when it's `accessible`. On the web the same props are an `<img alt>` that screen readers read.
+- **Where:** `packages/expo-image/src/ExpoImage.tsx`, `render()` passes `accessibilityLabel={accessibilityLabel ?? alt}` and leaves `accessible` as it's given.
+- **How to reproduce:** Found by reading the code (Expo's `main` at `cae0f09b4`, 2026-10-23). Show `<Image alt="A cat" source={...} />` and move through the screen with VoiceOver.
+- **How Fast Image handles it:** on iOS an image labelled by `alt` (or `aria-label`) is an accessibility element unless `accessible` or `aria-hidden` says otherwise ([#1365](https://github.com/DylanVann/react-native-fast-image/pull/1365)).
+
 ## configureCache is iOS only, and throws on Android
 
 - **What happens:** `Image.configureCache()` exists only on iOS: on Android the native module has no such function, so calling it throws a `TypeError` (`ImageModule.configureCache is not a function`). On iOS the limits aren't saved (the app has to call it on every launch, after images may already have loaded), there's no age limit, and a lower `maxDiskSize` is only applied at SDWebImage's next cleanup (when the app goes to the background or terminates).

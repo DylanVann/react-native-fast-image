@@ -137,6 +137,13 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 - **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<ImageBackground accessible accessibilityLabel="Card" source={...}><Text>Title</Text></ImageBackground>` and move through it with VoiceOver or TalkBack.
 - **How Fast Image handles it:** `FastImageBackground` gives View props, accessibility and focus among them, to its view and its own props to the image, with `imageProps` for any prop on the image instead ([#1364](https://github.com/DylanVann/react-native-fast-image/pull/1364)).
 
+## alt makes an image accessible over accessible={false}
+
+- **What happens:** `<Image alt="A cat" accessible={false} />` is still an accessibility element on iOS and Android: `alt` sets `accessible` to true whatever was given. On iOS only `aria-hidden` stops it; on Android nothing does (on Android `accessible` also makes the image a keyboard and D-pad stop). An empty `alt=""`, a decorative image on the web, also makes the image accessible, with an empty label.
+- **Where:** `packages/react-native/Libraries/Image/Image.ios.js` (`else if (alt != null) { nativeProps.accessible = true; }`) and `Image.android.js` (`if (alt != null) { nativeProps.accessible = true; }`).
+- **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<Image alt="A cat" accessible={false} source={...} />` and move through the screen with VoiceOver.
+- **How Fast Image handles it:** `alt` makes the image accessible only when `accessible` isn't given (and on iOS, where VoiceOver needs it), and an empty `alt` is no label ([#1365](https://github.com/DylanVann/react-native-fast-image/pull/1365)).
+
 ## Other issues
 
 These were found while comparing implementations, but Fast Image has no counterpart for them, so there's no fix to point to.

@@ -430,7 +430,9 @@ function HitSlopCase() {
 // onFocus and onBlur on a focusable FastImage, from keyboard focus (Android:
 // React Native's base view manager sends them for any view). maestro/touch.yaml
 // taps the text field before the image and presses Tab twice, which moves
-// focus to the image and on; passes when it got onFocus, then onBlur. Not on
+// focus to the image and on to the 1-point view after it (so it lands there,
+// not wherever the search wraps to, and the screenshot doesn't show it);
+// passes when it got onFocus, then onBlur. Not on
 // iOS, where React Native sends them only for focus moved from code, behind a
 // feature flag.
 function FocusCase() {
@@ -450,6 +452,7 @@ function FocusCase() {
                 style={styles.image}
                 source={{ uri: LOGO }}
             />
+            <View focusable style={touchStyles.focusNext} />
             <CaseStatus
                 id="focus"
                 status={
@@ -481,6 +484,7 @@ const touchStyles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#999',
     },
+    focusNext: { width: 1, height: 1 },
 })
 
 // A wide image in square boxes: the left one is contain; the right one loads

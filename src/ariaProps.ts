@@ -1,5 +1,5 @@
-// The ARIA props (and id, tabIndex) as the accessibility props the native view
-// takes, and `focusable` as React Native tvOS's isTVSelectable. React
+// The ARIA props (and id, tabIndex, alt) as the accessibility props the native
+// view takes, and `focusable` as React Native tvOS's isTVSelectable. React
 // Native's View and Image map them in JS, as here: their native views don't
 // read the aria-* props.
 import { Platform } from 'react-native'
@@ -48,7 +48,8 @@ export function resolveAriaProps<P extends AriaProps>(
 ): NativeProps<P> {
     // Most images have none of them (nor `focusable` on iOS): their props go
     // on as they are, without a copy. Their own keys are checked (a few), not
-    // ARIA_KEYS (15 lookups of keys they don't have, several times slower).
+    // ARIA_KEYS (a lookup for each of its keys, which they don't have, several
+    // times slower).
     const ios = Platform.OS === 'ios'
     let hasAria = ios && props.focusable != null
     if (!hasAria) {
@@ -123,17 +124,18 @@ export function resolveAriaProps<P extends AriaProps>(
     // out. Without focusable, an isTVSelectable given goes on as it is.
     if (ios && native.focusable != null)
         native.isTVSelectable = native.focusable
-    // On iOS, an image with aria-label or alt is an accessibility element
-    // unless `accessible` says otherwise or accessibilityElementsHidden hides
-    // it, as an <img aria-label> or <img alt> on the web and React Native's
-    // Image with `alt`: iOS reads `accessible` for it. Android's TalkBack
-    // reads the label either way, and `accessible` would make the image a
-    // stop of its own, splitting a Pressable's announcement in two. An empty
-    // label is none, as on the web (a decorative image), and so is a blank
-    // one.
+    // On iOS, an image labelled by aria-label or alt is an accessibility
+    // element unless `accessible` says otherwise or accessibilityElementsHidden
+    // hides it, as an <img aria-label> or <img alt> on the web and React
+    // Native's Image with `alt`: iOS reads `accessible` for it. Android's
+    // TalkBack reads the label either way, and `accessible` would make the
+    // image a stop of its own, splitting a Pressable's announcement in two.
+    // The label that won counts, so an empty one (a decorative image, as on
+    // the web) or a blank one is none, even with alt beside it.
     if (
         ios &&
-        (isLabel(ariaLabel) || isLabel(alt)) &&
+        (ariaLabel !== undefined || alt !== undefined) &&
+        isLabel(native.accessibilityLabel) &&
         native.accessible === undefined &&
         !native.accessibilityElementsHidden
     ) {
