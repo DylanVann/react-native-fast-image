@@ -1,3 +1,10 @@
+## [10.8.8](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.7...v10.8.8) (2026-10-23)
+
+
+### Bug Fixes
+
+* **android:** make accessible a TalkBack stop and focusable a keyboard stop ([#1361](https://github.com/DylanVann/react-native-fast-image/issues/1361)) ([e6200a7](https://github.com/DylanVann/react-native-fast-image/commit/e6200a7ea2657f8ead9af7e493aaa2a6dbba5b1e))
+
 ## [10.8.7](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.6...v10.8.7) (2026-10-22)
 
 
