@@ -1952,6 +1952,34 @@ describe('ARIA props', () => {
         ).toEqual(['name', 'caption'])
     })
 
+    it('focusable, or tabIndex, is also isTVSelectable on iOS (React Native tvOS)', () => {
+        for (const [props, focusable] of [
+            [{ focusable: true }, true],
+            [{ tabIndex: 0 }, true],
+            [{ tabIndex: -1 }, false],
+            // focusable wins, as in View.js.
+            [{ focusable: false, isTVSelectable: true }, false],
+            // tabIndex wins over focusable, as in React Native's View.js
+            // (React Native tvOS's loses tabIndex).
+            [{ tabIndex: 0, focusable: false }, true],
+        ] as const) {
+            expect(
+                viewProps(<FastImage source={source} {...(props as {})} />),
+            ).toMatchObject({ focusable, isTVSelectable: focusable })
+        }
+        // Without focusable, an isTVSelectable given goes on as it is.
+        const native = viewProps(
+            <FastImage source={source} {...({ isTVSelectable: true } as {})} />,
+        )
+        expect(native.isTVSelectable).toBe(true)
+        expect(native.focusable).toBeUndefined()
+        // Android reads focusable.
+        Platform.OS = 'android'
+        expect(
+            viewProps(<FastImage source={source} focusable />).isTVSelectable,
+        ).toBeUndefined()
+    })
+
     it('pass props without them on as they are, without a copy', () => {
         const props: FastImageProps = {
             source,
@@ -1959,6 +1987,10 @@ describe('ARIA props', () => {
             accessible: true,
         }
         expect(resolveAriaProps(props)).toBe(props)
+        // focusable too, except on iOS (where it's also isTVSelectable).
+        const focusable: FastImageProps = { source, focusable: true }
+        Platform.OS = 'android'
+        expect(resolveAriaProps(focusable)).toBe(focusable)
     })
 
     it('leave the props alone without them', () => {
