@@ -172,6 +172,7 @@ export type FastImageProps = $ReadOnly<{|
     transition?: ?(boolean | number | Transition),
     downsample?: ?boolean,
     blurRadius?: ?number,
+    alt?: ?string,
     testID?: ?string,
     // FastImage is a single native view, which doesn't take children (since
     // 10.0): use FastImageBackground.

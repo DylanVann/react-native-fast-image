@@ -30,6 +30,7 @@ const IMAGE_KEYS: Record<ImageKey, true> = {
     dynamicRangeLimit: true,
     blurRadius: true,
     tintColor: true,
+    alt: true,
     onLoadStart: true,
     onProgress: true,
     onLoad: true,

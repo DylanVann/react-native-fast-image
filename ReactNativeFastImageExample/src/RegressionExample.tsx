@@ -17,6 +17,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableWithoutFeedback,
     View,
 } from 'react-native'
@@ -426,6 +427,45 @@ function HitSlopCase() {
     )
 }
 
+// onFocus and onBlur on a focusable FastImage, from keyboard focus (Android:
+// React Native's base view manager sends them for any view). maestro/touch.yaml
+// taps the text field before the image and presses Tab twice, which moves
+// focus to the image and on to the 1-point view after it (so it lands there,
+// not wherever the search wraps to, and the screenshot doesn't show it);
+// passes when it got onFocus, then onBlur. Not on
+// iOS, where React Native sends them only for focus moved from code, behind a
+// feature flag.
+function FocusCase() {
+    const [events, setEvents] = useState<string[]>([])
+    return (
+        <View style={styles.row}>
+            {/* Without the soft keyboard, which would cover the screenshot. */}
+            <TextInput
+                testID="regression-focus-input"
+                showSoftInputOnFocus={false}
+                style={touchStyles.focusInput}
+            />
+            <FastImage
+                focusable
+                onFocus={() => setEvents((e) => [...e, 'focus'])}
+                onBlur={() => setEvents((e) => [...e, 'blur'])}
+                style={styles.image}
+                source={{ uri: LOGO }}
+            />
+            <View focusable style={touchStyles.focusNext} />
+            <CaseStatus
+                id="focus"
+                status={
+                    events[0] === 'focus' && events[1] === 'blur'
+                        ? 'OK'
+                        : `focus with Tab (${events.join(', ') || 'none yet'})`
+                }
+                description="a focusable image gets onFocus and onBlur as keyboard focus moves to it and on"
+            />
+        </View>
+    )
+}
+
 const touchStyles = StyleSheet.create({
     // The image (48) and its slop (40).
     hitSlopArea: { width: 88 },
@@ -437,6 +477,14 @@ const touchStyles = StyleSheet.create({
         height: 20,
         backgroundColor: '#ddd',
     },
+    focusInput: {
+        width: 48,
+        height: 48,
+        marginRight: 4,
+        borderWidth: 1,
+        borderColor: '#999',
+    },
+    focusNext: { width: 1, height: 1 },
 })
 
 // A wide image in square boxes: the left one is contain; the right one loads
@@ -10691,6 +10739,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <AccessibleCase key="accessible" />,
             <AriaLabelCase key="aria-label" />,
             <HitSlopCase key="hit-slop" />,
+            ...(Platform.OS === 'android' ? [<FocusCase key="focus" />] : []),
         ],
     },
 ]

@@ -101,7 +101,7 @@ const YourImage = () => (
 
 ### `FastImage`
 
-It's a single native view, which also takes React Native's View props, such as accessibility props, `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`), with [`reload()`](#refreload). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
+It's a single native view, which also takes React Native's View props, such as accessibility props, focus (`focusable` and `tabIndex`, and `onFocus` and `onBlur` on Android and Apple TV), `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`), with [`reload()`](#refreload). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
@@ -456,6 +456,18 @@ It's for still images, or a radius that changes now and then (e.g. blurring a ph
 - Changing it blurs the image that's showing again, without sending the load events again.
 
 To animate a blur, or to blur an animated image, use React Native's `filter` style instead, which the GPU draws: `style={{ filter: [{ blur: 6 }] }}`. React Native's docs list `blur` for Android 12+ only; on iOS it's behind an experimental React Native feature flag (`enableSwiftUIBasedFilters`, SwiftUI-based filters).
+
+---
+
+#### `alt`
+
+**Type:** `string`
+
+Text that describes the image, as an `<img>`'s `alt`: screen readers read it, and on iOS it makes the image an accessibility element.
+
+- `aria-label` and `accessibilityLabel` take priority over it.
+- An empty `alt` (`alt=""`) is a decorative image, with no label.
+- On the web, it's the image's alt text.
 
 ---
 
@@ -1008,7 +1020,7 @@ FastImage works on the web with [react-native-web](https://necolas.github.io/rea
 
 Support is minimal:
 
-- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `style`, `source.priority`, the web-only `loading` and `sizes`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
+- Props that work: `source` (a `uri`, a `require()`d image, or several sizes, with `thumbhash` and `blurDataUri`), `placeholder` (and `defaultSource`), `objectFit`, `objectPosition`, `tintColor`, `blurRadius`, `alt`, `style`, `source.priority`, the web-only `loading` and `sizes`, `onLoadStart`, `onLoad`, `onError`, `onLoadEnd`, and View props such as `testID`, accessibility props, `onLayout` and `pointerEvents`.
 - Ignored: `source.headers` (a browser can't send them for an image), `source.cache`, `source.cacheKey`, `source.memoryCache`, `source.diskCache`, `recyclingKey`, `loop`, `imageRendering`, `paused`, `transition`, `downsample` and `onProgress`.
 - The image is an `<img>` element that fills the view inside its borders, with `objectFit` and `objectPosition` as its CSS `object-fit` and `object-position`. `tintColor` is an SVG filter and `blurRadius` a CSS `blur()`, and the placeholder is another `<img>`, under the image until it has loaded. A new `source` gets a new `<img>`, so the previous image doesn't stay while it loads (with several sizes, the browser shows it until the new one has loaded).
 - Images load lazily unless [`loading`](#loading) is `'eager'`, and `source.priority` `'high'` and `'low'` are the `<img>`'s `fetchpriority`.

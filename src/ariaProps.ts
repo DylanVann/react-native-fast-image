@@ -1,5 +1,5 @@
-// The ARIA props (and id, tabIndex) as the accessibility props the native view
-// takes, and `focusable` as React Native tvOS's isTVSelectable. React
+// The ARIA props (and id, tabIndex, alt) as the accessibility props the native
+// view takes, and `focusable` as React Native tvOS's isTVSelectable. React
 // Native's View and Image map them in JS, as here: their native views don't
 // read the aria-* props.
 import { Platform } from 'react-native'
@@ -7,6 +7,7 @@ import type { FastImageProps } from './index'
 
 // The props mapped here.
 export const ARIA_KEYS = [
+    'alt',
     'aria-busy',
     'aria-checked',
     'aria-disabled',
@@ -47,7 +48,8 @@ export function resolveAriaProps<P extends AriaProps>(
 ): NativeProps<P> {
     // Most images have none of them (nor `focusable` on iOS): their props go
     // on as they are, without a copy. Their own keys are checked (a few), not
-    // ARIA_KEYS (15 lookups of keys they don't have, several times slower).
+    // ARIA_KEYS (a lookup for each of its keys, which they don't have, several
+    // times slower).
     const ios = Platform.OS === 'ios'
     let hasAria = ios && props.focusable != null
     if (!hasAria) {
@@ -61,6 +63,7 @@ export function resolveAriaProps<P extends AriaProps>(
     if (!hasAria) return props as NativeProps<P>
     // The same keys as ARIA_KEYS (a test checks each one is mapped).
     const {
+        alt,
         'aria-busy': ariaBusy,
         'aria-checked': ariaChecked,
         'aria-disabled': ariaDisabled,
@@ -83,8 +86,8 @@ export function resolveAriaProps<P extends AriaProps>(
     const native = rest as {
         -readonly [K in keyof FastImageProps]: FastImageProps[K]
     } & TVProps
-    // As View.js: a value given, null too, replaces the prop it maps to.
-    if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
+    const label = resolveLabel(ariaLabel, native.accessibilityLabel, alt)
+    if (label !== native.accessibilityLabel) native.accessibilityLabel = label
     // A string is a list of ids, as in View.js; another value (e.g. an array,
     // accessibilityLabelledBy's form) goes on as it is, as in Image.
     if (ariaLabelledBy != null) {
@@ -117,18 +120,20 @@ export function resolveAriaProps<P extends AriaProps>(
     // out. Without focusable, an isTVSelectable given goes on as it is.
     if (ios && native.focusable != null)
         native.isTVSelectable = native.focusable
-    // On iOS, a labelled image is an accessibility element unless
-    // `accessible` says otherwise or accessibilityElementsHidden hides it, as
-    // an <img aria-label> on the web and React Native's Image with `alt`: iOS
-    // reads `accessible` for it. Android's TalkBack reads the label either
-    // way, and `accessible` would make the image a stop of its own, splitting
-    // a Pressable's announcement in two. An empty label is none, as on the
-    // web (a decorative image), and so is a blank one.
+    // On iOS, an image labelled by aria-label or alt is an accessibility
+    // element unless `accessible` says otherwise or accessibilityElementsHidden
+    // hides it, as an <img aria-label> or <img alt> on the web and React
+    // Native's Image with `alt`: iOS reads `accessible` for it. Android's
+    // TalkBack reads the label either way, and `accessible` would make the
+    // image a stop of its own, splitting a Pressable's announcement in two.
+    // The label that won counts: an empty one (a decorative image, as on the
+    // web) or a blank one is none, and one from accessibilityLabel leaves
+    // `accessible` as it is, alt beside it or not.
     if (
         ios &&
-        typeof ariaLabel === 'string' &&
-        ariaLabel.trim() !== '' &&
-        native.accessible === undefined &&
+        isLabel(label) &&
+        (ariaLabel != null || label === alt) &&
+        native.accessible == null &&
         !native.accessibilityElementsHidden
     ) {
         native.accessible = true
@@ -164,4 +169,25 @@ export function resolveAriaProps<P extends AriaProps>(
         }
     }
     return native as NativeProps<P>
+}
+
+// The label, from aria-label, accessibilityLabel and alt: as View.js, an
+// aria-label given replaces accessibilityLabel (null too), and as in React
+// Native's Image, alt is the label only without either (null ones are
+// none). An empty label given wins (a decorative image), and a blank alt is
+// none.
+export function resolveLabel(
+    ariaLabel: string | undefined,
+    accessibilityLabel: string | undefined,
+    alt: unknown,
+): string | undefined {
+    const label = ariaLabel !== undefined ? ariaLabel : accessibilityLabel
+    return label == null && accessibilityLabel == null && isLabel(alt)
+        ? alt
+        : label
+}
+
+// A label to read: a string that isn't empty or blank.
+export function isLabel(value: unknown): value is string {
+    return typeof value === 'string' && value.trim() !== ''
 }

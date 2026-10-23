@@ -642,6 +642,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * @default 0
      */
     blurRadius?: number
+    /**
+     * Text that describes the image, as an `<img>`'s `alt`: screen readers
+     * read it, and on iOS it makes the image an accessibility element.
+     *
+     * - `aria-label` and `accessibilityLabel` take priority over it.
+     * - An empty `alt` (`alt=""`) is a decorative image, with no label.
+     * - On the web, it's the image's alt text.
+     */
+    alt?: string
 
     /** Called when the image starts to load. */
     onLoadStart?(): void
