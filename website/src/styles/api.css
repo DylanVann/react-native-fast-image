@@ -54,7 +54,7 @@
     width: 0.875rem;
     height: 0.875rem;
     flex-shrink: 0;
-    background: color-mix(in oklab, var(--badge) 75%, var(--sl-color-white));
+    background: color-mix(in oklab, var(--badge) 45%, var(--sl-color-white));
     mask: var(--icon) center / contain no-repeat;
 }
 .api-badge[data-platform='android'] {
