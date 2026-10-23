@@ -714,9 +714,7 @@ describe('FastImageBackground', () => {
             accessibilityLabel: 'A card',
             role: 'button',
             'aria-hidden': false,
-            importantForAccessibility: 'yes',
             focusable: true,
-            tabIndex: 0,
             testID: 'card',
             onLayout,
         }
@@ -728,6 +726,29 @@ describe('FastImageBackground', () => {
         expect(image.props).toMatchObject({ objectFit: 'contain', onLoad })
         for (const key of Object.keys(viewProps)) {
             expect(image.props[key]).toBeUndefined()
+        }
+        expect(image.props.tabIndex).toBeUndefined()
+        // On both, as React Native's ImageBackground has it.
+        expect(container.props.importantForAccessibility).toBe('yes')
+        expect(image.props.importantForAccessibility).toBe('yes')
+    })
+
+    it('gives the container tabIndex as focusable (React Native tvOS loses tabIndex)', () => {
+        for (const [tabIndex, focusable] of [
+            [0, true],
+            [-1, false],
+        ] as const) {
+            const tree = renderer.create(
+                <FastImageBackground
+                    source={{ uri: 'https://example.com/a.png' }}
+                    tabIndex={tabIndex}
+                    focusable={!focusable}
+                />,
+                { createNodeMock: () => ({}) },
+            )
+            const container = tree.root.findAllByType(View)[0]
+            expect(container.props.focusable).toBe(focusable)
+            expect(container.props.tabIndex).toBeUndefined()
         }
     })
 

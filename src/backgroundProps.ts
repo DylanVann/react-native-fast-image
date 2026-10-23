@@ -50,17 +50,25 @@ type SplitProps = Omit<
     'style' | 'imageStyle' | 'imageRef' | 'imageProps' | 'children'
 >
 
+// The container's props, which the caller can still change (they're a copy).
+type ContainerProps = { -readonly [K in keyof ViewProps]: ViewProps[K] }
+
 // The image's props (with `imageProps` over them) and the container's.
 export function splitBackgroundProps(
     props: SplitProps,
     imageProps: FastImageBackgroundProps['imageProps'],
-): [FastImageProps, ViewProps] {
+): [FastImageProps, ContainerProps] {
     const image: Record<string, unknown> = {}
     const container: Record<string, unknown> = {}
     for (const key in props) {
         const value = props[key as keyof SplitProps]
         if (IMAGE_KEY_SET.has(key)) image[key] = value
         else container[key] = value
+    }
+    // On both, as React Native's ImageBackground has it: "no" on the
+    // container doesn't hide the image (only "no-hide-descendants" does).
+    if (props.importantForAccessibility !== undefined) {
+        image.importantForAccessibility = props.importantForAccessibility
     }
     return [imageProps ? { ...image, ...imageProps } : image, container]
 }

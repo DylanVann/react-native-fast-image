@@ -1313,6 +1313,13 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
         ref: React.Ref<ViewRef>,
     ) => {
         const [image, container] = splitBackgroundProps(props, imageProps)
+        // tabIndex as the focusable it maps to, which it wins over as in
+        // View.js: React Native tvOS's View loses tabIndex (it reads the
+        // focusable prop).
+        if (container.tabIndex !== undefined) {
+            container.focusable = !container.tabIndex
+            delete container.tabIndex
+        }
         return (
             <View
                 accessibilityIgnoresInvertColors
