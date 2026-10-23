@@ -37,7 +37,13 @@ const IMAGE_KEYS: Record<ImageKey, true> = {
     onLoadEnd: true,
 }
 
-const IMAGE_KEY_SET: ReadonlySet<string> = new Set(Object.keys(IMAGE_KEYS))
+// And the props removed in 10.0 that FastImage still reads, to warn about
+// (fallback) or ignore (resizeMode).
+const IMAGE_KEY_SET: ReadonlySet<string> = new Set([
+    ...Object.keys(IMAGE_KEYS),
+    'fallback',
+    'resizeMode',
+])
 
 type SplitProps = Omit<
     FastImageBackgroundProps,

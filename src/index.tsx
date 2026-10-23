@@ -1294,8 +1294,9 @@ export interface FastImageBackgroundProps extends Omit<
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
  * view that the image fills, with the children on top (`FastImage` is a single
- * native view, which doesn't take children). The other props go to the image;
- * the ref is the view's.
+ * native view, which doesn't take children). View props (accessibility,
+ * focus, testID, layout, touch) go to the view, FastImage's own to the image,
+ * and `imageProps` to the image over them; the ref is the view's.
  */
 export const FastImageBackground: React.ForwardRefExoticComponent<
     FastImageBackgroundProps & React.RefAttributes<ViewRef>

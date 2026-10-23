@@ -314,9 +314,9 @@ describe('FastImage (web)', () => {
         expect(image.props.source).toBe(A)
         expect(image.props['aria-label']).toBe('A beach')
         expect(image.props.testID).toBeUndefined()
-        const container = tree.root.findAll(
-            (node) => node.props.testID === 'card',
-        )[0]
+        // The outer View, the container (the image's own View is inside it).
+        const [container] = hosts(tree, 'View')
+        expect(container.props.testID).toBe('card')
         expect(container.props['aria-label']).toBe('A card')
     })
 

@@ -731,6 +731,22 @@ describe('FastImageBackground', () => {
         }
     })
 
+    it('gives the props removed in 10.0 to the image, which warns or ignores them', () => {
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                {...({ fallback: true, resizeMode: 'cover' } as {})}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({
+            fallback: true,
+            resizeMode: 'cover',
+        })
+        expect(tree.root.findAllByType(View)[0].props.fallback).toBeUndefined()
+    })
+
     it('gives imageProps to the image, over the others', () => {
         const a = { uri: 'https://example.com/a.png' }
         const b = { uri: 'https://example.com/b.png' }
