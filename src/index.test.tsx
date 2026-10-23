@@ -1962,7 +1962,6 @@ describe('ARIA props', () => {
         // A label that wins over it, even an empty one, decides.
         for (const props of [
             { 'aria-label': '' },
-            { 'aria-label': null },
             { accessibilityLabel: '' },
         ]) {
             expect(
@@ -1984,6 +1983,17 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(true)
+        // A null aria-label is none, as in React Native's Image: alt is the
+        // label.
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    alt="A cat"
+                    {...({ 'aria-label': null } as {})}
+                />,
+            ),
+        ).toMatchObject({ accessibilityLabel: 'A cat', accessible: true })
         // An empty alt is decorative: it doesn't make a labelled image
         // accessible.
         expect(

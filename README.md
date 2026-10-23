@@ -101,7 +101,7 @@ const YourImage = () => (
 
 ### `FastImage`
 
-It's a single native view, which also takes React Native's View props, such as accessibility props, focus (`focusable`, `tabIndex`, `onFocus` and `onBlur`), `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`), with [`reload()`](#refreload). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
+It's a single native view, which also takes React Native's View props, such as accessibility props, focus (`focusable` and `tabIndex`, and `onFocus` and `onBlur` on Android and Apple TV), `testID`, `nativeID`, `onLayout`, `pointerEvents` and `hitSlop`. A ref to it is that view (e.g. for `measure`), with [`reload()`](#refreload). It doesn't take children: use [`FastImageBackground`](#fastimagebackground) for content over an image.
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 

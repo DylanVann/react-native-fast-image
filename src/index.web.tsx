@@ -38,7 +38,7 @@ import {
     hasSourcePlaceholder,
     placeholderSource,
 } from './placeholders'
-import { isLabel } from './ariaProps'
+import { resolveLabel } from './ariaProps'
 import { composeRefs } from './composeRefs'
 import { splitBackgroundProps } from './backgroundProps'
 import { warnIfChildren, warnOnce } from './warnings'
@@ -122,17 +122,8 @@ function FastImageBase({
         resizeMode: _resizeMode,
         ...viewProps
     } = props as typeof props & { 'aria-label'?: string; resizeMode?: unknown }
-    // A value given wins, an empty one too (a decorative image), as on iOS
-    // and Android; a blank alt is none.
-    const given =
-        ariaLabel !== undefined
-            ? ariaLabel
-            : accessibilityLabel != null
-              ? accessibilityLabel
-              : isLabel(alt)
-                ? alt
-                : undefined
-    const label = given || undefined
+    // Picked as on iOS and Android; an empty one is none (a decorative image).
+    const label = resolveLabel(ariaLabel, accessibilityLabel, alt) || undefined
     const several =
         Array.isArray(source) && source.length > 1 ? source : undefined
     const sized = several ? sizedSources(several) : undefined

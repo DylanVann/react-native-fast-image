@@ -86,12 +86,8 @@ export function resolveAriaProps<P extends AriaProps>(
     const native = rest as {
         -readonly [K in keyof FastImageProps]: FastImageProps[K]
     } & TVProps
-    // As View.js: a value given, null too, replaces the prop it maps to.
-    if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
-    // alt after both, as in React Native's Image; an empty one is none.
-    else if (native.accessibilityLabel == null && isLabel(alt)) {
-        native.accessibilityLabel = alt
-    }
+    const label = resolveLabel(ariaLabel, native.accessibilityLabel, alt)
+    if (label !== native.accessibilityLabel) native.accessibilityLabel = label
     // A string is a list of ids, as in View.js; another value (e.g. an array,
     // accessibilityLabelledBy's form) goes on as it is, as in Image.
     if (ariaLabelledBy != null) {
@@ -134,7 +130,7 @@ export function resolveAriaProps<P extends AriaProps>(
     // the web) or a blank one is none, even with alt beside it.
     if (
         ios &&
-        (ariaLabel !== undefined || isLabel(alt)) &&
+        (ariaLabel != null || isLabel(alt)) &&
         isLabel(native.accessibilityLabel) &&
         native.accessible === undefined &&
         !native.accessibilityElementsHidden
@@ -174,7 +170,20 @@ export function resolveAriaProps<P extends AriaProps>(
     return native as NativeProps<P>
 }
 
+// The label, from aria-label, accessibilityLabel and alt: as View.js, an
+// aria-label given replaces accessibilityLabel (null too), and as in React
+// Native's Image, alt is the label without either (a null one is none). An
+// empty label given wins (a decorative image), and a blank alt is none.
+export function resolveLabel(
+    ariaLabel: string | undefined,
+    accessibilityLabel: string | undefined,
+    alt: unknown,
+): string | undefined {
+    const label = ariaLabel !== undefined ? ariaLabel : accessibilityLabel
+    return label == null && isLabel(alt) ? alt : label
+}
+
 // A label to read: a string that isn't empty or blank.
-export function isLabel(value: unknown): value is string {
+function isLabel(value: unknown): value is string {
     return typeof value === 'string' && value.trim() !== ''
 }
