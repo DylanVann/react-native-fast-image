@@ -34,7 +34,7 @@
 .api-platforms {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
+    gap: 0.5rem;
 }
 .api-badge {
     --badge: var(--sl-color-gray-3);
