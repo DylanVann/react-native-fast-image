@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useEffect } from 'react'
+import React, { createContext, useContext, useEffect, useRef } from 'react'
 import { StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native'
 import {
+    CaseAreaContext,
     DescribeContext,
     Description,
     GroupDescription,
     InRunnerContext,
+    measureView,
     useReport,
 } from './RunnerContext'
 
@@ -18,7 +20,7 @@ export const DetailsContext = createContext(false)
 // so a long status (a failure) doesn't move the cases below, whose areas were
 // measured for masks and video samples, and it isn't cut off. In the runner
 // it shows nothing (the screenshots have the cases' images only), and gives
-// the runner its description.
+// the runner its description and area.
 export function CaseStatus({
     id,
     status,
@@ -34,7 +36,7 @@ export function CaseStatus({
         describe(id, description)
     }, [describe, id, description])
     const inRunner = useContext(InRunnerContext)
-    if (inRunner) return null
+    if (inRunner) return <CaseArea id={id} />
     return (
         <View style={caseStyles.text}>
             <Text testID={`regression-${id}`} style={caseStyles.status}>
@@ -42,6 +44,25 @@ export function CaseStatus({
             </Text>
             <DescriptionText description={description} />
         </View>
+    )
+}
+
+// An invisible view over the case's row (the view CaseStatus is in), which
+// the runner measures as the case's area.
+function CaseArea({ id }: { id: string }) {
+    const register = useContext(CaseAreaContext)
+    const ref = useRef<React.ComponentRef<typeof View>>(null)
+    useEffect(
+        () => register(id, () => measureView(ref.current)),
+        [register, id],
+    )
+    return (
+        <View
+            ref={ref}
+            collapsable={false}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+        />
     )
 }
 

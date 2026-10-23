@@ -1712,6 +1712,18 @@ async function runRegression(
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
+    // Each group's screenshot (file names in dir) and its comparison, with
+    // the cases' areas in it (pixels), for the regression viewer.
+    const screenshots: Record<
+        string,
+        {
+            file: string
+            result: string
+            detail?: string
+            diff?: string
+            cases: Record<string, PixelRect>
+        }
+    > = {}
     // Video samples a stalled recording couldn't check (see stopSession).
     const unchecked: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
@@ -1726,6 +1738,7 @@ async function runRegression(
     const takeShot = async (
         index: number,
         masksDp: unknown,
+        casesDp: unknown,
         area: PixelRect | undefined,
         groupOk: boolean,
     ): Promise<{ shot: Promise<void> }> => {
@@ -1756,6 +1769,19 @@ async function runRegression(
             x: m.x - (crop?.x ?? 0),
             y: m.y - (crop?.y ?? 0),
         }))
+        const cases = Object.fromEntries(
+            Object.entries((casesDp ?? {}) as Record<string, PixelRect>).map(
+                ([id, r]) => [
+                    id,
+                    {
+                        x: Math.round(r.x * scale - (crop?.x ?? 0)),
+                        y: Math.round(r.y * scale - (crop?.y ?? 0)),
+                        width: Math.round(r.width * scale),
+                        height: Math.round(r.height * scale),
+                    },
+                ],
+            ),
+        )
         const shot = (crop ? cropScreenshot(file, crop) : Promise.resolve())
             .then(() =>
                 compareScreenshot(
@@ -1773,6 +1799,14 @@ async function runRegression(
                         masks.length > 0 ? `, ${masks.length} masked` : ''
                     }`,
                 )
+                const diff = file.replace(/\.png$/, '-diff.png')
+                screenshots[name] = {
+                    file: path.basename(file),
+                    result,
+                    detail,
+                    diff: fs.existsSync(diff) ? path.basename(diff) : undefined,
+                    cases,
+                }
                 if (result === 'seeded') seeded.push(name)
                 else if (result === 'none') noReference.push(name)
                 else if (result === 'unseeded') unseeded.push(name)
@@ -2294,6 +2328,7 @@ async function runRegression(
         const { shot } = await takeShot(
             index,
             measured?.masks,
+            measured?.cases,
             measured?.safeArea as PixelRect | undefined,
             groupOk,
         )
@@ -2332,6 +2367,7 @@ async function runRegression(
                 hello,
                 statuses,
                 descriptions,
+                screenshots,
                 failures,
                 seeded,
                 noReference,
