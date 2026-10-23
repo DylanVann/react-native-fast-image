@@ -6182,7 +6182,8 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
     },
     group: {
-        fontWeight: '600',
+        marginTop: 8,
+        marginBottom: 12,
     },
     fill: {
         flex: 1,
@@ -6190,12 +6191,6 @@ export const styles = StyleSheet.create({
     liveStatus: {
         color: '#666',
         marginLeft: 12,
-    },
-    groupSection: {
-        marginTop: 8,
-    },
-    groupCases: {
-        marginTop: 8,
     },
     details: {
         flexDirection: 'row',
@@ -12311,11 +12306,14 @@ export default function RegressionExample() {
                 <BackgroundCases />
                 <ClearWithoutActivityCase />
                 {REGRESSION_GROUPS.map((group) => (
-                    <View key={group.name} style={styles.groupSection}>
-                        <Text style={styles.group}>{group.name}</Text>
-                        <DescriptionText description={group.description} />
-                        <View style={styles.groupCases}>{group.cases}</View>
-                    </View>
+                    <React.Fragment key={group.name}>
+                        <DescriptionText
+                            title={group.name}
+                            description={group.description}
+                            style={styles.group}
+                        />
+                        {group.cases}
+                    </React.Fragment>
                 ))}
             </ScrollView>
         </DetailsContext.Provider>

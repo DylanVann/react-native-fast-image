@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native'
 import {
     DescribeContext,
     Description,
@@ -42,26 +42,43 @@ export function CaseStatus({
     )
 }
 
-// What a case or group checks, and with details on, its steps and what it
-// shows.
-export function DescriptionText({ description }: { description: Description }) {
+// What a case or group checks (after its title, for a group), and with
+// details on, its steps and what it shows. One Text, so the Regression tab's
+// accessibility tree, which the Maestro flows read, doesn't grow with them.
+export function DescriptionText({
+    description,
+    title,
+    style,
+}: {
+    description: Description
+    title?: string
+    style?: StyleProp<TextStyle>
+}) {
     const details = useContext(DetailsContext)
     return (
-        <>
-            <Text style={caseStyles.description}>{description.checks}</Text>
+        <Text style={[caseStyles.description, style]}>
+            {title ? (
+                <Text style={caseStyles.heading}>
+                    {title}
+                    {'\n'}
+                </Text>
+            ) : null}
+            {description.checks}
             {details && description.steps ? (
-                <Text style={caseStyles.description}>
+                <>
+                    {'\n'}
                     <Text style={caseStyles.label}>Steps: </Text>
                     {description.steps}
-                </Text>
+                </>
             ) : null}
             {details ? (
-                <Text style={caseStyles.description}>
+                <>
+                    {'\n'}
                     <Text style={caseStyles.label}>Shows: </Text>
                     {description.shows}
-                </Text>
+                </>
             ) : null}
-        </>
+        </Text>
     )
 }
 
@@ -96,6 +113,10 @@ export const caseStyles = StyleSheet.create({
         marginTop: 2,
     },
     label: {
+        fontWeight: '600',
+    },
+    heading: {
+        color: 'black',
         fontWeight: '600',
     },
 })
