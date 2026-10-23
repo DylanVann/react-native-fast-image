@@ -1959,7 +1959,8 @@ describe('ARIA props', () => {
             [{ tabIndex: -1 }, false],
             // focusable wins, as in View.js.
             [{ focusable: false, isTVSelectable: true }, false],
-            // tabIndex wins over focusable, as in React Native's View.js.
+            // tabIndex wins over focusable, as in React Native's View.js
+            // (React Native tvOS's loses tabIndex).
             [{ tabIndex: 0, focusable: false }, true],
         ] as const) {
             expect(
@@ -1986,6 +1987,10 @@ describe('ARIA props', () => {
             accessible: true,
         }
         expect(resolveAriaProps(props)).toBe(props)
+        // focusable too, except on iOS (where it's also isTVSelectable).
+        const focusable: FastImageProps = { source, focusable: true }
+        Platform.OS = 'android'
+        expect(resolveAriaProps(focusable)).toBe(focusable)
     })
 
     it('leave the props alone without them', () => {
