@@ -134,7 +134,7 @@ export function resolveAriaProps<P extends AriaProps>(
     // the web) or a blank one is none, even with alt beside it.
     if (
         ios &&
-        (ariaLabel !== undefined || alt !== undefined) &&
+        (ariaLabel !== undefined || isLabel(alt)) &&
         isLabel(native.accessibilityLabel) &&
         native.accessible === undefined &&
         !native.accessibilityElementsHidden
@@ -175,6 +175,6 @@ export function resolveAriaProps<P extends AriaProps>(
 }
 
 // A label to read: a string that isn't empty or blank.
-function isLabel(value: unknown): value is string {
+export function isLabel(value: unknown): value is string {
     return typeof value === 'string' && value.trim() !== ''
 }

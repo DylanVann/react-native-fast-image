@@ -38,6 +38,7 @@ import {
     hasSourcePlaceholder,
     placeholderSource,
 } from './placeholders'
+import { isLabel } from './ariaProps'
 import { composeRefs } from './composeRefs'
 import { splitBackgroundProps } from './backgroundProps'
 import { warnIfChildren, warnOnce } from './warnings'
@@ -791,8 +792,3 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
 FastImageBackground.displayName = 'FastImageBackground'
 
 export default FastImage
-
-// A label to read: a string that isn't empty or blank.
-function isLabel(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== ''
-}

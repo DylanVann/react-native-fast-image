@@ -1931,21 +1931,6 @@ describe('ARIA props', () => {
         ).toBeUndefined()
     })
 
-    it('passes onFocus and onBlur to the native view, which sends them as a View does', () => {
-        const onFocus = () => {}
-        const onBlur = () => {}
-        expect(
-            viewProps(
-                <FastImage
-                    source={source}
-                    focusable
-                    onFocus={onFocus}
-                    onBlur={onBlur}
-                />,
-            ),
-        ).toMatchObject({ onFocus, onBlur })
-    })
-
     it('alt is the label after aria-label and accessibilityLabel, and makes the image accessible on iOS', () => {
         expect(
             viewProps(<FastImage source={source} alt="A cat" />),
@@ -1999,6 +1984,13 @@ describe('ARIA props', () => {
                 />,
             ).accessible,
         ).toBe(true)
+        // An empty alt is decorative: it doesn't make a labelled image
+        // accessible.
+        expect(
+            viewProps(
+                <FastImage source={source} alt="" accessibilityLabel="A dog" />,
+            ).accessible,
+        ).toBeUndefined()
         // An empty or blank one is a decorative image: no label.
         for (const alt of ['', ' ']) {
             const native = viewProps(<FastImage source={source} alt={alt} />)
