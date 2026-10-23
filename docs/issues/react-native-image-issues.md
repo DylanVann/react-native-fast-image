@@ -120,7 +120,7 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 
 - **What happens:** on Android, `accessible` on an `Image` makes it focusable, so a keyboard, D-pad or Android TV remote stops on it, though an image has no action to take there. On iOS `accessible` only makes it a VoiceOver element. `focusable`, which is the prop for keyboard focus, does nothing on an `Image`.
 - **Where:** `packages/react-native/ReactAndroid/src/main/java/com/facebook/react/views/image/ReactImageManager.kt`, `setAccessible` sets `view.isFocusable = accessible`; it has no `focusable` setter.
-- **How to reproduce:** Found by reading the code (React Native's `main`, 2026-10-23). Render `<Image accessible source={...} />` next to a button on Android TV and move focus with the D-pad.
+- **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<Image accessible source={...} />` next to a button on Android TV and move focus with the D-pad.
 - **How Fast Image handles it:** on Android, `accessible` (and `screenReaderFocusable`) make the image a TalkBack stop only, and `focusable` (and `tabIndex`) gives it keyboard and D-pad focus ([#1361](https://github.com/DylanVann/react-native-fast-image/pull/1361)).
 
 ## Other issues

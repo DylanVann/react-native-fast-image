@@ -23,12 +23,14 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewParent;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.Priority;
@@ -184,33 +186,48 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // while either is true (as iOS's VoiceOver does for `accessible`). They
     // don't give it keyboard or D-pad focus, which an image with no action
     // would only be a dead stop for: that's `focusable`'s. Before API 28,
-    // ViewCompat keeps it for the view's accessibility delegate to report,
-    // and adds a delegate to a view without one. React Native doesn't add
-    // its own (for a role or testID) to a view that has one, so this is set
-    // after React Native's, at the end of the transaction.
+    // which has no screenReaderFocusable, the view's accessibility info says
+    // it (as ViewCompat does), without an accessibility delegate: React
+    // Native adds its own (for a role, state or testID) only to a view
+    // without one.
     private boolean mAccessible = false;
     private boolean mScreenReaderFocusableProp = false;
-    private boolean mScreenReaderFocusableChanged = false;
 
     void setAccessibleProp(boolean accessible) {
         mAccessible = accessible;
-        mScreenReaderFocusableChanged = true;
+        updateScreenReaderFocusable();
     }
 
     void setScreenReaderFocusableProp(boolean screenReaderFocusable) {
         mScreenReaderFocusableProp = screenReaderFocusable;
-        mScreenReaderFocusableChanged = true;
+        updateScreenReaderFocusable();
     }
 
-    void applyScreenReaderFocusable() {
-        if (!mScreenReaderFocusableChanged) return;
-        mScreenReaderFocusableChanged = false;
-        ViewCompat.setScreenReaderFocusable(this, mAccessible || mScreenReaderFocusableProp);
+    private boolean isScreenReaderFocusableProp() {
+        return mAccessible || mScreenReaderFocusableProp;
+    }
+
+    private void updateScreenReaderFocusable() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            setScreenReaderFocusable(isScreenReaderFocusableProp());
+        } else {
+            sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+        }
+    }
+
+    @Override
+    public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            AccessibilityNodeInfoCompat.wrap(info).setScreenReaderFocusable(isScreenReaderFocusableProp());
+        }
     }
 
     // `focusable` (null when not set): keyboard and D-pad focus while true,
     // none while false (even if clickable), and Android's default (focusable
-    // if clickable) without it.
+    // if clickable) without it. (React Native's accessibility delegate, added
+    // for a role, state or testID, replaces that default with whether the
+    // view was focusable then, as it does for its View.)
     void setFocusableProp(@Nullable Boolean focusable) {
         if (focusable != null) {
             setFocusable(focusable);

@@ -56,19 +56,22 @@ public class FastImageAccessibilityTest {
     }
 
     // Before API 28, which has no screenReaderFocusable: the view's
-    // accessibility delegate reports it, and it's still React Native's (for
-    // the testID), not one ViewCompat adds.
+    // accessibility info says it, and React Native still adds its delegate
+    // for a role set after `accessible`.
     @Test
     @Config(sdk = 27)
     public void accessibleMakesTheImageAScreenReaderStopBeforeApi28() {
-        // In one transaction, as when the image mounts.
-        delegate.setProperty(view, "testID", "avatar");
-        delegate.setProperty(view, "accessible", true);
-        manager.onAfterUpdateTransaction(view);
+        set("accessible", true);
+        assertTrue(screenReaderFocusable());
+        set("role", "button");
         assertSame(ReactAccessibilityDelegate.class, ViewCompat.getAccessibilityDelegate(view).getClass());
-        AccessibilityNodeInfoCompat info = AccessibilityNodeInfoCompat.obtain();
-        ViewCompat.onInitializeAccessibilityNodeInfo(view, info);
-        assertTrue(info.isScreenReaderFocusable());
+        assertTrue(screenReaderFocusable());
+        set("accessible", false);
+        assertFalse(screenReaderFocusable());
+    }
+
+    private boolean screenReaderFocusable() {
+        return AccessibilityNodeInfoCompat.wrap(view.createAccessibilityNodeInfo()).isScreenReaderFocusable();
     }
 
     // Either one keeps it a TalkBack stop: one set false doesn't undo the

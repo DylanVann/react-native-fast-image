@@ -639,8 +639,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     protected void onAfterUpdateTransaction(@NonNull FastImageViewWithUrl view) {
         super.onAfterUpdateTransaction(view);
-        // After super, which adds React Native's accessibility delegate.
-        view.applyScreenReaderFocusable();
         view.onAfterUpdate(this, view.requestManager);
     }
 }
