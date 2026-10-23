@@ -43,6 +43,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { analyze } from './analyze'
+import { installLocal } from './local'
 import { summarize } from './summarize'
 
 const BENCHMARK = path.join(import.meta.dir, '..')
@@ -66,7 +67,7 @@ const ENV = {
     ANDROID_HOME: path.join(os.homedir(), 'Library/Android/sdk'),
 }
 
-const subjects: Record<string, { name: string }> = JSON.parse(
+const subjects: Record<string, { name: string; local?: string }> = JSON.parse(
     fs.readFileSync(path.join(APP, 'subjects.json'), 'utf8'),
 )
 const argv = process.argv.slice(2)
@@ -169,7 +170,9 @@ const localVersion = () => {
 function build(subject: string) {
     log(`build ${subject}`)
     const env: Record<string, string> = { BENCH_SUBJECT: subject }
-    if ((subjects[subject] as { local?: string }).local) {
+    const local = subjects[subject].local
+    if (local) {
+        log(`  installed ${installLocal(local)}`)
         env.EXPO_PUBLIC_FAST_IMAGE_LOCAL = localVersion()
     }
     fs.writeFileSync(

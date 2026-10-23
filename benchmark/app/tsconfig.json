@@ -1,14 +1,6 @@
 {
     "extends": "expo/tsconfig.base",
     "compilerOptions": {
-        "strict": true,
-        "paths": {
-            "react-native-fast-image-local": ["../../src/index.tsx"],
-            // The library source would otherwise pick up the repo root's react
-            // and react-native types.
-            "react": ["./node_modules/@types/react"],
-            "react/*": ["./node_modules/@types/react/*"],
-            "react-native": ["./node_modules/react-native/types_generated"]
-        }
+        "strict": true
     }
 }
