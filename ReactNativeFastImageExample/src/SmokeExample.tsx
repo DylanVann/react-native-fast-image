@@ -51,7 +51,11 @@ function LoadCase() {
             <CaseStatus
                 id="smoke-load"
                 status={status}
-                description="A 200x200 image loads: onLoad with its size, then onLoadEnd with ok"
+                description={{
+                    checks: 'A remote image loads: onLoad with its size, then onLoadEnd with ok: true and the same size.',
+                    steps: "Loads the 200×200 photo of a pug in a blanket from the image server (a new url each run). Passes when onLoad gave 200×200 and onLoadEnd's result is { ok: true, width: 200, height: 200 }.",
+                    shows: 'The pug photo in a small square.',
+                }}
             />
         </View>
     )
@@ -85,7 +89,11 @@ function ErrorCase() {
             <CaseStatus
                 id="smoke-error"
                 status={status}
-                description="A missing image fails: onError with a message, then onLoadEnd with ok false"
+                description={{
+                    checks: 'A missing image fails: onError with a message, then onLoadEnd with ok: false and an error.',
+                    steps: "Loads a url the image server answers with a 404. Passes when onError's error isn't empty and onLoadEnd's result is { ok: false, error } with an error that isn't empty.",
+                    shows: 'An empty gray square: the image never loads.',
+                }}
             />
         </View>
     )
@@ -119,7 +127,11 @@ function ReloadCase() {
             <CaseStatus
                 id="smoke-reload"
                 status={status}
-                description="An image whose first request fails loads with reload()"
+                description={{
+                    checks: 'reload() on the ref loads an image again after its request failed.',
+                    steps: "Loads the pug photo from a url the image server answers with a 503 the first time and the image after. On onError, calls the ref's reload(). Passes on the onLoad that follows; a second onError, or a ref without reload(), fails.",
+                    shows: 'The pug photo in a small square. A failure leaves an empty gray square.',
+                }}
             />
         </View>
     )
@@ -171,7 +183,11 @@ function ReloadPlaceholderCase() {
             <CaseStatus
                 id="smoke-reload-placeholder"
                 status={status}
-                description="A url placeholder that failed is requested again with reload()"
+                description={{
+                    checks: 'reload() also requests a url placeholder again when it had failed, with the image.',
+                    steps: "Loads the pug photo with a url placeholder (the pug photo again), both from urls the image server answers with a 503 the first time. On onError, calls the ref's reload(). On onLoad, asks the image server how many times the placeholder's url was requested; passes on 2.",
+                    shows: 'The pug photo in a small square.',
+                }}
             />
         </View>
     )
@@ -198,7 +214,11 @@ function BundledCase() {
             <CaseStatus
                 id="smoke-bundled"
                 status={status}
-                description="A bundled (require()d) 1000x1000 image loads"
+                description={{
+                    checks: 'A bundled image (require()) loads, at the size of its file.',
+                    steps: "Shows require('./images/logo.png'), the 1000×1000 React logo. Passes when onLoad's size is 1000×1000.",
+                    shows: 'The light blue React logo on a small gray square.',
+                }}
             />
         </View>
     )
@@ -230,7 +250,11 @@ function PreloadCase() {
             <CaseStatus
                 id="smoke-preload"
                 status={status}
-                description="preload of a 120x120 image and a missing one: ok with the size, then not ok"
+                description={{
+                    checks: 'FastImage.preload resolves with a result per source: ok with the size for an image that loads, not ok for a missing one.',
+                    steps: "Preloads a 120×120 photo and a url the image server answers with a 404, when it mounts. Passes when the first result is { ok: true, width: 120, height: 120 } and the second isn't ok.",
+                    shows: 'An empty gray square: the images are only preloaded, not shown.',
+                }}
             />
         </View>
     )
@@ -263,8 +287,16 @@ function CachePathCase() {
                 status={status}
                 description={
                     web
-                        ? 'getCachePath says it is not supported on the web'
-                        : "getCachePath gives the loaded image's file"
+                        ? {
+                              checks: 'FastImage.getCachePath on the web resolves not ok with "Not supported on the web".',
+                              steps: "Loads a 120×120 photo of the northern lights; on onLoad, calls FastImage.getCachePath with the same source. Passes when the result is { ok: false, error: 'Not supported on the web' }.",
+                              shows: 'The northern lights photo (green sky over a dark tree) in a small square.',
+                          }
+                        : {
+                              checks: 'FastImage.getCachePath gives the file of an image a view has loaded.',
+                              steps: 'Loads a 120×120 photo of the northern lights; on onLoad, calls FastImage.getCachePath with the same source. Passes when the result is ok with a path.',
+                              shows: 'The northern lights photo (green sky over a dark tree) in a small square.',
+                          }
                 }
             />
         </View>
@@ -304,8 +336,16 @@ function CacheLimitsCase() {
                 status={status}
                 description={
                     Platform.OS === 'ios'
-                        ? 'configureCache reports the limits the Expo config plugin set'
-                        : "configureCache reports no disk size limit (the app's AppGlideModule is expo-image's)"
+                        ? {
+                              checks: "FastImage.configureCache() reports the cache limits the app's config sets with FastImage's Expo config plugin.",
+                              steps: 'Calls FastImage.configureCache() without changes when it mounts. Passes when it reports maxDiskSize 150 MB, maxDiskAge 7 days and maxMemorySize 50 MB, as in app.config.js.',
+                              shows: 'An empty gray square: nothing loads here.',
+                          }
+                        : {
+                              checks: "FastImage.configureCache() reports no limits on Android in an app with expo-image: FastImage's AppGlideModule applies the disk size limit, and the app uses expo-image's instead.",
+                              steps: 'Calls FastImage.configureCache() without changes when it mounts. Passes when it reports no values.',
+                              shows: 'An empty gray square: nothing loads here.',
+                          }
                 }
             />
         </View>
@@ -350,7 +390,11 @@ function SizesCase() {
             <CaseStatus
                 id="smoke-sizes"
                 status={status}
-                description={`Several sizes (100, 300, 900 px): a ${view} dp view loads the ${expected} px one`}
+                description={{
+                    checks: "A source of several sizes loads the one that fits the view: on iOS and Android the one closest to the view's size in pixels, on the web the smallest at least as wide (the browser picks it from a srcset).",
+                    steps: "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android), 100 px on the web at 1×.",
+                    shows: "A solid square, larger than the other rows' images: green on iOS and Android, red on the web. Red or blue on a phone means the wrong size was loaded.",
+                }}
             />
         </View>
     )
@@ -386,7 +430,11 @@ function ProgressCase() {
             <CaseStatus
                 id="smoke-progress"
                 status={status}
-                description="onProgress comes before onLoad, ending with all of it loaded"
+                description={{
+                    checks: 'onProgress comes while a remote image downloads, the last one with all of it loaded, before onLoad. On Android in an app with expo-image, it goes through the Glide components FastImage registers itself.',
+                    steps: 'Loads the pug photo from the image server with onProgress. Passes on onLoad if the last onProgress had loaded equal to total.',
+                    shows: 'The pug photo in a small square.',
+                }}
             />
         </View>
     )
@@ -425,7 +473,11 @@ function WebCacheCase() {
             <CaseStatus
                 id="smoke-web-cache"
                 status={status}
-                description="An image with cache 'web', loaded twice, is requested once (its HTTP cache)"
+                description={{
+                    checks: "A source with cache: 'web' uses the HTTP cache: loaded twice from a url the server marks as cacheable, it's requested once.",
+                    steps: "Loads the pug photo with cache: 'web' from a url the image server sends with Cache-Control: max-age=3600, then mounts a new view for it once it has loaded. After the second onLoad, removes the view and asks the image server how many times the url was requested; passes on 1.",
+                    shows: 'An empty gray square: the image view is gone after the second load.',
+                }}
             />
         </View>
     )
@@ -477,7 +529,11 @@ function WriteToCacheCase() {
             <CaseStatus
                 id="smoke-write-to-cache"
                 status={status}
-                description="writeToCache stores a file as a url's image, which then shows from the cache"
+                description={{
+                    checks: "FastImage.writeToCache stores a file as a url's image, which a view then shows from the cache without downloading it.",
+                    steps: "Downloads a 120×120 photo of the northern lights with FastImage.getCachePath, then calls FastImage.writeToCache with the pug photo's url and that file. Then shows the pug url with cache: 'cacheOnly'; passes when onLoad's width is 120 (the stored file, not the 200×200 pug).",
+                    shows: 'The northern lights photo (green sky over a dark tree) in a small square. The pug, or an empty gray square, is a failure.',
+                }}
             />
         </View>
     )
@@ -499,7 +555,11 @@ function SvgCase() {
             <CaseStatus
                 id="smoke-svg"
                 status={status}
-                description="An SVG image loads"
+                description={{
+                    checks: "An SVG image from a url loads. expo-image brings the SVG libraries into this app too, so this doesn't check that FastImage includes them (the main example does).",
+                    steps: 'Loads a 24×24 SVG of a black ring from the image server. Passes on onLoad.',
+                    shows: 'A thick black ring on a small gray square.',
+                }}
             />
         </View>
     )
@@ -566,8 +626,16 @@ function ApngCase({ blur }: { blur?: boolean }) {
                 status={status}
                 description={
                     blur
-                        ? 'An APNG with blurRadius shows its first frame (red), still (masked)'
-                        : 'An APNG animates (red and blue; masked)'
+                        ? {
+                              checks: "An animated PNG (APNG) with blurRadius shows its first frame, blurred and still. On Android in an app with expo-image, Glide also has APNG4Android's plugin for APNGs, which ignores Glide's \"don't animate\" option.",
+                              steps: 'Loads an APNG of two frames, red then blue, 400 ms each and looping, with blurRadius 4. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees red only.',
+                              shows: "A red square (animated images are masked, so it's not compared). The recording sees red only; never blue.",
+                          }
+                        : {
+                              checks: 'An animated PNG (APNG) animates.',
+                              steps: 'Loads an APNG of two frames, red then blue, 400 ms each and looping. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees both red and blue.',
+                              shows: "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn; never the gray background.",
+                          }
                 }
             />
         </View>
@@ -615,7 +683,11 @@ function SizesChangeCase() {
             <CaseStatus
                 id="smoke-sizes-change"
                 status={status}
-                description="Several sizes, then with a larger one added (the same file shown): onLoad and onLoadEnd again"
+                description={{
+                    checks: 'On the web, adding a larger size to a source of several sizes sends onLoad and onLoadEnd again, though the browser keeps showing the same file.',
+                    steps: 'Gives a 48 dp view two sizes of a square from the image server, 100 px (red) and 300 px (green); the browser shows the 100 px one. 300 ms after onLoad, adds the 900 px one (blue). Passes when onLoad and onLoadEnd have each come twice, within 4 s of the change.',
+                    shows: 'The red square (the 100 px file), before and after the change.',
+                }}
             />
         </View>
     )
@@ -663,7 +735,11 @@ function PlaceholderCase() {
             <CaseStatus
                 id="smoke-placeholder"
                 status={status}
-                description="With a placeholder, the image shows as it loads, and the placeholder goes once it has"
+                description={{
+                    checks: "On the web, with a placeholder the image isn't hidden while it loads (the browser draws it over the placeholder as it arrives), and the placeholder is removed once it has loaded.",
+                    steps: "Loads the pug photo with the bundled React logo as placeholder. When it mounts, checks that the view has two img elements and the image's opacity is 1; 100 ms after onLoad, passes if one img is left.",
+                    shows: 'The pug photo in a small square; the React logo shows only while it loads.',
+                }}
             />
         </View>
     )
@@ -703,7 +779,11 @@ function BlurDataUriCase() {
             <CaseStatus
                 id="smoke-blur-data-uri"
                 status={status}
-                description="a source's blurDataUri, after the image failed: red, green, blue and yellow quadrants blurred into each other, with solid edges"
+                description={{
+                    checks: "On the web, a source's blurDataUri shows blurred (with an SVG filter) and stays when the image fails.",
+                    steps: "Loads a url the image server answers with a 404, with a blurDataUri of a 2×2 PNG of red, green, blue and yellow quadrants. On onError, passes if the preview img's src is that data uri and its filter style is a url(…).",
+                    shows: 'A 96×72 box of red, green, blue and yellow quadrants blurred into each other, with solid edges. Sharp quadrants mean the blur is missing.',
+                }}
             />
         </View>
     )
@@ -712,6 +792,10 @@ function BlurDataUriCase() {
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
+        description: {
+            checks: "FastImage works at all in an Expo app (the Expo example, on iOS, Android and the web): an image loads, a missing one fails, reload() after a failure, a bundled image, several sizes, preload, and the cache methods (on the web, that getCachePath isn't supported).",
+            shows: 'A row per case, top to bottom, each a small square unless noted: the pug photo; an empty gray square (the 404); the pug photo (loaded with reload()); the light blue React logo (bundled); a larger solid square, green on iOS and Android and red on the web (several sizes); an empty gray square (preload); the northern lights photo (getCachePath); and on iOS and Android only, an empty gray square (configureCache).',
+        },
         cases: [
             <LoadCase key="load" />,
             <ErrorCase key="error" />,
@@ -729,6 +813,11 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
         ? [
               {
                   name: 'smoke-web',
+                  description: {
+                      checks: "The web version's own behavior: onLoad when the sizes change, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri.",
+                      steps: 'Web only, in headless Chrome, where screenshots are not compared.',
+                      shows: 'A row per case, top to bottom: the red 100 px square (sizes changed); the pug photo (with a placeholder); the pug photo (reload() with a url placeholder); a 96×72 box of red, green, blue and yellow quadrants blurred into each other (blurDataUri).',
+                  },
                   cases: [
                       <SizesChangeCase key="sizes-change" />,
                       <PlaceholderCase key="placeholder" />,
@@ -740,6 +829,10 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
         : [
               {
                   name: 'smoke-glide',
+                  description: {
+                      checks: "Features that on Android go through the Glide components FastImage registers itself when the app's AppGlideModule is expo-image's: onProgress, cache: 'web', writeToCache, SVG and APNG images. iOS runs the same cases.",
+                      shows: "A row per case, top to bottom, each a small square: the pug photo (onProgress); an empty gray square (cache: 'web', its view removed after the second load); the northern lights photo (writeToCache); a black ring on gray (SVG); a red or blue square (the APNG, animated, so it's not compared); a red square (the APNG with blurRadius, also not compared).",
+                  },
                   cases: [
                       <ProgressCase key="progress" />,
                       <WebCacheCase key="web-cache" />,

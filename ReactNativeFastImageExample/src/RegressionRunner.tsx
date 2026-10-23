@@ -15,6 +15,8 @@ import {
 } from 'react-native-safe-area-context'
 import FastImage from 'react-native-fast-image'
 import {
+    DescribeContext,
+    Description,
     InRunnerContext,
     Masked,
     MaskContext,
@@ -40,7 +42,8 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //   { type: 'hello', platform, version, arch, groups: [names], window:
 //     { width, height }, scale }                   on connecting (window in
 //                                                 dp; scale = pixels per dp)
-//   { type: 'group', index, name, cases: [ids] }  once a group is on screen
+//   { type: 'group', index, name, cases: [ids], description, descriptions:
+//     { id: description } }                       once a group is on screen
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
 //   { type: 'masks', group, id, masks, content, visible, safeArea }
 //                                                 the reply to 'measure'
@@ -304,6 +307,10 @@ function Group({
     >
 }) {
     const statuses = useRef(new Map<string, string>())
+    const descriptions = useRef(new Map<string, Description>())
+    const describe = useCallback((id: string, description: Description) => {
+        descriptions.current.set(id, description)
+    }, [])
     // Cases that haven't passed (yet), with their statuses in full.
     const [notOk, setNotOk] = useState<string[]>([])
     const report = useCallback(
@@ -360,46 +367,50 @@ function Group({
             index,
             name: group.name,
             cases: [...statuses.current.keys()],
+            description: group.description,
+            descriptions: Object.fromEntries(descriptions.current),
         })
     }, [index, group, send])
     return (
         <InRunnerContext.Provider value>
             <ReportContext.Provider value={report}>
-                <MaskContext.Provider value={mask}>
-                    <SampleContext.Provider value={sample}>
-                        <View
-                            ref={area}
-                            collapsable={false}
-                            style={[
-                                styles.group,
-                                // Above the system's bars at the bottom.
-                                { paddingBottom: insets.bottom },
-                            ]}
-                        >
-                            {/* Grows to fill the screen (for cases that fill it,
+                <DescribeContext.Provider value={describe}>
+                    <MaskContext.Provider value={mask}>
+                        <SampleContext.Provider value={sample}>
+                            <View
+                                ref={area}
+                                collapsable={false}
+                                style={[
+                                    styles.group,
+                                    // Above the system's bars at the bottom.
+                                    { paddingBottom: insets.bottom },
+                                ]}
+                            >
+                                {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
                         the script fails the group (see 'measure'). */}
-                            <View
-                                ref={cases}
-                                collapsable={false}
-                                style={styles.cases}
-                            >
-                                {group.cases}
-                            </View>
-                            {/* Statuses in full (cases show none here), below the
+                                <View
+                                    ref={cases}
+                                    collapsable={false}
+                                    style={styles.cases}
+                                >
+                                    {group.cases}
+                                </View>
+                                {/* Statuses in full (cases show none here), below the
                         cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                            <Masked>
-                                {notOk.map((line) => (
-                                    <Text key={line} style={styles.notOk}>
-                                        {line}
-                                    </Text>
-                                ))}
-                            </Masked>
-                        </View>
-                    </SampleContext.Provider>
-                </MaskContext.Provider>
+                                <Masked>
+                                    {notOk.map((line) => (
+                                        <Text key={line} style={styles.notOk}>
+                                            {line}
+                                        </Text>
+                                    ))}
+                                </Masked>
+                            </View>
+                        </SampleContext.Provider>
+                    </MaskContext.Provider>
+                </DescribeContext.Provider>
             </ReportContext.Provider>
         </InRunnerContext.Provider>
     )

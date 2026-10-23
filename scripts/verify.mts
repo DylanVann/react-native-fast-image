@@ -2150,6 +2150,12 @@ async function runRegression(
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
+    // Each group's description and its cases' (see Description in
+    // RunnerContext.tsx).
+    const descriptions: Record<
+        string,
+        { description: unknown; cases: unknown }
+    > = {}
     // A case's latest status.
     const statusOf = (index: number, id: string) => {
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -2199,6 +2205,10 @@ async function runRegression(
             return { connected: false }
         }
         const cases = shown.cases as string[]
+        descriptions[group] = {
+            description: shown.description,
+            cases: shown.descriptions,
+        }
         // Cases that need a real touch: tap them (maestro/touch.yaml). They
         // report their OK like the others.
         if (group === 'touch') {
@@ -2321,6 +2331,7 @@ async function runRegression(
             {
                 hello,
                 statuses,
+                descriptions,
                 failures,
                 seeded,
                 noReference,
