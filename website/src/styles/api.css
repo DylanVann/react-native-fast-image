@@ -26,6 +26,11 @@
 .sl-markdown-content .api-heading > * {
     margin: 0;
 }
+/* The space Starlight puts before a heading that follows other content, which
+   the heading doesn't get inside the row. */
+.sl-markdown-content :not(.sl-heading-wrapper) + .api-heading {
+    margin-top: 2rem;
+}
 .api-platforms {
     display: flex;
     flex-wrap: wrap;

@@ -274,6 +274,7 @@ function typeCode(type: string) {
 // A heading per prop, the same in the README and on the website so links work
 // on both (and don't change with the prop's type), with its platforms, and its
 // type and default under it: in the README as markdown, on the website styled.
+// A divider before each, the first too, after the component's description.
 function propsSection(ms: Member[], site: boolean) {
     return ms
         .map((m) => {
@@ -300,7 +301,8 @@ function propsSection(ms: Member[], site: boolean) {
                 m.body,
             ].join('\n\n')
         })
-        .join('\n\n---\n\n')
+        .map((section) => `---\n\n${section}`)
+        .join('\n\n')
 }
 
 // Members as a list, each with its type, default and docs (indented to stay in

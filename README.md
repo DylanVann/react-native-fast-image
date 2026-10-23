@@ -105,6 +105,8 @@ It's a single native view, which also takes React Native's View props, such as a
 
 <!-- api:props start (generated from src/ by website/scripts/generate.mts) -->
 
+---
+
 #### `source`
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `number | Source | (number | Source)[]`
@@ -591,6 +593,8 @@ const Banner = () => (
 Its own props are below. Of the others, View props (accessibility, focus, `testID`, layout and touch) go to the view, and `FastImage`'s own (`source`, `objectFit`, `onLoad`, …) go to the image. `imageProps` puts any prop on the image instead. Its ref is the view's (`imageRef` is the image's).
 
 <!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
+
+---
 
 #### `style`
 
