@@ -8,5 +8,5 @@
     "env": {
         "builtin": true
     },
-    "ignorePatterns": [".local", ".github/actions/cache/dist"]
+    "ignorePatterns": [".local"]
 }

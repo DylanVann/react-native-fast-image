@@ -170,7 +170,7 @@ jobs:
       # in a file outside the device's folder, read when it boots.
       - name: Restore the simulator
         id: simulator
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         # The caches (runs-on/cache, which takes actions/cache's inputs) are
         # in Cloudflare R2, which restores them faster than GitHub's cache and
         # shares them between branches. Pull requests from forks get no
@@ -180,8 +180,9 @@ jobs:
         #
         # runs-on/cache downloads 16 MB parts, 8 at a time, and on the macOS
         # runners R2 sometimes stops sending one: the download waited 15-47 s
-        # per iOS job. The copy in .github/actions/cache retries a part after
-        # DOWNLOAD_SEGMENT_TIMEOUT seconds instead of runs-on/cache's 30.
+        # per iOS job. DylanVann/runs-on-cache is runs-on/cache with
+        # DOWNLOAD_SEGMENT_TIMEOUT, which retries a part after that many
+        # seconds instead of 30 (proposed to runs-on/cache).
         env: &r2
           RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
           RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
@@ -211,7 +212,7 @@ jobs:
       # (verify.mts skips pod install while they're current).
       - name: "Restore the app's dependencies and Pods"
         id: deps
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -227,7 +228,7 @@ jobs:
       - name: "Restore React Native's and CocoaPods' downloads"
         id: downloads
         if: steps.deps.outputs.cache-hit != 'true'
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -245,7 +246,7 @@ jobs:
       # runs compiled.
       - name: "Restore Xcode's compilation cache"
         id: build
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
@@ -255,7 +256,7 @@ jobs:
       # its package.
       - name: "Restore WebDriverAgent's build"
         id: wda
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
@@ -264,7 +265,7 @@ jobs:
       # transform everything again.
       - name: "Restore Metro's cache"
         id: metro
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
@@ -334,7 +335,7 @@ jobs:
           echo saved=true >> "$GITHUB_OUTPUT"
       - name: Save the simulator
         if: always() && env.R2_WRITE == 'true' && steps.savesimulator.outputs.saved == 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ~/simulator-cache
@@ -375,7 +376,7 @@ jobs:
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - name: "Save the app's dependencies and Pods"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -387,7 +388,7 @@ jobs:
           key: ${{ steps.deps.outputs.cache-primary-key }}
       - name: "Save React Native's and CocoaPods' downloads"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.downloads.outcome == 'success' && steps.downloads.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -396,21 +397,21 @@ jobs:
           key: ${{ steps.downloads.outputs.cache-primary-key }}
       - name: "Save Xcode's compilation cache"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
           key: ${{ steps.build.outputs.cache-primary-key }}
       - name: "Save Metro's cache"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: ${{ steps.metro.outputs.cache-primary-key }}
       - name: "Save WebDriverAgent's build"
         if: always() && env.R2_WRITE == 'true' && steps.wda.outputs.cache-hit != 'true' && hashFiles('node_modules/@devicelab/maestro-runner-darwin-arm64/cache/**') != ''
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
@@ -521,7 +522,7 @@ jobs:
       # evicted before the next run.
       - name: "Restore Gradle's caches"
         id: gradle
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -533,7 +534,7 @@ jobs:
       # otherwise.
       - name: Restore the NDK and CMake
         id: ndk
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -548,7 +549,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Restore the emulator image
         id: image
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
@@ -566,7 +567,7 @@ jobs:
           printf 'hw.ramSize=6144\nhw.cpu.ncore=4\ndisk.dataPartition.size=6G\n' >> "$ANDROID_AVD_HOME/$ANDROID_AVD.avd/config.ini"
       - name: Save the emulator image
         if: env.R2_WRITE == 'true' && steps.image.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
@@ -587,7 +588,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: "Restore Metro's cache"
         id: metro
-        uses: ./.github/actions/cache/restore
+        uses: DylanVann/runs-on-cache/restore@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
@@ -620,7 +621,7 @@ jobs:
           test -d /usr/local/lib/android/sdk/ndk/27.1.12297006 && test -d /usr/local/lib/android/sdk/cmake/3.22.1 && echo ndk=true >> "$GITHUB_OUTPUT" || true
       - name: "Save Metro's cache"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.metro == 'true' && steps.metro.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
@@ -628,7 +629,7 @@ jobs:
       # From one of the app's jobs: both build the same.
       - name: "Save Gradle's caches"
         if: always() && env.R2_WRITE == 'true' && matrix.shard == 1 && steps.made.outputs.gradle == 'true' && steps.gradle.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
@@ -637,7 +638,7 @@ jobs:
           key: ${{ steps.gradle.outputs.cache-primary-key }}
       - name: Save the NDK and CMake
         if: always() && env.R2_WRITE == 'true' && matrix.app == 'main' && matrix.shard == 1 && steps.made.outputs.ndk == 'true' && steps.ndk.outputs.cache-hit != 'true'
-        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: DylanVann/runs-on-cache/save@cd8d1abe048b64cb01b396b1b2a09257db335945
         env: *r2
         with:
           path: |
