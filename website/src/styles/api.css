@@ -13,7 +13,8 @@
 /* A badge per platform: its icon and name on a light tint of its color,
    mixed into the page's background (and its text into the page's text color)
    so it stays muted and readable in both themes. The icons are Phosphor's,
-   as masks in the icon's color (Vite inlines the files). */
+   as masks in the icon's color (Vite inlines the files): the logo of the
+   platform's maker (Apple's for iOS and tvOS), or a globe for the web. */
 /* A prop's or method's heading with its platforms at the end of the row, as
    expo-image's docs show them, or under it when there isn't room. */
 .sl-markdown-content .api-heading {
@@ -67,7 +68,7 @@
 }
 .api-badge[data-platform='tvos'] {
     --badge: var(--sl-color-purple);
-    --icon: url('../../node_modules/@phosphor-icons/core/assets/fill/television-simple-fill.svg');
+    --icon: url('../../node_modules/@phosphor-icons/core/assets/fill/apple-logo-fill.svg');
 }
 .api-badge[data-platform='web'] {
     --badge: var(--sl-color-orange);
