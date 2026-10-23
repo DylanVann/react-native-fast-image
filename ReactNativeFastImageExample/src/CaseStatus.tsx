@@ -1,12 +1,13 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { useReport } from './RunnerContext'
+import { InRunnerContext, useReport } from './RunnerContext'
 
 // A case's status line ("<id>: OK" once it passed, "<id>: …" until then) and
 // description. The runner is told the status in full (RunnerContext.tsx) and
 // lists the ones that aren't OK below the cases; the line itself stays short,
 // so a long status (a failure) doesn't move the cases below, whose areas were
-// measured for masks and video samples, and it isn't cut off.
+// measured for masks and video samples, and it isn't cut off. In the runner
+// it shows nothing: the screenshots have the cases' images only.
 export function CaseStatus({
     id,
     status,
@@ -17,6 +18,8 @@ export function CaseStatus({
     description: React.ReactNode
 }) {
     useReport(id, status)
+    const inRunner = useContext(InRunnerContext)
+    if (inRunner) return null
     return (
         <View style={caseStyles.text}>
             <Text testID={`regression-${id}`} style={caseStyles.status}>
