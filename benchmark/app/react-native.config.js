@@ -1,6 +1,6 @@
 // Turns off the other subjects' native code (see subjects.js), and links the
-// fast-image-local subject's package (../scripts/local.ts), which isn't in
-// package.json.
+// fast-image-local subject's FastImage from this checkout (../..; its
+// JavaScript comes from metro.config.js).
 const path = require('path')
 const { others, subjects, subject } = require('./subjects')
 
@@ -17,7 +17,7 @@ module.exports = {
                 ]),
         ),
         ...(local
-            ? { [local]: { root: path.join(__dirname, 'node_modules', local) } }
+            ? { [local]: { root: path.join(__dirname, '..', '..') } }
             : {}),
     },
 }

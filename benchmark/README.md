@@ -2,7 +2,7 @@
 
 Measures how React Native image components load and show images, the same way for each, on real phones: FastImage (8.28.0), React Native's `Image`, expo-image, Nitro Image and Turbo Image (`app/subjects.json`). Results are distributions over several runs, from the screen as the user sees it where possible.
 
-Two more subjects compare FastImage versions: `fast-image-9` (9.2.2) and `fast-image-local` (FastImage from this checkout, packed as npm would publish it and installed into the app by `scripts/local.ts` before that subject's build), e.g. a change against the release before it, with `--paired` on Android.
+Two more subjects compare FastImage versions: `fast-image-9` (9.2.2) and `fast-image-local` (FastImage from this checkout: its `src/` through `app/metro.config.js`, its native code through `app/react-native.config.js`), e.g. a change against the release before it, with `--paired` on Android.
 
 ## Running it
 

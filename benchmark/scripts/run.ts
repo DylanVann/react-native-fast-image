@@ -26,7 +26,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { analyze, type Results } from './analyze'
-import { installLocal } from './local'
 import { summarize } from './summarize'
 
 const BENCHMARK = path.join(import.meta.dir, '..')
@@ -47,7 +46,7 @@ const DEVICECTL_TIMEOUT = 60_000
 const PORT = 8099
 const SERVER = `http://127.0.0.1:${PORT}`
 
-const subjects: Record<string, { name: string; local?: string }> = JSON.parse(
+const subjects: Record<string, { name: string }> = JSON.parse(
     fs.readFileSync(path.join(APP, 'subjects.json'), 'utf8'),
 )
 
@@ -167,8 +166,6 @@ const bundleId = (subject: string) =>
 function build(subject: string, udid: string) {
     log(`build ${subject}`)
     const env = { BENCH_SUBJECT: subject }
-    const local = subjects[subject].local
-    if (local) log(`  installed ${installLocal(local)}`)
     fs.writeFileSync(
         path.join(APP, 'src', 'subject.ts'),
         `// Written by ../../scripts/run.ts: the subject this build is for.\nexport { default } from '../subjects/${subject}'\n`,
