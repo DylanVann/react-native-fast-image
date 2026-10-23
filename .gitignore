@@ -43,6 +43,7 @@ example/android/app/src/main/gen
 # build
 react-native-fast-image-*.tgz
 dist/
+!/.github/actions/cache/dist/
 
 # coverage reports
 coverage
