@@ -1,3 +1,10 @@
+# [10.9.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.10...v10.9.0) (2026-10-23)
+
+
+### Features
+
+* take alt as the image's label ([#1365](https://github.com/DylanVann/react-native-fast-image/issues/1365)) ([95d7d0c](https://github.com/DylanVann/react-native-fast-image/commit/95d7d0cfcf0d8a5346d546ccf2a636ca1c45694c))
+
 ## [10.8.10](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.9...v10.8.10) (2026-10-23)
 
 
