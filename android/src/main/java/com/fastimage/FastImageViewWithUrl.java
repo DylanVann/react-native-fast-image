@@ -28,6 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.view.ViewCompat;
 
 import com.bumptech.glide.GenericTransitionOptions;
 import com.bumptech.glide.Priority;
@@ -182,25 +183,29 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // `accessible` and `screenReaderFocusable`: TalkBack stops on the view
     // while either is true (as iOS's VoiceOver does for `accessible`). They
     // don't give it keyboard or D-pad focus, which an image with no action
-    // would only be a dead stop for: that's `focusable`'s. API 28 and later,
-    // as React Native's screenReaderFocusable.
+    // would only be a dead stop for: that's `focusable`'s. Before API 28,
+    // ViewCompat keeps it for the view's accessibility delegate to report,
+    // and adds a delegate to a view without one. React Native doesn't add
+    // its own (for a role or testID) to a view that has one, so this is set
+    // after React Native's, at the end of the transaction.
     private boolean mAccessible = false;
     private boolean mScreenReaderFocusableProp = false;
+    private boolean mScreenReaderFocusableChanged = false;
 
     void setAccessibleProp(boolean accessible) {
         mAccessible = accessible;
-        updateScreenReaderFocusable();
+        mScreenReaderFocusableChanged = true;
     }
 
     void setScreenReaderFocusableProp(boolean screenReaderFocusable) {
         mScreenReaderFocusableProp = screenReaderFocusable;
-        updateScreenReaderFocusable();
+        mScreenReaderFocusableChanged = true;
     }
 
-    private void updateScreenReaderFocusable() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            setScreenReaderFocusable(mAccessible || mScreenReaderFocusableProp);
-        }
+    void applyScreenReaderFocusable() {
+        if (!mScreenReaderFocusableChanged) return;
+        mScreenReaderFocusableChanged = false;
+        ViewCompat.setScreenReaderFocusable(this, mAccessible || mScreenReaderFocusableProp);
     }
 
     // `focusable` (null when not set): keyboard and D-pad focus while true,
