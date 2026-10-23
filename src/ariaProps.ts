@@ -102,10 +102,10 @@ export function resolveAriaProps<P extends AriaProps>(
     // On iOS, a labelled image is an accessibility element unless
     // `accessible` says otherwise or accessibilityElementsHidden hides it, as
     // an <img aria-label> on the web and React Native's Image with `alt`: iOS
-    // reads `accessible` for it. Android reads the label either way, and its
-    // `accessible` also makes the image a keyboard and D-pad stop, which a
-    // labelled image in a Pressable shouldn't become. An empty label is none,
-    // as on the web (a decorative image), and so is a blank one.
+    // reads `accessible` for it. Android's TalkBack reads the label either
+    // way, and `accessible` would make the image a stop of its own, splitting
+    // a Pressable's announcement in two. An empty label is none, as on the
+    // web (a decorative image), and so is a blank one.
     if (
         Platform.OS === 'ios' &&
         typeof ariaLabel === 'string' &&

@@ -14,12 +14,11 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
-// `accessible` and `focusable`, as Fabric sets them through the view manager's
-// delegate: the image takes focus (TalkBack's as its own element, and the
-// keyboard's or D-pad's) while either is true, and not while either is false,
-// as React Native's Image does for `accessible`. (React Native's View leaves
-// focus as it is for focusable false.) They aren't Codegen props, and React
-// Native's base delegate drops them.
+// `accessible`, `screenReaderFocusable` and `focusable`, as Fabric sets them
+// through the view manager's delegate: the first two make the image a
+// TalkBack stop, and only `focusable` gives it keyboard and D-pad focus.
+// `accessible` and `focusable` aren't Codegen props, and React Native's base
+// delegate drops them.
 @RunWith(RobolectricTestRunner.class)
 public class FastImageAccessibilityTest {
     private FastImageViewWithUrl view;
@@ -32,43 +31,42 @@ public class FastImageAccessibilityTest {
     }
 
     @Test
-    public void accessibleMakesTheImageFocusable() {
+    public void accessibleMakesTheImageAScreenReaderStop() {
         delegate.setProperty(view, "accessible", true);
-        assertTrue(view.isFocusable());
-        // Removed (null): back to Android's default, focusable if clickable.
-        delegate.setProperty(view, "accessible", null);
+        assertTrue(view.isScreenReaderFocusable());
+        // Not a keyboard or D-pad stop.
         assertFalse(view.isFocusable());
         assertEquals(View.FOCUSABLE_AUTO, view.getFocusable());
+        delegate.setProperty(view, "accessible", null);
+        assertFalse(view.isScreenReaderFocusable());
+    }
+
+    // Either one keeps it a TalkBack stop: one set false doesn't undo the
+    // other.
+    @Test
+    public void accessibleAndScreenReaderFocusableDontUndoEachOther() {
+        delegate.setProperty(view, "accessible", true);
+        delegate.setProperty(view, "screenReaderFocusable", false);
+        assertTrue(view.isScreenReaderFocusable());
+        delegate.setProperty(view, "accessible", false);
+        assertFalse(view.isScreenReaderFocusable());
+        delegate.setProperty(view, "screenReaderFocusable", true);
+        delegate.setProperty(view, "accessible", false);
+        assertTrue(view.isScreenReaderFocusable());
     }
 
     @Test
     public void focusableMakesTheImageFocusable() {
         delegate.setProperty(view, "focusable", true);
         assertTrue(view.isFocusable());
+        assertFalse(view.isScreenReaderFocusable());
         // False: not focusable, even if it becomes clickable.
         delegate.setProperty(view, "focusable", false);
         view.setClickable(true);
         assertFalse(view.isFocusable());
         view.setClickable(false);
-        // Removed: back to Android's default.
+        // Removed: back to Android's default, focusable if clickable.
         delegate.setProperty(view, "focusable", null);
         assertEquals(View.FOCUSABLE_AUTO, view.getFocusable());
-    }
-
-    // Either one keeps it focusable: focusable false doesn't take away the
-    // focus `accessible` gives (as React Native's View leaves it for
-    // accessibility).
-    @Test
-    public void eitherKeepsTheImageFocusable() {
-        delegate.setProperty(view, "accessible", true);
-        delegate.setProperty(view, "focusable", false);
-        assertTrue(view.isFocusable());
-        delegate.setProperty(view, "accessible", false);
-        assertEquals(View.NOT_FOCUSABLE, view.getFocusable());
-        // And the other way round: accessible false doesn't take away the
-        // focus focusable gives (tabIndex={0} accessible={false}).
-        delegate.setProperty(view, "focusable", true);
-        delegate.setProperty(view, "accessible", false);
-        assertTrue(view.isFocusable());
     }
 }

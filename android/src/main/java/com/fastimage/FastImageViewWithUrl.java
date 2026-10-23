@@ -179,35 +179,40 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mHitSlopRect = hitSlopRect;
     }
 
-    // `accessible` and `focusable` (null when not set): the view takes focus
-    // (TalkBack's as its own element, and the keyboard's or D-pad's) while
-    // either is true, and not while either is false, as React Native's Image
-    // sets it from `accessible`. (Its View sets it from both, and the last
-    // prop set wins there.) Without either, the view has Android's default
-    // (focusable if clickable).
-    @Nullable
-    private Boolean mAccessible = null;
-    @Nullable
-    private Boolean mFocusableProp = null;
+    // `accessible` and `screenReaderFocusable`: TalkBack stops on the view
+    // while either is true (as iOS's VoiceOver does for `accessible`). They
+    // don't give it keyboard or D-pad focus, which an image with no action
+    // would only be a dead stop for: that's `focusable`'s. API 28 and later,
+    // as React Native's screenReaderFocusable.
+    private boolean mAccessible = false;
+    private boolean mScreenReaderFocusableProp = false;
 
-    void setAccessibleProp(@Nullable Boolean accessible) {
+    void setAccessibleProp(boolean accessible) {
         mAccessible = accessible;
-        updateFocusable();
+        updateScreenReaderFocusable();
     }
 
+    void setScreenReaderFocusableProp(boolean screenReaderFocusable) {
+        mScreenReaderFocusableProp = screenReaderFocusable;
+        updateScreenReaderFocusable();
+    }
+
+    private void updateScreenReaderFocusable() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            setScreenReaderFocusable(mAccessible || mScreenReaderFocusableProp);
+        }
+    }
+
+    // `focusable` (null when not set): keyboard and D-pad focus while true,
+    // none while false (even if clickable), and Android's default (focusable
+    // if clickable) without it.
     void setFocusableProp(@Nullable Boolean focusable) {
-        mFocusableProp = focusable;
-        updateFocusable();
-    }
-
-    private void updateFocusable() {
-        if (Boolean.TRUE.equals(mAccessible) || Boolean.TRUE.equals(mFocusableProp)) {
-            setFocusable(true);
-        } else if (mAccessible != null || mFocusableProp != null
-                || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            setFocusable(false);
-        } else {
+        if (focusable != null) {
+            setFocusable(focusable);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             setFocusable(View.FOCUSABLE_AUTO);
+        } else {
+            setFocusable(false);
         }
     }
 

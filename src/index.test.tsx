@@ -1784,7 +1784,7 @@ describe('ARIA props', () => {
         ).toBeUndefined()
     })
 
-    it("aria-label doesn't make the image accessible on Android (a keyboard and D-pad stop there)", () => {
+    it("aria-label doesn't make the image accessible on Android (a TalkBack stop of its own there)", () => {
         Platform.OS = 'android'
         expect(
             viewProps(<FastImage source={source} aria-label="A cat" />)

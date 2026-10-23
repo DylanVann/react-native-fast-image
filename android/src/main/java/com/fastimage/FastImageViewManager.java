@@ -214,10 +214,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             case "backfaceVisibility":
                 view.setBackfaceVisibility(value instanceof String ? (String) value : "visible");
                 return true;
-            // Not Codegen props, and BaseViewManager doesn't set them (React
-            // Native's Image and View managers do): see setAccessibleProp.
+            // Not Codegen props, and BaseViewManager doesn't set accessible or
+            // focusable (React Native's Image and View managers do, both as
+            // keyboard focus): see setAccessibleProp. screenReaderFocusable is
+            // BaseViewManager's, here so the two don't undo each other.
             case "accessible":
-                view.setAccessibleProp(value instanceof Boolean ? (Boolean) value : null);
+                view.setAccessibleProp(Boolean.TRUE.equals(value));
+                return true;
+            case "screenReaderFocusable":
+                view.setScreenReaderFocusableProp(Boolean.TRUE.equals(value));
                 return true;
             case "focusable":
                 view.setFocusableProp(value instanceof Boolean ? (Boolean) value : null);
