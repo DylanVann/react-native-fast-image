@@ -180,15 +180,15 @@
             }
             .layout {
                 display: grid;
-                grid-template-columns: minmax(0, auto) minmax(320px, 1fr);
+                grid-template-columns: minmax(0, 1fr) 380px;
                 gap: 20px;
                 align-items: start;
             }
             .images {
-                display: flex;
+                display: grid;
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(0, 1fr);
                 gap: 12px;
-                position: sticky;
-                top: 0;
             }
             figure {
                 margin: 0;
@@ -198,40 +198,37 @@
                 color: var(--muted);
                 margin-bottom: 4px;
             }
+            /* The screenshots fit their column and the window's height; the
+            overlays are placed over the image's box (see place). */
             .frame {
                 position: relative;
-                height: calc(100vh - 190px);
-                min-height: 360px;
-                border: 1px solid var(--line);
-                background: repeating-conic-gradient(
-                        var(--panel) 0 25%,
-                        transparent 0 50%
-                    )
-                    0 0 / 16px 16px;
             }
-            .frame img {
+            .frame > img {
                 display: block;
-                height: 100%;
+                max-width: 100%;
+                max-height: calc(100vh - 120px);
+                border: 1px solid var(--line);
             }
-            .frame svg {
+            .frame svg,
+            .slider .top {
                 position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
                 pointer-events: none;
             }
-            .frame .missing {
+            .slider .top {
+                overflow: hidden;
+            }
+            .slider .top img {
+                display: block;
+                width: 100%;
                 height: 100%;
-                aspect-ratio: 0.52;
+            }
+            .frame .missing {
+                height: 240px;
                 display: grid;
                 place-items: center;
                 color: var(--muted);
                 font-size: 13px;
-            }
-            .slider .top {
-                position: absolute;
-                inset: 0;
-                overflow: hidden;
+                border: 1px dashed var(--line);
             }
             .slider input {
                 width: 100%;
@@ -338,7 +335,11 @@
             let selected
             let hovered
             const $ = (id) => document.getElementById(id)
-            const file = (p) => `/file?path=${encodeURIComponent(p)}`
+            // Changes with each load, so an approved reference isn't the
+            // browser's cached image.
+            let version = 0
+            const file = (p) =>
+                `/file?path=${encodeURIComponent(p)}&v=${version}`
             const esc = (s) =>
                 String(s ?? '').replace(
                     /[&<>"]/g,
@@ -365,6 +366,7 @@
 
             async function refresh() {
                 data = await (await fetch('/api/runs')).json()
+                version++
                 $('run').textContent = data.run
                 const groups = shownGroups()
                 if (!groups.some((g) => groupId(g) === selected))
@@ -436,8 +438,26 @@
                     'viewBox',
                     `0 0 ${img.naturalWidth} ${img.naturalHeight}`,
                 )
+                place(img)
                 drawAreas()
             }
+
+            // Puts a frame's overlays (the areas, the slider's top image)
+            // over its image's box.
+            function place(img) {
+                const box = {
+                    left: `${img.offsetLeft}px`,
+                    top: `${img.offsetTop}px`,
+                    width: `${img.offsetWidth}px`,
+                    height: `${img.offsetHeight}px`,
+                }
+                img.parentElement
+                    .querySelectorAll(':scope > svg, :scope > .top')
+                    .forEach((el) => Object.assign(el.style, box))
+            }
+            window.addEventListener('resize', () =>
+                document.querySelectorAll('.frame > img').forEach(place),
+            )
 
             function drawAreas() {
                 const group = current()
