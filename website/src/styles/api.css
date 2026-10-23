@@ -10,7 +10,9 @@
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-3);
 }
-/* A badge per platform, in a color of its own. */
+/* A badge per platform: a light tint of its color, mixed into the page's
+   background (and its text into the page's gray) so it stays muted in both
+   themes. */
 .api-platforms {
     display: inline-flex;
     flex-wrap: wrap;
@@ -19,34 +21,25 @@
 }
 .api-badge {
     --badge: var(--sl-color-gray-3);
-    --badge-low: var(--sl-color-gray-6);
-    --badge-high: var(--sl-color-white);
     font-size: var(--sl-text-xs);
-    padding: 0.1rem 0.4rem;
+    padding: 0.05rem 0.4rem;
     border-radius: 0.25rem;
-    color: var(--badge-high);
-    background: var(--badge-low);
-    border: 1px solid var(--badge);
+    color: color-mix(in oklab, var(--badge) 25%, var(--sl-color-white));
+    font-weight: 500;
+    background: color-mix(in oklab, var(--badge) 10%, var(--sl-color-bg));
+    border: 1px solid color-mix(in oklab, var(--badge) 22%, var(--sl-color-bg));
 }
 .api-badge[data-platform='android'] {
     --badge: var(--sl-color-green);
-    --badge-low: var(--sl-color-green-low);
-    --badge-high: var(--sl-color-green-high);
 }
 .api-badge[data-platform='ios'] {
     --badge: var(--sl-color-blue);
-    --badge-low: var(--sl-color-blue-low);
-    --badge-high: var(--sl-color-blue-high);
 }
 .api-badge[data-platform='tvos'] {
     --badge: var(--sl-color-purple);
-    --badge-low: var(--sl-color-purple-low);
-    --badge-high: var(--sl-color-purple-high);
 }
 .api-badge[data-platform='web'] {
     --badge: var(--sl-color-orange);
-    --badge-low: var(--sl-color-orange-low);
-    --badge-high: var(--sl-color-orange-high);
 }
 
 /* Inline code: rounded, and without a background in headings (the props' and

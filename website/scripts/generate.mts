@@ -29,31 +29,36 @@ if (!project) process.exit(1)
 const json = app.serializer.projectToObject(project, normalizePath(root))
 const byName = new Map(json.children!.map((c) => [c.name, c]))
 
-// The platforms a prop or method works on: its @platform tags (e.g.
-// `@platform ios 17+`), or all of them without any.
+// The platforms a prop or method works on, from its @platform tags (e.g.
+// `@platform ios 17+`). Every prop and method lists them, so a platform added
+// here isn't claimed for one that wasn't checked on it.
 const PLATFORMS: Record<string, string> = {
     android: 'Android',
     ios: 'iOS',
     tvos: 'tvOS',
     web: 'Web',
 }
-const ALL_PLATFORMS = Object.keys(PLATFORMS)
-function platformsOf(r: J.Reflection) {
-    const tagged = tags(r, '@platform').map((t) => {
+const platformsOf = (r: J.Reflection) =>
+    tags(r, '@platform').map((t) => {
         const [platform, ...version] = partsToMarkdown(t.content).split(' ')
         return { platform, version: version.join(' ') }
     })
-    return tagged.length
-        ? tagged
-        : ALL_PLATFORMS.map((platform) => ({ platform, version: '' }))
-}
 type Platforms = ReturnType<typeof platformsOf>
 const platformName = ({ platform, version }: Platforms[number]) =>
     [PLATFORMS[platform] ?? platform, version].filter(Boolean).join(' ')
 
-// On the website, a badge per platform, as the first of a prop's or method's
-// details; in the README, the platforms of one that doesn't work on all of
-// them.
+// The props and methods without platforms, or with unknown ones, reported
+// once the docs are generated.
+const platformErrors = new Set<string>()
+const checkPlatforms = (name: string, platforms: Platforms) => {
+    if (!platforms.length) platformErrors.add(`${name} has no @platform tags`)
+    for (const { platform } of platforms)
+        if (!PLATFORMS[platform])
+            platformErrors.add(`${name}: unknown platform ${platform}`)
+}
+
+// A prop's or method's platforms: on the website a badge for each, as the
+// first of its details, and in the README a list.
 const platformBadges = (platforms: Platforms) =>
     `<span class="api-platforms">${platforms
         .map(
@@ -61,9 +66,8 @@ const platformBadges = (platforms: Platforms) =>
                 `<span class="api-badge" data-platform="${p.platform}">${platformName(p)}</span>`,
         )
         .join('')}</span>`
-const platformNote = (platforms: Platforms) =>
-    platforms.length < ALL_PLATFORMS.length &&
-    `${platforms.map(platformName).join(', ')} only`
+const platformList = (platforms: Platforms) =>
+    `**Platforms:** ${platforms.map(platformName).join(', ')}`
 
 // By where they're declared: line, then column (an object type's fields can
 // share a line).
@@ -267,6 +271,7 @@ function typeCode(type: string) {
 function propsSection(ms: Member[], site: boolean) {
     return ms
         .map((m) => {
+            checkPlatforms(m.name, m.platforms)
             const meta = site
                 ? [
                       platformBadges(m.platforms),
@@ -275,9 +280,9 @@ function propsSection(ms: Member[], site: boolean) {
                       m.default && `Default: ${typeCode(m.default)}`,
                   ]
                 : [
+                      platformList(m.platforms),
                       `**Type:** ${code(m.type)}`,
                       m.default && `**Default:** ${code(m.default)}`,
-                      platformNote(m.platforms),
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
@@ -327,11 +332,12 @@ const methods = new Map(
 // the README.
 function withMethods(markdown: string, site: boolean) {
     return markdown.replace(
-        /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
+        /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Platforms:\*\*|\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
         (all, name: string) => {
             const method = methods.get(name)
             if (!method) return all
             const { sig, platforms } = method
+            checkPlatforms(`${name}()`, platforms)
             const params = sig.parameters ?? []
             const typed = params.map(
                 (p) =>
@@ -346,10 +352,10 @@ function withMethods(markdown: string, site: boolean) {
                       `Returns: ${typeCode(returns)}`,
                   ]
                 : [
+                      platformList(platforms),
                       typed.length &&
                           `**Parameters:** ${typed.map(code).join(', ')}`,
                       `**Returns:** ${code(returns)}`,
-                      platformNote(platforms),
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
@@ -489,6 +495,10 @@ const withApi = (site: boolean) =>
         site,
     )
 const updatedReadme = withApi(false)
+if (platformErrors.size) {
+    console.error([...platformErrors].join('\n'))
+    process.exit(1)
+}
 // The icons in the README's formats table: Phosphor's filled CheckCircle and
 // XCircle, green and red.
 const icon = (name: string, color: string) =>

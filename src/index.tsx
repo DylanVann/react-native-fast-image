@@ -50,6 +50,11 @@ export type Source = {
      * drawable on Android), photo library images on iOS and tvOS (`ph://`,
      * see [Photo library images](#photo-library-images-ios-and-tvos)) and SVG
      * images (see [SVG images](docs/formats.md#svg-images)).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     uri?: string
     /**
@@ -73,6 +78,10 @@ export type Source = {
      * On the web, it's the image's `fetchpriority`.
      *
      * @default 'normal'
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     priority?: Priority
     /**
@@ -174,6 +183,11 @@ export type Source = {
      * ```jsx
      * <FastImage source={{ uri: photo.url, thumbhash: photo.thumbhash }} />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     thumbhash?: string
     /**
@@ -185,19 +199,41 @@ export type Source = {
      * ```jsx
      * <FastImage source={{ uri: photo.url, blurDataUri: photo.lqip }} />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     blurDataUri?: string
     /**
      * With several sources (`source` as an array), the image's width at this
      * uri, in pixels (times `scale`, if given).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     width?: number
     /**
      * With several sources (`source` as an array), the image's height at this
      * uri, in pixels (times `scale`, if given).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     height?: number
-    /** With several sources, the scale `width` and `height` are multiplied by. */
+    /**
+     * With several sources, the scale `width` and `height` are multiplied by.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     scale?: number
 }
 
@@ -396,6 +432,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   `{ ok: false, error }`.
      * - A `require()`d image can be one of the sizes: its size is the file's.
      * - An array of one is the same as that source.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     source?:
         | ViewSource
@@ -427,6 +468,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   the dev server serves it. Release builds show it.
      * - On the web, a url loads like any image, also with `'cacheOnly'`: a
      *   browser can't look only in its cache.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     placeholder?:
         | ImageRequireSource
@@ -436,6 +482,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     /**
      * @deprecated Use `placeholder`, which does the same. With both,
      * `placeholder` shows.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     defaultSource?: ImageRequireSource
     /**
@@ -460,6 +511,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * It can also be set in `style`; the prop wins.
      *
      * @default 'cover'
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     objectFit?: ObjectFit
     /**
@@ -486,6 +541,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```jsx
      * <FastImage source={{ uri }} objectFit="cover" objectPosition="top" />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     objectPosition?: ObjectPosition
     /**
@@ -681,6 +741,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * SwiftUI-based filters).
      *
      * @default 0
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     blurRadius?: number
     /**
@@ -690,10 +754,22 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - `aria-label` and `accessibilityLabel` take priority over it.
      * - An empty `alt` (`alt=""`) is a decorative image, with no label.
      * - On the web, it's the image's alt text.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     alt?: string
 
-    /** Called when the image starts to load. */
+    /**
+     * Called when the image starts to load.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     onLoadStart?(): void
 
     /**
@@ -722,6 +798,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```jsx
      * onLoad={e => console.log(e.nativeEvent.width, e.nativeEvent.height)}
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     onLoad?(event: OnLoadEvent): void
 
@@ -735,6 +816,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```jsx
      * onError={e => console.log(e.nativeEvent.error)}
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     onError?(event: OnErrorEvent): void
 
@@ -754,6 +840,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *     }}
      * />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     onLoadEnd?(result: LoadResult): void
 
@@ -761,12 +852,22 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * The image's style: View's style props (`borderRadius` clips the image,
      * and borders inset it, but padding doesn't), and `tintColor`, as with
      * React Native's `Image` (the `tintColor` prop wins).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     style?: StyleProp<ImageStyle>
 
     /**
      * If supplied, changes the color of all the non-transparent pixels to the
      * given color, including the placeholder.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     tintColor?: ColorValue
 
@@ -1154,6 +1255,12 @@ export interface FastImageStaticProperties {
      * @deprecated Use the strings instead, e.g. `cache: 'immutable'`.
      */
     cacheControl: typeof cacheControl
+    /**
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     preload: (sources: Source[]) => Promise<PreloadResult[]>
     /**
      * Removes every image from the memory cache. Resolves once it's done, or
@@ -1352,20 +1459,53 @@ export interface FastImageBackgroundProps extends Omit<
     FastImageProps,
     'style' | 'children'
 > {
-    /** The container's style; the image fills it. */
+    /**
+     * The container's style; the image fills it.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     style?: StyleProp<ViewStyle>
-    /** The image's style. */
+    /**
+     * The image's style.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     imageStyle?: StyleProp<ImageStyle>
-    /** A ref to the image (the FastImage inside). */
+    /**
+     * A ref to the image (the FastImage inside).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     imageRef?: React.Ref<FastImageRef>
     /**
      * Props for the image itself, over the others. View props, such as the
      * accessibility props, go to the container otherwise: use this to make
      * the image the accessibility element instead, e.g.
      * `imageProps={{ accessible: true, accessibilityLabel: 'A beach' }}`.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
      */
     imageProps?: Omit<FastImageProps, 'style' | 'children'>
-    /** Content shown on top of the image. */
+    /**
+     * Content shown on top of the image.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     * @platform web
+     */
     children?: React.ReactNode
 }
 
