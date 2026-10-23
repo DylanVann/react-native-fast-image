@@ -1,0 +1,15 @@
+diff --git a/dist/restore-only/index.js b/dist/restore-only/index.js
+index 0999c86..fe8b374 100644
+--- a/dist/restore-only/index.js
++++ b/dist/restore-only/index.js
+@@ -73983,7 +73983,9 @@ function downloadSegmentRetry(httpClient, archiveLocation, offset, count) {
+         let failures = 0;
+         while (true) {
+             try {
+-                const timeout = 30000;
++                // How long a segment may take before it's retried (seconds; 30 by
++                // default): an S3-compatible store can stall a request now and then.
++                const timeout = Number(process.env.DOWNLOAD_SEGMENT_TIMEOUT || "30") * 1000;
+                 const result = yield promiseWithTimeout(timeout, downloadSegment(httpClient, archiveLocation, offset, count));
+                 if (typeof result === "string") {
+                     throw new Error("downloadSegmentRetry failed due to timeout");

@@ -13,7 +13,8 @@
         "ReactNativeFastImageExampleTV/ios",
         "ReactNativeFastImageExampleMinimum/ios",
         "ReactNativeFastImageExampleMinimum/android",
-        ".local"
+        ".local",
+        ".github/actions/cache/dist"
     ],
     "overrides": [
         {

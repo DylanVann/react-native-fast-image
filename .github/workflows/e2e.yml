@@ -170,19 +170,25 @@ jobs:
       # in a file outside the device's folder, read when it boots.
       - name: Restore the simulator
         id: simulator
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         # The caches (runs-on/cache, which takes actions/cache's inputs) are
         # in Cloudflare R2, which restores them faster than GitHub's cache and
         # shares them between branches. Pull requests from forks get no
         # secrets: they restore with a read-only key (.github/r2-read-only.env)
         # and don't save (R2_WRITE). Only the cache steps get the R2 keys, not
         # the steps that run the dependencies' code.
+        #
+        # runs-on/cache downloads 16 MB parts, 8 at a time, and on the macOS
+        # runners R2 sometimes stops sending one: the download waited 15-47 s
+        # per iOS job. The copy in .github/actions/cache retries a part after
+        # DOWNLOAD_SEGMENT_TIMEOUT seconds instead of runs-on/cache's 30.
         env: &r2
           RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
           RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || env.R2_READ_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || env.R2_READ_SECRET }}
           AWS_REGION: auto
+          DOWNLOAD_SEGMENT_TIMEOUT: 10
         with:
           path: ~/simulator-cache
           key: ${{ env.SIMULATOR_KEY }}-${{ hashFiles('.github/simslim.json') }}
@@ -205,7 +211,7 @@ jobs:
       # (verify.mts skips pod install while they're current).
       - name: "Restore the app's dependencies and Pods"
         id: deps
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: |
@@ -221,7 +227,7 @@ jobs:
       - name: "Restore React Native's and CocoaPods' downloads"
         id: downloads
         if: steps.deps.outputs.cache-hit != 'true'
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: |
@@ -239,7 +245,7 @@ jobs:
       # runs compiled.
       - name: "Restore Xcode's compilation cache"
         id: build
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
@@ -249,7 +255,7 @@ jobs:
       # its package.
       - name: "Restore WebDriverAgent's build"
         id: wda
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
@@ -258,7 +264,7 @@ jobs:
       # transform everything again.
       - name: "Restore Metro's cache"
         id: metro
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
@@ -515,7 +521,7 @@ jobs:
       # evicted before the next run.
       - name: "Restore Gradle's caches"
         id: gradle
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: |
@@ -527,7 +533,7 @@ jobs:
       # otherwise.
       - name: Restore the NDK and CMake
         id: ndk
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: |
@@ -542,7 +548,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Restore the emulator image
         id: image
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
@@ -581,7 +587,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: "Restore Metro's cache"
         id: metro
-        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        uses: ./.github/actions/cache/restore
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
