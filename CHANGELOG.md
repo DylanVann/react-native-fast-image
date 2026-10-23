@@ -1,3 +1,10 @@
+## [10.8.10](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.9...v10.8.10) (2026-10-23)
+
+
+### Bug Fixes
+
+* give FastImageBackground's View props to its container ([#1364](https://github.com/DylanVann/react-native-fast-image/issues/1364)) ([73425d4](https://github.com/DylanVann/react-native-fast-image/commit/73425d47270881c5221c77952e64c717fac11ba0))
+
 ## [10.8.9](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.8...v10.8.9) (2026-10-23)
 
 
