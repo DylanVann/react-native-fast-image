@@ -214,24 +214,30 @@ const sameFile = (a: string, b: string) =>
     fs.readFileSync(a).equals(fs.readFileSync(b))
 
 // A seeded reference (verify.mts copies it into screenshots/ in a local run)
-// is new until someone has looked at it.
+// is new until someone has looked at it: until it's approved, which writes
+// it after the run's results (written: when they were).
 function compared(
     shot: string,
     reference: string,
     { result, detail, diff }: Comparison,
     dir: string,
+    written: number,
 ): Compared {
     const hasReference = fs.existsSync(reference)
-    const state: State =
-        !hasReference || result === 'seeded' || result === 'unseeded'
-            ? 'new'
-            : sameFile(shot, reference)
-              ? result === 'differs'
-                  ? 'approved'
-                  : 'ok'
-              : result === 'differs'
-                ? 'differs'
+    const same = hasReference && sameFile(shot, reference)
+    const state: State = !hasReference
+        ? 'new'
+        : result === 'seeded' || result === 'unseeded'
+          ? same && fs.statSync(reference).mtimeMs > written
+              ? 'approved'
+              : 'new'
+          : same
+            ? result === 'differs'
+                ? 'approved'
                 : 'ok'
+            : result === 'differs'
+              ? 'differs'
+              : 'ok'
     return {
         state,
         detail,
@@ -251,6 +257,7 @@ function load() {
         const dir = path.dirname(file)
         const key = path.basename(path.dirname(dir))
         const results = JSON.parse(fs.readFileSync(file, 'utf8')) as Results
+        const written = fs.statSync(file).mtimeMs
         const files = fs.readdirSync(dir)
         const names = results.hello?.groups ?? []
         for (const [name, statuses] of Object.entries(results.statuses ?? {})) {
@@ -274,6 +281,7 @@ function load() {
                             path.join(SCREENSHOTS, key, name, `${id}.png`),
                             c,
                             dir,
+                            written,
                         ),
                 }
             })
@@ -284,6 +292,7 @@ function load() {
                           path.join(SCREENSHOTS, key, `${name}.png`),
                           info,
                           dir,
+                          written,
                       )
                     : undefined
             const states = [
