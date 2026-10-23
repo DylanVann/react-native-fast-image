@@ -29,11 +29,51 @@ if (!project) process.exit(1)
 const json = app.serializer.projectToObject(project, normalizePath(root))
 const byName = new Map(json.children!.map((c) => [c.name, c]))
 
+// The platforms a prop or method works on, from its @platform tags (e.g.
+// `@platform ios 17+`). Every prop and method lists them, so a platform added
+// here isn't claimed for one that wasn't checked on it.
 const PLATFORMS: Record<string, string> = {
-    ios: 'iOS',
     android: 'Android',
+    ios: 'iOS',
+    tvos: 'tvOS',
     web: 'Web',
 }
+const platformsOf = (r: J.Reflection) =>
+    tags(r, '@platform').map((t) => {
+        const [platform, ...version] = partsToMarkdown(t.content).split(' ')
+        return { platform, version: version.join(' ') }
+    })
+type Platforms = ReturnType<typeof platformsOf>
+const platformName = ({ platform, version }: Platforms[number]) =>
+    [PLATFORMS[platform] ?? platform, version].filter(Boolean).join(' ')
+
+// The props and methods without platforms, or with unknown ones, reported
+// once the docs are generated.
+const platformErrors = new Set<string>()
+const checkPlatforms = (name: string, platforms: Platforms) => {
+    if (!platforms.length) platformErrors.add(`${name} has no @platform tags`)
+    for (const { platform } of platforms)
+        if (!PLATFORMS[platform])
+            platformErrors.add(`${name}: unknown platform ${platform}`)
+}
+
+// A prop's or method's heading and platforms: on the website a badge for each
+// platform, in a row with the heading (as expo-image's docs show them), and in
+// the README a list under it (see platformList). The heading stays markdown, so
+// it gets its anchor and is in the table of contents.
+const platformBadges = (platforms: Platforms) =>
+    `<div class="api-platforms">${platforms
+        .map(
+            (p) =>
+                `<span class="api-badge" data-platform="${p.platform}">${platformName(p)}</span>`,
+        )
+        .join('')}</div>`
+const withPlatforms = (heading: string, platforms: Platforms, site: boolean) =>
+    site
+        ? `<div class="api-heading">\n\n${heading}\n\n${platformBadges(platforms)}\n\n</div>`
+        : heading
+const platformList = (platforms: Platforms) =>
+    `**Platforms:** ${platforms.map(platformName).join(', ')}`
 
 // By where they're declared: line, then column (an object type's fields can
 // share a line).
@@ -136,7 +176,7 @@ interface Member {
     name: string
     optional: boolean
     type: string
-    platforms: string[]
+    platforms: Platforms
     default?: string
     body: string
 }
@@ -170,10 +210,7 @@ function members(name: string, prefix = '', all = false): Member[] {
                     name: prefix + c.name,
                     optional,
                     type,
-                    platforms: tags(r, '@platform').map((t) => {
-                        const p = partsToMarkdown(t.content)
-                        return PLATFORMS[p] ?? p
-                    }),
+                    platforms: platformsOf(r),
                     // TypeDoc wraps a plain @default value in a code block.
                     default:
                         def &&
@@ -235,33 +272,37 @@ function typeCode(type: string) {
     return `<code class="api-type">${highlighted}</code>`
 }
 // A heading per prop, the same in the README and on the website so links work
-// on both (and don't change with the prop's type), and its platforms, type and
-// default under it: in the README as markdown, on the website styled.
+// on both (and don't change with the prop's type), with its platforms, and its
+// type and default under it: in the README as markdown, on the website styled.
+// A divider before each, the first too, after the component's description.
 function propsSection(ms: Member[], site: boolean) {
     return ms
         .map((m) => {
+            checkPlatforms(m.name, m.platforms)
             const meta = site
                 ? [
-                      ...m.platforms.map(
-                          (p) => `<span class="api-badge">${p} only</span>`,
-                      ),
                       m.optional ? 'Optional' : 'Required',
                       `Type: ${typeCode(m.type)}`,
                       m.default && `Default: ${typeCode(m.default)}`,
                   ]
                 : [
+                      platformList(m.platforms),
                       `**Type:** ${code(m.type)}`,
                       m.default && `**Default:** ${code(m.default)}`,
-                      m.platforms.length && `${m.platforms.join(', ')} only`,
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
-                `${m.name.includes('.') ? '#####' : '####'} ${code(m.name)}`,
+                withPlatforms(
+                    `${m.name.includes('.') ? '#####' : '####'} ${code(m.name)}`,
+                    m.platforms,
+                    site,
+                ),
                 site ? `<div class="api-meta">${line}</div>` : line,
                 m.body,
             ].join('\n\n')
         })
-        .join('\n\n---\n\n')
+        .map((section) => `---\n\n${section}`)
+        .join('\n\n')
 }
 
 // Members as a list, each with its type, default and docs (indented to stay in
@@ -283,27 +324,31 @@ const fieldList = (ms: Member[], site: boolean) =>
 // FastImageBackground's own props: the rest are FastImage's.
 const backgroundProps = members('FastImageBackgroundProps')
 
-// FastImage's methods' signatures, by name.
+// FastImage's methods' signatures and platforms, by name.
 const methods = new Map(
     (byName.get('FastImageStaticProperties')?.children ?? []).flatMap((c) => {
         const sig =
             c.type?.type === 'reflection'
                 ? c.type.declaration.signatures?.[0]
                 : undefined
-        return sig ? [[c.name, sig] as const] : []
+        return sig
+            ? [[c.name, { sig, platforms: platformsOf(c) }] as const]
+            : []
     }),
 )
 
-// Each method's heading (its name and parameters' names) and, under it, its
-// parameters' and result's types, like a prop's type: in the README as
+// Each method's heading (its name and parameters' names) with its platforms,
+// and under it its parameters' and result's types, like a prop's: in the README as
 // markdown, on the website styled. The rest of a method's docs are written in
 // the README.
 function withMethods(markdown: string, site: boolean) {
     return markdown.replace(
-        /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
+        /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Platforms:\*\*|\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
         (all, name: string) => {
-            const sig = methods.get(name)
-            if (!sig) return all
+            const method = methods.get(name)
+            if (!method) return all
+            const { sig, platforms } = method
+            checkPlatforms(`${name}()`, platforms)
             const params = sig.parameters ?? []
             const typed = params.map(
                 (p) =>
@@ -317,13 +362,18 @@ function withMethods(markdown: string, site: boolean) {
                       `Returns: ${typeCode(returns)}`,
                   ]
                 : [
+                      platformList(platforms),
                       typed.length &&
                           `**Parameters:** ${typed.map(code).join(', ')}`,
                       `**Returns:** ${code(returns)}`,
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
-                `### ${code(`${name}(${params.map((p) => p.name).join(', ')})`)}`,
+                withPlatforms(
+                    `### ${code(`${name}(${params.map((p) => p.name).join(', ')})`)}`,
+                    platforms,
+                    site,
+                ),
                 site ? `<div class="api-meta">${line}</div>` : line,
                 '',
             ].join('\n\n')
@@ -382,7 +432,7 @@ for (const name of ['FastImageProps', 'Source', 'FastImageBackgroundProps'])
             for (const sig of c.signatures ?? [])
                 sig.parameters?.forEach((p) => collectTypes(p.type))
         })
-for (const sig of methods.values()) {
+for (const { sig } of methods.values()) {
     sig.parameters?.forEach((p) => collectTypes(p.type))
     collectTypes(sig.type)
 }
@@ -459,6 +509,10 @@ const withApi = (site: boolean) =>
         site,
     )
 const updatedReadme = withApi(false)
+if (platformErrors.size) {
+    console.error([...platformErrors].join('\n'))
+    process.exit(1)
+}
 // The icons in the README's formats table: Phosphor's filled CheckCircle and
 // XCircle, green and red.
 const icon = (name: string, color: string) =>
