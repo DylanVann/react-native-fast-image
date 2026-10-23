@@ -39,6 +39,7 @@ import {
     placeholderSource,
 } from './placeholders'
 import { composeRefs } from './composeRefs'
+import { splitBackgroundProps } from './backgroundProps'
 import { warnIfChildren, warnOnce } from './warnings'
 import type {
     CachePathResult,
@@ -755,23 +756,25 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
             style,
             imageStyle,
             imageRef,
+            imageProps,
             children,
-            'aria-hidden': ariaHidden,
             ...props
         }: FastImageBackgroundProps,
         ref: React.Ref<ViewRef>,
-    ) => (
-        // aria-hidden goes to the container, which hides the image and the
-        // children, as on iOS and Android.
-        <View style={style} aria-hidden={ariaHidden} ref={ref}>
-            <FastImageComponent
-                {...props}
-                style={[StyleSheet.absoluteFill, imageStyle]}
-                ref={imageRef}
-            />
-            {children}
-        </View>
-    ),
+    ) => {
+        // View props to the container, as on iOS and Android.
+        const [image, container] = splitBackgroundProps(props, imageProps)
+        return (
+            <View {...container} style={style} ref={ref}>
+                <FastImageComponent
+                    {...image}
+                    style={[StyleSheet.absoluteFill, imageStyle]}
+                    ref={imageRef}
+                />
+                {children}
+            </View>
+        )
+    },
 )
 
 FastImageBackground.displayName = 'FastImageBackground'

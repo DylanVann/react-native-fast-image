@@ -686,6 +686,75 @@ describe('FastImageBackground', () => {
         })
         expect(imageRef.current).not.toBeNull()
     })
+
+    it("gives View props to the container, and FastImage's own to the image", () => {
+        const onLoad = () => {}
+        const onLayout = () => {}
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                objectFit="contain"
+                onLoad={onLoad}
+                accessible
+                accessibilityLabel="A card"
+                role="button"
+                aria-hidden={false}
+                importantForAccessibility="yes"
+                focusable
+                tabIndex={0}
+                testID="card"
+                onLayout={onLayout}
+            >
+                <View />
+            </FastImageBackground>,
+            { createNodeMock: () => ({}) },
+        )
+        const viewProps = {
+            accessible: true,
+            accessibilityLabel: 'A card',
+            role: 'button',
+            'aria-hidden': false,
+            importantForAccessibility: 'yes',
+            focusable: true,
+            tabIndex: 0,
+            testID: 'card',
+            onLayout,
+        }
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props).toMatchObject(viewProps)
+        expect(container.props.source).toBeUndefined()
+        expect(container.props.onLoad).toBeUndefined()
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({ objectFit: 'contain', onLoad })
+        for (const key of Object.keys(viewProps)) {
+            expect(image.props[key]).toBeUndefined()
+        }
+    })
+
+    it('gives imageProps to the image, over the others', () => {
+        const a = { uri: 'https://example.com/a.png' }
+        const b = { uri: 'https://example.com/b.png' }
+        const tree = renderer.create(
+            <FastImageBackground
+                source={a}
+                imageProps={{
+                    source: b,
+                    accessible: true,
+                    accessibilityLabel: 'A beach',
+                }}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({
+            source: b,
+            accessible: true,
+            accessibilityLabel: 'A beach',
+        })
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props.accessible).toBeUndefined()
+        expect(container.props.accessibilityLabel).toBeUndefined()
+    })
 })
 
 describe('onLoadEnd', () => {
