@@ -6702,17 +6702,15 @@ function ImageRenderingCase() {
                     </View>
                 </View>
             ))}
-            <View style={caseStyles.row}>
-                <CaseStatus
-                    id="image-rendering"
-                    status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
-                    description={{
-                        checks: "imageRendering on images drawn smaller and larger than their size: smooth (iOS only; the same as auto on Android) averages the pixels of a shrunk image, and pixelated keeps an enlarged one's pixels sharp (#926).",
-                        steps: 'Each row shows an image at its own size (one image pixel per screen pixel, cropped to a 200×24 strip), then drawn with imageRendering auto, smooth and pixelated, from the full image (downsample={false}): 1024 px stripes at 48, a 1600 px wide page of text at 96, and 12 px pixel art at 60. Passes when all nine have loaded; the screenshot does the checking.',
-                        shows: "Each row's label says what to expect. Stripes: on iOS smooth is an even gray, while auto and pixelated show uneven stripes, different on each platform. Text: on iOS smooth keeps the lines of text continuous. Pixel art: auto and smooth blurred, pixelated with sharp square pixels.",
-                    }}
-                />
-            </View>
+            <CaseStatus
+                id="image-rendering"
+                status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
+                description={{
+                    checks: "imageRendering on images drawn smaller and larger than their size: smooth (iOS only; the same as auto on Android) averages the pixels of a shrunk image, and pixelated keeps an enlarged one's pixels sharp (#926).",
+                    steps: 'Each row shows an image at its own size (one image pixel per screen pixel, cropped to a 200×24 strip), then drawn with imageRendering auto, smooth and pixelated, from the full image (downsample={false}): 1024 px stripes at 48, a 1600 px wide page of text at 96, and 12 px pixel art at 60. Passes when all nine have loaded; the screenshot does the checking.',
+                    shows: "Each row's label says what to expect. Stripes: on iOS smooth is an even gray, while auto and pixelated show uneven stripes, different on each platform. Text: on iOS smooth keeps the lines of text continuous. Pixel art: auto and smooth blurred, pixelated with sharp square pixels.",
+                }}
+            />
         </View>
     )
 }
@@ -6782,17 +6780,15 @@ function BlurCase() {
                     onLoad={onLoad}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="blur"
-                    status={status}
-                    description={{
-                        checks: "blurRadius is in points: blurRadius={6} looks about the same as React Native's Image on iOS, and the same from a large file and a small one, since the image is blurred at the size it's shown at. The blurred views don't change an unblurred one of the same file.",
-                        steps: "Four 64 dp squares: FastImage with a 1024 px photo, no blur; React Native's Image with the same photo and blurRadius={6}; FastImage with the same photo and blurRadius={6}; FastImage with a 256 px file of the photo and blurRadius={6}. Passes 0.5 s after all four have loaded.",
-                        shows: "A sharp photo of green cliffs, then three blurred alike. On Android the second (React Native's Image) is nearly sharp: it blurs in the file's pixels, and this file is large.",
-                    }}
-                />
-            </View>
+            <CaseStatus
+                id="blur"
+                status={status}
+                description={{
+                    checks: "blurRadius is in points: blurRadius={6} looks about the same as React Native's Image on iOS, and the same from a large file and a small one, since the image is blurred at the size it's shown at. The blurred views don't change an unblurred one of the same file.",
+                    steps: "Four 64 dp squares: FastImage with a 1024 px photo, no blur; React Native's Image with the same photo and blurRadius={6}; FastImage with the same photo and blurRadius={6}; FastImage with a 256 px file of the photo and blurRadius={6}. Passes 0.5 s after all four have loaded.",
+                    shows: "A sharp photo of green cliffs, then three blurred alike. On Android the second (React Native's Image) is nearly sharp: it blurs in the file's pixels, and this file is large.",
+                }}
+            />
         </View>
     )
 }
@@ -6953,23 +6949,21 @@ function BlurChangeCase() {
                     source={source}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="blur-change"
-                    status={
-                        late.length > 0
-                            ? `fired again: ${late.join(', ')}`
-                            : done
-                              ? 'OK'
-                              : 'waiting'
-                    }
-                    description={{
-                        checks: "blurRadius changed once the image has loaded blurs or unblurs the image that's showing, without load events (Android loaded the image again, with its events).",
-                        steps: 'Four photos of a pug: the first loads with blurRadius 0, set to 6 after its onLoadEnd; the second has 6 from the start; the third loads with 6, set to 0 after its onLoadEnd; the fourth has no blur. Fails if onLoadStart, onProgress, onLoad or onLoadEnd fires on the first or third after that; passes 1.5 s after both changes.',
-                        shows: 'Two pugs blurred alike, a gap, then two sharp ones alike.',
-                    }}
-                />
-            </View>
+            <CaseStatus
+                id="blur-change"
+                status={
+                    late.length > 0
+                        ? `fired again: ${late.join(', ')}`
+                        : done
+                          ? 'OK'
+                          : 'waiting'
+                }
+                description={{
+                    checks: "blurRadius changed once the image has loaded blurs or unblurs the image that's showing, without load events (Android loaded the image again, with its events).",
+                    steps: 'Four photos of a pug: the first loads with blurRadius 0, set to 6 after its onLoadEnd; the second has 6 from the start; the third loads with 6, set to 0 after its onLoadEnd; the fourth has no blur. Fails if onLoadStart, onProgress, onLoad or onLoadEnd fires on the first or third after that; passes 1.5 s after both changes.',
+                    shows: 'Two pugs blurred alike, a gap, then two sharp ones alike.',
+                }}
+            />
         </View>
     )
 }
@@ -7041,21 +7035,19 @@ function BlurStepsCase({
                     blurRadius={steps[steps.length - 1]}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id={id}
-                    status={
-                        late.length > 0
-                            ? `fired again: ${late.join(', ')}`
-                            : !done
-                              ? 'waiting'
-                              : progress && !progressed
-                                ? 'no onProgress before onLoad'
-                                : 'OK'
-                    }
-                    description={description}
-                />
-            </View>
+            <CaseStatus
+                id={id}
+                status={
+                    late.length > 0
+                        ? `fired again: ${late.join(', ')}`
+                        : !done
+                          ? 'waiting'
+                          : progress && !progressed
+                            ? 'no onProgress before onLoad'
+                            : 'OK'
+                }
+                description={description}
+            />
         </View>
     )
 }
@@ -7098,10 +7090,10 @@ const blurStyles = StyleSheet.create({
     large: { width: 140, height: 140, backgroundColor: '#eee' },
     next: { marginLeft: 4 },
     gap: { marginLeft: 16 },
-    // The images, then the status under them (CaseStatus's text is indented).
+    // The images, then the status under them, in one view: the runner
+    // measures the view a CaseStatus is in as its case's area.
     stacked: { marginBottom: 12 },
     images: { flexDirection: 'row', marginBottom: 4 },
-    status: { flexDirection: 'row', marginLeft: -12 },
 })
 
 // downsample (iOS, the default; Android always decodes at about the view's
@@ -7617,17 +7609,15 @@ function DownsampleZoomCase() {
                     </View>
                 ))}
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="downsample-zoom"
-                    status={status}
-                    description={{
-                        checks: "downsample={false} decodes an image at full size, so a view zoomed in on with a transform (as a pinch-to-zoom viewer does) stays sharp (Android decoded it at about the view's size either way).",
-                        steps: 'Loads a 1600x1000 page of text into two 80x50 views drawn 4 times larger with a transform, each clipped to a 140x88 area showing its top-left corner: the left with downsample (the default), the right with downsample={false}. Passes once both have loaded (and a moment more).',
-                        shows: 'The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure.',
-                    }}
-                />
-            </View>
+            <CaseStatus
+                id="downsample-zoom"
+                status={status}
+                description={{
+                    checks: "downsample={false} decodes an image at full size, so a view zoomed in on with a transform (as a pinch-to-zoom viewer does) stays sharp (Android decoded it at about the view's size either way).",
+                    steps: 'Loads a 1600x1000 page of text into two 80x50 views drawn 4 times larger with a transform, each clipped to a 140x88 area showing its top-left corner: the left with downsample (the default), the right with downsample={false}. Passes once both have loaded (and a moment more).',
+                    shows: 'The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure.',
+                }}
+            />
         </View>
     )
 }

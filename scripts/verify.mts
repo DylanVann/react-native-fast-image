@@ -1127,25 +1127,30 @@ async function sameOutside(
     }
 }
 
+// Crops a screenshot (pixels) into another file.
+async function cropTo(file: string, to: string, crop: PixelRect) {
+    await promisify(execFile)(
+        'ffmpeg',
+        [
+            '-v',
+            'error',
+            '-y',
+            '-i',
+            file,
+            '-vf',
+            `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
+            to,
+        ],
+        { timeout: 30_000 },
+    )
+}
+
 // Crops a screenshot (pixels) in place, and resolves whether it did.
 // Asynchronous: the app can go on to the next group meanwhile.
 async function cropScreenshot(file: string, crop: PixelRect) {
     const cropped = file.replace(/\.png$/, '-cropped.png')
     try {
-        await promisify(execFile)(
-            'ffmpeg',
-            [
-                '-v',
-                'error',
-                '-y',
-                '-i',
-                file,
-                '-vf',
-                `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
-                cropped,
-            ],
-            { timeout: 30_000 },
-        )
+        await cropTo(file, cropped, crop)
     } catch {
         // Compared uncropped, then (and failing: the size differs).
     }
@@ -1154,17 +1159,35 @@ async function cropScreenshot(file: string, crop: PixelRect) {
     return true
 }
 
-// Each group's screenshot (and the ones a case asks for while it runs) is
-// compared with a reference, screenshots/<app>-<platform>/<name>.png (in the
-// repository, so a change to how something renders comes with new references
-// in the same PR), with odiff (the odiff-bin dev dependency; anti-aliasing is
+// A PNG's size (pixels), from its header.
+function pngSize(file: string) {
+    const header = Buffer.alloc(24)
+    const fd = fs.openSync(file, 'r')
+    try {
+        fs.readSync(fd, header, 0, 24, 0)
+    } finally {
+        fs.closeSync(fd)
+    }
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) }
+}
+
+// Each case's area of its group's screenshot (the view its CaseStatus is in,
+// with CASE_PADDING around it, to catch what's drawn just past it) is
+// compared with a reference, screenshots/<app>-<platform>/<group>/<case>.png.
+// A group without cases (the example screens) is
+// compared as a whole, with screenshots/<app>-<platform>/<group>.png. The
+// references are in the repository, so a change to how something renders
+// comes with new references in the same PR. They're compared with odiff (the odiff-bin dev dependency; anti-aliasing is
 // ignored), leaving out the areas the app masks (animated images, timings).
-// Up to SCREENSHOT_MAX_DIFF percent of the pixels may differ. A missing
+// Up to SCREENSHOT_MAX_DIFF percent of the pixels may differ (of the case's
+// area, which catches smaller changes than the whole screen would). A missing
 // reference is seeded from the run (look at it before committing it);
 // --update-screenshots replaces them all. On a mismatch the diff is written
 // next to the screenshot in verify-output/.
 const SCREENSHOTS = path.join(ROOT, 'screenshots')
 const SCREENSHOT_MAX_DIFF = 0.1
+// Around each case's area (dp).
+const CASE_PADDING = 6
 
 type PixelRect = { x: number; y: number; width: number; height: number }
 
@@ -1185,6 +1208,8 @@ const odiffRegions = (masks: PixelRect[]) =>
                 r.y2 > r.y1,
         )
 
+// name: the reference's path in its app and platform's folder, without
+// .png (<group>/<case>, or <group>).
 async function compareScreenshot(
     app: App,
     platform: Platform,
@@ -1206,7 +1231,7 @@ async function compareScreenshot(
         // Not from a --ref run: it shows the library as it was.
         if (REF) return { result: 'none' }
         if (!canSeed) return { result: 'unseeded' }
-        fs.mkdirSync(dir, { recursive: true })
+        fs.mkdirSync(path.dirname(reference), { recursive: true })
         fs.copyFileSync(file, reference)
         return { result: 'seeded' }
     }
@@ -1714,22 +1739,159 @@ async function runRegression(
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
-    // Each group's screenshot (file names in dir) and its comparison, with
-    // the cases' areas in it (pixels), for the regression viewer: whether it
-    // may become the reference (see compareScreenshot's canSeed; never in a
-    // --ref run), and the group's failures when it was taken.
+    // Each group's screenshot and its comparison, and each case's area in it
+    // (pixels, with its padding), its crop and that one's comparison (file
+    // names relative to dir), for the regression viewer: whether they may
+    // become references (see compareScreenshot's canSeed; never in a --ref
+    // run), and the group's failures when it was taken.
+    type Comparison = { result: string; detail?: string; diff?: string }
     const screenshots: Record<
         string,
-        {
+        Comparison & {
             file: string
-            result: string
-            detail?: string
-            diff?: string
-            cases: Record<string, PixelRect>
+            cases: Record<
+                string,
+                Comparison & { area: PixelRect; file: string }
+            >
             approvable: boolean
             failures: string[]
         }
     > = {}
+    // A comparison's result in the run's lists and failures.
+    const recordResult = (
+        index: number,
+        name: string,
+        { result, detail }: Comparison,
+    ) => {
+        if (result === 'seeded') seeded.push(name)
+        else if (result === 'none') noReference.push(name)
+        else if (result === 'unseeded') unseeded.push(name)
+        else if (result === 'differs')
+            failuresOf(index).push(`${name}: ${detail}`)
+    }
+    // The diff odiff wrote for a screenshot, if any (relative to dir).
+    const diffOf = (file: string) => {
+        const diff = file.replace(/\.png$/, '-diff.png')
+        return fs.existsSync(diff) ? path.relative(dir, diff) : undefined
+    }
+    // Compares a group's screenshot (pixels, cropped to the safe area): each
+    // case's area, padded, with its reference, or a group without cases as a
+    // whole (see compareScreenshot).
+    const compareGroup = async (
+        index: number,
+        name: string,
+        file: string,
+        masks: PixelRect[],
+        cases: Record<string, PixelRect>,
+        // The group's failures, and whether the screenshot was cropped to
+        // the safe area: canSeed (see compareScreenshot).
+        failures: string[],
+        cropped: boolean,
+    ) => {
+        const canSeed = failures.length === 0 && cropped
+        const approval = { approvable: canSeed && !REF, failures }
+        const { width, height } = pngSize(file)
+        const pad = Math.round(CASE_PADDING * scale)
+        // Cases with nothing to show (a zero-size view) have no area.
+        const areas = Object.entries(cases)
+            .filter(([, r]) => r.width > 0 && r.height > 0)
+            .map(([id, r]) => {
+                const x = Math.max(0, r.x - pad)
+                const y = Math.max(0, r.y - pad)
+                return [
+                    id,
+                    {
+                        x,
+                        y,
+                        width: Math.min(width, r.x + r.width + pad) - x,
+                        height: Math.min(height, r.y + r.height + pad) - y,
+                    },
+                ] as const
+            })
+        if (areas.length === 0) {
+            const compared = await compareScreenshot(
+                app,
+                platform,
+                name,
+                file,
+                masks,
+                canSeed,
+            )
+            logLine(
+                `screenshot ${name}: ${compared.result}${compared.detail ? ` (${compared.detail})` : ''}${
+                    masks.length > 0 ? `, ${masks.length} masked` : ''
+                }`,
+            )
+            recordResult(index, name, compared)
+            screenshots[name] = {
+                ...compared,
+                file: path.relative(dir, file),
+                diff: diffOf(file),
+                cases: {},
+                ...approval,
+            }
+            return
+        }
+        const results: (typeof screenshots)[string]['cases'] = {}
+        for (const [id, area] of areas) {
+            const caseFile = path.join(
+                dir,
+                path.basename(file, '.png'),
+                `${id}.png`,
+            )
+            fs.mkdirSync(path.dirname(caseFile), { recursive: true })
+            const caseMasks = masks.flatMap((m) => {
+                const x = Math.max(m.x, area.x)
+                const y = Math.max(m.y, area.y)
+                const w = Math.min(m.x + m.width, area.x + area.width) - x
+                const h = Math.min(m.y + m.height, area.y + area.height) - y
+                return w > 0 && h > 0
+                    ? [{ x: x - area.x, y: y - area.y, width: w, height: h }]
+                    : []
+            })
+            const compared = await cropTo(file, caseFile, area).then(
+                () =>
+                    compareScreenshot(
+                        app,
+                        platform,
+                        `${name}/${id}`,
+                        caseFile,
+                        caseMasks,
+                        canSeed,
+                    ),
+                (error: Error) => ({
+                    result: 'differs' as const,
+                    detail: `couldn't crop it: ${error.message}`,
+                }),
+            )
+            recordResult(index, `${name}/${id}`, compared)
+            results[id] = {
+                ...compared,
+                area,
+                file: path.relative(dir, caseFile),
+                diff: diffOf(caseFile),
+            }
+        }
+        const counts = new Map<string, number>()
+        for (const { result } of Object.values(results))
+            counts.set(result, (counts.get(result) ?? 0) + 1)
+        // The group's result: its worst case's.
+        const result =
+            ['differs', 'unseeded', 'seeded', 'none', 'match'].find((r) =>
+                counts.has(r),
+            ) ?? 'match'
+        logLine(
+            `screenshot ${name}: ${[...counts].map(([r, n]) => `${n} ${r}`).join(', ')}${
+                masks.length > 0 ? `, ${masks.length} masked` : ''
+            }`,
+        )
+        screenshots[name] = {
+            result,
+            file: path.relative(dir, file),
+            cases: results,
+            ...approval,
+        }
+    }
     // Video samples a stalled recording couldn't check (see stopSession).
     const unchecked: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
@@ -1789,43 +1951,11 @@ async function runRegression(
                 ],
             ),
         )
-        let canSeed = false
         const shot = (
             crop ? cropScreenshot(file, crop) : Promise.resolve(false)
+        ).then((cropped) =>
+            compareGroup(index, name, file, masks, cases, failures, cropped),
         )
-            .then((cropped) => {
-                canSeed = failures.length === 0 && cropped
-                return compareScreenshot(
-                    app,
-                    platform,
-                    name,
-                    file,
-                    masks,
-                    canSeed,
-                )
-            })
-            .then(({ result, detail }) => {
-                logLine(
-                    `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
-                        masks.length > 0 ? `, ${masks.length} masked` : ''
-                    }`,
-                )
-                const diff = file.replace(/\.png$/, '-diff.png')
-                screenshots[name] = {
-                    file: path.basename(file),
-                    result,
-                    detail,
-                    diff: fs.existsSync(diff) ? path.basename(diff) : undefined,
-                    cases,
-                    approvable: canSeed && !REF,
-                    failures,
-                }
-                if (result === 'seeded') seeded.push(name)
-                else if (result === 'none') noReference.push(name)
-                else if (result === 'unseeded') unseeded.push(name)
-                else if (result === 'differs')
-                    failuresOf(index).push(`${name}: ${detail}`)
-            })
         shots.push(shot)
         return { shot }
     }
@@ -3739,7 +3869,11 @@ function tvReferencesBehind() {
     const groupsChanged = (dirs: RegExp) =>
         new Set(
             files
-                .map((f) => /^screenshots\/([^/]+)\/(.+)\.png$/.exec(f))
+                .map((f) =>
+                    /^screenshots\/([^/]+)\/([^/]+?)(?:\.png|\/[^/]+\.png)$/.exec(
+                        f,
+                    ),
+                )
                 .filter((m) => m && dirs.test(m[1]))
                 .map((m) => m![2]),
         )
@@ -3747,7 +3881,10 @@ function tvReferencesBehind() {
     return [...groupsChanged(/^(main|minimum)-(ios|android)$/)].filter(
         (group) =>
             !tv.has(group) &&
-            fs.existsSync(path.join(SCREENSHOTS, 'tv-ios', `${group}.png`)),
+            (fs.existsSync(path.join(SCREENSHOTS, 'tv-ios', group)) ||
+                fs.existsSync(
+                    path.join(SCREENSHOTS, 'tv-ios', `${group}.png`),
+                )),
     )
 }
 
