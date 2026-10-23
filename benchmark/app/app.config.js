@@ -21,6 +21,11 @@ module.exports = {
         android: {
             package: `com.dylanvann.rnfibenchmark.${subject.replace(/[^a-z0-9]/gi, '')}`,
         },
+        experiments: {
+            // tsconfig.json's paths are for type checking only (they point
+            // react at its types); metro.config.js resolves the library.
+            tsconfigPaths: false,
+        },
         plugins: ['./plugins/withSubject', './plugins/withAndroidBenchmark'],
         extra: { subject },
     },
