@@ -3,12 +3,12 @@
 // View's (accessibility, focus, testID, layout, touch) to the container, which
 // its ref is. Which of them should be the accessibility element depends on
 // what the background is for, so `imageProps` puts any prop on the image.
-import type { AccessibilityProps, ViewProps } from 'react-native'
+import type { ViewProps } from 'react-native'
 import type { FastImageBackgroundProps, FastImageProps } from './index'
 
 type ImageKey = Exclude<
     keyof FastImageProps,
-    keyof ViewProps | keyof AccessibilityProps | 'style' | 'children'
+    keyof ViewProps | 'style' | 'children'
 >
 
 // Every prop FastImage has that View doesn't: a type error if one is missing
@@ -65,5 +65,13 @@ export function splitBackgroundProps(
         if (IMAGE_KEY_SET.has(key)) image[key] = value
         else container[key] = value
     }
-    return [imageProps ? { ...image, ...imageProps } : image, container]
+    // imageProps over them, but not its undefined values (props not set), so
+    // a conditional `onLoad: debug ? log : undefined` keeps the given onLoad.
+    if (imageProps) {
+        for (const key in imageProps) {
+            const value = imageProps[key as keyof typeof imageProps]
+            if (value !== undefined) image[key] = value
+        }
+    }
+    return [image, container]
 }

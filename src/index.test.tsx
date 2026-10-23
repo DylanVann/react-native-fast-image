@@ -769,6 +769,26 @@ describe('FastImageBackground', () => {
         expect(tree.root.findAllByType(View)[0].props.fallback).toBeUndefined()
     })
 
+    it("keeps a top-level prop that imageProps leaves undefined, and the container's invert default", () => {
+        const onLoad = () => {}
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                onLoad={onLoad}
+                imageProps={{ onLoad: undefined, accessible: true }}
+                accessibilityIgnoresInvertColors={undefined}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props.onLoad).toBe(onLoad)
+        expect(image.props.accessible).toBe(true)
+        expect(
+            tree.root.findAllByType(View)[0].props
+                .accessibilityIgnoresInvertColors,
+        ).toBe(true)
+    })
+
     it('gives imageProps to the image, over the others', () => {
         const a = { uri: 'https://example.com/a.png' }
         const b = { uri: 'https://example.com/b.png' }

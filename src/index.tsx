@@ -1322,8 +1322,12 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
         }
         return (
             <View
-                accessibilityIgnoresInvertColors
                 {...container}
+                // Not inverted by iOS's Smart Invert, as an image isn't, unless
+                // the app says otherwise.
+                accessibilityIgnoresInvertColors={
+                    container.accessibilityIgnoresInvertColors ?? true
+                }
                 style={style}
                 ref={ref}
             >
