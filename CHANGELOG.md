@@ -1,3 +1,10 @@
+## [10.8.9](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.8...v10.8.9) (2026-10-23)
+
+
+### Bug Fixes
+
+* **ios:** make an image focusable on Apple TV with focusable or tabIndex ([#1362](https://github.com/DylanVann/react-native-fast-image/issues/1362)) ([9c5e3df](https://github.com/DylanVann/react-native-fast-image/commit/9c5e3df06832e440249be8e85fa282fdf8310a5a))
+
 ## [10.8.8](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.7...v10.8.8) (2026-10-23)
 
 
