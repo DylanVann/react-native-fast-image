@@ -192,28 +192,26 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // without one.
     private boolean mAccessible = false;
     private boolean mScreenReaderFocusableProp = false;
+    // Whether either is true, as last applied.
+    private boolean mScreenReaderFocusable = false;
 
     void setAccessibleProp(boolean accessible) {
-        boolean was = isScreenReaderFocusableProp();
         mAccessible = accessible;
-        updateScreenReaderFocusable(was);
+        updateScreenReaderFocusable();
     }
 
     void setScreenReaderFocusableProp(boolean screenReaderFocusable) {
-        boolean was = isScreenReaderFocusableProp();
         mScreenReaderFocusableProp = screenReaderFocusable;
-        updateScreenReaderFocusable(was);
+        updateScreenReaderFocusable();
     }
 
-    private boolean isScreenReaderFocusableProp() {
-        return mAccessible || mScreenReaderFocusableProp;
-    }
-
-    private void updateScreenReaderFocusable(boolean was) {
-        boolean is = isScreenReaderFocusableProp();
+    private void updateScreenReaderFocusable() {
+        boolean screenReaderFocusable = mAccessible || mScreenReaderFocusableProp;
+        if (screenReaderFocusable == mScreenReaderFocusable) return;
+        mScreenReaderFocusable = screenReaderFocusable;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            setScreenReaderFocusable(is);
-        } else if (is != was) {
+            setScreenReaderFocusable(screenReaderFocusable);
+        } else {
             sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         }
     }
@@ -223,7 +221,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         super.onInitializeAccessibilityNodeInfo(info);
         // Only when true: false is the default, and writing it would add an
         // extras Bundle to every image's info.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && isScreenReaderFocusableProp()) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && mScreenReaderFocusable) {
             AccessibilityNodeInfoCompat.wrap(info).setScreenReaderFocusable(true);
         }
     }
