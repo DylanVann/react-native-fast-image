@@ -1974,12 +1974,24 @@ describe('ARIA props', () => {
                 ).accessible,
             ).toBeUndefined()
         }
+        // accessibilityLabel wins, and leaves accessible as it is (alt isn't
+        // read).
         expect(
             viewProps(
                 <FastImage
                     source={source}
                     alt="A cat"
                     accessibilityLabel="A dog"
+                />,
+            ).accessible,
+        ).toBeUndefined()
+        // A null accessible is unset.
+        expect(
+            viewProps(
+                <FastImage
+                    source={source}
+                    alt="A cat"
+                    {...({ accessible: null } as {})}
                 />,
             ).accessible,
         ).toBe(true)
