@@ -57,15 +57,21 @@ const checkPlatforms = (name: string, platforms: Platforms) => {
             platformErrors.add(`${name}: unknown platform ${platform}`)
 }
 
-// A prop's or method's platforms: on the website a badge for each, as the
-// first of its details, and in the README a list.
+// A prop's or method's heading and platforms: on the website a badge for each
+// platform, in a row with the heading (as expo-image's docs show them), and in
+// the README a list under it (see platformList). The heading stays markdown, so
+// it gets its anchor and is in the table of contents.
 const platformBadges = (platforms: Platforms) =>
-    `<span class="api-platforms">${platforms
+    `<div class="api-platforms">${platforms
         .map(
             (p) =>
                 `<span class="api-badge" data-platform="${p.platform}">${platformName(p)}</span>`,
         )
-        .join('')}</span>`
+        .join('')}</div>`
+const withPlatforms = (heading: string, platforms: Platforms, site: boolean) =>
+    site
+        ? `<div class="api-heading">\n\n${heading}\n\n${platformBadges(platforms)}\n\n</div>`
+        : heading
 const platformList = (platforms: Platforms) =>
     `**Platforms:** ${platforms.map(platformName).join(', ')}`
 
@@ -266,15 +272,14 @@ function typeCode(type: string) {
     return `<code class="api-type">${highlighted}</code>`
 }
 // A heading per prop, the same in the README and on the website so links work
-// on both (and don't change with the prop's type), and its platforms, type and
-// default under it: in the README as markdown, on the website styled.
+// on both (and don't change with the prop's type), with its platforms, and its
+// type and default under it: in the README as markdown, on the website styled.
 function propsSection(ms: Member[], site: boolean) {
     return ms
         .map((m) => {
             checkPlatforms(m.name, m.platforms)
             const meta = site
                 ? [
-                      platformBadges(m.platforms),
                       m.optional ? 'Optional' : 'Required',
                       `Type: ${typeCode(m.type)}`,
                       m.default && `Default: ${typeCode(m.default)}`,
@@ -286,7 +291,11 @@ function propsSection(ms: Member[], site: boolean) {
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
-                `${m.name.includes('.') ? '#####' : '####'} ${code(m.name)}`,
+                withPlatforms(
+                    `${m.name.includes('.') ? '#####' : '####'} ${code(m.name)}`,
+                    m.platforms,
+                    site,
+                ),
                 site ? `<div class="api-meta">${line}</div>` : line,
                 m.body,
             ].join('\n\n')
@@ -326,8 +335,8 @@ const methods = new Map(
     }),
 )
 
-// Each method's heading (its name and parameters' names) and, under it, its
-// platforms and its parameters' and result's types, like a prop's: in the README as
+// Each method's heading (its name and parameters' names) with its platforms,
+// and under it its parameters' and result's types, like a prop's: in the README as
 // markdown, on the website styled. The rest of a method's docs are written in
 // the README.
 function withMethods(markdown: string, site: boolean) {
@@ -346,7 +355,6 @@ function withMethods(markdown: string, site: boolean) {
             const returns = typeToString(sig.type)
             const meta = site
                 ? [
-                      platformBadges(platforms),
                       typed.length &&
                           `Parameters: ${typed.map(typeCode).join(', ')}`,
                       `Returns: ${typeCode(returns)}`,
@@ -359,7 +367,11 @@ function withMethods(markdown: string, site: boolean) {
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
-                `### ${code(`${name}(${params.map((p) => p.name).join(', ')})`)}`,
+                withPlatforms(
+                    `### ${code(`${name}(${params.map((p) => p.name).join(', ')})`)}`,
+                    platforms,
+                    site,
+                ),
                 site ? `<div class="api-meta">${line}</div>` : line,
                 '',
             ].join('\n\n')

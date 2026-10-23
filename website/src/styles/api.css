@@ -14,11 +14,22 @@
    mixed into the page's background (and its text into the page's text color)
    so it stays muted and readable in both themes. The icons are Phosphor's,
    as masks in the icon's color (Vite inlines the files). */
+/* A prop's or method's heading with its platforms at the end of the row, as
+   expo-image's docs show them, or under it when there isn't room. */
+.sl-markdown-content .api-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+.sl-markdown-content .api-heading > * {
+    margin: 0;
+}
 .api-platforms {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
-    vertical-align: middle;
 }
 .api-badge {
     --badge: var(--sl-color-gray-3);
