@@ -146,7 +146,7 @@ Also loads local files (`file://`, and on Android `content://`), images in the a
 
 ##### `source.headers`
 
-**Type:** `{ [key: string]: string }`
+**Type:** `{ [key: string]: string }` · Android, iOS, tvOS only
 
 Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
 
@@ -168,7 +168,7 @@ On the web, it's the image's `fetchpriority`.
 
 ##### `source.cache`
 
-**Type:** `Cache` · **Default:** `'immutable'`
+**Type:** `Cache` · **Default:** `'immutable'` · Android, iOS, tvOS only
 
 How fresh the image must be. See [how caching is handled](docs/how-is-caching-handled.md) for how the options fit together.
 
@@ -180,7 +180,7 @@ How fresh the image must be. See [how caching is handled](docs/how-is-caching-ha
 
 ##### `source.cacheKey`
 
-**Type:** `string`
+**Type:** `string` · Android, iOS, tvOS only
 
 The key the image is cached under, instead of its uri. Use it for urls that change while the image stays the same, e.g. signed urls with a token or an expiry. Use something that identifies the image, and change it when the image changes (e.g. include a version or the time it was updated), or the old image keeps showing.
 
@@ -199,7 +199,7 @@ Not used with `cache: 'web'`, which follows the HTTP cache (keyed by url).
 
 ##### `source.memoryCache`
 
-**Type:** `boolean` · **Default:** `true`
+**Type:** `boolean` · **Default:** `true` · Android, iOS, tvOS only
 
 Whether the decoded image is kept in the memory cache. With `false` it's only kept on disk: a view doesn't leave it in memory once it stops showing it, and `FastImage.preload` downloads it without decoding it. Use it for large images that are shown once or rarely, like a full-screen photo: a decoded photo can take tens of MB of memory. Images shown again, like a list scrolled back, are decoded from disk again.
 
@@ -207,7 +207,7 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 ##### `source.diskCache`
 
-**Type:** `boolean` · **Default:** `true`
+**Type:** `boolean` · **Default:** `true` · Android, iOS, tvOS only
 
 Whether the image is kept on disk. With `false` it isn't kept in the disk cache or an HTTP cache, or read from them. Use it for images the app shouldn't keep once they've been shown (e.g. disappearing messages, or where a security policy doesn't allow caching sensitive images), images that change every time they load, or large images shown once, which would push other images out of the disk cache. The image is downloaded again whenever it isn't in memory, e.g. for a view of another size (or on Android, a change of `blurRadius` or `objectFit`), so with `memoryCache: false` too it's downloaded each time it's shown. With `cache: 'web'` it isn't kept in memory either, so it's downloaded every time it loads. With `cache: 'cacheOnly'` it's only looked for in memory. On Android, a large download is held in a temporary file while it loads, as every download is, deleted as soon as it's opened.
 
@@ -333,7 +333,7 @@ Points are dp on Android. An invalid value is ignored (the image is centered), w
 
 #### `recyclingKey`
 
-**Type:** `string | null`
+**Type:** `string | null` · Android, iOS, tvOS only
 
 For views that get reused for other content, such as rows in FlashList or recyclerlistview. Set it to something that identifies the content, e.g. the item's id. When it changes, the image is cleared right away (to `placeholder`, or blank) instead of staying until the new one has loaded. Unlike changing `key`, this keeps the view, which is what list recycling is for.
 
@@ -345,7 +345,7 @@ For views that get reused for other content, such as rows in FlashList or recycl
 
 #### `loop`
 
-**Type:** `number | boolean`
+**Type:** `number | boolean` · Android, iOS, tvOS only
 
 How many times an animated image (GIF, animated WebP, APNG, or animated AVIF) plays:
 
@@ -360,7 +360,7 @@ Changing it restarts the animation.
 
 #### `imageRendering`
 
-**Type:** `'auto' | 'smooth' | 'pixelated'` · **Default:** `'auto'`
+**Type:** `'auto' | 'smooth' | 'pixelated'` · **Default:** `'auto'` · Android, iOS, tvOS only
 
 How the image is filtered when it's drawn smaller or larger than its size (like CSS's `image-rendering`):
 
@@ -388,7 +388,7 @@ With several sources, the width the image is shown at, as the image's [`sizes`](
 
 #### `paused`
 
-**Type:** `boolean`
+**Type:** `boolean` · Android, iOS, tvOS only
 
 Pauses an animated image (GIF, animated WebP, APNG, or animated AVIF) on the frame it's showing; `false` plays it again from there (on Android, an animated WebP or AVIF plays again from its first frame: Android can't resume one). Each image animates on its own, so pausing one doesn't pause others showing the same file.
 
@@ -396,7 +396,7 @@ Pauses an animated image (GIF, animated WebP, APNG, or animated AVIF) on the fra
 
 #### `transition`
 
-**Type:** `number | boolean | Transition | null`
+**Type:** `number | boolean | Transition | null` · Android, iOS, tvOS only
 
 Fades the image in when it loads. `true` fades for the default's duration (see `FastImage.setDefaults`), or the platform's usual length if the default doesn't fade; a number is the duration in milliseconds, `false` (or 0) is no fade, or pass a `Transition`.
 
@@ -414,7 +414,7 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 
 #### `downsample`
 
-**Type:** `boolean` · **Default:** `true`
+**Type:** `boolean` · **Default:** `true` · Android, iOS, tvOS only
 
 Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
 
@@ -429,7 +429,7 @@ If you control the images, serve them at the size they're shown (resized on your
 
 #### `dynamicRangeLimit`
 
-**Type:** `'standard' | 'constrained' | 'no-limit'` · iOS, Web only
+**Type:** `'standard' | 'constrained' | 'no-limit'` · iOS 17+, tvOS 17+, Web only
 
 How bright HDR photos (e.g. photos taken on an iPhone) can be, on displays that support it:
 
@@ -437,7 +437,7 @@ How bright HDR photos (e.g. photos taken on an iPhone) can be, on displays that 
 - `'constrained'`: in HDR, their highlights brighter than the rest of the screen but held below the display's peak, e.g. for images among other content (a feed).
 - `'no-limit'`: in full HDR, e.g. for a full-screen photo viewer.
 
-Not set, iOS shows them in standard range, and the web as the browser does by default (usually HDR). On iOS and tvOS 17 and later; Android shows them in standard range. On the web it's CSS's `dynamic-range-limit`.
+Not set, iOS shows them in standard range, and the web as the browser does by default (usually HDR). Android shows them in standard range. On the web it's CSS's `dynamic-range-limit`.
 
 ---
 
@@ -481,7 +481,7 @@ Called when the image starts to load.
 
 #### `onProgress`
 
-**Type:** `(event: OnProgressEvent) => void`
+**Type:** `(event: OnProgressEvent) => void` · Android, iOS, tvOS only
 
 Called while the image downloads, with the bytes `loaded` so far, the `total`, and `progress` (`loaded / total`, from 0 to 1; the last event has 1). Not called while the total is unknown (a response without a `Content-Length`).
 
@@ -676,19 +676,19 @@ await FastImage.preload(photos.map((uri) => ({ uri, memoryCache: false })))
 
 ### `clearMemoryCache()`
 
-**Returns:** `Promise<ClearCacheResult>`
+**Returns:** `Promise<ClearCacheResult>` · Android, iOS, tvOS only
 
 Removes every image from the memory cache, e.g. to free memory. They're decoded from the disk cache again when they're next shown. Resolves with `{ ok: true }` once it's done, or `{ ok: false, error }` if it couldn't (Android: Glide failed to start). Never rejects. On the web, it does nothing (the browser manages its cache) and resolves with an error.
 
 ### `clearDiskCache()`
 
-**Returns:** `Promise<ClearCacheResult>`
+**Returns:** `Promise<ClearCacheResult>` · Android, iOS, tvOS only
 
 Removes every image from the disk cache, including the HTTP cache of `cache: 'web'` images, e.g. when a user logs out. They're downloaded again when they're next shown. There's no way to remove a single image: to load one again after it changed, change its [`cacheKey`](#sourcecachekey). Resolves like `clearMemoryCache`.
 
 ### `getCachePath(source)`
 
-**Parameters:** `source: Source` · **Returns:** `Promise<CachePathResult>`
+**Parameters:** `source: Source` · **Returns:** `Promise<CachePathResult>` · Android, iOS, tvOS only
 
 The path of the source's downloaded file in the disk cache, e.g. to share, save or upload an image without downloading it again. If the file isn't there, it's downloaded first, without decoding the image or keeping it in memory. Resolves with `{ ok: true, path }`, or `{ ok: false, error }` if it can't be downloaded. Never rejects.
 
@@ -718,7 +718,7 @@ There's no way to remove a single image from the cache. To load an image again a
 
 ### `writeToCache(source, file)`
 
-**Parameters:** `source: Source`, `file: string` · **Returns:** `Promise<CachePathResult>`
+**Parameters:** `source: Source`, `file: string` · **Returns:** `Promise<CachePathResult>` · Android, iOS, tvOS only
 
 Stores a local image file as the source's image in the disk cache, so views and preloads of the source show it without downloading it. For example, after a user uploads a new avatar, store the photo they picked under the avatar's new url or [`cacheKey`](#sourcecachekey), and it shows at once. `file` is a `file://` uri or a path (or on Android a `content://` uri, as image pickers often return). A source with a `cacheKey` doesn't need a `uri`, so the image can be stored before its url is known. Resolves with `{ ok: true, path }` (the cached file) or `{ ok: false, error }`. Never rejects.
 
@@ -739,7 +739,7 @@ const result = await FastImage.writeToCache(
 
 ### `configureCache(limits)`
 
-**Parameters:** `limits?: CacheLimits` · **Returns:** `Promise<CacheState>`
+**Parameters:** `limits?: CacheLimits` · **Returns:** `Promise<CacheState>` · Android, iOS, tvOS only
 
 How much the image cache keeps. Set the limits your app starts with in its native config, so they're in effect from the first image, and change them while the app runs with `configureCache`, e.g. from a storage setting. Runtime changes are saved, and used on the next launches too.
 
@@ -766,7 +766,7 @@ Images with `cache: 'web'` are kept in their own HTTP cache instead, up to 50 MB
 
 ### `setDefaults(defaults)`
 
-**Parameters:** `defaults: FastImageDefaults` · **Returns:** `void`
+**Parameters:** `defaults: FastImageDefaults` · **Returns:** `void` · Android, iOS, tvOS only
 
 Changes the defaults of every image, including `FastImageBackground`'s. Pass the settings to change; `null` goes back to the built-in default.
 
@@ -781,7 +781,7 @@ FastImage.setDefaults({ transition: { duration: 200, betweenImages: true } })
 FastImage.setDefaults({ transition: null }) // the built-in default
 ```
 
-It isn't saved: call it when the app starts. An image already showing uses a change once one of its props changes, for its next load. It's ignored on the web, where images don't fade.
+It isn't saved: call it when the app starts. An image already showing uses a change once one of its props changes, for its next load.
 
 ## Types
 

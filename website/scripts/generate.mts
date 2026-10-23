@@ -29,11 +29,41 @@ if (!project) process.exit(1)
 const json = app.serializer.projectToObject(project, normalizePath(root))
 const byName = new Map(json.children!.map((c) => [c.name, c]))
 
+// The platforms a prop or method works on: its @platform tags (e.g.
+// `@platform ios 17+`), or all of them without any.
 const PLATFORMS: Record<string, string> = {
-    ios: 'iOS',
     android: 'Android',
+    ios: 'iOS',
+    tvos: 'tvOS',
     web: 'Web',
 }
+const ALL_PLATFORMS = Object.keys(PLATFORMS)
+function platformsOf(r: J.Reflection) {
+    const tagged = tags(r, '@platform').map((t) => {
+        const [platform, ...version] = partsToMarkdown(t.content).split(' ')
+        return { platform, version: version.join(' ') }
+    })
+    return tagged.length
+        ? tagged
+        : ALL_PLATFORMS.map((platform) => ({ platform, version: '' }))
+}
+type Platforms = ReturnType<typeof platformsOf>
+const platformName = ({ platform, version }: Platforms[number]) =>
+    [PLATFORMS[platform] ?? platform, version].filter(Boolean).join(' ')
+
+// On the website, a badge per platform, as the first of a prop's or method's
+// details; in the README, the platforms of one that doesn't work on all of
+// them.
+const platformBadges = (platforms: Platforms) =>
+    `<span class="api-platforms">${platforms
+        .map(
+            (p) =>
+                `<span class="api-badge" data-platform="${p.platform}">${platformName(p)}</span>`,
+        )
+        .join('')}</span>`
+const platformNote = (platforms: Platforms) =>
+    platforms.length < ALL_PLATFORMS.length &&
+    `${platforms.map(platformName).join(', ')} only`
 
 // By where they're declared: line, then column (an object type's fields can
 // share a line).
@@ -136,7 +166,7 @@ interface Member {
     name: string
     optional: boolean
     type: string
-    platforms: string[]
+    platforms: Platforms
     default?: string
     body: string
 }
@@ -170,10 +200,7 @@ function members(name: string, prefix = '', all = false): Member[] {
                     name: prefix + c.name,
                     optional,
                     type,
-                    platforms: tags(r, '@platform').map((t) => {
-                        const p = partsToMarkdown(t.content)
-                        return PLATFORMS[p] ?? p
-                    }),
+                    platforms: platformsOf(r),
                     // TypeDoc wraps a plain @default value in a code block.
                     default:
                         def &&
@@ -242,9 +269,7 @@ function propsSection(ms: Member[], site: boolean) {
         .map((m) => {
             const meta = site
                 ? [
-                      ...m.platforms.map(
-                          (p) => `<span class="api-badge">${p} only</span>`,
-                      ),
+                      platformBadges(m.platforms),
                       m.optional ? 'Optional' : 'Required',
                       `Type: ${typeCode(m.type)}`,
                       m.default && `Default: ${typeCode(m.default)}`,
@@ -252,7 +277,7 @@ function propsSection(ms: Member[], site: boolean) {
                 : [
                       `**Type:** ${code(m.type)}`,
                       m.default && `**Default:** ${code(m.default)}`,
-                      m.platforms.length && `${m.platforms.join(', ')} only`,
+                      platformNote(m.platforms),
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
@@ -283,27 +308,30 @@ const fieldList = (ms: Member[], site: boolean) =>
 // FastImageBackground's own props: the rest are FastImage's.
 const backgroundProps = members('FastImageBackgroundProps')
 
-// FastImage's methods' signatures, by name.
+// FastImage's methods' signatures and platforms, by name.
 const methods = new Map(
     (byName.get('FastImageStaticProperties')?.children ?? []).flatMap((c) => {
         const sig =
             c.type?.type === 'reflection'
                 ? c.type.declaration.signatures?.[0]
                 : undefined
-        return sig ? [[c.name, sig] as const] : []
+        return sig
+            ? [[c.name, { sig, platforms: platformsOf(c) }] as const]
+            : []
     }),
 )
 
 // Each method's heading (its name and parameters' names) and, under it, its
-// parameters' and result's types, like a prop's type: in the README as
+// platforms and its parameters' and result's types, like a prop's: in the README as
 // markdown, on the website styled. The rest of a method's docs are written in
 // the README.
 function withMethods(markdown: string, site: boolean) {
     return markdown.replace(
         /^### `(\w+)\(.*\)`\n\n(?:(?:\*\*Parameters:\*\*|\*\*Returns:\*\*|<div class="api-meta">Returns:|<div class="api-meta">Parameters:).*\n\n)?/gm,
         (all, name: string) => {
-            const sig = methods.get(name)
-            if (!sig) return all
+            const method = methods.get(name)
+            if (!method) return all
+            const { sig, platforms } = method
             const params = sig.parameters ?? []
             const typed = params.map(
                 (p) =>
@@ -312,6 +340,7 @@ function withMethods(markdown: string, site: boolean) {
             const returns = typeToString(sig.type)
             const meta = site
                 ? [
+                      platformBadges(platforms),
                       typed.length &&
                           `Parameters: ${typed.map(typeCode).join(', ')}`,
                       `Returns: ${typeCode(returns)}`,
@@ -320,6 +349,7 @@ function withMethods(markdown: string, site: boolean) {
                       typed.length &&
                           `**Parameters:** ${typed.map(code).join(', ')}`,
                       `**Returns:** ${code(returns)}`,
+                      platformNote(platforms),
                   ]
             const line = meta.filter(Boolean).join(' · ')
             return [
@@ -382,7 +412,7 @@ for (const name of ['FastImageProps', 'Source', 'FastImageBackgroundProps'])
             for (const sig of c.signatures ?? [])
                 sig.parameters?.forEach((p) => collectTypes(p.type))
         })
-for (const sig of methods.values()) {
+for (const { sig } of methods.values()) {
     sig.parameters?.forEach((p) => collectTypes(p.type))
     collectTypes(sig.type)
 }

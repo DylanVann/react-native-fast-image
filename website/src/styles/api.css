@@ -5,18 +5,48 @@
     --sl-font-mono: 'Geist Mono Variable';
 }
 
-/* A prop's platforms, type and default, under its heading. */
+/* A prop's or method's platforms, type and default, under its heading. */
 .api-meta {
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-3);
 }
+/* A badge per platform, in a color of its own. */
+.api-platforms {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    vertical-align: middle;
+}
 .api-badge {
+    --badge: var(--sl-color-gray-3);
+    --badge-low: var(--sl-color-gray-6);
+    --badge-high: var(--sl-color-white);
     font-size: var(--sl-text-xs);
     padding: 0.1rem 0.4rem;
     border-radius: 0.25rem;
-    color: var(--sl-color-orange-high);
-    background: var(--sl-color-orange-low);
-    border: 1px solid var(--sl-color-orange);
+    color: var(--badge-high);
+    background: var(--badge-low);
+    border: 1px solid var(--badge);
+}
+.api-badge[data-platform='android'] {
+    --badge: var(--sl-color-green);
+    --badge-low: var(--sl-color-green-low);
+    --badge-high: var(--sl-color-green-high);
+}
+.api-badge[data-platform='ios'] {
+    --badge: var(--sl-color-blue);
+    --badge-low: var(--sl-color-blue-low);
+    --badge-high: var(--sl-color-blue-high);
+}
+.api-badge[data-platform='tvos'] {
+    --badge: var(--sl-color-purple);
+    --badge-low: var(--sl-color-purple-low);
+    --badge-high: var(--sl-color-purple-high);
+}
+.api-badge[data-platform='web'] {
+    --badge: var(--sl-color-orange);
+    --badge-low: var(--sl-color-orange-low);
+    --badge-high: var(--sl-color-orange-high);
 }
 
 /* Inline code: rounded, and without a background in headings (the props' and

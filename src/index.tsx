@@ -52,7 +52,13 @@ export type Source = {
      * images (see [SVG images](docs/formats.md#svg-images)).
      */
     uri?: string
-    /** Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`. */
+    /**
+     * Headers to load the image with. e.g. `{ Authorization: 'someAuthToken' }`.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
+     */
     headers?: { [key: string]: string }
     /**
      * A hint for which images to start loading first when several are
@@ -83,6 +89,9 @@ export type Source = {
      * - `'cacheOnly'`: only shows a cached image, without making a request.
      *
      * @default 'immutable'
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     cache?: Cache
     /**
@@ -104,6 +113,10 @@ export type Source = {
      *     }}
      * />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     cacheKey?: string
     /**
@@ -115,6 +128,9 @@ export type Source = {
      * shown again, like a list scrolled back, are decoded from disk again.
      *
      * @default true
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     memoryCache?: boolean
     /**
@@ -140,6 +156,9 @@ export type Source = {
      * url (or `cacheKey`) without `diskCache: false` still stores the image.
      *
      * @default true
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     diskCache?: boolean
     /**
@@ -481,6 +500,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```jsx
      * <FastImage recyclingKey={item.id} source={{ uri: item.imageUrl }} />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     recyclingKey?: string | null
     /**
@@ -493,6 +516,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - A number: that many times.
      *
      * Changing it restarts the animation.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     loop?: boolean | number
     /**
@@ -513,6 +540,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   smoothed.
      *
      * @default 'auto'
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     imageRendering?: 'auto' | 'smooth' | 'pixelated'
     /**
@@ -540,6 +570,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * (on Android, an animated WebP or AVIF plays again from its first frame:
      * Android can't resume one). Each image animates on its own, so pausing
      * one doesn't pause others showing the same file.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     paused?: boolean
     /**
@@ -564,6 +598,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * <FastImage source={{ uri }} transition={500} />
      * <FastImage source={{ uri }} transition={{ betweenImages: true, skipOnCacheHit: 'none' }} />
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     transition?: boolean | number | Transition | null
     /**
@@ -592,6 +630,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * bandwidth.
      *
      * @default true
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     downsample?: boolean
     /**
@@ -605,11 +646,11 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * - `'no-limit'`: in full HDR, e.g. for a full-screen photo viewer.
      *
      * Not set, iOS shows them in standard range, and the web as the browser
-     * does by default (usually HDR). On iOS and tvOS 17 and later; Android
-     * shows them in standard range. On the web it's CSS's
-     * `dynamic-range-limit`.
+     * does by default (usually HDR). Android shows them in standard range. On
+     * the web it's CSS's `dynamic-range-limit`.
      *
-     * @platform ios
+     * @platform ios 17+
+     * @platform tvos 17+
      * @platform web
      */
     dynamicRangeLimit?: 'standard' | 'constrained' | 'no-limit'
@@ -665,6 +706,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * ```jsx
      * onProgress={e => console.log(e.nativeEvent.progress)}
      * ```
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     onProgress?(event: OnProgressEvent): void
 
@@ -1114,12 +1159,20 @@ export interface FastImageStaticProperties {
      * Removes every image from the memory cache. Resolves once it's done, or
      * not `ok` with the error if it couldn't (Android: Glide failed to
      * start). Never rejects.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     clearMemoryCache: () => Promise<ClearCacheResult>
     /**
      * Removes every image from the disk cache, and the HTTP cache of
      * `cache: 'web'` images. Resolves once it's done, or not `ok` with the
      * error if it couldn't (Android: Glide failed to start). Never rejects.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     clearDiskCache: () => Promise<ClearCacheResult>
     /**
@@ -1127,6 +1180,10 @@ export interface FastImageStaticProperties {
      * it first if it isn't there (without decoding it). With
      * `cache: 'cacheOnly'`, or a `cacheKey` without a `uri`, it doesn't
      * download. Never rejects.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     getCachePath: (source: Source) => Promise<CachePathResult>
     /**
@@ -1136,6 +1193,10 @@ export interface FastImageStaticProperties {
      * `cacheKey` doesn't need a `uri`. Resolves with its cached file. Doesn't
      * replace an image that's already cached, and isn't for `cache: 'web'`
      * sources. Never rejects.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     writeToCache: (source: Source, file: string) => Promise<CachePathResult>
     /**
@@ -1149,6 +1210,10 @@ export interface FastImageStaticProperties {
      * a source), and for `preload`, `getCachePath`, `writeToCache`,
      * `clearDiskCache` and `configureCache` itself, even without limits (e.g.
      * to read the disk cache's size).
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     configureCache: (limits?: CacheLimits) => Promise<CacheState>
     /**
@@ -1156,6 +1221,10 @@ export interface FastImageStaticProperties {
      * to the built-in one). An image already showing uses a change once one
      * of its props changes, for its next load. Not saved: call it before
      * images render, e.g. in index.js.
+     *
+     * @platform android
+     * @platform ios
+     * @platform tvos
      */
     setDefaults: (defaults: FastImageDefaults) => void
 }
