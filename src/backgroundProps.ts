@@ -65,10 +65,5 @@ export function splitBackgroundProps(
         if (IMAGE_KEY_SET.has(key)) image[key] = value
         else container[key] = value
     }
-    // On both, as React Native's ImageBackground has it: "no" on the
-    // container doesn't hide the image (only "no-hide-descendants" does).
-    if (props.importantForAccessibility !== undefined) {
-        image.importantForAccessibility = props.importantForAccessibility
-    }
     return [imageProps ? { ...image, ...imageProps } : image, container]
 }

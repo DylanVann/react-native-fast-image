@@ -699,11 +699,11 @@ describe('FastImageBackground', () => {
                 accessibilityLabel="A card"
                 role="button"
                 aria-hidden={false}
-                importantForAccessibility="yes"
                 focusable
                 tabIndex={0}
                 testID="card"
                 onLayout={onLayout}
+                importantForAccessibility="no"
             >
                 <View />
             </FastImageBackground>,
@@ -728,9 +728,10 @@ describe('FastImageBackground', () => {
             expect(image.props[key]).toBeUndefined()
         }
         expect(image.props.tabIndex).toBeUndefined()
-        // On both, as React Native's ImageBackground has it.
-        expect(container.props.importantForAccessibility).toBe('yes')
-        expect(image.props.importantForAccessibility).toBe('yes')
+        // The container's only, as any View prop: on the image too, "no"
+        // would hide an image imageProps makes the accessibility element.
+        expect(container.props.importantForAccessibility).toBe('no')
+        expect(image.props.importantForAccessibility).toBeUndefined()
     })
 
     it('gives the container tabIndex as focusable (React Native tvOS loses tabIndex)', () => {
