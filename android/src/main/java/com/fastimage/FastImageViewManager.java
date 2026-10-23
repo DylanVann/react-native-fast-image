@@ -394,6 +394,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         view.setBlurRadius(PixelUtil.toPixelFromDIP(blurRadius));
     }
 
+    // iOS only: Glide decodes an animated image's frames as it draws them,
+    // without a buffer to cap.
+    @Override
+    public void setMaxBufferSize(FastImageViewWithUrl view, double maxBufferSize) {
+    }
+
     @Override
     public void setTransitionDuration(FastImageViewWithUrl view, double transitionDuration) {
         view.setTransitionDuration((int) transitionDuration);

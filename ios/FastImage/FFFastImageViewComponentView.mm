@@ -358,6 +358,10 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     if (all || oldViewProps.blurRadius != newViewProps.blurRadius) {
         view.blurRadius = newViewProps.blurRadius;
     }
+    if (all || oldViewProps.maxBufferSize != newViewProps.maxBufferSize) {
+        // SDAnimatedImageView's: 0 lets it choose from the device's memory.
+        view.maxBufferSize = (NSUInteger)MAX(0.0, newViewProps.maxBufferSize);
+    }
     if (all || oldViewProps.handledEvents != newViewProps.handledEvents) {
         // Progress is tracked from the next load, as a handler added while
         // loading was. (Each event is sent if it has a handler as it happens:

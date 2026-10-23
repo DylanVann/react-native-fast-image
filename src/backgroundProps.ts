@@ -31,6 +31,7 @@ const IMAGE_KEYS: Record<ImageKey, true> = {
     blurRadius: true,
     tintColor: true,
     alt: true,
+    maxBufferSize: true,
     onLoadStart: true,
     onProgress: true,
     onLoad: true,

@@ -1553,6 +1553,20 @@ describe('blurRadius', () => {
     })
 })
 
+describe('maxBufferSize', () => {
+    it('is passed to the native view', () => {
+        const [view] = renderer
+            .create(
+                <FastImage
+                    source={{ uri: 'https://example.com/a.gif' }}
+                    maxBufferSize={4 * 1024 * 1024}
+                />,
+            )
+            .root.findAll((node) => node.type === ('FastImageView' as any))
+        expect(view.props.maxBufferSize).toBe(4 * 1024 * 1024)
+    })
+})
+
 describe('FastImage (Android)', () => {
     beforeAll(() => {
         Platform.OS = 'android'
