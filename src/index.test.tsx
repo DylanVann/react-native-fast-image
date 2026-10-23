@@ -1971,10 +1971,16 @@ describe('ARIA props', () => {
         expect(native.isTVSelectable).toBe(true)
         expect(native.focusable).toBeUndefined()
         // Android reads focusable.
+        const os = Platform.OS
         Platform.OS = 'android'
-        expect(
-            viewProps(<FastImage source={source} focusable />).isTVSelectable,
-        ).toBeUndefined()
+        try {
+            expect(
+                viewProps(<FastImage source={source} focusable />)
+                    .isTVSelectable,
+            ).toBeUndefined()
+        } finally {
+            Platform.OS = os
+        }
     })
 
     it('pass props without them on as they are, without a copy', () => {
