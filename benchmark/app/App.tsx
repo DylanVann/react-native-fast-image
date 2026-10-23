@@ -29,7 +29,7 @@ const iosArgs = (): Args =>
     )
 
 // rnfibench://run?scenario=grid&run=<id>
-const linkArgs = (url: string | null): Args =>
+const linkArgs = (url: string | null | undefined): Args =>
     Object.fromEntries(
         (url?.split('?')[1] ?? '')
             .split('&')

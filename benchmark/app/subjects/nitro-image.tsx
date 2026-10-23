@@ -13,6 +13,9 @@ const adapter: Adapter = {
     Image: ({ uri, style, priority }) => (
         <NitroImage
             image={{ url: uri, options: priority ? { priority } : undefined }}
+            // @ts-expect-error Nitro Image 0.15 reads its props back out of
+            // React Native's HostComponent type, which 0.88 changed, so style
+            // is missing.
             style={style}
             resizeMode="cover"
         />

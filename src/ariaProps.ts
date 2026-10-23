@@ -69,7 +69,11 @@ export function resolveAriaProps<P extends AriaProps>(
         tabIndex,
         ...rest
     } = props
-    const native = rest as FastImageProps
+    // A copy, so it's written to (React Native's Strict TypeScript API
+    // declares the props read-only).
+    const native = rest as {
+        -readonly [K in keyof FastImageProps]: FastImageProps[K]
+    }
     // As View.js: a value given, null too, replaces the prop it maps to.
     if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
     // A string is a list of ids, as in View.js; another value (e.g. an array,

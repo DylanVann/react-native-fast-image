@@ -23,7 +23,7 @@
     "expo-image": {
         "name": "expo-image",
         "packages": {
-            "expo-image": "57.0.5"
+            "expo-image": "58.0.16"
         }
     },
     "nitro-image": {
