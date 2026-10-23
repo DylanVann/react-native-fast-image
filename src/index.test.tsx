@@ -1959,6 +1959,8 @@ describe('ARIA props', () => {
             [{ tabIndex: -1 }, false],
             // focusable wins, as in View.js.
             [{ focusable: false, isTVSelectable: true }, false],
+            // tabIndex wins over focusable, as in React Native's View.js.
+            [{ tabIndex: 0, focusable: false }, true],
         ] as const) {
             expect(
                 viewProps(<FastImage source={source} {...(props as {})} />),
@@ -1971,16 +1973,10 @@ describe('ARIA props', () => {
         expect(native.isTVSelectable).toBe(true)
         expect(native.focusable).toBeUndefined()
         // Android reads focusable.
-        const os = Platform.OS
         Platform.OS = 'android'
-        try {
-            expect(
-                viewProps(<FastImage source={source} focusable />)
-                    .isTVSelectable,
-            ).toBeUndefined()
-        } finally {
-            Platform.OS = os
-        }
+        expect(
+            viewProps(<FastImage source={source} focusable />).isTVSelectable,
+        ).toBeUndefined()
     })
 
     it('pass props without them on as they are, without a copy', () => {

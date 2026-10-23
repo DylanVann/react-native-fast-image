@@ -35,10 +35,12 @@ type AriaProps = Pick<
 
 const ARIA_KEY_SET: ReadonlySet<string> = new Set(ARIA_KEYS)
 
+// React Native tvOS's focus prop, which FastImageProps doesn't have.
+type TVProps = { isTVSelectable?: boolean | null }
+
 // The props without the ARIA keys, with the accessibility props they map to.
-type NativeProps<P> = Omit<P & FastImageProps, (typeof ARIA_KEYS)[number]> & {
-    isTVSelectable?: boolean | null
-}
+type NativeProps<P> = Omit<P & FastImageProps, (typeof ARIA_KEYS)[number]> &
+    TVProps
 
 export function resolveAriaProps<P extends AriaProps>(
     props: P,
@@ -47,15 +49,13 @@ export function resolveAriaProps<P extends AriaProps>(
     // on as they are, without a copy. Their own keys are checked (a few), not
     // ARIA_KEYS (15 lookups of keys they don't have, several times slower).
     const ios = Platform.OS === 'ios'
-    let hasAria = false
-    for (const key in props) {
-        if (
-            ARIA_KEY_SET.has(key)
-                ? props[key as keyof P] !== undefined
-                : ios && key === 'focusable' && props.focusable != null
-        ) {
-            hasAria = true
-            break
+    let hasAria = ios && props.focusable != null
+    if (!hasAria) {
+        for (const key in props) {
+            if (ARIA_KEY_SET.has(key) && props[key as keyof P] !== undefined) {
+                hasAria = true
+                break
+            }
         }
     }
     if (!hasAria) return props as NativeProps<P>
@@ -82,7 +82,7 @@ export function resolveAriaProps<P extends AriaProps>(
     // declares the props read-only).
     const native = rest as {
         -readonly [K in keyof FastImageProps]: FastImageProps[K]
-    } & { isTVSelectable?: boolean | null }
+    } & TVProps
     // As View.js: a value given, null too, replaces the prop it maps to.
     if (ariaLabel !== undefined) native.accessibilityLabel = ariaLabel
     // A string is a list of ids, as in View.js; another value (e.g. an array,
@@ -103,17 +103,18 @@ export function resolveAriaProps<P extends AriaProps>(
             // iOS reads `accessible` for whether the image is an
             // accessibility element (accessibilityElementsHidden only hides
             // its children), as for React Native's Image.
-            if (Platform.OS === 'ios') native.accessible = false
+            if (ios) native.accessible = false
         }
     }
     if (id !== undefined) native.nativeID = id
     if (tabIndex !== undefined) native.focusable = !tabIndex
-    // On iOS, `focusable` (from tabIndex too) is also the isTVSelectable
-    // React Native tvOS reads for focus, on Apple TV and iPhone alike, as its
-    // View.js sets it (`focusable ?? isTVSelectable ?? false`). `focusable`
-    // stays, where View.js deletes it: React Native reads it on Apple TV from
-    // 0.88, and a version without isTVSelectable leaves that out. Without
-    // focusable, an isTVSelectable given goes on as it is.
+    // On iOS, `focusable` is also the isTVSelectable React Native tvOS reads
+    // for focus, on Apple TV and iPhone alike, as its View.js sets it
+    // (`focusable ?? isTVSelectable ?? false`), and so the one tabIndex gives
+    // (View.js takes the `focusable` prop, so tabIndex does nothing there).
+    // `focusable` stays, where View.js deletes it: React Native reads it on
+    // Apple TV from 0.88, and a version without isTVSelectable leaves that
+    // out. Without focusable, an isTVSelectable given goes on as it is.
     if (ios && native.focusable != null)
         native.isTVSelectable = native.focusable
     // On iOS, a labelled image is an accessibility element unless
@@ -124,7 +125,7 @@ export function resolveAriaProps<P extends AriaProps>(
     // a Pressable's announcement in two. An empty label is none, as on the
     // web (a decorative image), and so is a blank one.
     if (
-        Platform.OS === 'ios' &&
+        ios &&
         typeof ariaLabel === 'string' &&
         ariaLabel.trim() !== '' &&
         native.accessible === undefined &&

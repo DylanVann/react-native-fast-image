@@ -125,10 +125,10 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 
 ## `focusable` doesn't make an image focusable on Apple TV
 
-- **What happens:** with React Native tvOS, `<Image focusable />` or `<Image tabIndex={0} />` can't take focus on Apple TV, while a `View` with the same props can. Only `isTVSelectable` works on an `Image`.
-- **Where:** react-native-tvos 0.87.1-1. `Libraries/Components/View/View.js` sets `isTVSelectable = focusable ?? isTVSelectable ?? false` on iOS and deletes `focusable`; `Libraries/Image/Image.ios.js` doesn't, and `React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm`'s `canBecomeFocused` reads only `isTVSelectable`.
+- **What happens:** with React Native tvOS, `<Image focusable />` can't take focus on Apple TV, while `<View focusable />` can. Only `isTVSelectable` works on an `Image`. `tabIndex={0}` doesn't make an `Image` or a `View` focusable there.
+- **Where:** react-native-tvos 0.87.1-1. `Libraries/Components/View/View.js` sets `isTVSelectable = focusable ?? isTVSelectable ?? false` on iOS and deletes `focusable` (it maps `tabIndex` to `focusable` before, but takes the `focusable` prop here, so `tabIndex` is lost); `Libraries/Image/Image.ios.js` doesn't, and `React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm`'s `canBecomeFocused` reads only `isTVSelectable`.
 - **How to reproduce:** Found by reading the code. Render `<Image focusable source={...} />` next to a button on Apple TV and move focus with the remote.
-- **How Fast Image handles it:** on iOS it sends `focusable` as `isTVSelectable` too, as `View.js` does, and keeps `focusable`, which React Native reads on Apple TV from 0.88 ([#1362](https://github.com/DylanVann/react-native-fast-image/pull/1362)).
+- **How Fast Image handles it:** on iOS it sends `focusable`, or the one `tabIndex` gives, as `isTVSelectable` too, and keeps `focusable`, which React Native reads on Apple TV from 0.88 ([#1362](https://github.com/DylanVann/react-native-fast-image/pull/1362)).
 
 ## Other issues
 
