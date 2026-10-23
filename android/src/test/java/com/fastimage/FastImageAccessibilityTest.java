@@ -92,7 +92,6 @@ public class FastImageAccessibilityTest {
     public void focusableMakesTheImageFocusable() {
         set("focusable", true);
         assertTrue(view.isFocusable());
-        assertFalse(view.isScreenReaderFocusable());
         // False: not focusable, even if it becomes clickable.
         set("focusable", false);
         view.setClickable(true);

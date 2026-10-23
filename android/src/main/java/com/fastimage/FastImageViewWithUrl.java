@@ -194,23 +194,26 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private boolean mScreenReaderFocusableProp = false;
 
     void setAccessibleProp(boolean accessible) {
+        boolean was = isScreenReaderFocusableProp();
         mAccessible = accessible;
-        updateScreenReaderFocusable();
+        updateScreenReaderFocusable(was);
     }
 
     void setScreenReaderFocusableProp(boolean screenReaderFocusable) {
+        boolean was = isScreenReaderFocusableProp();
         mScreenReaderFocusableProp = screenReaderFocusable;
-        updateScreenReaderFocusable();
+        updateScreenReaderFocusable(was);
     }
 
     private boolean isScreenReaderFocusableProp() {
         return mAccessible || mScreenReaderFocusableProp;
     }
 
-    private void updateScreenReaderFocusable() {
+    private void updateScreenReaderFocusable(boolean was) {
+        boolean is = isScreenReaderFocusableProp();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            setScreenReaderFocusable(isScreenReaderFocusableProp());
-        } else {
+            setScreenReaderFocusable(is);
+        } else if (is != was) {
             sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         }
     }
@@ -218,14 +221,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @Override
     public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfo(info);
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            AccessibilityNodeInfoCompat.wrap(info).setScreenReaderFocusable(isScreenReaderFocusableProp());
+        // Only when true: false is the default, and writing it would add an
+        // extras Bundle to every image's info.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && isScreenReaderFocusableProp()) {
+            AccessibilityNodeInfoCompat.wrap(info).setScreenReaderFocusable(true);
         }
     }
 
-    // `focusable` (null when not set): keyboard and D-pad focus while true,
-    // none while false (even if clickable), and Android's default (focusable
-    // if clickable) without it. (React Native's accessibility delegate, added
+    // `focusable` (null when not set): keyboard and D-pad focus while true
+    // (which on Android makes it a TalkBack stop too), none while false (even
+    // if clickable), and Android's default (focusable if clickable) without
+    // it. (React Native's accessibility delegate, added
     // for a role, state or testID, replaces that default with whether the
     // view was focusable then, as it does for its View.)
     void setFocusableProp(@Nullable Boolean focusable) {
