@@ -299,6 +299,27 @@ describe('FastImage (web)', () => {
         expect(hosts(background, 'Text')).toHaveLength(1)
     })
 
+    it("gives FastImageBackground's View props to its container, as on native", () => {
+        const tree = render(
+            <FastImageBackground
+                source={A}
+                testID="card"
+                aria-label="A card"
+                imageProps={{ 'aria-label': 'A beach' }}
+            >
+                <Text>on top</Text>
+            </FastImageBackground>,
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props.source).toBe(A)
+        expect(image.props['aria-label']).toBe('A beach')
+        expect(image.props.testID).toBeUndefined()
+        // The outer View, the container (the image's own View is inside it).
+        const [container] = hosts(tree, 'View')
+        expect(container.props.testID).toBe('card')
+        expect(container.props['aria-label']).toBe('A card')
+    })
+
     const sizes = [
         { uri: 'https://example.com/100.png', width: 100, height: 100 },
         { uri: 'https://example.com/300.png', width: 300, height: 300 },

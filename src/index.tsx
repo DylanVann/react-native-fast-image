@@ -15,6 +15,7 @@ import { cacheControl, priority, resizeMode } from './constants'
 import { fromStyle, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
+import { splitBackgroundProps } from './backgroundProps'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
@@ -1279,6 +1280,13 @@ export interface FastImageBackgroundProps extends Omit<
     imageStyle?: StyleProp<ImageStyle>
     /** A ref to the image (the FastImage inside). */
     imageRef?: React.Ref<FastImageRef>
+    /**
+     * Props for the image itself, over the others. View props, such as the
+     * accessibility props, go to the container otherwise: use this to make
+     * the image the accessibility element instead, e.g.
+     * `imageProps={{ accessible: true, accessibilityLabel: 'A beach' }}`.
+     */
+    imageProps?: Omit<FastImageProps, 'style' | 'children'>
     /** Content shown on top of the image. */
     children?: React.ReactNode
 }
@@ -1286,8 +1294,9 @@ export interface FastImageBackgroundProps extends Omit<
 /**
  * An image with content on top of it, like React Native's `ImageBackground`: a
  * view that the image fills, with the children on top (`FastImage` is a single
- * native view, which doesn't take children). The other props go to the image;
- * the ref is the view's.
+ * native view, which doesn't take children). View props (accessibility,
+ * focus, testID, layout, touch) go to the view, FastImage's own to the image,
+ * and `imageProps` to the image over them; the ref is the view's.
  */
 export const FastImageBackground: React.ForwardRefExoticComponent<
     FastImageBackgroundProps & React.RefAttributes<ViewRef>
@@ -1297,31 +1306,40 @@ export const FastImageBackground: React.ForwardRefExoticComponent<
             style,
             imageStyle,
             imageRef,
+            imageProps,
             children,
-            importantForAccessibility,
-            'aria-hidden': ariaHidden,
             ...props
         }: FastImageBackgroundProps,
         ref: React.Ref<ViewRef>,
-    ) => (
-        // aria-hidden goes to the container, which hides the image and the
-        // children (as its importantForAccessibility does).
-        <View
-            accessibilityIgnoresInvertColors
-            importantForAccessibility={importantForAccessibility}
-            aria-hidden={ariaHidden}
-            style={style}
-            ref={ref}
-        >
-            <FastImageComponent
-                {...props}
-                importantForAccessibility={importantForAccessibility}
-                style={[StyleSheet.absoluteFill, imageStyle]}
-                ref={imageRef}
-            />
-            {children}
-        </View>
-    ),
+    ) => {
+        const [image, container] = splitBackgroundProps(props, imageProps)
+        // tabIndex as the focusable it maps to, which it wins over as in
+        // View.js: React Native tvOS's View loses tabIndex (it reads the
+        // focusable prop).
+        if (container.tabIndex !== undefined) {
+            container.focusable = !container.tabIndex
+            delete container.tabIndex
+        }
+        return (
+            <View
+                {...container}
+                // Not inverted by iOS's Smart Invert, as an image isn't, unless
+                // the app says otherwise.
+                accessibilityIgnoresInvertColors={
+                    container.accessibilityIgnoresInvertColors ?? true
+                }
+                style={style}
+                ref={ref}
+            >
+                <FastImageComponent
+                    {...image}
+                    style={[StyleSheet.absoluteFill, imageStyle]}
+                    ref={imageRef}
+                />
+                {children}
+            </View>
+        )
+    },
 )
 
 FastImageBackground.displayName = 'FastImageBackground'

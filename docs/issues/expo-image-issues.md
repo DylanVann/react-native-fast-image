@@ -142,6 +142,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run. Show an animated GIF with `tintColor="red"`; what it shows (untinted frames, or a still tinted frame if UIKit's template copy isn't an animated image) depends on the class UIKit gives the template copy.
 - **How Fast Image handles it:** a still image is shown as a template with the view's `tintColor`, and an animated image's frames are tinted as they're decoded, with SDWebImage's `animationTransformer` and `SDImageTintTransformer` ([#1195](https://github.com/DylanVann/react-native-fast-image/pull/1195)).
 
+## ImageBackground's accessibility and focus props are the image's, behind the children
+
+- **What happens:** every prop but `style` goes to the `Image` that fills `ImageBackground`, so `accessible`, an accessibility label or `focusable` on it make the image behind the children the screen reader or focus stop, not the view with the children. On Android TV the D-pad stops on the image; there's no way to put them on the view.
+- **Where:** `packages/expo-image/src/ImageBackground.tsx` renders `<View style={style}><Image {...props} style={[StyleSheet.absoluteFill, imageStyle]} />{children}</View>`.
+- **How to reproduce:** Found by reading the code (Expo's `main` at `cae0f09b4`, 2026-10-23). Render `<ImageBackground focusable source={...}><Text>Title</Text></ImageBackground>` on Android TV and move focus with the D-pad.
+- **How Fast Image handles it:** `FastImageBackground` gives View props, accessibility and focus among them, to its view and its own props to the image, with `imageProps` for any prop on the image instead ([#1364](https://github.com/DylanVann/react-native-fast-image/pull/1364)).
+
 ## configureCache is iOS only, and throws on Android
 
 - **What happens:** `Image.configureCache()` exists only on iOS: on Android the native module has no such function, so calling it throws a `TypeError` (`ImageModule.configureCache is not a function`). On iOS the limits aren't saved (the app has to call it on every launch, after images may already have loaded), there's no age limit, and a lower `maxDiskSize` is only applied at SDWebImage's next cleanup (when the app goes to the background or terminates).

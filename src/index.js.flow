@@ -182,6 +182,8 @@ export type FastImageBackgroundProps = $ReadOnly<{|
     ...FastImageProps,
     imageStyle?: $PropertyType<ViewProps, 'style'>,
     imageRef?: React$Ref<any>,
+    // Props for the image itself, over the others (its style is imageStyle).
+    imageProps?: FastImageProps,
     children?: React$Node,
 |}>
 

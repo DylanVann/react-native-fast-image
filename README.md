@@ -267,7 +267,7 @@ With several sources, the scale `width` and `height` are multiplied by.
 
 #### `placeholder`
 
-**Type:** `string | number | PlaceholderSource | SourcePlaceholder`
+**Type:** `string | number | SourcePlaceholder | PlaceholderSource`
 
 A placeholder shown while the image loads, and if it fails to load:
 
@@ -576,7 +576,7 @@ const Banner = () => (
 )
 ```
 
-Its own props are below; the others are `FastImage`'s and go to the image. Its ref is the view's (`imageRef` is the image's).
+Its own props are below. Of the others, View props (accessibility, focus, `testID`, layout and touch) go to the view, and `FastImage`'s own (`source`, `objectFit`, `onLoad`, …) go to the image. `imageProps` puts any prop on the image instead. Its ref is the view's (`imageRef` is the image's).
 
 <!-- api:background-props start (generated from src/ by website/scripts/generate.mts) -->
 
@@ -601,6 +601,14 @@ The image's style.
 **Type:** `Ref<FastImageRef>`
 
 A ref to the image (the FastImage inside).
+
+---
+
+#### `imageProps`
+
+**Type:** `Omit<FastImageProps, 'children' | 'style'>`
+
+Props for the image itself, over the others. View props, such as the accessibility props, go to the container otherwise: use this to make the image the accessibility element instead, e.g. `imageProps={{ accessible: true, accessibilityLabel: 'A beach' }}`.
 
 ---
 

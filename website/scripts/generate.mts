@@ -332,10 +332,16 @@ function withMethods(markdown: string, site: boolean) {
 }
 
 // The exported types the props and methods use, and the types those use, for
-// the Types section. Except those documented elsewhere: Source's options are
-// the source prop's, ImageStyle is React Native's style props, and
-// FastImageRef is under ref.reload() (written by hand).
-const DOCUMENTED_ELSEWHERE = new Set(['Source', 'ImageStyle', 'FastImageRef'])
+// the Types section. Except those documented elsewhere: FastImageProps are
+// the props, Source's options are the source prop's, ImageStyle is React
+// Native's style props, and FastImageRef is under ref.reload() (written by
+// hand).
+const DOCUMENTED_ELSEWHERE = new Set([
+    'FastImageProps',
+    'Source',
+    'ImageStyle',
+    'FastImageRef',
+])
 const typeNames = new Set<string>()
 function collectTypes(t: J.SomeType | undefined) {
     if (!t) return

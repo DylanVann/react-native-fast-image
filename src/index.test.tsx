@@ -686,6 +686,133 @@ describe('FastImageBackground', () => {
         })
         expect(imageRef.current).not.toBeNull()
     })
+
+    it("gives View props to the container, and FastImage's own to the image", () => {
+        const onLoad = () => {}
+        const onLayout = () => {}
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                objectFit="contain"
+                onLoad={onLoad}
+                accessible
+                accessibilityLabel="A card"
+                role="button"
+                aria-hidden={false}
+                focusable
+                tabIndex={0}
+                testID="card"
+                onLayout={onLayout}
+                importantForAccessibility="no"
+            >
+                <View />
+            </FastImageBackground>,
+            { createNodeMock: () => ({}) },
+        )
+        const viewProps = {
+            accessible: true,
+            accessibilityLabel: 'A card',
+            role: 'button',
+            'aria-hidden': false,
+            focusable: true,
+            testID: 'card',
+            onLayout,
+        }
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props).toMatchObject(viewProps)
+        expect(container.props.source).toBeUndefined()
+        expect(container.props.onLoad).toBeUndefined()
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({ objectFit: 'contain', onLoad })
+        for (const key of Object.keys(viewProps)) {
+            expect(image.props[key]).toBeUndefined()
+        }
+        expect(image.props.tabIndex).toBeUndefined()
+        // The container's only, as any View prop: on the image too, "no"
+        // would hide an image imageProps makes the accessibility element.
+        expect(container.props.importantForAccessibility).toBe('no')
+        expect(image.props.importantForAccessibility).toBeUndefined()
+    })
+
+    it('gives the container tabIndex as focusable (React Native tvOS loses tabIndex)', () => {
+        for (const [tabIndex, focusable] of [
+            [0, true],
+            [-1, false],
+        ] as const) {
+            const tree = renderer.create(
+                <FastImageBackground
+                    source={{ uri: 'https://example.com/a.png' }}
+                    tabIndex={tabIndex}
+                    focusable={!focusable}
+                />,
+                { createNodeMock: () => ({}) },
+            )
+            const container = tree.root.findAllByType(View)[0]
+            expect(container.props.focusable).toBe(focusable)
+            expect(container.props.tabIndex).toBeUndefined()
+        }
+    })
+
+    it('gives the props removed in 10.0 to the image, which warns or ignores them', () => {
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                {...({ fallback: true, resizeMode: 'cover' } as {})}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({
+            fallback: true,
+            resizeMode: 'cover',
+        })
+        expect(tree.root.findAllByType(View)[0].props.fallback).toBeUndefined()
+    })
+
+    it("keeps a top-level prop that imageProps leaves undefined, and the container's invert default", () => {
+        const onLoad = () => {}
+        const tree = renderer.create(
+            <FastImageBackground
+                source={{ uri: 'https://example.com/a.png' }}
+                onLoad={onLoad}
+                imageProps={{ onLoad: undefined, accessible: true }}
+                accessibilityIgnoresInvertColors={undefined}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props.onLoad).toBe(onLoad)
+        expect(image.props.accessible).toBe(true)
+        expect(
+            tree.root.findAllByType(View)[0].props
+                .accessibilityIgnoresInvertColors,
+        ).toBe(true)
+    })
+
+    it('gives imageProps to the image, over the others', () => {
+        const a = { uri: 'https://example.com/a.png' }
+        const b = { uri: 'https://example.com/b.png' }
+        const tree = renderer.create(
+            <FastImageBackground
+                source={a}
+                imageProps={{
+                    source: b,
+                    accessible: true,
+                    accessibilityLabel: 'A beach',
+                }}
+            />,
+            { createNodeMock: () => ({}) },
+        )
+        const image = tree.root.findByType(FastImage as any)
+        expect(image.props).toMatchObject({
+            source: b,
+            accessible: true,
+            accessibilityLabel: 'A beach',
+        })
+        const container = tree.root.findAllByType(View)[0]
+        expect(container.props.accessible).toBeUndefined()
+        expect(container.props.accessibilityLabel).toBeUndefined()
+    })
 })
 
 describe('onLoadEnd', () => {

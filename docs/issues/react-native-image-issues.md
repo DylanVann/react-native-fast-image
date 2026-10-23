@@ -130,6 +130,13 @@ Fast Image's maintainers found these while comparing Fast Image with React Nativ
 - **How to reproduce:** Found by reading the code. Render `<Image focusable source={...} />` next to a button on Apple TV and move focus with the remote.
 - **How Fast Image handles it:** on iOS it sends `focusable`, or the one `tabIndex` gives, as `isTVSelectable` too, and keeps `focusable`, which React Native reads on Apple TV from 0.88 ([#1362](https://github.com/DylanVann/react-native-fast-image/pull/1362)).
 
+## ImageBackground's accessibility props are the image's, behind the children
+
+- **What happens:** every prop but `style` goes to the `Image` that fills `ImageBackground` (`importantForAccessibility` to both), so `accessible` or an accessibility label on it make the image behind the children the screen reader stop (and on Android, where `accessible` makes an `Image` focusable, the keyboard and D-pad stop), not the view with the children. There's no way to put them on the view. `ImageBackground` is deprecated from 0.88.
+- **Where:** `packages/react-native/Libraries/Image/ImageBackground.js`, `render()` passes `{...props}` and `importantForAccessibility` to the `Image`, and only `importantForAccessibility` and `style` to the `View`.
+- **How to reproduce:** Found by reading the code (React Native's `main` at `e9443bae7`, 2026-10-23). Render `<ImageBackground accessible accessibilityLabel="Card" source={...}><Text>Title</Text></ImageBackground>` and move through it with VoiceOver or TalkBack.
+- **How Fast Image handles it:** `FastImageBackground` gives View props, accessibility and focus among them, to its view and its own props to the image, with `imageProps` for any prop on the image instead ([#1364](https://github.com/DylanVann/react-native-fast-image/pull/1364)).
+
 ## Other issues
 
 These were found while comparing implementations, but Fast Image has no counterpart for them, so there's no fix to point to.
