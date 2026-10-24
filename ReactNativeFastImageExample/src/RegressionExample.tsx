@@ -9695,8 +9695,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'start',
         description: {
             checks: "Fast Image calls that must work as the app's first, before any view has loaded an image.",
-            steps: 'The runner shows this group first, with no image views before it.',
-            shows: 'One row: an empty gray square (the case shows no image).',
         },
         cases: [<WebCachePathAtStartCase key="cache-path-web-at-start" />],
     },
@@ -9704,7 +9702,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'load-end',
         description: {
             checks: "onLoadEnd's event: whether the load worked, with onLoad's size or onError's error.",
-            shows: 'Two rows: the React logo (the load that works), then an empty gray square (the 404).',
         },
         cases: [
             <LoadEndResultCase
@@ -9733,7 +9730,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'events',
         description: {
             checks: "Event handlers and source values that crashed or failed loads: tintColor without an image, handlers removed after firing, source values Fast Image doesn't know, and images without handlers.",
-            shows: 'A row per case, top to bottom: a green React logo; an empty gray square (a 404); the light blue React logo twice; another empty gray square (a 404); the light blue logo four more times; then three photos of a pug side by side.',
         },
         cases: [
             <EventCase
@@ -9850,7 +9846,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'errors',
         description: {
             checks: "Sources that fail fire onError: a data uri that isn't an image, an empty or null uri, and a 404, whose error says so.",
-            shows: "A row per case, top to bottom: two empty gray squares (the data uri, the empty uri); the defaultSource (on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom, a text field's underline); two more empty gray squares (the null uri with downsample, the 404).",
         },
         cases: [
             <EventCase
@@ -9906,7 +9901,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'headers-invalid',
         description: {
             checks: "source.headers that isn't an object of strings (null, an array, values that aren't strings) on views and in FastImage.preload, and a uri that isn't a string.",
-            shows: "A row per case, top to bottom: the light blue React logo twice; a photo of a bear on rocks (a url that only loads with the string header); an empty gray square (the uri that isn't a string); another empty gray square (the preload case, which shows no image).",
         },
         cases: [
             <EventCase
@@ -9960,7 +9954,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'no-crash',
         description: {
             checks: 'Props and calls that crashed the app or never loaded: defaultSource without a source, FastImage.preload with missing or unresolvable uris, asset:/ uris (Android), and views with a width or height of 0.',
-            shows: "A row per case, top to bottom: the defaultSource (on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom, a text field's underline); two empty gray squares (the preload cases); the light blue React logo on Android, an empty gray square on iOS; then two rows with nothing visible (a 0×0 image and a 60×0 one).",
         },
         cases: [
             <NoCrashCase
@@ -10056,7 +10049,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'layout',
         description: {
             checks: 'Layout and sizes: onLayout, measure through refs, images in the app by name, tintColor in style, and the image size onLoad reports.',
-            shows: 'A row per case, top to bottom: the light blue React logo, 10 dp in from the left; the logo in a square, then in a wide box, scaled up and cropped; the quadrants (red, green, blue, yellow); a green React logo; a wide photo of green cliffs, letterboxed in a gray square; a jellyfish GIF, letterboxed the same way; an empty gray square.',
         },
         cases: [
             <LayoutCase key="layout" id="layout" />,
@@ -10107,7 +10099,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "View style props on FastImage's single native view: borders, radii, padding, overflow, opacity, transforms, shadows, backfaceVisibility and tintColor, drawn and clipped as on a View.",
             steps: 'Every image but the last is the same wide photo of green cliffs (2:1) with the default objectFit cover, in a 56 dp square or a 96×56 box. Each case passes once its images have loaded; the screenshot does the checking.',
-            shows: 'A row per case, top to bottom: two photos with uneven rounded corners (the first in a blue border); three photos with borders (a different color on each side, an ellipse, a dashed black border); two photos in rounded black borders, then one with square corners; four photos with effects (faded, tilted, with a shadow, rounded); an empty space, then the photo mirrored; a green React logo on gray.',
         },
         cases: VIEW_STYLE_CASES,
     },
@@ -10117,7 +10108,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'Style changes after the image has loaded (a border removed, overflow switched) and a gradient background, each next to an image that should look the same.',
             steps: 'Each case passes a moment after its change; the screenshot does the checking.',
-            shows: 'A row per case, top to bottom: a photo letterboxed on a red-to-blue gradient, next to a square of the same gradient; two wide photos of green cliffs filling their boxes; two wide photos inside even black borders; two square photos with square corners.',
         },
         cases: [
             <GradientCase key="style-gradient" />,
@@ -10131,7 +10121,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'visual',
         description: {
             checks: 'Changes after load and GIF looping, checked by screenshot: tintColor removed, objectFit changed, a GIF without a loop count, and a view that gets taller.',
-            shows: 'A row per case, top to bottom: two light blue React logos; two wide photos of green cliffs, letterboxed in gray squares; a cyan square; two squares of thin black and white vertical stripes.',
         },
         cases: [
             <ClearTintCase key="clear-tint" />,
@@ -10158,7 +10147,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'The loop and paused props on GIFs: stopping after one or two plays, looping a GIF that plays once, changing loop, pausing, and resuming.',
             steps: 'The GIFs have two frames of a solid color each (0.4 s each, unless a case says otherwise); each case waits for its plays after onLoad.',
-            shows: 'A row per case, top to bottom, each a solid square: blue; purple; yellow or green (animated, so not compared); orange or purple (animated, so not compared); red; blue; a slightly darker red.',
         },
         cases: [
             <GifLoopCase
@@ -10208,7 +10196,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'image-rendering',
         description: {
             checks: 'imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size.',
-            shows: 'One case in three rows, each with its own text labels: a strip with the image at its own size, then the image drawn with auto, smooth and pixelated. The rows: 1 px black and white stripes, a page of small text, and pixel art (a green alien over red shapes).',
         },
         cases: [<ImageRenderingCase key="image-rendering" />],
     },
@@ -10216,7 +10203,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'blur',
         description: {
             checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource.",
-            shows: 'Top to bottom: four photos of green cliffs, one sharp and three blurred alike (on Android the second is nearly sharp); a blurred aerial photo, a soft green React logo and a blurred jellyfish; two blurred photos of a pug, a gap, then two sharp ones; the defaultSource, sharp (on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom).',
         },
         cases: [
             <BlurCase key="blur" />,
@@ -10229,7 +10215,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'blur-tint',
         description: {
             checks: 'tintColor changed on a blurred image after it has loaded.',
-            shows: 'One row: two blurred purple React logos on gray.',
         },
         cases: [<BlurTintChangeCase key="blur-tint-change" />],
     },
@@ -10237,7 +10222,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'blur-events',
         description: {
             checks: 'blurRadius changed in quick steps after the image has loaded: no load events fire again, and the image ends up with the last radius.',
-            shows: 'Two rows, each a blurred photo of a pug next to the same photo blurred with blurRadius 10 from the start; the two in each row look alike.',
         },
         cases: [
             <BlurStepsCase
@@ -10273,7 +10257,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'object-fit',
         description: {
             checks: "objectFit's values, checked by screenshot: images larger and smaller than the view, an SVG, with blurRadius, in style, and changed after load.",
-            shows: 'A row per case, top to bottom: five squares of a red image with a blue border (fill, contain, cover, none, scale-down); two green squares and a blue one inside magenta outlines, then a red square; a sharp and a blurred photo of a bear, each centered in a larger gray square; three squares of black and white stripes; three views of a page of text (iOS: the whole page small, then large letters twice; Android: three crops of small text); three red and blue squares (contained, red only, cover); then two squares of large letters, the same.',
         },
         cases: [
             <ObjectFitCase key="object-fit" />,
@@ -10291,7 +10274,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'object-fit-events',
         description: {
             checks: 'Changing objectFit after load sends no load events again.',
-            shows: "Two rows: the red image with a blue border, contained in a gray square; then a jellyfish GIF contained the same way (animated, so it isn't compared).",
         },
         cases: [
             <ObjectFitEventsCase
@@ -10314,7 +10296,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'object-position-changes',
         description: {
             checks: 'Changes after load with objectPosition: a new position sends no load events, and a fade into a positioned image keeps it in place.',
-            shows: "A row per case, top to bottom: the left part of the red image with a blue border, twice; the left part of a jellyfish GIF (animated, so it isn't compared); then a cyan square (a video sample of its fade).",
         },
         cases: [
             <PositionEventsCase key="position-events" id="position-events" />,
@@ -10347,7 +10328,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'object-position',
         description: {
             checks: "objectPosition's values, checked by screenshot: with cover, contain, none and scale-down, with the view's style and other props, changed after load, and for defaultSource.",
-            shows: 'A row per case, top to bottom: four crops of the red image with a blue border at different positions; three contained red and blue images and three small green squares, each inside a magenta outline; a rounded border, a mostly blue corner, a purple block, a blurred image and a crop; four views in two matching pairs; then two views of a red, green, blue and yellow quadrants image (iOS: a corner of it filling each view; Android: the whole image in the top-left, then the bottom-right corner).',
         },
         cases: [
             <ObjectPositionCoverCase key="object-position-cover" />,
@@ -10361,7 +10341,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'downsampling',
         description: {
             checks: "downsample decodes large images at about the view's size, keeping them sharp, upright and at their own reported size.",
-            shows: 'A row per case, top to bottom: a square downsampled from 1-pixel stripes next to the stripes drawn smaller (iOS: an even gray square; Android: a black one); two tall crops of a page of text; two upright blue arrows over the word UP; a page of text, a small crop of it and the page again; then the page and a small crop.',
         },
         cases: [
             <DownsampleCase
@@ -10409,7 +10388,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'downsampling-reload',
         description: {
             checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in.',
-            shows: "A row per case, top to bottom: a photo of orange rocks small then large; a larger crop of a page of text; green hills across the top of a gray square; a small jellyfish GIF (animated, so it isn't compared); a tall crop of the page of text; then six small copies of the rocks photo.",
         },
         cases: [
             <DownsampleDetailCase key="downsample-detail" />,
@@ -10424,7 +10402,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'downsample-zoom',
         description: {
             checks: "downsample={false} keeps an image that's zoomed in on with a transform sharp.",
-            shows: 'One row: the first lines of a page of text, enlarged 4 times, blurry on the left (downsample) and sharp on the right (downsample={false}).',
         },
         cases: [<DownsampleZoomCase key="downsample-zoom" />],
     },
@@ -10432,7 +10409,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'loading',
         description: {
             checks: "Loading: props that don't reload, source changes, onLoadStart and onProgress, cache: 'web' and cookies.",
-            shows: "A row per case, top to bottom: green hills; a black and white misty forest; a pug in a blanket; a fjord from a cliff three times (the onProgress cases); two empty gray squares (the cache: 'web' cases, whose views are removed); then the React logo on a gray square.",
         },
         cases: [
             <NoReloadCase key="no-reload" />,
@@ -10450,7 +10426,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'progress-data-uri',
         description: {
             checks: 'onProgress for a data: image.',
-            shows: 'One row: a yellow square.',
         },
         cases: [<ProgressDataUriCase key="progress-data-uri" />],
     },
@@ -10459,7 +10434,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'progress-shared-url',
         description: {
             checks: 'onProgress for many images on one url while others on it mount and unmount.',
-            shows: 'An empty area: the images are removed once the case has passed.',
         },
         cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
     },
@@ -10467,7 +10441,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'progress-by-url',
         description: {
             checks: 'onProgress reaching the right images when downloads are shared, urls are written differently or the server holds part of the download.',
-            shows: 'A row per case, all of a pug in a blanket, top to bottom: two side by side; one; a small one and a larger one side by side; then one.',
         },
         cases: [
             <ProgressAfterLoadCase key="progress-after-load" />,
@@ -10481,7 +10454,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'download-queue',
         description: {
             checks: "Android's downloads waiting to start: the priority and url a waiting download has as requests for it join and leave (three checks on one set of images).",
-            shows: "On Android, three rows, of which only the first has images: a 64-point grid of tiny tiles of a black and white photo of misty forest (two rows of them, ten and nine, then a larger tile and one more small one); the other two rows' images are in that grid, so their part is blank. On iOS, where the case is Android only: one empty gray square.",
         },
         cases: [
             Platform.OS === 'android' ? (
@@ -10504,7 +10476,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'download-priority',
         description: {
             checks: "An image with priority: 'high' that starts loading after twenty others is downloaded before most of them.",
-            shows: 'A 64-point grid of 21 tiny tiles of the same photo (a bear on rocks, under a pale sky): two rows of ten, then one more tile.',
         },
         cases: [<DownloadPriorityCase key="download-priority" />],
     },
@@ -10513,7 +10484,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'Downloads shared by several images of one url (one request for all of them), through unmounts, errors and responses without a Content-Length, and a download that stalls.',
             steps: 'The images come from the slow server, which sends each in eight parts with a pause between them, and can hold the rest of a response until the case releases it. The images have no background, so where nothing shows the screen is white.',
-            shows: 'A row per case, top to bottom: a small and a large photo of a pug in a blanket; blank space, then the large pug; blank space (a url that 404s); the small and large pug again; blank space, then the large pug; blank space (the download that stalled).',
         },
         cases: [
             <SharedDownloadSizesCase key="shared-download-sizes" />,
@@ -10530,7 +10500,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "Images with one cacheKey and different urls when one url fails: on Android, which shares one download per cacheKey, the download is retried with another of the cacheKey's urls.",
             steps: "In each case the first image's url 404s; the slow server holds that response until the other images have started loading. The images have no background, so where nothing shows the screen is white.",
-            shows: 'A row per case, top to bottom: blank space (the url that 404s), then a large photo of a pug in a blanket; blank space, a medium and a large pug; the same again; blank space twice (two urls that 404), then the large pug.',
         },
         cases: [
             <SharedDownloadRetryCase key="shared-download-retry" />,
@@ -10544,7 +10513,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'web-cache-clear',
         description: {
             checks: "FastImage.clearDiskCache also clears the HTTP cache that cache: 'web' images use.",
-            shows: 'One row: a photo of a pug in a blanket.',
         },
         cases: [<WebCacheClearCase key="web-cache-clear" />],
     },
@@ -10553,7 +10521,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'web-cache-clear-preload',
         description: {
             checks: "A cache: 'web' image preloaded right after FastImage.clearDiskCache resolves is downloaded again, not taken from the HTTP cache.",
-            shows: 'One row: an empty gray square (the case only preloads).',
         },
         cases: [<WebCacheClearPreloadCase key="web-cache-clear-preload" />],
     },
@@ -10563,7 +10530,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'preload',
         description: {
             checks: 'FastImage.preload: what it downloads and caches, the headers it sends, how many sources it loads at once, its results, and the source values it accepts.',
-            shows: 'A row per case, top to bottom: a photo of a pug in a blanket; a green aurora over a tree; the pug; two empty gray squares; the pug; an empty gray square; the pug; an empty gray square. The gray squares are cases that only preload.',
         },
         cases: [
             <PreloadCase key="preload" />,
@@ -10581,7 +10547,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'bad-responses',
         description: {
             checks: "Urls whose response isn't the image (an HTML page, a 503, a 404, the wrong Content-Type): a later load downloads them again, and a failure isn't requested twice.",
-            shows: 'A row per case, top to bottom: a photo of a pug in a blanket four times, then an empty gray square (the 404, only preloaded).',
         },
         cases: [
             <PreloadRetryCase
@@ -10599,7 +10564,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-key',
         description: {
             checks: 'source.cacheKey, which caches an image under a key of its own instead of its url, and memoryCache: false.',
-            shows: 'A row per case, top to bottom, each with two squares side by side: two photos of a pug in a blanket; an empty gray square (only preloaded), then the pug; two pugs; two pugs.',
         },
         cases: [
             <CacheKeyCase
@@ -10638,7 +10602,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-only',
         description: {
             checks: "Views with cache: 'cacheOnly', or React Native's 'only-if-cached', for an image that isn't cached.",
-            shows: "Two rows, each an empty gray square: cacheOnly, then 'only-if-cached'. Neither loads an image.",
         },
         cases: [
             <CacheOnlyMissCase key="cache-only-miss" />,
@@ -10658,7 +10621,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'disk-cache',
         description: {
             checks: "source.diskCache false: the image isn't kept on disk or in an HTTP cache, or read from them.",
-            shows: "Two rows: three photos of a pug in a blanket, the third larger (the default cache); then two of the same photo side by side (cache: 'web').",
         },
         cases: [
             <DiskCacheOffCase key="disk-cache-off" />,
@@ -10669,7 +10631,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-path',
         description: {
             checks: "FastImage.getCachePath: the file of a source's image in the disk cache, or not ok when there isn't one.",
-            shows: "A row per case, top to bottom, each with two squares: on the left a view that loads the image first (an empty gray square when there's none), on the right the file getCachePath gave, shown as a file:// source (gray when it's not ok). Rows: two green aurora photos (a view loaded it); two again (with a cacheKey); a gray square, then the photo (getCachePath downloaded it); two gray squares (cacheOnly, not cached); two gray squares (a 404); two photos (a url with a space).",
         },
         cases: [
             <CachePathCase
@@ -10739,7 +10700,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-path-more',
         description: {
             checks: "More getCachePath cases: cache: 'web' images, only a cacheKey, and an image still downloading.",
-            shows: "A row per case, top to bottom, each with two squares: on the left a view that loads the image first (an empty gray square when there's none), on the right the file getCachePath gave, shown as a file:// source (gray when it's not ok). Rows: two green aurora photos (cache: 'web'); two again (cacheOnly for a cache: 'web' image); two again (only a cacheKey); two gray squares (a cacheKey that isn't cached); two photos (asked while the view downloads it).",
         },
         cases: [
             <CachePathCase
@@ -10803,8 +10763,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-path-after-clear',
         description: {
             checks: 'getCachePath after FastImage.clearDiskCache(), for an image getCachePath downloaded.',
-            steps: 'Clears the disk cache, so it runs in a group of its own.',
-            shows: "One empty gray square: no view shows the image, and the checks are on getCachePath's results.",
         },
         cases: [
             <CachePathAfterClearCase
@@ -10823,8 +10781,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'cache-path-after-clear-loaded',
         description: {
             checks: 'getCachePath after FastImage.clearDiskCache(), for an image a view showed.',
-            steps: 'Clears the disk cache, so it runs in a group of its own.',
-            shows: 'One green aurora photo: the view that showed it.',
         },
         cases: [
             <CachePathAfterClearCase
@@ -10844,8 +10800,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'clear-disk-cache-thread',
         description: {
             checks: "FastImage.clearDiskCache() doesn't hold up native calls made after it.",
-            steps: 'Clears the disk cache, so it runs in a group of its own.',
-            shows: 'One empty gray square: the case shows no image.',
         },
         cases: [<ClearDiskCacheThreadCase key="clear-disk-cache-thread" />],
     },
@@ -10853,7 +10807,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'write-to-cache',
         description: {
             checks: "FastImage.writeToCache: storing a local file as a source's image, and the cases where it resolves not ok.",
-            shows: "A row per case, top to bottom, one square each: the green aurora photo (written for a url the image server would send as a pug); red, green, blue and yellow quadrants (an AVIF file); the aurora photo (with a cacheKey); the aurora photo (with only a cacheKey); then three empty gray squares (a url that's cached, a file that doesn't exist, a cache: 'web' source), where writeToCache resolves not ok and nothing is shown.",
         },
         cases: [
             <WriteToCacheCase
@@ -10931,7 +10884,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'source-change',
         description: {
             checks: 'Changing or clearing source while a slow image is still loading: the old load is cancelled, sends no events, and never replaces what is shown.',
-            shows: 'A row per case, top to bottom, one square each: a photo of a bear on rocks; the bear again (after a magenta square); a yellow square (a data uri); an empty gray square (the source cleared). A cyan square in any row means the slow image was shown.',
         },
         cases: [
             <SourceChangeWhileLoadingCase
@@ -10960,7 +10912,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'transition fades an image in when it loads: downloads and blurred images fade, images from the memory cache show at once unless skipOnCacheHit is none.',
             steps: 'Video samples: the screen is recorded while each case makes its change, and the color in the middle of its black 48 × 48 view must go through the listed colors in order. The runner turns fades off by default; these cases pass transition { duration: 1000 } (1 s), with the other settings each names.',
-            shows: 'A row per case, top to bottom: one cyan square (a download fading in); two cyan squares (the left one loads the image, the right one shows it from the memory cache at once); two cyan squares (the same, fading in with skipOnCacheHit none); one cyan square (a blurred download fading in).',
         },
         cases: [
             <FadeCase
@@ -11017,7 +10968,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "cache: 'web' images shown again: they show at once without transition and with it, and fade in with skipOnCacheHit none (Android faded them in each time, from its HTTP cache).",
             steps: "Video samples, as in the fade group. In each case a view (left) loads a cyan image the server sends with Cache-Control: max-age=3600, with cache: 'web'; then a second view (right, on black) mounts with the same source: Android reads it from its HTTP cache without a request, iOS from the memory cache.",
-            shows: 'Three rows of two cyan squares: shown again with the built-in default, with transition, and with skipOnCacheHit none.',
         },
         cases: [
             <FadeCase
@@ -11063,7 +11013,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'The built-in default transition: downloads fade in on Android (300 ms) and show at once on iOS.',
             steps: 'A video sample, as in the fade group.',
-            shows: 'One cyan square.',
         },
         cases: [
             <FadeCase
@@ -11094,7 +11043,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'transition by where the image comes from: a new source from the memory cache shows at once, local files and bundled images fade in.',
             steps: 'Video samples, as in the fade group.',
-            shows: 'A row per case, top to bottom: two cyan squares (a source change from the memory cache); two cyan squares (a file:// image); one cyan square (a bundled image).',
         },
         cases: [
             <FadeCase
@@ -11138,7 +11086,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "transition's betweenImages: without it a new source replaces the image showing at once, with it the new image cross-dissolves from the old one.",
             steps: 'Video samples, as in the fade group. Each view shows a magenta image first, then its source changes to cyan.',
-            shows: 'A row per case, top to bottom: one cyan square (a download, no cross-dissolve); one cyan square (a download, cross-dissolving); two cyan squares (the left one loads the image, the right one cross-dissolves to it from the memory cache).',
         },
         cases: [
             <FadeCase
@@ -11187,7 +11134,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "transition from defaultSource: the image cross-dissolves from it, and defaultSource fades out under images with transparency and where the image doesn't cover the view (Android skips fading it out only under an opaque image that covers the view).",
             steps: 'Video samples, as in the fade group. Each view (on black) shows a magenta defaultSource with no source; half a second later it gets a cyan image from the slow server (about 350 ms), with transition { duration: 1000 }.',
-            shows: 'A row per case, top to bottom: a cyan square; a teal square (cyan at half opacity over black); a black square (the part of the view the image leaves uncovered). On Android, then a large cyan square with a thin black line along its top and bottom edges.',
         },
         cases: [
             <FadeCase
@@ -11250,7 +11196,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "source.thumbhash: the ThumbHash shows, decoded, while the image loads and when it fails, in place of defaultSource, and changing it after the load starts or ends doesn't load again.",
             steps: 'Most cases hold their download on the slow server (it sends nothing until the case unmounts), so the hash stays on screen for the screenshot. The hashes come from flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a magenta disc on transparent, and a 4:3 cyan-to-orange gradient.',
-            shows: 'A row per case, top to bottom: a red-to-blue gradient; a soft magenta disc on gray; a narrow green-to-yellow rectangle on gray; a gray photo of a misty forest; a cyan-to-orange gradient; the misty forest again; a small cyan-to-orange gradient; a green-to-yellow gradient.',
         },
         cases: [
             <ThumbhashLoadingCase key="thumbhash-loading" />,
@@ -11268,7 +11213,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "The placeholder prop and a source's blurDataUri: data uris and ThumbHashes shown while the image loads, sized and tinted as the image will be.",
             steps: 'Each case holds its download on the slow server (it sends nothing until the case unmounts), so the placeholder stays on screen for the screenshot.',
-            shows: 'A row per case, top to bottom: red, green, blue and yellow quadrants blended into each other; an orange-to-teal band across the middle of a gray rectangle; a green-to-yellow gradient; four sharp quadrants in the middle of a gray rectangle; a soft blue disc on gray.',
         },
         cases: [
             <PlaceholderDataUriCase key="placeholder-data-uri" />,
@@ -11282,7 +11226,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'hdr',
         description: {
             checks: 'An HDR photo loads with each dynamicRangeLimit.',
-            shows: "One row of three images: a flat gray rectangle, then two that aren't compared (black or gray in the iOS simulator, gray on Android).",
         },
         cases: [<HdrCase key="hdr" />],
     },
@@ -11290,7 +11233,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'placeholder-url',
         description: {
             checks: "The placeholder prop as a url: it loads and shows while the image loads or after it fails, with cache: 'cacheOnly' only if cached, and never over an image that has loaded.",
-            shows: 'A row per case, top to bottom: red, green, blue and yellow quadrants; an empty gray rectangle; the quadrants small, then larger; a cyan rectangle; a magenta rectangle.',
         },
         cases: [
             <PlaceholderUrlCase key="placeholder-url" />,
@@ -11306,7 +11248,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'transition with other kinds of drawables: an animated WebP fading in and, on Android, vector and animated WebP defaultSource drawables fading out around or under the image.',
             steps: 'Video samples, as in the fade group.',
-            shows: 'One cyan square (the animated WebP). On Android, then a black square (the uncovered top of a contain view) and a teal square (cyan at half opacity over black).',
         },
         cases: [
             <FadeCase
@@ -11361,7 +11302,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "transition at half opacity: the image cross-dissolves from what the view showed, which fades out under it (on Android, React Native applies a View's opacity to each drawing in it, so what the view showed would otherwise show through).",
             steps: 'Video samples, as in the fade group. Each case fades from magenta to an opaque cyan image from the slow server (about 350 ms), at half opacity over black.',
-            shows: 'A teal square (cyan at half opacity over black) per case: FastImage at opacity 0.5, then in a View at opacity 0.5, then (Android only) in a View with an AlphaAnimation.',
         },
         cases: [
             <FadeCase
@@ -11415,7 +11355,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'transition for images from the disk cache: they fade in by default, and show at once with skipOnCacheHit all.',
             steps: 'Video samples, as in the fade group. In each case a view (left) loads a cyan image, then unmounts; half a second later FastImage.clearMemoryCache() runs, and a second view (right, on black) mounts with the same source, so it loads from the disk cache.',
-            shows: 'Two rows, each an empty gray square (where the first view was) and a cyan square.',
         },
         cases: [
             <FadeCase
@@ -11450,7 +11389,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: "recyclingKey '' is a key like any other.",
             steps: 'A video sample: the screen is recorded while the case changes its source, and the color in the middle of the view must go through the listed colors in order.',
-            shows: 'One cyan square.',
         },
         cases: [
             <KeepPreviousCase
@@ -11472,7 +11410,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'A source change keeps the image showing until the new one has loaded, and clears it when recyclingKey changes too.',
             steps: 'Video samples: the screen is recorded while each case changes its source from a magenta image to a cyan one from the slow server (about 1 s), and the color in the middle of the view must go through the listed colors in order.',
-            shows: 'Five cyan squares, one per case.',
         },
         cases: [
             <KeepPreviousCase
@@ -11532,7 +11469,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'tint',
         description: {
             checks: 'tintColor over time, recorded on video: a tinted GIF playing, and tintColor changed or removed after the image loaded.',
-            shows: 'A row per case, top to bottom: a green square (the tinted GIF, on its last frame); a cyan square (the tint changed to cyan); a magenta square (the GIF untinted, on its first frame).',
         },
         cases: [
             <TintSampleCase
@@ -11577,7 +11513,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'several-sources',
         description: {
             checks: 'source as an array of sizes: the view loads the source whose size in pixels is closest to its own, including a require()d image among them.',
-            shows: 'A row per case, top to bottom: a red square (a 48 pt view, the 100 px source); a large green square (a 120 pt view, the 300 px source); a blue square (an array of one source; the second view in that row has no size); a tiny magenta square (a 16 pt view, the bundled image); a large green square (a 120 pt view, the 300 px source next to a bundled one). The same on iOS, Android and tvOS.',
         },
         cases: [
             <SeveralSourcesCase key="several-48" id="several-48" size={48} />,
@@ -11604,7 +11539,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'several-sources-large',
         description: {
             checks: 'source as an array of sizes in large views: a large view picks a larger source, and a view that grows loads a larger one.',
-            shows: "Two rows: a 240 pt square (blue, the 900 px source, on iPhone and Android; green, the 300 px one, on tvOS's 2x screen), then a 200 pt green square (the view that grew, the 300 px source).",
         },
         cases: [
             <SeveralSourcesCase
@@ -11620,7 +11554,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'several-sources-border',
         description: {
             checks: 'source as an array of sizes in views with borders: the source is picked for the box inside the borders, where the image is drawn.',
-            shows: 'Two rows, each a 120 pt black square (30 pt borders) with a red square (the 100 px source) filling the box inside: borders from the start, then borders added after the image loaded.',
         },
         cases: [
             <SeveralSourcesCase
@@ -11636,7 +11569,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'image-background',
         description: {
             checks: 'FastImageBackground draws its image behind its children.',
-            shows: 'One row: a wide photo of a bear on rocks with rounded corners and "on top" in white text across it.',
         },
         cases: [<ImageBackgroundCase key="image-background" />],
     },
@@ -11644,7 +11576,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'formats',
         description: {
             checks: 'Which still image formats load on each platform, for the tables in docs/formats.md: each case loads the same picture in one format.',
-            shows: 'A row per format, top to bottom: JPEG, PNG, GIF, WebP, AVIF, HEIC, BMP, ICO, TIFF, ICNS, PSD. Each loaded one shows four quadrants (red, green, blue, yellow); one that fails as expected is an empty gray square. On iOS all eleven load; on Android TIFF, ICNS and PSD are gray; on tvOS ICNS and PSD are gray.',
         },
         cases: [
             <FormatCase
@@ -11781,7 +11712,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'formats-animated',
         description: {
             checks: 'Which animated formats animate on each platform (GIF, APNG, WebP, a large downsampled WebP, AVIF), checked by recording each view.',
-            shows: 'Five rows, top to bottom: GIF, APNG, WebP, the large WebP, AVIF; each a red or blue square, depending on the frame. All are animated, so masked and not compared.',
         },
         cases: [
             <FormatAnimationCase
@@ -11847,7 +11777,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'avif-animation',
         description: {
             checks: "loop and paused with an animated AVIF (ImageIO's decoder on iOS, Android's ImageDecoder on Android).",
-            shows: 'Four rows, top to bottom: blue (loop={false}, stopped on its last frame); blue (a file that plays once, stopped); red (paused on its first frame); blue (paused, then resumed, played once).',
         },
         cases: [
             <GifLoopCase
@@ -11891,7 +11820,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'webp-animation',
         description: {
             checks: 'loop, paused, two views of one image, and blurRadius with an animated WebP.',
-            shows: 'A row per case, top to bottom: blue (loop={false}, stopped on its last frame); red or blue (loop removed, looping again; masked); red or blue (a new view without loop, looping; masked); red (paused on its first frame); blue (paused, then resumed, played once); red or blue twice (the same WebP in two views, both animating; masked); red (blurred, still on its first frame; masked).',
         },
         cases: [
             <GifLoopCase
@@ -11982,7 +11910,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'apng-animation',
         description: {
             checks: 'loop, paused, two views of one image, and blurRadius with an APNG (on Android with APNG4Android, which the example apps include).',
-            shows: 'A row per case, top to bottom: blue (loop={false}, stopped on its last frame); red (paused on its first frame); blue (paused, then resumed, played once); red or blue twice (the same APNG in two views, both animating; masked); red (blurred, still on its first frame; masked).',
         },
         cases: [
             <GifLoopCase
@@ -12048,7 +11975,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'svg',
         description: {
             checks: 'SVG images (SDWebImageSVGCoder on iOS, AndroidSVG on Android, which Fast Image includes): remote and bundled, their sizes in onLoad, a wrong Content-Type, tintColor and downsample.',
-            shows: 'A row per case, top to bottom: a red and blue rectangle (remote); the same (bundled); a smaller green and yellow rectangle (viewBox only); a small cyan and magenta rectangle (no size); a red and blue rectangle (sent as text/plain); a green ring on a gray square (tintColor); a red and blue rectangle (downsample).',
         },
         cases: [
             <SvgCase
@@ -12143,7 +12069,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'svg-sizes',
         description: {
             checks: 'How SVGs fit their views: objectFit contain and cover, and an SVG drawn sharp at a large size.',
-            shows: 'Three rows: a gray square with a red and blue band across its middle (contain); a square half red, half blue (cover); small black rings, then the same rings at 160 pt, thin and sharp.',
         },
         cases: [
             <SvgCase
@@ -12180,7 +12105,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'Photo library images (ph:// urls, iOS, with SDWebImagePhotosPlugin): a JPEG and a HEIC, a photo shown again after clearing the memory cache, an animated GIF, and urls that fail.',
             steps: "Uses the simulator's photo library, which verify.mts grants access to and adds a GIF to (and on tvOS, whose simulator has no photos, a JPEG and a HEIC of the four colored quadrants).",
-            shows: 'iOS, a row per case, top to bottom: a photo of a waterfall (JPEG); a photo of pink flowers (HEIC); the waterfall again; a blue square (the GIF, after playing once); two empty gray squares (an id not in the library, an assets-library url). On tvOS the first three rows show the four colored quadrants instead. Android: one empty gray square (ph:// urls are iOS only).',
         },
         cases:
             Platform.OS === 'ios'
@@ -12247,8 +12171,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'configure-cache',
         description: {
             checks: 'FastImage.configureCache and the disk cache limit set in the native config.',
-            steps: 'Near the end: on iOS it empties the disk cache, which only the groups after it see.',
-            shows: 'One row: an empty gray square (no image is shown).',
         },
         cases: [<ConfigureCacheCase key="configure-cache" />],
     },
@@ -12258,8 +12180,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         name: 'non-object-sources',
         description: {
             checks: 'preload, getCachePath and writeToCache with a url string where a source object goes: each resolves not ok instead of crashing the app.',
-            steps: 'Near the end, since a crash ends the run.',
-            shows: 'Three rows, each an empty gray square (no images are shown): preload, getCachePath, writeToCache.',
         },
         cases: [
             <PreloadNonObjectCase key="preload-non-object" />,
@@ -12274,7 +12194,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'Touches, accessibility labels and keyboard focus on FastImage, with real input: the touch flow (maestro/touch.yaml) taps each case while the group is shown.',
             steps: 'The flow taps, in order: the image inside the Touchable, the Pressable under the pointerEvents="none" image, the one under the box-none image, the image found by its accessibilityLabel, the one found by its aria-label, and the small gray square beside the hitSlop image; on Android it then taps the focus case\'s text field and presses Tab twice. tvOS leaves this group out.',
-            shows: 'A row per case, top to bottom, each the React logo on a gray square: Touchable; pointerEvents="none"; pointerEvents="box-none"; accessibilityLabel; aria-label; hitSlop (with a smaller gray square to its right). Android adds a last row: an empty text field with a gray border, then the logo (focus).',
         },
         cases: [
             <TouchableCase key="touchable" />,

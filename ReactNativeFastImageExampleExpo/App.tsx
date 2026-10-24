@@ -51,7 +51,6 @@ const GROUPS: RegressionGroup[] = [
         name: 'expo-image',
         description: {
             checks: 'expo-image works next to FastImage in the same app.',
-            shows: 'One row: the bear photo, loaded by expo-image.',
         },
         cases: [<ExpoImageCase key="expo-image" />],
     },

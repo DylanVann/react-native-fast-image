@@ -3,6 +3,7 @@ import { StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native'
 import {
     DescribeContext,
     Description,
+    GroupDescription,
     InRunnerContext,
     useReport,
 } from './RunnerContext'
@@ -50,7 +51,7 @@ export function DescriptionText({
     title,
     style,
 }: {
-    description: Description
+    description: GroupDescription
     title?: string
     style?: StyleProp<TextStyle>
 }) {
@@ -71,7 +72,7 @@ export function DescriptionText({
                     {description.steps}
                 </>
             ) : null}
-            {details ? (
+            {details && description.shows ? (
                 <>
                     {'\n'}
                     <Text style={caseStyles.label}>Shows: </Text>

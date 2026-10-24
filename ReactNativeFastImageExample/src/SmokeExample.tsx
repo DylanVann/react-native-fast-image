@@ -794,7 +794,6 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
         name: 'smoke',
         description: {
             checks: "FastImage works at all in an Expo app (the Expo example, on iOS, Android and the web): an image loads, a missing one fails, reload() after a failure, a bundled image, several sizes, preload, and the cache methods (on the web, that getCachePath isn't supported).",
-            shows: 'A row per case, top to bottom, each a small square unless noted: the pug photo; an empty gray square (the 404); the pug photo (loaded with reload()); the light blue React logo (bundled); a larger solid square, green on iOS and Android and red on the web (several sizes); an empty gray square (preload); the northern lights photo (getCachePath); and on iOS and Android only, an empty gray square (configureCache).',
         },
         cases: [
             <LoadCase key="load" />,
@@ -815,8 +814,6 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                   name: 'smoke-web',
                   description: {
                       checks: "The web version's own behavior: onLoad when the sizes change, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri.",
-                      steps: 'Web only, in headless Chrome, where screenshots are not compared.',
-                      shows: 'A row per case, top to bottom: the red 100 px square (sizes changed); the pug photo (with a placeholder); the pug photo (reload() with a url placeholder); a 96×72 box of red, green, blue and yellow quadrants blurred into each other (blurDataUri).',
                   },
                   cases: [
                       <SizesChangeCase key="sizes-change" />,
@@ -831,7 +828,6 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                   name: 'smoke-glide',
                   description: {
                       checks: "Features that on Android go through the Glide components FastImage registers itself when the app's AppGlideModule is expo-image's: onProgress, cache: 'web', writeToCache, SVG and APNG images. iOS runs the same cases.",
-                      shows: "A row per case, top to bottom, each a small square: the pug photo (onProgress); an empty gray square (cache: 'web', its view removed after the second load); the northern lights photo (writeToCache); a black ring on gray (SVG); a red or blue square (the APNG, animated, so it's not compared); a red square (the APNG with blurRadius, also not compared).",
                   },
                   cases: [
                       <ProgressCase key="progress" />,

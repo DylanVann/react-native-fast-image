@@ -11,13 +11,13 @@ import { View, ViewProps } from 'react-native'
 // A group of cases the regression runner (RegressionRunner.tsx) shows at once.
 export type RegressionGroup = {
     name: string
-    description: Description
+    description: GroupDescription
     cases: React.ReactElement[]
 }
 
-// What a case or group checks, in plain English, for someone reviewing its
-// screenshot who hasn't read its code. The Regression tab shows it, and the
-// runner sends it to scripts/verify.mts (results.json).
+// What a case checks, in plain English, for someone reviewing its screenshot
+// who hasn't read its code. The Regression tab shows it, and the runner sends
+// it to scripts/verify.mts (results.json).
 export type Description = {
     // What it checks, and the bug it's for: the issue, the platform and what
     // went wrong.
@@ -29,6 +29,16 @@ export type Description = {
     // right), and what a failure looks like there; for a video sample, the
     // colors it records in order.
     shows: string
+}
+
+// What a group checks as a whole; its cases describe themselves. `steps` is
+// for what its cases share (the server's behavior, video samples), and
+// `shows` only for groups whose cases don't describe themselves (the example
+// screens).
+export type GroupDescription = {
+    checks: string
+    steps?: string
+    shows?: string
 }
 
 // How the regression runner (RegressionRunner.tsx) hears from the cases and
