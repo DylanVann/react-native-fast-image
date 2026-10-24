@@ -1799,32 +1799,54 @@ async function runRegression(
         file: string,
         masks: PixelRect[],
         cases: Record<string, PixelRect>,
-        // The group's failures, and whether the screenshot was cropped to
-        // the safe area: canSeed (see compareScreenshot).
+        // The group's failures: none, or it can't seed (see
+        // compareScreenshot).
         failures: string[],
-        cropped: boolean,
     ) => {
-        const canSeed = failures.length === 0 && cropped
-        const approval = { approvable: canSeed && !REF, failures }
+        const canSeed = failures.length === 0
         const { width, height } = pngSize(file)
         const pad = Math.round(CASE_PADDING * scale)
-        // Cases with nothing to show (a zero-size view) have no area.
-        const areas = Object.entries(cases)
-            .filter(([, r]) => r.width > 0 && r.height > 0)
-            .map(([id, r]) => {
-                const x = Math.max(0, r.x - pad)
-                const y = Math.max(0, r.y - pad)
-                return [
-                    id,
-                    {
-                        x,
-                        y,
-                        width: Math.min(width, r.x + r.width + pad) - x,
-                        height: Math.min(height, r.y + r.height + pad) - y,
-                    },
-                ] as const
-            })
-        if (areas.length === 0) {
+        // Each case's area, padded, within the screenshot.
+        const padded = Object.entries(cases).map(([id, r]) => {
+            const x = Math.max(0, r.x - pad)
+            const y = Math.max(0, r.y - pad)
+            return [
+                id,
+                r,
+                {
+                    x,
+                    y,
+                    width: Math.min(width, r.x + r.width + pad) - x,
+                    height: Math.min(height, r.y + r.height + pad) - y,
+                },
+            ] as const
+        })
+        // Cases with nothing to show (a zero-size view) have no area to
+        // compare; one outside the screenshot fails.
+        const empty = padded.filter(([, r]) => r.width <= 0 || r.height <= 0)
+        if (empty.length > 0)
+            logLine(
+                `screenshot ${name}: not compared (zero size): ${empty.map(([id]) => id).join(', ')}`,
+            )
+        const outside = padded.filter(
+            ([, r, a]) =>
+                r.width > 0 && r.height > 0 && (a.width <= 0 || a.height <= 0),
+        )
+        const outsideFailures = outside.map(
+            ([id]) => `${name}/${id}: outside the screenshot`,
+        )
+        failuresOf(index).push(...outsideFailures)
+        const approval = {
+            approvable: canSeed && !REF,
+            failures: [...failures, ...outsideFailures],
+        }
+        const areas = padded
+            .filter(
+                ([, r, a]) =>
+                    r.width > 0 && r.height > 0 && a.width > 0 && a.height > 0,
+            )
+            .map(([id, , a]) => [id, a] as const)
+        if (areas.length === 0 && outside.length === 0) {
             const compared = await compareScreenshot(
                 app,
                 platform,
@@ -1854,13 +1876,16 @@ async function runRegression(
         fs.mkdirSync(path.join(dir, path.basename(file, '.png')), {
             recursive: true,
         })
-        const cropError = await cropEach(
-            file,
-            areas.map(([id, area]) => ({ to: caseFile(id), area })),
-        ).then(
-            () => undefined,
-            (error: Error) => error,
-        )
+        const cropError =
+            areas.length === 0
+                ? undefined
+                : await cropEach(
+                      file,
+                      areas.map(([id, area]) => ({ to: caseFile(id), area })),
+                  ).then(
+                      () => undefined,
+                      (error: Error) => error,
+                  )
         for (const [id, area] of areas) {
             const caseMasks = masks.flatMap((m) => {
                 const x = Math.max(m.x, area.x)
@@ -1947,35 +1972,48 @@ async function runRegression(
             height: m.height * scale,
         }))
         await captureScreenshot(platform, device, file, screenMasks)
+        if (!fs.existsSync(file)) {
+            failuresOf(index).push(`${name}: no screenshot`)
+            logLine(`screenshot ${name}: none`)
+            return { shot: Promise.resolve() }
+        }
         const crop = area && {
             x: Math.round(area.x * scale),
             y: Math.round(area.y * scale),
             width: Math.round(area.width * scale),
             height: Math.round(area.height * scale),
         }
-        const masks = screenMasks.map((m) => ({
-            ...m,
-            x: m.x - (crop?.x ?? 0),
-            y: m.y - (crop?.y ?? 0),
-        }))
-        const cases = Object.fromEntries(
-            Object.entries((casesDp ?? {}) as Record<string, PixelRect>).map(
-                ([id, r]) => [
+        const shot = (
+            crop ? cropScreenshot(file, crop) : Promise.resolve(false)
+        ).then((cropped) => {
+            // The masks and cases' areas, in the screenshot: from the safe
+            // area's corner once it's cropped to it.
+            const origin = cropped && crop ? crop : { x: 0, y: 0 }
+            if (crop && !cropped) {
+                const failure = `${name}: couldn't crop its screenshot to the safe area`
+                failuresOf(index).push(failure)
+                failures = [...failures, failure]
+            }
+            const masks = screenMasks.map((m) => ({
+                ...m,
+                x: m.x - origin.x,
+                y: m.y - origin.y,
+            }))
+            const cases = Object.fromEntries(
+                Object.entries(
+                    (casesDp ?? {}) as Record<string, PixelRect>,
+                ).map(([id, r]) => [
                     id,
                     {
-                        x: Math.round(r.x * scale - (crop?.x ?? 0)),
-                        y: Math.round(r.y * scale - (crop?.y ?? 0)),
+                        x: Math.round(r.x * scale - origin.x),
+                        y: Math.round(r.y * scale - origin.y),
                         width: Math.round(r.width * scale),
                         height: Math.round(r.height * scale),
                     },
-                ],
-            ),
-        )
-        const shot = (
-            crop ? cropScreenshot(file, crop) : Promise.resolve(false)
-        ).then((cropped) =>
-            compareGroup(index, name, file, masks, cases, failures, cropped),
-        )
+                ]),
+            )
+            return compareGroup(index, name, file, masks, cases, failures)
+        })
         shots.push(shot)
         return { shot }
     }
