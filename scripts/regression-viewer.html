@@ -210,20 +210,33 @@
             .detail {
                 color: var(--muted);
                 margin: 4px 0 0;
-                font-size: 13px;
+                font-size: 12px;
             }
             .description {
-                margin: 12px 0;
-                max-width: 900px;
+                margin: 16px 0;
             }
-            .description p {
-                margin: 4px 0;
+            /* A description: what it checks and what it shows in the text's
+            color, the steps (supporting detail) muted; each part's label
+            small and uppercase, which marks it without competing with it. */
+            .description p,
+            .case p {
+                margin: 4px 0 0;
+                max-width: 75ch;
+                line-height: 1.5;
             }
-            .description b {
-                display: inline-block;
-                min-width: 54px;
+            .description p:first-child {
+                margin-top: 0;
+            }
+            p.steps {
                 color: var(--muted);
+            }
+            .label {
+                margin-right: 8px;
+                color: var(--muted);
+                font-size: 12px;
                 font-weight: 600;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
             }
             .layout {
                 display: grid;
@@ -321,14 +334,10 @@
             }
             .case .status {
                 color: var(--failed);
-                font-size: 13px;
+                font-size: 12px;
             }
-            .case p {
-                margin: 3px 0 0;
-            }
-            .case .label {
-                color: var(--muted);
-                font-weight: 600;
+            .case .checks {
+                margin-top: 4px;
             }
             .layout.by-case {
                 grid-template-columns: 220px minmax(0, 1fr);
@@ -341,7 +350,7 @@
                 display: grid;
                 grid-template-columns: repeat(3, minmax(0, 1fr));
                 gap: 8px;
-                margin-top: 6px;
+                margin-top: 8px;
             }
             .crops img,
             figure > canvas {
@@ -553,9 +562,13 @@
             function descriptionHtml(d) {
                 if (!d) return '<p class="detail">No description.</p>'
                 return (
-                    `<p><b>Checks</b> ${esc(d.checks)}</p>` +
-                    (d.steps ? `<p><b>Steps</b> ${esc(d.steps)}</p>` : '') +
-                    (d.shows ? `<p><b>Shows</b> ${esc(d.shows)}</p>` : '')
+                    `<p class="checks"><span class="label">Checks</span>${esc(d.checks)}</p>` +
+                    (d.steps
+                        ? `<p class="steps"><span class="label">Steps</span>${esc(d.steps)}</p>`
+                        : '') +
+                    (d.shows
+                        ? `<p class="shows"><span class="label">Shows</span>${esc(d.shows)}</p>`
+                        : '')
                 )
             }
 
@@ -724,11 +737,11 @@
                         ? `<details class="detail"><summary>${committed ? 'Committed description' : 'No committed description'}</summary>${committed ? caseDescription({ description: committed }) : ''}</details>`
                         : ''
                 return (
-                    `<p>${esc(c.description.checks)}</p>` +
+                    `<p class="checks">${esc(c.description.checks)}</p>` +
                     (c.description.steps
-                        ? `<p><span class="label">Steps:</span> ${esc(c.description.steps)}</p>`
+                        ? `<p class="steps"><span class="label">Steps</span>${esc(c.description.steps)}</p>`
                         : '') +
-                    `<p><span class="label">Shows:</span> ${esc(c.description.shows)}</p>` +
+                    `<p class="shows"><span class="label">Shows</span>${esc(c.description.shows)}</p>` +
                     before
                 )
             }
