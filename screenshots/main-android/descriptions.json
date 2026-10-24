@@ -1985,6 +1985,11 @@
                 "checks": "An SVG shown large is drawn at its size, not scaled up from a small bitmap.",
                 "steps": "Loads the same 20×20 SVG (three thin black rings on white) in a 24 pt view and a 160 pt view. Passes when both have fired onLoad; the sharpness is checked by the screenshot.",
                 "shows": "Small rings, then the same rings at 160 pt: thin, sharp black circles on white. Blurry or thick edges on the large one would mean it was scaled up from a bitmap."
+            },
+            "svg-tint-grow": {
+                "checks": "A tinted SVG whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).",
+                "steps": "Loads a 24×24 SVG icon (a black ring) with tintColor green in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.",
+                "shows": "A green ring filling a 160 pt square, with sharp edges. Blurry edges would mean it was scaled up from the 24 pt bitmap."
             }
         }
     },
