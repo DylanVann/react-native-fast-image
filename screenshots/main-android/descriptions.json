@@ -1,0 +1,2068 @@
+{
+    "start": {
+        "description": {
+            "checks": "Fast Image calls that must work as the app's first, before any view has loaded an image."
+        },
+        "cases": {
+            "cache-path-web-at-start": {
+                "checks": "FastImage.getCachePath for a cache: 'web' image works as the app's first Fast Image call (Android failed, saying Glide isn't set up: the HTTP cache of web images was only set up once a view had loaded an image).",
+                "steps": "With no image view on screen, calls FastImage.getCachePath with cache: 'web' for a photo the image server marks as cacheable for an hour (a new url each run), which downloads it into the HTTP cache. Passes when the result is ok.",
+                "shows": "An empty gray square: the case shows no image."
+            }
+        }
+    },
+    "load-end": {
+        "description": {
+            "checks": "onLoadEnd's event: whether the load worked, with onLoad's size or onError's error."
+        },
+        "cases": {
+            "load-end-ok": {
+                "checks": "onLoadEnd's event has the load's result: for an image that loads, ok: true and the same width and height onLoad got.",
+                "steps": "Loads the logo from the image server, with onLoad and onLoadEnd. Passes once both have fired and onLoadEnd's event is { ok: true, width, height } with onLoad's size.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "load-end-error": {
+                "checks": "onLoadEnd's event has the load's result: for an image that fails, ok: false and the same error onError got.",
+                "steps": "Loads a url the image server answers with a 404, with onError and onLoadEnd. Passes once both have fired and onLoadEnd's event is { ok: false, error } with onError's error.",
+                "shows": "An empty gray square: the image never loads."
+            }
+        }
+    },
+    "events": {
+        "description": {
+            "checks": "Event handlers and source values that crashed or failed loads: tintColor without an image, handlers removed after firing, source values Fast Image doesn't know, and images without handlers."
+        },
+        "cases": {
+            "tint-remote": {
+                "checks": "tintColor on a remote image without a defaultSource (#1082: iOS crashed tinting an image with no size, before the remote one had loaded).",
+                "steps": "Loads the logo with tintColor green and no defaultSource. Passes on onLoad.",
+                "shows": "The React logo in solid green instead of its usual light blue."
+            },
+            "tint-404": {
+                "checks": "tintColor on an image that fails to load (#1082: iOS crashed tinting an image with no size).",
+                "steps": "Loads a url the image server answers with a 404, with tintColor green. Passes on onError.",
+                "shows": "An empty gray square: nothing loads, so there's nothing to tint."
+            },
+            "remove-onLoad": {
+                "checks": "Removing the onLoad handler after it has fired (#1088: iOS called the removed handler and crashed).",
+                "steps": "Loads the logo with onLoad; when it fires, the case re-renders without onLoad. Passes once it has fired; a crash after that fails the whole run.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "remove-onLoadEnd": {
+                "checks": "Removing the onLoadEnd handler after it has fired (#1088: iOS called the removed handler and crashed).",
+                "steps": "Loads the logo with onLoadEnd; when it fires, the case re-renders without onLoadEnd. Passes once it has fired; a crash after that fails the whole run.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "remove-onError": {
+                "checks": "Removing the onError handler after it has fired (#1088: iOS called the removed handler and crashed).",
+                "steps": "Loads a url the image server answers with a 404 with onError; when it fires, the case re-renders without onError. Passes once it has fired; a crash after that fails the whole run.",
+                "shows": "An empty gray square: the image never loads."
+            },
+            "unknown-cache": {
+                "checks": "A source.cache that isn't one of Fast Image's values ('sometimes') is treated as the default ('immutable') instead of failing.",
+                "steps": "Loads the logo with cache: 'sometimes'. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "react-native-reload": {
+                "checks": "React Native Image's cache: 'reload', which Fast Image doesn't have, is treated as the default instead of failing.",
+                "steps": "Loads the logo with cache: 'reload'. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "unknown-priority": {
+                "checks": "A source.priority that isn't one of Fast Image's values ('urgent') is treated as the default ('normal') instead of failing.",
+                "steps": "Loads the logo with priority: 'urgent'. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "non-string-cache": {
+                "checks": "A source.cache that isn't a string (the number 1) is treated as the default instead of failing or crashing.",
+                "steps": "Loads the logo with cache: 1. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "no-handlers": {
+                "checks": "Images without event handlers send no events to JS (they sent onLoadStart, onLoad and onLoadEnd anyway, work for nothing on the JS thread).",
+                "steps": "Loads one photo in three images: the first two have no handlers, the third has onLoadEnd. Counts every Fast Image event React Native receives from the first two. Passes if, half a second after the third's onLoadEnd, none arrived.",
+                "shows": "Three copies of the same photo (a pug in a blanket)."
+            }
+        }
+    },
+    "errors": {
+        "description": {
+            "checks": "Sources that fail fire onError: a data uri that isn't an image, an empty or null uri, and a 404, whose error says so."
+        },
+        "cases": {
+            "error-invalid-data-uri": {
+                "checks": "A data: uri whose data isn't an image fires onError (iOS fired onLoad, with a size of 0x0).",
+                "steps": "Loads a data:image/png;base64 uri whose data is the text 'not an image'. Passes on onError.",
+                "shows": "An empty gray square: nothing loads."
+            },
+            "error-empty-uri": {
+                "checks": "An empty uri fires onError (#1028: Android didn't fire it).",
+                "steps": "Loads { uri: '' }. Passes on onError.",
+                "shows": "An empty gray square: nothing loads."
+            },
+            "error-null-uri-default": {
+                "checks": "A null uri fires onError and shows defaultSource (#945: Android showed nothing).",
+                "steps": "Loads { uri: null } with a defaultSource bundled in the app. Passes on onError.",
+                "shows": "The defaultSource: on iOS an aerial photo of fields; on Android a text field's underline drawable (a short black line near the bottom of the gray square). An empty gray square means defaultSource didn't show."
+            },
+            "error-null-uri-downsample": {
+                "checks": "A null uri with downsample fires onError (iOS crashed).",
+                "steps": "Loads { uri: null } with downsample. Passes on onError; a crash fails the whole run.",
+                "shows": "An empty gray square: nothing loads."
+            },
+            "error-message": {
+                "checks": "onError's error says what went wrong (#200: onError had no details).",
+                "steps": "Loads a url the image server answers with a 404. Passes when onError's error contains '404'.",
+                "shows": "An empty gray square: the image never loads."
+            }
+        }
+    },
+    "headers-invalid": {
+        "description": {
+            "checks": "source.headers that isn't an object of strings (null, an array, values that aren't strings) on views and in FastImage.preload, and a uri that isn't a string."
+        },
+        "cases": {
+            "headers-null": {
+                "checks": "headers: null (e.g. a header object built only when signed in) is treated as no headers, and the image loads (Android crashed).",
+                "steps": "Loads the logo with headers: null. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "headers-array": {
+                "checks": "headers given as an array doesn't stop the image loading (Android crashed).",
+                "steps": "Loads the logo with headers: ['x-token']. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "headers-non-string": {
+                "checks": "Header values that aren't strings are left out and the string ones still sent (Android crashed; iOS sent no headers at all when one wasn't a string).",
+                "steps": "Loads a photo from the image server's /private/ path, which answers 403 without the header x-token: fast-image, with headers { 'x-token': 'fast-image', 'x-null': null, 'x-object': {} }. Passes on onLoad, which needs x-token to have been sent.",
+                "shows": "A photo of a bear on rocks, letterboxed. An empty gray square means the string header wasn't sent (a 403)."
+            },
+            "uri-non-string": {
+                "checks": "A uri that isn't a string fires onError.",
+                "steps": "Loads { uri: 1 }. Passes on onError.",
+                "shows": "An empty gray square: nothing loads."
+            },
+            "headers-invalid-preload": {
+                "checks": "FastImage.preload with headers: null, headers as an array, or header values that aren't strings preloads each source, and sends the string headers (Android crashed).",
+                "steps": "Preloads three sources: the logo with headers: null; the logo with headers: ['x-token']; a photo from the /private/ path (403 without x-token: fast-image) with a string x-token next to a null and an object value. Passes when every result is ok.",
+                "shows": "An empty gray square: preload shows no image."
+            }
+        }
+    },
+    "no-crash": {
+        "description": {
+            "checks": "Props and calls that crashed the app or never loaded: defaultSource without a source, FastImage.preload with missing or unresolvable uris, asset:/ uris (Android), and views with a width or height of 0."
+        },
+        "cases": {
+            "default-no-source": {
+                "checks": "defaultSource with no source at all (#973: Android crashed).",
+                "steps": "Renders a FastImage with only a defaultSource bundled in the app. Passes if the app is still running 750 ms after it mounts.",
+                "shows": "The defaultSource: on iOS an aerial photo of fields; on Android a text field's underline drawable (a short black line near the bottom of the gray square)."
+            },
+            "preload-no-uri": {
+                "checks": "FastImage.preload with sources that have no uri, or a null source (#774: Android crashed).",
+                "steps": "Calls FastImage.preload with { uri: '' }, {}, { uri: null } and null. Passes if the app is still running 750 ms later.",
+                "shows": "An empty gray square: the case shows no image."
+            },
+            "preload-unresolved": {
+                "checks": "FastImage.preload with a uri that can't be resolved, a bare file name (#849: Android crashed).",
+                "steps": "Calls FastImage.preload with { uri: 'not-a-real-image.jpg' }. Passes if the app is still running 750 ms later.",
+                "shows": "An empty gray square: the case shows no image."
+            },
+            "asset-uri": {
+                "checks": "An asset:/ uri, a file in the app's Android assets, loads (#1068: Android didn't support them).",
+                "steps": "Loads asset:/fastimage-logo.png. Passes on onLoad.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "zero-size": {
+                "checks": "An image in a view with a width and height of 0 still loads and fires onLoad (#865: Android never fired it).",
+                "steps": "Loads a photo with style { width: 0, height: 0 }. Passes on onLoad.",
+                "shows": "Nothing: the view has no size."
+            },
+            "zero-height": {
+                "checks": "An image in a view with a width but a height of 0 still loads and fires onLoad (#865: Android never fired it).",
+                "steps": "Loads a photo with style { width: 64, height: 0 }. Passes on onLoad.",
+                "shows": "Nothing: the view is 0 tall."
+            }
+        }
+    },
+    "layout": {
+        "description": {
+            "checks": "Layout and sizes: onLayout, measure through refs, images in the app by name, tintColor in style, and the image size onLoad reports."
+        },
+        "cases": {
+            "layout": {
+                "checks": "onLayout reports the image's position in its parent (#992: it came from the inner native view, which reported 0).",
+                "steps": "Loads the logo with marginLeft: 10 and onLayout. Passes once the image has loaded and onLayout has reported x = 10.",
+                "shows": "The React logo (light blue) on a gray square, 10 dp in from the left."
+            },
+            "ref-measure": {
+                "checks": "measure and measureInWindow, called through FastImage's and FastImageBackground's refs, report the size of the view the image fills (#1254 typed these refs; this checks they reach that view).",
+                "steps": "Loads the logo in a 48×48 FastImage and a 96×48 FastImageBackground, each with a ref. Once both have loaded, calls measure and measureInWindow through each ref. Passes if they report 48x48, 48x48, 96x48 and 96x48.",
+                "shows": "The React logo on a gray square, then the logo in a wide box, scaled up to its width and cropped at the top and bottom (cover)."
+            },
+            "app-image-name": {
+                "checks": "An image in the app by its name (in the asset catalog on iOS, a drawable on Android) loads (#410: iOS looked for a file of that name in the app's resources, which an asset catalog image isn't, so it didn't load).",
+                "steps": "Loads { uri: 'regression_quadrants' }. Passes when onLoad reports 80x80, the image's size.",
+                "shows": "The quadrants filling the square: red top left, green top right, blue bottom left, yellow bottom right."
+            },
+            "tint-style": {
+                "checks": "tintColor in style tints the image, as with React Native's Image (#946: iOS ignored it).",
+                "steps": "Loads the logo with style tintColor: 'green'. Passes on onLoad.",
+                "shows": "The React logo in solid green instead of its usual light blue. A light blue logo means the tint was ignored."
+            },
+            "source-size": {
+                "checks": "onLoad reports the image's own size, not the size it was decoded at for the view (#608: Android reported the size of the smaller bitmap it decoded).",
+                "steps": "Loads a 600×300 photo into a 48×48 view with objectFit=\"contain\". Passes when onLoad reports 600x300.",
+                "shows": "A wide photo of green cliffs, letterboxed: gray above and below it."
+            },
+            "source-size-gif": {
+                "checks": "onLoad reports a GIF's own size too, not the size it was decoded at for the view (#608).",
+                "steps": "Loads a 500×281 animated GIF of a jellyfish into a 48×48 view with objectFit=\"contain\". Passes when onLoad reports 500x281.",
+                "shows": "The jellyfish GIF (a pink and orange jellyfish on deep blue), letterboxed: gray above and below it. Animated, so it isn't compared."
+            },
+            "source-size-cached": {
+                "checks": "onLoad reports the image's own size when the image comes from a cache, too.",
+                "steps": "Loads the 1000×1000 logo (on Android from the app's assets, so the third load comes from Glide's disk cache of resized images, which it only uses for local images) three times: decoded, from the memory cache, and after FastImage.clearMemoryCache(). Passes if every onLoad reported 1000x1000; the image is removed after the third.",
+                "shows": "An empty gray square: the image is removed once its third load has been checked."
+            }
+        }
+    },
+    "view-style": {
+        "description": {
+            "checks": "View style props on FastImage's single native view: borders, radii, padding, overflow, opacity, transforms, shadows, backfaceVisibility and tintColor, drawn and clipped as on a View.",
+            "steps": "Every image but the last is the same wide photo of green cliffs (2:1) with the default objectFit cover, in a 56 dp square or a 96×56 box. Each case passes once its images have loaded; the screenshot does the checking."
+        },
+        "cases": {
+            "style-corners": {
+                "checks": "Per-corner and logical corner radii, with a border: the image is clipped inside the border, with the matching inner radii.",
+                "steps": "Two squares: one with corner radii 0 (top left), 24 (top right), 8 (bottom right) and 16 (bottom left) and a 3 dp blue border; one with borderTopStartRadius and borderBottomEndRadius 24.",
+                "shows": "Left: the photo inside a blue border, its top left corner square, the top right much rounder than the bottom ones, and no photo outside the border. Right: the photo with its top left and bottom right corners rounded."
+            },
+            "style-border-sides": {
+                "checks": "Borders of a different width and color on each side, a 50% radius on a wide box, and a dashed border.",
+                "steps": "Three images: a square with borderRadius 12 and borders of 2 (red, top), 6 (green, right), 10 (blue, bottom) and 4 (orange, left); a 96×56 box with borderRadius '50%'; a square with borderRadius 8 and a 2 dp dashed black border.",
+                "shows": "Left to right: the photo framed by a thin red top, green right, thick blue bottom and orange left border, with rounded corners; the photo clipped to an ellipse; the photo inside a dashed black border with rounded corners."
+            },
+            "style-padding": {
+                "checks": "padding doesn't inset the image, which fills the box as without padding, and overflow: 'visible' with a radius leaves the image's corners square.",
+                "steps": "Three squares: padding 8 with a 2 dp black border and borderRadius 12; the same border and radius without padding; borderRadius 16 with overflow: 'visible'.",
+                "shows": "Left to right: two identical photos inside rounded black borders, filling them (a gap inside the left border is the bug); a photo with square corners."
+            },
+            "style-effects": {
+                "checks": "opacity, a rotation, a box shadow and elevation on the image, each with a radius but the first.",
+                "steps": "Four squares: opacity 0.5; borderRadius 12 rotated 15 degrees; borderRadius 12 with boxShadow '0 4px 8px rgba(0, 0, 0, 0.6)'; borderRadius 12 with elevation 8.",
+                "shows": "Left to right: the photo at half opacity; rounded and tilted clockwise; rounded with a dark shadow below; rounded, with a soft shadow on Android only (elevation is Android only)."
+            },
+            "style-backface": {
+                "checks": "backfaceVisibility on an image turned around (rotateY 180°): 'hidden' doesn't show it, and 'visible' shows it mirrored.",
+                "steps": "Two squares with transform rotateY: '180deg': backfaceVisibility 'hidden', then 'visible'.",
+                "shows": "Left: nothing at all, not even the gray background. Right: the photo mirrored, the cliffs on the left."
+            },
+            "tint-prop-wins": {
+                "checks": "The tintColor prop wins over tintColor in style, as with React Native's Image.",
+                "steps": "Loads the logo with objectFit=\"contain\", tintColor green and style tintColor red.",
+                "shows": "The React logo in solid green on a gray square. A red logo means style's tintColor won."
+            }
+        }
+    },
+    "view-style-more": {
+        "description": {
+            "checks": "Style changes after the image has loaded (a border removed, overflow switched) and a gradient background, each next to an image that should look the same.",
+            "steps": "Each case passes a moment after its change; the screenshot does the checking."
+        },
+        "cases": {
+            "style-gradient": {
+                "checks": "A gradient background (experimental_backgroundImage) shows under a contained image, as on a View (Android drew no gradient on FastImage's view).",
+                "steps": "Loads the wide photo with objectFit=\"contain\" in a square with experimental_backgroundImage linear-gradient(#ff0000, #0000ff), next to a View with the same gradient. Passes on onLoad.",
+                "shows": "Left: the photo across the middle, with the gradient's red above it and blue below. Right: the whole gradient, red at the top to blue at the bottom."
+            },
+            "style-border-change": {
+                "checks": "A border removed after the image has loaded: the image fills the box again (Android kept the image it had loaded for the smaller box inside the border, stretched).",
+                "steps": "Loads a 600×300 photo in two 96×56 boxes; the left one has a 40 dp black top border, removed 100 ms after onLoad. Passes 1 s later.",
+                "shows": "Two identical photos of green cliffs filling their boxes. A black band at the top of the left one, or the photo stretched, is the bug."
+            },
+            "style-border-removed": {
+                "checks": "One edge's border width removed after the image has loaded, under a width for every edge: that edge falls back to the width for every edge, and the image stays inside the borders (on Android with React Native 0.83 to 0.87, the removed width reached the view as NaN and the image was drawn over the left border).",
+                "steps": "Loads a 600×300 photo in two 96×56 boxes with a 6 dp black border; the left one also has borderLeftWidth 30, removed 100 ms after onLoad. Passes 1 s later.",
+                "shows": "Two identical photos inside even 6 dp black borders. A thick left border, or the photo over the left border, is the bug."
+            },
+            "style-overflow-change": {
+                "checks": "overflow switched from 'hidden' to 'visible' after the image has loaded, with a borderRadius: the corners become square, as on an image that was visible from the start (iOS kept the rounded mask).",
+                "steps": "Loads the wide photo in two squares with borderRadius 16; the left one starts with overflow: 'hidden', switched to 'visible' 100 ms after onLoad. Passes 1 s later.",
+                "shows": "Two identical photos of green cliffs with square corners. Rounded corners on the left one are the bug."
+            }
+        }
+    },
+    "visual": {
+        "description": {
+            "checks": "Changes after load, checked by screenshot (tintColor removed, objectFit changed, a view that gets taller), and a GIF without a loop count, checked by a video sample."
+        },
+        "cases": {
+            "clear-tint": {
+                "checks": "tintColor removed after the image has loaded shows it untinted again (#586: iOS kept the tint).",
+                "steps": "Loads the logo twice: the right one with tintColor green, removed in its onLoad. Passes 500 ms later.",
+                "shows": "Two identical light blue React logos. A green right one is the bug."
+            },
+            "fit-change": {
+                "checks": "objectFit changed from cover to contain after the image has loaded (#762: Android kept showing the cover crop).",
+                "steps": "Loads a 600×300 photo in two squares: the left with objectFit=\"contain\", the right with cover, switched to contain in its onLoad (the same source object throughout: a new one reloaded the image, which hid the bug). Passes 750 ms later.",
+                "shows": "Two identical photos of green cliffs, letterboxed: gray above and below. A right one that fills its square is the bug."
+            },
+            "gif-loop-once": {
+                "checks": "A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).",
+                "steps": "A video sample: the screen is recorded while the case shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop, until 2.4 s after onLoad; the color in the middle of the view must go from gray to magenta to cyan, and stay cyan.",
+                "shows": "A cyan square: the last frame. In the recording: gray, magenta, cyan; magenta again after cyan means it looped."
+            },
+            "size-change": {
+                "checks": "An image in a view that gets taller after it has loaded looks like React Native's Image next to it (#983: Android showed a zoomed-in slice, since Glide had cropped the image for the first size).",
+                "steps": "Loads a 600×1200 image of 12 px black and white vertical stripes with objectFit cover in a 96×16 view, next to React Native's Image with resizeMode cover; 300 ms after onLoad, both views become 96×96. Passes 1 s later.",
+                "shows": "Two identical squares of thin black and white vertical stripes. Wider stripes on the left (zoomed in) are the bug."
+            }
+        }
+    },
+    "gif-loop": {
+        "description": {
+            "checks": "The loop and paused props on GIFs: stopping after one or two plays, looping a GIF that plays once, changing loop, pausing, and resuming.",
+            "steps": "The GIFs have two frames of a solid color each (0.4 s each, unless a case says otherwise); each case waits for its plays after onLoad."
+        },
+        "cases": {
+            "gif-loop-false": {
+                "checks": "loop={false} plays a GIF that loops forever by itself once, and it stops on its last frame.",
+                "steps": "Loads a GIF that loops forever, red then blue, with loop={false}. Passes 1.4 s after onLoad (one play and a margin).",
+                "shows": "A blue square: the last frame. Red means it was still playing."
+            },
+            "gif-loop-count": {
+                "checks": "loop={2} plays a GIF that loops forever by itself twice, and it stops on its last frame.",
+                "steps": "Loads a GIF that loops forever, orange then purple, with loop={2}. Passes 2.2 s after onLoad (two plays and a margin).",
+                "shows": "A purple square: the last frame. Orange means it was still playing."
+            },
+            "gif-loop-true": {
+                "checks": "loop (true) keeps a GIF that plays once by itself looping.",
+                "steps": "Loads a GIF without a loop count, yellow then green, with loop. Passes 1.4 s after onLoad if the app hasn't crashed.",
+                "shows": "A yellow or green square: it's animated, so it's not compared."
+            },
+            "gif-loop-change": {
+                "checks": "loop changed from false to true after the GIF has stopped plays it again, and it keeps looping.",
+                "steps": "Loads a GIF that loops forever by itself, orange then purple, with loop={false}; 1.4 s after onLoad (it has stopped on purple), sets loop to true. Passes 0.4 s later if the app hasn't crashed.",
+                "shows": "An orange or purple square: it's animated, so it's not compared."
+            },
+            "gif-paused": {
+                "checks": "paused: a GIF that loops forever by itself stays on its first frame.",
+                "steps": "Loads the image (red, then blue, 400 ms each, looping) with paused. Passes a play's length (0.8 s) after onLoad.",
+                "shows": "A red square (the first frame); blue would mean it played."
+            },
+            "gif-resume": {
+                "checks": "paused, then paused={false}, with loop={false}: the image plays once and stops on its last frame.",
+                "steps": "Loads an image that loops forever by itself (red, then blue, 400 ms each) with paused and loop={false}. A play's length (0.8 s) after onLoad, it sets paused={false}. Passes a play (and a margin) later.",
+                "shows": "A blue square (the last frame); red would mean resuming didn't play it."
+            },
+            "gif-resume-finished": {
+                "checks": "A GIF that has finished its one play, paused and then resumed, plays again from the start, on both platforms (as iOS's player does).",
+                "steps": "Loads a GIF that plays once: 1.5 s red, then 0.1 s blue. 2.2 s after onLoad (its play is over) sets paused, and 0.2 s later unpauses it. Passes 0.3 s later, while it shows its first frame again.",
+                "shows": "A red square (a slightly darker red than the paused case's): the first frame, playing again. Blue means it didn't play again."
+            }
+        }
+    },
+    "image-rendering": {
+        "description": {
+            "checks": "imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size."
+        },
+        "cases": {
+            "image-rendering": {
+                "checks": "imageRendering on images drawn smaller and larger than their size: smooth (iOS only; the same as auto on Android) averages the pixels of a shrunk image, and pixelated keeps an enlarged one's pixels sharp (#926).",
+                "steps": "Each row shows an image at its own size (one image pixel per screen pixel, cropped to a 200×24 strip), then drawn with imageRendering auto, smooth and pixelated, from the full image (downsample={false}): 1024 px stripes at 48, a 1600 px wide page of text at 96, and 12 px pixel art at 60. Passes when all nine have loaded; the screenshot does the checking.",
+                "shows": "Each row's label says what to expect. Stripes: on iOS smooth is an even gray, while auto and pixelated show uneven stripes, different on each platform. Text: on iOS smooth keeps the lines of text continuous. Pixel art: auto and smooth blurred, pixelated with sharp square pixels."
+            }
+        }
+    },
+    "blur": {
+        "description": {
+            "checks": "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource."
+        },
+        "cases": {
+            "blur": {
+                "checks": "blurRadius is in points: blurRadius={6} looks about the same as React Native's Image on iOS, and the same from a large file and a small one, since the image is blurred at the size it's shown at. The blurred views don't change an unblurred one of the same file.",
+                "steps": "Four 64 dp squares: FastImage with a 1024 px photo, no blur; React Native's Image with the same photo and blurRadius={6}; FastImage with the same photo and blurRadius={6}; FastImage with a 256 px file of the photo and blurRadius={6}. Passes 0.5 s after all four have loaded.",
+                "shows": "A sharp photo of green cliffs, then three blurred alike. On Android the second (React Native's Image) is nearly sharp: it blurs in the file's pixels, and this file is large."
+            },
+            "blur-kinds": {
+                "checks": "blurRadius on other kinds of image: a bundled image, a tinted one, and a GIF, which shows its first frame, blurred and still.",
+                "steps": "Shows a bundled photo with blurRadius={6}; the logo with tintColor green, blurRadius={4} and objectFit=\"contain\"; a jellyfish GIF with blurRadius={6}. Passes 0.5 s after all three have loaded.",
+                "shows": "A blurred aerial photo of fields; a soft green React logo on gray; the jellyfish's first frame, blurred and not moving (a pink and orange blur on blue)."
+            },
+            "blur-change": {
+                "checks": "blurRadius changed once the image has loaded blurs or unblurs the image that's showing, without load events (Android loaded the image again, with its events).",
+                "steps": "Four photos of a pug: the first loads with blurRadius 0, set to 6 after its onLoadEnd; the second has 6 from the start; the third loads with 6, set to 0 after its onLoadEnd; the fourth has no blur. Fails if onLoadStart, onProgress, onLoad or onLoadEnd fires on the first or third after that; passes 1.5 s after both changes.",
+                "shows": "Two pugs blurred alike, a gap, then two sharp ones alike."
+            },
+            "blur-default-source": {
+                "checks": "blurRadius doesn't blur defaultSource, as with React Native's Image.",
+                "steps": "Loads a url the image server answers with a 404, with a bundled defaultSource and blurRadius={6}. Passes on onError.",
+                "shows": "The defaultSource, sharp: on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom."
+            }
+        }
+    },
+    "blur-tint": {
+        "description": {
+            "checks": "tintColor changed on a blurred image after it has loaded."
+        },
+        "cases": {
+            "blur-tint-change": {
+                "checks": "tintColor changed on a blurred image after it has loaded shows the new color, blurred, like an image tinted that color from the start (iOS shows it without blurring the image again).",
+                "steps": "Loads the logo twice with blurRadius={4} and objectFit=\"contain\": the left with tintColor green, changed to purple (#9324c3) 300 ms after both have loaded; the right purple from the start. Passes 500 ms after the change.",
+                "shows": "Two identical blurred purple React logos on gray. A green or sharp left one is the bug."
+            }
+        }
+    },
+    "blur-events": {
+        "description": {
+            "checks": "blurRadius changed in quick steps after the image has loaded: no load events fire again, and the image ends up with the last radius."
+        },
+        "cases": {
+            "blur-change-twice": {
+                "checks": "blurRadius changed twice, 300 ms apart, after a slow cache: 'web' image has loaded: no load events fire again, and it ends up like an image blurred that much from the start (Android loads the image again for each new blur; a change during that load started the image's load again, which sent onProgress, onLoad and onLoadEnd).",
+                "steps": "Loads a photo of a pug with cache: 'web' and onProgress from the slow server, which sends no cache headers, so each load downloads it again (in about 2 s). After its onLoadEnd, sets blurRadius 5, then 10 300 ms later. Fails if a load event fires after that first onLoadEnd or onProgress didn't fire before it; passes 4 s after the last change.",
+                "shows": "Two photos of a pug blurred alike: the one that changed, and one with blurRadius 10 from the start."
+            },
+            "blur-change-steps": {
+                "checks": "blurRadius changed in five steps in renders right after each other (before the next frame), as an animated blur or a slider changes it, after the image has loaded: no load events fire again, and it ends up like an image blurred that much from the start.",
+                "steps": "Loads a photo of a pug. After its onLoadEnd, renders blurRadius 2, 4, 6, 8 and 10, each its own commit. Fails if a load event fires after that first onLoadEnd; passes 4 s after the last step.",
+                "shows": "Two photos of a pug blurred alike: the one that changed, and one with blurRadius 10 from the start."
+            }
+        }
+    },
+    "object-fit": {
+        "description": {
+            "checks": "objectFit's values, checked by screenshot: images larger and smaller than the view, an SVG, with blurRadius, in style, and changed after load."
+        },
+        "cases": {
+            "object-fit": {
+                "checks": "objectFit's five values place a larger image in its view as CSS's object-fit does.",
+                "steps": "Loads the 600x300 image into five 48-point views with objectFit fill, contain, cover, none and scale-down. Passes once all five have loaded (and a moment more); the screenshot checks the fits.",
+                "shows": "Five 48-point views of the 600x300 image (red with a blue border): fill stretched to the square, the border all around; contain whole, half the height, with gray above and below; cover showing the middle, the border only at the top and bottom; none showing the middle at its own size, red only; scale-down the same as contain, since the image is larger than the view."
+            },
+            "object-fit-size": {
+                "checks": "objectFit none and scale-down show an image smaller than the view at its own size in points (dp), and none crops a larger image to the view even with overflow visible.",
+                "steps": "Loads a 40x40 green image with none, the same with scale-down, a bundled 120x120 @3x blue image with none (40 points), and the 600x300 image (red with a blue border) with none and overflow: 'visible'. Passes once all four have loaded; the screenshot checks the sizes.",
+                "shows": "Four 48-point views: a green square, another green square, then a blue square, each 40 points and just inside its magenta outline; then a red square (the large image cropped to the view). A square bigger or smaller than its outline (drawn at its size in pixels) or red spilling out of the last view is a failure."
+            },
+            "object-fit-blur": {
+                "checks": "objectFit scale-down with blurRadius shows the blurred image at its own size in points (dp), the same size as without the blur.",
+                "steps": "Loads a 120x120 photo into two 144-point views with scale-down, the second with blurRadius 30. Passes once both have loaded (and a moment more, for the blur).",
+                "shows": "Two gray 144-point squares, each with a 120-point photo of a bear on a hillside centered in it: sharp on the left, blurred on the right. A blurred image larger or smaller than the sharp one is a failure."
+            },
+            "object-fit-svg": {
+                "checks": "objectFit scale-down and none draw an SVG at its own size in points (dp), as sharp as at that size with contain (Android drew it at its size in pixels and enlarged it, soft and gray).",
+                "steps": "Loads an SVG of 60x60 black and white stripes, one unit wide, with scale-down and none in 72-point views, and with contain in a 60-point view (the reference). Passes once all three have loaded; the screenshot checks the sharpness.",
+                "shows": "Black and white stripes three times: centered in a gray 72-point square, again, then on their own at 60 points, all with the same crisp 1-unit stripes. Soft or gray stripes in the first two are a failure."
+            },
+            "object-fit-from-cover": {
+                "checks": "Changing objectFit from cover after load, while the image for the new fit loads: the view keeps showing the cover image as it was until then (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).",
+                "steps": "Three 88-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
+                "shows": "iOS shows the new fit at once: the whole page small with gray above and below, then large letters from the middle of the page twice. Android still shows the cover crop in all three: the middle of the page, small text filling the square. A squashed or enlarged crop, or a blank view, is a failure."
+            },
+            "object-fit-style": {
+                "checks": "objectFit in style works, the objectFit prop wins over style, and resizeMode (removed in 10.0), as a prop or in style, is ignored.",
+                "steps": "Three 48-point views of the 600x300 image (red with a blue border): style's objectFit: 'contain'; style's contain with the prop objectFit=\"none\"; and resizeMode: 'stretch' in style with resizeMode=\"contain\" as a prop. Passes once all three have loaded; the screenshot checks the fits.",
+                "shows": "Contained (half the height, gray above and below), then red only (none, the middle at its own size), then cover (the border only at the top and bottom). A stretched or contained third image is a failure."
+            },
+            "object-fit-change": {
+                "checks": "Changing objectFit from contain to none after load shows the middle of the image at its own size, from the full-size image rather than the one decoded for contain.",
+                "steps": "Loads a 1600x1000 page of text into two 48-point views: the left with objectFit none from the start, the right with contain, changed to none on its onLoad. Passes 750 ms after the change; the screenshot compares them.",
+                "shows": "Large letters from the middle of the page, twice, the same. A blurry or smaller right image is a failure."
+            }
+        }
+    },
+    "object-fit-events": {
+        "description": {
+            "checks": "Changing objectFit after load sends no load events again."
+        },
+        "cases": {
+            "object-fit-events": {
+                "checks": "Changing objectFit after the image has loaded sends no load events again (Android loaded the image again for each fit, with onLoadStart, onLoad and onLoadEnd).",
+                "steps": "Loads the 600x300 image (with a run-specific url) with objectFit cover, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to contain, cover, then contain again, a second apart. Passes a second after the last change if each event fired once.",
+                "shows": "The 600x300 image (red with a blue border) contained in the 48-point view: half the height, gray above and below."
+            },
+            "object-fit-events-gif": {
+                "checks": "Changing objectFit after an animated GIF has loaded sends no load events again (Android loaded the image again for each fit, with onLoadStart, onLoad and onLoadEnd).",
+                "steps": "Loads a GIF of a jellyfish (with a run-specific url) with objectFit cover, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to contain, cover, then contain again, a second apart. Passes a second after the last change if each event fired once.",
+                "shows": "The jellyfish contained in the 48-point view, gray above and below; animated, so it isn't compared."
+            }
+        }
+    },
+    "object-position-changes": {
+        "description": {
+            "checks": "Changes after load with objectPosition: a new position sends no load events, and a fade into a positioned image keeps it in place."
+        },
+        "cases": {
+            "position-events": {
+                "checks": "Changing objectPosition after load sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).",
+                "steps": "Loads the 600x300 image (red with a blue border; a run-specific url) with objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.",
+                "shows": "The left part of the 600x300 image: its blue border at the left, top and bottom, red to the right edge."
+            },
+            "position-events-full-size": {
+                "checks": "Changing objectPosition after load, with downsample={false}, sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).",
+                "steps": "Loads the 600x300 image (red with a blue border; a run-specific url) with downsample={false}, objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.",
+                "shows": "The left part of the 600x300 image: its blue border at the left, top and bottom, red to the right edge."
+            },
+            "position-events-gif": {
+                "checks": "Changing objectPosition after an animated GIF has loaded sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).",
+                "steps": "Loads a GIF of a jellyfish (a run-specific url) with objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.",
+                "shows": "The left part of the jellyfish GIF, cropped to the 48-point square; animated, so it isn't compared."
+            },
+            "fade-placeholder-positioned": {
+                "checks": "A transition into an image with objectPosition left cross-dissolves from defaultSource with the image in place (iOS moved the image view during the fade, with its clip already moved, so the view's black background showed at its edge).",
+                "steps": "A 48-point view on black, with a magenta defaultSource and no source; 500 ms later its source becomes a wide cyan image (600x300) from the slow server (about 350 ms), with cover, objectPosition 'left' and a 1 s transition. A video sample records the view's right 4 pixels.",
+                "shows": "A cyan square. The recording sees magenta, then blue-violet (halfway), then cyan; black must never appear."
+            }
+        }
+    },
+    "object-position": {
+        "description": {
+            "checks": "objectPosition's values, checked by screenshot: with cover, contain, none and scale-down, with the view's style and other props, changed after load, and for defaultSource."
+        },
+        "cases": {
+            "object-position-cover": {
+                "checks": "objectPosition with cover places the cropped image as CSS's object-position does, with keywords, a percentage, and two values (x, then y).",
+                "steps": "Loads the 600x300 image into four 48-point views with cover and objectPosition 'left', 'right', '25%' and 'left 10px'. Passes once all four have loaded; the screenshot checks the positions.",
+                "shows": "The 600x300 image (red with a blue border) in four 48-point views, each 96x48 after cover: at the left (its left border shows), at the right (its right border), a quarter of the way along (no side border), and at the left 10 points down (a gray gap at the top, the bottom border cut off)."
+            },
+            "object-position-contain": {
+                "checks": "objectPosition places an image that leaves room in its view: with contain, none and scale-down, keywords, an object ({ bottom: 4 }) and keyword offsets.",
+                "steps": "Six 48-point views, each with a magenta outline just outside where its image should be: the 600x300 image with contain at 'top', 'bottom' and { bottom: 4 }; a 16x16 green image with none at 'left top' and 'right 4px bottom 4px', and with scale-down at 'right'. Passes once all six have loaded; the screenshot checks the positions.",
+                "shows": "The red and blue image (48x24) in the top half, the bottom half, then 4 points above the bottom; a small green square in the top-left corner, 4 points from the bottom-right corner, then at the right edge, centered. Each image just inside its magenta outline; one outside its outline is a failure."
+            },
+            "object-position-style": {
+                "checks": "objectPosition together with the view's style and other props: a rounded border, overflow visible, tintColor, blurRadius and a transition.",
+                "steps": "Five 48-point views of the 600x300 image: cover at 'left' with borderRadius 14 and a dark 3-point border; none at 'left top' with overflow: 'visible'; contain at 'top' with tintColor #9324c3; contain at 'bottom' with blurRadius 4; cover at 'left' with a 300 ms transition. Passes once all five have loaded (and a moment more).",
+                "shows": "The image's left part inside a dark rounded border; the image's top-left corner at its own size, cropped to the view (mostly blue, red in the bottom-right corner); a solid purple 48x24 block in the top half; a blurred red and blue image in the bottom half; the image's left part after its fade. The middle two sit inside magenta outlines."
+            },
+            "object-position-change": {
+                "checks": "Changing objectPosition after load moves the image to the new position (Android cropped it again for cover).",
+                "steps": "Four 48-point views of the 600x300 image: cover at 'right' (reference), cover changed from 'left' to 'right' when it loads, contain at 'bottom' (reference), and contain changed from 'top' to 'bottom' at the same time. Passes 750 ms after the change.",
+                "shows": "Two pairs, each image matching the one to its left: the image's right part (its right border showing) twice, then the image in the bottom half twice, gray above. An image still at the left or the top is a failure."
+            },
+            "object-position-default-source": {
+                "checks": "defaultSource is placed at objectPosition too, when the source fails.",
+                "steps": "Two 48-point views with objectFit none and a source the image server answers with a 404, and defaultSource an image in the app of four colored quadrants (red, green, blue, yellow; 80x80 points on iOS, 80 pixels on Android), at 'left top' and 'right bottom'. Passes once both have fired onError.",
+                "shows": "On iOS, each view shows a corner of the larger quadrants image: mostly red with green and blue edges (top-left), then mostly yellow with green and blue edges (bottom-right). On Android the whole quadrants image, smaller than the view, sits in the top-left corner, then the bottom-right corner, with gray around it."
+            }
+        }
+    },
+    "downsampling": {
+        "description": {
+            "checks": "downsample decodes large images at about the view's size, keeping them sharp, upright and at their own reported size."
+        },
+        "cases": {
+            "downsample-stripes": {
+                "checks": "downsample decodes a large image at about the view's size, and onLoad still reports the image's own size.",
+                "steps": "Loads a 1024x1024 image of 1-pixel black and white stripes into two 48-point views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1024x1024.",
+                "shows": "On iOS, an even gray square (the stripes averaged), then the stripes drawn smaller. On Android, a black square (Glide keeps every nth pixel of a PNG), then the stripes."
+            },
+            "downsample-cover": {
+                "checks": "downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, so it is as sharp as without downsample.",
+                "steps": "Loads a 1600x1000 page of text into two 40x96 views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1600x1000.",
+                "shows": "Two tall crops of the middle of the page, the text equally sharp in both. A blurrier left crop is a failure."
+            },
+            "downsample-orientation": {
+                "checks": "downsample keeps a JPEG's EXIF orientation: an image stored sideways shows upright, as sharp as without downsample.",
+                "steps": "Loads a JPEG stored sideways with EXIF orientation 6 (800x1200 upright) into two 64x96 views with objectFit=\"contain\": the left with downsample, the right with downsample={false}. Passes once both onLoad events report 800x1200.",
+                "shows": "Two upright blue arrows over the word UP, each in a red frame, equally sharp. A sideways arrow is a failure."
+            },
+            "downsample-memory": {
+                "checks": "A view that downsamples an image from the disk cache, after a view showed it at full size, doesn't leave its smaller copy where full-size views look (iOS kept it in the memory cache under the full-size image's key).",
+                "steps": "Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled, from the disk cache); 300 ms after that, another 80x50 view with downsample={false}. Passes once the third has loaded; the screenshot checks its sharpness.",
+                "shows": "The whole page small, a 32-point crop of it, then the whole page again, as sharp as the first. A blurrier right page is a failure."
+            },
+            "downsample-preload": {
+                "checks": "FastImage.preload, after a view downsampled the image from the disk cache, resolves with the image's own size (iOS resolved with the smaller copy's).",
+                "steps": "Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled); 300 ms after that, preloads the url. Passes when the preload resolves ok with 1600x1000.",
+                "shows": "The whole page small, then a 32-point crop of it."
+            }
+        }
+    },
+    "downsampling-reload": {
+        "description": {
+            "checks": "downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in."
+        },
+        "cases": {
+            "downsample-detail": {
+                "checks": "downsample: a larger view of an image already shown smaller decodes it again at its own size, from the disk cache, without downloading it again.",
+                "steps": "Loads a 2048x2048 photo (a url of its own) into a 48-point view with downsample; once it loads, a 96-point view of the same url mounts. Once both have loaded, asks the image server how many times the url was requested: passes at once.",
+                "shows": "A photo of orange rocks under a cloudy sky, small, then larger and sharp. A blurry larger photo is a failure."
+            },
+            "downsample-grow": {
+                "checks": "downsample: a view that grows after its image loaded decodes it again for the new size, without sending the load events again.",
+                "steps": "Loads a 1600x1000 page of text into a 48-point view with downsample; 300 ms after onLoad the view grows to 96 points. Passes a second later if onLoadStart and onLoad fired once each.",
+                "shows": "A 96-point crop of the middle of the page, the text sharp. Blurry text (the small decode enlarged) is a failure."
+            },
+            "downsample-no-size": {
+                "checks": "downsample: an image in a view with no size until it loads (sized from onLoad) still loads.",
+                "steps": "Loads a 600x300 photo with downsample and no style, inside a 48-point gray square; onLoad sizes it 48 wide and 24 tall. Passes once it has been laid out with a width.",
+                "shows": "A photo of green hills across the top half of the gray square, gray below. An empty gray square is a failure."
+            },
+            "downsample-gif": {
+                "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
+                "steps": "Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.",
+                "shows": "The jellyfish cropped to the small square; animated, so it isn't compared."
+            },
+            "downsample-preloading": {
+                "checks": "downsample: a view of an image that's still being preloaded shares the preload's download, decodes it to cover the view (cropped, not stretched), and onLoad reports its full size (iOS downloaded it again).",
+                "steps": "Preloads a 1600x1000 page of text from the slow server (about a second); once the server has the request, a 40x96 view with downsample loads the same source. Passes when onLoad reports 1600x1000 and the server got one request.",
+                "shows": "A tall crop of the middle of the page, the text at its usual shape. Squashed text (the page stretched to the tall view) is a failure."
+            },
+            "downsample-order": {
+                "checks": "downsample: images mounted together start loading in the order of their views, left to right (iOS started them as UIKit laid the views out, last first).",
+                "steps": "Mounts six 32-point cells, each with an image filling it, of a 2048x2048 photo at six new urls, with downsample. Passes once all six have started and loaded, and, on iOS with the New Architecture, their onLoadStart events came left to right (Android loads in another order, so the order is only checked on iOS).",
+                "shows": "Six small copies of a photo of orange rocks under a cloudy sky, in a row."
+            }
+        }
+    },
+    "downsample-zoom": {
+        "description": {
+            "checks": "downsample={false} keeps an image that's zoomed in on with a transform sharp."
+        },
+        "cases": {
+            "downsample-zoom": {
+                "checks": "downsample={false} decodes an image at full size, so a view zoomed in on with a transform (as a pinch-to-zoom viewer does) stays sharp (Android decoded it at about the view's size either way).",
+                "steps": "Loads a 1600x1000 page of text into two 80x50 views drawn 4 times larger with a transform, each clipped to a 140x88 area showing its top-left corner: the left with downsample (the default), the right with downsample={false}. Passes once both have loaded (and a moment more).",
+                "shows": "The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure."
+            }
+        }
+    },
+    "loading": {
+        "description": {
+            "checks": "Loading: props that don't reload, source changes, onLoadStart and onProgress, cache: 'web' and cookies."
+        },
+        "cases": {
+            "no-reload": {
+                "checks": "Changing a prop that doesn't affect loading doesn't load the image again (Android reloaded it on every prop update).",
+                "steps": "Loads a 600x300 photo; once it has loaded, changes accessibilityLabel every 200 ms for a second. Passes if onLoadStart didn't fire again.",
+                "shows": "A photo of green hills, cropped to the square."
+            },
+            "source-swap": {
+                "checks": "Changing source over and over keeps loading each new image (#384: Android kept the view in its progress list under every url it had loaded, which kept the view and its Activity alive).",
+                "steps": "Loads three 120x120 photos in turn in one view, moving to the next on each onLoad, four times, so it ends on the second. Passes when the last one loads.",
+                "shows": "A black and white photo of a misty forest."
+            },
+            "load-start-once": {
+                "checks": "onLoadStart fires once per load (iOS sent it twice when source and onLoadStart were set in the same update).",
+                "steps": "Loads a 200x200 photo with onLoadStart and onLoad set from the first render. Passes once onLoad has fired, if onLoadStart fired once.",
+                "shows": "A photo of a pug wrapped in a blanket."
+            },
+            "progress": {
+                "checks": "onProgress events have a progress (loaded / total, 0 to 1), and the last one is 1.",
+                "steps": "Loads a 2048x2048 photo (a new url each run) that the server sends with a Content-Length. Each onProgress must have a total above 0, loaded between 0 and the total and never going down, and progress equal to loaded / total; passes at onLoad if there was at least one and the last had everything loaded and progress 1.",
+                "shows": "A photo of a fjord seen from a cliff."
+            },
+            "progress-unknown-size": {
+                "checks": "onProgress for an image whose size is unknown (no Content-Length): none sent, or each with a real total (iOS sent a total of 0 and Android -1, so loaded / total was infinite or negative).",
+                "steps": "Loads the 2048x2048 photo from the image server's chunked/ path, which sends it without a Content-Length. Passes at onLoad if there were no onProgress events, or each had a total above 0, loaded between 0 and the total, and the last one 1.",
+                "shows": "A photo of a fjord seen from a cliff."
+            },
+            "progress-gzip": {
+                "checks": "onProgress for an image sent gzip-compressed, whose Content-Length is smaller than the image the client ends up with: loaded never goes past the total.",
+                "steps": "Loads the 2048x2048 photo from the image server's gzip/ path. Passes at onLoad if each onProgress had loaded between 0 and the total and the last one was 1 (or there were none).",
+                "shows": "A photo of a fjord seen from a cliff."
+            },
+            "web-cache": {
+                "checks": "cache: 'web' follows the server's caching headers (#280: Android sent every request to the network).",
+                "steps": "Loads a 200x200 photo with cache: 'web' from the image server's max-age/ path (cacheable for an hour), then mounts a new view that loads it again, then replaces it with an empty view. Passes if the server got one request for it.",
+                "shows": "An empty gray square: the image view is gone by the end."
+            },
+            "web-cache-avif": {
+                "checks": "cache: 'web' keeps an AVIF in the HTTP cache (iOS requested it again: SDWebImage's format check doesn't know AVIF).",
+                "steps": "Loads an AVIF of four colored quadrants with cache: 'web' from the image server's max-age/ path (cacheable for an hour), then mounts a new view that loads it again, then replaces it with an empty view. Passes if the server got one request for it.",
+                "shows": "An empty gray square: the image view is gone by the end."
+            },
+            "cookies": {
+                "checks": "Image requests send the app's cookies, and keep the ones they get (Android sent no cookies with images: React Native's shared OkHttp client has an empty cookie jar).",
+                "steps": "Gets two cookies with fetch (this run's values), then loads the React logo from the image server's cookie/ path, which answers 403 without both and sets a cookie of its own. On onLoad, asks the server which cookies a fetch sends: passes if the image's cookie is among them.",
+                "shows": "The React logo (light blue) on the gray square. An empty gray square means the image was refused (no cookies sent)."
+            }
+        }
+    },
+    "progress-data-uri": {
+        "description": {
+            "checks": "onProgress for a data: image."
+        },
+        "cases": {
+            "progress-data-uri": {
+                "checks": "onProgress for a data: image: iOS sends one event, which has a progress (loaded / total, 1); Android sends none.",
+                "steps": "Loads an 8x8 yellow PNG from a data: uri. Passes at onLoad if each onProgress (if any) had a total above 0, loaded up to the total and progress equal to loaded / total, and the last one 1.",
+                "shows": "A yellow square."
+            }
+        }
+    },
+    "progress-shared-url": {
+        "description": {
+            "checks": "onProgress for many images on one url while others on it mount and unmount."
+        },
+        "cases": {
+            "progress-shared-url": {
+                "checks": "onProgress for many images on one url while others on it mount and unmount: every image loads, with onProgress only after its onLoadStart and before its onLoad (Android went through the url's list of views on the download thread while the UI thread changed it, which threw and failed the download for every image; and a view that mounted while progress was waiting to be sent could get it before its own onLoadStart).",
+                "steps": "Forty 6-point images with onProgress load one url from the slow server while ten more on that url mount and unmount every other frame, for eight rounds, a new url each round; a round ends once the forty have loaded. Passes after the eight rounds if there was no onError, each of the forty got onProgress before onLoad, never going back, ending at 1 and none after, and no mounted image got onProgress before its onLoadStart.",
+                "shows": "Nothing: the images are removed once it has passed, leaving an empty area."
+            }
+        }
+    },
+    "progress-by-url": {
+        "description": {
+            "checks": "onProgress reaching the right images when downloads are shared, urls are written differently or the server holds part of the download."
+        },
+        "cases": {
+            "progress-after-load": {
+                "checks": "An image gets no onProgress after its onLoad when another image downloads the same url (Android sent a url's progress to every image that had loaded it, until it loaded another source).",
+                "steps": "Loads a 200x200 photo from the slow server with cache: 'web' (the slow server sends no cache headers, so it isn't cached) and onProgress; once it loads, a second image downloads the same url. Passes once the second has loaded, if it got onProgress and the first got none after its onLoad.",
+                "shows": "Two photos of a pug wrapped in a blanket, side by side."
+            },
+            "progress-url-form": {
+                "checks": "onProgress for a url with its scheme in capitals (HTTP://) (Android looked images up by their url as written, while downloads reported it as OkHttp writes it, lowercase, so these urls got no onProgress).",
+                "steps": "Loads a 200x200 photo from the slow server at a url starting with HTTP://. Passes at onLoad if there was at least one onProgress, each with a total above 0, loaded never going down and progress equal to loaded / total, and the last one 1.",
+                "shows": "A photo of a pug wrapped in a blanket."
+            },
+            "progress-cache-key": {
+                "checks": "onProgress for two images of different sizes and urls with the same cacheKey, loading at the same time (Android looked images up by their own url, so the image whose url wasn't downloaded got no onProgress, and it downloaded each size).",
+                "steps": "A 32-point and a 64-point image load the same 200x200 photo from the slow server at two urls (another query) with one cacheKey. Passes once both have loaded, if each got onProgress before its onLoad, never going back, ending at 1 and none after, and the server got one request on Android (which shares downloads by cache key) or two on iOS (SDWebImage shares them by url).",
+                "shows": "Two photos of a pug wrapped in a blanket, small then larger, side by side."
+            },
+            "progress-held-bytes": {
+                "checks": "onProgress comes for the bytes that have arrived while the rest of the download is held up (Android sent the progress for bytes only once the next ones arrived, so the first part's progress waited for the rest).",
+                "steps": "Loads a 200x200 photo from the slow server, which sends the first of its 8 parts and holds the rest until the case releases it: on the first onProgress, or after 3 s. Passes once the image loads, if onProgress came before the release.",
+                "shows": "A photo of a pug wrapped in a blanket."
+            }
+        }
+    },
+    "download-queue": {
+        "description": {
+            "checks": "Android's downloads waiting to start: the priority and url a waiting download has as requests for it join and leave (three checks on one set of images)."
+        },
+        "cases": {
+            "priority-lowered": {
+                "checks": "A waiting download's priority goes back down when the more urgent request that joined it leaves (Android raised it for a priority: 'high' view and kept it after the view unmounted, so a priority: 'low' image was downloaded before a normal one).",
+                "steps": "Sixteen images from the slow server start downloading and the server holds each halfway, so later downloads wait (Android runs 16 at once). Then an image with priority: 'low' waits; a view of its url with priority: 'high' mounts and, a second later, unmounts; then an image of a third url with normal priority mounts. The sixteen are released one at a time, and it passes when the server got the normal image's request before the low one's.",
+                "shows": "The grid of tiny misty forest tiles: two rows (ten, then nine), then a larger tile and a small one. A blank spot in it is an image that didn't load."
+            },
+            "queued-latest-url": {
+                "checks": "A download that hasn't started yet takes the latest url requested for its cacheKey, as for a signed url with a fresh token (Android requested the first url).",
+                "steps": "While the sixteen downloads above are held, an image of one url with a cacheKey waits; a second later, an image of another url with that cacheKey (at another size) mounts. Passes when both have loaded and the server got the second url's request and none for the first's.",
+                "shows": "Blank: its two images are in the first row's grid, the last tile of its second row and the larger tile below it."
+            },
+            "left-url-reverted": {
+                "checks": "When the request that switched a waiting download to its url leaves, the download goes back to the latest url of the requests left (Android kept the url of the request that had left).",
+                "steps": "While the sixteen downloads above are held, an image of one url with a cacheKey waits; a view of another url with that cacheKey mounts with the priority: 'high' view and unmounts with it. Passes when the first image has loaded and the server got its url's request and none for the url of the view that left.",
+                "shows": "Blank: its image is in the first row's grid, the small tile next to the larger one."
+            }
+        }
+    },
+    "download-priority": {
+        "description": {
+            "checks": "An image with priority: 'high' that starts loading after twenty others is downloaded before most of them."
+        },
+        "cases": {
+            "download-priority": {
+                "checks": "A priority: 'high' image that starts loading after twenty others is downloaded before most of them (Android handed 16 downloads to OkHttp at once, which sends them in the order they came, so the high one was 17th).",
+                "steps": "Twenty images from the slow server, each its own url, load with normal priority, and the server holds their responses. Once it has their first request, one more image loads with priority: 'high', and half a second later the server sends the responses. Passes when all have loaded and at most 12 of the twenty were requested before the high one (those the platform sends at once, 5 or 6, and some started with it).",
+                "shows": "Twenty-one tiny tiles of the same photo (a bear on rocks, under a pale sky): two rows of ten, then one. A blank spot is an image that failed."
+            }
+        }
+    },
+    "shared-downloads": {
+        "description": {
+            "checks": "Downloads shared by several images of one url (one request for all of them), through unmounts, errors and responses without a Content-Length, and a download that stalls.",
+            "steps": "The images come from the slow server, which sends each in eight parts with a pause between them, and can hold the rest of a response until the case releases it. The images have no background, so where nothing shows the screen is white."
+        },
+        "cases": {
+            "shared-download-sizes": {
+                "checks": "Two images of one url at different sizes, loading at the same time, share one download, and each gets onProgress up to 1 (Glide only shares a download between requests for the same size, so Android downloaded it twice).",
+                "steps": "Loads the photo from the slow server in a 32-point and a 64-point image at once. Passes when both have loaded, the last onProgress each got before its onLoad was 1, and the server got one request.",
+                "shows": "A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side."
+            },
+            "shared-download-cancel": {
+                "checks": "A download shared by two images goes on for one of them when the other unmounts.",
+                "steps": "Loads one url from the slow server in a small and a large image; the server holds it halfway. Once both have had onProgress, the small one unmounts and the server sends the rest. Passes when the large one has loaded and the server got one request.",
+                "shows": "Blank space where the small image was, then the large (64-point) photo of a pug in a blanket."
+            },
+            "shared-download-error": {
+                "checks": "Two images of one url that 404s, at different sizes and loading at the same time, both get onError with the status in their error.",
+                "steps": "Loads a missing image from the slow server in a small and a large image at once. Passes when both have had onError and both errors mention 404 (onLoad fails it).",
+                "shows": "Blank space: the two images (32 and 64 points) have no background and nothing loads."
+            },
+            "shared-download-chunked": {
+                "checks": "Two images of one url at different sizes share one download when its response has no Content-Length (Android didn't share a response of unknown length: the second image downloaded it again once the first's had arrived).",
+                "steps": "Loads the photo from the slow server, sent without a Content-Length, in a 32-point and a 64-point image at once. Passes when both have loaded and the server got one request.",
+                "shows": "A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side."
+            },
+            "chunked-download-cancel": {
+                "checks": "An image unmounts while it downloads a response without a Content-Length, and a later image of that url still loads (on Android, closing the response on the main thread would read the socket and throw NetworkOnMainThreadException, so the call is cancelled instead).",
+                "steps": "Loads the photo from the slow server, sent without a Content-Length, in a small image; the server holds it halfway. The image unmounts, half a second later the server is released, and a large image of the same url mounts. Passes when the large one loads, with no onError.",
+                "shows": "Blank space where the small image was, then the large (64-point) photo of a pug in a blanket."
+            },
+            "stalled-download": {
+                "checks": "A download that gets nothing for 15 seconds fails with onError (Android's client had no timeouts, so the image, and every request sharing its download, waited forever).",
+                "steps": "Loads the photo from the slow server, which sends half of it and then holds the rest. Passes on onError, about 15 seconds later (onLoad fails it); the server is then released.",
+                "shows": "Blank space (64 points, no background): the image never loads."
+            }
+        }
+    },
+    "cachekey-retries": {
+        "description": {
+            "checks": "Images with one cacheKey and different urls when one url fails: on Android, which shares one download per cacheKey, the download is retried with another of the cacheKey's urls.",
+            "steps": "In each case the first image's url 404s; the slow server holds that response until the other images have started loading. The images have no background, so where nothing shows the screen is white."
+        },
+        "cases": {
+            "shared-download-retry": {
+                "checks": "An image whose url works loads when another url with the same cacheKey 404s, and the image of that url gets onError (on Android, which shares downloads by cacheKey, the second image's request joins the first's download and is retried with its own url once that fails).",
+                "steps": "A small image loads a missing url from the slow server with a cacheKey; once the server has the request it holds the 404, a large image of the photo with the same cacheKey mounts, and a second later the 404 is sent. Passes when the small one has had onError and the large one has loaded.",
+                "shows": "Blank space where the 404 is (32 points), then a large (64-point) photo of a pug in a blanket."
+            },
+            "retry-progress": {
+                "checks": "After a cacheKey's first url fails, its other urls load from one download, and each image gets its own progress (Android downloaded both urls once the first had failed, and sent both downloads' progress to both images, so the slow one got 1 from the fast one's download while its own still came).",
+                "steps": "A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of a fast url and a large image of a slow one mount with the same cacheKey, and a second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, each got onProgress 1 at most a second before its onLoad, and the server got 2 requests on Android (one download for both) or 3 on iOS (which shares downloads by url).",
+                "shows": "Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket."
+            },
+            "retry-latest-url": {
+                "checks": "After a cacheKey's url fails, the retry downloads the latest of its other urls, since they're the same image (Android tried the other urls one at a time, the earliest first).",
+                "steps": "A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of another url mounts with that cacheKey, and half a second later a large image of a third url. A second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, and, on Android, the server got the latest url's request and none for the earlier one's (iOS shares downloads by url, so it downloads both).",
+                "shows": "Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket."
+            },
+            "retry-newer-url": {
+                "checks": "A newer url that joins a cacheKey's retry is downloaded when the retry fails too (Android retried a failed download once, so the newer url was never requested).",
+                "steps": "A small image loads a missing url from the slow server with a cacheKey (the 404 held); a medium image of a second missing url mounts with that cacheKey, and the first 404 is sent, so the retry downloads the second url (also held). While it's held, a large image of a url that works mounts with the cacheKey, then the second 404 is sent. Passes when the first two have had onError and the large one has loaded.",
+                "shows": "Blank space twice (32 and 48 points, the two urls that 404), then a large (64-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes."
+            }
+        }
+    },
+    "web-cache-clear": {
+        "description": {
+            "checks": "FastImage.clearDiskCache also clears the HTTP cache that cache: 'web' images use."
+        },
+        "cases": {
+            "web-cache-clear": {
+                "checks": "FastImage.clearDiskCache also clears the HTTP cache of cache: 'web' images, so the image is downloaded again (clearDiskCache left that cache, Android's and on iOS the app's shared NSURLCache, so the image came from there).",
+                "steps": "Loads a photo with cache: 'web' from a url the server marks as cacheable for an hour, then calls FastImage.clearMemoryCache and FastImage.clearDiskCache and loads it again in a new view. Passes when both clears resolved ok and the server got two requests for it.",
+                "shows": "A photo of a pug in a blanket (the second load). An empty gray square means the second load never finished."
+            }
+        }
+    },
+    "web-cache-clear-preload": {
+        "description": {
+            "checks": "A cache: 'web' image preloaded right after FastImage.clearDiskCache resolves is downloaded again, not taken from the HTTP cache."
+        },
+        "cases": {
+            "web-cache-clear-preload": {
+                "checks": "A cache: 'web' image preloaded right after FastImage.clearDiskCache resolves is downloaded again (on iOS, the HTTP cache's removal took effect a few milliseconds after clearDiskCache resolved, and a load in that time got the old response).",
+                "steps": "Ten times, with a new url each time that the server marks as cacheable for an hour: preloads the photo with cache: 'web', clears the memory and disk caches, preloads it again as soon as the clears resolve, and asks the server how many times it was requested. Passes when every preload and clear succeeded and each url was requested twice.",
+                "shows": "An empty gray square: the case only preloads."
+            }
+        }
+    },
+    "preload": {
+        "description": {
+            "checks": "FastImage.preload: what it downloads and caches, the headers it sends, how many sources it loads at once, its results, and the source values it accepts."
+        },
+        "cases": {
+            "preload": {
+                "checks": "FastImage.preload, then a view of the same image, which loads.",
+                "steps": "Preloads a photo, and half a second later shows it in a view. Passes on the view's onLoad.",
+                "shows": "A photo of a pug in a blanket."
+            },
+            "preload-headers": {
+                "checks": "Headers given to FastImage.preload aren't sent with other images (#571: iOS set them on the shared downloader, so every later request sent them).",
+                "steps": "Preloads an image with the header x-token, then half a second later shows another image from a url the server answers with a 400 if the request has an x-token header. Passes on onLoad; onError fails it.",
+                "shows": "A green aurora over a tree. An empty gray square means the image's request had the preload's header (the server answers it with a 400)."
+            },
+            "preload-reuse": {
+                "checks": "An image shown once FastImage.preload has resolved comes from the preload, not a new download (#657: on Android, a view shown while the preload was still in flight downloaded it again; awaiting the result avoids that).",
+                "steps": "Preloads the photo from a url new each launch, and shows it in a view once the preload resolves ok. Passes when the view has loaded and the server got one request for it.",
+                "shows": "A photo of a pug in a blanket."
+            },
+            "preload-results": {
+                "checks": "FastImage.preload resolves with each source's result, in order: ok with its size for the ones that loaded, not ok with an error for the others.",
+                "steps": "Preloads six sources: a 200×200 photo, a url that 404s, an empty uri, null, a 120×120 photo the server only sends with the header x-token (given), and another that needs the header (not given). Passes when the results are 200x200, failed, failed, failed, 120x120, failed, and every failed one has an error.",
+                "shows": "An empty gray square: the case only preloads."
+            },
+            "preload-limit": {
+                "checks": "FastImage.preload loads a few sources at a time (3, or SDWebImagePrefetcher's limit on iOS), so a long list doesn't hold up the images the app shows.",
+                "steps": "Preloads four images from the slow server (about a second each), then asks the server how many it was sending at the same time. Passes when all four loaded, from four requests, with at most 3 at once (without the limit, both platforms load all 4 at once).",
+                "shows": "An empty gray square: the case only preloads."
+            },
+            "preload-disk": {
+                "checks": "FastImage.preload with memoryCache: false (to disk only, without decoding) still reports the image's size, and a view then loads it from the disk cache.",
+                "steps": "Preloads a 200×200 photo with memoryCache: false, then shows it in a view with the same source. Passes when the preload resolved ok with 200×200, the view has loaded, and the server got one request.",
+                "shows": "A photo of a pug in a blanket."
+            },
+            "preload-cache-only": {
+                "checks": "FastImage.preload with cache: 'cacheOnly' of an image that isn't cached fails without a request, as a view does (#406: iOS downloaded it, since preload didn't follow cache).",
+                "steps": "Preloads the logo from a url new each launch with cache: 'cacheOnly'. Passes when the result is not ok and the server got no request for it.",
+                "shows": "An empty gray square: the case only preloads."
+            },
+            "preload-retry": {
+                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
+                "steps": "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. (On iOS, if it failed without a request, it tries again every 0.2 s, up to 5 times, until one makes a request: a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
+                "shows": "A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown."
+            },
+            "preload-unknown-values": {
+                "checks": "FastImage.preload loads sources with a cache or priority value Fast Image doesn't know, with the default (Android threw for them).",
+                "steps": "Preloads the photo three times (three urls) with cache: 'reload', priority: 'urgent', and cache: 1 with priority: true. Passes when all three resolve ok with 200x200.",
+                "shows": "An empty gray square: the case only preloads."
+            }
+        }
+    },
+    "bad-responses": {
+        "description": {
+            "checks": "Urls whose response isn't the image (an HTML page, a 503, a 404, the wrong Content-Type): a later load downloads them again, and a failure isn't requested twice."
+        },
+        "cases": {
+            "preload-retry-web": {
+                "checks": "A cache: 'web' url whose first response was an HTML page (status 200) is downloaded again by the next preload (both platforms kept the page in the HTTP cache of web images, so later loads failed; iOS could still get it from there right after the failure, about once in tens of urls, so it tries many).",
+                "steps": "For 40 urls, each new, that the server first answers with a captive portal's HTML page (cacheable for an hour) and then with the photo: preloads it with cache: 'web' (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
+                "shows": "A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown."
+            },
+            "view-retry": {
+                "checks": "A url whose first response was an HTML page (status 200) loads in the next view (Android kept the page in Glide's disk cache, so the second view failed too).",
+                "steps": "Shows a url the server first answers with a captive portal's HTML page, then with the photo: the view gets onError, and a new view of the same url mounts. Passes when the new view has loaded and the server got two requests.",
+                "shows": "A photo of a pug in a blanket (the second view)."
+            },
+            "reload": {
+                "checks": "The ref's reload(): it downloads a url that failed again, and loads an image that has loaded again from the cache, with its events each time.",
+                "steps": "Shows a url whose first request fails with a 503; on onError, calls reload(), which downloads it and shows it; once it has loaded, calls reload() again. Passes when the server got two requests and the events were onLoadStart, onError, onLoadStart, onLoad, onLoadStart, onLoad.",
+                "shows": "A photo of a pug in a blanket."
+            },
+            "mislabeled": {
+                "checks": "An image the server sends with Content-Type: text/plain still loads (Android fails a response that isn't an image only if its bytes aren't an image either).",
+                "steps": "Loads the photo, sent as text/plain. Passes on onLoad; onError fails it.",
+                "shows": "A photo of a pug in a blanket."
+            },
+            "web-404": {
+                "checks": "A cache: 'web' url that 404s fails with one request (Android loaded it again with the client without the HTTP cache: two requests).",
+                "steps": "Preloads a missing image with cache: 'web'. Passes when the result is not ok and the server got one request for it.",
+                "shows": "An empty gray square: the case only preloads."
+            }
+        }
+    },
+    "cache-key": {
+        "description": {
+            "checks": "source.cacheKey, which caches an image under a key of its own instead of its url, and memoryCache: false."
+        },
+        "cases": {
+            "cache-key": {
+                "checks": "source.cacheKey: an image whose url has another token but the same cacheKey comes from the cache (#524: a key for images whose url changes, like short-lived private urls).",
+                "steps": "Loads a photo with ?token=a and a cacheKey; once it has loaded, a second view (downsample false) loads it with ?token=b and the same cacheKey. Passes when the second has loaded and the server got no request for the token=b url.",
+                "shows": "Two photos of a pug in a blanket side by side. An empty gray square on the right means the second never loaded."
+            },
+            "cache-key-preload": {
+                "checks": "source.cacheKey with FastImage.preload: a preloaded image is found under its cacheKey by a view of another url.",
+                "steps": "Preloads a photo with ?token=a and a cacheKey; once the preload resolves, a view loads it with ?token=b and the same cacheKey. Passes when the view has loaded and the server got no request for the token=b url.",
+                "shows": "An empty gray square (the preload has no view), then a photo of a pug in a blanket."
+            },
+            "cache-key-downsample": {
+                "checks": "source.cacheKey with downsample: a view that downsamples finds the file downloaded for the cacheKey instead of requesting its own url.",
+                "steps": "Loads a photo with ?token=a and a cacheKey; once it has loaded, a second view with downsample loads it with ?token=b and the same cacheKey. Passes when the second has loaded and the server got no request for the token=b url.",
+                "shows": "Two photos of a pug in a blanket side by side."
+            },
+            "memory-cache-off": {
+                "checks": "memoryCache: false: the image shows, and a second view of it loads from the disk cache.",
+                "steps": "Loads a photo with memoryCache: false; once it has loaded, a second view with the same source mounts. Passes when the second has loaded and the server got one request (that it isn't kept in memory isn't visible here).",
+                "shows": "Two photos of a pug in a blanket side by side. An empty gray square on the right means the second never loaded."
+            }
+        }
+    },
+    "cache-only": {
+        "description": {
+            "checks": "Views with cache: 'cacheOnly', or React Native's 'only-if-cached', for an image that isn't cached."
+        },
+        "cases": {
+            "cache-only-miss": {
+                "checks": "A view with cache: 'cacheOnly' for an image that isn't cached gets onError and onLoadEnd (not ok), without a request (#1315: iOS sent onLoad and onLoadEnd for an image it didn't have).",
+                "steps": "Loads a photo of a pug that nothing has loaded (a url only this case uses) with cache: 'cacheOnly'. When onError fires, asks the image server how many requests it got for the url. Passes if it got none, onLoadEnd's ok was false, and onLoad never fired.",
+                "shows": "An empty gray square: the image is never loaded. The pug here would mean it was downloaded."
+            },
+            "only-if-cached-miss": {
+                "checks": "React Native's cache: 'only-if-cached' works as cacheOnly: an image that isn't cached gets onError and onLoadEnd (not ok), without a request.",
+                "steps": "Loads a photo of a pug that nothing has loaded (a url only this case uses) with cache: 'only-if-cached'. When onError fires, asks the image server how many requests it got for the url. Passes if it got none, onLoadEnd's ok was false, and onLoad never fired.",
+                "shows": "An empty gray square: the image is never loaded. The pug here would mean it was downloaded."
+            }
+        }
+    },
+    "disk-cache": {
+        "description": {
+            "checks": "source.diskCache false: the image isn't kept on disk or in an HTTP cache, or read from them."
+        },
+        "cases": {
+            "disk-cache-off": {
+                "checks": "diskCache: false keeps an image off disk: a second view of the same size gets it from memory, a larger one downloads it again, and getCachePath doesn't find it.",
+                "steps": "Loads a 200×200 photo of a pug in a 48×48 view with diskCache: false. On its onLoad, adds a second 48×48 view and an 88×88 one with the same source. When the large one loads, passes if the image server got two requests (the first view's and the large one's), and getCachePath resolves not ok for the uri with cache: 'cacheOnly' and for the source itself.",
+                "shows": "The pug photo three times: two small, then a larger one."
+            },
+            "disk-cache-off-web": {
+                "checks": "diskCache: false with cache: 'web': each view downloads the image, though the server lets caches keep it and a preload stored its url on disk.",
+                "steps": "Preloads the pug photo's url (the default cache), from a route the image server sends with Cache-Control: max-age=3600. Then a view loads it with cache: 'web' and diskCache: false, and on its onLoad a second view of the same size does too. Passes when the second loads, if the image server got three requests (the preload's and each view's).",
+                "shows": "The pug photo twice, side by side."
+            }
+        }
+    },
+    "cache-path": {
+        "description": {
+            "checks": "FastImage.getCachePath: the file of a source's image in the disk cache, or not ok when there isn't one."
+        },
+        "cases": {
+            "cache-path": {
+                "checks": "getCachePath for an image a view has loaded gives its file in the disk cache.",
+                "steps": "A view loads a 120×120 photo of a green aurora over a tree. On its onLoad, calls getCachePath with the same source and shows the file it gives in a second view, as a file:// uri. Passes once that view loads and the image server got one request for the url (the first view's).",
+                "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-key": {
+                "checks": "getCachePath for an image with a cacheKey, which a view has loaded, gives its file.",
+                "steps": "A view loads the aurora photo with a cacheKey. On its onLoad, calls getCachePath with the same uri and cacheKey and shows the file it gives in a second view. Passes once that view loads and the image server got one request.",
+                "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-download": {
+                "checks": "getCachePath for an image that wasn't loaded downloads it and gives its file.",
+                "steps": "Calls getCachePath for the aurora photo (a url nothing has loaded) on mount, and shows the file it gives. Passes once that view loads and the image server got exactly one request (the download).",
+                "shows": "An empty gray square (no view loads the url), then the aurora photo from the file."
+            },
+            "cache-path-cache-only": {
+                "checks": "getCachePath with cache: 'cacheOnly' for an image that wasn't loaded resolves not ok, without downloading it.",
+                "steps": "Calls getCachePath for the aurora photo (a url nothing has loaded) with cache: 'cacheOnly' on mount. Passes if it resolves not ok and the image server got no request for the url.",
+                "shows": "Two empty gray squares: no view loads the url, and there is no file to show. The photo on the right would mean it was downloaded."
+            },
+            "cache-path-404": {
+                "checks": "getCachePath for a url that 404s resolves not ok, with the status in its error.",
+                "steps": "Calls getCachePath on mount for a url the image server answers with a 404. Passes if it resolves not ok with an error that has 404 in it.",
+                "shows": "Two empty gray squares: there's no image and no file."
+            },
+            "cache-path-space": {
+                "checks": "getCachePath for a url with a space in it gives its file (iOS caches such a url escaped).",
+                "steps": "A view loads the aurora photo from a url with a space in its query (name=a b). On its onLoad, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the image server got one request.",
+                "shows": "The aurora photo twice: the view, then its file."
+            }
+        }
+    },
+    "cache-path-more": {
+        "description": {
+            "checks": "More getCachePath cases: cache: 'web' images, only a cacheKey, and an image still downloading."
+        },
+        "cases": {
+            "cache-path-web": {
+                "checks": "getCachePath for an image loaded with cache: 'web' gives its file (on Android, in the HTTP cache).",
+                "steps": "A view loads the aurora photo with cache: 'web', from a url the image server sends with Cache-Control: max-age=3600. On its onLoad, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the image server got one request.",
+                "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-web-cache-only": {
+                "checks": "getCachePath with cache: 'cacheOnly' finds an image a view loaded with cache: 'web', on both platforms.",
+                "steps": "A view loads the aurora photo with cache: 'web' (sent with max-age=3600). On its onLoad, calls getCachePath with the same uri and cache: 'cacheOnly' and shows the file it gives. Passes once that view loads and the image server got one request.",
+                "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-key-only": {
+                "checks": "getCachePath with only a cacheKey (no uri) finds the file of an image a view loaded with that cacheKey.",
+                "steps": "A view loads the aurora photo with a cacheKey. On its onLoad, calls getCachePath with only the cacheKey and shows the file it gives. Passes once that view loads and the image server got one request (the view's).",
+                "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-key-only-missing": {
+                "checks": "getCachePath with only a cacheKey that isn't cached resolves not ok, without a request.",
+                "steps": "Calls getCachePath on mount with only a cacheKey nothing has used. Passes if it resolves not ok and the image server got no request.",
+                "shows": "Two empty gray squares: no view loads the image, and there's no file to show."
+            },
+            "cache-path-while-loading": {
+                "checks": "getCachePath while a view is still downloading the image gives its file, and shares the view's download (Android downloaded it a second time with Glide).",
+                "steps": "A view loads the aurora photo from the slow server (in 8 parts, 150 ms apart). On its onLoadStart, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the slow server got one request for both.",
+                "shows": "The aurora photo twice: the view, then its file."
+            }
+        }
+    },
+    "cache-path-after-clear": {
+        "description": {
+            "checks": "getCachePath after FastImage.clearDiskCache(), for an image getCachePath downloaded."
+        },
+        "cases": {
+            "cache-path-after-clear": {
+                "checks": "After clearDiskCache, getCachePath with cache: 'cacheOnly' doesn't find an image, and without it downloads the image again (#1294: Android kept the file's path in Glide's memory cache, so both gave the old path, though the clear had deleted the file).",
+                "steps": "getCachePath downloads the aurora photo; then awaits FastImage.clearDiskCache(); then getCachePath with cache: 'cacheOnly', and then without it. Passes if the cacheOnly call resolves not ok, the other gives a file that's there, and the image server got two requests (the first download and the one after the clear).",
+                "shows": "An empty gray square: the case shows no image."
+            }
+        }
+    },
+    "cache-path-after-clear-loaded": {
+        "description": {
+            "checks": "getCachePath after FastImage.clearDiskCache(), for an image a view showed."
+        },
+        "cases": {
+            "cache-path-after-clear-loaded": {
+                "checks": "After clearDiskCache, getCachePath with cache: 'cacheOnly' doesn't find an image a view showed, and without it downloads the image again (#1294: Android kept the result of its lookup on disk in Glide's memory cache, so both gave the old path, though the clear had deleted the file).",
+                "steps": "A view loads the aurora photo. On its onLoad, getCachePath finds its file; then awaits FastImage.clearDiskCache(); then getCachePath with cache: 'cacheOnly', and then without it. Passes if the cacheOnly call resolves not ok, the other gives a file that's there, and the image server got two requests (the view's and the one after the clear).",
+                "shows": "The aurora photo: the view, which keeps showing it after the clear."
+            }
+        }
+    },
+    "clear-disk-cache-thread": {
+        "description": {
+            "checks": "FastImage.clearDiskCache() doesn't hold up native calls made after it."
+        },
+        "cases": {
+            "clear-disk-cache-thread": {
+                "checks": "clearDiskCache doesn't hold up a native call made after it (#1295: Android cleared the cache on React Native's native modules thread, so every module's async calls waited for it).",
+                "steps": "Without awaiting, queues 200 getCachePath lookups with cache: 'cacheOnly' (images that aren't cached), then FastImage.clearDiskCache(), then getCachePath of a file:// uri, which is answered right away. Passes if the clear resolves ok and the file:// call resolves before it.",
+                "shows": "An empty gray square: the case shows no image."
+            }
+        }
+    },
+    "write-to-cache": {
+        "description": {
+            "checks": "FastImage.writeToCache: storing a local file as a source's image, and the cases where it resolves not ok."
+        },
+        "cases": {
+            "write-to-cache": {
+                "checks": "writeToCache stores a local file as a url's image: a view of the url shows the file, without a request.",
+                "steps": "getCachePath downloads the aurora photo, and writeToCache stores its file as the image of a pug photo's url that nothing has loaded. Then a view shows that url. Passes on its onLoad if the image server got no request for the url.",
+                "shows": "The green aurora photo, not the pug the url would download."
+            },
+            "write-to-cache-avif": {
+                "checks": "writeToCache with an AVIF file: a view of the url shows it, without a request (iOS rejected the file as not an image, since SDWebImage's format check didn't know AVIF; fixed in #1239).",
+                "steps": "getCachePath downloads an AVIF of four colored quadrants, and writeToCache stores its file as the image of a pug photo's url. Then a view shows that url. Passes on its onLoad if the image server got no request for the url.",
+                "shows": "Four quadrants: red, green, blue and yellow. The pug would mean the url was downloaded."
+            },
+            "write-to-cache-key": {
+                "checks": "writeToCache for a source with a cacheKey: a view of that source shows the stored file, without a request.",
+                "steps": "getCachePath downloads the aurora photo, and writeToCache stores its file for a pug photo's url with a cacheKey. Then a view shows the same url and cacheKey. Passes on its onLoad if the image server got no request for the url.",
+                "shows": "The green aurora photo, not the pug."
+            },
+            "write-to-cache-key-only": {
+                "checks": "writeToCache with only a cacheKey (no uri): a view of a url with that cacheKey shows the stored file, without a request.",
+                "steps": "getCachePath downloads the aurora photo, and writeToCache stores its file under only a cacheKey. Then a view shows a pug photo's url with that cacheKey. Passes on its onLoad if the image server got no request for the url.",
+                "shows": "The green aurora photo, not the pug."
+            },
+            "write-to-cache-cached": {
+                "checks": "writeToCache for a url that's already cached doesn't replace its image: it resolves not ok.",
+                "steps": "getCachePath downloads the aurora photo (the file) and the pug photo's url (so it's cached). Then writeToCache stores the file for the pug's url. Passes if it resolves not ok with 'Already in the disk cache'.",
+                "shows": "An empty gray square: no view is shown."
+            },
+            "write-to-cache-missing": {
+                "checks": "writeToCache with a file that doesn't exist resolves not ok.",
+                "steps": "Calls writeToCache for a pug photo's url with file:///no/such/image.jpg. Passes if it resolves not ok with \"Can't read the file\".",
+                "shows": "An empty gray square: no view is shown."
+            },
+            "write-to-cache-web": {
+                "checks": "writeToCache for a cache: 'web' source resolves not ok: those images are kept by HTTP caching, not stored this way.",
+                "steps": "getCachePath downloads the aurora photo, and writeToCache stores its file for a pug photo's url with cache: 'web'. Passes if it resolves not ok with \"Can't store cache: 'web'\".",
+                "shows": "An empty gray square: no view is shown."
+            }
+        }
+    },
+    "source-change": {
+        "description": {
+            "checks": "Changing or clearing source while a slow image is still loading: the old load is cancelled, sends no events, and never replaces what is shown."
+        },
+        "cases": {
+            "source-change-loading": {
+                "checks": "Changing source to a cached image while a slow image is still loading: no onError for the cancelled load, and the new image stays (#1159: iOS sent onError and onLoadEnd for the cancelled load).",
+                "steps": "Preloads a photo of a bear into the cache, then loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, changes source to the bear. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.",
+                "shows": "The photo of a bear on rocks. A cyan square means the slow image replaced it."
+            },
+            "source-change-keep-previous": {
+                "checks": "Changing source from a loaded image to a slow one, then to another image before the slow one loads: no onError for the cancelled load, and the last image stays (#1159: iOS sent onError and onLoadEnd for the cancelled load).",
+                "steps": "Preloads a photo of a bear into the cache, then shows a magenta square. On its onLoad, changes source to a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s), which loads with the magenta one still showing. After 400 ms, changes source to the bear. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.",
+                "shows": "The photo of a bear on rocks. Magenta or cyan means a replaced image is showing."
+            },
+            "source-change-data": {
+                "checks": "Changing source to a data uri while a slow image is still loading cancels the slow load: no onError or onLoad for it, and it doesn't replace the new image (#1159: iOS didn't cancel it for a data uri, so the slow image replaced the new one when it finished, with another onLoad).",
+                "steps": "Loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, changes source to a data uri of an 8×8 yellow PNG. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.",
+                "shows": "A yellow square (the 8×8 image scaled up). A cyan square means the slow image replaced it."
+            },
+            "source-cleared": {
+                "checks": "Clearing source while a slow image is still loading cancels the load: no onLoad, and the view stays blank (#1165: Android kept loading, then sent onLoad and showed the image).",
+                "steps": "Loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, sets source to undefined. Passes 2 s after mount, once the load would have finished, if onLoad never fired.",
+                "shows": "An empty gray square. A cyan square means the cancelled load finished and was shown."
+            }
+        }
+    },
+    "fade": {
+        "description": {
+            "checks": "transition fades an image in when it loads: downloads and blurred images fade, images from the memory cache show at once unless skipOnCacheHit is none.",
+            "steps": "Video samples: the screen is recorded while each case makes its change, and the color in the middle of its black 48 × 48 view must go through the listed colors in order. The runner turns fades off by default; these cases pass transition { duration: 1000 } (1 s), with the other settings each names."
+        },
+        "cases": {
+            "fade": {
+                "checks": "transition fades a downloaded image in over its duration.",
+                "steps": "A black view mounts with a cyan image from the slow server (about 350 ms to download), with transition { duration: 1000 }. Recorded from the mount until 1.5 s after onLoad.",
+                "shows": "Recorded: black, then one steady fade through teal (half cyan) to cyan. At the end, a cyan square."
+            },
+            "fade-memory": {
+                "checks": "With transition's default skipOnCacheHit ('memory'), an image from the memory cache shows at once, without a fade.",
+                "steps": "A view (left) loads a cyan image; once it has, a second view (right, on black) mounts with the same source and transition { duration: 1000 }, so it comes from the memory cache. Recorded on the right until 1.5 s after its onLoad.",
+                "shows": "Recorded: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares."
+            },
+            "fade-memory-none": {
+                "checks": "transition with skipOnCacheHit: 'none' fades in an image from the memory cache too.",
+                "steps": "A view (left) loads a cyan image; once it has, a second view (right, on black) mounts with the same source and transition { duration: 1000, skipOnCacheHit: 'none' }, so it comes from the memory cache.",
+                "shows": "Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares."
+            },
+            "fade-blur": {
+                "checks": "transition with blurRadius: a downloaded image fades in already blurred.",
+                "steps": "A black view mounts with a cyan image from the slow server (about 350 ms), with blurRadius={6} and transition { duration: 1000 }. Blurring a flat color keeps it, so the colors are those of a plain fade.",
+                "shows": "Recorded: black, teal (half cyan), cyan. At the end, a cyan square."
+            }
+        }
+    },
+    "fade-web": {
+        "description": {
+            "checks": "cache: 'web' images shown again: they show at once without transition and with it, and fade in with skipOnCacheHit none (Android faded them in each time, from its HTTP cache).",
+            "steps": "Video samples, as in the fade group. In each case a view (left) loads a cyan image the server sends with Cache-Control: max-age=3600, with cache: 'web'; then a second view (right, on black) mounts with the same source: Android reads it from its HTTP cache without a request, iOS from the memory cache."
+        },
+        "cases": {
+            "fade-web": {
+                "checks": "Without transition (the built-in default), a cache: 'web' image shown again from its HTTP cache shows at once (Android faded it in each time).",
+                "steps": "The right view has no transition prop, and the built-in default is turned back on for it (FastImage.setDefaults({ transition: null })), which fades on Android (300 ms) and not on iOS.",
+                "shows": "Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares."
+            },
+            "fade-web-transition": {
+                "checks": "transition: a cache: 'web' image shown again shows at once, on Android from its HTTP cache without a request (Android faded it in each time).",
+                "steps": "The right view has transition { duration: 1000 }.",
+                "shows": "Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares."
+            },
+            "fade-web-none": {
+                "checks": "transition with skipOnCacheHit: 'none' fades in a cache: 'web' image shown again from its HTTP cache.",
+                "steps": "The right view has transition { duration: 1000, skipOnCacheHit: 'none' }.",
+                "shows": "Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares."
+            }
+        }
+    },
+    "fade-default": {
+        "description": {
+            "checks": "The built-in default transition: downloads fade in on Android (300 ms) and show at once on iOS.",
+            "steps": "A video sample, as in the fade group."
+        },
+        "cases": {
+            "fade-default": {
+                "checks": "Without transition, a downloaded image fades in by default on Android (300 ms).",
+                "steps": "A black view mounts with a cyan image from the slow server (about 350 ms) and no transition prop, with the built-in default turned back on (FastImage.setDefaults({ transition: null }); the runner turns fades off otherwise).",
+                "shows": "Recorded: black, teal (half cyan), cyan. At the end, a cyan square."
+            }
+        }
+    },
+    "fade-source": {
+        "description": {
+            "checks": "transition by where the image comes from: a new source from the memory cache shows at once, local files and bundled images fade in.",
+            "steps": "Video samples, as in the fade group."
+        },
+        "cases": {
+            "fade-change": {
+                "checks": "transition without betweenImages: a new source from the memory cache replaces the image showing at once, as in a reused list row.",
+                "steps": "A view (left) loads a cyan image; a second one (right, on black) shows a magenta image, with transition { duration: 1000 }. Once both have loaded (and 1.5 s more for the fades), the right view's source changes to the cyan one, from the memory cache.",
+                "shows": "Recorded on the right: magenta, then cyan; never blue-violet (a cross-dissolve). At the end, two cyan squares."
+            },
+            "fade-file": {
+                "checks": "transition fades in a local file:// image: it isn't a memory cache hit.",
+                "steps": "A view (left) loads a cyan image; FastImage.getCachePath gives its file in the disk cache, and a second view (right, on black) mounts with that file as a file:// source and transition { duration: 1000 }.",
+                "shows": "Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares."
+            },
+            "fade-bundled": {
+                "checks": "transition fades in a bundled require() image too, not only downloaded ones.",
+                "steps": "A black view mounts with require('./images/cyan.png') (from Metro in debug builds, from the app in release builds) and transition { duration: 1000 }.",
+                "shows": "Recorded: black, teal (half cyan), cyan. At the end, a cyan square."
+            }
+        }
+    },
+    "fade-between": {
+        "description": {
+            "checks": "transition's betweenImages: without it a new source replaces the image showing at once, with it the new image cross-dissolves from the old one.",
+            "steps": "Video samples, as in the fade group. Each view shows a magenta image first, then its source changes to cyan."
+        },
+        "cases": {
+            "fade-change-download": {
+                "checks": "transition without betweenImages: a new source that downloads replaces the image showing at once, once it has loaded.",
+                "steps": "The view (on black) shows a magenta image, with transition { duration: 1000 }; 1.5 s after it loads, its source changes to a cyan image from the slow server (about 350 ms).",
+                "shows": "Recorded: magenta (kept while cyan downloads), then cyan; never blue-violet (a cross-dissolve). At the end, a cyan square."
+            },
+            "fade-between": {
+                "checks": "transition with betweenImages: a new source that downloads cross-dissolves from the image showing.",
+                "steps": "The view (on black) shows a magenta image, with transition { duration: 1000, betweenImages: true }; 1.5 s after it loads, its source changes to a cyan image from the slow server (about 350 ms).",
+                "shows": "Recorded: magenta, blue-violet (halfway), cyan. At the end, a cyan square."
+            },
+            "fade-between-memory": {
+                "checks": "transition with betweenImages and skipOnCacheHit: 'none': a new source from the memory cache cross-dissolves from the image showing.",
+                "steps": "A view (left) loads a cyan image; a second one (right, on black) shows a magenta image, with transition { duration: 1000, betweenImages: true, skipOnCacheHit: 'none' }. Once both have loaded (and 1.5 s more), the right view's source changes to the cyan one, from the memory cache.",
+                "shows": "Recorded on the right: magenta, blue-violet (halfway), cyan. At the end, two cyan squares."
+            }
+        }
+    },
+    "fade-placeholder": {
+        "description": {
+            "checks": "transition from defaultSource: the image cross-dissolves from it, and defaultSource fades out under images with transparency and where the image doesn't cover the view (Android skips fading it out only under an opaque image that covers the view).",
+            "steps": "Video samples, as in the fade group. Each view (on black) shows a magenta defaultSource with no source; half a second later it gets a cyan image from the slow server (about 350 ms), with transition { duration: 1000 }."
+        },
+        "cases": {
+            "fade-placeholder": {
+                "checks": "transition: an image that downloads cross-dissolves from defaultSource.",
+                "steps": "The view shows a magenta defaultSource; half a second later it gets a cyan image from the slow server.",
+                "shows": "Recorded: magenta, blue-violet (halfway), cyan. At the end, a cyan square."
+            },
+            "fade-placeholder-translucent": {
+                "checks": "transition: an image with transparency cross-dissolves from defaultSource, which fades out under it.",
+                "steps": "The view shows a magenta defaultSource; half a second later it gets a cyan image at half opacity (cyan-half.png) from the slow server.",
+                "shows": "Recorded: magenta, dark blue-violet (halfway), teal (half cyan over black); never blue-violet (magenta left under the image). At the end, a teal square."
+            },
+            "fade-placeholder-contain": {
+                "checks": "transition with objectFit contain: defaultSource fades out where the image doesn't cover the view.",
+                "steps": "The view is 48 × 144 with objectFit contain, cut to its top third: the square cyan image covers the middle third, so the part shown has only defaultSource (magenta; on iOS a tall one, since iOS fits defaultSource as it fits the image), then the black background.",
+                "shows": "Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a black square."
+            },
+            "fade-placeholder-edge": {
+                "checks": "transition with objectFit contain and an image that leaves half a pixel of the view uncovered: defaultSource fades out there too (Android checks whether the image covers the view to skip fading defaultSource out).",
+                "steps": "A 16 dp view on black, magnified 8 times, with objectFit contain and a cyan image (42 × 41 px) a pixel shorter than the view (42 px on the emulator): it leaves half a pixel at the top and bottom, 4 px on the screen. Recorded in the top 4 px.",
+                "shows": "Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a large cyan square with a thin black line along its top and bottom edges."
+            }
+        }
+    },
+    "thumbhash": {
+        "description": {
+            "checks": "source.thumbhash: the ThumbHash shows, decoded, while the image loads and when it fails, in place of defaultSource, and changing it after the load starts or ends doesn't load again.",
+            "steps": "Most cases hold their download on the slow server (it sends nothing until the case unmounts), so the hash stays on screen for the screenshot. The hashes come from flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a magenta disc on transparent, and a 4:3 cyan-to-orange gradient."
+        },
+        "cases": {
+            "thumbhash-loading": {
+                "checks": "source.thumbhash shows while the image loads, in place of defaultSource.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds (it sends nothing until the case unmounts), with a red-to-blue thumbhash and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it (the download should be held).",
+                "shows": "A red-to-blue gradient, red on the left and blue on the right, filling the view. A failure: a magenta rectangle (defaultSource)."
+            },
+            "thumbhash-scale-down": {
+                "checks": "A thumbhash with transparency and objectFit scale-down is drawn as contain (the image's size isn't known yet), with the view's background around it.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds, with the thumbhash of a magenta disc on transparent and objectFit=\"scale-down\". Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "A soft, blurred magenta disc as tall as the view, centered on the gray background."
+            },
+            "thumbhash-fails": {
+                "checks": "source.thumbhash stays when the image fails to load.",
+                "steps": "A 96 × 72 view with objectFit=\"contain\" loads a url the slow server answers with a 404, with a 3:4 green-to-yellow thumbhash. Passes on onError.",
+                "shows": "A narrow green-to-yellow rectangle (green at the top, yellow at the bottom) centered on gray. A failure: an empty gray rectangle."
+            },
+            "thumbhash-change-loaded": {
+                "checks": "A new thumbhash for an image that has loaded doesn't load it again, and the photo stays.",
+                "steps": "A 96 × 72 view loads a photo from the slow server (about 350 ms) with a red-to-blue thumbhash; 1 s after onLoad the thumbhash changes to cyan-to-orange. Passes 2.5 s after onLoad if the server got one request for it and onLoad fired once.",
+                "shows": "A gray photo of a misty forest, cropped to fill the view. A failure: a cyan-to-orange gradient."
+            },
+            "thumbhash-change-loading": {
+                "checks": "A new thumbhash while the image loads shows at once, without starting the download again.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds, with a red-to-blue thumbhash; half a second after onLoadStart the thumbhash changes to cyan-to-orange. Passes 1.5 s after onLoadStart if the server got one request; a second onLoadStart or an onLoad fails it.",
+                "shows": "A cyan-to-orange gradient, cyan on the left and orange on the right. A failure: the red-to-blue one."
+            },
+            "thumbhash-placeholder-late": {
+                "checks": "A placeholder thumbhash that arrives after the image has loaded doesn't load it again, and the photo stays.",
+                "steps": "A 96 × 72 view loads a photo from the slow server (about 350 ms) with a magenta defaultSource and placeholder={{ thumbhash: undefined }}; 1 s after onLoad, placeholder gets a cyan-to-orange thumbhash. Passes 2.5 s after onLoad if the server got one request for it and onLoad fired once.",
+                "shows": "A gray photo of a misty forest, cropped to fill the view. A failure: a cyan-to-orange gradient."
+            },
+            "thumbhash-sizes": {
+                "checks": "With several sizes, each with its own thumbhash, the view shows the thumbhash of the size it picks.",
+                "steps": "A 40 × 30 view gets two held sources: 100 × 75 with a cyan-to-orange thumbhash and 1000 × 750 with a red-to-blue one; it picks the small one. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "A small cyan-to-orange gradient. A failure: red to blue (the large size's hash)."
+            },
+            "thumbhash-recycled": {
+                "checks": "A recycled view (a new recyclingKey) with a thumbhash shows the hash, not the previous item's image.",
+                "steps": "A 96 × 72 view loads a photo with recyclingKey 'a'; on its onLoad, it gets recyclingKey 'b' and a photo the slow server holds, with a green-to-yellow thumbhash. Passes half a second after the second onLoadStart; its onLoad fails it.",
+                "shows": "A green-to-yellow gradient (green at the top, yellow at the bottom) filling the view. A failure: the first photo."
+            }
+        }
+    },
+    "placeholder": {
+        "description": {
+            "checks": "The placeholder prop and a source's blurDataUri: data uris and ThumbHashes shown while the image loads, sized and tinted as the image will be.",
+            "steps": "Each case holds its download on the slow server (it sends nothing until the case unmounts), so the placeholder stays on screen for the screenshot."
+        },
+        "cases": {
+            "placeholder-data-uri": {
+                "checks": "The placeholder prop as a data uri shows while the image loads, decoded at once, in place of defaultSource.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds, with placeholder set to a 2 × 2 PNG data uri (red, green, blue and yellow pixels) and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "Red (top left), green (top right), blue (bottom left) and yellow (bottom right) blending into each other, filling the view. A failure: magenta."
+            },
+            "blur-data-uri": {
+                "checks": "A source's blurDataUri shows while the image loads, blurred, over the placeholder prop; with objectFit scale-down it's drawn as contain, as a thumbhash is.",
+                "steps": "A 96 × 72 view with objectFit=\"scale-down\" loads a photo the slow server holds, with blurDataUri set to a 2 × 1 PNG (orange on the left, teal on the right) and a magenta placeholder. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "An orange-to-teal band, blurred smoothly from one to the other, as wide as the view and half as tall, centered on gray. A failure: magenta."
+            },
+            "placeholder-sizes": {
+                "checks": "With several sizes and no thumbhash of their own, the placeholder prop's thumbhash shows for the picked size.",
+                "steps": "A 96 × 72 view gets two held sources (100 × 75 and 1000 × 750) and placeholder={{ thumbhash }} with a green-to-yellow hash. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "A green-to-yellow gradient (green at the top, yellow at the bottom) filling the view."
+            },
+            "placeholder-data-uri-size": {
+                "checks": "The placeholder prop as a data uri with objectFit none is drawn at its size, one pixel per point (Android drew it one pixel per pixel, much smaller).",
+                "steps": "A 96 × 72 view with objectFit=\"none\" loads a photo the slow server holds, with placeholder set to a 48 × 48 PNG data uri of red, green, blue and yellow quadrants. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "Sharp red, green, blue and yellow quadrants, 48 × 48 (half as wide as the view, two thirds as tall), centered on gray."
+            },
+            "thumbhash-tint": {
+                "checks": "tintColor tints a thumbhash with transparency, as it will tint the image.",
+                "steps": "A 96 × 72 view with objectFit=\"contain\" and tintColor=\"#1e40ff\" loads a photo the slow server holds, with the thumbhash of a magenta disc on transparent. Passes half a second after onLoadStart; onLoad fails it.",
+                "shows": "A soft blue disc, as tall as the view, centered on gray. A failure: a magenta disc."
+            }
+        }
+    },
+    "hdr": {
+        "description": {
+            "checks": "An HDR photo loads with each dynamicRangeLimit."
+        },
+        "cases": {
+            "hdr": {
+                "checks": "An HDR photo (a gain map) loads with each dynamicRangeLimit: 'standard', 'constrained' and 'no-limit'.",
+                "steps": "Three 64 × 48 views load the same photo: flat gray in standard range, its right half brighter in HDR. Passes once all three have fired onLoad; onError fails it. The simulator can't show HDR, so the last two are left out of the comparison; Android ignores dynamicRangeLimit.",
+                "shows": "A flat gray rectangle, then two that aren't compared (black or gray in the iOS simulator, gray on Android). On an HDR iPhone, the second's right half is brighter, and the third's brighter still."
+            }
+        }
+    },
+    "placeholder-url": {
+        "description": {
+            "checks": "The placeholder prop as a url: it loads and shows while the image loads or after it fails, with cache: 'cacheOnly' only if cached, and never over an image that has loaded."
+        },
+        "cases": {
+            "placeholder-url": {
+                "checks": "The placeholder prop as a url that isn't cached: it loads, and shows while the image loads.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds, with placeholder set to the url of a 20 × 20 image of red, green, blue and yellow quadrants (a new url each run). Passes 1 s after onLoadStart; onLoad fails it.",
+                "shows": "Red, green, blue and yellow quadrants filling the view. A failure: an empty gray rectangle."
+            },
+            "placeholder-url-cache-only": {
+                "checks": "A url placeholder with cache: 'cacheOnly' that isn't cached shows nothing and isn't requested.",
+                "steps": "A 96 × 72 view loads a photo the slow server holds, with placeholder={{ uri, cache: 'cacheOnly' }} for a cyan image not loaded before. Passes if, 1 s after onLoadStart, the image server got no request for the cyan url; onLoad fails it.",
+                "shows": "An empty gray rectangle. A failure: cyan."
+            },
+            "placeholder-url-cached": {
+                "checks": "A url placeholder with cache: 'cacheOnly' shows when it's cached, as for a list's thumbnail shown while the full image loads.",
+                "steps": "A 40 × 30 view loads the quadrants image; on its onLoad, a 96 × 72 view mounts with a photo the slow server holds and placeholder={{ uri, cache: 'cacheOnly' }} for the same url. Passes 1 s after onLoadStart; onLoad fails it.",
+                "shows": "The red, green, blue and yellow quadrants small, then larger on the right. A failure: an empty gray rectangle on the right."
+            },
+            "placeholder-url-error": {
+                "checks": "A url placeholder shows when the image fails.",
+                "steps": "A 96 × 72 view loads a url the image server answers with a 404, with placeholder set to a cyan image's url. Passes 1 s after onError.",
+                "shows": "A cyan rectangle. A failure: an empty gray rectangle."
+            },
+            "placeholder-url-late": {
+                "checks": "A url placeholder that arrives after the image has loaded doesn't replace it.",
+                "steps": "A 96 × 72 view loads a magenta image, with placeholder set to the quadrants from the slow server, held until the image's onLoad releases it. Passes 1 s after onLoad.",
+                "shows": "A magenta rectangle. A failure: the red, green, blue and yellow quadrants."
+            }
+        }
+    },
+    "fade-drawables": {
+        "description": {
+            "checks": "transition with other kinds of drawables: an animated WebP fading in and, on Android, vector and animated WebP defaultSource drawables fading out around or under the image.",
+            "steps": "Video samples, as in the fade group."
+        },
+        "cases": {
+            "fade-animated-webp": {
+                "checks": "transition fades in a downloaded animated WebP (an AnimatedImageDrawable on Android 9+).",
+                "steps": "A black view mounts with an animated WebP of two cyan frames from the slow server (about 350 ms), with transition { duration: 1000 }.",
+                "shows": "Recorded: black, teal (half cyan), cyan. At the end, a cyan square."
+            },
+            "fade-placeholder-vector-contain": {
+                "checks": "transition with objectFit contain over a vector drawable defaultSource (a VectorDrawable): it fades out where the image doesn't cover the view.",
+                "steps": "The view is 48 × 144 with objectFit contain, cut to its top third, and shows a magenta vector drawable as defaultSource; half a second later it gets a square cyan image from the slow server, which covers the middle third, with transition { duration: 1000 }.",
+                "shows": "Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a black square."
+            },
+            "fade-placeholder-animated-translucent": {
+                "checks": "transition: an image with transparency cross-dissolves from an animated WebP drawable defaultSource (an AnimatedImageDrawable on Android 9+), which fades out under it.",
+                "steps": "The view (on black) shows a magenta animated WebP drawable as defaultSource; half a second later it gets a cyan image at half opacity from the slow server, with transition { duration: 1000 }.",
+                "shows": "Recorded: magenta, dark blue-violet (halfway), teal (half cyan over black); never blue-violet (magenta left under the image). At the end, a teal square."
+            }
+        }
+    },
+    "fade-opacity": {
+        "description": {
+            "checks": "transition at half opacity: the image cross-dissolves from what the view showed, which fades out under it (on Android, React Native applies a View's opacity to each drawing in it, so what the view showed would otherwise show through).",
+            "steps": "Video samples, as in the fade group. Each case fades from magenta to an opaque cyan image from the slow server (about 350 ms), at half opacity over black."
+        },
+        "cases": {
+            "fade-placeholder-opacity": {
+                "checks": "transition with opacity 0.5 in the style: an image that downloads cross-dissolves from defaultSource, which fades out under it.",
+                "steps": "FastImage (opacity 0.5, in a black view) shows a magenta defaultSource; half a second later it gets a cyan image from the slow server, with transition { duration: 1000 }.",
+                "shows": "Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square."
+            },
+            "fade-between-opacity": {
+                "checks": "transition with betweenImages, in a View at opacity 0.5: a new source that downloads cross-dissolves from the image showing, which fades out under it.",
+                "steps": "FastImage, in a View at opacity 0.5 on black, shows a magenta image, with transition { duration: 1000, betweenImages: true }; 1.5 s after it loads, its source changes to a cyan image from the slow server.",
+                "shows": "Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square."
+            },
+            "fade-placeholder-animation": {
+                "checks": "transition in a View with a view animation at half alpha (an AlphaAnimation, which doesn't change the View's opacity): an image that downloads cross-dissolves from defaultSource, which fades out under it.",
+                "steps": "The example app's MainActivity starts the AlphaAnimation (0.5) on the View FastImage is in (in the runner only). FastImage shows a magenta defaultSource; half a second later it gets a cyan image from the slow server, with transition { duration: 1000 }.",
+                "shows": "Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square."
+            }
+        }
+    },
+    "fade-disk": {
+        "description": {
+            "checks": "transition for images from the disk cache: they fade in by default, and show at once with skipOnCacheHit all.",
+            "steps": "Video samples, as in the fade group. In each case a view (left) loads a cyan image, then unmounts; half a second later FastImage.clearMemoryCache() runs, and a second view (right, on black) mounts with the same source, so it loads from the disk cache."
+        },
+        "cases": {
+            "fade-disk": {
+                "checks": "transition fades in an image from the disk cache (the default skipOnCacheHit, 'memory', only skips the memory cache).",
+                "steps": "The right view has transition { duration: 1000 }.",
+                "shows": "Recorded on the right: black, teal (half cyan), cyan. At the end, an empty gray square and a cyan square."
+            },
+            "fade-disk-all": {
+                "checks": "transition with skipOnCacheHit: 'all': an image from the disk cache shows at once.",
+                "steps": "The right view has transition { duration: 1000, skipOnCacheHit: 'all' }.",
+                "shows": "Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, an empty gray square and a cyan square."
+            }
+        }
+    },
+    "recycling-key-empty": {
+        "description": {
+            "checks": "recyclingKey '' is a key like any other.",
+            "steps": "A video sample: the screen is recorded while the case changes its source, and the color in the middle of the view must go through the listed colors in order."
+        },
+        "cases": {
+            "recycling-key-empty": {
+                "checks": "Changing recyclingKey from '' with the source clears the image while the new one loads (iOS took '' as no key, since Codegen sends '' for a key that isn't set, so the previous image stayed).",
+                "steps": "The view shows a magenta image with recyclingKey ''; then its source changes to a cyan image from the slow server (about 1 s) and recyclingKey to 'second'. Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, blank (the view's light gray background), cyan. At the end, a cyan square."
+            }
+        }
+    },
+    "keep-previous": {
+        "description": {
+            "checks": "A source change keeps the image showing until the new one has loaded, and clears it when recyclingKey changes too.",
+            "steps": "Video samples: the screen is recorded while each case changes its source from a magenta image to a cyan one from the slow server (about 1 s), and the color in the middle of the view must go through the listed colors in order."
+        },
+        "cases": {
+            "keep-previous": {
+                "checks": "Changing the source keeps the image showing until the new one has loaded (#747: the view went blank between the two images).",
+                "steps": "The view shows a magenta image; then its source changes to a cyan image from the slow server (about 1 s). Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square."
+            },
+            "recycling-key": {
+                "checks": "Changing recyclingKey with the source clears the image while the new one loads, for views reused for other content.",
+                "steps": "The view shows a magenta image with recyclingKey 'first'; then its source changes to a cyan image from the slow server (about 1 s) and recyclingKey to 'second'. Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, blank (the view's light gray background), cyan. At the end, a cyan square."
+            },
+            "keep-previous-no-memory": {
+                "checks": "Changing the source keeps the image showing until the new one has loaded, with memoryCache: false (the image isn't kept in the memory cache).",
+                "steps": "As the first row, with memoryCache: false on both sources. Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square."
+            },
+            "keep-previous-twice": {
+                "checks": "Changing the source twice quickly keeps the image showing until the last one has loaded (Android went blank).",
+                "steps": "The view shows a magenta image; then its source changes to a slow image (about 7 s), and 150 ms later to a cyan one from the slow server (about 1 s). Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square."
+            },
+            "keep-previous-twice-no-memory": {
+                "checks": "Changing the source twice quickly keeps the image showing until the last one has loaded, with memoryCache: false (Android went blank).",
+                "steps": "As the row above, with memoryCache: false on all three sources. Recorded until cyan's onLoad.",
+                "shows": "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square."
+            }
+        }
+    },
+    "tint": {
+        "description": {
+            "checks": "tintColor over time, recorded on video: a tinted GIF playing, and tintColor changed or removed after the image loaded."
+        },
+        "cases": {
+            "tint-gif": {
+                "checks": "A tinted GIF plays, with every frame tinted (#1195: iOS showed the first frame tinted and didn't play it).",
+                "steps": "Loads a GIF that plays once (magenta, transparent, magenta, 400 ms each) with tintColor green and paused. On onLoad it starts recording and sets paused={false}. Passes when the recording sees green, blank, green, in that order.",
+                "shows": "A green square (the last frame, tinted). Recorded: green, blank (the gray background through the transparent frame), then green."
+            },
+            "tint-change": {
+                "checks": "Changing tintColor after the image loaded retints it.",
+                "steps": "Loads a magenta square with tintColor green. On onLoad it starts recording and changes tintColor to cyan. Passes when the recording sees green, then cyan.",
+                "shows": "A cyan square. Recorded: green, then cyan."
+            },
+            "tint-gif-clear": {
+                "checks": "Removing tintColor from a paused GIF shows the frame's own colors again.",
+                "steps": "Loads a GIF (magenta, transparent, magenta) with tintColor green and paused, so it stays on its first frame. On onLoad it starts recording and removes tintColor. Passes when the recording sees green, then magenta.",
+                "shows": "A magenta square (the first frame, untinted). Recorded: green, then magenta."
+            }
+        }
+    },
+    "several-sources": {
+        "description": {
+            "checks": "source as an array of sizes: the view loads the source whose size in pixels is closest to its own, including a require()d image among them."
+        },
+        "cases": {
+            "several-48": {
+                "checks": "source as an array of sizes: the view loads the one whose size in pixels is closest to its own.",
+                "steps": "Gives a 48 pt view three sources: 100, 300 and 900 px squares (red, green, blue). Passes when onLoad's width is 100 px, the closest to the view at this screen's scale.",
+                "shows": "A 48 pt red square (the 100 px image); another color means it picked another size."
+            },
+            "several-120": {
+                "checks": "source as an array of sizes: the view loads the one whose size in pixels is closest to its own.",
+                "steps": "Gives a 120 pt view three sources: 100, 300 and 900 px squares (red, green, blue). Passes when onLoad's width is 300 px, the closest to the view at this screen's scale.",
+                "shows": "A 120 pt green square (the 300 px image); another color means it picked another size."
+            },
+            "several-edge": {
+                "checks": "An array of one source loads that source as it is (not picked by size), and a view with no size loads the largest of several.",
+                "steps": "Shows a 48 pt view with an array of just the 900 px blue source, and a 0×0 view with all three (100, 300, 900 px). Passes when both onLoads have 900 px.",
+                "shows": "A blue square (the one-source array); the 0×0 view takes no space."
+            },
+            "several-bundled-16": {
+                "checks": "A require()d image among several sources counts at its file's size (48 px): the view loads whichever source is closest to its own size in pixels.",
+                "steps": "Gives a 16 pt view two sources: the bundled 48 px magenta square and a 300 px green one from the image server. Passes when onLoad's width is 48 px.",
+                "shows": "A tiny 16 pt magenta square (the bundled image)."
+            },
+            "several-bundled-120": {
+                "checks": "A require()d image among several sources counts at its file's size (48 px): the view loads whichever source is closest to its own size in pixels.",
+                "steps": "Gives a 120 pt view two sources: the bundled 48 px magenta square and a 300 px green one from the image server. Passes when onLoad's width is 300 px.",
+                "shows": "A 120 pt green square (the 300 px image); magenta would mean it picked the bundled one."
+            }
+        }
+    },
+    "several-sources-large": {
+        "description": {
+            "checks": "source as an array of sizes in large views: a large view picks a larger source, and a view that grows loads a larger one."
+        },
+        "cases": {
+            "several-240": {
+                "checks": "source as an array of sizes: the view loads the one whose size in pixels is closest to its own.",
+                "steps": "Gives a 240 pt view three sources: 100, 300 and 900 px squares (red, green, blue). Passes when onLoad's width is 300 px, the closest to the view at this screen's scale.",
+                "shows": "A 240 pt green square (the 300 px image); another color means it picked another size."
+            },
+            "several-resize": {
+                "checks": "source as an array of sizes: a view that grows after its image loaded loads the size that fits it better.",
+                "steps": "Gives a 40 pt view three sources: 100, 300 and 900 px squares (red, green, blue). Once it has loaded the 100 px one, the view grows to 200 pt. Passes when the next onLoad has the 300 px one.",
+                "shows": "A 200 pt green square; red would mean it kept the small view's pick."
+            }
+        }
+    },
+    "several-sources-border": {
+        "description": {
+            "checks": "source as an array of sizes in views with borders: the source is picked for the box inside the borders, where the image is drawn."
+        },
+        "cases": {
+            "several-border": {
+                "checks": "source as an array of sizes: the view loads the one whose size in pixels is closest to its own, measured inside its borders, where the image is drawn (Android picked for the whole view).",
+                "steps": "Gives a 120 pt view with 30 pt black borders three sources: 100, 300 and 900 px squares (red, green, blue). Passes when onLoad's width is 100 px, the closest to the inner box at this screen's scale.",
+                "shows": "A 120 pt black square (the borders) with the red 100 px image filling the box inside them."
+            },
+            "several-border-change": {
+                "checks": "source as an array of sizes, with borders added after the image loaded: the view loads the size that fits the box inside them (Android kept the source picked for the whole view).",
+                "steps": "Gives a 120 pt view three sources: 100, 300 and 900 px squares (red, green, blue). Once it has loaded the 300 px one, it gets 30 pt black borders. Passes when the next onLoad has the 100 px one.",
+                "shows": "A 120 pt black square (the borders) with the red 100 px image filling the box inside them; green would mean it kept the first pick."
+            }
+        }
+    },
+    "image-background": {
+        "description": {
+            "checks": "FastImageBackground draws its image behind its children."
+        },
+        "cases": {
+            "image-background": {
+                "checks": "FastImageBackground: the image fills the view behind its children, with imageStyle applied to the image.",
+                "steps": "Shows a 120×120 photo in a 96×48 FastImageBackground (cover, the default) with imageStyle={{ borderRadius: 8 }} and a Text child. Passes on onLoad; the rest is checked by the screenshot.",
+                "shows": "A wide photo of a bear on rocks, cropped to fill the view, with rounded corners and \"on top\" in bold white text across its middle."
+            }
+        }
+    },
+    "formats": {
+        "description": {
+            "checks": "Which still image formats load on each platform, for the tables in docs/formats.md: each case loads the same picture in one format."
+        },
+        "cases": {
+            "format-jpeg": {
+                "checks": "A JPEG image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a JPEG (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-png": {
+                "checks": "A PNG image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a PNG (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-gif": {
+                "checks": "A still GIF image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a still GIF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-webp": {
+                "checks": "A WebP image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a WebP (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-avif": {
+                "checks": "An AVIF image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as an AVIF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-heic": {
+                "checks": "A HEIC image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a HEIC (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-bmp": {
+                "checks": "A BMP image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as a BMP (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-ico": {
+                "checks": "An ICO image loads on every platform, at its own size (as the tables in docs/formats.md say).",
+                "steps": "Loads the test picture as an ICO (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes when onLoad has 80×80.",
+                "shows": "The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed."
+            },
+            "format-tiff": {
+                "checks": "A TIFF image loads on iOS and fails on Android, as docs/formats.md says (a change in what's supported fails the case).",
+                "steps": "Loads the test picture as a TIFF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes on iOS when onLoad has 80×80, on Android on onError.",
+                "shows": "iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android: an empty gray square."
+            },
+            "format-icns": {
+                "checks": "An ICNS image loads on iOS and fails on Android and tvOS (whose ImageIO doesn't decode it), as docs/formats.md says (a change in what's supported fails the case).",
+                "steps": "Loads the test picture as an ICNS (128×128, an icon size: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes on iOS when onLoad has 128×128, on Android and tvOS on onError.",
+                "shows": "iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android and tvOS: an empty gray square."
+            },
+            "format-psd": {
+                "checks": "A PSD image loads on iOS and fails on Android and tvOS (whose ImageIO doesn't decode it), as docs/formats.md says (a change in what's supported fails the case).",
+                "steps": "Loads the test picture as a PSD (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit=\"contain\". Passes on iOS when onLoad has 80×80, on Android and tvOS on onError.",
+                "shows": "iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android and tvOS: an empty gray square."
+            }
+        }
+    },
+    "formats-animated": {
+        "description": {
+            "checks": "Which animated formats animate on each platform (GIF, APNG, WebP, a large downsampled WebP, AVIF), checked by recording each view."
+        },
+        "cases": {
+            "format-animated-gif": {
+                "checks": "An animated GIF animates.",
+                "steps": "Loads an animated GIF (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-apng": {
+                "checks": "An animated PNG (APNG) animates (on Android with APNG4Android, which the example apps include).",
+                "steps": "Loads an APNG (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-webp": {
+                "checks": "An animated WebP animates.",
+                "steps": "Loads an animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-webp-downsampled": {
+                "checks": "A large animated WebP, decoded at about the view's size (downsample, the default), still animates.",
+                "steps": "Loads a 400×400 animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-avif": {
+                "checks": "An animated AVIF animates.",
+                "steps": "Loads an animated AVIF (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            }
+        }
+    },
+    "avif-animation": {
+        "description": {
+            "checks": "loop and paused with an animated AVIF (ImageIO's decoder on iOS, Android's ImageDecoder on Android)."
+        },
+        "cases": {
+            "avif-loop-false": {
+                "checks": "loop={false} on an animated AVIF that loops forever by itself: it plays once and stops on its last frame.",
+                "steps": "Loads an animated AVIF that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.",
+                "shows": "A blue square (the last frame, where it stopped); one that kept looping could show either frame."
+            },
+            "avif-loop-file": {
+                "checks": "Without loop, an animated AVIF that plays once by itself (no repetitions in the file) plays once and stops on its last frame.",
+                "steps": "Loads an animated AVIF that plays once (red, then blue, 400 ms each) without loop. Passes a play (0.8 s) and a margin after onLoad.",
+                "shows": "A blue square (the last frame); red would mean it never played."
+            },
+            "avif-paused": {
+                "checks": "paused: an image (an animated AVIF) that loops forever by itself stays on its first frame.",
+                "steps": "Loads the image (red, then blue, 400 ms each, looping) with paused. Passes a play's length (0.8 s) after onLoad.",
+                "shows": "A red square (the first frame); blue would mean it played."
+            },
+            "avif-resume": {
+                "checks": "paused, then paused={false}, with loop={false} (an animated AVIF): the image plays once and stops on its last frame.",
+                "steps": "Loads an image that loops forever by itself (red, then blue, 400 ms each) with paused and loop={false}. A play's length (0.8 s) after onLoad, it sets paused={false}. Passes a play (and a margin) later.",
+                "shows": "A blue square (the last frame); red would mean resuming didn't play it."
+            }
+        }
+    },
+    "webp-animation": {
+        "description": {
+            "checks": "loop, paused, two views of one image, and blurRadius with an animated WebP."
+        },
+        "cases": {
+            "webp-loop-false": {
+                "checks": "loop={false} on an animated WebP that loops forever by itself: it plays once and stops on its last frame.",
+                "steps": "Loads an animated WebP that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.",
+                "shows": "A blue square (the last frame, where it stopped); one that kept looping could show either frame."
+            },
+            "webp-loop-unset": {
+                "checks": "loop={false}, then loop removed on the same view: the animated WebP loops forever again, as the file says, rather than staying stopped.",
+                "steps": "Loads an animated WebP that loops forever (red, then blue, 400 ms each) with loop={false}. After a play it removes loop, waits a play, then records the view. Passes when the recording sees both red and blue (still looping).",
+                "shows": "A red or blue square: animated, so masked and not compared."
+            },
+            "webp-loop-remount": {
+                "checks": "A new view without loop shows an animated WebP looping forever, as the file says, after another view showed it with loop={false} (on Android a new view can get the drawable a view that's gone had, with its loop).",
+                "steps": "Loads an animated WebP that loops forever (red, then blue) with loop={false}; after a play the view switches to another image (the quadrants), then a new view without loop shows the WebP again. A play after it loads, the view is recorded. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square: animated, so masked and not compared."
+            },
+            "webp-paused": {
+                "checks": "paused: an image (an animated WebP) that loops forever by itself stays on its first frame.",
+                "steps": "Loads the image (red, then blue, 400 ms each, looping) with paused. Passes a play's length (0.8 s) after onLoad.",
+                "shows": "A red square (the first frame); blue would mean it played."
+            },
+            "webp-resume": {
+                "checks": "paused, then paused={false}, with loop={false} (an animated WebP): the image plays once and stops on its last frame.",
+                "steps": "Loads an image that loops forever by itself (red, then blue, 400 ms each) with paused and loop={false}. A play's length (0.8 s) after onLoad, it sets paused={false}. Passes a play (and a margin) later.",
+                "shows": "A blue square (the last frame); red would mean resuming didn't play it."
+            },
+            "format-animated-webp-twice-1": {
+                "checks": "The same animated WebP in two views: each animates on its own (on Android, Glide would give both views one drawable, which would share its playback with the paused one).",
+                "steps": "Loads the animated WebP the paused cases above use (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-webp-twice-2": {
+                "checks": "The second view of the same animated WebP also animates.",
+                "steps": "Loads the same animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "blur-webp": {
+                "checks": "blurRadius on an animated WebP: it shows its first frame, blurred and still, as a blurred GIF does.",
+                "steps": "Loads the animated WebP (red, then blue, 400 ms each, looping) with blurRadius 6. On onLoad it records the view for two plays. Passes when the recording sees only red.",
+                "shows": "A red square (the first frame; blurring a flat color leaves it the same): masked, so not compared."
+            }
+        }
+    },
+    "apng-animation": {
+        "description": {
+            "checks": "loop, paused, two views of one image, and blurRadius with an APNG (on Android with APNG4Android, which the example apps include)."
+        },
+        "cases": {
+            "png-loop-false": {
+                "checks": "loop={false} on an APNG that loops forever by itself: it plays once and stops on its last frame.",
+                "steps": "Loads an APNG that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.",
+                "shows": "A blue square (the last frame, where it stopped); one that kept looping could show either frame."
+            },
+            "png-paused": {
+                "checks": "paused: an image (an animated PNG) that loops forever by itself stays on its first frame.",
+                "steps": "Loads the image (red, then blue, 400 ms each, looping) with paused. Passes a play's length (0.8 s) after onLoad.",
+                "shows": "A red square (the first frame); blue would mean it played."
+            },
+            "png-resume": {
+                "checks": "paused, then paused={false}, with loop={false} (an animated PNG): the image plays once and stops on its last frame.",
+                "steps": "Loads an image that loops forever by itself (red, then blue, 400 ms each) with paused and loop={false}. A play's length (0.8 s) after onLoad, it sets paused={false}. Passes a play (and a margin) later.",
+                "shows": "A blue square (the last frame); red would mean resuming didn't play it."
+            },
+            "format-animated-apng-twice-1": {
+                "checks": "The same APNG in two views: each animates on its own, rather than sharing one playback with the paused one.",
+                "steps": "Loads the APNG the paused cases above use (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "format-animated-apng-twice-2": {
+                "checks": "The second view of the same APNG also animates.",
+                "steps": "Loads the same APNG (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square, depending on the frame: animated, so masked and not compared."
+            },
+            "blur-apng": {
+                "checks": "blurRadius on an APNG: it shows its first frame, blurred and still, as a blurred GIF does.",
+                "steps": "Loads the APNG (red, then blue, 400 ms each, looping) with blurRadius 6. On onLoad it records the view for two plays. Passes when the recording sees only red.",
+                "shows": "A red square (the first frame; blurring a flat color leaves it the same): masked, so not compared."
+            }
+        }
+    },
+    "svg": {
+        "description": {
+            "checks": "SVG images (SDWebImageSVGCoder on iOS, AndroidSVG on Android, which Fast Image includes): remote and bundled, their sizes in onLoad, a wrong Content-Type, tintColor and downsample."
+        },
+        "cases": {
+            "svg-remote": {
+                "checks": "A remote SVG loads, and onLoad has its own size.",
+                "steps": "Loads the 100×50 SVG (left half red, right half blue) from the image server in a 96×48 view. Passes when onLoad has 100×50.",
+                "shows": "A 96×48 rectangle: red on the left, blue on the right."
+            },
+            "svg-bundled": {
+                "checks": "A require()d SVG, bundled with the app, loads, in debug and release builds.",
+                "steps": "Shows the 100×50 SVG (left half red, right half blue) from the app's bundle in a 96×48 view. Passes when onLoad has 100×50.",
+                "shows": "A 96×48 rectangle: red on the left, blue on the right."
+            },
+            "svg-viewbox": {
+                "checks": "An SVG with only a viewBox (no width or height) loads, and onLoad has the viewBox's size.",
+                "steps": "Loads an SVG with viewBox=\"0 0 60 30\" (left half green, right half yellow) in a 64×32 view. Passes when onLoad has 60×30.",
+                "shows": "A 64×32 rectangle: green on the left, yellow on the right."
+            },
+            "svg-nosize": {
+                "checks": "An SVG with no width, height or viewBox loads at 300×150, the default size for one.",
+                "steps": "Loads an SVG without a size (a 300×150 magenta rectangle with a 150×150 cyan square on its left) in a 64×32 view. Passes when onLoad has 300×150.",
+                "shows": "A 64×32 rectangle: cyan on the left, magenta on the right (the whole SVG, scaled down)."
+            },
+            "svg-mislabeled": {
+                "checks": "An SVG the server sends with Content-Type: text/plain still loads.",
+                "steps": "Loads the 100×50 SVG (left half red, right half blue) from a server route that sends it as text/plain, in a 96×48 view. Passes when onLoad has 100×50.",
+                "shows": "A 96×48 rectangle: red on the left, blue on the right."
+            },
+            "svg-tint": {
+                "checks": "tintColor on an SVG icon tints it.",
+                "steps": "Loads a 24×24 SVG icon (a black ring) with tintColor green in a 48×48 view. Passes when onLoad has 24×24.",
+                "shows": "A green ring filling the gray square; a black ring would mean the tint was ignored."
+            },
+            "svg-downsample": {
+                "checks": "An SVG with downsample stays a vector image, drawn sharp, and onLoad has its own size (iOS drew it into a bitmap the view's size).",
+                "steps": "Loads the 100×50 SVG (left half red, right half blue) with downsample in a 96×48 view. Passes when onLoad has 100×50.",
+                "shows": "A 96×48 rectangle: red on the left, blue on the right, with a sharp edge between them."
+            }
+        }
+    },
+    "svg-sizes": {
+        "description": {
+            "checks": "How SVGs fit their views: objectFit contain and cover, and an SVG drawn sharp at a large size."
+        },
+        "cases": {
+            "svg-contain": {
+                "checks": "objectFit=\"contain\" on an SVG: the whole image fits inside the view.",
+                "steps": "Loads the 100×50 SVG (left half red, right half blue) in a 64×64 view with objectFit=\"contain\". Passes when onLoad has 100×50.",
+                "shows": "A 64 pt square: a red and blue band across the middle (the whole SVG), with gray above and below."
+            },
+            "svg-cover": {
+                "checks": "objectFit=\"cover\" on an SVG: the image fills the view, cropped at the sides.",
+                "steps": "Loads the 100×50 SVG (left half red, right half blue) in a 64×64 view with objectFit=\"cover\". Passes when onLoad has 100×50.",
+                "shows": "A 64 pt square, the left half red and the right half blue (the middle of the SVG); gray above and below would mean it was contained."
+            },
+            "svg-sharp": {
+                "checks": "An SVG shown large is drawn at its size, not scaled up from a small bitmap.",
+                "steps": "Loads the same 20×20 SVG (three thin black rings on white) in a 24 pt view and a 160 pt view. Passes when both have fired onLoad; the sharpness is checked by the screenshot.",
+                "shows": "Small rings, then the same rings at 160 pt: thin, sharp black circles on white. Blurry or thick edges on the large one would mean it was scaled up from a bitmap."
+            }
+        }
+    },
+    "photo-library": {
+        "description": {
+            "checks": "Photo library images (ph:// urls, iOS, with SDWebImagePhotosPlugin): a JPEG and a HEIC, a photo shown again after clearing the memory cache, an animated GIF, and urls that fail.",
+            "steps": "Uses the simulator's photo library, which verify.mts grants access to and adds a GIF to (and on tvOS, whose simulator has no photos, a JPEG and a HEIC of the four colored quadrants)."
+        },
+        "cases": {
+            "photo-library": {
+                "checks": "Photo library (ph://) urls are iOS only: Android's photo pickers give content:// urls, which load like other local files. A placeholder for the group on Android.",
+                "steps": "Shows nothing. Passes once the app has run for a moment.",
+                "shows": "An empty gray square."
+            }
+        }
+    },
+    "configure-cache": {
+        "description": {
+            "checks": "FastImage.configureCache and the disk cache limit set in the native config."
+        },
+        "cases": {
+            "configure-cache": {
+                "checks": "FastImage.configureCache: the maxDiskSize in the app's native config (300 MB) is in effect from the start, with the disk cache's size; a runtime change applies (iOS at once, Android from the next launch), and null resets it.",
+                "steps": "Reads configureCache(): the limit, and a disk size above 0 from earlier groups' images. iOS: downloads a photo with getCachePath, sets maxDiskSize to 1 byte, which empties the disk cache, checks the photo is gone (getCachePath with cache: 'cacheOnly'), then resets it with null. Android: sets 1 byte, then null, and the limit in effect stays 300 MB. Passes when every value matches.",
+                "shows": "An empty gray square: no image is shown."
+            }
+        }
+    },
+    "non-object-sources": {
+        "description": {
+            "checks": "preload, getCachePath and writeToCache with a url string where a source object goes: each resolves not ok instead of crashing the app."
+        },
+        "cases": {
+            "preload-non-object": {
+                "checks": "FastImage.preload with a url string or a number where a source object goes resolves that entry not ok, in its place among the results (#592: native read it as a source and crashed the app: Android cast it to a map, iOS sent it an unrecognized selector).",
+                "steps": "Preloads a url string, then { uri } with the same 200×200 photo, then the number 42. Passes when the results are, in order: not ok ('Invalid source: no uri'), ok at 200x200, not ok.",
+                "shows": "An empty gray square: no image is shown."
+            },
+            "cache-path-non-object": {
+                "checks": "FastImage.getCachePath with a url string where a source object goes resolves not ok with an error (native read it as a source and crashed the app).",
+                "steps": "Calls FastImage.getCachePath with a url string as the source. Passes when it resolves { ok: false } with an error.",
+                "shows": "An empty gray square: no image is shown."
+            },
+            "write-to-cache-non-object": {
+                "checks": "FastImage.writeToCache with a url string where a source object goes resolves not ok with an error (native read it as a source and crashed the app).",
+                "steps": "Calls FastImage.writeToCache with a url string as the source and a file path that doesn't exist. Passes when it resolves { ok: false } with an error.",
+                "shows": "An empty gray square: no image is shown."
+            }
+        }
+    },
+    "touch": {
+        "description": {
+            "checks": "Touches, accessibility labels and keyboard focus on FastImage, with real input: the touch flow (maestro/touch.yaml) taps each case while the group is shown.",
+            "steps": "The flow taps, in order: the image inside the Touchable, the Pressable under the pointerEvents=\"none\" image, the one under the box-none image, the image found by its accessibilityLabel, the one found by its aria-label, and the small gray square beside the hitSlop image; on Android it then taps the focus case's text field and presses Tab twice. tvOS leaves this group out."
+        },
+        "cases": {
+            "touchable": {
+                "checks": "FastImage as a Touchable's direct child, which passes its onClick to the image (#1020: iOS crashed with an unrecognized selector, setOnClick:).",
+                "steps": "Shows the logo inside a TouchableWithoutFeedback; the touch flow taps the image. Passes when onPress fires.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "pointer-events": {
+                "checks": "pointerEvents=\"none\" on FastImage lets touches through to the view under it (#393: the prop went to the image inside FastImage's wrapper, which still took the touch).",
+                "steps": "Shows the logo with pointerEvents=\"none\" over a Pressable of the same size; the touch flow taps there. Passes when the Pressable gets the press.",
+                "shows": "The React logo (light blue) on the gray square (the Pressable under it)."
+            },
+            "pointer-events-box-none": {
+                "checks": "pointerEvents=\"box-none\" on FastImage lets touches through to the view under it: FastImage is a single view without children, so there's nothing left to touch.",
+                "steps": "Shows the logo with pointerEvents=\"box-none\" over a Pressable of the same size; the touch flow taps there. Passes when the Pressable gets the press.",
+                "shows": "The React logo (light blue) on the gray square (the Pressable under it)."
+            },
+            "accessible": {
+                "checks": "accessibilityLabel and the responder props (onStartShouldSetResponder, onResponderRelease) work on FastImage's own view: it can be found by its label and touched.",
+                "steps": "Shows the logo with accessible, an accessibilityLabel and responder props; the touch flow finds it by that label and taps it. Passes on onResponderRelease.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "aria-label": {
+                "checks": "aria-label is the image's accessibility label (React Native's views don't read the aria props, so FastImage maps them; before, the image had no label).",
+                "steps": "Shows the logo with aria-label and responder props; the touch flow finds it by that label and taps it. Passes on onResponderRelease.",
+                "shows": "The React logo (light blue) on the gray square."
+            },
+            "hit-slop": {
+                "checks": "hitSlop on FastImage: a touch beside the image, inside its slop, reaches it.",
+                "steps": "Shows the logo with hitSlop={{ right: 40 }} and responder props, and a small gray square to its right (pointerEvents=\"none\") inside the slop; the touch flow taps the square. Passes when the image gets onResponderRelease.",
+                "shows": "The React logo (light blue) on the gray square, then a smaller, slightly darker gray square to its right (the tap target)."
+            },
+            "focus": {
+                "checks": "A focusable FastImage gets onFocus and onBlur as keyboard focus moves to it and on (Android only: on iOS React Native sends them only for focus moved from code).",
+                "steps": "Shows a text field (without the soft keyboard), the logo with focusable, onFocus and onBlur, and a 1-point focusable view after it. The touch flow taps the text field and presses Tab twice, moving focus to the image and on. Passes once onFocus, then onBlur, fired.",
+                "shows": "An empty text field (a white square with a gray border), then the React logo (light blue) on the gray square."
+            }
+        }
+    },
+    "examples-1": {
+        "description": {
+            "checks": "The example screens' priority and GIF sections: three photos loaded with source.priority low, normal and high, and an animated GIF.",
+            "steps": "Loads a 2048×2048 photo of a fjord with priority 'low', a 2048×2048 photo of red canyon rocks with 'normal' and a 1024×1024 photo of green hills with 'high', then the plankton GIF, each with a new query so it isn't cached. Passes once all four have sent onLoad.",
+            "shows": "Top to bottom: the line \"Prioritize images (low, normal, high).\" over a light gray band with three photos side by side, each cropped to fill its box (the fjord, the red rocks, the green hills with a road); then \"GIF support.\" over a gray band with the GIF in a square in the middle, a small pale creature on black (animated, so it's not compared). An image that didn't load is a slightly darker gray box."
+        },
+        "cases": {}
+    },
+    "border-radius": {
+        "description": {
+            "checks": "borderRadius on the image view: the image clipped to the rounded corners, different radii per corner, and a border that follows the curve, also with a scale transform (#757: on iOS the border and the rounded image didn't line up, leaving a gap; #870: on Android borderRadius was drawn wrong with transform scale).",
+            "steps": "Loads a 200×200 photo of a pug in a blanket four times (a new query each run): a 100×100 view with borderRadius 50; a wide view with borderRadius 50 but 10 at the top left and bottom right; an 80×80 view with borderRadius 24 and a 4 dp red border; and an 80×80 view with borderRadius 40, the same border and transform scale 0.9. Passes once all four have sent onLoad.",
+            "shows": "Below the line \"Border radius.\", on a light gray band: a round pug photo, then a wide crop of it with large rounded corners at the top right and bottom left and small ones at the top left and bottom right; under them, in the middle, a rounded square and a slightly smaller circle, each with a red border hugging the photo all the way round. A failure is square corners, a gap or a step between the border and the photo, or a corner left uncut."
+        },
+        "cases": {}
+    },
+    "examples-2": {
+        "description": {
+            "checks": "The example screens' progress and objectFit sections: onLoadStart, onProgress and onLoad for a remote GIF, and the photo in tall boxes with each objectFit value.",
+            "steps": "Loads the jellyfish GIF (a new query each run) with onLoadStart, onProgress and onLoad; it passes once onLoadStart and onLoad have come and the last onProgress reached 100 %. Then loads a 600×300 photo of green hills into four 50×100 boxes with objectFit=\"contain\", \"scale-down\", \"fill\" and \"cover\"; it passes once all four have sent onLoad.",
+            "shows": "Top to bottom: \"Progress callbacks.\" over a light gray band with the jellyfish GIF in a square and the events with their times under it (both left out of the comparison: animated, and timings); then \"objectFit.\" over a gray band with four tall boxes, labeled under each: contain and scale-down show the whole photo small, in the middle, with darker gray bars above and below (the same, as the photo is larger than the box); fill squeezes the whole photo into the tall box; cover fills it with the middle of the photo, cut off at the sides."
+        },
+        "cases": {}
+    },
+    "examples-tint": {
+        "description": {
+            "checks": "The example screen's tintColor section: every pixel of the image that isn't transparent is drawn in the tint color, for bundled images and for remote ones without a defaultSource (the case of #1082, where iOS crashed tinting an image with no size).",
+            "steps": "Shows the bundled 1000×1000 React logo three times with tintColor 'green', '#9324c3' and 'rgba(0,0,0,0.5)', then the same logo from the image server three times with the same colors and objectFit=\"contain\". Passes once all six have sent onLoad.",
+            "shows": "Two lines of text, then a light gray band with three React logos: green, purple, and gray (half-transparent black); then a line of text and a second band with the same three logos, slightly smaller. A logo in its usual light blue means the tint wasn't applied."
+        },
+        "cases": {}
+    },
+    "examples-3": {
+        "description": {
+            "checks": "The example screen's local images section: bundled images (require() and import), a GIF, an animated WebP, a base64 data uri and a WebP.",
+            "steps": "Shows each source in a 64×64 view: an aerial photo of fields with require() and with import, the jellyfish as a GIF and as an animated WebP, the fields photo as a base64 data uri and as a WebP. Passes once all six have sent onLoad. The last item, a FastImageBackground for picking a photo from the library, has no image and isn't counted.",
+            "shows": "Below \"Local images.\", on a light gray band, each image under its label, three to a row: the fields photo twice and the jellyfish on blue (Require, Import, GIF); the jellyfish again, then the fields photo twice (Animated WebP, Base64, WebP); then \"photo library\" over a darker gray square with \"Pick Photo\" in white. The two jellyfish are animated, so they're not compared."
+        },
+        "cases": {}
+    },
+    "examples-auto-size": {
+        "description": {
+            "checks": "The example screen's auto size section: a view that takes its height from the size onLoad reports, so the photo shows at its own aspect ratio.",
+            "steps": "Loads a 600×300 photo of green hills (a new query each run) in a view 200 dp wide and 300 dp tall; on onLoad, sets the height to 200 × 300 / 600 = 100. Passes once onLoad has come.",
+            "shows": "Below \"AutoSize.\", on a light gray band, the whole hills photo in a 200×100 box in the middle, with no darker gray around it. A failure is a 200×300 box, with the photo cropped to fill it."
+        },
+        "cases": {}
+    },
+    "fastimage-grid": {
+        "description": {
+            "checks": "A grid of many remote images loading at the same time, like a gallery screen (the example screen's FastImage grid).",
+            "steps": "Fetches the image server's list of photos and shows them in a 4-column list with 6 rows, each a 100×100 photo in a square cell. Passes once all 24 have sent onLoad.",
+            "shows": "Six rows of four square photos, filling the width with thin white gaps: about two and a half rows of laptops on wooden tables, then landscapes (sea, a river, beaches and rocks, a waterfall, a path through grass, a mossy log), and in the last row a desk from above, white high heels on red, a man on a road and forks on a dark background. A photo that didn't load is an empty light gray cell."
+        },
+        "cases": {}
+    }
+}

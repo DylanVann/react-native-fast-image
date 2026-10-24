@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import http2 from 'node:http2'
 import os from 'node:os'
 import path from 'node:path'
-import { parseArgs, promisify } from 'node:util'
+import { isDeepStrictEqual, parseArgs, promisify } from 'node:util'
 import { ODiffServer } from 'odiff-bin'
 
 const HELP = `Checks the library and runs the example apps on iOS and Android.
@@ -1207,6 +1207,61 @@ const CASE_PADDING = 6
 
 type PixelRect = { x: number; y: number; width: number; height: number }
 
+// Each group's descriptions (the group's, and its cases' by id), as the app
+// sends them, in its app and platform's folder (dir) next to the references,
+// in the app's order, committed with them: the regression viewer shows them.
+// They're checked like the screenshots: a group without any is added
+// (seeded), one whose descriptions differ fails (--update-screenshots
+// replaces them), and a group the app doesn't have (groups: all of them)
+// fails as unused. shown: the groups this run showed.
+const DESCRIPTIONS = 'descriptions.json'
+function checkDescriptions(
+    dir: string,
+    groups: string[],
+    shown: Record<string, unknown>,
+) {
+    const file = path.join(dir, DESCRIPTIONS)
+    const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '{}'
+    const saved = JSON.parse(before) as Record<string, unknown>
+    const next = { ...saved }
+    const failures: string[] = []
+    const seeded: string[] = []
+    for (const [group, description] of Object.entries(shown)) {
+        if (!(group in saved)) seeded.push(group)
+        else if (isDeepStrictEqual(saved[group], description)) continue
+        else if (!UPDATE_SCREENSHOTS) {
+            failures.push(`${group}: its descriptions differ from ${rel(file)}`)
+            continue
+        }
+        next[group] = description
+    }
+    for (const group of Object.keys(saved)) {
+        if (groups.includes(group)) continue
+        if (UPDATE_SCREENSHOTS) delete next[group]
+        else
+            failures.push(
+                `${rel(file)}: no group ${group} uses its descriptions (remove them)`,
+            )
+    }
+    const order = (group: string) =>
+        groups.includes(group) ? groups.indexOf(group) : groups.length
+    const after =
+        JSON.stringify(
+            Object.fromEntries(
+                Object.keys(next)
+                    .sort((a, b) => order(a) - order(b))
+                    .map((group) => [group, next[group]]),
+            ),
+            null,
+            4,
+        ) + '\n'
+    if (after !== before) {
+        fs.mkdirSync(dir, { recursive: true })
+        fs.writeFileSync(file, after)
+    }
+    return { failures, seeded }
+}
+
 // The references in an app and platform's folder (dir) that nothing would
 // compare: a group's that the app doesn't have (groups: all of them), and of
 // the groups compared (compared), a case's that the group didn't report
@@ -1222,7 +1277,7 @@ function orphanedReferences(
     if (!fs.existsSync(dir)) return []
     const orphans: string[] = []
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (entry.name.startsWith('.')) continue
+        if (entry.name.startsWith('.') || entry.name === DESCRIPTIONS) continue
         const file = path.join(dir, entry.name)
         const group = entry.isDirectory()
             ? entry.name
@@ -2644,6 +2699,17 @@ async function runRegression(
         ))
             failures.push(`${rel(file)}: no case uses it (delete it)`)
     }
+    // The groups' descriptions, next to the references.
+    let descriptionsSeeded: string[] = []
+    if (!REF && platform !== 'web') {
+        const checked = checkDescriptions(
+            path.join(SCREENSHOTS, `${app}-${platform}`),
+            groups,
+            descriptions,
+        )
+        failures.push(...checked.failures)
+        descriptionsSeeded = checked.seeded
+    }
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),
@@ -2666,6 +2732,9 @@ async function runRegression(
     )
     logLine(`done in ${total}s: ${timings.join(', ')}`)
     const seededNote =
+        (descriptionsSeeded.length > 0
+            ? `; the descriptions of ${descriptionsSeeded.length} group${descriptionsSeeded.length === 1 ? '' : 's'} added to ${rel(path.join(SCREENSHOTS, `${app}-${platform}`, DESCRIPTIONS))}`
+            : '') +
         (seeded.length > 0
             ? `; ${seeded.length} reference screenshot${seeded.length === 1 ? '' : 's'} seeded in ${rel(SCREENSHOTS)}, look at them before committing`
             : '') +
