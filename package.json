@@ -64,6 +64,7 @@
         "odiff-bin": "^4.5.0",
         "oxfmt": "0.70.0",
         "oxlint": "1.85.0",
+        "playwright-core": "1.64.1",
         "pretty-format": "^30.5.1",
         "react": "19.2.0",
         "react-native": "0.83.10",

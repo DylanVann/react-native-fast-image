@@ -108,6 +108,7 @@ jobs:
             /*
             !/screenshots/*
             /screenshots/${{ matrix.app }}-ios/
+            /screenshots/expo-web/
             !/docs/
             !/website/
             !/benchmark/
@@ -299,6 +300,41 @@ jobs:
         continue-on-error: true
         run: bun scripts/group-times.ts record ios-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
+      # The Expo example's web version (verify.mts --app expo --web), in
+      # Playwright's Chromium: after the minimum example's groups (this job ends
+      # a few minutes before the main example's), and after their times were
+      # recorded. Its dependencies and the browser (playwright-core's pinned
+      # build, in Playwright's cache) come from R2.
+      - name: "Restore the Expo example's dependencies and Playwright's Chromium"
+        id: web
+        if: ${{ !cancelled() && matrix.app == 'minimum' }}
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            ReactNativeFastImageExampleExpo/node_modules
+            ~/Library/Caches/ms-playwright
+          key: web-v1-${{ hashFiles('ReactNativeFastImageExampleExpo/bun.lock', 'bun.lock') }}
+          restore-keys: web-v1-
+      - name: "Update the Expo example's dependencies"
+        if: ${{ !cancelled() && matrix.app == 'minimum' && steps.web.outputs.cache-hit != 'true' }}
+        run: bun install --frozen-lockfile
+        working-directory: ReactNativeFastImageExampleExpo
+      - name: "Run the Expo example's web version"
+        id: verifyweb
+        if: ${{ !cancelled() && matrix.app == 'minimum' }}
+        run: node scripts/verify.mts --app expo --web --no-js
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
+      - name: "Save the Expo example's dependencies and Playwright's Chromium"
+        if: always() && env.R2_WRITE == 'true' && matrix.app == 'minimum' && steps.verifyweb.outcome == 'success' && steps.web.outputs.cache-hit != 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            ReactNativeFastImageExampleExpo/node_modules
+            ~/Library/Caches/ms-playwright
+          key: ${{ steps.web.outputs.cache-primary-key }}
       # The simulator verify.mts created, for later runs (see above): without
       # the example apps, with simslim's .github/simslim.json profile (its
       # services stay off on later boots), shut down. From one job, and only
