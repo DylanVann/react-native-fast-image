@@ -525,7 +525,9 @@ function load() {
                 run,
             )
             const wholeReference = `screenshots/${key}/${name}.png`
-            const byCase = !(references.has(wholeReference) || info?.whole)
+            // As the run compared it (a run from before the flag: whether
+            // the group has a whole reference).
+            const byCase = !(info?.whole ?? references.has(wholeReference))
             const cases = Object.entries(statuses).map(([id, status]) => {
                 const c = caseInfo[id]
                 const reference = `screenshots/${key}/${name}/${id}.png`
