@@ -403,9 +403,7 @@
 
             function render() {
                 const groups = shownGroups()
-                const review = data.entries
-                    .flatMap((e) => e.groups)
-                    .filter((g) => g.state === 'new' || g.state === 'differs')
+                const review = toApprove()
                 $('approve-all').disabled = review.length === 0
                 $('approve-all').textContent =
                     `Approve all to review (${review.length})`
@@ -442,7 +440,7 @@
                 return (
                     `<p><b>Checks</b> ${esc(d.checks)}</p>` +
                     (d.steps ? `<p><b>Steps</b> ${esc(d.steps)}</p>` : '') +
-                    `<p><b>Shows</b> ${esc(d.shows)}</p>`
+                    (d.shows ? `<p><b>Shows</b> ${esc(d.shows)}</p>` : '')
                 )
             }
 
@@ -521,13 +519,13 @@
             const reviewable = (state) => state === 'new' || state === 'differs'
 
             // A case compared on its own: its description, then its crop of
-            // the reference, this run and the diff.
-            function caseRow(c, i) {
+            // the reference, this run and the diff. approvable: its group's.
+            function caseRow(c, i, approvable) {
                 const image = c.image
                 const crop = (src, label) =>
                     `<figure><figcaption>${label}</figcaption>${src ? `<img src="${file(src)}" />` : '<div class="missing">none</div>'}</figure>`
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${image.state}</span>` : ''}${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}${image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
+                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${image.state}</span>` : ''}${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c)}
                     ${
@@ -573,15 +571,16 @@
                     // compared on its own.
                     layout = `<div class="layout by-case">
                         <div class="images">${frame(g.shot, g, 'This run')}</div>
-                        <div class="cases">${g.cases.map(caseRow).join('') || '<p class="detail">No cases reported.</p>'}</div>
+                        <div class="cases">${g.cases.map((c, i) => caseRow(c, i, g.approvable)).join('') || '<p class="detail">No cases reported.</p>'}</div>
                     </div>`
                 }
                 $('main').innerHTML = `
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
                         <span class="badge">${g.state}</span>
-                        ${reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
+                        ${g.approvable && reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
                     </div>
+                    ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
                     ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
                     <div class="description">${descriptionHtml(g.description)}</div>
                     ${layout}
@@ -620,6 +619,7 @@
                 for (const g of groups) {
                     await fetch('/api/approve', {
                         method: 'POST',
+                        headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ key: g.key, name: g.name, id }),
                     })
                 }
@@ -649,19 +649,27 @@
             })
             $('filter').addEventListener('change', render)
             $('mode').addEventListener('change', render)
-            $('approve-all').addEventListener('click', () => {
-                const groups = data.entries
+            // The groups to review whose images may become references.
+            const toApprove = () =>
+                data.entries
                     .flatMap((e) => e.groups)
-                    .filter((g) => g.state === 'new' || g.state === 'differs')
+                    .filter((g) => g.approvable && reviewable(g.state))
+            $('approve-all').addEventListener('click', () => {
+                const groups = toApprove()
+                const images = groups
+                    .flatMap((g) => [g.whole, ...g.cases.map((c) => c.image)])
+                    .filter((image) => image && reviewable(image.state))
                 if (
                     confirm(
-                        `Copy ${groups.length} screenshots over their references?`,
+                        `Copy ${images.length} images (${groups.length} groups) over their references?`,
                     )
                 )
                     approve(groups)
             })
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, select')) return
+                // Not the browser's own shortcuts (Cmd+A selects all).
+                if (e.metaKey || e.ctrlKey || e.altKey) return
                 if (e.key === 'j' || e.key === 'ArrowDown') move(1)
                 else if (e.key === 'k' || e.key === 'ArrowUp') move(-1)
                 else if (e.key === 'a') $('approve')?.click()

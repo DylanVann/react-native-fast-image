@@ -49,7 +49,8 @@ if (options.help) {
 const gh = (...args: string[]) =>
     execFileSync('gh', args, { cwd: ROOT, encoding: 'utf8', timeout: 60_000 })
 
-// The PR's latest e2e run's verify-* artifacts, downloaded once.
+// The PR's latest e2e run's verify-* artifacts, downloaded once (into a
+// partial folder first, so an interrupted download isn't taken for one).
 function downloadPr(pr: string) {
     const head = gh(
         'pr',
@@ -80,6 +81,8 @@ function downloadPr(pr: string) {
     const dir = path.join(OUTPUT, `ci-${run.databaseId}`)
     if (!fs.existsSync(dir)) {
         console.log(`Downloading run ${run.databaseId}'s screenshots…`)
+        const partial = `${dir}.partial`
+        fs.rmSync(partial, { recursive: true, force: true })
         try {
             execFileSync(
                 'gh',
@@ -90,14 +93,15 @@ function downloadPr(pr: string) {
                     '-p',
                     'verify-*',
                     '-D',
-                    dir,
+                    partial,
                 ],
                 { cwd: ROOT, stdio: 'inherit', timeout: 600_000 },
             )
         } catch (error) {
-            fs.rmSync(dir, { recursive: true, force: true })
+            fs.rmSync(partial, { recursive: true, force: true })
             throw error
         }
+        fs.renameSync(partial, dir)
     }
     const local = execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: ROOT,
@@ -129,12 +133,13 @@ function findResults(dir: string): string[] {
     return found
 }
 
-// The latest folder in verify-output/ with a regression run in it.
+// The latest folder in verify-output/ with a regression run in it, not a
+// CI run's (--pr).
 function latestRun() {
     const dirs = fs.existsSync(OUTPUT)
         ? fs
               .readdirSync(OUTPUT, { withFileTypes: true })
-              .filter((e) => e.isDirectory())
+              .filter((e) => e.isDirectory() && !e.name.startsWith('ci-'))
               .map((e) => path.join(OUTPUT, e.name))
               .filter((d) => findResults(d).length > 0)
               .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
@@ -154,7 +159,7 @@ const RUN = path.resolve(
           : latestRun(),
 )
 
-type Description = { checks: string; steps?: string; shows: string }
+type Description = { checks: string; steps?: string; shows?: string }
 type Rect = { x: number; y: number; width: number; height: number }
 type Comparison = { result: string; detail?: string; diff?: string }
 type Results = {
@@ -169,6 +174,8 @@ type Results = {
         Comparison & {
             file: string
             cases?: Record<string, Comparison & { area: Rect; file: string }>
+            approvable?: boolean
+            failures?: string[]
         }
     >
 }
@@ -187,13 +194,17 @@ type Compared = {
 }
 
 // A group as the page shows it: compared as a whole (whole), or by case
-// (each case's image). state: failed (a case didn't pass), or its images'
-// worst.
+// (each case's image). state: failed (a case didn't pass, or the group
+// failed: failures), or its images' worst. approvable: whether its images
+// may become references (verify.mts wouldn't seed them from a failed group
+// or a --ref run).
 type Group = {
     key: string
     name: string
     index: number
     state: 'failed' | State
+    approvable: boolean
+    failures: string[]
     detail?: string
     description?: Description
     shot?: string
@@ -264,7 +275,11 @@ function load() {
             const index = names.indexOf(name)
             const prefix = `${String(index + 1).padStart(2, '0')}-${name}`
             const info = results.screenshots?.[name]
-            const caseInfo = info?.cases ?? {}
+            // A run from before the cases had crops of their own (an area
+            // only) is shown as a whole.
+            const caseInfo = Object.fromEntries(
+                Object.entries(info?.cases ?? {}).filter(([, c]) => c.file),
+            )
             const byCase = Object.keys(caseInfo).length > 0
             const descriptions = results.descriptions?.[name]
             const cases = Object.entries(statuses).map(([id, status]) => {
@@ -295,8 +310,11 @@ function load() {
                           written,
                       )
                     : undefined
+            const failures = info?.failures ?? []
+            const failed =
+                cases.some((c) => c.status !== 'OK') || failures.length > 0
             const states = [
-                ...(cases.some((c) => c.status !== 'OK') ? ['failed'] : []),
+                ...(failed ? ['failed'] : []),
                 ...(whole ? [whole.state] : []),
                 ...cases.flatMap((c) => (c.image ? [c.image.state] : [])),
             ] as Group['state'][]
@@ -306,6 +324,8 @@ function load() {
                 name,
                 index,
                 state: ORDER.find((s) => states.includes(s)) ?? 'ok',
+                approvable: !failed && !!info && (info.approvable ?? true),
+                failures,
                 detail: info?.detail,
                 description: descriptions?.description,
                 shot: info && path.join(dir, info.file),
@@ -367,27 +387,44 @@ const server = http.createServer((request, response) => {
     }
     if (url.pathname === '/file') {
         const file = path.resolve(url.searchParams.get('path') ?? '')
-        if (!servable(file) || !fs.existsSync(file)) return send(404, 'no file')
+        if (
+            !servable(file) ||
+            !fs.statSync(file, { throwIfNoEntry: false })?.isFile()
+        )
+            return send(404, 'no file')
         response.writeHead(200, {
             'content-type':
                 TYPES[path.extname(file)] ?? 'application/octet-stream',
             'cache-control': 'no-store',
         })
-        return fs.createReadStream(file).pipe(response)
+        return fs
+            .createReadStream(file)
+            .on('error', () => response.destroy())
+            .pipe(response)
     }
-    if (url.pathname === '/api/approve' && request.method === 'POST') {
+    // JSON only: another site's page can't send that without the browser
+    // asking first (CORS), which this server doesn't answer.
+    if (
+        url.pathname === '/api/approve' &&
+        request.method === 'POST' &&
+        request.headers['content-type'] === 'application/json'
+    ) {
         let body = ''
         request.on('data', (chunk) => (body += chunk))
         request.on('end', () => {
             // A case's image (id), or all the group's.
-            const { key, name, id } = JSON.parse(body) as {
-                key: string
-                name: string
-                id?: string
+            let approve: { key: string; name: string; id?: string }
+            try {
+                approve = JSON.parse(body)
+            } catch {
+                return send(400, 'not JSON')
             }
+            const { key, name, id } = approve
             const group = load()
                 .find((e) => e.key === key)
                 ?.groups.find((g) => g.name === name)
+            if (group && !group.approvable)
+                return send(409, "can't be approved")
             const images = [
                 ...(group?.whole && !id ? [group.whole] : []),
                 ...(group?.cases ?? []).flatMap((c) =>
