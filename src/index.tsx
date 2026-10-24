@@ -676,9 +676,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   zoomed in on with a transform (a pinch-to-zoom viewer), which would
      *   otherwise show the smaller copy enlarged. **It uses more memory:** a
      *   12-megapixel photo takes about 48 MB decoded, however small it's
-     *   shown. On Android, an image over 16 megapixels (4096 × 4096) is
-     *   decoded at the largest size under that, which Android can still
-     *   draw.
+     *   shown. An image over 16 megapixels (4096 × 4096, 64 MB) is decoded
+     *   at the largest size under that, which Android can still draw.
      *
      * It doesn't change `onLoad`'s width and height (the image's own size) or
      * the cached file. Photo library images are always decoded at about the

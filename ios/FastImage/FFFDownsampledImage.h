@@ -14,7 +14,8 @@
 // or fit in.
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover;
 
-// Sets a load's context to decode the image at full size, through this class.
+// Sets a load's context to decode the image at full size (at most 16
+// megapixels), through this class.
 // Every FastImage load uses it, so loads of the same url
 // can share a download: SDWebImage's downloader decodes each load of a
 // download with the first load's image class (and each with its own size),

@@ -11,6 +11,21 @@
 // The decode option that carries the full image's size to the view.
 static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
 
+// The most pixels an image is decoded at (each frame, for an animated
+// image), as on Android: 4096 x 4096, 64 MB. At full size a 10000 x 10000
+// photo would take 400 MB, for each view that doesn't downsample it.
+static CGFloat const FFFMaxPixels = 4096.0 * 4096.0;
+
+// The longest side (in pixels) an image of this size is decoded at, at most
+// FFFMaxPixels pixels, or zero if it fits at full size.
+static CGFloat FFFCappedLongestSide(CGSize pixelSize) {
+    CGFloat pixels = pixelSize.width * pixelSize.height;
+    if (pixels <= FFFMaxPixels) {
+        return 0;
+    }
+    return MAX(1, floor(MAX(pixelSize.width, pixelSize.height) * sqrt(FFFMaxPixels / pixels)));
+}
+
 // The image's size in pixels as it's shown (EXIF orientations 5 to 8 turn it
 // sideways), from its header, or zero if ImageIO can't read it.
 static CGSize FFFPixelSize(NSData* data) {
@@ -188,13 +203,24 @@ static CGSize FFFPixelSize(NSData* data) {
     }
 }
 
-// A smaller image under a full-size load's key.
+// A smaller image under a full-size load's key: smaller than its full size,
+// or than FFFMaxPixels for a larger image (by more than rounding).
 + (BOOL) isSmallerFullSizeImage: (UIImage*)image context: (SDWebImageContext*)context {
     if (context[SDWebImageContextImageThumbnailPixelSize]) {
         return NO;
     }
     CGSize fullSize = [self sourceSizeOfImage: image];
-    return fullSize.width > 0 && fullSize.height > 0 && !CGSizeEqualToSize(image.size, fullSize);
+    if (fullSize.width <= 0 || fullSize.height <= 0) {
+        return NO;
+    }
+    CGFloat scale = MAX(image.scale, 1);
+    CGSize pixelSize = CGSizeMake(fullSize.width * scale, fullSize.height * scale);
+    CGFloat longest = FFFCappedLongestSide(pixelSize);
+    if (longest == 0) {
+        return !CGSizeEqualToSize(image.size, fullSize);
+    }
+    CGFloat ratio = longest / MAX(pixelSize.width, pixelSize.height);
+    return image.size.width * scale < pixelSize.width * ratio - 1 || image.size.height * scale < pixelSize.height * ratio - 1;
 }
 
 // An image decoded to SDR for an HDR load, or to HDR for an SDR load. Only
@@ -243,18 +269,26 @@ static CGSize FFFPixelSize(NSData* data) {
     NSMutableDictionary* decodeOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
     [decodeOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
     decodeOptions[SDImageCoderDecodePreserveAspectRatio] = @YES;
+    // ImageIO takes the longest side (kCGImageSourceThumbnailMaxPixelSize),
+    // zero here for full size.
+    CGFloat longest = 0;
     if (box.width > 0 && box.height > 0 && pixelSize.width > 0 && pixelSize.height > 0) {
         CGFloat widthRatio = box.width / pixelSize.width;
         CGFloat heightRatio = box.height / pixelSize.height;
         CGFloat ratio = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
         if (ratio <= 0.5) {
-            // ImageIO takes the longest side (kCGImageSourceThumbnailMaxPixelSize).
-            // SDWebImage works it out from the box with the image's stored
-            // width and height, before EXIF orientation, so a square box is
-            // the one that gives this side for any orientation.
-            CGFloat longest = ceil(MAX(pixelSize.width, pixelSize.height) * ratio);
-            decodeOptions[SDImageCoderDecodeThumbnailPixelSize] = [NSValue valueWithCGSize: CGSizeMake(longest, longest)];
+            longest = ceil(MAX(pixelSize.width, pixelSize.height) * ratio);
         }
+    }
+    CGFloat cappedLongest = FFFCappedLongestSide(pixelSize);
+    if (cappedLongest > 0 && (longest == 0 || longest > cappedLongest)) {
+        longest = cappedLongest;
+    }
+    if (longest > 0) {
+        // SDWebImage works it out from the box with the image's stored width
+        // and height, before EXIF orientation, so a square box is the one
+        // that gives this side for any orientation.
+        decodeOptions[SDImageCoderDecodeThumbnailPixelSize] = [NSValue valueWithCGSize: CGSizeMake(longest, longest)];
     }
 
     self = [super initWithData: data scale: scale options: decodeOptions];

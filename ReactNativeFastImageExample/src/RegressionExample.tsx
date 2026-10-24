@@ -7927,6 +7927,7 @@ const downsampleStyles = StyleSheet.create({
     fill: { flex: 1 },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
+    overLimit: { width: 96, height: 64 },
     zoomClip: {
         width: 140,
         height: 88,
@@ -10666,6 +10667,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 size="800x1200"
                 style={downsampleStyles.rotated}
                 objectFit="contain"
+            />,
+            <DownsampleCase
+                key="downsample-over-limit"
+                id="downsample-over-limit"
+                description={{
+                    checks: 'An image over 16 megapixels is decoded at most at that size, also with downsample={false}, and onLoad still reports its own size.',
+                    steps: 'Loads a 6000x4000 (24-megapixel) image of four colored quadrants into two 96x64 views: the left with downsample, the right with downsample={false} (decoded at about 5016x3344). Passes once both onLoad events report 6000x4000.',
+                    shows: 'The same red, green, blue and yellow quadrants twice.',
+                }}
+                image="quadrants-24mp.png"
+                size="6000x4000"
+                style={downsampleStyles.overLimit}
             />,
             <DownsampleMemoryCase key="downsample-memory" />,
             <DownsamplePreloadCase key="downsample-preload" />,

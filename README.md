@@ -421,7 +421,7 @@ Downloads, local files (`file://`, `content://`) and bundled images (`require()`
 Decodes a large image at about the size it's shown at, instead of at full size, so it takes much less memory.
 
 - `true`: an image at least twice the size its view needs is decoded at about the view's size (on Android, any image larger than its view). If the view grows, the image is decoded again for its new size (from the disk cache).
-- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged. **It uses more memory:** a 12-megapixel photo takes about 48 MB decoded, however small it's shown. On Android, an image over 16 megapixels (4096 × 4096) is decoded at the largest size under that, which Android can still draw.
+- `false`: images are decoded at full size, e.g. for an image that's zoomed in on with a transform (a pinch-to-zoom viewer), which would otherwise show the smaller copy enlarged. **It uses more memory:** a 12-megapixel photo takes about 48 MB decoded, however small it's shown. An image over 16 megapixels (4096 × 4096, 64 MB) is decoded at the largest size under that, which Android can still draw.
 
 It doesn't change `onLoad`'s width and height (the image's own size) or the cached file. Photo library images are always decoded at about the view's size. Android 16 and later decode animated WebP at full size either way, and scale it as they draw it.
 
