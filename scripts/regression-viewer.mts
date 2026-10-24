@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// Shows every regression case's reference screenshot with its description,
-// compared with a verify.mts run's screenshots where it has them, and
-// approves new screenshots as references (copies them into screenshots/).
+// Shows every regression case's committed reference screenshot with its
+// description, next to its change if it has one: a verify.mts run's
+// screenshot, or a reference in screenshots/ that isn't committed. Approves a
+// run's screenshots (copies them into screenshots/, to commit) and undoes
+// approvals that aren't committed.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -10,12 +12,13 @@ import { parseArgs } from 'node:util'
 
 const USAGE = `Usage: node scripts/regression-viewer.mts [folder] [options]
 
-Serves a page (http://localhost:<port>) with every regression group and case:
-its reference in screenshots/ and what it checks, for every app and platform.
-Where a verify.mts run has the group, it's compared: each case's crop of the
-group's screenshot next to its reference and the diff (a group without cases
-as a whole), and the video samples. A crop that's new or differs can be
-approved: it's copied over its reference in screenshots/ (commit it).
+Serves a page (http://localhost:<port>) with every regression group and case,
+for every app and platform: its committed reference (git's HEAD) and what it
+checks, and its change, if it has one: a run's screenshot that differs (each
+case's crop, or a group without cases as a whole), or a reference in
+screenshots/ that isn't committed (approved, seeded or edited), with the diff.
+Approving a run's screenshot copies it into screenshots/, to commit; undo
+puts the committed reference back.
 
   folder              The run to compare with: a verify.mts output folder, or
                       any folder with runs in it (e.g. a CI run's artifacts,
@@ -223,25 +226,30 @@ type Results = {
     >
 }
 
-// An image compared with its reference. state: new (no reference, or one
-// the run seeded), differs (from the reference), approved (the reference is
-// now this image), ok, or reference: a reference the run didn't compare (no
-// shot), to look at.
-type State = 'new' | 'differs' | 'approved' | 'ok' | 'reference'
-type Compared = {
+// A case's image (or a whole group's), as the page shows it: its committed
+// reference (git's HEAD) and, if it has one, an uncommitted image: a run's
+// screenshot not approved yet (approved: false), or the reference in
+// screenshots/ when it isn't the committed one (approved, seeded or edited,
+// and not committed yet; approved: true). state: new (nothing committed),
+// differs, removed (deleted from screenshots/), or ok (nothing uncommitted).
+type State = 'new' | 'differs' | 'removed' | 'ok'
+type Image = {
     state: State
-    detail?: string
-    shot?: string
+    // Its path in the repository (screenshots/…).
     reference: string
-    hasReference: boolean
+    committed: boolean
+    // The uncommitted image's file.
+    current?: string
+    approved: boolean
+    detail?: string
     diff?: string
 }
 
 // A group as the page shows it: compared as a whole (whole), or by case
 // (each case's image). state: failed (a case didn't pass, or the group
-// failed: failures), or its images' worst. approvable: whether its images
-// may become references (verify.mts wouldn't seed them from a failed group
-// or a --ref run).
+// failed: failures), or its images' worst. approvable: whether its run's
+// images may become references (verify.mts wouldn't seed them from a failed
+// group or a --ref run).
 type Group = {
     key: string
     name: string
@@ -252,13 +260,13 @@ type Group = {
     detail?: string
     description?: Description
     shot?: string
-    whole?: Compared
+    whole?: Image
     cases: {
         id: string
         status: string
         description?: Description
         area?: Rect
-        image?: Compared
+        image?: Image
     }[]
     samples: string[]
 }
@@ -268,65 +276,106 @@ const sameFile = (a: string, b: string) =>
     fs.existsSync(b) &&
     fs.readFileSync(a).equals(fs.readFileSync(b))
 
-// A seeded reference (verify.mts copies it into screenshots/ in a local run)
-// is new until someone has looked at it: until it's approved, which writes
-// it after the run's results (written: when they were).
-function compared(
-    shot: string,
-    reference: string,
-    { result, detail, diff }: Comparison,
-    dir: string,
-    written: number,
-): Compared {
-    const hasReference = fs.existsSync(reference)
-    const same = hasReference && sameFile(shot, reference)
-    const state: State = !hasReference
-        ? 'new'
-        : result === 'seeded' || result === 'unseeded'
-          ? same && fs.statSync(reference).mtimeMs > written
-              ? 'approved'
-              : 'new'
-          : same
-            ? result === 'differs'
-                ? 'approved'
-                : 'ok'
-            : result === 'differs'
-              ? 'differs'
-              : 'ok'
+const git = (...args: string[]) =>
+    execFileSync('git', args, {
+        cwd: ROOT,
+        maxBuffer: 1 << 28,
+        timeout: 30_000,
+    })
+
+// The references git has committed (HEAD), and the ones that differ from
+// them in screenshots/ (changed, added or deleted, not committed yet):
+// paths in the repository.
+function referenceStatus() {
+    const list = (output: Buffer) =>
+        output.toString().split('\0').filter(Boolean)
     return {
-        state,
-        detail,
-        shot,
-        reference,
-        hasReference,
-        diff: diff && path.join(dir, diff),
+        committed: new Set(
+            list(
+                git(
+                    'ls-tree',
+                    '-r',
+                    '--name-only',
+                    '-z',
+                    'HEAD',
+                    '--',
+                    'screenshots',
+                ),
+            ),
+        ),
+        changed: new Set(
+            list(
+                git(
+                    'status',
+                    '--porcelain=v1',
+                    '-z',
+                    '--no-renames',
+                    '--untracked-files=all',
+                    '--',
+                    'screenshots',
+                ),
+            ).map((line) => line.slice(3)),
+        ),
     }
 }
 
-const ORDER: Group['state'][] = [
-    'failed',
-    'new',
-    'differs',
-    'approved',
-    'ok',
-    'reference',
-]
+// A reference (its path in the repository) as the page shows it, with a
+// run's screenshot of it, if the run has one.
+function image(
+    reference: string,
+    status: ReturnType<typeof referenceStatus>,
+    shot?: Comparison & { file: string },
+): Image {
+    const file = path.join(ROOT, reference)
+    const committed = status.committed.has(reference)
+    const changed = status.changed.has(reference)
+    const exists = fs.existsSync(file)
+    // A run's screenshot that isn't the reference yet (a match within the
+    // threshold isn't a change).
+    if (
+        shot &&
+        shot.result !== 'match' &&
+        fs.existsSync(shot.file) &&
+        !(exists && sameFile(shot.file, file))
+    )
+        return {
+            state: committed ? 'differs' : 'new',
+            reference,
+            committed,
+            current: shot.file,
+            approved: false,
+            detail: shot.detail,
+            // odiff's, against the reference as it was: the committed one.
+            diff: changed ? undefined : shot.diff,
+        }
+    if (changed)
+        return exists
+            ? {
+                  state: committed ? 'differs' : 'new',
+                  reference,
+                  committed,
+                  current: file,
+                  approved: true,
+              }
+            : { state: 'removed', reference, committed, approved: true }
+    return { state: 'ok', reference, committed, approved: false }
+}
 
-const referenceOnly = (reference: string): Compared => ({
-    state: 'reference',
-    reference,
-    hasReference: true,
-})
+const ORDER: Group['state'][] = ['failed', 'new', 'differs', 'removed', 'ok']
 
-// The run's groups, by app and platform (e.g. main-ios), shards merged, and
-// the references of the groups it didn't compare.
+// Every app and platform's groups (e.g. main-ios), from the references,
+// committed or not, and the run, shards merged.
 function load() {
+    const refs = referenceStatus()
+    // screenshots/<key>/<group>.png (compared whole) or
+    // screenshots/<key>/<group>/<case>.png.
+    const references = new Set(refs.committed)
+    for (const reference of refs.changed) references.add(reference)
     const byKey = new Map<string, Group[]>()
     for (const file of RUN ? findResults(RUN) : []) {
         const dir = path.dirname(file)
         const key = path.basename(path.dirname(dir))
-        const results = JSON.parse(fs.readFileSync(file, 'utf8')) as Results
-        const written = fs.statSync(file).mtimeMs
+        const results = readResults(file)
         const files = fs.readdirSync(dir)
         const names = results.hello?.groups ?? []
         for (const [name, statuses] of Object.entries(results.statuses ?? {})) {
@@ -334,47 +383,51 @@ function load() {
             const prefix = `${String(index + 1).padStart(2, '0')}-${name}`
             const info = results.screenshots?.[name]
             // A run from before the cases had crops of their own (an area
-            // only) is shown as a whole.
+            // only) has none to compare.
             const caseInfo = Object.fromEntries(
                 Object.entries(info?.cases ?? {}).filter(([, c]) => c.file),
             )
-            const byCase = Object.keys(caseInfo).length > 0
             const descriptions =
                 results.descriptions?.[name] ??
                 known.get(key)?.descriptions[name]
+            const wholeReference = `screenshots/${key}/${name}.png`
+            const byCase = !(
+                references.has(wholeReference) ||
+                (info && Object.keys(info.cases ?? {}).length === 0)
+            )
             const cases = Object.entries(statuses).map(([id, status]) => {
                 const c = caseInfo[id]
-                const reference = path.join(SCREENSHOTS, key, name, `${id}.png`)
+                const reference = `screenshots/${key}/${name}/${id}.png`
                 return {
                     id,
                     status,
                     description: descriptions?.cases?.[id],
                     area: c?.area,
-                    image: c
-                        ? compared(
-                              path.join(dir, c.file),
-                              reference,
-                              c,
-                              dir,
-                              written,
-                          )
-                        : // Not compared (e.g. a run from before results.json
-                          // said): its reference.
-                          !info && fs.existsSync(reference)
-                          ? referenceOnly(reference)
-                          : undefined,
+                    image:
+                        byCase && (c || references.has(reference))
+                            ? image(
+                                  reference,
+                                  refs,
+                                  c && {
+                                      ...c,
+                                      file: path.join(dir, c.file),
+                                      diff: c.diff && path.join(dir, c.diff),
+                                  },
+                              )
+                            : undefined,
                 }
             })
-            const whole =
-                info && !byCase
-                    ? compared(
-                          path.join(dir, info.file),
-                          path.join(SCREENSHOTS, key, `${name}.png`),
-                          info,
-                          dir,
-                          written,
-                      )
-                    : undefined
+            const whole = byCase
+                ? undefined
+                : image(
+                      wholeReference,
+                      refs,
+                      info && {
+                          ...info,
+                          file: path.join(dir, info.file),
+                          diff: info.diff && path.join(dir, info.diff),
+                      },
+                  )
             const failures = info?.failures ?? []
             const failed =
                 cases.some((c) => c.status !== 'OK') || failures.length > 0
@@ -412,23 +465,39 @@ function load() {
             byKey.set(key, list)
         }
     }
-    // The references of groups the run didn't show, for every app and
-    // platform.
-    for (const key of fs.existsSync(SCREENSHOTS)
-        ? fs.readdirSync(SCREENSHOTS)
-        : []) {
-        const keyDir = path.join(SCREENSHOTS, key)
-        if (!fs.statSync(keyDir).isDirectory()) continue
+    // The groups the run didn't show, from their references.
+    const others = new Map<string, Map<string, string[]>>()
+    for (const reference of references) {
+        const [, key, name, id] =
+            reference.match(
+                /^screenshots\/([^/]+)\/([^/]+?)(?:\/([^/]+))?\.png$/,
+            ) ?? []
+        if (!key || byKey.get(key)?.some((g) => g.name === name)) continue
+        const groups = others.get(key) ?? new Map<string, string[]>()
+        const ids = groups.get(name) ?? []
+        if (id) ids.push(id)
+        groups.set(name, ids)
+        others.set(key, groups)
+    }
+    for (const [key, groups] of others) {
         const list = byKey.get(key) ?? []
         const order = known.get(key)?.groups ?? []
-        for (const entry of fs.readdirSync(keyDir, { withFileTypes: true })) {
-            if (entry.name.startsWith('.')) continue
-            const name = entry.isDirectory()
-                ? entry.name
-                : entry.name.replace(/\.png$/, '')
-            if (list.some((g) => g.name === name)) continue
+        for (const [name, ids] of groups) {
             const descriptions = known.get(key)?.descriptions[name]
-            const file = path.join(keyDir, entry.name)
+            const whole =
+                ids.length === 0
+                    ? image(`screenshots/${key}/${name}.png`, refs)
+                    : undefined
+            const cases = ids.sort().map((id) => ({
+                id,
+                status: '',
+                description: descriptions?.cases?.[id],
+                image: image(`screenshots/${key}/${name}/${id}.png`, refs),
+            }))
+            const states = [
+                ...(whole ? [whole.state] : []),
+                ...cases.map((c) => c.image.state),
+            ]
             list.push({
                 key,
                 name,
@@ -436,25 +505,12 @@ function load() {
                     order.indexOf(name) === -1
                         ? Number.MAX_SAFE_INTEGER
                         : order.indexOf(name),
-                state: 'reference',
+                state: ORDER.find((s) => states.includes(s)) ?? 'ok',
                 approvable: false,
                 failures: [],
                 description: descriptions?.description,
-                whole: entry.isDirectory() ? undefined : referenceOnly(file),
-                cases: entry.isDirectory()
-                    ? fs
-                          .readdirSync(file)
-                          .filter((f) => f.endsWith('.png'))
-                          .map((f) => {
-                              const id = f.replace(/\.png$/, '')
-                              return {
-                                  id,
-                                  status: '',
-                                  description: descriptions?.cases?.[id],
-                                  image: referenceOnly(path.join(file, f)),
-                              }
-                          })
-                    : [],
+                whole,
+                cases,
                 samples: [],
             })
         }
@@ -547,30 +603,46 @@ const server = http.createServer((request, response) => {
                 .on('error', () => response.destroy())
                 .pipe(response)
         }
+        // A committed reference (git's HEAD), by its path in the
+        // repository.
+        if (url.pathname === '/committed') {
+            const reference = url.searchParams.get('path') ?? ''
+            if (!referenceStatus().committed.has(reference))
+                return send(404, 'not committed')
+            response.writeHead(200, {
+                'content-type': 'image/png',
+                'cache-control': 'no-store',
+            })
+            return response.end(git('show', `HEAD:${reference}`))
+        }
         // JSON only: another site's page can't send that without the
         // browser asking first (CORS), which this server doesn't answer.
+        const action = { '/api/approve': approve, '/api/undo': undo }[
+            url.pathname
+        ]
         if (
-            url.pathname === '/api/approve' &&
+            action &&
             request.method === 'POST' &&
             request.headers['content-type'] === 'application/json'
         ) {
             let body = ''
             request.on('data', (chunk) => (body += chunk))
-            request.on('end', () => guard(() => approve(body, send)))
+            request.on('end', () => guard(() => action(body, send)))
             return
         }
         send(404, 'not found')
     })
 })
 
-// Copies a group's images that are new or differ over their references, or
-// one case's (id); body: { key, name, id? }.
-function approve(body: string, send: Send) {
+// The images a request is for: a group's (whole, and its cases'), or one
+// case's (id); body: { key, name, id? }.
+function requested(body: string, send: Send) {
     let parsed: { key?: unknown; name?: unknown; id?: unknown } | null
     try {
         parsed = JSON.parse(body)
     } catch {
-        return send(400, 'not JSON')
+        send(400, 'not JSON')
+        return undefined
     }
     const key = parsed?.key
     const name = parsed?.name
@@ -579,29 +651,57 @@ function approve(body: string, send: Send) {
         typeof key !== 'string' ||
         typeof name !== 'string' ||
         (id !== undefined && typeof id !== 'string')
-    )
-        return send(400, 'needs a key and a name')
+    ) {
+        send(400, 'needs a key and a name')
+        return undefined
+    }
     const group = load()
         .find((e) => e.key === key)
         ?.groups.find((g) => g.name === name)
-    if (group && !group.approvable) return send(409, "can't be approved")
+    if (!group) {
+        send(404, 'no such group')
+        return undefined
+    }
     const images = [
-        ...(group?.whole && !id ? [group.whole] : []),
-        ...(group?.cases ?? []).flatMap((c) =>
+        ...(group.whole && !id ? [group.whole] : []),
+        ...group.cases.flatMap((c) =>
             c.image && (!id || c.id === id) ? [c.image] : [],
         ),
-    ].filter(
-        (image): image is Compared & { shot: string } =>
-            image.state !== 'ok' &&
-            image.state !== 'reference' &&
-            !!image.shot &&
-            fs.existsSync(image.shot),
+    ]
+    return { group, images }
+}
+
+// Copies a run's screenshots that aren't references yet over them, in
+// screenshots/ (to commit).
+function approve(body: string, send: Send) {
+    const request = requested(body, send)
+    if (!request) return
+    if (!request.group.approvable) return send(409, "can't be approved")
+    const images = request.images.filter(
+        (image): image is Image & { current: string } =>
+            !image.approved && !!image.current,
     )
     if (images.length === 0) return send(404, 'nothing to approve')
     for (const image of images) {
-        fs.mkdirSync(path.dirname(image.reference), { recursive: true })
-        fs.copyFileSync(image.shot, image.reference)
-        console.log(`approved ${path.relative(ROOT, image.reference)}`)
+        const reference = path.join(ROOT, image.reference)
+        fs.mkdirSync(path.dirname(reference), { recursive: true })
+        fs.copyFileSync(image.current, reference)
+        console.log(`approved ${image.reference}`)
+    }
+    send(200, 'ok')
+}
+
+// Puts the committed references back in screenshots/ (or removes ones that
+// aren't committed): undoes approvals that aren't committed.
+function undo(body: string, send: Send) {
+    const request = requested(body, send)
+    if (!request) return
+    const images = request.images.filter((image) => image.approved)
+    if (images.length === 0) return send(404, 'nothing to undo')
+    for (const image of images) {
+        if (image.committed) git('checkout', 'HEAD', '--', image.reference)
+        else fs.rmSync(path.join(ROOT, image.reference), { force: true })
+        console.log(`undid ${image.reference}`)
     }
     send(200, 'ok')
 }

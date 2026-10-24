@@ -128,11 +128,10 @@
             .state-differs {
                 --state: var(--differs);
             }
-            .state-approved {
-                --state: var(--approved);
+            .state-removed {
+                --state: var(--differs);
             }
-            .state-ok,
-            .state-reference {
+            .state-ok {
                 --state: var(--ok);
             }
             .dot,
@@ -295,7 +294,8 @@
                 gap: 8px;
                 margin-top: 6px;
             }
-            .crops img {
+            .crops img,
+            figure > canvas {
                 display: block;
                 max-width: 100%;
                 max-height: 60vh;
@@ -349,14 +349,14 @@
             </select>
             <button id="approve-all">Approve all to review</button>
             <span class="detail"
-                ><kbd>j</kbd>/<kbd>k</kbd> next/previous,
-                <kbd>a</kbd> approve</span
+                ><kbd>j</kbd>/<kbd>k</kbd> next/previous, <kbd>a</kbd> approve,
+                <kbd>u</kbd> undo</span
             >
         </header>
         <nav id="nav"></nav>
         <main id="main"><p class="empty">Loading…</p></main>
         <script>
-            const TO_REVIEW = ['failed', 'new', 'differs']
+            const TO_REVIEW = ['failed', 'new', 'differs', 'removed']
             let data = { entries: [] }
             let selected
             let hovered
@@ -366,6 +366,10 @@
             let version = 0
             const file = (p) =>
                 `/file?path=${encodeURIComponent(p)}&v=${version}`
+            // A committed reference (git's HEAD), by its path in the
+            // repository.
+            const committedFile = (reference) =>
+                `/committed?path=${encodeURIComponent(reference)}&v=${version}`
             const esc = (s) =>
                 String(s ?? '').replace(
                     /[&<>"]/g,
@@ -394,8 +398,8 @@
                 data = await (await fetch('/api/runs')).json()
                 version++
                 $('run').textContent = data.run
-                    ? `compared with the run in ${data.run}`
-                    : 'no run to compare with'
+                    ? `committed references, and changes from the run in ${data.run} or not committed`
+                    : 'committed references, and changes not committed'
                 // Every group, when the first load has none to review.
                 if (
                     version === 1 &&
@@ -427,7 +431,7 @@
                             items
                                 .map(
                                     (g) =>
-                                        `<a href="#" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'reference' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
+                                        `<a href="#" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'ok' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
                                 )
                                 .join('')
                         )
@@ -453,15 +457,99 @@
                 )
             }
 
-            // An image with the cases' areas drawn over it.
-            function frame(src, group, label) {
+            // An image (its url) with the cases' areas drawn over it.
+            function frame(src, label) {
                 if (!src)
                     return `<figure><figcaption>${label}</figcaption><div class="frame"><div class="missing">none</div></div></figure>`
-                return `<figure><figcaption>${label}</figcaption><div class="frame"><img src="${file(src)}" onload="overlay(this)" />${areas(group)}</div></figure>`
+                return `<figure><figcaption>${label}</figcaption><div class="frame"><img src="${src}" onload="overlay(this)" /><svg data-areas preserveAspectRatio="none"></svg></div></figure>`
             }
 
-            function areas(group) {
-                return `<svg data-areas preserveAspectRatio="none"></svg>`
+            // An image (its url) on its own.
+            const crop = (src, label) =>
+                `<figure><figcaption>${label}</figcaption>${src ? `<img src="${src}" />` : '<div class="missing">none</div>'}</figure>`
+
+            // An image's pictures, in figures (frame or crop): its committed
+            // reference, its uncommitted image and their diff (odiff's from
+            // the run, or drawn here), or the reference alone if nothing
+            // differs.
+            function pictures(image, figure) {
+                const committed = image.committed
+                    ? committedFile(image.reference)
+                    : undefined
+                if (image.state === 'ok')
+                    return figure(
+                        image.current ? file(image.current) : committed,
+                        'Reference',
+                    )
+                const current = image.current ? file(image.current) : undefined
+                return (
+                    figure(committed, 'Committed') +
+                    figure(
+                        current,
+                        image.approved ? 'Not committed' : 'This run',
+                    ) +
+                    (image.diff
+                        ? figure(file(image.diff), 'Diff')
+                        : committed && current
+                          ? `<figure><figcaption>Diff</figcaption><canvas data-a="${committed}" data-b="${current}"></canvas></figure>`
+                          : '')
+                )
+            }
+
+            // Draws the diffs the run has none for: the committed image faded,
+            // and the pixels that differ in red.
+            function drawDiffs() {
+                document
+                    .querySelectorAll('canvas[data-a]')
+                    .forEach(async (canvas) => {
+                        const load = (src) =>
+                            new Promise((resolve, reject) => {
+                                const img = new Image()
+                                img.onload = () => resolve(img)
+                                img.onerror = reject
+                                img.src = src
+                            })
+                        const [a, b] = await Promise.all([
+                            load(canvas.dataset.a),
+                            load(canvas.dataset.b),
+                        ])
+                        if (a.width !== b.width || a.height !== b.height) {
+                            canvas.replaceWith(
+                                Object.assign(document.createElement('p'), {
+                                    className: 'detail',
+                                    textContent: `Sizes differ: ${a.width}×${a.height} committed, ${b.width}×${b.height} now.`,
+                                }),
+                            )
+                            return
+                        }
+                        canvas.width = a.width
+                        canvas.height = a.height
+                        const context = canvas.getContext('2d')
+                        const pixels = (img) => {
+                            context.drawImage(img, 0, 0)
+                            return context.getImageData(0, 0, a.width, a.height)
+                        }
+                        const before = pixels(a)
+                        const after = pixels(b)
+                        const out = context.createImageData(a.width, a.height)
+                        for (let i = 0; i < out.data.length; i += 4) {
+                            const differs = [0, 1, 2, 3].some(
+                                (c) => before.data[i + c] !== after.data[i + c],
+                            )
+                            const gray =
+                                (before.data[i] +
+                                    before.data[i + 1] +
+                                    before.data[i + 2]) /
+                                3
+                            out.data.set(
+                                differs
+                                    ? [230, 0, 0, 255]
+                                    : [gray, gray, gray, 60],
+                                i,
+                            )
+                        }
+                        context.putImageData(out, 0, 0)
+                    })
             }
 
             // Draws the case areas once the image's size is known.
@@ -525,35 +613,40 @@
                 )
             }
 
-            const reviewable = (state) => state === 'new' || state === 'differs'
-            // A state's badge: a run's comparison, if it made one (a reference
-            // on its own has none).
+            // A state's badge (none when nothing differs).
             const badge = (state, className = '') =>
-                state === 'reference'
+                state === 'ok'
                     ? ''
                     : `<span class="badge ${className}">${state}</span>`
+            // An image's change: from the run, to approve, or approved (in
+            // screenshots/) and not committed, to undo.
+            const pending = (image) =>
+                !!image && !image.approved && !!image.current
+            const change = (image) =>
+                !image || image.state === 'ok'
+                    ? ''
+                    : `<span class="detail">${image.approved ? 'not committed' : 'not approved'}</span>`
+            // A group's images.
+            const images = (g) =>
+                [g.whole, ...g.cases.map((c) => c.image)].filter(Boolean)
             // A case's status, unless it passed (or the run didn't have it).
             const status = (c) =>
                 c.status && c.status !== 'OK'
                     ? `<span class="status">${esc(c.status)}</span>`
                     : ''
 
-            // A case compared on its own: its description, then its crop of
-            // the reference, this run and the diff. approvable: its group's.
+            // A case: its description, then its pictures. approvable: its
+            // group's.
             function caseRow(c, i, approvable) {
                 const image = c.image
-                const crop = (src, label) =>
-                    `<figure><figcaption>${label}</figcaption>${src ? `<img src="${file(src)}" />` : '<div class="missing">none</div>'}</figure>`
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? badge(image.state, `state-${image.state}`) : ''}${status(c)}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
+                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c)}
                     ${
-                        image?.state === 'reference'
-                            ? `<div class="crops">${crop(image.reference, 'Reference')}</div>`
-                            : image
-                              ? `<div class="crops">${crop(image.hasReference ? image.reference : undefined, 'Reference')}${crop(image.shot, 'This run')}${image.diff ? crop(image.diff, 'Diff') : ''}</div>`
-                              : '<p class="detail">Nothing to compare (no area).</p>'
+                        image
+                            ? `<div class="crops">${pictures(image, crop)}</div>`
+                            : '<p class="detail">Nothing to compare (no area).</p>'
                     }
                 </div>`
             }
@@ -566,15 +659,12 @@
                 const w = g.whole
                 let layout
                 if (w) {
-                    const reference = w.hasReference ? w.reference : undefined
                     const images =
-                        w.state === 'reference'
-                            ? frame(reference, g, 'Reference')
-                            : $('mode').value === 'slider' && reference
-                              ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
-                              : frame(reference, g, 'Reference') +
-                                frame(w.shot, g, 'This run') +
-                                (w.diff ? frame(w.diff, g, 'Diff') : '')
+                        $('mode').value === 'slider' &&
+                        w.state === 'differs' &&
+                        w.current
+                            ? `<figure class="slider"><figcaption>Committed ← → ${w.approved ? 'not committed' : 'this run'}</figcaption><div class="frame"><img src="${committedFile(w.reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.current)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
+                            : pictures(w, frame)
                     const cases = g.cases
                         .map(
                             (
@@ -600,7 +690,7 @@
                         '<p class="detail">No cases reported.</p>'
                     layout = g.shot
                         ? `<div class="layout by-case">
-                        <div class="images">${frame(g.shot, g, 'This run')}</div>
+                        <div class="images">${frame(file(g.shot), 'This run')}</div>
                         <div class="cases">${cases}</div>
                     </div>`
                         : `<div class="cases">${cases}</div>`
@@ -608,8 +698,9 @@
                 $('main').innerHTML = `
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
-                        ${badge(g.state)}
-                        ${g.approvable && reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
+                        ${badge(g.state)}${w ? change(w) : ''}
+                        ${g.approvable && images(g).some(pending) ? `<button class="primary" id="approve">${w ? 'Approve' : 'Approve all'} (a)</button>` : ''}
+                        ${images(g).some((image) => image.approved) ? `<button id="undo">${w ? 'Undo' : 'Undo all'} (u)</button>` : ''}
                     </div>
                     ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
                     ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
@@ -617,14 +708,25 @@
                     ${layout}
                     ${g.samples.length ? `<h3>Video samples</h3><div class="samples">${g.samples.map((s) => `<video src="${file(s)}" controls muted loop></video>`).join('')}</div>` : ''}
                 `
-                $('approve')?.addEventListener('click', () => approve([g]))
+                $('approve')?.addEventListener('click', () =>
+                    send('approve', [g]),
+                )
+                $('undo')?.addEventListener('click', () => send('undo', [g]))
                 document
                     .querySelectorAll('[data-approve]')
                     .forEach((el) =>
                         el.addEventListener('click', () =>
-                            approve([g], el.dataset.approve),
+                            send('approve', [g], el.dataset.approve),
                         ),
                     )
+                document
+                    .querySelectorAll('[data-undo]')
+                    .forEach((el) =>
+                        el.addEventListener('click', () =>
+                            send('undo', [g], el.dataset.undo),
+                        ),
+                    )
+                drawDiffs()
                 const split = $('split')
                 if (split) {
                     const set = () =>
@@ -645,12 +747,14 @@
                 })
             }
 
-            // The groups' images to review, or one case's (id). Says why
-            // approvals the server refused failed, if any.
-            async function approve(groups, id) {
+            // Approves the groups' images from the run (copies them into
+            // screenshots/), or one case's (id), or undoes approvals that
+            // aren't committed (action: approve or undo). Says why the
+            // server refused, if it did.
+            async function send(action, groups, id) {
                 const errors = []
                 for (const g of groups) {
-                    const response = await fetch('/api/approve', {
+                    const response = await fetch(`/api/${action}`, {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ key: g.key, name: g.name, id }),
@@ -659,7 +763,7 @@
                         errors.push(`${g.name}: ${await response.text()}`)
                 }
                 $('error').textContent = errors.length
-                    ? `Not approved: ${errors.join('; ')}`
+                    ? `Not done: ${errors.join('; ')}`
                     : ''
                 await refresh()
             }
@@ -687,22 +791,20 @@
             })
             $('filter').addEventListener('change', render)
             $('mode').addEventListener('change', render)
-            // The groups to review whose images may become references.
+            // The groups with images from the run to approve.
             const toApprove = () =>
                 data.entries
                     .flatMap((e) => e.groups)
-                    .filter((g) => g.approvable && reviewable(g.state))
+                    .filter((g) => g.approvable && images(g).some(pending))
             $('approve-all').addEventListener('click', () => {
                 const groups = toApprove()
-                const images = groups
-                    .flatMap((g) => [g.whole, ...g.cases.map((c) => c.image)])
-                    .filter((image) => image && reviewable(image.state))
+                const count = groups.flatMap(images).filter(pending).length
                 if (
                     confirm(
-                        `Copy ${images.length} images (${groups.length} groups) over their references?`,
+                        `Copy ${count} images (${groups.length} groups) over their references in screenshots/?`,
                     )
                 )
-                    approve(groups)
+                    send('approve', groups)
             })
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, select')) return
@@ -711,6 +813,7 @@
                 if (e.key === 'j' || e.key === 'ArrowDown') move(1)
                 else if (e.key === 'k' || e.key === 'ArrowUp') move(-1)
                 else if (e.key === 'a') $('approve')?.click()
+                else if (e.key === 'u') $('undo')?.click()
                 else return
                 e.preventDefault()
             })
