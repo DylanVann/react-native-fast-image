@@ -215,24 +215,22 @@
             .description {
                 margin: 16px 0;
             }
-            /* A description: what it checks and what it shows in the text's
-            color, the steps (supporting detail) muted; each part's label
-            small and uppercase, which marks it without competing with it. */
+            /* A description: each part's label (small, uppercase, in the
+            text's color) marks the part, and the part's text is muted; the
+            parts sit apart so each reads as its own line. */
             .description p,
             .case p {
-                margin: 4px 0 0;
+                margin: 8px 0 0;
                 max-width: 75ch;
                 line-height: 1.5;
+                color: var(--muted);
             }
             .description p:first-child {
                 margin-top: 0;
             }
-            p.steps {
-                color: var(--muted);
-            }
             .label {
                 margin-right: 8px;
-                color: var(--muted);
+                color: var(--fg);
                 font-size: 12px;
                 font-weight: 600;
                 letter-spacing: 0.05em;
@@ -298,7 +296,7 @@
             .cases {
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
+                gap: 12px;
             }
             .case {
                 padding: 8px 10px;
@@ -336,8 +334,11 @@
                 color: var(--failed);
                 font-size: 12px;
             }
+            /* A case's checks has no label: it's the case's summary, under
+            its id. */
             .case .checks {
                 margin-top: 4px;
+                color: var(--fg);
             }
             .layout.by-case {
                 grid-template-columns: 220px minmax(0, 1fr);
