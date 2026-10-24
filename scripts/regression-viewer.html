@@ -296,30 +296,12 @@
             .cases {
                 display: flex;
                 flex-direction: column;
-                gap: 24px;
-            }
-            .case {
-                padding: 8px 10px;
-                border-radius: 8px;
-                border: 1px solid transparent;
-            }
-            .case:hover,
-            .case.hovered {
-                border-color: var(--line);
-                background: var(--panel);
+                gap: 40px;
             }
             .case .head {
                 display: flex;
                 gap: 8px;
                 align-items: baseline;
-            }
-            .case .n {
-                font-size: 11px;
-                font-weight: 700;
-                color: #fff;
-                background: var(--area);
-                border-radius: 4px;
-                padding: 0 5px;
             }
             .case .id {
                 font-family: ui-monospace, monospace;
@@ -713,11 +695,11 @@
                 if (!group) return
                 document.querySelectorAll('svg[data-areas]').forEach((svg) => {
                     svg.innerHTML = group.cases
-                        .map((c, i) => {
+                        .map((c) => {
                             const a = c.area
                             if (!a) return ''
                             const on = hovered === c.id
-                            return `<rect x="${a.x}" y="${a.y}" width="${a.width}" height="${a.height}" fill="${on ? 'rgba(10,102,216,0.12)' : 'none'}" stroke="var(--area)" stroke-width="${on ? 6 : 2}" stroke-dasharray="${on ? '' : '10 8'}" rx="8"/><text x="${a.x + 10}" y="${a.y + 34}" font-size="30" font-weight="700" fill="var(--area)">${i + 1}</text>`
+                            return `<rect x="${a.x}" y="${a.y}" width="${a.width}" height="${a.height}" fill="${on ? 'rgba(10,102,216,0.12)' : 'none'}" stroke="var(--area)" stroke-width="${on ? 6 : 2}" stroke-dasharray="${on ? '' : '10 8'}" rx="8"/>`
                         })
                         .join('')
                 })
@@ -797,11 +779,11 @@
                     : (g.descriptions.committed?.cases?.[c.id] ?? null)
 
             // A case of a group (g): its description, then its pictures.
-            function caseRow(c, i, g) {
+            function caseRow(c, g) {
                 const approvable = g.approvable
                 const image = c.image
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
+                    <div class="head"><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c, committedOf(g, c))}
                     ${
@@ -830,11 +812,8 @@
                             : pictures(w, frame))
                     const cases = g.cases
                         .map(
-                            (
-                                c,
-                                i,
-                            ) => `<div class="case" data-case="${esc(c.id)}">
-                            <div class="head"><span class="n">${i + 1}</span><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${status(c)}</div>
+                            (c) => `<div class="case" data-case="${esc(c.id)}">
+                            <div class="head"><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${status(c)}</div>
                             ${caseDescription(c, committedOf(g, c))}
                         </div>`,
                         )
@@ -847,7 +826,7 @@
                     // By case: the whole screenshot for context (if the run
                     // has it), each case compared on its own.
                     const cases =
-                        g.cases.map((c, i) => caseRow(c, i, g)).join('') ||
+                        g.cases.map((c) => caseRow(c, g)).join('') ||
                         '<p class="detail">No cases reported.</p>'
                     layout = g.shot
                         ? `<div class="layout by-case">
