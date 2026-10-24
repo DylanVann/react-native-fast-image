@@ -132,6 +132,13 @@ export const MaskContext = createContext<(measure: MeasureMask) => () => void>(
     () => () => {},
 )
 
+// Registers a case's area (its row: the view its CaseStatus is in) with the
+// runner, which sends it with the masks so a reviewer can find the case in
+// the screenshot; returns a function that unregisters it.
+export const CaseAreaContext = createContext<
+    (id: string, measure: MeasureMask) => () => void
+>(() => () => {})
+
 // Wraps content that differs between runs (an animated image, a timing) so
 // its area isn't compared. The runner measures it when a screenshot is taken,
 // so it's where it is then, even if something above it changed size (which

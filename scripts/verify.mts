@@ -1127,8 +1127,8 @@ async function sameOutside(
     }
 }
 
-// Crops a screenshot (pixels) in place. Asynchronous: the app can go on to
-// the next group meanwhile.
+// Crops a screenshot (pixels) in place, and resolves whether it did.
+// Asynchronous: the app can go on to the next group meanwhile.
 async function cropScreenshot(file: string, crop: PixelRect) {
     const cropped = file.replace(/\.png$/, '-cropped.png')
     try {
@@ -1149,7 +1149,9 @@ async function cropScreenshot(file: string, crop: PixelRect) {
     } catch {
         // Compared uncropped, then (and failing: the size differs).
     }
-    if (fs.existsSync(cropped)) fs.renameSync(cropped, file)
+    if (!fs.existsSync(cropped)) return false
+    fs.renameSync(cropped, file)
+    return true
 }
 
 // Each group's screenshot (and the ones a case asks for while it runs) is
@@ -1712,6 +1714,22 @@ async function runRegression(
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
+    // Each group's screenshot (file names in dir) and its comparison, with
+    // the cases' areas in it (pixels), for the regression viewer: whether it
+    // may become the reference (see compareScreenshot's canSeed; never in a
+    // --ref run), and the group's failures when it was taken.
+    const screenshots: Record<
+        string,
+        {
+            file: string
+            result: string
+            detail?: string
+            diff?: string
+            cases: Record<string, PixelRect>
+            approvable: boolean
+            failures: string[]
+        }
+    > = {}
     // Video samples a stalled recording couldn't check (see stopSession).
     const unchecked: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
@@ -1726,8 +1744,10 @@ async function runRegression(
     const takeShot = async (
         index: number,
         masksDp: unknown,
+        casesDp: unknown,
         area: PixelRect | undefined,
-        groupOk: boolean,
+        // The group's failures so far.
+        failures: string[],
     ): Promise<{ shot: Promise<void> }> => {
         // The web version's cases are checked by their statuses only.
         if (platform === 'web') return { shot: Promise.resolve() }
@@ -1756,23 +1776,50 @@ async function runRegression(
             x: m.x - (crop?.x ?? 0),
             y: m.y - (crop?.y ?? 0),
         }))
-        const shot = (crop ? cropScreenshot(file, crop) : Promise.resolve())
-            .then(() =>
-                compareScreenshot(
+        const cases = Object.fromEntries(
+            Object.entries((casesDp ?? {}) as Record<string, PixelRect>).map(
+                ([id, r]) => [
+                    id,
+                    {
+                        x: Math.round(r.x * scale - (crop?.x ?? 0)),
+                        y: Math.round(r.y * scale - (crop?.y ?? 0)),
+                        width: Math.round(r.width * scale),
+                        height: Math.round(r.height * scale),
+                    },
+                ],
+            ),
+        )
+        let canSeed = false
+        const shot = (
+            crop ? cropScreenshot(file, crop) : Promise.resolve(false)
+        )
+            .then((cropped) => {
+                canSeed = failures.length === 0 && cropped
+                return compareScreenshot(
                     app,
                     platform,
                     name,
                     file,
                     masks,
-                    groupOk && !!crop,
-                ),
-            )
+                    canSeed,
+                )
+            })
             .then(({ result, detail }) => {
                 logLine(
                     `screenshot ${name}: ${result}${detail ? ` (${detail})` : ''}${
                         masks.length > 0 ? `, ${masks.length} masked` : ''
                     }`,
                 )
+                const diff = file.replace(/\.png$/, '-diff.png')
+                screenshots[name] = {
+                    file: path.basename(file),
+                    result,
+                    detail,
+                    diff: fs.existsSync(diff) ? path.basename(diff) : undefined,
+                    cases,
+                    approvable: canSeed && !REF,
+                    failures,
+                }
                 if (result === 'seeded') seeded.push(name)
                 else if (result === 'none') noReference.push(name)
                 else if (result === 'unseeded') unseeded.push(name)
@@ -2294,8 +2341,9 @@ async function runRegression(
         const { shot } = await takeShot(
             index,
             measured?.masks,
+            measured?.cases,
             measured?.safeArea as PixelRect | undefined,
-            groupOk,
+            [...own],
         )
         const seconds = ((Date.now() - groupStart) / 1000).toFixed(1)
         timings.push(`${group} ${seconds}s`)
@@ -2332,6 +2380,7 @@ async function runRegression(
                 hello,
                 statuses,
                 descriptions,
+                screenshots,
                 failures,
                 seeded,
                 noReference,
