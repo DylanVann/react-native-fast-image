@@ -634,7 +634,7 @@ function ApngCase({ blur }: { blur?: boolean }) {
                         : {
                               checks: 'An animated PNG (APNG) animates.',
                               steps: 'Loads an APNG of two frames, red then blue, 400 ms each and looping. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees both red and blue.',
-                              shows: "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn; never the gray background.",
+                              shows: "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn.",
                           }
                 }
             />

@@ -185,7 +185,7 @@
                 "shows": "Black and white stripes three times: centered in a gray 72-point square, again, then on their own at 60 points, all with the same crisp 1-unit stripes. Soft or gray stripes in the first two are a failure."
             },
             "object-fit-from-cover": {
-                "checks": "Changing objectFit from cover after load, while the image for the new fit loads: the view keeps showing the cover image as it was until then (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).",
+                "checks": "Changing objectFit from cover after load, while the image for the new fit loads: on Android the view keeps showing the cover image as it was until then, and iOS shows the new fit at once (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).",
                 "steps": "Three 88-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
                 "shows": "iOS shows the new fit at once: the whole page small with gray above and below, then large letters from the middle of the page twice. Android still shows the cover crop in all three: the middle of the page, small text filling the square. A squashed or enlarged crop, or a blank view, is a failure."
             },
@@ -209,7 +209,7 @@
             "downsample-stripes": {
                 "checks": "downsample decodes a large image at about the view's size, and onLoad still reports the image's own size.",
                 "steps": "Loads a 1024x1024 image of 1-pixel black and white stripes into two 48-point views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1024x1024.",
-                "shows": "On iOS, an even gray square (the stripes averaged), then the stripes drawn smaller. On Android, a black square (Glide keeps every nth pixel of a PNG), then the stripes."
+                "shows": "On iOS, an even gray square (the stripes averaged), then the stripes drawn smaller. On Android, a black square (Glide keeps every nth pixel of a PNG), then wide soft gray bands (the stripes, aliased)."
             },
             "downsample-cover": {
                 "checks": "downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, so it is as sharp as without downsample.",
@@ -259,7 +259,7 @@
                 "shows": "A photo of a fjord seen from a cliff."
             },
             "progress-unknown-size": {
-                "checks": "onProgress for an image whose size is unknown (no Content-Length): none sent, or each with a real total (iOS sent a total of 0 and Android -1, so loaded / total was infinite or negative).",
+                "checks": "onProgress for an image whose size is unknown (no Content-Length): none sent, or each with a real total (Android sent a total of -1 and iOS -1 or 0, so loaded / total was negative or infinite).",
                 "steps": "Loads the 2048x2048 photo from the image server's chunked/ path, which sends it without a Content-Length. Passes at onLoad if there were no onProgress events, or each had a total above 0, loaded between 0 and the total, and the last one 1.",
                 "shows": "A photo of a fjord seen from a cliff."
             },
@@ -326,7 +326,7 @@
                 "shows": "An empty gray square: the case only preloads."
             },
             "preload-retry": {
-                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
+                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache). Android only for now: on iOS a preload right after the failure can join the failed download while SDWebImage is still decoding it (preload-retry-web checks the iOS fix with cache: 'web' urls).",
                 "steps": "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
                 "shows": "A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown."
             },
@@ -464,12 +464,12 @@
     "thumbhash": {
         "description": {
             "checks": "source.thumbhash: the ThumbHash shows, decoded, while the image loads and when it fails, in place of defaultSource, and changing it after the load starts or ends doesn't load again.",
-            "steps": "Most cases hold their download on the slow server (it sends nothing until the case unmounts), so the hash stays on screen for the screenshot. The hashes come from flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a magenta disc on transparent, and a 4:3 cyan-to-orange gradient."
+            "steps": "Most cases hold their download on the slow server (it sends only the headers and a byte a second until the case unmounts), so the hash stays on screen for the screenshot. The hashes come from flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a magenta disc on transparent, and a 4:3 cyan-to-orange gradient."
         },
         "cases": {
             "thumbhash-loading": {
                 "checks": "source.thumbhash shows while the image loads, in place of defaultSource.",
-                "steps": "A 96 × 72 view loads a photo the slow server holds (it sends nothing until the case unmounts), with a red-to-blue thumbhash and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it (the download should be held).",
+                "steps": "A 96 × 72 view loads a photo the slow server holds (it sends only the headers and a byte a second until the case unmounts), with a red-to-blue thumbhash and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it (the download should be held).",
                 "shows": "A red-to-blue gradient, red on the left and blue on the right, filling the view. A failure: a magenta rectangle (defaultSource)."
             },
             "thumbhash-scale-down": {
