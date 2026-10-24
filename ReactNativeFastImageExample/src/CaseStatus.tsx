@@ -30,7 +30,9 @@ export function CaseStatus({
 }) {
     useReport(id, status)
     const describe = useContext(DescribeContext)
-    useEffect(() => describe(id, description), [describe, id, description])
+    useEffect(() => {
+        describe(id, description)
+    }, [describe, id, description])
     const inRunner = useContext(InRunnerContext)
     if (inRunner) return null
     return (

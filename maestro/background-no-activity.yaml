@@ -35,7 +35,7 @@ env:
 - openLink: ${APP_ID}://finish-on-leave
 - tapOn:
       id: 'regression-clear-no-activity-start'
-# The case's description says what it's waiting for (its status line only
+# The case's "Now: …" line says what it's waiting for (its status line only
 # shows OK or …).
 - extendedWaitUntil:
       visible: '.*Now: send the app to the background.*'
