@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { parseArgs } from 'node:util'
+import { isDeepStrictEqual, parseArgs } from 'node:util'
 
 const USAGE = `Usage: node scripts/regression-viewer.mts [folder] [options]
 
@@ -17,8 +17,9 @@ for every app and platform: its committed reference (git's HEAD) and what it
 checks, and its change, if it has one: a run's screenshot that differs (each
 case's crop, or a group without cases as a whole), or a reference in
 screenshots/ that isn't committed (approved, seeded or edited), with the diff.
-Approving a run's screenshot copies it into screenshots/, to commit; undo
-puts the committed reference back.
+The same goes for its descriptions, in screenshots/<app>-<platform>/
+descriptions.json. Approving a run's screenshot (or a group's descriptions)
+copies it into screenshots/, to commit; undo puts the committed one back.
 
   folder              The run to compare with: a verify.mts output folder, or
                       any folder with runs in it (e.g. a CI run's artifacts,
@@ -163,14 +164,16 @@ const readResults = (file: string) =>
     JSON.parse(fs.readFileSync(file, 'utf8')) as Results
 
 // The latest local run (not a CI run's, --pr) that has its comparisons in
-// results.json: runs from before it did can't be compared. None: the
-// references alone.
+// results.json, of the newest 30 (verify-output/ keeps them all): runs from
+// before it did can't be compared. None: the references alone.
 function latestRun() {
-    return runs().find(
-        (d) =>
-            !path.basename(d).startsWith('ci-') &&
-            findResults(d).some((f) => readResults(f).screenshots),
-    )
+    return runs()
+        .slice(0, 30)
+        .find(
+            (d) =>
+                !path.basename(d).startsWith('ci-') &&
+                findResults(d).some((f) => readResults(f).screenshots),
+        )
 }
 
 const run = options.references
@@ -179,31 +182,6 @@ const run = options.references
       ? downloadPr(options.pr)
       : (positionals[0] ?? latestRun())
 const RUN = run && path.resolve(run)
-
-// The groups' descriptions, and their order, by app and platform (e.g.
-// main-ios), from the newest runs that have them: for groups the run being
-// shown doesn't have (the app sends them as it runs a group).
-const known = new Map<
-    string,
-    {
-        groups: string[]
-        descriptions: NonNullable<Results['descriptions']>
-    }
->()
-for (const dir of runs()) {
-    for (const file of findResults(dir)) {
-        const key = path.basename(path.dirname(path.dirname(file)))
-        const results = readResults(file)
-        const entry = known.get(key) ?? { groups: [], descriptions: {} }
-        if (entry.groups.length === 0)
-            entry.groups = results.hello?.groups ?? []
-        for (const [name, description] of Object.entries(
-            results.descriptions ?? {},
-        ))
-            entry.descriptions[name] ??= description
-        known.set(key, entry)
-    }
-}
 
 type Description = { checks: string; steps?: string; shows?: string }
 type Rect = { x: number; y: number; width: number; height: number }
@@ -245,6 +223,21 @@ type Image = {
     diff?: string
 }
 
+// A group's descriptions, as verify.mts keeps them in descriptions.json.
+type Descriptions = {
+    description?: Description
+    cases?: Record<string, Description>
+}
+
+// A group's descriptions as the page shows it: like an image's (see Image),
+// the committed ones and, if they differ, the run's (approved: false) or the
+// ones in descriptions.json that aren't committed (approved: true).
+type DescriptionsChange = {
+    state: State
+    approved: boolean
+    committed?: Descriptions
+}
+
 // A group as the page shows it: compared as a whole (whole), or by case
 // (each case's image). state: failed (a case didn't pass, or the group
 // failed: failures), or its images' worst. approvable: whether its run's
@@ -259,6 +252,9 @@ type Group = {
     failures: string[]
     detail?: string
     description?: Description
+    descriptions: DescriptionsChange
+    // The run's descriptions, to approve.
+    runDescriptions?: Descriptions
     shot?: string
     whole?: Image
     cases: {
@@ -361,6 +357,87 @@ function image(
     return { state: 'ok', reference, committed, approved: false }
 }
 
+// An app and platform's descriptions (see verify.mts's checkDescriptions):
+// in screenshots/ (current) and committed.
+const descriptionsFile = (key: string) => `screenshots/${key}/descriptions.json`
+function readDescriptions(
+    key: string,
+    refs: ReturnType<typeof referenceStatus>,
+) {
+    const reference = descriptionsFile(key)
+    const file = path.join(ROOT, reference)
+    return {
+        current: fs.existsSync(file)
+            ? (JSON.parse(fs.readFileSync(file, 'utf8')) as Record<
+                  string,
+                  Descriptions
+              >)
+            : {},
+        committed: refs.committed.has(reference)
+            ? (JSON.parse(
+                  git('show', `HEAD:${reference}`).toString(),
+              ) as Record<string, Descriptions>)
+            : {},
+    }
+}
+
+// A group's descriptions change (see DescriptionsChange), with the run's if
+// it has them.
+function descriptionsChange(
+    name: string,
+    files: ReturnType<typeof readDescriptions>,
+    run?: Descriptions,
+): DescriptionsChange {
+    const current = files.current[name]
+    const committed = files.committed[name]
+    if (run && !isDeepStrictEqual(run, current))
+        return {
+            state: committed ? 'differs' : 'new',
+            approved: false,
+            committed,
+        }
+    if (!isDeepStrictEqual(current, committed))
+        return {
+            state: !current ? 'removed' : committed ? 'differs' : 'new',
+            approved: true,
+            committed,
+        }
+    return { state: 'ok', approved: false, committed }
+}
+
+// Writes a group's descriptions into descriptions.json (none: removes them),
+// in the app's order (order: its groups), as verify.mts does.
+function writeDescriptions(
+    key: string,
+    name: string,
+    descriptions: Descriptions | undefined,
+    order: string[],
+) {
+    const file = path.join(ROOT, descriptionsFile(key))
+    const all = fs.existsSync(file)
+        ? (JSON.parse(fs.readFileSync(file, 'utf8')) as Record<
+              string,
+              Descriptions
+          >)
+        : {}
+    if (descriptions) all[name] = descriptions
+    else delete all[name]
+    const index = (group: string) =>
+        order.includes(group) ? order.indexOf(group) : order.length
+    fs.writeFileSync(
+        file,
+        JSON.stringify(
+            Object.fromEntries(
+                Object.keys(all)
+                    .sort((a, b) => index(a) - index(b))
+                    .map((group) => [group, all[group]]),
+            ),
+            null,
+            4,
+        ) + '\n',
+    )
+}
+
 const ORDER: Group['state'][] = ['failed', 'new', 'differs', 'removed', 'ok']
 
 // Every app and platform's groups (e.g. main-ios), from the references,
@@ -372,6 +449,11 @@ function load() {
     const references = new Set(refs.committed)
     for (const reference of refs.changed) references.add(reference)
     const byKey = new Map<string, Group[]>()
+    const files = new Map<string, ReturnType<typeof readDescriptions>>()
+    const descriptionsOf = (key: string) => {
+        if (!files.has(key)) files.set(key, readDescriptions(key, refs))
+        return files.get(key)!
+    }
     for (const file of RUN ? findResults(RUN) : []) {
         const dir = path.dirname(file)
         const key = path.basename(path.dirname(dir))
@@ -387,9 +469,16 @@ function load() {
             const caseInfo = Object.fromEntries(
                 Object.entries(info?.cases ?? {}).filter(([, c]) => c.file),
             )
+            const run = results.descriptions?.[name]
             const descriptions =
-                results.descriptions?.[name] ??
-                known.get(key)?.descriptions[name]
+                run ??
+                descriptionsOf(key).current[name] ??
+                descriptionsOf(key).committed[name]
+            const descriptionsState = descriptionsChange(
+                name,
+                descriptionsOf(key),
+                run,
+            )
             const wholeReference = `screenshots/${key}/${name}.png`
             const byCase = !(
                 references.has(wholeReference) ||
@@ -433,6 +522,7 @@ function load() {
                 cases.some((c) => c.status !== 'OK') || failures.length > 0
             const states = [
                 ...(failed ? ['failed'] : []),
+                descriptionsState.state,
                 ...(whole ? [whole.state] : []),
                 ...cases.flatMap((c) => (c.image ? [c.image.state] : [])),
             ] as Group['state'][]
@@ -447,6 +537,8 @@ function load() {
                 failures,
                 detail: info?.detail,
                 description: descriptions?.description,
+                descriptions: descriptionsState,
+                runDescriptions: run,
                 shot: info
                     ? path.join(dir, info.file)
                     : files.includes(`${prefix}.png`)
@@ -465,8 +557,23 @@ function load() {
             byKey.set(key, list)
         }
     }
-    // The groups the run didn't show, from their references.
+    // The groups the run didn't show, from their references and
+    // descriptions.
     const others = new Map<string, Map<string, string[]>>()
+    for (const key of fs.existsSync(SCREENSHOTS)
+        ? fs.readdirSync(SCREENSHOTS)
+        : []) {
+        const described = descriptionsOf(key)
+        for (const name of new Set([
+            ...Object.keys(described.committed),
+            ...Object.keys(described.current),
+        ])) {
+            if (byKey.get(key)?.some((g) => g.name === name)) continue
+            const groups = others.get(key) ?? new Map<string, string[]>()
+            if (!groups.has(name)) groups.set(name, [])
+            others.set(key, groups)
+        }
+    }
     for (const reference of references) {
         const [, key, name, id] =
             reference.match(
@@ -481,20 +588,37 @@ function load() {
     }
     for (const [key, groups] of others) {
         const list = byKey.get(key) ?? []
-        const order = known.get(key)?.groups ?? []
+        const described = descriptionsOf(key)
+        // The app's order, as descriptions.json has it.
+        const order = Object.keys({
+            ...described.committed,
+            ...described.current,
+        })
         for (const [name, ids] of groups) {
-            const descriptions = known.get(key)?.descriptions[name]
+            const descriptions =
+                described.current[name] ?? described.committed[name]
+            const descriptionsState = descriptionsChange(name, described)
+            const wholeReference = `screenshots/${key}/${name}.png`
             const whole =
-                ids.length === 0
-                    ? image(`screenshots/${key}/${name}.png`, refs)
+                ids.length === 0 && references.has(wholeReference)
+                    ? image(wholeReference, refs)
                     : undefined
-            const cases = ids.sort().map((id) => ({
-                id,
-                status: '',
-                description: descriptions?.cases?.[id],
-                image: image(`screenshots/${key}/${name}/${id}.png`, refs),
-            }))
+            // In the app's order, as the descriptions have them.
+            const caseOrder = Object.keys(descriptions?.cases ?? {})
+            const position = (id: string) =>
+                caseOrder.includes(id)
+                    ? caseOrder.indexOf(id)
+                    : caseOrder.length
+            const cases = ids
+                .sort((a, b) => position(a) - position(b) || a.localeCompare(b))
+                .map((id) => ({
+                    id,
+                    status: '',
+                    description: descriptions?.cases?.[id],
+                    image: image(`screenshots/${key}/${name}/${id}.png`, refs),
+                }))
             const states = [
+                descriptionsState.state,
                 ...(whole ? [whole.state] : []),
                 ...cases.map((c) => c.image.state),
             ]
@@ -509,6 +633,7 @@ function load() {
                 approvable: false,
                 failures: [],
                 description: descriptions?.description,
+                descriptions: descriptionsState,
                 whole,
                 cases,
                 samples: [],
@@ -655,20 +780,22 @@ function requested(body: string, send: Send) {
         send(400, 'needs a key and a name')
         return undefined
     }
-    const group = load()
-        .find((e) => e.key === key)
-        ?.groups.find((g) => g.name === name)
-    if (!group) {
+    const entry = load().find((e) => e.key === key)
+    const group = entry?.groups.find((g) => g.name === name)
+    if (!entry || !group) {
         send(404, 'no such group')
         return undefined
     }
+    // The app's order, for descriptions.json.
+    const order = entry.groups.map((g) => g.name)
     const images = [
         ...(group.whole && !id ? [group.whole] : []),
         ...group.cases.flatMap((c) =>
             c.image && (!id || c.id === id) ? [c.image] : [],
         ),
     ]
-    return { group, images }
+    // A group's descriptions go with the whole group, not one case.
+    return { group, images, order, whole: id === undefined }
 }
 
 // Copies a run's screenshots that aren't references yet over them, in
@@ -676,12 +803,28 @@ function requested(body: string, send: Send) {
 function approve(body: string, send: Send) {
     const request = requested(body, send)
     if (!request) return
-    if (!request.group.approvable) return send(409, "can't be approved")
+    const { group } = request
+    if (!group.approvable) return send(409, "can't be approved")
     const images = request.images.filter(
         (image): image is Image & { current: string } =>
             !image.approved && !!image.current,
     )
-    if (images.length === 0) return send(404, 'nothing to approve')
+    const descriptions =
+        request.whole &&
+        group.runDescriptions &&
+        !group.descriptions.approved &&
+        group.descriptions.state !== 'ok'
+    if (images.length === 0 && !descriptions)
+        return send(404, 'nothing to approve')
+    if (descriptions) {
+        writeDescriptions(
+            group.key,
+            group.name,
+            group.runDescriptions,
+            request.order,
+        )
+        console.log(`approved ${group.key}/${group.name}'s descriptions`)
+    }
     for (const image of images) {
         const reference = path.join(ROOT, image.reference)
         fs.mkdirSync(path.dirname(reference), { recursive: true })
@@ -696,8 +839,20 @@ function approve(body: string, send: Send) {
 function undo(body: string, send: Send) {
     const request = requested(body, send)
     if (!request) return
+    const { group } = request
     const images = request.images.filter((image) => image.approved)
-    if (images.length === 0) return send(404, 'nothing to undo')
+    const descriptions = request.whole && group.descriptions.approved
+    if (images.length === 0 && !descriptions)
+        return send(404, 'nothing to undo')
+    if (descriptions) {
+        writeDescriptions(
+            group.key,
+            group.name,
+            group.descriptions.committed,
+            request.order,
+        )
+        console.log(`undid ${group.key}/${group.name}'s descriptions`)
+    }
     for (const image of images) {
         if (image.committed) git('checkout', 'HEAD', '--', image.reference)
         else fs.rmSync(path.join(ROOT, image.reference), { force: true })

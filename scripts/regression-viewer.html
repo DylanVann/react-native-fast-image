@@ -602,16 +602,43 @@
                     .find((g) => groupId(g) === selected)
 
             // A case's description, as in the case list.
-            function caseDescription(c) {
+            function caseDescription(c, committed) {
                 if (!c.description) return ''
+                // What it said before, if its description changed.
+                const before =
+                    committed !== undefined &&
+                    JSON.stringify(committed) !== JSON.stringify(c.description)
+                        ? `<details class="detail"><summary>${committed ? 'Committed description' : 'No committed description'}</summary>${committed ? caseDescription({ description: committed }) : ''}</details>`
+                        : ''
                 return (
                     `<p>${esc(c.description.checks)}</p>` +
                     (c.description.steps
                         ? `<p><span class="label">Steps:</span> ${esc(c.description.steps)}</p>`
                         : '') +
-                    `<p><span class="label">Shows:</span> ${esc(c.description.shows)}</p>`
+                    `<p><span class="label">Shows:</span> ${esc(c.description.shows)}</p>` +
+                    before
                 )
             }
+
+            // A group's descriptions change: from the run (not approved) or
+            // in descriptions.json (not committed), with what was committed.
+            function descriptionsChange(g) {
+                const d = g.descriptions
+                if (d.state === 'ok') return ''
+                return `<p class="detail">Descriptions ${d.state === 'new' ? 'new' : d.state === 'removed' ? 'removed' : 'changed'} (${d.approved ? 'not committed' : 'not approved'})${
+                    d.committed?.description &&
+                    JSON.stringify(d.committed.description) !==
+                        JSON.stringify(g.description)
+                        ? `</p><details class="detail"><summary>Committed group description</summary>${descriptionHtml(d.committed.description)}</details>`
+                        : '</p>'
+                }`
+            }
+            // A group's descriptions to approve, or to undo.
+            const descriptionsPending = (g) =>
+                g.descriptions.state !== 'ok' &&
+                !g.descriptions.approved &&
+                !!g.runDescriptions
+            const descriptionsApproved = (g) => g.descriptions.approved
 
             // A state's badge (none when nothing differs).
             const badge = (state, className = '') =>
@@ -635,14 +662,21 @@
                     ? `<span class="status">${esc(c.status)}</span>`
                     : ''
 
-            // A case: its description, then its pictures. approvable: its
-            // group's.
-            function caseRow(c, i, approvable) {
+            // A case's committed description, if its group's descriptions
+            // changed (null: none was committed).
+            const committedOf = (g, c) =>
+                g.descriptions.state === 'ok'
+                    ? undefined
+                    : (g.descriptions.committed?.cases?.[c.id] ?? null)
+
+            // A case of a group (g): its description, then its pictures.
+            function caseRow(c, i, g) {
+                const approvable = g.approvable
                 const image = c.image
                 return `<div class="case" data-case="${esc(c.id)}">
                     <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
-                    ${caseDescription(c)}
+                    ${caseDescription(c, committedOf(g, c))}
                     ${
                         image
                             ? `<div class="crops">${pictures(image, crop)}</div>`
@@ -672,7 +706,7 @@
                                 i,
                             ) => `<div class="case" data-case="${esc(c.id)}">
                             <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${status(c)}</div>
-                            ${caseDescription(c)}
+                            ${caseDescription(c, committedOf(g, c))}
                         </div>`,
                         )
                         .join('')
@@ -684,9 +718,7 @@
                     // By case: the whole screenshot for context (if the run
                     // has it), each case compared on its own.
                     const cases =
-                        g.cases
-                            .map((c, i) => caseRow(c, i, g.approvable))
-                            .join('') ||
+                        g.cases.map((c, i) => caseRow(c, i, g)).join('') ||
                         '<p class="detail">No cases reported.</p>'
                     layout = g.shot
                         ? `<div class="layout by-case">
@@ -699,12 +731,12 @@
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
                         ${badge(g.state)}${w ? change(w) : ''}
-                        ${g.approvable && images(g).some(pending) ? `<button class="primary" id="approve">${w ? 'Approve' : 'Approve all'} (a)</button>` : ''}
-                        ${images(g).some((image) => image.approved) ? `<button id="undo">${w ? 'Undo' : 'Undo all'} (u)</button>` : ''}
+                        ${g.approvable && (images(g).some(pending) || descriptionsPending(g)) ? `<button class="primary" id="approve">${w ? 'Approve' : 'Approve all'} (a)</button>` : ''}
+                        ${images(g).some((image) => image.approved) || descriptionsApproved(g) ? `<button id="undo">${w ? 'Undo' : 'Undo all'} (u)</button>` : ''}
                     </div>
                     ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
                     ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
-                    <div class="description">${descriptionHtml(g.description)}</div>
+                    <div class="description">${descriptionHtml(g.description)}${descriptionsChange(g)}</div>
                     ${layout}
                     ${g.samples.length ? `<h3>Video samples</h3><div class="samples">${g.samples.map((s) => `<video src="${file(s)}" controls muted loop></video>`).join('')}</div>` : ''}
                 `
@@ -795,13 +827,18 @@
             const toApprove = () =>
                 data.entries
                     .flatMap((e) => e.groups)
-                    .filter((g) => g.approvable && images(g).some(pending))
+                    .filter(
+                        (g) =>
+                            g.approvable &&
+                            (images(g).some(pending) || descriptionsPending(g)),
+                    )
             $('approve-all').addEventListener('click', () => {
                 const groups = toApprove()
                 const count = groups.flatMap(images).filter(pending).length
+                const described = groups.filter(descriptionsPending).length
                 if (
                     confirm(
-                        `Copy ${count} images (${groups.length} groups) over their references in screenshots/?`,
+                        `Copy ${count} images${described ? ` and the descriptions of ${described} groups` : ''} (${groups.length} groups) into screenshots/?`,
                     )
                 )
                     send('approve', groups)
