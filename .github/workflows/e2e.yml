@@ -143,7 +143,7 @@ jobs:
         run: |
           base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
-          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
+          curl -fsSL --retry 3 --retry-all-errors -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
           shasum -a 256 -c <<'EOF'
           c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
           fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
@@ -570,7 +570,7 @@ jobs:
         run: |
           base=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
-          curl -fsSL -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
+          curl -fsSL --retry 3 --retry-all-errors -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
           shasum -a 256 -c <<'EOF'
           fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f  ffmpeg.zip
           3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32  ffprobe.zip
