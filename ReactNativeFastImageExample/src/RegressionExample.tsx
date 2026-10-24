@@ -7737,6 +7737,34 @@ function DownsampleZoomCase() {
     )
 }
 
+// A view much larger than the screen (2400x2400, about 6300 px square on the
+// Android emulator), drawn 20 times smaller with a transform. Glide fits an
+// image to the view's size, so the bitmap would be about 160 MB, which Android
+// won't draw ("Canvas: trying to draw too large bitmap"): the app crashed.
+function LargeViewCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{ uri: imageUrl('quadrants.png?case=large-view') }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view"
+                status={status}
+                description={{
+                    checks: 'An image in a view far larger than the screen shows (on Android its bitmap was the view\'s size, about 160 MB, and the app crashed drawing it).',
+                    steps: 'Loads a 20x20 image of four colored squares into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -7750,6 +7778,16 @@ const downsampleStyles = StyleSheet.create({
         height: 88,
         overflow: 'hidden',
         backgroundColor: '#eee',
+    },
+    largeViewClip: { width: 120, height: 120, overflow: 'hidden' },
+    // Scaled about its center, so it fills the clip.
+    largeView: {
+        position: 'absolute',
+        left: -1140,
+        top: -1140,
+        width: 2400,
+        height: 2400,
+        transform: [{ scale: 0.05 }],
     },
     // Scaled about its center, so it spans 320x200 from the clip's top left.
     zoomed: {
@@ -10499,6 +10537,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             checks: "downsample={false} keeps an image that's zoomed in on with a transform sharp.",
         },
         cases: [<DownsampleZoomCase key="downsample-zoom" />],
+    },
+    {
+        // A crash takes the app down: on its own.
+        name: 'large-view',
+        description: {
+            checks: 'An image in a view far larger than the screen shows.',
+        },
+        cases: [<LargeViewCase key="large-view" />],
     },
     {
         name: 'loading',

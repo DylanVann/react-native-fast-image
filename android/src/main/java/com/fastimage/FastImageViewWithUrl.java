@@ -467,7 +467,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
         FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mPlaceholderSource);
         if (imageSource == null) return;
-        CustomTarget<Drawable> target = new CustomTarget<Drawable>(getWidth(), getHeight()) {
+        int[] box = FastImageSourceSize.box(getWidth(), getHeight());
+        CustomTarget<Drawable> target = new CustomTarget<Drawable>(box[0], box[1]) {
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
                 if (this != mUrlPlaceholderTarget) return;
@@ -1038,6 +1039,32 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @Nullable
     private Drawable mAnimated;
 
+    // Passes on a size capped by FastImageSourceSize.box. Equal to another
+    // for the same callback, so the target can remove it.
+    private static final class CappedSize implements SizeReadyCallback {
+        private final SizeReadyCallback cb;
+
+        CappedSize(SizeReadyCallback cb) {
+            this.cb = cb;
+        }
+
+        @Override
+        public void onSizeReady(int width, int height) {
+            int[] box = FastImageSourceSize.box(width, height);
+            cb.onSizeReady(box[0], box[1]);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof CappedSize && ((CappedSize) o).cb.equals(cb);
+        }
+
+        @Override
+        public int hashCode() {
+            return cb.hashCode();
+        }
+    }
+
     // Shows each GIF as this view's own animation. Glide's target also starts
     // and stops it with the Activity, as it does Glide's own GifDrawable.
     private final class OwnGifTarget extends DrawableImageViewTarget {
@@ -1051,6 +1078,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         OwnGifTarget(@Nullable Drawable meanwhile) {
             super(FastImageViewWithUrl.this);
             mMeanwhile = meanwhile;
+        }
+
+        // The view's size, capped (FastImageSourceSize.box).
+        @Override
+        public void getSize(@NonNull SizeReadyCallback cb) {
+            super.getSize(new CappedSize(cb));
+        }
+
+        @Override
+        public void removeCallback(@NonNull SizeReadyCallback cb) {
+            super.removeCallback(new CappedSize(cb));
         }
 
         @Override
@@ -1610,8 +1648,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Whether the image loaded, at a size the view doesn't have now.
     private boolean isResized() {
-        int width = contentWidth();
-        int height = contentHeight();
+        int[] box = FastImageSourceSize.box(contentWidth(), contentHeight());
+        int width = box[0];
+        int height = box[1];
         return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
