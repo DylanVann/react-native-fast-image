@@ -186,21 +186,36 @@ jobs:
         with:
           path: ~/simulator-cache
           key: ${{ env.SIMULATOR_KEY }}-${{ hashFiles('.github/simslim.json') }}
-      # The app's dependencies, Pods, pod install's Codegen output and gems
-      # (verify.mts skips pod install while they're current).
-      - name: "Restore the app's dependencies and Pods"
+      - name: Move the restored simulator into place and boot it
+        if: steps.simulator.outputs.cache-hit == 'true'
+        run: |
+          udid=$(cat ~/simulator-cache/udid)
+          mv ~/simulator-cache/"$udid" ~/Library/Developer/CoreSimulator/Devices/
+          mkdir -p /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"
+          cp ~/simulator-cache/disabled.plist /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/
+          killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
+          xcrun simctl list devices | grep "$SIMULATOR"
+          # Booting in the background while the rest restores, so its first
+          # minute of background work doesn't slow the build (verify.mts waits
+          # for it); and Xcode's device discovery, which xcodebuild otherwise
+          # waits for when it starts.
+          (xcrun simctl boot "$udid" > /dev/null 2>&1 &)
+          (xcrun xcdevice list > /dev/null 2>&1 &)
+      # The app's Pods, pod install's Codegen output and gems (verify.mts
+      # skips pod install while they're current). Not node_modules, which bun
+      # installs faster than it restores while the simulator boots.
+      - name: "Restore the app's Pods"
         id: deps
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: |
-            ${{ env.APP_DIR }}/node_modules
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
             ${{ env.APP_DIR }}/vendor/bundle
-          key: ios-deps-v4-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
-          restore-keys: ios-deps-v4-${{ matrix.app }}-
+          key: ios-deps-v5-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR), 'package.json', 'RNFastImage.podspec', 'src/specs/**', 'ios/**') }}
+          restore-keys: ios-deps-v5-${{ matrix.app }}-
       # React Native's and CocoaPods' downloads, for pod install: only when
       # the dependencies aren't current.
       - name: "Restore React Native's and CocoaPods' downloads"
@@ -214,12 +229,16 @@ jobs:
             ~/Library/Caches/CocoaPods
           key: ios-downloads-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), format('{0}/ios/Podfile', env.APP_DIR)) }}
           restore-keys: ios-downloads-${{ matrix.app }}-
-      # An older key's node_modules is brought up to date (verify.mts only
-      # installs when there are none).
-      - name: "Update the app's dependencies"
-        if: steps.deps.outputs.cache-hit != 'true'
-        run: bun install --frozen-lockfile
+      # The Pods are touched after an exact hit: their key has bun.lock, so
+      # they're current, but verify.mts reinstalls Pods older than
+      # node_modules.
+      - name: "Install the app's dependencies"
+        run: |
+          bun install --frozen-lockfile
+          if [ "$HIT" = true ]; then touch ios/Pods; fi
         working-directory: ${{ env.APP_DIR }}
+        env:
+          HIT: ${{ steps.deps.outputs.cache-hit }}
       # Xcode's compilation cache (verify.mts), so builds reuse what earlier
       # runs compiled.
       - name: "Restore Xcode's compilation cache"
@@ -249,23 +268,6 @@ jobs:
           path: ${{ runner.temp }}/tmp/metro-cache
           key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: metro-ios-${{ matrix.app }}-
-      - name: Move the restored simulator into place and boot it
-        if: steps.simulator.outputs.cache-hit == 'true'
-        run: |
-          udid=$(cat ~/simulator-cache/udid)
-          mv ~/simulator-cache/"$udid" ~/Library/Developer/CoreSimulator/Devices/
-          mkdir -p /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"
-          cp ~/simulator-cache/disabled.plist /private/var/tmp/com.apple.CoreSimulator.SimDevice."$udid"/
-          killall -9 com.apple.CoreSimulator.CoreSimulatorService || true
-          xcrun simctl list devices | grep "$SIMULATOR"
-          # Booting in the background, so it gets through some of its first
-          # minute of background work before the build (verify.mts waits for
-          # it); and Xcode's device discovery, which xcodebuild otherwise waits
-          # for when it starts. After the restores: during that minute the
-          # runner barely runs anything else (a 450 MB restore took 55-87 s,
-          # where the 880 MB simulator before it took 4-7 s).
-          (xcrun simctl boot "$udid" > /dev/null 2>&1 &)
-          (xcrun xcdevice list > /dev/null 2>&1 &)
       # The groups' times in recent runs, so --shard splits them into halves
       # that take about as long (scripts/group-times.ts).
       - name: "Fetch the groups' times in recent runs"
@@ -369,13 +371,12 @@ jobs:
           test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
-      - name: "Save the app's dependencies and Pods"
+      - name: "Save the app's Pods"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: |
-            ${{ env.APP_DIR }}/node_modules
             ${{ env.APP_DIR }}/ios/Pods
             ${{ env.APP_DIR }}/ios/Podfile.lock
             ${{ env.APP_DIR }}/ios/build/generated
