@@ -2249,22 +2249,26 @@ function RetryNewerUrlCase() {
             {failing(0, RETRY_NEWER_FIRST, sharedStyles.small)}
             {mounted >= 1 && failing(1, RETRY_NEWER_SECOND, retryStyles.medium)}
             {mounted >= 2 && (
-                <FastImage
-                    style={sharedStyles.large}
-                    source={{
-                        uri: slowImageUrl(
-                            `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
-                        ),
-                        headers: SLOW_HEADERS,
-                        cacheKey: RETRY_NEWER_KEY,
-                    }}
-                    onLoad={() => setLoaded(true)}
-                    onError={(e) => {
-                        // Read the event now: the updater runs later.
-                        const error = String(e.nativeEvent.error)
-                        fail(`image 3: onError: ${error}`)
-                    }}
-                />
+                // Masked: it's drawn from one of two decodes, depending on how
+                // the downloads raced (the case checks requests and events).
+                <Masked>
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            cacheKey: RETRY_NEWER_KEY,
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={(e) => {
+                            // Read the event now: the updater runs later.
+                            const error = String(e.nativeEvent.error)
+                            fail(`image 3: onError: ${error}`)
+                        }}
+                    />
+                </Masked>
             )}
             <CaseStatus
                 id="retry-newer-url"
@@ -2272,7 +2276,7 @@ function RetryNewerUrlCase() {
                 description={{
                     checks: "A newer url that joins a cacheKey's retry is downloaded when the retry fails too (Android retried a failed download once, so the newer url was never requested).",
                     steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); a medium image of a second missing url mounts with that cacheKey, and the first 404 is sent, so the retry downloads the second url (also held). While it's held, a large image of a url that works mounts with the cacheKey, then the second 404 is sent. Passes when the first two have had onError and the large one has loaded.",
-                    shows: 'Blank space twice (30 and 45 points, the two urls that 404), then a large (60-point) photo of a pug in a blanket.',
+                    shows: "Blank space twice (30 and 45 points, the two urls that 404), then a large (60-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes.",
                 }}
             />
         </View>
@@ -4474,15 +4478,39 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
         const run = async () => {
             for (let attempt = 0; attempt < RETRY_TRIES; attempt++) {
                 const tried = sourceFor(attempt)
+                const requests = async () => {
+                    const response = await fetch(
+                        imageUrl(
+                            `requests?path=${encodeURIComponent(pathFor(attempt))}`,
+                        ),
+                    )
+                    return ((await response.json()) as { count: number }).count
+                }
                 const [first] = await FastImage.preload([tried])
                 if (first.ok) return setStatus('the first preload loaded')
-                const [second] = await FastImage.preload([tried])
-                const response = await fetch(
-                    imageUrl(
-                        `requests?path=${encodeURIComponent(pathFor(attempt))}`,
-                    ),
-                )
-                const { count } = (await response.json()) as { count: number }
+                let [second] = await FastImage.preload([tried])
+                let count = await requests()
+                // On iOS, a preload right after the failure can join the
+                // failed download while SDWebImage is still decoding it (it
+                // decodes the same data for a request that joins then), and
+                // get its error without a request. Once the decode is done
+                // it can't, so it tries again (0.2 s apart, a few times):
+                // #394 failed them all. Not with `web`: getting the page from
+                // the HTTP cache looks the same, and a moment later the failed
+                // load has removed it.
+                for (
+                    let retry = 0;
+                    Platform.OS === 'ios' &&
+                    !web &&
+                    !second.ok &&
+                    count === 1 &&
+                    retry < 5;
+                    retry++
+                ) {
+                    await sleep(200)
+                    ;[second] = await FastImage.preload([tried])
+                    count = await requests()
+                }
                 if (!second.ok) {
                     return setStatus(
                         `retry ${attempt + 1} failed (${count} requests): ${second.error}`,
@@ -4521,7 +4549,7 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                           }
                         : {
                               checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
-                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. (On iOS, if it failed without a request, it tries again every 0.2 s, up to 5 times, until one makes a request: a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
                 }
@@ -6361,6 +6389,82 @@ function GifLoopCase({
                 id={id}
                 status={ok ? 'OK' : 'waiting'}
                 description={description}
+            />
+        </View>
+    )
+}
+
+// A GIF without a loop count, recorded from when it's shown (a video sample):
+// it plays once, magenta then cyan, and stops on cyan. Android looped every
+// GIF forever (#651), showing magenta again. The screenshot alone can't tell:
+// it's taken once the group is done, which can be on a looping GIF's cyan.
+function GifLoopOnceCase() {
+    const id = 'gif-loop-once'
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const started = useRef(false)
+    const done = useRef(() => {})
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const [shown, setShown] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const expect = [BLANK, MAGENTA, CYAN]
+    const record = async () => {
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                // At most: it's done 2.4 s after onLoad.
+                durationMs: 10000,
+                expect,
+                palette: [MAGENTA, BLANK, CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setShown(true)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={styles.row}>
+            <View
+                ref={view}
+                collapsable={false}
+                style={styles.image}
+                onLayout={() => {
+                    if (started.current) return
+                    started.current = true
+                    record().catch((e) => setStatus(`error: ${e}`))
+                }}
+            >
+                {shown ? (
+                    <FastImage
+                        style={styles.image}
+                        source={{ uri: imageUrl('loop-once.gif') }}
+                        onLoad={() => {
+                            clearTimeout(timer.current)
+                            // Three plays' worth: a looping GIF shows magenta
+                            // again after one.
+                            timer.current = setTimeout(
+                                () => done.current(),
+                                3 * GIF_PLAY,
+                            )
+                        }}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={{
+                    checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
+                    steps: 'A video sample: the screen is recorded while the case shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop, until 2.4 s after onLoad; the color in the middle of the view must go from gray to magenta to cyan, and stay cyan.',
+                    shows: 'A cyan square: the last frame. In the recording: gray, magenta, cyan; magenta again after cyan means it looped.',
+                }}
             />
         </View>
     )
@@ -10116,25 +10220,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Checked by screenshot as much as by status.
         name: 'visual',
         description: {
-            checks: 'Changes after load and GIF looping, checked by screenshot: tintColor removed, objectFit changed, a GIF without a loop count, and a view that gets taller.',
+            checks: 'Changes after load, checked by screenshot (tintColor removed, objectFit changed, a view that gets taller), and a GIF without a loop count, checked by a video sample.',
         },
         cases: [
             <ClearTintCase key="clear-tint" />,
             <ObjectFitChangeCropCase key="fit-change" />,
-            <NoCrashCase
-                key="gif-loop-once"
-                id="gif-loop-once"
-                description={{
-                    checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
-                    steps: 'Shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop. Passes if the app is still running 750 ms after it mounts; the screenshot checks where it stopped.',
-                    shows: 'A cyan square: the last frame. Magenta means it was still playing (looping).',
-                }}
-            >
-                <FastImage
-                    style={styles.image}
-                    source={{ uri: imageUrl('loop-once.gif') }}
-                />
-            </NoCrashCase>,
+            <GifLoopOnceCase key="gif-loop-once" />,
             <SizeChangeCase key="size-change" />,
         ],
     },
