@@ -369,10 +369,20 @@
             "checks": "imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size."
         },
         "cases": {
-            "image-rendering": {
-                "checks": "imageRendering on images drawn smaller and larger than their size: smooth (iOS only; the same as auto on Android) averages the pixels of a shrunk image, and pixelated keeps an enlarged one's pixels sharp (#926).",
-                "steps": "Each row shows an image at its own size (one image pixel per screen pixel, cropped to a 200×24 strip), then drawn with imageRendering auto, smooth and pixelated, from the full image (downsample={false}): 1024 px stripes at 48, a 1600 px wide page of text at 96, and 12 px pixel art at 60. Passes when all nine have loaded; the screenshot does the checking.",
-                "shows": "Each row's label says what to expect. Stripes: on iOS smooth is an even gray, while auto and pixelated show uneven stripes, different on each platform. Text: on iOS smooth keeps the lines of text continuous. Pixel art: auto and smooth blurred, pixelated with sharp square pixels."
+            "image-rendering-stripes": {
+                "checks": "imageRendering on an image drawn much smaller than its size: smooth (iOS only; the same as auto on Android) averages its pixels.",
+                "steps": "Shows 1024 px black and white stripes, 1 px each, at their own size (a 200×24 strip of them), then drawn at 48 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.",
+                "shows": "A strip of fine stripes, then three squares, left to right auto, smooth and pixelated. On iOS smooth is an even gray (#445), and auto and pixelated show uneven stripes; on Android all three show uneven stripes."
+            },
+            "image-rendering-text": {
+                "checks": "imageRendering on a page of small text drawn much smaller than its size: smooth (iOS only; the same as auto on Android) keeps the lines of text continuous.",
+                "steps": "Shows a 1600×1000 page of small text at its own size (a 200×24 strip of it), then drawn at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.",
+                "shows": "A strip of the page, then the page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up."
+            },
+            "image-rendering-pixel-art": {
+                "checks": "imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).",
+                "steps": "Shows 12 px pixel art at its own size, then drawn at 64 points with imageRendering auto, smooth and pixelated. Passes when the three have loaded; the screenshot does the checking.",
+                "shows": "A tiny sprite, then three large ones, left to right auto, smooth and pixelated: auto and smooth blurred, pixelated with sharp square pixels."
             }
         }
     },
