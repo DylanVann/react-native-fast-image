@@ -4494,8 +4494,15 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                 // failed download while SDWebImage is still decoding it (it
                 // decodes the same data for a request that joins then), and
                 // get its error without a request. A moment later it can't,
-                // so a failure then is #394's.
-                if (!second.ok && count === 1) {
+                // so a failure then is #394's. Not with `web`: getting the
+                // page from the HTTP cache looks the same, and a moment later
+                // the failed load has removed it.
+                if (
+                    Platform.OS === 'ios' &&
+                    !web &&
+                    !second.ok &&
+                    count === 1
+                ) {
                     await sleep(200)
                     ;[second] = await FastImage.preload([tried])
                     count = await requests()
@@ -4533,12 +4540,12 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                     web
                         ? {
                               checks: "A cache: 'web' url whose first response was an HTML page (status 200) is downloaded again by the next preload (both platforms kept the page in the HTTP cache of web images, so later loads failed; iOS could still get it from there right after the failure, about once in tens of urls, so it tries many).",
-                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page (cacheable for an hour) and then with the photo: preloads it with cache: 'web' (it fails), preloads it again, and checks the second succeeded from a second request. (If it failed without a request, it tries once more 0.2 s later: on iOS, a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page (cacheable for an hour) and then with the photo: preloads it with cache: 'web' (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
                         : {
                               checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
-                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. (If it failed without a request, it tries once more 0.2 s later: on iOS, a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. (On iOS, if it failed without a request, it tries once more 0.2 s later: a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
                 }
