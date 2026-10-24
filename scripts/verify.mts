@@ -17,6 +17,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { isDeepStrictEqual, parseArgs, promisify } from 'node:util'
 import { ODiffServer } from 'odiff-bin'
+import { type Browser, chromium, type Page } from 'playwright-core'
 
 const HELP = `Checks the library and runs the example apps on iOS and Android.
 
@@ -43,8 +44,7 @@ Options:
                       when asked for: a few smoke cases on iOS and Android
                       (its native projects made by \`expo prebuild\`, with
                       FastImage's config plugin) and on the web (its web
-                      version in headless Chrome, statuses only, no
-                      screenshots). So does the tvOS example
+                      version in Playwright's Chromium, headless). So does the tvOS example
                       (ReactNativeFastImageExampleTV): the regression cases
                       but the touch ones, on an Apple TV simulator.
   --ios, --android, --web
@@ -88,8 +88,6 @@ Options:
                       after the current branch (or the --ref).
 
 Environment:
-  CHROME_BIN      Chrome for the Expo example's web version (default:
-                  /Applications/Google Chrome.app).
   IOS_SIMULATOR   Simulator name to use (default: "RNFI iPhone", a simulator
                   of the script's own so screenshots and recordings don't
                   show other apps; created on first use as an iPhone 17 Pro,
@@ -312,11 +310,6 @@ env.PATH = [
 const MAESTRO_RUNNER =
     env.MAESTRO_RUNNER_BIN ??
     path.join(ROOT, 'node_modules/.bin/maestro-runner')
-// The Expo example's web version runs in the installed Chrome, headless.
-const CHROME =
-    env.CHROME_BIN ??
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-
 const now = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
 const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
@@ -1078,8 +1071,8 @@ function idbRecordScreen(file: string) {
     return { started: video.started, stop, busy: () => false }
 }
 
-// A regression group's screenshot: from the companion when there is one,
-// once the screen has settled. A case's last status can reach the script
+// A regression group's screenshot: from the companion when there is one (or
+// the web version's page), once the screen has settled. A case's last status can reach the script
 // before the simulator has drawn it (simctl's slower start hid that), so it
 // takes screenshots until two in a row are the same outside `masks` (pixels;
 // animated images), for up to a second.
@@ -1089,11 +1082,17 @@ async function captureScreenshot(
     file: string,
     masks: PixelRect[],
 ) {
-    let png = platform === 'ios' ? await idbScreenshot() : undefined
-    if (png) {
+    const shoot =
+        platform === 'ios'
+            ? idbScreenshot
+            : platform === 'web'
+              ? webScreenshot
+              : undefined
+    let png = await shoot?.()
+    if (shoot && png) {
         const until = Date.now() + 1000
         while (Date.now() < until) {
-            const next = await idbScreenshot()
+            const next = await shoot()
             if (!next) break
             const settled =
                 next.equals(png) || (await sameOutside(png, next, masks, file))
@@ -2105,8 +2104,6 @@ async function runRegression(
         // The group's failures so far.
         failures: string[],
     ): Promise<{ shot: Promise<void> }> => {
-        // The web version's cases are checked by their statuses only.
-        if (platform === 'web') return { shot: Promise.resolve() }
         const name = groups[index]
         const file = path.join(
             dir,
@@ -2440,8 +2437,12 @@ async function runRegression(
     await bundleWarm
     // A fresh start, now that this script is connected, so the app opens on
     // the runner.
-    if (platform === 'web') openWeb(dir)
-    else if (platform === 'ios') {
+    if (platform === 'web') {
+        if (!(await openWeb(dir))) {
+            fail("couldn't start Playwright's Chromium (see browser.log)")
+            return
+        }
+    } else if (platform === 'ios') {
         // The same status bar in every screenshot (Apple's own values).
         capture('xcrun', [
             'simctl',
@@ -2963,34 +2964,63 @@ async function runFlows(
 // --- Web -----------------------------------------------------------------
 
 // The Expo example's web version, served by its dev server with the native
-// bundles, in headless Chrome (window about the size of an iPhone's), which
-// runs until the run ends. Its runner talks to this script through the image
-// server's relay, as the apps do.
-let chrome: number | undefined
-function openWeb(dir: string) {
-    chrome = start(
-        CHROME,
-        [
-            '--headless=new',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-default-browser-check',
-            `--user-data-dir=${path.join(OUT, 'chrome-profile')}`,
-            '--window-size=402,874',
-            'http://localhost:8081',
-        ],
-        { log: path.join(dir, 'chrome.log') },
-    ).pid
-    if (chrome !== undefined) groups.add(chrome)
+// bundles, in Playwright's Chromium: headless, the build this repo's
+// playwright-core pins (so every machine draws the same pixels), in a page the
+// size of an iPhone 17 Pro's screen at its 3× scale. It's open until the run
+// ends. Its runner talks to this script through the image server's relay, as
+// the apps do.
+let web: { browser: Browser; page: Page } | undefined
+async function openWeb(dir: string) {
+    const log = fs.createWriteStream(path.join(dir, 'browser.log'))
+    try {
+        const browser = await chromium.launch()
+        const page = await browser.newPage({
+            viewport: { width: 402, height: 874 },
+            deviceScaleFactor: 3,
+        })
+        page.on('console', (m) => log.write(`${m.type()}: ${m.text()}\n`))
+        page.on('pageerror', (e) => log.write(`error: ${e.message}\n`))
+        web = { browser, page }
+        // Not waited for: the dev server bundles the app first.
+        page.goto('http://localhost:8081', { timeout: 0 }).catch((e) =>
+            log.write(`${(e as Error).message}\n`),
+        )
+        return true
+    } catch (e) {
+        log.write(`${(e as Error).message}\n`)
+        return false
+    }
+}
+
+// The page's screenshot (its viewport, in device pixels).
+function webScreenshot() {
+    return (
+        web?.page.screenshot().catch(() => undefined) ??
+        Promise.resolve(undefined)
+    )
+}
+
+// Playwright's Chromium, downloaded on first use (about 200 MB, kept in
+// Playwright's cache for every checkout).
+function installChromium() {
+    return (
+        capture(
+            process.execPath,
+            [
+                path.join(ROOT, 'node_modules/playwright-core/cli.js'),
+                'install',
+                '--only-shell',
+                'chromium',
+            ],
+            { timeout: 600 },
+        ) !== undefined
+    )
 }
 
 async function flowsWeb(app: App) {
-    await runRegression(app, 'web', 'chrome', '')
-    if (chrome !== undefined) {
-        stop(chrome)
-        groups.delete(chrome)
-        chrome = undefined
-    }
+    await runRegression(app, 'web', 'chromium', '')
+    await web?.browser.close()
+    web = undefined
 }
 
 // --- iOS -----------------------------------------------------------------
@@ -3884,7 +3914,7 @@ async function jsCheck(
     )
 }
 
-// The web version is bundled by the dev server when Chrome asks for it.
+// The web version is bundled by the dev server when the browser asks for it.
 const build = { ios: buildIos, android: buildAndroid, web: async () => true }
 const flows = { ios: flowsIos, android: flowsAndroid, web: flowsWeb }
 
@@ -3971,9 +4001,13 @@ async function main() {
         const ready: Platform[] = []
         for (const platform of PLATFORMS) {
             if (platform === 'web') {
-                if (fs.existsSync(CHROME)) ready.push('web')
+                if (installChromium()) ready.push('web')
                 else
-                    record('FAIL', 'web', `no Chrome at ${CHROME} (CHROME_BIN)`)
+                    record(
+                        'FAIL',
+                        'web',
+                        "couldn't install Playwright's Chromium",
+                    )
             } else if (platform === 'ios') {
                 if (iosDevice()) ready.push('ios')
                 else

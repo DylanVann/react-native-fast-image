@@ -26,8 +26,8 @@
             },
             "smoke-sizes": {
                 "checks": "A source of several sizes loads the one that fits the view: on iOS and Android the one closest to the view's size in pixels, on the web the smallest at least as wide (the browser picks it from a srcset).",
-                "steps": "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android), 100 px on the web at 1×.",
-                "shows": "A solid square, larger than the other rows' images: green on iOS and Android, red on the web. Red or blue on a phone means the wrong size was loaded."
+                "steps": "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android) and on the web (its page is at 3×).",
+                "shows": "A solid green square, larger than the other rows' images. Red or blue means the wrong size was loaded."
             },
             "smoke-preload": {
                 "checks": "FastImage.preload resolves with a result per source: ok with the size for an image that loads, not ok for a missing one.",
@@ -74,7 +74,7 @@
             "smoke-apng": {
                 "checks": "An animated PNG (APNG) animates.",
                 "steps": "Loads an APNG of two frames, red then blue, 400 ms each and looping. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees both red and blue.",
-                "shows": "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn; never the gray background."
+                "shows": "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn."
             },
             "smoke-apng-blur": {
                 "checks": "An animated PNG (APNG) with blurRadius shows its first frame, blurred and still. On Android in an app with expo-image, Glide also has APNG4Android's plugin for APNGs, which ignores Glide's \"don't animate\" option.",

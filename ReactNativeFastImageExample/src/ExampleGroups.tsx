@@ -55,7 +55,7 @@ export const EXAMPLE_GROUPS: RegressionGroup[] = [
         description: {
             checks: "The example screen's tintColor section: every pixel of the image that isn't transparent is drawn in the tint color, for bundled images and for remote ones without a defaultSource (the case of #1082, where iOS crashed tinting an image with no size).",
             steps: "Shows the bundled 1000×1000 React logo three times with tintColor 'green', '#9324c3' and 'rgba(0,0,0,0.5)', then the same logo from the image server three times with the same colors and objectFit=\"contain\". Passes once all six have sent onLoad.",
-            shows: "Two lines of text, then a light gray band with three React logos: green, purple, and gray (half-transparent black); then a line of text and a second band with the same three logos, slightly smaller. A logo in its usual light blue means the tint wasn't applied.",
+            shows: "Two sentences of text, then a light gray band with three React logos: green, purple, and gray (half-transparent black); then a sentence of text and a second band with the same three logos, slightly smaller. A logo in its usual light blue means the tint wasn't applied.",
         },
         wide: true,
         cases: [<TintColorExample key="tint-color" />],
@@ -65,7 +65,7 @@ export const EXAMPLE_GROUPS: RegressionGroup[] = [
         description: {
             checks: "The example screen's local images section: bundled images (require() and import), a GIF, an animated WebP, a base64 data uri and a WebP.",
             steps: "Shows each source in a 64×64 view: an aerial photo of fields with require() and with import, the jellyfish as a GIF and as an animated WebP, the fields photo as a base64 data uri and as a WebP. Passes once all six have sent onLoad. The last item, a FastImageBackground for picking a photo from the library, has no image and isn't counted.",
-            shows: 'Below "Local images.", on a light gray band, each image under its label, three to a row: the fields photo twice and the jellyfish on blue (Require, Import, GIF); the jellyfish again, then the fields photo twice (Animated WebP, Base64, WebP); then "photo library" over a darker gray square with "Pick Photo" in white. The two jellyfish are animated, so they\'re not compared.',
+            shows: 'Below "Local images.", on a light gray band, each image under its label, wrapping into rows: the fields photo twice and the jellyfish on blue (Require, Import, GIF); the jellyfish again, then the fields photo twice (Animated WebP, Base64, WebP); then "photo library" over a darker gray square with "Pick Photo" in white. On iOS three fit in a row (3, 3, then 1), on Android four (4, then 3). The two jellyfish are animated, so they\'re not compared.',
         },
         wide: true,
         cases: [<LocalImagesExample key="local-images" compact />],
