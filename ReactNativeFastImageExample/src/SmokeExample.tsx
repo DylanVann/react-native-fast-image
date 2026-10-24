@@ -392,8 +392,8 @@ function SizesCase() {
                 status={status}
                 description={{
                     checks: "A source of several sizes loads the one that fits the view: on iOS and Android the one closest to the view's size in pixels, on the web the smallest at least as wide (the browser picks it from a srcset).",
-                    steps: "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android), 100 px on the web at 1×.",
-                    shows: "A solid square, larger than the other rows' images: green on iOS and Android, red on the web. Red or blue on a phone means the wrong size was loaded.",
+                    steps: "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android) and on the web (its page is at 3×).",
+                    shows: "A solid green square, larger than the other rows' images. Red or blue means the wrong size was loaded.",
                 }}
             />
         </View>
@@ -685,8 +685,8 @@ function SizesChangeCase() {
                 status={status}
                 description={{
                     checks: 'On the web, adding a larger size to a source of several sizes sends onLoad and onLoadEnd again, though the browser keeps showing the same file.',
-                    steps: 'Gives a 48 dp view two sizes of a square from the image server, 100 px (red) and 300 px (green); the browser shows the 100 px one. 300 ms after onLoad, adds the 900 px one (blue). Passes when onLoad and onLoadEnd have each come twice, within 4 s of the change.',
-                    shows: 'The red square (the 100 px file), before and after the change.',
+                    steps: "Gives a 48 dp view two sizes of a square from the image server, 100 px (red) and 300 px (green); at the page's 3× scale the view is 144 pixels, so the browser shows the 300 px one. 300 ms after onLoad, adds the 900 px one (blue). Passes when onLoad and onLoadEnd have each come twice, within 4 s of the change.",
+                    shows: 'The green square (the 300 px file), before and after the change.',
                 }}
             />
         </View>
