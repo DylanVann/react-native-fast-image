@@ -1806,47 +1806,41 @@ async function runRegression(
         const canSeed = failures.length === 0
         const { width, height } = pngSize(file)
         const pad = Math.round(CASE_PADDING * scale)
-        // Each case's area, padded, within the screenshot.
-        const padded = Object.entries(cases).map(([id, r]) => {
+        // Each case's area, padded, within the screenshot. Cases with nothing
+        // to show (a zero-size view) have no area to compare; one outside the
+        // screenshot fails.
+        const areas: (readonly [string, PixelRect])[] = []
+        const empty: string[] = []
+        const outside: string[] = []
+        for (const [id, r] of Object.entries(cases)) {
             const x = Math.max(0, r.x - pad)
             const y = Math.max(0, r.y - pad)
-            return [
-                id,
-                r,
-                {
-                    x,
-                    y,
-                    width: Math.min(width, r.x + r.width + pad) - x,
-                    height: Math.min(height, r.y + r.height + pad) - y,
-                },
-            ] as const
-        })
-        // Cases with nothing to show (a zero-size view) have no area to
-        // compare; one outside the screenshot fails.
-        const empty = padded.filter(([, r]) => r.width <= 0 || r.height <= 0)
+            const area = {
+                x,
+                y,
+                width: Math.min(width, r.x + r.width + pad) - x,
+                height: Math.min(height, r.y + r.height + pad) - y,
+            }
+            if (r.width <= 0 || r.height <= 0) empty.push(id)
+            else if (area.width <= 0 || area.height <= 0) outside.push(id)
+            else areas.push([id, area])
+        }
         if (empty.length > 0)
             logLine(
-                `screenshot ${name}: not compared (zero size): ${empty.map(([id]) => id).join(', ')}`,
+                `screenshot ${name}: not compared (zero size): ${empty.join(', ')}`,
             )
-        const outside = padded.filter(
-            ([, r, a]) =>
-                r.width > 0 && r.height > 0 && (a.width <= 0 || a.height <= 0),
+        const groupFailures = outside.map(
+            (id) => `${name}/${id}: outside the screenshot`,
         )
-        const outsideFailures = outside.map(
-            ([id]) => `${name}/${id}: outside the screenshot`,
-        )
-        failuresOf(index).push(...outsideFailures)
+        failuresOf(index).push(...groupFailures)
+        // Whether its images may become references, and the group's
+        // failures, for the viewer.
         const approval = {
             approvable: canSeed && !REF,
-            failures: [...failures, ...outsideFailures],
+            failures: [...failures, ...groupFailures],
         }
-        const areas = padded
-            .filter(
-                ([, r, a]) =>
-                    r.width > 0 && r.height > 0 && a.width > 0 && a.height > 0,
-            )
-            .map(([id, , a]) => [id, a] as const)
-        if (areas.length === 0 && outside.length === 0) {
+        // A group without cases (the example screens) is compared whole.
+        if (Object.keys(cases).length === 0) {
             const compared = await compareScreenshot(
                 app,
                 platform,
@@ -1886,6 +1880,11 @@ async function runRegression(
                       () => undefined,
                       (error: Error) => error,
                   )
+        // Its cases are failed below; the group's images can't be approved.
+        if (cropError) {
+            approval.approvable = false
+            approval.failures.push(`${name}: couldn't crop its cases`)
+        }
         for (const [id, area] of areas) {
             const caseMasks = masks.flatMap((m) => {
                 const x = Math.max(m.x, area.x)
