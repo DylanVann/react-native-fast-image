@@ -160,6 +160,10 @@
                 font-size: 18px;
                 font-family: ui-monospace, monospace;
             }
+            .error {
+                color: var(--failed);
+                font-size: 13px;
+            }
             .detail {
                 color: var(--muted);
                 margin: 4px 0 0;
@@ -305,6 +309,7 @@
         <header>
             <h1>Regression screenshots</h1>
             <span class="run" id="run"></span>
+            <span class="error" id="error"></span>
             <span class="spacer"></span>
             <select id="filter">
                 <option value="review">To review</option>
@@ -323,13 +328,6 @@
         <nav id="nav"></nav>
         <main id="main"><p class="empty">Loading…</p></main>
         <script>
-            const STATES = {
-                failed: 'failed',
-                new: 'new',
-                differs: 'differs',
-                approved: 'approved',
-                ok: 'ok',
-            }
             const TO_REVIEW = ['failed', 'new', 'differs']
             let data = { entries: [] }
             let selected
@@ -540,14 +538,21 @@
                 })
             }
 
+            // Says why approvals the server refused failed, if any.
             async function approve(groups) {
+                const errors = []
                 for (const g of groups) {
-                    await fetch('/api/approve', {
+                    const response = await fetch('/api/approve', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ key: g.key, name: g.name }),
                     })
+                    if (!response.ok)
+                        errors.push(`${g.name}: ${await response.text()}`)
                 }
+                $('error').textContent = errors.length
+                    ? `Not approved: ${errors.join('; ')}`
+                    : ''
                 await refresh()
             }
 
