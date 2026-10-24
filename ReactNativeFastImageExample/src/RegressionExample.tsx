@@ -7756,7 +7756,7 @@ function LargeViewCase() {
                 id="large-view"
                 status={status}
                 description={{
-                    checks: 'An image in a view far larger than the screen shows (on Android its bitmap was the view\'s size, about 160 MB, and the app crashed drawing it).',
+                    checks: "An image in a view far larger than the screen shows (on Android its bitmap was the view's size, about 160 MB, and the app crashed drawing it).",
                     steps: 'Loads a 20x20 image of four colored squares into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).',
                     shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
                 }}
