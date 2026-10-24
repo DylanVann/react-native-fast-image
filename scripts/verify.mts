@@ -1290,36 +1290,9 @@ async function compareScreenshot(
     }
     const diffFile = file.replace(/\.png$/, '-diff.png')
     const ignoreRegions = odiffRegions(masks)
-    // A case's crop can be a pixel wider or taller than its reference:
-    // layout snaps to whole pixels, so a view's size in pixels depends on
-    // where it is (60 dp at 2.625× is 157 or 158 px). Then both are compared
-    // over the size they share.
-    const size = pngSize(file)
-    const referenceSize = pngSize(reference)
-    const common = {
-        x: 0,
-        y: 0,
-        width: Math.min(size.width, referenceSize.width),
-        height: Math.min(size.height, referenceSize.height),
-    }
-    const offByOne =
-        (size.width !== referenceSize.width ||
-            size.height !== referenceSize.height) &&
-        Math.abs(size.width - referenceSize.width) <= 1 &&
-        Math.abs(size.height - referenceSize.height) <= 1
-    const [compared, comparedReference] = offByOne
-        ? [
-              file.replace(/\.png$/, '-common.png'),
-              file.replace(/\.png$/, '-reference-common.png'),
-          ]
-        : [file, reference]
     let result: Awaited<ReturnType<ODiffServer['compare']>>
     try {
-        if (offByOne) {
-            await cropEach(file, [{ to: compared, area: common }])
-            await cropEach(reference, [{ to: comparedReference, area: common }])
-        }
-        result = await odiff().compare(comparedReference, compared, diffFile, {
+        result = await odiff().compare(reference, file, diffFile, {
             antialiasing: true,
             failOnLayoutDiff: true,
             noFailOnFsErrors: true,
@@ -1329,11 +1302,6 @@ async function compareScreenshot(
         return {
             result: 'differs',
             detail: `odiff failed: ${(error as Error).message}`,
-        }
-    } finally {
-        if (offByOne) {
-            fs.rmSync(compared, { force: true })
-            fs.rmSync(comparedReference, { force: true })
         }
     }
     if (result.match) return { result: 'match' }
