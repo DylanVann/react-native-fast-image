@@ -60,16 +60,59 @@
                 font-size: 15px;
                 margin: 0;
             }
+            .heading {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
             header .run {
                 color: var(--muted);
-                font-family: ui-monospace, monospace;
                 font-size: 12px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            header .keys {
+                color: var(--muted);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            /* Two or more choices, one pressed. */
+            .segmented {
+                display: inline-flex;
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .segmented button {
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+                color: var(--muted);
+            }
+            .segmented button + button {
+                border-left: 1px solid var(--line);
+            }
+            .segmented button[aria-pressed='true'] {
+                background: var(--panel);
+                color: var(--fg);
+                font-weight: 600;
+            }
+            nav .segmented {
+                display: flex;
+                margin: 4px 16px 8px;
+            }
+            nav .segmented button {
+                flex: 1;
+            }
+            main .segmented {
+                margin-bottom: 8px;
             }
             header .spacer {
                 flex: 1;
             }
-            button,
-            select {
+            button {
+                white-space: nowrap;
                 font: inherit;
                 padding: 4px 10px;
                 border-radius: 6px;
@@ -209,6 +252,7 @@
             }
             .frame > img {
                 display: block;
+                height: auto;
                 max-width: 100%;
                 max-height: calc(100vh - 120px);
                 border: 1px solid var(--line);
@@ -269,6 +313,11 @@
             .case .id {
                 font-family: ui-monospace, monospace;
                 font-weight: 600;
+                color: inherit;
+                text-decoration: none;
+            }
+            .case .id:hover {
+                text-decoration: underline;
             }
             .case .status {
                 color: var(--failed);
@@ -297,6 +346,7 @@
             .crops img,
             figure > canvas {
                 display: block;
+                height: auto;
                 max-width: 100%;
                 max-height: 60vh;
                 border: 1px solid var(--line);
@@ -335,30 +385,56 @@
     </head>
     <body>
         <header>
-            <h1>Regression screenshots</h1>
-            <span class="run" id="run"></span>
+            <div class="heading">
+                <h1>Regression screenshots</h1>
+                <span class="run" id="run"></span>
+            </div>
             <span class="error" id="error"></span>
             <span class="spacer"></span>
-            <select id="filter">
-                <option value="review">To review</option>
-                <option value="all">All tests</option>
-            </select>
-            <select id="mode">
-                <option value="side">Side by side</option>
-                <option value="slider">Slider</option>
-            </select>
-            <button id="approve-all">Approve all to review</button>
-            <span class="detail"
-                ><kbd>j</kbd>/<kbd>k</kbd> next/previous, <kbd>a</kbd> approve,
-                <kbd>u</kbd> undo</span
+            <span class="keys"
+                ><kbd>j</kbd> <kbd>k</kbd> next, previous · <kbd>a</kbd> approve
+                · <kbd>u</kbd> undo</span
             >
+            <button class="primary" id="approve-all" hidden></button>
         </header>
-        <nav id="nav"></nav>
+        <nav>
+            <div class="segmented" id="filter">
+                <button data-value="review"></button>
+                <button data-value="all"></button>
+            </div>
+            <div id="groups"></div>
+        </nav>
         <main id="main"><p class="empty">Loading…</p></main>
         <script>
             const TO_REVIEW = ['failed', 'new', 'differs', 'removed']
             let data = { entries: [] }
+            // The group shown (its key/name), and a case to scroll to: from
+            // the url's hash (#key/name/case), which follows them.
             let selected
+            let target
+            const fromHash = () => {
+                const [key, name, id] = decodeURIComponent(
+                    location.hash.slice(1),
+                ).split('/')
+                return { group: key && name ? `${key}/${name}` : undefined, id }
+            }
+            ;({ group: selected, id: target } = fromHash())
+            // The list's filter (review or all) and how whole screenshots
+            // are compared (side or slider), kept for the next visit.
+            const stored = (name, fallback) => {
+                try {
+                    return localStorage.getItem(name) ?? fallback
+                } catch {
+                    return fallback
+                }
+            }
+            const store = (name, value) => {
+                try {
+                    localStorage.setItem(name, value)
+                } catch {}
+            }
+            let filter = stored('filter', 'review')
+            let mode = stored('mode', 'side')
             let hovered
             const $ = (id) => document.getElementById(id)
             // Changes with each load, so an approved reference isn't the
@@ -385,7 +461,7 @@
 
             function shownGroups() {
                 const all = data.entries.flatMap((e) => e.groups)
-                return $('filter').value === 'all'
+                return filter === 'all'
                     ? all
                     : all.filter(
                           (g) =>
@@ -407,20 +483,35 @@
                         e.groups.some((g) => TO_REVIEW.includes(g.state)),
                     )
                 )
-                    $('filter').value = 'all'
+                    filter = 'all'
                 const groups = shownGroups()
-                if (!groups.some((g) => groupId(g) === selected))
+                if (!groups.some((g) => groupId(g) === selected)) {
                     selected = groups[0] && groupId(groups[0])
+                    if (selected) history.replaceState(null, '', `#${selected}`)
+                }
                 render()
             }
 
             function render() {
                 const groups = shownGroups()
                 const review = toApprove()
-                $('approve-all').disabled = review.length === 0
+                $('approve-all').hidden = review.length === 0
                 $('approve-all').textContent =
-                    `Approve all to review (${review.length})`
-                $('nav').innerHTML = data.entries
+                    `Approve ${review.length} group${review.length === 1 ? '' : 's'}`
+                const all = data.entries.flatMap((e) => e.groups)
+                const counts = {
+                    review: all.filter((g) => TO_REVIEW.includes(g.state))
+                        .length,
+                    all: all.length,
+                }
+                document
+                    .querySelectorAll('#filter button')
+                    .forEach((button) => {
+                        const value = button.dataset.value
+                        button.textContent = `${value === 'review' ? 'To review' : 'All tests'} (${counts[value]})`
+                        button.ariaPressed = String(value === filter)
+                    })
+                $('groups').innerHTML = data.entries
                     .map((entry) => {
                         const items = entry.groups.filter((g) =>
                             groups.includes(g),
@@ -431,14 +522,14 @@
                             items
                                 .map(
                                     (g) =>
-                                        `<a href="#" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'ok' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
+                                        `<a href="#${esc(groupId(g))}" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'ok' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
                                 )
                                 .join('')
                         )
                     })
                     .join('')
                 if (!groups.length) {
-                    $('nav').innerHTML =
+                    $('groups').innerHTML =
                         '<p class="empty">Nothing to review.</p>'
                 }
                 renderGroup(
@@ -446,6 +537,17 @@
                         .flatMap((e) => e.groups)
                         .find((g) => groupId(g) === selected),
                 )
+                // The case the url names, once.
+                if (target) {
+                    document
+                        .querySelector(
+                            `.case[data-case="${CSS.escape(target)}"]`,
+                        )
+                        ?.scrollIntoView({ block: 'start' })
+                    hovered = target
+                    drawAreas()
+                    target = undefined
+                }
             }
 
             function descriptionHtml(d) {
@@ -458,15 +560,23 @@
             }
 
             // An image (its url) with the cases' areas drawn over it.
-            function frame(src, label) {
+            // The style that lays an image out at its size (pixels) before it
+            // loads: no wider than its own width, or than its height allows
+            // (maxHeight, a CSS length); max-width keeps it in its column.
+            const sized = (size, maxHeight) =>
+                size
+                    ? `style="width: min(${size.width}px, calc(${maxHeight} * ${size.width / size.height})); aspect-ratio: ${size.width} / ${size.height}"`
+                    : ''
+
+            function frame(src, label, size) {
                 if (!src)
                     return `<figure><figcaption>${label}</figcaption><div class="frame"><div class="missing">none</div></div></figure>`
-                return `<figure><figcaption>${label}</figcaption><div class="frame"><img src="${src}" onload="overlay(this)" /><svg data-areas preserveAspectRatio="none"></svg></div></figure>`
+                return `<figure><figcaption>${label}</figcaption><div class="frame"><img src="${src}" ${sized(size, '(100vh - 120px)')} onload="overlay(this)" /><svg data-areas preserveAspectRatio="none"></svg></div></figure>`
             }
 
             // An image (its url) on its own.
-            const crop = (src, label) =>
-                `<figure><figcaption>${label}</figcaption>${src ? `<img src="${src}" />` : '<div class="missing">none</div>'}</figure>`
+            const crop = (src, label, size) =>
+                `<figure><figcaption>${label}</figcaption>${src ? `<img src="${src}" ${sized(size, '60vh')} />` : '<div class="missing">none</div>'}</figure>`
 
             // An image's pictures, in figures (frame or crop): its committed
             // reference, its uncommitted image and their diff (odiff's from
@@ -476,22 +586,25 @@
                 const committed = image.committed
                     ? committedFile(image.reference)
                     : undefined
+                // Unchanged: the file in screenshots/ is the committed one.
                 if (image.state === 'ok')
                     return figure(
-                        image.current ? file(image.current) : committed,
+                        file(image.reference),
                         'Reference',
+                        image.committedSize,
                     )
                 const current = image.current ? file(image.current) : undefined
                 return (
-                    figure(committed, 'Committed') +
+                    figure(committed, 'Committed', image.committedSize) +
                     figure(
                         current,
                         image.approved ? 'Not committed' : 'This run',
+                        image.currentSize,
                     ) +
                     (image.diff
-                        ? figure(file(image.diff), 'Diff')
+                        ? figure(file(image.diff), 'Diff', image.diffSize)
                         : committed && current
-                          ? `<figure><figcaption>Diff</figcaption><canvas data-a="${committed}" data-b="${current}"></canvas></figure>`
+                          ? `<figure><figcaption>Diff</figcaption><canvas data-a="${committed}" data-b="${current}" ${sized(image.committedSize, '60vh')}></canvas></figure>`
                           : '')
                 )
             }
@@ -674,7 +787,7 @@
                 const approvable = g.approvable
                 const image = c.image
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
+                    <div class="head"><span class="n">${i + 1}</span><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c, committedOf(g, c))}
                     ${
@@ -693,19 +806,21 @@
                 const w = g.whole
                 let layout
                 if (w) {
+                    const switchable = w.state === 'differs' && !!w.current
                     const images =
-                        $('mode').value === 'slider' &&
-                        w.state === 'differs' &&
-                        w.current
-                            ? `<figure class="slider"><figcaption>Committed ← → ${w.approved ? 'not committed' : 'this run'}</figcaption><div class="frame"><img src="${committedFile(w.reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.current)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
-                            : pictures(w, frame)
+                        (switchable
+                            ? `<div class="segmented" id="mode"><button data-value="side" aria-pressed="${mode === 'side'}">Side by side</button><button data-value="slider" aria-pressed="${mode === 'slider'}">Slider</button></div>`
+                            : '') +
+                        (switchable && mode === 'slider'
+                            ? `<figure class="slider"><figcaption>Committed ← → ${w.approved ? 'not committed' : 'this run'}</figcaption><div class="frame"><img src="${committedFile(w.reference)}" ${sized(w.committedSize, '(100vh - 120px)')} onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.current)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
+                            : pictures(w, frame))
                     const cases = g.cases
                         .map(
                             (
                                 c,
                                 i,
                             ) => `<div class="case" data-case="${esc(c.id)}">
-                            <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${status(c)}</div>
+                            <div class="head"><span class="n">${i + 1}</span><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${status(c)}</div>
                             ${caseDescription(c, committedOf(g, c))}
                         </div>`,
                         )
@@ -722,7 +837,7 @@
                         '<p class="detail">No cases reported.</p>'
                     layout = g.shot
                         ? `<div class="layout by-case">
-                        <div class="images">${frame(file(g.shot), 'This run')}</div>
+                        <div class="images">${frame(file(g.shot), 'This run', g.shotSize)}</div>
                         <div class="cases">${cases}</div>
                     </div>`
                         : `<div class="cases">${cases}</div>`
@@ -805,24 +920,33 @@
                 const i = groups.findIndex((g) => groupId(g) === selected)
                 const next =
                     groups[Math.min(groups.length - 1, Math.max(0, i + step))]
-                if (next) {
-                    selected = groupId(next)
-                    render()
-                    document
-                        .querySelector('nav a.selected')
-                        ?.scrollIntoView({ block: 'nearest' })
-                }
+                if (next) location.hash = groupId(next)
             }
 
-            $('nav').addEventListener('click', (e) => {
-                const a = e.target.closest('a[data-id]')
-                if (!a) return
-                e.preventDefault()
-                selected = a.dataset.id
+            // The url's hash changed (a group or case link, j/k, back or
+            // forward): show what it names.
+            window.addEventListener('hashchange', () => {
+                ;({ group: selected, id: target } = fromHash())
+                render()
+                document
+                    .querySelector('#groups a.selected')
+                    ?.scrollIntoView({ block: 'nearest' })
+                if (!target) $('main').scrollTop = 0
+            })
+            $('filter').addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-value]')
+                if (!button) return
+                filter = button.dataset.value
+                store('filter', filter)
                 render()
             })
-            $('filter').addEventListener('change', render)
-            $('mode').addEventListener('change', render)
+            $('main').addEventListener('click', (e) => {
+                const button = e.target.closest('#mode button[data-value]')
+                if (!button) return
+                mode = button.dataset.value
+                store('mode', mode)
+                render()
+            })
             // The groups with images from the run to approve.
             const toApprove = () =>
                 data.entries
@@ -844,7 +968,7 @@
                     send('approve', groups)
             })
             document.addEventListener('keydown', (e) => {
-                if (e.target.closest('input, select')) return
+                if (e.target.closest('input')) return
                 // Not the browser's own shortcuts (Cmd+A selects all).
                 if (e.metaKey || e.ctrlKey || e.altKey) return
                 if (e.key === 'j' || e.key === 'ArrowDown') move(1)

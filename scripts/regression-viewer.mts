@@ -211,16 +211,21 @@ type Results = {
 // and not committed yet; approved: true). state: new (nothing committed),
 // differs, removed (deleted from screenshots/), or ok (nothing uncommitted).
 type State = 'new' | 'differs' | 'removed' | 'ok'
+// An image's size in pixels, so the page can lay it out before it loads.
+type Size = { width: number; height: number }
 type Image = {
     state: State
     // Its path in the repository (screenshots/…).
     reference: string
     committed: boolean
+    committedSize?: Size
     // The uncommitted image's file.
     current?: string
+    currentSize?: Size
     approved: boolean
     detail?: string
     diff?: string
+    diffSize?: Size
 }
 
 // A group's descriptions, as verify.mts keeps them in descriptions.json.
@@ -256,6 +261,7 @@ type Group = {
     // The run's descriptions, to approve.
     runDescriptions?: Descriptions
     shot?: string
+    shotSize?: Size
     whole?: Image
     cases: {
         id: string
@@ -271,6 +277,23 @@ const sameFile = (a: string, b: string) =>
     fs.existsSync(a) &&
     fs.existsSync(b) &&
     fs.readFileSync(a).equals(fs.readFileSync(b))
+
+// A PNG's size, from its header (bytes 16–24).
+const headerSize = (header: Buffer): Size | undefined =>
+    header.length >= 24
+        ? { width: header.readUInt32BE(16), height: header.readUInt32BE(20) }
+        : undefined
+function pngSize(file: string | undefined) {
+    if (!file || !fs.existsSync(file)) return undefined
+    const header = Buffer.alloc(24)
+    const fd = fs.openSync(file, 'r')
+    try {
+        fs.readSync(fd, header, 0, 24, 0)
+    } finally {
+        fs.closeSync(fd)
+    }
+    return headerSize(header)
+}
 
 const git = (...args: string[]) =>
     execFileSync('git', args, {
@@ -317,7 +340,7 @@ function referenceStatus() {
 
 // A reference (its path in the repository) as the page shows it, with a
 // run's screenshot of it, if the run has one.
-function image(
+function imageState(
     reference: string,
     status: ReturnType<typeof referenceStatus>,
     shot?: Comparison & { file: string },
@@ -355,6 +378,27 @@ function image(
               }
             : { state: 'removed', reference, committed, approved: true }
     return { state: 'ok', reference, committed, approved: false }
+}
+
+// imageState with the images' sizes. The committed reference's is the one in
+// screenshots/ unless that changed (then git's).
+function image(
+    reference: string,
+    status: ReturnType<typeof referenceStatus>,
+    shot?: Comparison & { file: string },
+): Image {
+    const found = imageState(reference, status, shot)
+    const file = path.join(ROOT, reference)
+    return {
+        ...found,
+        committedSize: !found.committed
+            ? undefined
+            : status.changed.has(reference)
+              ? headerSize(git('cat-file', 'blob', `HEAD:${reference}`))
+              : pngSize(file),
+        currentSize: pngSize(found.current),
+        diffSize: pngSize(found.diff),
+    }
 }
 
 // An app and platform's descriptions (see verify.mts's checkDescriptions):
@@ -517,6 +561,11 @@ function load() {
                           diff: info.diff && path.join(dir, info.diff),
                       },
                   )
+            const shot = info
+                ? path.join(dir, info.file)
+                : files.includes(`${prefix}.png`)
+                  ? path.join(dir, `${prefix}.png`)
+                  : undefined
             const failures = info?.failures ?? []
             const failed =
                 cases.some((c) => c.status !== 'OK') || failures.length > 0
@@ -539,11 +588,8 @@ function load() {
                 description: descriptions?.description,
                 descriptions: descriptionsState,
                 runDescriptions: run,
-                shot: info
-                    ? path.join(dir, info.file)
-                    : files.includes(`${prefix}.png`)
-                      ? path.join(dir, `${prefix}.png`)
-                      : undefined,
+                shot,
+                shotSize: pngSize(shot),
                 whole,
                 cases,
                 samples: files
@@ -712,7 +758,8 @@ const server = http.createServer((request, response) => {
             )
         }
         if (url.pathname === '/file') {
-            const file = path.resolve(url.searchParams.get('path') ?? '')
+            // An absolute path, or one in the repository.
+            const file = path.resolve(ROOT, url.searchParams.get('path') ?? '')
             if (
                 !servable(file) ||
                 !fs.statSync(file, { throwIfNoEntry: false })?.isFile()
@@ -732,13 +779,22 @@ const server = http.createServer((request, response) => {
         // repository.
         if (url.pathname === '/committed') {
             const reference = url.searchParams.get('path') ?? ''
-            if (!referenceStatus().committed.has(reference))
+            if (
+                !/^screenshots\/[^/]+(\/[^/]+)*\.png$/.test(reference) ||
+                reference.split('/').includes('..')
+            )
+                return send(404, 'not a reference')
+            let png: Buffer
+            try {
+                png = git('show', `HEAD:${reference}`)
+            } catch {
                 return send(404, 'not committed')
+            }
             response.writeHead(200, {
                 'content-type': 'image/png',
                 'cache-control': 'no-store',
             })
-            return response.end(git('show', `HEAD:${reference}`))
+            return response.end(png)
         }
         // JSON only: another site's page can't send that without the
         // browser asking first (CORS), which this server doesn't answer.
