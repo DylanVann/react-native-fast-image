@@ -8890,6 +8890,39 @@ function SvgSharpCase() {
     )
 }
 
+// A tinted SVG is drawn into a bitmap for the size it's shown at (iOS): when
+// its view grows after it loaded, it's drawn again for the new size, so it
+// stays sharp. It was scaled up from the first bitmap.
+function SvgTintGrowCase() {
+    const [loaded, setLoaded] = useState(false)
+    const [done, setDone] = useState(false)
+    useEffect(() => {
+        if (!loaded) return
+        const timer = setTimeout(() => setDone(true), 500)
+        return () => clearTimeout(timer)
+    }, [loaded])
+    const size = loaded ? 160 : 24
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: size, height: size }}
+                source={{ uri: imageUrl('svg-icon.svg?case=svg-tint-grow') }}
+                tintColor="green"
+                onLoad={() => setLoaded(true)}
+            />
+            <CaseStatus
+                id="svg-tint-grow"
+                status={done ? 'OK' : 'loading'}
+                description={{
+                    checks: 'A tinted SVG whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).',
+                    steps: 'Loads a 24×24 SVG icon (a black ring) with tintColor green in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.',
+                    shows: 'A green ring filling a 160 pt square, with sharp edges. Blurry edges would mean it was scaled up from the 24 pt bitmap.',
+                }}
+            />
+        </View>
+    )
+}
+
 // getCachePath for a `cache: 'web'` image as the app's first FastImage call
 // (the runner's first group, without views): on Android the HTTP cache of
 // `web` images is set up when FastImage's Glide components are registered,
@@ -12650,6 +12683,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <SvgSharpCase key="svg-sharp" />,
+            <SvgTintGrowCase key="svg-tint-grow" />,
         ],
     },
     {

@@ -26,6 +26,9 @@
 @property(nonatomic, assign) NSUInteger imageCount;
 // The view's size when the image showing was blurred.
 @property(nonatomic, assign) CGSize blurredForSize;
+// The pixels per point a tinted vector image showing was drawn at (see
+// rasterizedImage), or zero.
+@property(nonatomic, assign) CGFloat rasterizedScale;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
 // The image being blurred fades in once it's blurred (transition).
@@ -390,6 +393,8 @@ static void FFFShareAnimationBudget(void) {
         // The blur is made for the size the image is shown at: show it again.
         if ([self blurs: self.originalImage]) {
             [self setImage: self.originalImage];
+        } else {
+            [self rasterizeAgainIfResized];
         }
     }
 }
@@ -595,6 +600,7 @@ static void FFFShareAnimationBudget(void) {
     [super layoutSubviews];
     [self updateContentMode];
     [self blurAgainIfResized];
+    [self rasterizeAgainIfResized];
     if (self.waitsForSize) {
         // An image in the memory cache shows in this frame. Others start
         // loading from didSetProps's block, after layout, in the order the
@@ -660,18 +666,49 @@ static void FFFShareAnimationBudget(void) {
     }
 }
 
-// A vector image drawn into a bitmap, with its size in points, at a scale
-// that's sharp at the size the view shows it (or its own size before the view
-// has one).
+// Pixels per point of the image that draw it sharp at the size the view shows
+// it at, for its objectFit (fill by its larger scale), or zero before the
+// view has a size.
+- (CGFloat) rasterScale: (UIImage*)image {
+    CGSize size = image.size;
+    CGSize view = self.bounds.size;
+    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+        return 0;
+    }
+    CGFloat x = view.width / size.width;
+    CGFloat y = view.height / size.height;
+    CGFloat shown;
+    switch (_objectFit) {
+        case FFFObjectFitContain:
+            shown = MIN(x, y);
+            break;
+        case FFFObjectFitScaleDown:
+            shown = MIN(MIN(x, y), 1);
+            break;
+        case FFFObjectFitNone:
+            shown = 1;
+            break;
+        default:
+            shown = MAX(x, y);
+            break;
+    }
+    return shown * (self.window.screen.scale ?: [UIScreen mainScreen].scale);
+}
+
+// A vector image drawn into a bitmap, with its size in points, at the pixels
+// it takes on screen: a 512-point icon shown at 24 points on a 3x screen is
+// 72 x 72 pixels, not 1536 x 1536. Before the view has a size it stays as it
+// is (the view shows nothing yet), and it's drawn once it has one
+// (rasterizeAgainIfResized).
 - (UIImage*) rasterizedImage: (UIImage*)image {
     CGSize size = image.size;
-    if (size.width <= 0 || size.height <= 0) {
+    CGFloat scale = [self rasterScale: image];
+    self.rasterizedScale = scale;
+    if (scale <= 0) {
         return image;
     }
-    CGSize view = self.bounds.size;
-    CGFloat shown = MAX(1, MAX(view.width / size.width, view.height / size.height));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
-    format.scale = (self.window.screen.scale ?: [UIScreen mainScreen].scale) * shown;
+    format.scale = scale;
     format.opaque = NO;
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
     return FFFWithSVGLock(^id {
@@ -828,6 +865,22 @@ static void FFFShareAnimationBudget(void) {
         return;
     }
     [self setImage: self.originalImage];
+}
+
+// A tinted vector image is drawn for the size it's shown at (rasterizedImage):
+// drawn again when the view needs more pixels of it (it grows, or objectFit
+// changes), so it stays sharp, or fewer than half.
+- (void) rasterizeAgainIfResized {
+    UIImage* image = self.originalImage;
+    if (!image || image.CGImage || !self.imageColor || [self blurs: image]) {
+        return;
+    }
+    CGFloat scale = [self rasterScale: image];
+    CGFloat drawn = self.rasterizedScale;
+    if (scale <= 0 || (scale <= drawn && scale >= drawn / 2)) {
+        return;
+    }
+    [self showImage: image];
 }
 
 // The image (its first frame, for an animated image) drawn at scale times its
