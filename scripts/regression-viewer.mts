@@ -198,6 +198,7 @@ type Results = {
         Comparison & {
             file: string
             cases?: Record<string, Comparison & { area: Rect; file: string }>
+            whole?: boolean
             approvable?: boolean
             failures?: string[]
         }
@@ -524,10 +525,7 @@ function load() {
                 run,
             )
             const wholeReference = `screenshots/${key}/${name}.png`
-            const byCase = !(
-                references.has(wholeReference) ||
-                (info && Object.keys(info.cases ?? {}).length === 0)
-            )
+            const byCase = !(references.has(wholeReference) || info?.whole)
             const cases = Object.entries(statuses).map(([id, status]) => {
                 const c = caseInfo[id]
                 const reference = `screenshots/${key}/${name}/${id}.png`
@@ -569,7 +567,7 @@ function load() {
             const failures = info?.failures ?? []
             const failed =
                 cases.some((c) => c.status !== 'OK') || failures.length > 0
-            const states = [
+            const states: Group['state'][] = [
                 ...(failed ? ['failed'] : []),
                 descriptionsState.state,
                 ...(whole ? [whole.state] : []),
@@ -645,28 +643,34 @@ function load() {
                 described.current[name] ?? described.committed[name]
             const descriptionsState = descriptionsChange(name, described)
             const wholeReference = `screenshots/${key}/${name}.png`
-            const whole =
-                ids.length === 0 && references.has(wholeReference)
-                    ? image(wholeReference, refs)
-                    : undefined
-            // In the app's order, as the descriptions have them.
+            const whole = references.has(wholeReference)
+                ? image(wholeReference, refs)
+                : undefined
+            // In the app's order, as the descriptions have them, with the
+            // described cases that have no reference (the web version's, or
+            // one with nothing to show).
             const caseOrder = Object.keys(descriptions?.cases ?? {})
             const position = (id: string) =>
                 caseOrder.includes(id)
                     ? caseOrder.indexOf(id)
                     : caseOrder.length
-            const cases = ids
+            const cases = (whole ? ids : [...new Set([...ids, ...caseOrder])])
                 .sort((a, b) => position(a) - position(b) || a.localeCompare(b))
-                .map((id) => ({
-                    id,
-                    status: '',
-                    description: descriptions?.cases?.[id],
-                    image: image(`screenshots/${key}/${name}/${id}.png`, refs),
-                }))
-            const states = [
+                .map((id) => {
+                    const reference = `screenshots/${key}/${name}/${id}.png`
+                    return {
+                        id,
+                        status: '',
+                        description: descriptions?.cases?.[id],
+                        image: references.has(reference)
+                            ? image(reference, refs)
+                            : undefined,
+                    }
+                })
+            const states: Group['state'][] = [
                 descriptionsState.state,
                 ...(whole ? [whole.state] : []),
-                ...cases.map((c) => c.image.state),
+                ...cases.flatMap((c) => (c.image ? [c.image.state] : [])),
             ]
             list.push({
                 key,
@@ -850,6 +854,24 @@ function requested(body: string, send: Send) {
             c.image && (!id || c.id === id) ? [c.image] : [],
         ),
     ]
+    // Only a run's files over references, in screenshots/ (a --pr run's
+    // results.json comes from the PR).
+    const inScreenshots = (file: string) =>
+        path.resolve(ROOT, file).startsWith(SCREENSHOTS + path.sep)
+    if (
+        !/^[\w.-]+$/.test(key) ||
+        key === '..' ||
+        images.some(
+            (image) =>
+                !inScreenshots(image.reference) ||
+                !image.reference.endsWith('.png') ||
+                (image.current !== undefined &&
+                    !servable(path.resolve(image.current))),
+        )
+    ) {
+        send(400, 'not a reference')
+        return undefined
+    }
     // A group's descriptions go with the whole group, not one case.
     return { group, images, order, whole: id === undefined }
 }

@@ -463,7 +463,15 @@
             }
 
             async function refresh() {
-                data = await (await fetch('/api/runs')).json()
+                try {
+                    const response = await fetch('/api/runs')
+                    if (!response.ok) throw new Error(await response.text())
+                    data = await response.json()
+                } catch (e) {
+                    $('error').textContent =
+                        `Couldn't load the screenshots: ${e.message}`
+                    return
+                }
                 version++
                 $('run').textContent = data.run
                     ? `committed references, and changes from the run in ${data.run} or not committed`
@@ -789,7 +797,7 @@
                     ${
                         image
                             ? `<div class="crops">${pictures(image, crop)}</div>`
-                            : '<p class="detail">Nothing to compare (no area).</p>'
+                            : '<p class="detail">No screenshot to compare.</p>'
                     }
                 </div>`
             }
