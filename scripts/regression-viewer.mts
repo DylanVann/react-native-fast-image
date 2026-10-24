@@ -23,8 +23,9 @@ or differs can be approved: it's copied over its reference in screenshots/
                       latest run in verify-output/.
   --pr <number>       The PR's latest e2e run on CI: its screenshots (the
                       verify-* artifacts) are downloaded with gh into
-                      verify-output/ci-<run id>/. Check out the PR's branch,
-                      so approved screenshots replace its references.
+                      verify-output/ci-<run id>-<attempt>/. Check out the
+                      PR's branch, so approved screenshots replace its
+                      references.
   --port <port>       Default 8095.
   -h, --help
 `
@@ -70,15 +71,21 @@ function downloadPr(pr: string) {
             '--commit',
             head,
             '--json',
-            'databaseId,status,conclusion',
+            'databaseId,attempt,status,conclusion',
         ),
-    ) as { databaseId: number; status: string; conclusion: string }[]
+    ) as {
+        databaseId: number
+        attempt: number
+        status: string
+        conclusion: string
+    }[]
     const run = runs.find((r) => r.status === 'completed')
     if (!run) {
         console.error(`No finished e2e run for #${pr}'s head (${head}).`)
         process.exit(1)
     }
-    const dir = path.join(OUTPUT, `ci-${run.databaseId}`)
+    // Per attempt: a rerun has artifacts of its own.
+    const dir = path.join(OUTPUT, `ci-${run.databaseId}-${run.attempt}`)
     if (!fs.existsSync(dir)) {
         console.log(`Downloading run ${run.databaseId}'s screenshots…`)
         const partial = `${dir}.partial`
@@ -97,9 +104,12 @@ function downloadPr(pr: string) {
                 ],
                 { cwd: ROOT, stdio: 'inherit', timeout: 600_000 },
             )
-        } catch (error) {
+        } catch {
             fs.rmSync(partial, { recursive: true, force: true })
-            throw error
+            console.error(
+                `Couldn't download run ${run.databaseId}'s screenshots (a run without the apps, e.g. for docs, has none).`,
+            )
+            process.exit(1)
         }
         fs.renameSync(partial, dir)
     }
@@ -324,7 +334,8 @@ function load() {
                 name,
                 index,
                 state: ORDER.find((s) => states.includes(s)) ?? 'ok',
-                approvable: !failed && !!info && (info.approvable ?? true),
+                // Runs from before results.json said: not approvable.
+                approvable: !failed && !!info?.approvable,
                 failures,
                 detail: info?.detail,
                 description: descriptions?.description,
@@ -359,92 +370,127 @@ const TYPES: Record<string, string> = {
     '.mp4': 'video/mp4',
 }
 
+const port = Number(options.port)
+
+type Send = (status: number, body: string, type?: string) => void
+
 const server = http.createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://localhost')
-    const send = (status: number, body: string, type = 'text/plain') => {
+    const send: Send = (status, body, type = 'text/plain') => {
         response.writeHead(status, {
             'content-type': type,
             'cache-control': 'no-store',
         })
         response.end(body)
     }
-    if (url.pathname === '/') {
-        return send(
-            200,
-            fs.readFileSync(
-                path.join(import.meta.dirname, 'regression-viewer.html'),
-                'utf8',
-            ),
-            'text/html',
-        )
-    }
-    if (url.pathname === '/api/runs') {
-        return send(
-            200,
-            JSON.stringify({ run: path.relative(ROOT, RUN), entries: load() }),
-            'application/json',
-        )
-    }
-    if (url.pathname === '/file') {
-        const file = path.resolve(url.searchParams.get('path') ?? '')
-        if (
-            !servable(file) ||
-            !fs.statSync(file, { throwIfNoEntry: false })?.isFile()
-        )
-            return send(404, 'no file')
-        response.writeHead(200, {
-            'content-type':
-                TYPES[path.extname(file)] ?? 'application/octet-stream',
-            'cache-control': 'no-store',
-        })
-        return fs
-            .createReadStream(file)
-            .on('error', () => response.destroy())
-            .pipe(response)
-    }
-    // JSON only: another site's page can't send that without the browser
-    // asking first (CORS), which this server doesn't answer.
+    // Only this machine's names for the server: a page whose own name was
+    // made to point here (DNS rebinding) would otherwise be same-origin.
     if (
-        url.pathname === '/api/approve' &&
-        request.method === 'POST' &&
-        request.headers['content-type'] === 'application/json'
-    ) {
-        let body = ''
-        request.on('data', (chunk) => (body += chunk))
-        request.on('end', () => {
-            // A case's image (id), or all the group's.
-            let approve: { key: string; name: string; id?: string }
-            try {
-                approve = JSON.parse(body)
-            } catch {
-                return send(400, 'not JSON')
-            }
-            const { key, name, id } = approve
-            const group = load()
-                .find((e) => e.key === key)
-                ?.groups.find((g) => g.name === name)
-            if (group && !group.approvable)
-                return send(409, "can't be approved")
-            const images = [
-                ...(group?.whole && !id ? [group.whole] : []),
-                ...(group?.cases ?? []).flatMap((c) =>
-                    c.image && (!id || c.id === id) ? [c.image] : [],
-                ),
-            ].filter((image) => image.state !== 'ok')
-            if (images.length === 0) return send(404, 'nothing to approve')
-            for (const image of images) {
-                fs.mkdirSync(path.dirname(image.reference), { recursive: true })
-                fs.copyFileSync(image.shot, image.reference)
-                console.log(`approved ${path.relative(ROOT, image.reference)}`)
-            }
-            send(200, 'ok')
-        })
-        return
+        request.headers.host !== `localhost:${port}` &&
+        request.headers.host !== `127.0.0.1:${port}`
+    )
+        return send(403, 'unknown host')
+    // An error (e.g. a results.json being written) answers 500, and the
+    // server goes on.
+    const guard = (handle: () => void) => {
+        try {
+            handle()
+        } catch (error) {
+            console.error(error)
+            send(500, String(error))
+        }
     }
-    send(404, 'not found')
+    guard(() => {
+        const url = new URL(request.url ?? '/', 'http://localhost')
+        if (url.pathname === '/') {
+            return send(
+                200,
+                fs.readFileSync(
+                    path.join(import.meta.dirname, 'regression-viewer.html'),
+                    'utf8',
+                ),
+                'text/html',
+            )
+        }
+        if (url.pathname === '/api/runs') {
+            return send(
+                200,
+                JSON.stringify({
+                    run: path.relative(ROOT, RUN),
+                    entries: load(),
+                }),
+                'application/json',
+            )
+        }
+        if (url.pathname === '/file') {
+            const file = path.resolve(url.searchParams.get('path') ?? '')
+            if (
+                !servable(file) ||
+                !fs.statSync(file, { throwIfNoEntry: false })?.isFile()
+            )
+                return send(404, 'no file')
+            response.writeHead(200, {
+                'content-type':
+                    TYPES[path.extname(file)] ?? 'application/octet-stream',
+                'cache-control': 'no-store',
+            })
+            return fs
+                .createReadStream(file)
+                .on('error', () => response.destroy())
+                .pipe(response)
+        }
+        // JSON only: another site's page can't send that without the
+        // browser asking first (CORS), which this server doesn't answer.
+        if (
+            url.pathname === '/api/approve' &&
+            request.method === 'POST' &&
+            request.headers['content-type'] === 'application/json'
+        ) {
+            let body = ''
+            request.on('data', (chunk) => (body += chunk))
+            request.on('end', () => guard(() => approve(body, send)))
+            return
+        }
+        send(404, 'not found')
+    })
 })
 
-const port = Number(options.port)
+// Copies a group's images that are new or differ over their references, or
+// one case's (id); body: { key, name, id? }.
+function approve(body: string, send: Send) {
+    let parsed: { key?: unknown; name?: unknown; id?: unknown } | null
+    try {
+        parsed = JSON.parse(body)
+    } catch {
+        return send(400, 'not JSON')
+    }
+    const key = parsed?.key
+    const name = parsed?.name
+    const id = parsed?.id
+    if (
+        typeof key !== 'string' ||
+        typeof name !== 'string' ||
+        (id !== undefined && typeof id !== 'string')
+    )
+        return send(400, 'needs a key and a name')
+    const group = load()
+        .find((e) => e.key === key)
+        ?.groups.find((g) => g.name === name)
+    if (group && !group.approvable) return send(409, "can't be approved")
+    const images = [
+        ...(group?.whole && !id ? [group.whole] : []),
+        ...(group?.cases ?? []).flatMap((c) =>
+            c.image && (!id || c.id === id) ? [c.image] : [],
+        ),
+    ].filter((image) => image.state !== 'ok' && fs.existsSync(image.shot))
+    if (images.length === 0) return send(404, 'nothing to approve')
+    for (const image of images) {
+        fs.mkdirSync(path.dirname(image.reference), { recursive: true })
+        fs.copyFileSync(image.shot, image.reference)
+        console.log(`approved ${path.relative(ROOT, image.reference)}`)
+    }
+    send(200, 'ok')
+}
+
 server.listen(port, '127.0.0.1', () => {
     console.log(
         `Regression viewer for ${path.relative(ROOT, RUN) || RUN}: http://localhost:${port} (Ctrl-C to stop)`,
