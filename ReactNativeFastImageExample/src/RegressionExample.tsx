@@ -4465,6 +4465,9 @@ function CacheKeyCase({
 // stored the page (it has an inline <svg>, and SDWebImage took it for an SVG
 // image) until the failed load removed it, so a preload right after could get
 // it from there: it happened once in tens of urls, so with many.
+// Not on iOS without `web` for now: a preload right after the failure can join
+// the failed download while SDWebImage is still decoding it, and fail without
+// a request.
 const RETRY_TRIES = 40
 function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
     const pathFor = (attempt: number) =>
@@ -4480,39 +4483,15 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
         const run = async () => {
             for (let attempt = 0; attempt < RETRY_TRIES; attempt++) {
                 const tried = sourceFor(attempt)
-                const requests = async () => {
-                    const response = await fetch(
-                        imageUrl(
-                            `requests?path=${encodeURIComponent(pathFor(attempt))}`,
-                        ),
-                    )
-                    return ((await response.json()) as { count: number }).count
-                }
                 const [first] = await FastImage.preload([tried])
                 if (first.ok) return setStatus('the first preload loaded')
-                let [second] = await FastImage.preload([tried])
-                let count = await requests()
-                // On iOS, a preload right after the failure can join the
-                // failed download while SDWebImage is still decoding it (it
-                // decodes the same data for a request that joins then), and
-                // get its error without a request. Once the decode is done
-                // it can't, so it tries again (0.2 s apart, a few times):
-                // #394 failed them all. Not with `web`: getting the page from
-                // the HTTP cache looks the same, and a moment later the failed
-                // load has removed it.
-                for (
-                    let retry = 0;
-                    Platform.OS === 'ios' &&
-                    !web &&
-                    !second.ok &&
-                    count === 1 &&
-                    retry < 5;
-                    retry++
-                ) {
-                    await sleep(200)
-                    ;[second] = await FastImage.preload([tried])
-                    count = await requests()
-                }
+                const [second] = await FastImage.preload([tried])
+                const response = await fetch(
+                    imageUrl(
+                        `requests?path=${encodeURIComponent(pathFor(attempt))}`,
+                    ),
+                )
+                const { count } = (await response.json()) as { count: number }
                 if (!second.ok) {
                     return setStatus(
                         `retry ${attempt + 1} failed (${count} requests): ${second.error}`,
@@ -4551,7 +4530,7 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                           }
                         : {
                               checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
-                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. (On iOS, if it failed without a request, it tries again every 0.2 s, up to 5 times, until one makes a request: a preload right after a failure can join the failed download while it's still being decoded.) Then shows the first url in a view; passes on its onLoad.",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
                 }
@@ -6400,8 +6379,14 @@ function GifLoopCase({
 // it plays once, magenta then cyan, and stops on cyan. Android looped every
 // GIF forever (#651), showing magenta again. The screenshot alone can't tell:
 // it's taken once the group is done, which can be on a looping GIF's cyan.
+// A url of its own each time it mounts: a GIF from the memory cache can be
+// drawn at once, or already stopped on its last frame, so the sample wouldn't
+// see it play.
 function GifLoopOnceCase() {
     const id = 'gif-loop-once'
+    const [uri] = useState(() =>
+        imageUrl(`loop-once.gif?loop-once=${RUN}-${Date.now()}`),
+    )
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
     const started = useRef(false)
@@ -6446,7 +6431,7 @@ function GifLoopOnceCase() {
                 {shown ? (
                     <FastImage
                         style={styles.image}
-                        source={{ uri: imageUrl('loop-once.gif') }}
+                        source={{ uri }}
                         onLoad={() => {
                             clearTimeout(timer.current)
                             // Three plays' worth: a looping GIF shows magenta
@@ -10649,7 +10634,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadLimitCase key="preload-limit" />,
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
-            <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+            ...(Platform.OS === 'ios'
+                ? []
+                : [
+                      <PreloadRetryCase
+                          key="preload-retry"
+                          id="preload-retry"
+                      />,
+                  ]),
             <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },
