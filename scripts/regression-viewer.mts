@@ -10,11 +10,12 @@ import { parseArgs } from 'node:util'
 
 const USAGE = `Usage: node scripts/regression-viewer.mts [folder] [options]
 
-Serves a page (http://localhost:<port>) with each regression group's
-screenshot from a verify.mts run, its reference in screenshots/, the diff,
-the video samples, and what the group and its cases check. A group whose
-screenshot is new or differs can be approved: its screenshot is copied over
-the reference in screenshots/ (commit it).
+Serves a page (http://localhost:<port>) with each regression group from a
+verify.mts run: each case's crop of the group's screenshot next to its
+reference in screenshots/ and the diff (a group without cases as a whole),
+the video samples, and what the group and its cases check. A crop that's new
+or differs can be approved: it's copied over its reference in screenshots/
+(commit it).
 
   folder              A verify.mts output folder, or any folder with runs in
                       it (e.g. a CI run's artifacts, unzipped); the shards of
@@ -170,6 +171,7 @@ const RUN = path.resolve(
 
 type Description = { checks: string; steps?: string; shows?: string }
 type Rect = { x: number; y: number; width: number; height: number }
+type Comparison = { result: string; detail?: string; diff?: string }
 type Results = {
     hello?: { groups?: string[] }
     statuses?: Record<string, Record<string, string>>
@@ -179,42 +181,51 @@ type Results = {
     >
     screenshots?: Record<
         string,
-        {
+        Comparison & {
             file: string
-            result: string
-            detail?: string
-            diff?: string
-            cases?: Record<string, Rect>
+            cases?: Record<string, Comparison & { area: Rect; file: string }>
             approvable?: boolean
             failures?: string[]
         }
     >
 }
 
-// A group as the page shows it. state: failed (a case didn't pass, or the
-// group failed: failures), new (no reference), differs (from the reference),
-// approved (the reference is now this screenshot), ok. approvable: whether
-// its screenshot may become the reference (verify.mts wouldn't seed it from
-// a failed group or a --ref run).
+// An image compared with its reference. state: new (no reference, or one
+// the run seeded), differs (from the reference), approved (the reference is
+// now this image), ok.
+type State = 'new' | 'differs' | 'approved' | 'ok'
+type Compared = {
+    state: State
+    detail?: string
+    shot: string
+    reference: string
+    hasReference: boolean
+    diff?: string
+}
+
+// A group as the page shows it: compared as a whole (whole), or by case
+// (each case's image). state: failed (a case didn't pass, or the group
+// failed: failures), or its images' worst. approvable: whether its images
+// may become references (verify.mts wouldn't seed them from a failed group
+// or a --ref run).
 type Group = {
     key: string
     name: string
     index: number
-    state: 'failed' | 'new' | 'differs' | 'approved' | 'ok'
+    state: 'failed' | State
     approvable: boolean
     failures: string[]
-    result?: string
     detail?: string
     description?: Description
+    shot?: string
+    whole?: Compared
     cases: {
         id: string
         status: string
         description?: Description
         area?: Rect
+        image?: Compared
     }[]
-    shot?: string
-    reference?: string
-    diff?: string
     samples: string[]
 }
 
@@ -222,6 +233,43 @@ const sameFile = (a: string, b: string) =>
     fs.existsSync(a) &&
     fs.existsSync(b) &&
     fs.readFileSync(a).equals(fs.readFileSync(b))
+
+// A seeded reference (verify.mts copies it into screenshots/ in a local run)
+// is new until someone has looked at it: until it's approved, which writes
+// it after the run's results (written: when they were).
+function compared(
+    shot: string,
+    reference: string,
+    { result, detail, diff }: Comparison,
+    dir: string,
+    written: number,
+): Compared {
+    const hasReference = fs.existsSync(reference)
+    const same = hasReference && sameFile(shot, reference)
+    const state: State = !hasReference
+        ? 'new'
+        : result === 'seeded' || result === 'unseeded'
+          ? same && fs.statSync(reference).mtimeMs > written
+              ? 'approved'
+              : 'new'
+          : same
+            ? result === 'differs'
+                ? 'approved'
+                : 'ok'
+            : result === 'differs'
+              ? 'differs'
+              : 'ok'
+    return {
+        state,
+        detail,
+        shot,
+        reference,
+        hasReference,
+        diff: diff && path.join(dir, diff),
+    }
+}
+
+const ORDER: Group['state'][] = ['failed', 'new', 'differs', 'approved', 'ok']
 
 // The run's groups, by app and platform (e.g. main-ios), shards merged.
 function load() {
@@ -236,65 +284,64 @@ function load() {
         for (const [name, statuses] of Object.entries(results.statuses ?? {})) {
             const index = names.indexOf(name)
             const prefix = `${String(index + 1).padStart(2, '0')}-${name}`
-            const shotInfo = results.screenshots?.[name]
-            // Runs from before results.json had the screenshots: by name.
-            const shotFile =
-                shotInfo?.file ?? files.find((f) => f === `${prefix}.png`)
-            const diffFile =
-                shotInfo?.diff ?? files.find((f) => f === `${prefix}-diff.png`)
-            const shot = shotFile && path.join(dir, shotFile)
-            const reference = path.join(SCREENSHOTS, key, `${name}.png`)
-            const hasReference = fs.existsSync(reference)
+            const info = results.screenshots?.[name]
+            // A run from before the cases had crops of their own (an area
+            // only) is shown as a whole.
+            const caseInfo = Object.fromEntries(
+                Object.entries(info?.cases ?? {}).filter(([, c]) => c.file),
+            )
+            const byCase = Object.keys(caseInfo).length > 0
             const descriptions = results.descriptions?.[name]
-            const cases = Object.entries(statuses).map(([id, status]) => ({
-                id,
-                status,
-                description: descriptions?.cases?.[id],
-                area: shotInfo?.cases?.[id],
-            }))
-            const failures = shotInfo?.failures ?? []
+            const cases = Object.entries(statuses).map(([id, status]) => {
+                const c = caseInfo[id]
+                return {
+                    id,
+                    status,
+                    description: descriptions?.cases?.[id],
+                    area: c?.area,
+                    image:
+                        c &&
+                        compared(
+                            path.join(dir, c.file),
+                            path.join(SCREENSHOTS, key, name, `${id}.png`),
+                            c,
+                            dir,
+                            written,
+                        ),
+                }
+            })
+            const whole =
+                info && !byCase
+                    ? compared(
+                          path.join(dir, info.file),
+                          path.join(SCREENSHOTS, key, `${name}.png`),
+                          info,
+                          dir,
+                          written,
+                      )
+                    : undefined
+            const failures = info?.failures ?? []
             const failed =
                 cases.some((c) => c.status !== 'OK') || failures.length > 0
-            const seeded =
-                shotInfo?.result === 'seeded' || shotInfo?.result === 'unseeded'
-            // A seeded reference (verify.mts copies it into screenshots/ in
-            // a local run) is new until someone has looked at it: until it's
-            // approved, which writes it after the run's results.
-            const state: Group['state'] = failed
-                ? 'failed'
-                : !shot
-                  ? 'ok'
-                  : !hasReference
-                    ? 'new'
-                    : seeded
-                      ? sameFile(shot, reference) &&
-                        fs.statSync(reference).mtimeMs > written
-                          ? 'approved'
-                          : 'new'
-                      : sameFile(shot, reference)
-                        ? shotInfo?.result === 'differs'
-                            ? 'approved'
-                            : 'ok'
-                        : shotInfo?.result === 'differs' ||
-                            (!shotInfo && diffFile)
-                          ? 'differs'
-                          : 'ok'
+            const states = [
+                ...(failed ? ['failed'] : []),
+                ...(whole ? [whole.state] : []),
+                ...cases.flatMap((c) => (c.image ? [c.image.state] : [])),
+            ] as Group['state'][]
             const list = byKey.get(key) ?? []
             list.push({
                 key,
                 name,
                 index,
-                state,
+                state: ORDER.find((s) => states.includes(s)) ?? 'ok',
                 // Runs from before results.json said: not approvable.
-                approvable: !failed && !!shot && !!shotInfo?.approvable,
+                approvable: !failed && !!info?.approvable,
                 failures,
-                result: shotInfo?.result,
-                detail: shotInfo?.detail,
+                detail: info?.detail,
                 description: descriptions?.description,
+                shot: info && path.join(dir, info.file),
+                whole,
                 cases,
-                shot,
-                reference: hasReference ? reference : undefined,
-                diff: diffFile && path.join(dir, diffFile),
                 samples: files
                     .filter(
                         (f) =>
@@ -407,9 +454,10 @@ const server = http.createServer((request, response) => {
     })
 })
 
-// Copies a group's screenshot over its reference; body: { key, name }.
+// Copies a group's images that are new or differ over their references, or
+// one case's (id); body: { key, name, id? }.
 function approve(body: string, send: Send) {
-    let parsed: { key?: unknown; name?: unknown } | null
+    let parsed: { key?: unknown; name?: unknown; id?: unknown } | null
     try {
         parsed = JSON.parse(body)
     } catch {
@@ -417,17 +465,29 @@ function approve(body: string, send: Send) {
     }
     const key = parsed?.key
     const name = parsed?.name
-    if (typeof key !== 'string' || typeof name !== 'string')
+    const id = parsed?.id
+    if (
+        typeof key !== 'string' ||
+        typeof name !== 'string' ||
+        (id !== undefined && typeof id !== 'string')
+    )
         return send(400, 'needs a key and a name')
     const group = load()
         .find((e) => e.key === key)
         ?.groups.find((g) => g.name === name)
-    if (!group?.shot) return send(404, 'no screenshot')
-    if (!group.approvable) return send(409, "can't be approved")
-    const reference = path.join(SCREENSHOTS, key, `${name}.png`)
-    fs.mkdirSync(path.dirname(reference), { recursive: true })
-    fs.copyFileSync(group.shot, reference)
-    console.log(`approved ${path.relative(ROOT, reference)}`)
+    if (group && !group.approvable) return send(409, "can't be approved")
+    const images = [
+        ...(group?.whole && !id ? [group.whole] : []),
+        ...(group?.cases ?? []).flatMap((c) =>
+            c.image && (!id || c.id === id) ? [c.image] : [],
+        ),
+    ].filter((image) => image.state !== 'ok' && fs.existsSync(image.shot))
+    if (images.length === 0) return send(404, 'nothing to approve')
+    for (const image of images) {
+        fs.mkdirSync(path.dirname(image.reference), { recursive: true })
+        fs.copyFileSync(image.shot, image.reference)
+        console.log(`approved ${path.relative(ROOT, image.reference)}`)
+    }
     send(200, 'ok')
 }
 

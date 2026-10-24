@@ -281,6 +281,33 @@
                 color: var(--muted);
                 font-weight: 600;
             }
+            .layout.by-case {
+                grid-template-columns: 220px minmax(0, 1fr);
+            }
+            .layout.by-case .images {
+                position: sticky;
+                top: 0;
+            }
+            .crops {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                margin-top: 6px;
+            }
+            .crops img {
+                display: block;
+                max-width: 100%;
+                max-height: 60vh;
+                border: 1px solid var(--line);
+                background: #fff;
+            }
+            .case .badge {
+                margin-left: 4px;
+            }
+            .case .head button {
+                margin-left: auto;
+                padding: 1px 8px;
+            }
             .samples {
                 margin-top: 16px;
                 display: flex;
@@ -475,49 +502,96 @@
                     .flatMap((e) => e.groups)
                     .find((g) => groupId(g) === selected)
 
+            // A case's description, as in the case list.
+            function caseDescription(c) {
+                if (!c.description) return ''
+                return (
+                    `<p>${esc(c.description.checks)}</p>` +
+                    (c.description.steps
+                        ? `<p><span class="label">Steps:</span> ${esc(c.description.steps)}</p>`
+                        : '') +
+                    `<p><span class="label">Shows:</span> ${esc(c.description.shows)}</p>`
+                )
+            }
+
+            const reviewable = (state) => state === 'new' || state === 'differs'
+
+            // A case compared on its own: its description, then its crop of
+            // the reference, this run and the diff. approvable: its group's.
+            function caseRow(c, i, approvable) {
+                const image = c.image
+                const crop = (src, label) =>
+                    `<figure><figcaption>${label}</figcaption>${src ? `<img src="${file(src)}" />` : '<div class="missing">none</div>'}</figure>`
+                return `<div class="case" data-case="${esc(c.id)}">
+                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${image.state}</span>` : ''}${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
+                    ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
+                    ${caseDescription(c)}
+                    ${
+                        image
+                            ? `<div class="crops">${crop(image.hasReference ? image.reference : undefined, 'Reference')}${crop(image.shot, 'This run')}${image.diff ? crop(image.diff, 'Diff') : ''}</div>`
+                            : '<p class="detail">Nothing to compare (no area).</p>'
+                    }
+                </div>`
+            }
+
             function renderGroup(g) {
                 if (!g) {
                     $('main').innerHTML = '<p class="empty">Select a group.</p>'
                     return
                 }
-                const images =
-                    $('mode').value === 'slider' && g.reference && g.shot
-                        ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(g.reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(g.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
-                        : frame(g.reference, g, 'Reference') +
-                          frame(g.shot, g, 'This run') +
-                          (g.diff ? frame(g.diff, g, 'Diff') : '')
-                const cases = g.cases
-                    .map(
-                        (c, i) => `<div class="case" data-case="${esc(c.id)}">
+                const w = g.whole
+                let layout
+                if (w) {
+                    const reference = w.hasReference ? w.reference : undefined
+                    const images =
+                        $('mode').value === 'slider' && reference
+                            ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
+                            : frame(reference, g, 'Reference') +
+                              frame(w.shot, g, 'This run') +
+                              (w.diff ? frame(w.diff, g, 'Diff') : '')
+                    const cases = g.cases
+                        .map(
+                            (
+                                c,
+                                i,
+                            ) => `<div class="case" data-case="${esc(c.id)}">
                             <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}</div>
-                            ${
-                                c.description
-                                    ? `<p>${esc(c.description.checks)}</p>` +
-                                      (c.description.steps
-                                          ? `<p><span class="label">Steps:</span> ${esc(c.description.steps)}</p>`
-                                          : '') +
-                                      `<p><span class="label">Shows:</span> ${esc(c.description.shows)}</p>`
-                                    : ''
-                            }
+                            ${caseDescription(c)}
                         </div>`,
-                    )
-                    .join('')
+                        )
+                        .join('')
+                    layout = `<div class="layout">
+                        <div class="images">${images}</div>
+                        <div class="cases">${cases || '<p class="detail">No cases reported.</p>'}</div>
+                    </div>`
+                } else {
+                    // By case: the whole screenshot for context, each case
+                    // compared on its own.
+                    layout = `<div class="layout by-case">
+                        <div class="images">${frame(g.shot, g, 'This run')}</div>
+                        <div class="cases">${g.cases.map((c, i) => caseRow(c, i, g.approvable)).join('') || '<p class="detail">No cases reported.</p>'}</div>
+                    </div>`
+                }
                 $('main').innerHTML = `
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
                         <span class="badge">${g.state}</span>
-                        ${g.approvable && g.state !== 'ok' && g.state !== 'approved' ? '<button class="primary" id="approve">Approve (a)</button>' : ''}
+                        ${g.approvable && reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
                     </div>
                     ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
                     ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
                     <div class="description">${descriptionHtml(g.description)}</div>
-                    <div class="layout">
-                        <div class="images">${images}</div>
-                        <div class="cases">${cases || '<p class="detail">No cases reported.</p>'}</div>
-                    </div>
+                    ${layout}
                     ${g.samples.length ? `<h3>Video samples</h3><div class="samples">${g.samples.map((s) => `<video src="${file(s)}" controls muted loop></video>`).join('')}</div>` : ''}
                 `
                 $('approve')?.addEventListener('click', () => approve([g]))
+                document
+                    .querySelectorAll('[data-approve]')
+                    .forEach((el) =>
+                        el.addEventListener('click', () =>
+                            approve([g], el.dataset.approve),
+                        ),
+                    )
                 const split = $('split')
                 if (split) {
                     const set = () =>
@@ -538,14 +612,15 @@
                 })
             }
 
-            // Says why approvals the server refused failed, if any.
-            async function approve(groups) {
+            // The groups' images to review, or one case's (id). Says why
+            // approvals the server refused failed, if any.
+            async function approve(groups, id) {
                 const errors = []
                 for (const g of groups) {
                     const response = await fetch('/api/approve', {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
-                        body: JSON.stringify({ key: g.key, name: g.name }),
+                        body: JSON.stringify({ key: g.key, name: g.name, id }),
                     })
                     if (!response.ok)
                         errors.push(`${g.name}: ${await response.text()}`)
@@ -579,20 +654,19 @@
             })
             $('filter').addEventListener('change', render)
             $('mode').addEventListener('change', render)
-            // The groups to review whose screenshots may become references.
+            // The groups to review whose images may become references.
             const toApprove = () =>
                 data.entries
                     .flatMap((e) => e.groups)
-                    .filter(
-                        (g) =>
-                            g.approvable &&
-                            (g.state === 'new' || g.state === 'differs'),
-                    )
+                    .filter((g) => g.approvable && reviewable(g.state))
             $('approve-all').addEventListener('click', () => {
                 const groups = toApprove()
+                const images = groups
+                    .flatMap((g) => [g.whole, ...g.cases.map((c) => c.image)])
+                    .filter((image) => image && reviewable(image.state))
                 if (
                     confirm(
-                        `Copy ${groups.length} screenshots over their references?`,
+                        `Copy ${images.length} images (${groups.length} groups) over their references?`,
                     )
                 )
                     approve(groups)
