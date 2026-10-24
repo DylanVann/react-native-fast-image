@@ -376,8 +376,8 @@
             },
             "image-rendering-text": {
                 "checks": "imageRendering on a page of small text drawn much smaller than its size: smooth (iOS only; the same as auto on Android) keeps the lines of text continuous.",
-                "steps": "Shows a 1600×1000 page of small text at its own size (a 200×24 strip of it), then drawn at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.",
-                "shows": "A strip of the page, then the page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up."
+                "steps": "Draws a 1600×1000 page of small text at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.",
+                "shows": "The page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up."
             },
             "image-rendering-pixel-art": {
                 "checks": "imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).",

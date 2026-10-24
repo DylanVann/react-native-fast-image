@@ -6734,8 +6734,9 @@ function ErrorMessageCase() {
 }
 
 // imageRendering: a case per image, each shown at its own size (one image
-// pixel per screen pixel, cropped to a strip), then drawn in each mode, left
-// to right: auto, smooth, pixelated. Checked by the screenshot. Shrunk with
+// pixel per screen pixel, cropped to a strip; not the page of text, whose
+// strip would only show part of its first line), then drawn in each mode,
+// left to right: auto, smooth, pixelated. Checked by the screenshot. Shrunk with
 // auto or pixelated, the stripes and the text lose detail, differently on
 // each platform (they drop different pixels). smooth is iOS only (the same as
 // auto on Android).
@@ -6745,6 +6746,8 @@ const RENDERING_CASES: {
     image: string
     size: { width: number; height: number }
     drawn: { width: number; height: number }
+    // Without the strip of it at its own size.
+    noOriginal?: boolean
     description: Description
 }[] = [
     {
@@ -6763,10 +6766,11 @@ const RENDERING_CASES: {
         image: 'text-page.png',
         size: { width: 1600, height: 1000 },
         drawn: { width: 96, height: 64 },
+        noOriginal: true,
         description: {
             checks: 'imageRendering on a page of small text drawn much smaller than its size: smooth (iOS only; the same as auto on Android) keeps the lines of text continuous.',
-            steps: 'Shows a 1600×1000 page of small text at its own size (a 200×24 strip of it), then drawn at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
-            shows: 'A strip of the page, then the page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up.',
+            steps: 'Draws a 1600×1000 page of small text at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'The page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up.',
         },
     },
     {
@@ -6810,6 +6814,7 @@ function ImageRenderingCase({
     image,
     size,
     drawn,
+    noOriginal,
     description,
 }: (typeof RENDERING_CASES)[number]) {
     const [loads, setLoads] = useState(0)
@@ -6817,7 +6822,7 @@ function ImageRenderingCase({
     const total = RENDERING_MODES.length
     return (
         <View style={renderingStyles.case}>
-            <OriginalCrop image={image} size={size} />
+            {noOriginal ? null : <OriginalCrop image={image} size={size} />}
             <View style={renderingStyles.modes}>
                 {RENDERING_MODES.map((mode, i) => (
                     <FastImage
