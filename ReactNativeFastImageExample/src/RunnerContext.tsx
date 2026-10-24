@@ -13,6 +13,10 @@ export type RegressionGroup = {
     name: string
     description: GroupDescription
     cases: React.ReactElement[]
+    // Its cases fill the screen's width (the example screens' sections). In
+    // the runner, other groups' cases are only as wide as what they show, so
+    // each case's area (and screenshot) is its images.
+    wide?: boolean
 }
 
 // What a case checks, in plain English, for someone reviewing its screenshot
