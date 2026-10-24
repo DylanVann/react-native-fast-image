@@ -129,8 +129,8 @@ jobs:
           v=v$(cat .node-version)
           n=node-$v-darwin-arm64
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
-          curl -fsSL -O "https://nodejs.org/dist/$v/$n.tar.gz"
-          curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
+          curl -fsSL --retry 3 --retry-all-errors -O "https://nodejs.org/dist/$v/$n.tar.gz"
+          curl -fsSL --retry 3 --retry-all-errors "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
           mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
           echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
       - name: Install Bun
@@ -313,7 +313,7 @@ jobs:
           for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum ReactNativeFastImageExampleTV; do
             xcrun simctl uninstall "$udid" "org.reactjs.native.example.$app" || true
           done
-          curl -fsSL -o "$RUNNER_TEMP/simslim.tar.gz" https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
+          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/simslim.tar.gz" https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
           echo "b47302da6fb83b8b4c21f4fdd61507469770c07b0ff07fd1f48207bda4270887  $RUNNER_TEMP/simslim.tar.gz" | shasum -a 256 -c
           tar -xzf "$RUNNER_TEMP/simslim.tar.gz" -C "$RUNNER_TEMP"
           # Slow runners need longer than simslim's default time limits.
@@ -341,7 +341,7 @@ jobs:
         continue-on-error: true
         run: |
           log=$(ls -t "$APP_DIR"/ios/build/Logs/Build/*.xcactivitylog | head -1)
-          curl -fsSL -o "$RUNNER_TEMP/xclogparser.zip" https://github.com/MobileNativeFoundation/XCLogParser/releases/download/v0.2.49/XCLogParser-macOS-arm64-v0.2.49.zip
+          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/xclogparser.zip" https://github.com/MobileNativeFoundation/XCLogParser/releases/download/v0.2.49/XCLogParser-macOS-arm64-v0.2.49.zip
           echo "96e4793d6c3c23a0238e18520c6742f5a1f3ac495857e13253223b0b9cbea5fa  $RUNNER_TEMP/xclogparser.zip" | shasum -a 256 -c
           unzip -q -o "$RUNNER_TEMP/xclogparser.zip" -d "$RUNNER_TEMP/bin"
           xclogparser parse --file "$log" --reporter json --output verify-output/xcode-build.json
@@ -496,8 +496,8 @@ jobs:
           v=v$(cat .node-version)
           n=node-$v-linux-x64
           mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
-          curl -fsSL -O "https://nodejs.org/dist/$v/$n.tar.gz"
-          curl -fsSL "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
+          curl -fsSL --retry 3 --retry-all-errors -O "https://nodejs.org/dist/$v/$n.tar.gz"
+          curl -fsSL --retry 3 --retry-all-errors "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
           mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
           echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
       - name: Install Bun
