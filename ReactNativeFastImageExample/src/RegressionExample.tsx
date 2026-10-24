@@ -6390,6 +6390,81 @@ function GifLoopCase({
     )
 }
 
+// A GIF without a loop count, recorded from when it's shown (a video sample):
+// it plays once, magenta then cyan, and stops on cyan. Android looped every
+// GIF forever (#651), showing magenta again. The screenshot alone can't tell:
+// it's taken once the group is done, which can be on a looping GIF's cyan.
+function GifLoopOnceCase() {
+    const id = 'gif-loop-once'
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const started = useRef(false)
+    const done = useRef(() => {})
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const [shown, setShown] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const expect = [BLANK, MAGENTA, CYAN]
+    const record = async () => {
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                durationMs: 5000,
+                expect,
+                palette: [MAGENTA, BLANK, CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setShown(true)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={styles.row}>
+            <View
+                ref={view}
+                collapsable={false}
+                style={styles.image}
+                onLayout={() => {
+                    if (started.current) return
+                    started.current = true
+                    record().catch((e) => setStatus(`error: ${e}`))
+                }}
+            >
+                {shown ? (
+                    <FastImage
+                        style={styles.image}
+                        source={{ uri: imageUrl('loop-once.gif') }}
+                        onLoad={() => {
+                            clearTimeout(timer.current)
+                            // Three plays' worth: a looping GIF shows magenta
+                            // again after one.
+                            timer.current = setTimeout(
+                                () => done.current(),
+                                3 * GIF_PLAY,
+                            )
+                        }}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={{
+                    checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
+                    steps: 'A video sample: the screen is recorded while the case shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop, until 2.4 s after onLoad; the color in the middle of the view must go from gray to magenta to cyan, and stay cyan.',
+                    shows: 'A cyan square: the last frame. In the recording: gray, magenta, cyan; magenta again after cyan means it looped.',
+                }}
+            />
+        </View>
+    )
+}
+
 // The paused prop, with the GIF that loops forever by itself (red, then
 // blue), or another image like it (`source`, e.g. an animated WebP, with
 // `name` for its ids and descriptions). Paused from the start, it stays on its
@@ -10145,18 +10220,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <ClearTintCase key="clear-tint" />,
             <ObjectFitChangeCropCase key="fit-change" />,
-            <GifLoopCase
-                key="gif-loop-once"
-                id="gif-loop-once"
-                description={{
-                    checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
-                    steps: 'Shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop. Passes 1 s after onLoad: after its one play (0.8 s), and during the magenta frame of a second play if it loops; the screenshot checks where it stopped.',
-                    shows: 'A cyan square: the last frame. Magenta means it was still playing (looping).',
-                }}
-                source="loop-once.gif"
-                // 1 s after onLoad (see the steps).
-                plays={0.5}
-            />,
+            <GifLoopOnceCase key="gif-loop-once" />,
             <SizeChangeCase key="size-change" />,
         ],
     },
