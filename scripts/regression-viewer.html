@@ -341,7 +341,7 @@
             <span class="spacer"></span>
             <select id="filter">
                 <option value="review">To review</option>
-                <option value="all">All groups</option>
+                <option value="all">All tests</option>
             </select>
             <select id="mode">
                 <option value="side">Side by side</option>
@@ -393,7 +393,9 @@
             async function refresh() {
                 data = await (await fetch('/api/runs')).json()
                 version++
-                $('run').textContent = data.run ?? 'references only (no run)'
+                $('run').textContent = data.run
+                    ? `compared with the run in ${data.run}`
+                    : 'no run to compare with'
                 // Every group, when the first load has none to review.
                 if (
                     version === 1 &&
@@ -425,7 +427,7 @@
                             items
                                 .map(
                                     (g) =>
-                                        `<a href="#" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
+                                        `<a href="#" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'reference' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
                                 )
                                 .join('')
                         )
@@ -524,10 +526,12 @@
             }
 
             const reviewable = (state) => state === 'new' || state === 'differs'
-            // A state as the page says it: reference is a reference the run
-            // didn't compare.
-            const label = (state) =>
-                state === 'reference' ? 'not in this run' : state
+            // A state's badge: a run's comparison, if it made one (a reference
+            // on its own has none).
+            const badge = (state, className = '') =>
+                state === 'reference'
+                    ? ''
+                    : `<span class="badge ${className}">${state}</span>`
             // A case's status, unless it passed (or the run didn't have it).
             const status = (c) =>
                 c.status && c.status !== 'OK'
@@ -541,7 +545,7 @@
                 const crop = (src, label) =>
                     `<figure><figcaption>${label}</figcaption>${src ? `<img src="${file(src)}" />` : '<div class="missing">none</div>'}</figure>`
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${label(image.state)}</span>` : ''}${status(c)}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
+                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? badge(image.state, `state-${image.state}`) : ''}${status(c)}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c)}
                     ${
@@ -604,7 +608,7 @@
                 $('main').innerHTML = `
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
-                        <span class="badge">${label(g.state)}</span>
+                        ${badge(g.state)}
                         ${g.approvable && reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
                     </div>
                     ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}

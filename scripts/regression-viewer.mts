@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Shows the regression screenshots of a verify.mts run next to their
-// references and the cases' descriptions, and approves new screenshots as
-// references (copies them into screenshots/).
+// Shows every regression case's reference screenshot with its description,
+// compared with a verify.mts run's screenshots where it has them, and
+// approves new screenshots as references (copies them into screenshots/).
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -10,22 +10,23 @@ import { parseArgs } from 'node:util'
 
 const USAGE = `Usage: node scripts/regression-viewer.mts [folder] [options]
 
-Serves a page (http://localhost:<port>) with each regression group from a
-verify.mts run: each case's crop of the group's screenshot next to its
-reference in screenshots/ and the diff (a group without cases as a whole),
-the video samples, and what the group and its cases check. A crop that's new
-or differs can be approved: it's copied over its reference in screenshots/
-(commit it).
+Serves a page (http://localhost:<port>) with every regression group and case:
+its reference in screenshots/ and what it checks, for every app and platform.
+Where a verify.mts run has the group, it's compared: each case's crop of the
+group's screenshot next to its reference and the diff (a group without cases
+as a whole), and the video samples. A crop that's new or differs can be
+approved: it's copied over its reference in screenshots/ (commit it).
 
-  folder              A verify.mts output folder, or any folder with runs in
-                      it (e.g. a CI run's artifacts, unzipped); the shards of
-                      an app and platform are shown together. Default: the
-                      latest run in verify-output/.
+  folder              The run to compare with: a verify.mts output folder, or
+                      any folder with runs in it (e.g. a CI run's artifacts,
+                      unzipped); the shards of an app and platform are shown
+                      together. Default: the latest run in verify-output/.
   --pr <number>       The PR's latest e2e run on CI: its screenshots (the
                       verify-* artifacts) are downloaded with gh into
                       verify-output/ci-<run id>-<attempt>/. Check out the
                       PR's branch, so approved screenshots replace its
                       references.
+  --references        No run: the references and descriptions only.
   --port <port>       Default 8095.
   -h, --help
 `
@@ -38,6 +39,7 @@ const { values: options, positionals } = parseArgs({
     allowPositionals: true,
     options: {
         pr: { type: 'string' },
+        references: { type: 'boolean', default: false },
         port: { type: 'string', default: '8095' },
         help: { type: 'boolean', short: 'h', default: false },
     },
@@ -168,9 +170,11 @@ function latestRun() {
     )
 }
 
-const run = options.pr
-    ? downloadPr(options.pr)
-    : (positionals[0] ?? latestRun())
+const run = options.references
+    ? undefined
+    : options.pr
+      ? downloadPr(options.pr)
+      : (positionals[0] ?? latestRun())
 const RUN = run && path.resolve(run)
 
 // The groups' descriptions, and their order, by app and platform (e.g.
@@ -604,6 +608,6 @@ function approve(body: string, send: Send) {
 
 server.listen(port, '127.0.0.1', () => {
     console.log(
-        `Regression viewer for ${RUN ? path.relative(ROOT, RUN) || RUN : 'the references (no run with comparisons in verify-output/)'}: http://localhost:${port} (Ctrl-C to stop)`,
+        `Regression viewer for ${RUN ? path.relative(ROOT, RUN) || RUN : options.references ? 'the references' : 'the references (no run with comparisons in verify-output/)'}: http://localhost:${port} (Ctrl-C to stop)`,
     )
 })
