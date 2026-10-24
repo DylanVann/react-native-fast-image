@@ -14,8 +14,10 @@ import {
     useSafeAreaInsets,
 } from 'react-native-safe-area-context'
 import FastImage from 'react-native-fast-image'
-import { caseStyles } from './CaseStatus'
 import {
+    CaseAreaContext,
+    DescribeContext,
+    Description,
     InRunnerContext,
     Masked,
     MaskContext,
@@ -41,9 +43,11 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //   { type: 'hello', platform, version, arch, groups: [names], window:
 //     { width, height }, scale }                   on connecting (window in
 //                                                 dp; scale = pixels per dp)
-//   { type: 'group', index, name, cases: [ids] }  once a group is on screen
+//   { type: 'group', index, name, wide, cases: [ids], description,
+//     descriptions: { id: description } }         once a group is on screen
+//                                                 (wide: compared whole)
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
-//   { type: 'masks', group, id, masks, content, visible, safeArea }
+//   { type: 'masks', group, id, masks, cases, content, visible, safeArea }
 //                                                 the reply to 'measure'
 //   { type: 'sample', group, name, area, durationMs, expect, palette }
 //                                                 record a video sample (see
@@ -52,7 +56,8 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //   { type: 'done' }                               past the last group
 // masks: the areas (dp, from the window's top left) to leave out of the
 // screenshot comparison, measured just before (see Masked). content: the
-// area the group's cases take; visible: the window's area that isn't under
+// area the group's cases take; cases: each case's area (its row), by id;
+// visible: the window's area that isn't under
 // the system's bars at the bottom (the script fails a group whose cases go
 // past it, as the screenshot would cut them off). safeArea: the screen's
 // area inside its safe-area insets, which the script crops the screenshot
@@ -68,6 +73,7 @@ type Message = { type: string; [key: string]: unknown }
 // The reply to 'measure' (see above).
 type Measured = {
     masks: Rect[]
+    cases?: Record<string, Rect>
     content?: Rect
     visible?: Rect
     insets?: { top: number; bottom: number }
@@ -305,24 +311,21 @@ function Group({
     >
 }) {
     const statuses = useRef(new Map<string, string>())
-    const [summary, setSummary] = useState('')
+    const descriptions = useRef(new Map<string, Description>())
+    const describe = useCallback((id: string, description: Description) => {
+        descriptions.current.set(id, description)
+    }, [])
     // Cases that haven't passed (yet), with their statuses in full.
     const [notOk, setNotOk] = useState<string[]>([])
     const report = useCallback(
         (id: string, status: string) => {
             statuses.current.set(id, status)
             send({ type: 'status', group: index, id, status })
-            const all = [...statuses.current.entries()]
-            const ok = all.filter(([, s]) => s === 'OK').length
-            const rest = all
-                .filter(([, s]) => s !== 'OK')
-                .map(([caseId, s]) => `${caseId}: ${s}`)
-            setSummary(
-                ok === all.length
-                    ? 'OK'
-                    : `${ok}/${all.length} OK; ${rest.join(', ')}`,
+            setNotOk(
+                [...statuses.current.entries()]
+                    .filter(([, s]) => s !== 'OK')
+                    .map(([caseId, s]) => `${caseId}: ${s}`),
             )
-            setNotOk(rest)
         },
         [index, send],
     )
@@ -333,17 +336,32 @@ function Group({
             masks.current.delete(measure)
         }
     }, [])
+    const caseAreas = useRef(new Map<string, MeasureMask>())
+    const caseArea = useCallback((id: string, measure: MeasureMask) => {
+        caseAreas.current.set(id, measure)
+        return () => {
+            caseAreas.current.delete(id)
+        }
+    }, [])
     const cases = useRef<React.ComponentRef<typeof View>>(null)
     // The group's area, which fills the screen below the runner's padding.
     const area = useRef<React.ComponentRef<typeof View>>(null)
     const insets = useSafeAreaInsets()
     const measure = useCallback(async (): Promise<Measured> => {
         const rects = await Promise.all([...masks.current].map((m) => m()))
+        const areas = await Promise.all(
+            [...caseAreas.current].map(
+                async ([id, m]) => [id, await m()] as const,
+            ),
+        )
         // Measured rather than from Dimensions, which can leave out the
         // system's bars on Android, which the apps draw under (edge to edge).
         const group = await measureView(area.current)
         return {
             masks: rects.filter((rect): rect is Rect => rect != null),
+            cases: Object.fromEntries(
+                areas.filter((entry): entry is [string, Rect] => !!entry[1]),
+            ),
             content: await measureView(cases.current),
             visible: group && {
                 ...group,
@@ -367,59 +385,60 @@ function Group({
             type: 'group',
             index,
             name: group.name,
+            wide: group.wide === true,
             cases: [...statuses.current.keys()],
+            description: group.description,
+            descriptions: Object.fromEntries(descriptions.current),
         })
     }, [index, group, send])
     return (
         <InRunnerContext.Provider value>
             <ReportContext.Provider value={report}>
-                <MaskContext.Provider value={mask}>
-                    <SampleContext.Provider value={sample}>
-                        <View
-                            ref={area}
-                            collapsable={false}
-                            style={[
-                                styles.group,
-                                // Above the system's bars at the bottom.
-                                { paddingBottom: insets.bottom },
-                            ]}
-                        >
-                            {/* The summary changes as cases settle, so the
-                        screenshot leaves it out. One line, so that doesn't
-                        move the cases below (areas they measured for a video
-                        sample, while it records). */}
-                            <Masked>
-                                <Text
-                                    style={caseStyles.title}
-                                    numberOfLines={1}
+                <DescribeContext.Provider value={describe}>
+                    <CaseAreaContext.Provider value={caseArea}>
+                        <MaskContext.Provider value={mask}>
+                            <SampleContext.Provider value={sample}>
+                                <View
+                                    ref={area}
+                                    collapsable={false}
+                                    style={[
+                                        styles.group,
+                                        // Above the system's bars at the bottom.
+                                        { paddingBottom: insets.bottom },
+                                    ]}
                                 >
-                                    {group.name}: {summary}
-                                </Text>
-                            </Masked>
-                            {/* Grows to fill the screen (for cases that fill it,
+                                    {/* Grows to fill the screen (for cases that fill it,
                         like the grid), but not shrinking below its cases, so
                         cases that don't fit go past the visible screen and
                         the script fails the group (see 'measure'). */}
-                            <View
-                                ref={cases}
-                                collapsable={false}
-                                style={styles.cases}
-                            >
-                                {group.cases}
-                            </View>
-                            {/* Statuses in full (cases show one line each), below
-                        the cases so they can take as many lines as they need
+                                    <View
+                                        ref={cases}
+                                        collapsable={false}
+                                        style={[
+                                            styles.cases,
+                                            !group.wide && styles.narrow,
+                                        ]}
+                                    >
+                                        {group.cases}
+                                    </View>
+                                    {/* Statuses in full (cases show none here), below the
+                        cases so they can take as many lines as they need
                         without moving them. Empty once all have passed. */}
-                            <Masked>
-                                {notOk.map((line) => (
-                                    <Text key={line} style={styles.notOk}>
-                                        {line}
-                                    </Text>
-                                ))}
-                            </Masked>
-                        </View>
-                    </SampleContext.Provider>
-                </MaskContext.Provider>
+                                    <Masked>
+                                        {notOk.map((line) => (
+                                            <Text
+                                                key={line}
+                                                style={styles.notOk}
+                                            >
+                                                {line}
+                                            </Text>
+                                        ))}
+                                    </Masked>
+                                </View>
+                            </SampleContext.Provider>
+                        </MaskContext.Provider>
+                    </CaseAreaContext.Provider>
+                </DescribeContext.Provider>
             </ReportContext.Provider>
         </InRunnerContext.Provider>
     )
@@ -437,6 +456,10 @@ const styles = StyleSheet.create({
     cases: {
         flexGrow: 1,
         flexShrink: 0,
+    },
+    // Cases as wide as their content (see RegressionGroup's `wide`).
+    narrow: {
+        alignItems: 'flex-start',
     },
     connection: {
         color: '#666',

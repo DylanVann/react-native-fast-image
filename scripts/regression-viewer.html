@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Regression screenshots</title>
+        <style>
+            :root {
+                --bg: #fff;
+                --fg: #1d1d1f;
+                --muted: #6e6e73;
+                --line: #e2e2e6;
+                --panel: #f6f6f8;
+                --accent: #0a66d8;
+                --failed: #c4291c;
+                --new: #8a4fd6;
+                --differs: #d97a00;
+                --approved: #1f8a4c;
+                --ok: #9a9aa0;
+                --area: rgba(10, 102, 216, 0.9);
+                color-scheme: light dark;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #161618;
+                    --fg: #ececf0;
+                    --muted: #9a9aa3;
+                    --line: #2c2c31;
+                    --panel: #1f1f23;
+                    --accent: #5aa2ff;
+                    --area: rgba(90, 162, 255, 0.95);
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    14px/1.45 -apple-system,
+                    BlinkMacSystemFont,
+                    'Segoe UI',
+                    sans-serif;
+                display: grid;
+                grid-template-columns: 260px 1fr;
+                grid-template-rows: auto 1fr;
+                height: 100vh;
+            }
+            header {
+                grid-column: 1 / -1;
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                padding: 10px 16px;
+                border-bottom: 1px solid var(--line);
+            }
+            header h1 {
+                font-size: 15px;
+                margin: 0;
+            }
+            .heading {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
+            header .run {
+                color: var(--muted);
+                font-size: 12px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            header .keys {
+                color: var(--muted);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            /* Two or more choices, one pressed. */
+            .segmented {
+                display: inline-flex;
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .segmented button {
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+                color: var(--muted);
+            }
+            .segmented button + button {
+                border-left: 1px solid var(--line);
+            }
+            .segmented button[aria-pressed='true'] {
+                background: var(--panel);
+                color: var(--fg);
+                font-weight: 600;
+            }
+            nav .segmented {
+                display: flex;
+                margin: 4px 16px 8px;
+            }
+            nav .segmented button {
+                flex: 1;
+            }
+            main .segmented {
+                margin-bottom: 8px;
+            }
+            header .spacer {
+                flex: 1;
+            }
+            button {
+                white-space: nowrap;
+                font: inherit;
+                padding: 4px 10px;
+                border-radius: 6px;
+                border: 1px solid var(--line);
+                background: var(--panel);
+                color: var(--fg);
+                cursor: pointer;
+            }
+            button.primary {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #fff;
+            }
+            button:disabled {
+                opacity: 0.5;
+                cursor: default;
+            }
+            nav {
+                overflow: auto;
+                border-right: 1px solid var(--line);
+                padding: 8px 0;
+            }
+            nav h2 {
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: var(--muted);
+                margin: 12px 16px 4px;
+            }
+            nav a {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 3px 16px;
+                color: inherit;
+                text-decoration: none;
+                font-family: ui-monospace, monospace;
+                font-size: 12.5px;
+            }
+            nav a.selected {
+                background: var(--panel);
+                font-weight: 600;
+            }
+            .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex: none;
+            }
+            .state-failed {
+                --state: var(--failed);
+            }
+            .state-new {
+                --state: var(--new);
+            }
+            .state-differs {
+                --state: var(--differs);
+            }
+            .state-removed {
+                --state: var(--differs);
+            }
+            .state-ok {
+                --state: var(--ok);
+            }
+            .dot,
+            .badge {
+                background: var(--state);
+            }
+            .badge {
+                color: #fff;
+                border-radius: 4px;
+                padding: 1px 6px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            main {
+                overflow: auto;
+                padding: 16px 20px 40px;
+            }
+            .title {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .title h2 {
+                margin: 0;
+                font-size: 18px;
+                font-family: ui-monospace, monospace;
+            }
+            .error {
+                color: var(--failed);
+                font-size: 13px;
+            }
+            .detail {
+                color: var(--muted);
+                margin: 4px 0 0;
+                font-size: 12px;
+            }
+            .description {
+                margin: 16px 0;
+            }
+            /* A description: each part's label (small, uppercase, in the
+            text's color) marks the part, and the part's text is muted; the
+            parts sit apart so each reads as its own line. */
+            .description p,
+            .case p {
+                margin: 8px 0 0;
+                max-width: 75ch;
+                line-height: 1.5;
+                color: var(--muted);
+            }
+            .description p:first-child {
+                margin-top: 0;
+            }
+            .label {
+                margin-right: 8px;
+                color: var(--fg);
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+            .layout {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 380px;
+                gap: 20px;
+                align-items: start;
+            }
+            .images {
+                display: grid;
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(0, 1fr);
+                gap: 12px;
+            }
+            figure {
+                margin: 0;
+            }
+            figcaption {
+                font-size: 12px;
+                color: var(--muted);
+                margin-bottom: 4px;
+            }
+            /* The screenshots fit their column and the window's height; the
+            overlays are placed over the image's box (see place). */
+            .frame {
+                position: relative;
+            }
+            .frame > img {
+                display: block;
+                height: auto;
+                max-width: 100%;
+                max-height: calc(100vh - 120px);
+                border: 1px solid var(--line);
+            }
+            .frame svg,
+            .slider .top {
+                position: absolute;
+                pointer-events: none;
+            }
+            .slider .top {
+                overflow: hidden;
+            }
+            .slider .top img {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+            .frame .missing {
+                height: 240px;
+                display: grid;
+                place-items: center;
+                color: var(--muted);
+                font-size: 13px;
+                border: 1px dashed var(--line);
+            }
+            .slider input {
+                width: 100%;
+                margin-top: 6px;
+            }
+            .cases {
+                display: flex;
+                flex-direction: column;
+                gap: 40px;
+            }
+            .case .head {
+                display: flex;
+                gap: 8px;
+                align-items: baseline;
+            }
+            .case .id {
+                font-family: ui-monospace, monospace;
+                font-weight: 600;
+                color: inherit;
+                text-decoration: none;
+            }
+            .case .id:hover {
+                text-decoration: underline;
+            }
+            .case .status {
+                color: var(--failed);
+                font-size: 12px;
+            }
+            /* A case's checks has no label: it's the case's summary, under
+            its id. */
+            .case .checks {
+                margin-top: 4px;
+                color: var(--fg);
+            }
+            .layout.by-case {
+                grid-template-columns: 220px minmax(0, 1fr);
+            }
+            .layout.by-case .images {
+                position: sticky;
+                top: 0;
+            }
+            .crops {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                margin-top: 8px;
+            }
+            .crops img,
+            figure > canvas {
+                display: block;
+                height: auto;
+                max-width: 100%;
+                max-height: 60vh;
+                border: 1px solid var(--line);
+                background: #fff;
+            }
+            .case .badge {
+                margin-left: 4px;
+            }
+            .case .head button {
+                margin-left: auto;
+                padding: 1px 8px;
+            }
+            .samples {
+                margin-top: 16px;
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+            .samples video {
+                height: 360px;
+                border: 1px solid var(--line);
+            }
+            .empty {
+                color: var(--muted);
+                padding: 40px;
+            }
+            kbd {
+                font:
+                    11px ui-monospace,
+                    monospace;
+                border: 1px solid var(--line);
+                border-radius: 4px;
+                padding: 0 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="heading">
+                <h1>Regression screenshots</h1>
+                <span class="run" id="run"></span>
+            </div>
+            <span class="error" id="error"></span>
+            <span class="spacer"></span>
+            <span class="keys"
+                ><kbd>j</kbd> <kbd>k</kbd> next, previous · <kbd>a</kbd> approve
+                · <kbd>u</kbd> undo</span
+            >
+            <button class="primary" id="approve-all" hidden></button>
+        </header>
+        <nav>
+            <div class="segmented" id="filter">
+                <button data-value="review"></button>
+                <button data-value="all"></button>
+            </div>
+            <div id="groups"></div>
+        </nav>
+        <main id="main"><p class="empty">Loading…</p></main>
+        <script>
+            const TO_REVIEW = ['failed', 'new', 'differs', 'removed']
+            let data = { entries: [] }
+            // The group shown (its key/name), and a case to scroll to: from
+            // the url's hash (#key/name/case), which follows them.
+            let selected
+            let target
+            const fromHash = () => {
+                const [key, name, id] = decodeURIComponent(
+                    location.hash.slice(1),
+                ).split('/')
+                return { group: key && name ? `${key}/${name}` : undefined, id }
+            }
+            ;({ group: selected, id: target } = fromHash())
+            // The list's filter (review or all) and how whole screenshots
+            // are compared (side or slider), kept for the next visit.
+            const stored = (name, fallback) => {
+                try {
+                    return localStorage.getItem(name) ?? fallback
+                } catch {
+                    return fallback
+                }
+            }
+            const store = (name, value) => {
+                try {
+                    localStorage.setItem(name, value)
+                } catch {}
+            }
+            let filter = stored('filter', 'review')
+            let mode = stored('mode', 'side')
+            let hovered
+            const $ = (id) => document.getElementById(id)
+            // Changes with each load, so an approved reference isn't the
+            // browser's cached image.
+            let version = 0
+            const file = (p) =>
+                `/file?path=${encodeURIComponent(p)}&v=${version}`
+            // A committed reference (git's HEAD), by its path in the
+            // repository.
+            const committedFile = (reference) =>
+                `/committed?path=${encodeURIComponent(reference)}&v=${version}`
+            const esc = (s) =>
+                String(s ?? '').replace(
+                    /[&<>"]/g,
+                    (c) =>
+                        ({
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                        })[c],
+                )
+            const groupId = (g) => `${g.key}/${g.name}`
+
+            function shownGroups() {
+                const all = data.entries.flatMap((e) => e.groups)
+                return filter === 'all'
+                    ? all
+                    : all.filter(
+                          (g) =>
+                              TO_REVIEW.includes(g.state) ||
+                              groupId(g) === selected,
+                      )
+            }
+
+            async function refresh() {
+                try {
+                    const response = await fetch('/api/runs')
+                    if (!response.ok) throw new Error(await response.text())
+                    data = await response.json()
+                } catch (e) {
+                    $('error').textContent =
+                        `Couldn't load the screenshots: ${e.message}`
+                    return
+                }
+                version++
+                $('run').textContent = data.run
+                    ? `committed references, and changes from the run in ${data.run} or not committed`
+                    : 'committed references, and changes not committed'
+                // Every group, when the first load has none to review.
+                if (
+                    version === 1 &&
+                    !data.entries.some((e) =>
+                        e.groups.some((g) => TO_REVIEW.includes(g.state)),
+                    )
+                )
+                    filter = 'all'
+                const groups = shownGroups()
+                if (!groups.some((g) => groupId(g) === selected)) {
+                    selected = groups[0] && groupId(groups[0])
+                    if (selected) history.replaceState(null, '', `#${selected}`)
+                }
+                render()
+            }
+
+            function render() {
+                const groups = shownGroups()
+                const review = toApprove()
+                $('approve-all').hidden = review.length === 0
+                $('approve-all').textContent =
+                    `Approve ${review.length} group${review.length === 1 ? '' : 's'}`
+                const all = data.entries.flatMap((e) => e.groups)
+                const counts = {
+                    review: all.filter((g) => TO_REVIEW.includes(g.state))
+                        .length,
+                    all: all.length,
+                }
+                document
+                    .querySelectorAll('#filter button')
+                    .forEach((button) => {
+                        const value = button.dataset.value
+                        button.textContent = `${value === 'review' ? 'To review' : 'All tests'} (${counts[value]})`
+                        button.ariaPressed = String(value === filter)
+                    })
+                $('groups').innerHTML = data.entries
+                    .map((entry) => {
+                        const items = entry.groups.filter((g) =>
+                            groups.includes(g),
+                        )
+                        if (items.length === 0) return ''
+                        return (
+                            `<h2>${esc(entry.key)}</h2>` +
+                            items
+                                .map(
+                                    (g) =>
+                                        `<a href="#${esc(groupId(g))}" data-id="${esc(groupId(g))}" class="state-${g.state}${groupId(g) === selected ? ' selected' : ''}" title="${g.state === 'ok' ? '' : g.state}"><span class="dot"></span>${esc(g.name)}</a>`,
+                                )
+                                .join('')
+                        )
+                    })
+                    .join('')
+                if (!groups.length) {
+                    $('groups').innerHTML =
+                        '<p class="empty">Nothing to review.</p>'
+                }
+                renderGroup(
+                    data.entries
+                        .flatMap((e) => e.groups)
+                        .find((g) => groupId(g) === selected),
+                )
+                // The case the url names, once.
+                if (target) {
+                    document
+                        .querySelector(
+                            `.case[data-case="${CSS.escape(target)}"]`,
+                        )
+                        ?.scrollIntoView({ block: 'start' })
+                    hovered = target
+                    drawAreas()
+                    target = undefined
+                }
+            }
+
+            function descriptionHtml(d) {
+                if (!d) return '<p class="detail">No description.</p>'
+                return (
+                    `<p class="checks"><span class="label">Checks</span>${esc(d.checks)}</p>` +
+                    (d.steps
+                        ? `<p class="steps"><span class="label">Steps</span>${esc(d.steps)}</p>`
+                        : '') +
+                    (d.shows
+                        ? `<p class="shows"><span class="label">Shows</span>${esc(d.shows)}</p>`
+                        : '')
+                )
+            }
+
+            // An image (its url) with the cases' areas drawn over it.
+            // The style that lays an image out at its size (pixels) before it
+            // loads: no wider than its own width, or than its height allows
+            // (maxHeight, a CSS length); max-width keeps it in its column.
+            const sized = (size, maxHeight) =>
+                size
+                    ? `style="width: min(${size.width}px, calc(${maxHeight} * ${size.width / size.height})); aspect-ratio: ${size.width} / ${size.height}"`
+                    : ''
+
+            function frame(src, label, size) {
+                if (!src)
+                    return `<figure><figcaption>${label}</figcaption><div class="frame"><div class="missing">none</div></div></figure>`
+                return `<figure><figcaption>${label}</figcaption><div class="frame"><img src="${src}" ${sized(size, '(100vh - 120px)')} onload="overlay(this)" /><svg data-areas preserveAspectRatio="none"></svg></div></figure>`
+            }
+
+            // An image (its url) on its own.
+            const crop = (src, label, size) =>
+                `<figure><figcaption>${label}</figcaption>${src ? `<img src="${src}" ${sized(size, '60vh')} />` : '<div class="missing">none</div>'}</figure>`
+
+            // An image's pictures, in figures (frame or crop): its committed
+            // reference, its uncommitted image and their diff (odiff's from
+            // the run, or drawn here), or the reference alone if nothing
+            // differs.
+            function pictures(image, figure) {
+                const committed = image.committed
+                    ? committedFile(image.reference)
+                    : undefined
+                // Unchanged: the file in screenshots/ is the committed one.
+                if (image.state === 'ok')
+                    return figure(
+                        file(image.reference),
+                        'Reference',
+                        image.committedSize,
+                    )
+                const current = image.current ? file(image.current) : undefined
+                return (
+                    figure(committed, 'Committed', image.committedSize) +
+                    figure(
+                        current,
+                        image.approved ? 'Not committed' : 'This run',
+                        image.currentSize,
+                    ) +
+                    (image.diff
+                        ? figure(file(image.diff), 'Diff', image.diffSize)
+                        : committed && current
+                          ? `<figure><figcaption>Diff</figcaption><canvas data-a="${committed}" data-b="${current}" ${sized(image.committedSize, '60vh')}></canvas></figure>`
+                          : '')
+                )
+            }
+
+            // Draws the diffs the run has none for: the committed image faded,
+            // and the pixels that differ in red.
+            function drawDiffs() {
+                document
+                    .querySelectorAll('canvas[data-a]')
+                    .forEach(async (canvas) => {
+                        const load = (src) =>
+                            new Promise((resolve, reject) => {
+                                const img = new Image()
+                                img.onload = () => resolve(img)
+                                img.onerror = reject
+                                img.src = src
+                            })
+                        const [a, b] = await Promise.all([
+                            load(canvas.dataset.a),
+                            load(canvas.dataset.b),
+                        ])
+                        if (a.width !== b.width || a.height !== b.height) {
+                            canvas.replaceWith(
+                                Object.assign(document.createElement('p'), {
+                                    className: 'detail',
+                                    textContent: `Sizes differ: ${a.width}×${a.height} committed, ${b.width}×${b.height} now.`,
+                                }),
+                            )
+                            return
+                        }
+                        canvas.width = a.width
+                        canvas.height = a.height
+                        const context = canvas.getContext('2d')
+                        const pixels = (img) => {
+                            context.drawImage(img, 0, 0)
+                            return context.getImageData(0, 0, a.width, a.height)
+                        }
+                        const before = pixels(a)
+                        const after = pixels(b)
+                        const out = context.createImageData(a.width, a.height)
+                        for (let i = 0; i < out.data.length; i += 4) {
+                            const differs = [0, 1, 2, 3].some(
+                                (c) => before.data[i + c] !== after.data[i + c],
+                            )
+                            const gray =
+                                (before.data[i] +
+                                    before.data[i + 1] +
+                                    before.data[i + 2]) /
+                                3
+                            out.data.set(
+                                differs
+                                    ? [230, 0, 0, 255]
+                                    : [gray, gray, gray, 60],
+                                i,
+                            )
+                        }
+                        context.putImageData(out, 0, 0)
+                    })
+            }
+
+            // Draws the case areas once the image's size is known.
+            function overlay(img) {
+                const svg = img.parentElement.querySelector('svg[data-areas]')
+                if (!svg) return
+                svg.setAttribute(
+                    'viewBox',
+                    `0 0 ${img.naturalWidth} ${img.naturalHeight}`,
+                )
+                place(img)
+                drawAreas()
+            }
+
+            // Puts a frame's overlays (the areas, the slider's top image)
+            // over its image's box.
+            function place(img) {
+                const box = {
+                    left: `${img.offsetLeft}px`,
+                    top: `${img.offsetTop}px`,
+                    width: `${img.offsetWidth}px`,
+                    height: `${img.offsetHeight}px`,
+                }
+                img.parentElement
+                    .querySelectorAll(':scope > svg, :scope > .top')
+                    .forEach((el) => Object.assign(el.style, box))
+            }
+            window.addEventListener('resize', () =>
+                document.querySelectorAll('.frame > img').forEach(place),
+            )
+
+            function drawAreas() {
+                const group = current()
+                if (!group) return
+                document.querySelectorAll('svg[data-areas]').forEach((svg) => {
+                    svg.innerHTML = group.cases
+                        .map((c) => {
+                            const a = c.area
+                            if (!a) return ''
+                            const on = hovered === c.id
+                            return `<rect x="${a.x}" y="${a.y}" width="${a.width}" height="${a.height}" fill="${on ? 'rgba(10,102,216,0.12)' : 'none'}" stroke="var(--area)" stroke-width="${on ? 6 : 2}" stroke-dasharray="${on ? '' : '10 8'}" rx="8"/>`
+                        })
+                        .join('')
+                })
+            }
+
+            const current = () =>
+                data.entries
+                    .flatMap((e) => e.groups)
+                    .find((g) => groupId(g) === selected)
+
+            // A case's description, as in the case list.
+            function caseDescription(c, committed) {
+                if (!c.description) return ''
+                // What it said before, if its description changed.
+                const before =
+                    committed !== undefined &&
+                    JSON.stringify(committed) !== JSON.stringify(c.description)
+                        ? `<details class="detail"><summary>${committed ? 'Committed description' : 'No committed description'}</summary>${committed ? caseDescription({ description: committed }) : ''}</details>`
+                        : ''
+                return (
+                    `<p class="checks">${esc(c.description.checks)}</p>` +
+                    (c.description.steps
+                        ? `<p class="steps"><span class="label">Steps</span>${esc(c.description.steps)}</p>`
+                        : '') +
+                    `<p class="shows"><span class="label">Shows</span>${esc(c.description.shows)}</p>` +
+                    before
+                )
+            }
+
+            // A group's descriptions change: from the run (not approved) or
+            // in descriptions.json (not committed), with what was committed.
+            function descriptionsChange(g) {
+                const d = g.descriptions
+                if (d.state === 'ok') return ''
+                return `<p class="detail">Descriptions ${d.state === 'new' ? 'new' : d.state === 'removed' ? 'removed' : 'changed'} (${d.approved ? 'not committed' : 'not approved'})${
+                    d.committed?.description &&
+                    JSON.stringify(d.committed.description) !==
+                        JSON.stringify(g.description)
+                        ? `</p><details class="detail"><summary>Committed group description</summary>${descriptionHtml(d.committed.description)}</details>`
+                        : '</p>'
+                }`
+            }
+            // A group's descriptions to approve, or to undo.
+            const descriptionsPending = (g) =>
+                g.descriptions.state !== 'ok' &&
+                !g.descriptions.approved &&
+                !!g.runDescriptions
+            const descriptionsApproved = (g) => g.descriptions.approved
+
+            // A state's badge (none when nothing differs).
+            const badge = (state, className = '') =>
+                state === 'ok'
+                    ? ''
+                    : `<span class="badge ${className}">${state}</span>`
+            // An image's change: from the run, to approve, or approved (in
+            // screenshots/) and not committed, to undo.
+            const pending = (image) =>
+                !!image && !image.approved && !!image.current
+            const change = (image) =>
+                !image || image.state === 'ok'
+                    ? ''
+                    : `<span class="detail">${image.approved ? 'not committed' : 'not approved'}</span>`
+            // A group's images.
+            const images = (g) =>
+                [g.whole, ...g.cases.map((c) => c.image)].filter(Boolean)
+            // A case's status, unless it passed (or the run didn't have it).
+            const status = (c) =>
+                c.status && c.status !== 'OK'
+                    ? `<span class="status">${esc(c.status)}</span>`
+                    : ''
+
+            // A case's committed description, if its group's descriptions
+            // changed (null: none was committed).
+            const committedOf = (g, c) =>
+                g.descriptions.state === 'ok'
+                    ? undefined
+                    : (g.descriptions.committed?.cases?.[c.id] ?? null)
+
+            // A case of a group (g): its description, then its pictures.
+            function caseRow(c, g) {
+                const approvable = g.approvable
+                const image = c.image
+                return `<div class="case" data-case="${esc(c.id)}">
+                    <div class="head"><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${image ? badge(image.state, `state-${image.state}`) : ''}${change(image)}${status(c)}${approvable && pending(image) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}${image?.approved ? `<button data-undo="${esc(c.id)}">Undo</button>` : ''}</div>
+                    ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
+                    ${caseDescription(c, committedOf(g, c))}
+                    ${
+                        image
+                            ? `<div class="crops">${pictures(image, crop)}</div>`
+                            : '<p class="detail">No screenshot to compare.</p>'
+                    }
+                </div>`
+            }
+
+            function renderGroup(g) {
+                if (!g) {
+                    $('main').innerHTML = '<p class="empty">Select a group.</p>'
+                    return
+                }
+                const w = g.whole
+                let layout
+                if (w) {
+                    const switchable = w.state === 'differs' && !!w.current
+                    const images =
+                        (switchable
+                            ? `<div class="segmented" id="mode"><button data-value="side" aria-pressed="${mode === 'side'}">Side by side</button><button data-value="slider" aria-pressed="${mode === 'slider'}">Slider</button></div>`
+                            : '') +
+                        (switchable && mode === 'slider'
+                            ? `<figure class="slider"><figcaption>Committed ← → ${w.approved ? 'not committed' : 'this run'}</figcaption><div class="frame"><img src="${committedFile(w.reference)}" ${sized(w.committedSize, '(100vh - 120px)')} onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.current)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
+                            : pictures(w, frame))
+                    const cases = g.cases
+                        .map(
+                            (c) => `<div class="case" data-case="${esc(c.id)}">
+                            <div class="head"><a class="id" href="#${esc(groupId(g))}/${esc(c.id)}">${esc(c.id)}</a>${status(c)}</div>
+                            ${caseDescription(c, committedOf(g, c))}
+                        </div>`,
+                        )
+                        .join('')
+                    layout = `<div class="layout">
+                        <div class="images">${images}</div>
+                        <div class="cases">${cases || '<p class="detail">No cases reported.</p>'}</div>
+                    </div>`
+                } else {
+                    // By case: the whole screenshot for context (if the run
+                    // has it), each case compared on its own.
+                    const cases =
+                        g.cases.map((c) => caseRow(c, g)).join('') ||
+                        '<p class="detail">No cases reported.</p>'
+                    layout = g.shot
+                        ? `<div class="layout by-case">
+                        <div class="images">${frame(file(g.shot), 'This run', g.shotSize)}</div>
+                        <div class="cases">${cases}</div>
+                    </div>`
+                        : `<div class="cases">${cases}</div>`
+                }
+                $('main').innerHTML = `
+                    <div class="title state-${g.state}">
+                        <h2>${esc(g.key)} / ${esc(g.name)}</h2>
+                        ${badge(g.state)}${w ? change(w) : ''}
+                        ${g.approvable && (images(g).some(pending) || descriptionsPending(g)) ? `<button class="primary" id="approve">${w ? 'Approve' : 'Approve all'} (a)</button>` : ''}
+                        ${images(g).some((image) => image.approved) || descriptionsApproved(g) ? `<button id="undo">${w ? 'Undo' : 'Undo all'} (u)</button>` : ''}
+                    </div>
+                    ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
+                    ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
+                    <div class="description">${descriptionHtml(g.description)}${descriptionsChange(g)}</div>
+                    ${layout}
+                    ${g.samples.length ? `<h3>Video samples</h3><div class="samples">${g.samples.map((s) => `<video src="${file(s)}" controls muted loop></video>`).join('')}</div>` : ''}
+                `
+                $('approve')?.addEventListener('click', () =>
+                    send('approve', [g]),
+                )
+                $('undo')?.addEventListener('click', () => send('undo', [g]))
+                document
+                    .querySelectorAll('[data-approve]')
+                    .forEach((el) =>
+                        el.addEventListener('click', () =>
+                            send('approve', [g], el.dataset.approve),
+                        ),
+                    )
+                document
+                    .querySelectorAll('[data-undo]')
+                    .forEach((el) =>
+                        el.addEventListener('click', () =>
+                            send('undo', [g], el.dataset.undo),
+                        ),
+                    )
+                drawDiffs()
+                const split = $('split')
+                if (split) {
+                    const set = () =>
+                        ($('top').style.clipPath =
+                            `inset(0 0 0 ${split.value}%)`)
+                    split.addEventListener('input', set)
+                    set()
+                }
+                document.querySelectorAll('.case').forEach((el) => {
+                    el.addEventListener('mouseenter', () => {
+                        hovered = el.dataset.case
+                        drawAreas()
+                    })
+                    el.addEventListener('mouseleave', () => {
+                        hovered = undefined
+                        drawAreas()
+                    })
+                })
+            }
+
+            // Approves the groups' images from the run (copies them into
+            // screenshots/), or one case's (id), or undoes approvals that
+            // aren't committed (action: approve or undo). Says why the
+            // server refused, if it did.
+            async function send(action, groups, id) {
+                const errors = []
+                for (const g of groups) {
+                    const response = await fetch(`/api/${action}`, {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ key: g.key, name: g.name, id }),
+                    })
+                    if (!response.ok)
+                        errors.push(`${g.name}: ${await response.text()}`)
+                }
+                $('error').textContent = errors.length
+                    ? `Not done: ${errors.join('; ')}`
+                    : ''
+                await refresh()
+            }
+
+            function move(step) {
+                const groups = shownGroups()
+                const i = groups.findIndex((g) => groupId(g) === selected)
+                const next =
+                    groups[Math.min(groups.length - 1, Math.max(0, i + step))]
+                if (next) location.hash = groupId(next)
+            }
+
+            // The url's hash changed (a group or case link, j/k, back or
+            // forward): show what it names.
+            window.addEventListener('hashchange', () => {
+                ;({ group: selected, id: target } = fromHash())
+                render()
+                document
+                    .querySelector('#groups a.selected')
+                    ?.scrollIntoView({ block: 'nearest' })
+                if (!target) $('main').scrollTop = 0
+            })
+            $('filter').addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-value]')
+                if (!button) return
+                filter = button.dataset.value
+                store('filter', filter)
+                render()
+            })
+            $('main').addEventListener('click', (e) => {
+                const button = e.target.closest('#mode button[data-value]')
+                if (!button) return
+                mode = button.dataset.value
+                store('mode', mode)
+                render()
+            })
+            // The groups with images from the run to approve.
+            const toApprove = () =>
+                data.entries
+                    .flatMap((e) => e.groups)
+                    .filter(
+                        (g) =>
+                            g.approvable &&
+                            (images(g).some(pending) || descriptionsPending(g)),
+                    )
+            $('approve-all').addEventListener('click', () => {
+                const groups = toApprove()
+                const count = groups.flatMap(images).filter(pending).length
+                const described = groups.filter(descriptionsPending).length
+                if (
+                    confirm(
+                        `Copy ${count} images${described ? ` and the descriptions of ${described} groups` : ''} (${groups.length} groups) into screenshots/?`,
+                    )
+                )
+                    send('approve', groups)
+            })
+            document.addEventListener('keydown', (e) => {
+                if (e.target.closest('input')) return
+                // Not the browser's own shortcuts (Cmd+A selects all).
+                if (e.metaKey || e.ctrlKey || e.altKey) return
+                if (e.key === 'j' || e.key === 'ArrowDown') move(1)
+                else if (e.key === 'k' || e.key === 'ArrowUp') move(-1)
+                else if (e.key === 'a') $('approve')?.click()
+                else if (e.key === 'u') $('undo')?.click()
+                else return
+                e.preventDefault()
+            })
+            refresh()
+        </script>
+    </body>
+</html>

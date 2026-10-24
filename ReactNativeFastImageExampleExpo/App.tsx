@@ -35,7 +35,11 @@ function ExpoImageCase() {
             <CaseStatus
                 id="expo-image"
                 status={status}
-                description="expo-image's Image loads, in the same app as FastImage"
+                description={{
+                    checks: "expo-image's Image loads in the same app as FastImage. On Android both use Glide, and the app's AppGlideModule is expo-image's (FastImage leaves its own out), so expo-image keeps its own setup.",
+                    steps: "Loads a 120×120 photo of a bear on rocks from the image server with expo-image's Image (a new url each run). Passes on onLoad; onError fails.",
+                    shows: 'The bear photo in a small square.',
+                }}
             />
         </View>
     )
@@ -43,7 +47,13 @@ function ExpoImageCase() {
 
 const GROUPS: RegressionGroup[] = [
     ...SMOKE_GROUPS,
-    { name: 'expo-image', cases: [<ExpoImageCase key="expo-image" />] },
+    {
+        name: 'expo-image',
+        description: {
+            checks: 'expo-image works next to FastImage in the same app.',
+        },
+        cases: [<ExpoImageCase key="expo-image" />],
+    },
 ]
 
 // FastImage in an Expo app (iOS, Android and the web), next to expo-image:

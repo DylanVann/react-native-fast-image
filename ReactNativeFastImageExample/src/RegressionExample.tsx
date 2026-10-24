@@ -16,6 +16,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableWithoutFeedback,
@@ -34,10 +35,16 @@ import FastImage, {
     Source,
     Transition,
 } from 'react-native-fast-image'
-import { CaseStatus, caseStyles } from './CaseStatus'
+import {
+    CaseStatus,
+    caseStyles,
+    DescriptionText,
+    DetailsContext,
+} from './CaseStatus'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
+    Description,
     InRunnerContext,
     Masked,
     measureView,
@@ -46,13 +53,14 @@ import {
     sampleStatus,
 } from './RunnerContext'
 
-// Cases for bugs that have been fixed. Each shows "<id>: OK" once its expected
-// event arrives. They're in REGRESSION_GROUPS, which the regression runner
-// (RegressionRunner.tsx) shows a group at a time and reports over a WebSocket
-// to scripts/verify.mts (which taps the `touch` group's cases with
-// maestro/touch.yaml); the Regression tab shows all of them at once for a look
-// by hand, plus the cases that send the app to the background
-// (maestro/background.yaml). A crash fails the run because the app is gone.
+// Cases for bugs that have been fixed. Each reports OK once its expected event
+// arrives (the Regression tab shows "<id>: OK"). They're in REGRESSION_GROUPS,
+// which the regression runner (RegressionRunner.tsx) shows a group at a time
+// and reports over a WebSocket to scripts/verify.mts (which taps the `touch`
+// group's cases with maestro/touch.yaml); the Regression tab shows all of
+// them at once for a look by hand, plus the cases that send the app to the
+// background (maestro/background.yaml). A crash fails the run because the app
+// is gone.
 
 // In debug builds, Android only resolves a defaultSource that's bundled as a
 // drawable (require() images come from Metro instead), so use one the app
@@ -77,7 +85,7 @@ function EventCase({
     ...props
 }: {
     id: string
-    description: string
+    description: Description
     event: EventName
     removeAfter?: boolean
 } & FastImageProps) {
@@ -110,7 +118,7 @@ function NoCrashCase({
     children,
 }: {
     id: string
-    description: string
+    description: Description
     onMount?: () => void
     children?: React.ReactNode
 }) {
@@ -158,7 +166,11 @@ function LayoutCase({ id }: { id: string }) {
                           ? 'waiting'
                           : `x=${x}`
                 }
-                description="#992: onLayout reports the position in the parent"
+                description={{
+                    checks: "onLayout reports the image's position in its parent (#992: it came from the inner native view, which reported 0).",
+                    steps: 'Loads the logo with marginLeft: 10 and onLayout. Passes once the image has loaded and onLayout has reported x = 10.',
+                    shows: 'The React logo (light blue) on a gray square, 10 dp in from the left.',
+                }}
             />
         </View>
     )
@@ -229,7 +241,11 @@ function RefMeasureCase() {
             <CaseStatus
                 id="ref-measure"
                 status={status}
-                description="#1254: measure and measureInWindow through FastImage's and FastImageBackground's refs give their views' sizes"
+                description={{
+                    checks: "measure and measureInWindow, called through FastImage's and FastImageBackground's refs, report the size of the view the image fills (#1254 typed these refs; this checks they reach that view).",
+                    steps: 'Loads the logo in a 48×48 FastImage and a 96×48 FastImageBackground, each with a ref. Once both have loaded, calls measure and measureInWindow through each ref. Passes if they report 48x48, 48x48, 96x48 and 96x48.',
+                    shows: 'The React logo on a gray square, then the logo in a wide box, scaled up to its width and cropped at the top and bottom (cover).',
+                }}
             />
         </View>
     )
@@ -254,7 +270,7 @@ function ClearTintCase() {
                 source={{ uri: LOGO }}
             />
             <FastImage
-                style={[styles.image, { marginLeft: 4 }]}
+                style={[styles.image, { marginLeft: 8 }]}
                 objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor={tinted ? 'green' : undefined}
@@ -263,7 +279,11 @@ function ClearTintCase() {
             <CaseStatus
                 id="clear-tint"
                 status={done ? 'OK' : 'waiting'}
-                description="#586: tintColor removed after load (should match the left image)"
+                description={{
+                    checks: 'tintColor removed after the image has loaded shows it untinted again (#586: iOS kept the tint).',
+                    steps: 'Loads the logo twice: the right one with tintColor green, removed in its onLoad. Passes 500 ms later.',
+                    shows: 'Two identical light blue React logos. A green right one is the bug.',
+                }}
             />
         </View>
     )
@@ -285,7 +305,11 @@ function TouchableCase() {
             <CaseStatus
                 id="touchable"
                 status={pressed ? 'OK' : 'tap the image'}
-                description="#1020: FastImage as a Touchable's direct child (iOS crashed)"
+                description={{
+                    checks: "FastImage as a Touchable's direct child, which passes its onClick to the image (#1020: iOS crashed with an unrecognized selector, setOnClick:).",
+                    steps: 'Shows the logo inside a TouchableWithoutFeedback; the touch flow taps the image. Passes when onPress fires.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
             />
         </View>
     )
@@ -313,7 +337,11 @@ function PointerEventsCase() {
             <CaseStatus
                 id="pointer-events"
                 status={pressed ? 'OK' : 'tap the image'}
-                description='#393: pointerEvents="none" lets touches through'
+                description={{
+                    checks: 'pointerEvents="none" on FastImage lets touches through to the view under it (#393: the prop went to the image inside FastImage\'s wrapper, which still took the touch).',
+                    steps: 'Shows the logo with pointerEvents="none" over a Pressable of the same size; the touch flow taps there. Passes when the Pressable gets the press.',
+                    shows: 'The React logo (light blue) on the gray square (the Pressable under it).',
+                }}
             />
         </View>
     )
@@ -341,7 +369,11 @@ function PointerEventsBoxNoneCase() {
             <CaseStatus
                 id="pointer-events-box-none"
                 status={pressed ? 'OK' : 'tap the image'}
-                description='pointerEvents="box-none" lets touches through (a single view has nothing else to touch)'
+                description={{
+                    checks: 'pointerEvents="box-none" on FastImage lets touches through to the view under it: FastImage is a single view without children, so there\'s nothing left to touch.',
+                    steps: 'Shows the logo with pointerEvents="box-none" over a Pressable of the same size; the touch flow taps there. Passes when the Pressable gets the press.',
+                    shows: 'The React logo (light blue) on the gray square (the Pressable under it).',
+                }}
             />
         </View>
     )
@@ -366,7 +398,11 @@ function AccessibleCase() {
             <CaseStatus
                 id="accessible"
                 status={pressed ? 'OK' : 'tap the image'}
-                description="an accessibilityLabel and responder props on FastImage's own view: found by its label and touched"
+                description={{
+                    checks: "accessibilityLabel and the responder props (onStartShouldSetResponder, onResponderRelease) work on FastImage's own view: it can be found by its label and touched.",
+                    steps: 'Shows the logo with accessible, an accessibilityLabel and responder props; the touch flow finds it by that label and taps it. Passes on onResponderRelease.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
             />
         </View>
     )
@@ -390,7 +426,11 @@ function AriaLabelCase() {
             <CaseStatus
                 id="aria-label"
                 status={pressed ? 'OK' : 'tap the image'}
-                description="aria-label is the image's accessibility label: found by it and touched (it had none)"
+                description={{
+                    checks: "aria-label is the image's accessibility label (React Native's views don't read the aria props, so FastImage maps them; before, the image had no label).",
+                    steps: 'Shows the logo with aria-label and responder props; the touch flow finds it by that label and taps it. Passes on onResponderRelease.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
             />
         </View>
     )
@@ -421,7 +461,11 @@ function HitSlopCase() {
             <CaseStatus
                 id="hit-slop"
                 status={pressed ? 'OK' : 'tap beside the image'}
-                description="hitSlop: a touch beside the image (the gray square, inside its slop) reaches it"
+                description={{
+                    checks: 'hitSlop on FastImage: a touch beside the image, inside its slop, reaches it.',
+                    steps: 'Shows the logo with hitSlop={{ right: 40 }} and responder props, and a small gray square to its right (pointerEvents="none") inside the slop; the touch flow taps the square. Passes when the image gets onResponderRelease.',
+                    shows: 'The React logo (light blue) on the gray square, then a smaller, slightly darker gray square to its right (the tap target).',
+                }}
             />
         </View>
     )
@@ -460,7 +504,11 @@ function FocusCase() {
                         ? 'OK'
                         : `focus with Tab (${events.join(', ') || 'none yet'})`
                 }
-                description="a focusable image gets onFocus and onBlur as keyboard focus moves to it and on"
+                description={{
+                    checks: 'A focusable FastImage gets onFocus and onBlur as keyboard focus moves to it and on (Android only: on iOS React Native sends them only for focus moved from code).',
+                    steps: 'Shows a text field (without the soft keyboard), the logo with focusable, onFocus and onBlur, and a 1-point focusable view after it. The touch flow taps the text field and presses Tab twice, moving focus to the image and on. Passes once onFocus, then onBlur, fired.',
+                    shows: 'An empty text field (a white square with a gray border), then the React logo (light blue) on the gray square.',
+                }}
             />
         </View>
     )
@@ -505,7 +553,7 @@ function ObjectFitChangeCropCase() {
         <View style={styles.row}>
             <FastImage style={styles.image} objectFit="contain" source={WIDE} />
             <FastImage
-                style={[styles.image, { marginLeft: 4 }]}
+                style={[styles.image, { marginLeft: 8 }]}
                 objectFit={fit}
                 source={WIDE}
                 onLoad={() => setFit('contain')}
@@ -513,7 +561,11 @@ function ObjectFitChangeCropCase() {
             <CaseStatus
                 id="fit-change"
                 status={done ? 'OK' : 'waiting'}
-                description="#762: objectFit changed from cover to contain after load (should match the left image)"
+                description={{
+                    checks: 'objectFit changed from cover to contain after the image has loaded (#762: Android kept showing the cover crop).',
+                    steps: 'Loads a 600×300 photo in two squares: the left with objectFit="contain", the right with cover, switched to contain in its onLoad (the same source object throughout: a new one reloaded the image, which hid the bug). Passes 750 ms later.',
+                    shows: 'Two identical photos of green cliffs, letterboxed: gray above and below. A right one that fills its square is the bug.',
+                }}
             />
         </View>
     )
@@ -558,7 +610,11 @@ function NoReloadCase() {
                           ? 'OK'
                           : `reloaded ${reloads} times`
                 }
-                description="Unrelated prop changes don't reload the image (Android did)"
+                description={{
+                    checks: "Changing a prop that doesn't affect loading doesn't load the image again (Android reloaded it on every prop update).",
+                    steps: "Loads a 600x300 photo; once it has loaded, changes accessibilityLabel every 200 ms for a second. Passes if onLoadStart didn't fire again.",
+                    shows: 'A photo of green hills, cropped to the square.',
+                }}
             />
         </View>
     )
@@ -590,7 +646,11 @@ function SourceSwapCase() {
             <CaseStatus
                 id="source-swap"
                 status={index === SWAPS && loaded ? 'OK' : 'waiting'}
-                description="#384: changing source keeps loading (Android leaked the view)"
+                description={{
+                    checks: 'Changing source over and over keeps loading each new image (#384: Android kept the view in its progress list under every url it had loaded, which kept the view and its Activity alive).',
+                    steps: 'Loads three 120x120 photos in turn in one view, moving to the next on each onLoad, four times, so it ends on the second. Passes when the last one loads.',
+                    shows: 'A black and white photo of a misty forest.',
+                }}
             />
         </View>
     )
@@ -618,7 +678,11 @@ function LoadStartOnceCase() {
                           ? 'OK'
                           : `onLoadStart fired ${loadStarts} times`
                 }
-                description="onLoadStart fires once per load (iOS sent it twice)"
+                description={{
+                    checks: 'onLoadStart fires once per load (iOS sent it twice when source and onLoadStart were set in the same update).',
+                    steps: 'Loads a 200x200 photo with onLoadStart and onLoad set from the first render. Passes once onLoad has fired, if onLoadStart fired once.',
+                    shows: 'A photo of a pug wrapped in a blanket.',
+                }}
             />
         </View>
     )
@@ -649,7 +713,11 @@ function PreloadCase() {
             <CaseStatus
                 id="preload"
                 status={loaded ? 'OK' : 'waiting'}
-                description="FastImage.preload, then show the image"
+                description={{
+                    checks: 'FastImage.preload, then a view of the same image, which loads.',
+                    steps: "Preloads a photo, and half a second later shows it in a view. Passes on the view's onLoad.",
+                    shows: 'A photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -688,7 +756,11 @@ function PreloadHeadersCase() {
             <CaseStatus
                 id="preload-headers"
                 status={result}
-                description="#571: preload headers aren't sent with other images (iOS sent them with every later request)"
+                description={{
+                    checks: "Headers given to FastImage.preload aren't sent with other images (#571: iOS set them on the shared downloader, so every later request sent them).",
+                    steps: 'Preloads an image with the header x-token, then half a second later shows another image from a url the server answers with a 400 if the request has an x-token header. Passes on onLoad; onError fails it.',
+                    shows: "A green aurora over a tree. An empty gray square means the image's request had the preload's header (the server answers it with a 400).",
+                }}
             />
         </View>
     )
@@ -736,7 +808,11 @@ function PreloadInvalidHeadersCase() {
             <CaseStatus
                 id="headers-invalid-preload"
                 status={status}
-                description="preload with headers null, an array, or values that aren't strings loads, and sends the string ones (Android crashed)"
+                description={{
+                    checks: "FastImage.preload with headers: null, headers as an array, or header values that aren't strings preloads each source, and sends the string headers (Android crashed).",
+                    steps: "Preloads three sources: the logo with headers: null; the logo with headers: ['x-token']; a photo from the /private/ path (403 without x-token: fast-image) with a string x-token next to a null and an object value. Passes when every result is ok.",
+                    shows: 'An empty gray square: preload shows no image.',
+                }}
             />
         </View>
     )
@@ -819,7 +895,11 @@ function NoHandlersCase() {
             <CaseStatus
                 id="no-handlers"
                 status={status}
-                description="Images without event handlers send no events to JS"
+                description={{
+                    checks: 'Images without event handlers send no events to JS (they sent onLoadStart, onLoad and onLoadEnd anyway, work for nothing on the JS thread).',
+                    steps: "Loads one photo in three images: the first two have no handlers, the third has onLoadEnd. Counts every Fast Image event React Native receives from the first two. Passes if, half a second after the third's onLoadEnd, none arrived.",
+                    shows: 'Three copies of the same photo (a pug in a blanket).',
+                }}
             />
         </View>
     )
@@ -827,32 +907,37 @@ function NoHandlersCase() {
 
 // Loads an image into a 60×60 view and checks onLoad reports the image's own
 // size, as iOS does. Android reported the size of the bitmap it decoded to fit
-// the view.
+// the view. An animated one is masked (its frame differs between runs).
 function SourceSizeCase({
     id,
     description,
     uri,
     width,
     height,
+    animated = false,
 }: {
     id: string
-    description: string
+    description: Description
     uri: string
     width: number
     height: number
+    animated?: boolean
 }) {
     const [size, setSize] = useState<string>()
     const expected = `${width}x${height}`
+    const image = (
+        <FastImage
+            style={styles.image}
+            objectFit="contain"
+            source={{ uri }}
+            onLoad={(e) =>
+                setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
+            }
+        />
+    )
     return (
         <View style={styles.row}>
-            <FastImage
-                style={styles.image}
-                objectFit="contain"
-                source={{ uri }}
-                onLoad={(e) =>
-                    setSize(`${e.nativeEvent.width}x${e.nativeEvent.height}`)
-                }
-            />
+            {animated ? <Masked>{image}</Masked> : image}
             <CaseStatus
                 id={id}
                 status={
@@ -904,7 +989,11 @@ function SourceSizeCachedCase() {
             <CaseStatus
                 id="source-size-cached"
                 status={!done ? 'waiting' : ok ? 'OK' : sizes.join(', ')}
-                description="onLoad reports the image's size when it comes from a cache (expected 1000x1000 three times)"
+                description={{
+                    checks: "onLoad reports the image's own size when the image comes from a cache, too.",
+                    steps: "Loads the 1000×1000 logo (on Android from the app's assets, so the third load comes from Glide's disk cache of resized images, which it only uses for local images) three times: decoded, from the memory cache, and after FastImage.clearMemoryCache(). Passes if every onLoad reported 1000x1000; the image is removed after the third.",
+                    shows: 'An empty gray square: the image is removed once its third load has been checked.',
+                }}
             />
         </View>
     )
@@ -954,8 +1043,16 @@ function WebCacheCase({ avif }: { avif?: boolean }) {
                 }
                 description={
                     avif
-                        ? 'cache web keeps an AVIF in the HTTP cache (iOS requested it again)'
-                        : "#280: cache web follows the server's caching headers (Android requested it again)"
+                        ? {
+                              checks: "cache: 'web' keeps an AVIF in the HTTP cache (iOS requested it again: SDWebImage's format check doesn't know AVIF).",
+                              steps: "Loads an AVIF of four colored quadrants with cache: 'web' from the image server's max-age/ path (cacheable for an hour), then mounts a new view that loads it again, then replaces it with an empty view. Passes if the server got one request for it.",
+                              shows: 'An empty gray square: the image view is gone by the end.',
+                          }
+                        : {
+                              checks: "cache: 'web' follows the server's caching headers (#280: Android sent every request to the network).",
+                              steps: "Loads a 200x200 photo with cache: 'web' from the image server's max-age/ path (cacheable for an hour), then mounts a new view that loads it again, then replaces it with an empty view. Passes if the server got one request for it.",
+                              shows: 'An empty gray square: the image view is gone by the end.',
+                          }
                 }
             />
         </View>
@@ -1026,7 +1123,11 @@ function WebCacheClearCase() {
                             ? 'OK'
                             : `requested ${requests} times`
                 }
-                description="clearDiskCache also clears the HTTP cache of cache web images (loaded again after clearing)"
+                description={{
+                    checks: "FastImage.clearDiskCache also clears the HTTP cache of cache: 'web' images, so the image is downloaded again (clearDiskCache left that cache, Android's and on iOS the app's shared NSURLCache, so the image came from there).",
+                    steps: "Loads a photo with cache: 'web' from a url the server marks as cacheable for an hour, then calls FastImage.clearMemoryCache and FastImage.clearDiskCache and loads it again in a new view. Passes when both clears resolved ok and the server got two requests for it.",
+                    shows: 'A photo of a pug in a blanket (the second load). An empty gray square means the second load never finished.',
+                }}
             />
         </View>
     )
@@ -1077,7 +1178,11 @@ function WebCacheClearPreloadCase() {
             <CaseStatus
                 id="web-cache-clear-preload"
                 status={status}
-                description="a cache web image preloaded right after clearDiskCache resolves is downloaded again (10 times)"
+                description={{
+                    checks: "A cache: 'web' image preloaded right after FastImage.clearDiskCache resolves is downloaded again (on iOS, the HTTP cache's removal took effect a few milliseconds after clearDiskCache resolved, and a load in that time got the old response).",
+                    steps: "Ten times, with a new url each time that the server marks as cacheable for an hour: preloads the photo with cache: 'web', clears the memory and disk caches, preloads it again as soon as the clears resolve, and asks the server how many times it was requested. Passes when every preload and clear succeeded and each url was requested twice.",
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -1142,7 +1247,11 @@ function ProgressCase() {
             <CaseStatus
                 id="progress"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
-                description="onProgress events have progress (loaded / total, 0 to 1), ending at 1"
+                description={{
+                    checks: 'onProgress events have a progress (loaded / total, 0 to 1), and the last one is 1.',
+                    steps: 'Loads a 2048x2048 photo (a new url each run) that the server sends with a Content-Length. Each onProgress must have a total above 0, loaded between 0 and the total and never going down, and progress equal to loaded / total; passes at onLoad if there was at least one and the last had everything loaded and progress 1.',
+                    shows: 'A photo of a fjord seen from a cliff.',
+                }}
             />
         </View>
     )
@@ -1169,7 +1278,11 @@ function ProgressUnknownSizeCase() {
             <CaseStatus
                 id="progress-unknown-size"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
-                description="onProgress with an unknown total (no Content-Length): none sent, or each one between 0 and the total"
+                description={{
+                    checks: 'onProgress for an image whose size is unknown (no Content-Length): none sent, or each with a real total (iOS sent a total of 0 and Android -1, so loaded / total was infinite or negative).',
+                    steps: "Loads the 2048x2048 photo from the image server's chunked/ path, which sends it without a Content-Length. Passes at onLoad if there were no onProgress events, or each had a total above 0, loaded between 0 and the total, and the last one 1.",
+                    shows: 'A photo of a fjord seen from a cliff.',
+                }}
             />
         </View>
     )
@@ -1196,7 +1309,11 @@ function ProgressGzipCase() {
             <CaseStatus
                 id="progress-gzip"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
-                description="onProgress for a gzip-compressed image: loaded never goes past the total"
+                description={{
+                    checks: 'onProgress for an image sent gzip-compressed, whose Content-Length is smaller than the image the client ends up with: loaded never goes past the total.',
+                    steps: "Loads the 2048x2048 photo from the image server's gzip/ path. Passes at onLoad if each onProgress had loaded between 0 and the total and the last one was 1 (or there were none).",
+                    shows: 'A photo of a fjord seen from a cliff.',
+                }}
             />
         </View>
     )
@@ -1312,7 +1429,11 @@ function ProgressSharedUrlCase() {
                             ? 'OK'
                             : `round ${round + 1} of ${SHARED_URL_ROUNDS}`
                 }
-                description="onProgress for images on one url while others on it mount and unmount: every image loads, with onProgress only after its onLoadStart and before its onLoad"
+                description={{
+                    checks: "onProgress for many images on one url while others on it mount and unmount: every image loads, with onProgress only after its onLoadStart and before its onLoad (Android went through the url's list of views on the download thread while the UI thread changed it, which threw and failed the download for every image; and a view that mounted while progress was waiting to be sent could get it before its own onLoadStart).",
+                    steps: 'Forty 6-point images with onProgress load one url from the slow server while ten more on that url mount and unmount every other frame, for eight rounds, a new url each round; a round ends once the forty have loaded. Passes after the eight rounds if there was no onError, each of the forty got onProgress before onLoad, never going back, ending at 1 and none after, and no mounted image got onProgress before its onLoadStart.',
+                    shows: 'Nothing: the images are removed once it has passed, leaving an empty area.',
+                }}
             />
         </View>
     )
@@ -1402,7 +1523,11 @@ function ProgressAfterLoadCase() {
                             ? 'no onProgress for the second download'
                             : 'OK'
                 }
-                description="an image gets no onProgress after its onLoad, from another image downloading its url"
+                description={{
+                    checks: "An image gets no onProgress after its onLoad when another image downloads the same url (Android sent a url's progress to every image that had loaded it, until it loaded another source).",
+                    steps: "Loads a 200x200 photo from the slow server with cache: 'web' (the slow server sends no cache headers, so it isn't cached) and onProgress; once it loads, a second image downloads the same url. Passes once the second has loaded, if it got onProgress and the first got none after its onLoad.",
+                    shows: 'Two photos of a pug wrapped in a blanket, side by side.',
+                }}
             />
         </View>
     )
@@ -1437,7 +1562,11 @@ function ProgressUrlFormCase() {
             <CaseStatus
                 id="progress-url-form"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
-                description="onProgress for a url with its scheme in capitals (HTTP://)"
+                description={{
+                    checks: 'onProgress for a url with its scheme in capitals (HTTP://) (Android looked images up by their url as written, while downloads reported it as OkHttp writes it, lowercase, so these urls got no onProgress).',
+                    steps: 'Loads a 200x200 photo from the slow server at a url starting with HTTP://. Passes at onLoad if there was at least one onProgress, each with a total above 0, loaded never going down and progress equal to loaded / total, and the last one 1.',
+                    shows: 'A photo of a pug wrapped in a blanket.',
+                }}
             />
         </View>
     )
@@ -1521,7 +1650,11 @@ function ProgressCacheKeyCase() {
                           ? 'OK'
                           : `requested ${requests} times, expected ${expected}`)
                 }
-                description="onProgress for two sizes of two urls with the same cacheKey"
+                description={{
+                    checks: "onProgress for two images of different sizes and urls with the same cacheKey, loading at the same time (Android looked images up by their own url, so the image whose url wasn't downloaded got no onProgress, and it downloaded each size).",
+                    steps: 'A 32-point and a 64-point image load the same 200x200 photo from the slow server at two urls (another query) with one cacheKey. Passes once both have loaded, if each got onProgress before its onLoad, never going back, ending at 1 and none after, and the server got one request on Android (which shares downloads by cache key) or two on iOS (SDWebImage shares them by url).',
+                    shows: 'Two photos of a pug wrapped in a blanket, small then larger, side by side.',
+                }}
             />
         </View>
     )
@@ -1585,7 +1718,11 @@ function ProgressHeldBytesCase() {
                           ? 'OK'
                           : 'no onProgress while the rest was held')
                 }
-                description="onProgress for the bytes that arrived before the server held the rest"
+                description={{
+                    checks: "onProgress comes for the bytes that have arrived while the rest of the download is held up (Android sent the progress for bytes only once the next ones arrived, so the first part's progress waited for the rest).",
+                    steps: 'Loads a 200x200 photo from the slow server, which sends the first of its 8 parts and holds the rest until the case releases it: on the first onProgress, or after 3 s. Passes once the image loads, if onProgress came before the release.',
+                    shows: 'A photo of a pug wrapped in a blanket.',
+                }}
             />
         </View>
     )
@@ -1804,7 +1941,11 @@ function PriorityLoweredCase() {
                 <CaseStatus
                     id="priority-lowered"
                     status={status}
-                    description="a waiting low-priority image that a high-priority view joined and left goes after a normal-priority one"
+                    description={{
+                        checks: "A waiting download's priority goes back down when the more urgent request that joined it leaves (Android raised it for a priority: 'high' view and kept it after the view unmounted, so a priority: 'low' image was downloaded before a normal one).",
+                        steps: "Sixteen images from the slow server start downloading and the server holds each halfway, so later downloads wait (Android runs 16 at once). Then an image with priority: 'low' waits; a view of its url with priority: 'high' mounts and, a second later, unmounts; then an image of a third url with normal priority mounts. The sixteen are released one at a time, and it passes when the server got the normal image's request before the low one's.",
+                        shows: "The grid of tiny misty forest tiles: two rows (ten, then nine), then a larger tile and a small one. A blank spot in it is an image that didn't load.",
+                    }}
                 />
             </View>
             <View style={styles.row}>
@@ -1812,7 +1953,11 @@ function PriorityLoweredCase() {
                 <CaseStatus
                     id="queued-latest-url"
                     status={latestStatus}
-                    description="a waiting download takes the latest url a request for its cacheKey asks for"
+                    description={{
+                        checks: "A download that hasn't started yet takes the latest url requested for its cacheKey, as for a signed url with a fresh token (Android requested the first url).",
+                        steps: "While the sixteen downloads above are held, an image of one url with a cacheKey waits; a second later, an image of another url with that cacheKey (at another size) mounts. Passes when both have loaded and the server got the second url's request and none for the first's.",
+                        shows: "Blank: its two images are in the first row's grid, the last tile of its second row and the larger tile below it.",
+                    }}
                 />
             </View>
             <View style={styles.row}>
@@ -1820,7 +1965,11 @@ function PriorityLoweredCase() {
                 <CaseStatus
                     id="left-url-reverted"
                     status={leftStatus}
-                    description="a waiting download goes back to the latest url left when the request that switched it leaves"
+                    description={{
+                        checks: 'When the request that switched a waiting download to its url leaves, the download goes back to the latest url of the requests left (Android kept the url of the request that had left).',
+                        steps: "While the sixteen downloads above are held, an image of one url with a cacheKey waits; a view of another url with that cacheKey mounts with the priority: 'high' view and unmounts with it. Passes when the first image has loaded and the server got its url's request and none for the url of the view that left.",
+                        shows: "Blank: its image is in the first row's grid, the small tile next to the larger one.",
+                    }}
                 />
             </View>
         </>
@@ -1934,7 +2083,11 @@ function RetryProgressCase() {
                           ? 'OK'
                           : `requested ${requests} times, expected ${expected}`)
                 }
-                description="after a cacheKey's first url fails, its other urls load from one download, with their own progress"
+                description={{
+                    checks: "After a cacheKey's first url fails, its other urls load from one download, and each image gets its own progress (Android downloaded both urls once the first had failed, and sent both downloads' progress to both images, so the slow one got 1 from the fast one's download while its own still came).",
+                    steps: 'A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of a fast url and a large image of a slow one mount with the same cacheKey, and a second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, each got onProgress 1 at most a second before its onLoad, and the server got 2 requests on Android (one download for both) or 3 on iOS (which shares downloads by url).',
+                    shows: 'Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -2030,7 +2183,11 @@ function RetryLatestUrlCase() {
             <CaseStatus
                 id="retry-latest-url"
                 status={status}
-                description="after a cacheKey's url fails, the latest of its other urls is the one downloaded"
+                description={{
+                    checks: "After a cacheKey's url fails, the retry downloads the latest of its other urls, since they're the same image (Android tried the other urls one at a time, the earliest first).",
+                    steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of another url mounts with that cacheKey, and half a second later a large image of a third url. A second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, and, on Android, the server got the latest url's request and none for the earlier one's (iOS shares downloads by url, so it downloads both).",
+                    shows: 'Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -2092,34 +2249,42 @@ function RetryNewerUrlCase() {
             {failing(0, RETRY_NEWER_FIRST, sharedStyles.small)}
             {mounted >= 1 && failing(1, RETRY_NEWER_SECOND, retryStyles.medium)}
             {mounted >= 2 && (
-                <FastImage
-                    style={sharedStyles.large}
-                    source={{
-                        uri: slowImageUrl(
-                            `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
-                        ),
-                        headers: SLOW_HEADERS,
-                        cacheKey: RETRY_NEWER_KEY,
-                    }}
-                    onLoad={() => setLoaded(true)}
-                    onError={(e) => {
-                        // Read the event now: the updater runs later.
-                        const error = String(e.nativeEvent.error)
-                        fail(`image 3: onError: ${error}`)
-                    }}
-                />
+                // Masked: it's drawn from one of two decodes, depending on how
+                // the downloads raced (the case checks requests and events).
+                <Masked>
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            cacheKey: RETRY_NEWER_KEY,
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={(e) => {
+                            // Read the event now: the updater runs later.
+                            const error = String(e.nativeEvent.error)
+                            fail(`image 3: onError: ${error}`)
+                        }}
+                    />
+                </Masked>
             )}
             <CaseStatus
                 id="retry-newer-url"
                 status={problem ?? (loaded && errors === 2 ? 'OK' : 'waiting')}
-                description="a newer url that joins a cacheKey's retry is downloaded when the retry fails"
+                description={{
+                    checks: "A newer url that joins a cacheKey's retry is downloaded when the retry fails too (Android retried a failed download once, so the newer url was never requested).",
+                    steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); a medium image of a second missing url mounts with that cacheKey, and the first 404 is sent, so the retry downloads the second url (also held). While it's held, a large image of a url that works mounts with the cacheKey, then the second 404 is sent. Passes when the first two have had onError and the large one has loaded.",
+                    shows: "Blank space twice (32 and 48 points, the two urls that 404), then a large (64-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes.",
+                }}
             />
         </View>
     )
 }
 
 const retryStyles = StyleSheet.create({
-    medium: { width: 45, height: 45 },
+    medium: { width: 48, height: 48 },
 })
 
 // Twenty images from the slow server, each its own url, load with normal
@@ -2210,7 +2375,11 @@ function DownloadPriorityCase() {
             <CaseStatus
                 id="download-priority"
                 status={status}
-                description="a high-priority image loading after twenty others is downloaded before at least eight of them"
+                description={{
+                    checks: "A priority: 'high' image that starts loading after twenty others is downloaded before most of them (Android handed 16 downloads to OkHttp at once, which sends them in the order they came, so the high one was 17th).",
+                    steps: "Twenty images from the slow server, each its own url, load with normal priority, and the server holds their responses. Once it has their first request, one more image loads with priority: 'high', and half a second later the server sends the responses. Passes when all have loaded and at most 12 of the twenty were requested before the high one (those the platform sends at once, 5 or 6, and some started with it).",
+                    shows: 'Twenty-one tiny tiles of the same photo (a bear on rocks, under a pale sky): two rows of ten, then one. A blank spot is an image that failed.',
+                }}
             />
         </View>
     )
@@ -2285,7 +2454,11 @@ function SharedDownloadSizesCase() {
                           ? 'OK'
                           : `requested ${requests} times`)
                 }
-                description="two sizes of one url loading at the same time share one download"
+                description={{
+                    checks: 'Two images of one url at different sizes, loading at the same time, share one download, and each gets onProgress up to 1 (Glide only shares a download between requests for the same size, so Android downloaded it twice).',
+                    steps: 'Loads the photo from the slow server in a 32-point and a 64-point image at once. Passes when both have loaded, the last onProgress each got before its onLoad was 1, and the server got one request.',
+                    shows: 'A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side.',
+                }}
             />
         </View>
     )
@@ -2357,7 +2530,11 @@ function SharedDownloadCancelCase() {
                           ? 'OK'
                           : `requested ${requests} times`)
                 }
-                description="a shared download goes on for the other image when one of them unmounts"
+                description={{
+                    checks: 'A download shared by two images goes on for one of them when the other unmounts.',
+                    steps: 'Loads one url from the slow server in a small and a large image; the server holds it halfway. Once both have had onProgress, the small one unmounts and the server sends the rest. Passes when the large one has loaded and the server got one request.',
+                    shows: 'Blank space where the small image was, then the large (64-point) photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -2399,7 +2576,11 @@ function SharedDownloadErrorCase() {
                             ? 'waiting'
                             : 'OK'
                 }
-                description="two sizes of a url that 404s both get onError with the status"
+                description={{
+                    checks: 'Two images of one url that 404s, at different sizes and loading at the same time, both get onError with the status in their error.',
+                    steps: 'Loads a missing image from the slow server in a small and a large image at once. Passes when both have had onError and both errors mention 404 (onLoad fails it).',
+                    shows: 'Blank space: the two images (32 and 64 points) have no background and nothing loads.',
+                }}
             />
         </View>
     )
@@ -2489,7 +2670,11 @@ function SharedDownloadRetryCase() {
             <CaseStatus
                 id="shared-download-retry"
                 status={problem ?? (firstDone && loaded ? 'OK' : 'waiting')}
-                description="an image whose url works loads when another url with its cacheKey 404s"
+                description={{
+                    checks: "An image whose url works loads when another url with the same cacheKey 404s, and the image of that url gets onError (on Android, which shares downloads by cacheKey, the second image's request joins the first's download and is retried with its own url once that fails).",
+                    steps: 'A small image loads a missing url from the slow server with a cacheKey; once the server has the request it holds the 404, a large image of the photo with the same cacheKey mounts, and a second later the 404 is sent. Passes when the small one has had onError and the large one has loaded.',
+                    shows: 'Blank space where the 404 is (32 points), then a large (64-point) photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -2559,7 +2744,11 @@ function ChunkedDownloadCancelCase() {
             <CaseStatus
                 id="chunked-download-cancel"
                 status={problem ?? (loaded ? 'OK' : 'waiting')}
-                description="an image downloading a response of unknown length unmounts"
+                description={{
+                    checks: 'An image unmounts while it downloads a response without a Content-Length, and a later image of that url still loads (on Android, closing the response on the main thread would read the socket and throw NetworkOnMainThreadException, so the call is cancelled instead).',
+                    steps: 'Loads the photo from the slow server, sent without a Content-Length, in a small image; the server holds it halfway. The image unmounts, half a second later the server is released, and a large image of the same url mounts. Passes when the large one loads, with no onError.',
+                    shows: 'Blank space where the small image was, then the large (64-point) photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -2613,7 +2802,11 @@ function SharedDownloadChunkedCase() {
                           ? 'OK'
                           : `requested ${requests} times`)
                 }
-                description="two sizes of one url loading at the same time share one download without a Content-Length"
+                description={{
+                    checks: "Two images of one url at different sizes share one download when its response has no Content-Length (Android didn't share a response of unknown length: the second image downloaded it again once the first's had arrived).",
+                    steps: 'Loads the photo from the slow server, sent without a Content-Length, in a 32-point and a 64-point image at once. Passes when both have loaded and the server got one request.',
+                    shows: 'A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side.',
+                }}
             />
         </View>
     )
@@ -2646,15 +2839,19 @@ function StalledDownloadCase() {
             <CaseStatus
                 id="stalled-download"
                 status={status}
-                description="a download that gets nothing for 15 s fails"
+                description={{
+                    checks: "A download that gets nothing for 15 seconds fails with onError (Android's client had no timeouts, so the image, and every request sharing its download, waited forever).",
+                    steps: 'Loads the photo from the slow server, which sends half of it and then holds the rest. Passes on onError, about 15 seconds later (onLoad fails it); the server is then released.',
+                    shows: 'Blank space (64 points, no background): the image never loads.',
+                }}
             />
         </View>
     )
 }
 
 const sharedStyles = StyleSheet.create({
-    small: { width: 30, height: 30 },
-    large: { width: 60, height: 60 },
+    small: { width: 32, height: 32 },
+    large: { width: 64, height: 64 },
 })
 
 // A data: image with onProgress: iOS sends one event for it, which needs
@@ -2676,7 +2873,11 @@ function ProgressDataUriCase() {
             <CaseStatus
                 id="progress-data-uri"
                 status={!loaded ? 'waiting' : (check.problem ?? 'OK')}
-                description="onProgress for a data: image: iOS's one event has progress 1 (Android sends none)"
+                description={{
+                    checks: 'onProgress for a data: image: iOS sends one event, which has a progress (loaded / total, 1); Android sends none.',
+                    steps: 'Loads an 8x8 yellow PNG from a data: uri. Passes at onLoad if each onProgress (if any) had a total above 0, loaded up to the total and progress equal to loaded / total, and the last one 1.',
+                    shows: 'A yellow square.',
+                }}
             />
         </View>
     )
@@ -2724,7 +2925,11 @@ function CookiesCase() {
             <CaseStatus
                 id="cookies"
                 status={status}
-                description="Images are sent the cookies other requests got, and keep the ones they get (Android sent none)"
+                description={{
+                    checks: "Image requests send the app's cookies, and keep the ones they get (Android sent no cookies with images: React Native's shared OkHttp client has an empty cookie jar).",
+                    steps: "Gets two cookies with fetch (this run's values), then loads the React logo from the image server's cookie/ path, which answers 403 without both and sets a cookie of its own. On onLoad, asks the server which cookies a fetch sends: passes if the image's cookie is among them.",
+                    shows: 'The React logo (light blue) on the gray square. An empty gray square means the image was refused (no cookies sent).',
+                }}
             />
         </View>
     )
@@ -2833,8 +3038,16 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
                 }
                 description={
                     slow
-                        ? '#758: an image still loading when the app goes to the background finishes after it comes back, with its header, progress and tint (green)'
-                        : "#1022: a loaded image doesn't load again when the app comes back from the background"
+                        ? {
+                              checks: "An image still loading when the app goes to the background finishes once it's back, with its header, its progress and its tint (#758: images stopped loading after the app came back).",
+                              steps: 'maestro/background.yaml taps the box to start, presses Home while this image loads, and brings the app back 20 s later. The image comes from the slow server (which needs the header x-token: fast-image) with tintColor green: it sends half, then a byte a second until the app is back and releases the rest. Passes 2 s after the return if onLoadStart and onLoad fired once, onError never, and onProgress after the return reached the total.',
+                              shows: 'A solid green square: the photo, tinted. An empty gray square means it never finished.',
+                          }
+                        : {
+                              checks: "A loaded image doesn't load again when the app comes back from the background (#1022: Android loaded it again).",
+                              steps: 'maestro/background.yaml taps the box to start, which loads a photo; once it has loaded, the flow presses Home and brings the app back 20 s later. Passes 2 s after the return if onLoadStart and onLoad fired once and onError never.',
+                              shows: 'A photo of green northern lights over a tree.',
+                          }
                 }
             />
         </View>
@@ -2973,14 +3186,22 @@ function ClearWithoutActivityCase() {
                     startClearCheck()
                 }}
             />
-            <CaseStatus
-                id="clear-without-activity"
-                status={status}
-                description={
-                    'clearMemoryCache and clearDiskCache with no Activity (Android; run by maestro/background-no-activity.yaml): both resolve ok, and the disk cache is smaller after clearing.' +
-                    (check ? ` Now: ${status}.` : '')
-                }
-            />
+            <View style={styles.fill}>
+                <CaseStatus
+                    id="clear-without-activity"
+                    status={status}
+                    description={{
+                        checks: 'FastImage.clearMemoryCache and FastImage.clearDiskCache called from JS while the app has no Activity (Android) resolve ok and clear the disk cache (Android did nothing without an Activity).',
+                        steps: "maestro/background-no-activity.yaml opens the app's finish-on-leave link (leaving the app then finishes its Activity), taps the box, which preloads a photo and reads the disk cache's size, and presses Home. A download from the slow server that ends while the app is away (in about 2 s) calls both clear functions; the flow brings the app back 10 s later. Passes when both resolved ok and the disk cache is smaller than before; on iOS the link does nothing, and they're called once the app is back.",
+                        shows: 'An empty gray square: the box the flow taps; the case shows no image.',
+                    }}
+                />
+                {/* What maestro/background-no-activity.yaml waits for (the
+                status line only shows OK or …). */}
+                {check ? (
+                    <Text style={styles.liveStatus}>Now: {status}.</Text>
+                ) : null}
+            </View>
         </View>
     )
 }
@@ -3009,7 +3230,11 @@ function ObjectFitCase() {
             <CaseStatus
                 id="object-fit"
                 status={status}
-                description="objectFit fill, contain, cover, none (red only: the middle at its own size) and scale-down (as contain)"
+                description={{
+                    checks: "objectFit's five values place a larger image in its view as CSS's object-fit does.",
+                    steps: 'Loads the 600x300 image into five 48-point views with objectFit fill, contain, cover, none and scale-down. Passes once all five have loaded (and a moment more); the screenshot checks the fits.',
+                    shows: 'Five 48-point views of the 600x300 image (red with a blue border): fill stretched to the square, the border all around; contain whole, half the height, with gray above and below; cover showing the middle, the border only at the top and bottom; none showing the middle at its own size, red only; scale-down the same as contain, since the image is larger than the view.',
+                }}
             />
         </View>
     )
@@ -3065,7 +3290,11 @@ function ObjectFitSizeCase() {
             <CaseStatus
                 id="object-fit-size"
                 status={status}
-                description="objectFit none and scale-down: smaller images at their size in points (inside the outlines); a larger one with none and overflow visible cropped to the view (red only)"
+                description={{
+                    checks: 'objectFit none and scale-down show an image smaller than the view at its own size in points (dp), and none crops a larger image to the view even with overflow visible.',
+                    steps: "Loads a 40x40 green image with none, the same with scale-down, a bundled 120x120 @3x blue image with none (40 points), and the 600x300 image (red with a blue border) with none and overflow: 'visible'. Passes once all four have loaded; the screenshot checks the sizes.",
+                    shows: 'Four 48-point views: a green square, another green square, then a blue square, each 40 points and just inside its magenta outline; then a red square (the large image cropped to the view). A square bigger or smaller than its outline (drawn at its size in pixels) or red spilling out of the last view is a failure.',
+                }}
             />
         </View>
     )
@@ -3103,7 +3332,11 @@ function ObjectFitSvgCase() {
             <CaseStatus
                 id="object-fit-svg"
                 status={status}
-                description="An SVG (60x60 stripes) with scale-down and none is as sharp as with contain at 60 points (right)"
+                description={{
+                    checks: 'objectFit scale-down and none draw an SVG at its own size in points (dp), as sharp as at that size with contain (Android drew it at its size in pixels and enlarged it, soft and gray).',
+                    steps: 'Loads an SVG of 60x60 black and white stripes, one unit wide, with scale-down and none in 72-point views, and with contain in a 60-point view (the reference). Passes once all three have loaded; the screenshot checks the sharpness.',
+                    shows: 'Black and white stripes three times: centered in a gray 72-point square, again, then on their own at 60 points, all with the same crisp 1-unit stripes. Soft or gray stripes in the first two are a failure.',
+                }}
             />
         </View>
     )
@@ -3162,7 +3395,11 @@ function ObjectFitFromCoverCase() {
             <CaseStatus
                 id="object-fit-from-cover"
                 status={status}
-                description="cover changed to scale-down, to none, and to scale-down then none (right) while the new images load: Android keeps the cover images as they were (iOS: the new fit at once)"
+                description={{
+                    checks: 'Changing objectFit from cover after load, while the image for the new fit loads: the view keeps showing the cover image as it was until then (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).',
+                    steps: "Three 88-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
+                    shows: 'iOS shows the new fit at once: the whole page small with gray above and below, then large letters from the middle of the page twice. Android still shows the cover crop in all three: the middle of the page, small text filling the square. A squashed or enlarged crop, or a blank view, is a failure.',
+                }}
             />
         </View>
     )
@@ -3193,7 +3430,11 @@ function ObjectFitBlurCase() {
             <CaseStatus
                 id="object-fit-blur"
                 status={status}
-                description="objectFit scale-down with blurRadius={30}: a 120 point image at its size, blurred the same size as the sharp one"
+                description={{
+                    checks: 'objectFit scale-down with blurRadius shows the blurred image at its own size in points (dp), the same size as without the blur.',
+                    steps: 'Loads a 120x120 photo into two 144-point views with scale-down, the second with blurRadius 30. Passes once both have loaded (and a moment more, for the blur).',
+                    shows: 'Two gray 144-point squares, each with a 120-point photo of a bear on a hillside centered in it: sharp on the left, blurred on the right. A blurred image larger or smaller than the sharp one is a failure.',
+                }}
             />
         </View>
     )
@@ -3237,7 +3478,11 @@ function ObjectFitStyleCase() {
             <CaseStatus
                 id="object-fit-style"
                 status={status}
-                description="objectFit in style (contain), the prop over style (none); resizeMode as a prop and in style, removed in 10.0, ignored (cover)"
+                description={{
+                    checks: 'objectFit in style works, the objectFit prop wins over style, and resizeMode (removed in 10.0), as a prop or in style, is ignored.',
+                    steps: "Three 48-point views of the 600x300 image (red with a blue border): style's objectFit: 'contain'; style's contain with the prop objectFit=\"none\"; and resizeMode: 'stretch' in style with resizeMode=\"contain\" as a prop. Passes once all three have loaded; the screenshot checks the fits.",
+                    shows: 'Contained (half the height, gray above and below), then red only (none, the middle at its own size), then cover (the border only at the top and bottom). A stretched or contained third image is a failure.',
+                }}
             />
         </View>
     )
@@ -3282,7 +3527,19 @@ function ObjectFitEventsCase({ id, uri }: { id: string; uri: string }) {
             <CaseStatus
                 id={id}
                 status={changed ? (once ? 'OK' : got) : 'waiting'}
-                description={`objectFit changed after load${uri.endsWith('.gif') ? ' (a GIF)' : ''}, ending at contain: each load event once`}
+                description={
+                    uri.endsWith('.gif')
+                        ? {
+                              checks: 'Changing objectFit after an animated GIF has loaded sends no load events again (Android loaded the image again for each fit, with onLoadStart, onLoad and onLoadEnd).',
+                              steps: 'Loads a GIF of a jellyfish (with a run-specific url) with objectFit cover, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to contain, cover, then contain again, a second apart. Passes a second after the last change if each event fired once.',
+                              shows: "The jellyfish contained in the 48-point view, gray above and below; animated, so it isn't compared.",
+                          }
+                        : {
+                              checks: 'Changing objectFit after the image has loaded sends no load events again (Android loaded the image again for each fit, with onLoadStart, onLoad and onLoadEnd).',
+                              steps: 'Loads the 600x300 image (with a run-specific url) with objectFit cover, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to contain, cover, then contain again, a second apart. Passes a second after the last change if each event fired once.',
+                              shows: 'The 600x300 image (red with a blue border) contained in the 48-point view: half the height, gray above and below.',
+                          }
+                }
             />
         </View>
     )
@@ -3313,7 +3570,11 @@ function ObjectFitChangeCase() {
             <CaseStatus
                 id="object-fit-change"
                 status={done ? 'OK' : 'waiting'}
-                description="objectFit changed from contain to none after load (should match the left image)"
+                description={{
+                    checks: 'Changing objectFit from contain to none after load shows the middle of the image at its own size, from the full-size image rather than the one decoded for contain.',
+                    steps: 'Loads a 1600x1000 page of text into two 48-point views: the left with objectFit none from the start, the right with contain, changed to none on its onLoad. Passes 750 ms after the change; the screenshot compares them.',
+                    shows: 'Large letters from the middle of the page, twice, the same. A blurry or smaller right image is a failure.',
+                }}
             />
         </View>
     )
@@ -3321,13 +3582,15 @@ function ObjectFitChangeCase() {
 
 const objectFitStyles = StyleSheet.create({
     image: { width: 48, height: 48, backgroundColor: '#eee' },
-    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    large: { width: 88, height: 88, backgroundColor: '#eee' },
     svg: { width: 72, height: 72, backgroundColor: '#eee' },
-    svgReference: { width: 60, height: 60 },
+    // The SVG's own size, so its 1-unit stripes stay crisp, and 4 dp after
+    // it, so the row is a multiple of 8 dp (whole pixels at 2.625×).
+    svgReference: { width: 60, height: 60, marginRight: 4 },
     visible: { overflow: 'visible' },
     // The images, then the status under them (CaseStatus's text is indented).
     stacked: { marginBottom: 12 },
-    images: { flexDirection: 'row', marginBottom: 4 },
+    images: { flexDirection: 'row', marginBottom: 8 },
 })
 
 // objectPosition: where the image is when it doesn't fill the view, as CSS's
@@ -3382,7 +3645,25 @@ function PositionEventsCase({
             <CaseStatus
                 id={id}
                 status={changed ? (once ? 'OK' : got) : 'waiting'}
-                description={`objectPosition changed after load${downsample === false ? ' (downsample false)' : uri === LARGE ? '' : ' (a GIF)'}: each load event once`}
+                description={
+                    downsample === false
+                        ? {
+                              checks: 'Changing objectPosition after load, with downsample={false}, sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).',
+                              steps: 'Loads the 600x300 image (red with a blue border; a run-specific url) with downsample={false}, objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.',
+                              shows: 'The left part of the 600x300 image: its blue border at the left, top and bottom, red to the right edge.',
+                          }
+                        : uri === LARGE
+                          ? {
+                                checks: 'Changing objectPosition after load sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).',
+                                steps: 'Loads the 600x300 image (red with a blue border; a run-specific url) with objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.',
+                                shows: 'The left part of the 600x300 image: its blue border at the left, top and bottom, red to the right edge.',
+                            }
+                          : {
+                                checks: 'Changing objectPosition after an animated GIF has loaded sends no load events again (Android loaded the image again, with onLoadStart, onLoad and onLoadEnd).',
+                                steps: 'Loads a GIF of a jellyfish (a run-specific url) with objectFit cover and objectPosition left, counting onLoadStart, onLoad and onLoadEnd. After onLoad it changes to right, then back to left a second later. Passes a second after that if each event fired once.',
+                                shows: "The left part of the jellyfish GIF, cropped to the 48-point square; animated, so it isn't compared.",
+                            }
+                }
             />
         </View>
     )
@@ -3455,7 +3736,11 @@ function ObjectPositionCoverCase() {
             <CaseStatus
                 id="object-position-cover"
                 status={status}
-                description="cover at left (left border), right (right border), 25%, and left 10px (left, 10 points down: a gap at the top)"
+                description={{
+                    checks: "objectPosition with cover places the cropped image as CSS's object-position does, with keywords, a percentage, and two values (x, then y).",
+                    steps: "Loads the 600x300 image into four 48-point views with cover and objectPosition 'left', 'right', '25%' and 'left 10px'. Passes once all four have loaded; the screenshot checks the positions.",
+                    shows: 'The 600x300 image (red with a blue border) in four 48-point views, each 96x48 after cover: at the left (its left border shows), at the right (its right border), a quarter of the way along (no side border), and at the left 10 points down (a gray gap at the top, the bottom border cut off).',
+                }}
             />
         </View>
     )
@@ -3515,7 +3800,11 @@ function ObjectPositionContainCase() {
             <CaseStatus
                 id="object-position-contain"
                 status={status}
-                description="contain at top, bottom and 4 points above the bottom; a small image with none at the top-left and 4 points from the bottom-right, and scale-down at the right (inside the outlines)"
+                description={{
+                    checks: 'objectPosition places an image that leaves room in its view: with contain, none and scale-down, keywords, an object ({ bottom: 4 }) and keyword offsets.',
+                    steps: "Six 48-point views, each with a magenta outline just outside where its image should be: the 600x300 image with contain at 'top', 'bottom' and { bottom: 4 }; a 16x16 green image with none at 'left top' and 'right 4px bottom 4px', and with scale-down at 'right'. Passes once all six have loaded; the screenshot checks the positions.",
+                    shows: 'The red and blue image (48x24) in the top half, the bottom half, then 4 points above the bottom; a small green square in the top-left corner, 4 points from the bottom-right corner, then at the right edge, centered. Each image just inside its magenta outline; one outside its outline is a failure.',
+                }}
             />
         </View>
     )
@@ -3574,7 +3863,11 @@ function ObjectPositionStyleCase() {
             <CaseStatus
                 id="object-position-style"
                 status={status}
-                description="cover at the left in a rounded border; none at the top-left with overflow visible (cropped); contain at the top tinted, at the bottom blurred; cover at the left after fading in"
+                description={{
+                    checks: "objectPosition together with the view's style and other props: a rounded border, overflow visible, tintColor, blurRadius and a transition.",
+                    steps: "Five 48-point views of the 600x300 image: cover at 'left' with borderRadius 14 and a dark 3-point border; none at 'left top' with overflow: 'visible'; contain at 'top' with tintColor #9324c3; contain at 'bottom' with blurRadius 4; cover at 'left' with a 300 ms transition. Passes once all five have loaded (and a moment more).",
+                    shows: "The image's left part inside a dark rounded border; the image's top-left corner at its own size, cropped to the view (mostly blue, red in the bottom-right corner); a solid purple 48x24 block in the top half; a blurred red and blue image in the bottom half; the image's left part after its fade. The middle two sit inside magenta outlines.",
+                }}
             />
         </View>
     )
@@ -3618,7 +3911,11 @@ function ObjectPositionChangeCase() {
             <CaseStatus
                 id="object-position-change"
                 status={done ? 'OK' : 'waiting'}
-                description="objectPosition changed after load (each should match the image to its left)"
+                description={{
+                    checks: 'Changing objectPosition after load moves the image to the new position (Android cropped it again for cover).',
+                    steps: "Four 48-point views of the 600x300 image: cover at 'right' (reference), cover changed from 'left' to 'right' when it loads, contain at 'bottom' (reference), and contain changed from 'top' to 'bottom' at the same time. Passes 750 ms after the change.",
+                    shows: "Two pairs, each image matching the one to its left: the image's right part (its right border showing) twice, then the image in the bottom half twice, gray above. An image still at the left or the top is a failure.",
+                }}
             />
         </View>
     )
@@ -3655,7 +3952,11 @@ function ObjectPositionDefaultSourceCase() {
             <CaseStatus
                 id="object-position-default-source"
                 status={failed === 2 ? 'OK' : 'waiting'}
-                description="defaultSource (the quadrants at their own size) at the top-left and the bottom-right"
+                description={{
+                    checks: 'defaultSource is placed at objectPosition too, when the source fails.',
+                    steps: "Two 48-point views with objectFit none and a source the image server answers with a 404, and defaultSource an image in the app of four colored quadrants (red, green, blue, yellow; 80x80 points on iOS, 80 pixels on Android), at 'left top' and 'right bottom'. Passes once both have fired onError.",
+                    shows: 'On iOS, each view shows a corner of the larger quadrants image: mostly red with green and blue edges (top-left), then mostly yellow with green and blue edges (bottom-right). On Android the whole quadrants image, smaller than the view, sits in the top-left corner, then the bottom-right corner, with gray around it.',
+                }}
             />
         </View>
     )
@@ -3737,7 +4038,11 @@ function PreloadReuseCase() {
                             ? 'preload failed'
                             : `requested ${result.count} times (${result.ms} ms)`
                 }
-                description="#657: an image shown after FastImage.preload resolves isn't downloaded again"
+                description={{
+                    checks: 'An image shown once FastImage.preload has resolved comes from the preload, not a new download (#657: on Android, a view shown while the preload was still in flight downloaded it again; awaiting the result avoids that).',
+                    steps: 'Preloads the photo from a url new each launch, and shows it in a view once the preload resolves ok. Passes when the view has loaded and the server got one request for it.',
+                    shows: 'A photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -3764,6 +4069,7 @@ function KeepPreviousCase({
     emptyKey,
     memoryCache,
     twice,
+    description,
 }: {
     id: string
     recycle?: boolean
@@ -3771,6 +4077,7 @@ function KeepPreviousCase({
     emptyKey?: boolean
     memoryCache?: boolean
     twice?: boolean
+    description: Description
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
@@ -3841,17 +4148,7 @@ function KeepPreviousCase({
                     onLoad={second ? () => done.current() : onFirstLoad}
                 />
             </View>
-            <CaseStatus
-                id={id}
-                status={status}
-                description={
-                    recycle
-                        ? `recyclingKey${emptyKey ? " from ''" : ''}: changing it with the source clears the image (magenta) while the new one (cyan) loads (recorded: magenta, blank, cyan)`
-                        : twice
-                          ? 'Changing the source twice quickly keeps the image (magenta) until the last one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
-                          : '#747: changing the source keeps the image (magenta) until the new one (cyan) has loaded (recorded: magenta, then cyan, never blank)'
-                }
-            />
+            <CaseStatus id={id} status={status} description={description} />
         </View>
     )
 }
@@ -3875,7 +4172,7 @@ function TintSampleCase({
     uri: string
     change: 'play' | 'recolor' | 'clear'
     expect: string[]
-    description: string
+    description: Description
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
@@ -3968,7 +4265,11 @@ function SourceClearedWhileLoadingCase({ id }: { id: string }) {
                           ? `${loads} onLoad after clearing the source`
                           : 'OK'
                 }
-                description="Clearing the source while a slow image loads: no onLoad, and the view stays blank (check the screenshot)"
+                description={{
+                    checks: 'Clearing source while a slow image is still loading cancels the load: no onLoad, and the view stays blank (#1165: Android kept loading, then sent onLoad and showed the image).',
+                    steps: 'Loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, sets source to undefined. Passes 2 s after mount, once the load would have finished, if onLoad never fired.',
+                    shows: 'An empty gray square. A cyan square means the cancelled load finished and was shown.',
+                }}
             />
         </View>
     )
@@ -4059,10 +4360,22 @@ function SourceChangeWhileLoadingCase({
                 }
                 description={
                     toData
-                        ? 'Changing the source to a data uri (yellow) while a slow image loads: no onError or onLoad for the slow one, and it stays yellow'
+                        ? {
+                              checks: "Changing source to a data uri while a slow image is still loading cancels the slow load: no onError or onLoad for it, and it doesn't replace the new image (#1159: iOS didn't cancel it for a data uri, so the slow image replaced the new one when it finished, with another onLoad).",
+                              steps: 'Loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, changes source to a data uri of an 8×8 yellow PNG. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.',
+                              shows: 'A yellow square (the 8×8 image scaled up). A cyan square means the slow image replaced it.',
+                          }
                         : keepPrevious
-                          ? 'Changing the source from a loaded image (magenta) to a slow one, then to a cached photo before it loads: no onError, and the photo stays'
-                          : 'Changing the source to a cached photo while a slow image loads: no onError for the first, and the photo stays'
+                          ? {
+                                checks: 'Changing source from a loaded image to a slow one, then to another image before the slow one loads: no onError for the cancelled load, and the last image stays (#1159: iOS sent onError and onLoadEnd for the cancelled load).',
+                                steps: 'Preloads a photo of a bear into the cache, then shows a magenta square. On its onLoad, changes source to a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s), which loads with the magenta one still showing. After 400 ms, changes source to the bear. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.',
+                                shows: 'The photo of a bear on rocks. Magenta or cyan means a replaced image is showing.',
+                            }
+                          : {
+                                checks: 'Changing source to a cached image while a slow image is still loading: no onError for the cancelled load, and the new image stays (#1159: iOS sent onError and onLoadEnd for the cancelled load).',
+                                steps: 'Preloads a photo of a bear into the cache, then loads a cyan square from the slow server (in 8 parts, 150 ms apart: about 1.2 s). After 400 ms, changes source to the bear. Passes 1.5 s after its onLoad, once the slow load would have finished, if there was no onError and exactly one onLoad after the change.',
+                                shows: 'The photo of a bear on rocks. A cyan square means the slow image replaced it.',
+                            }
                 }
             />
         </View>
@@ -4082,7 +4395,7 @@ function CacheKeyCase({
     downsample,
 }: {
     id: string
-    description: string
+    description: Description
     preload?: boolean
     downsample?: boolean
 }) {
@@ -4152,6 +4465,9 @@ function CacheKeyCase({
 // stored the page (it has an inline <svg>, and SDWebImage took it for an SVG
 // image) until the failed load removed it, so a preload right after could get
 // it from there: it happened once in tens of urls, so with many.
+// Not on iOS without `web` for now: a preload right after the failure can join
+// the failed download while SDWebImage is still decoding it, and fail without
+// a request.
 const RETRY_TRIES = 40
 function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
     const pathFor = (attempt: number) =>
@@ -4207,8 +4523,16 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                 status={status}
                 description={
                     web
-                        ? "a url whose first response was an HTML page (with cache 'web') loads the next time"
-                        : '#394: a url whose first response was an HTML page is downloaded again by the next preload'
+                        ? {
+                              checks: "A cache: 'web' url whose first response was an HTML page (status 200) is downloaded again by the next preload (both platforms kept the page in the HTTP cache of web images, so later loads failed; iOS could still get it from there right after the failure, about once in tens of urls, so it tries many).",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page (cacheable for an hour) and then with the photo: preloads it with cache: 'web' (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
+                              shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
+                          }
+                        : {
+                              checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache).",
+                              steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
+                              shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
+                          }
                 }
             />
         </View>
@@ -4252,7 +4576,11 @@ function ViewRetryCase() {
             <CaseStatus
                 id="view-retry"
                 status={status}
-                description="a url whose first response was an HTML page loads in the next view"
+                description={{
+                    checks: "A url whose first response was an HTML page (status 200) loads in the next view (Android kept the page in Glide's disk cache, so the second view failed too).",
+                    steps: "Shows a url the server first answers with a captive portal's HTML page, then with the photo: the view gets onError, and a new view of the same url mounts. Passes when the new view has loaded and the server got two requests.",
+                    shows: 'A photo of a pug in a blanket (the second view).',
+                }}
             />
         </View>
     )
@@ -4306,7 +4634,11 @@ function ReloadCase() {
             <CaseStatus
                 id="reload"
                 status={status}
-                description="reload() loads a url that failed again, and a loaded one from the cache, with its events"
+                description={{
+                    checks: "The ref's reload(): it downloads a url that failed again, and loads an image that has loaded again from the cache, with its events each time.",
+                    steps: 'Shows a url whose first request fails with a 503; on onError, calls reload(), which downloads it and shows it; once it has loaded, calls reload() again. Passes when the server got two requests and the events were onLoadStart, onError, onLoadStart, onLoad, onLoadStart, onLoad.',
+                    shows: 'A photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -4343,7 +4675,11 @@ function Web404Case() {
             <CaseStatus
                 id="web-404"
                 status={status}
-                description="a url that 404s with cache 'web' is requested once"
+                description={{
+                    checks: "A cache: 'web' url that 404s fails with one request (Android loaded it again with the client without the HTTP cache: two requests).",
+                    steps: "Preloads a missing image with cache: 'web'. Passes when the result is not ok and the server got one request for it.",
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -4368,7 +4704,11 @@ function MislabeledCase() {
             <CaseStatus
                 id="mislabeled"
                 status={status}
-                description="an image sent as text/plain loads"
+                description={{
+                    checks: "An image the server sends with Content-Type: text/plain still loads (Android fails a response that isn't an image only if its bytes aren't an image either).",
+                    steps: 'Loads the photo, sent as text/plain. Passes on onLoad; onError fails it.',
+                    shows: 'A photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -4408,7 +4748,11 @@ function PreloadCacheOnlyCase() {
             <CaseStatus
                 id="preload-cache-only"
                 status={status}
-                description="#406: preloading with cache 'cacheOnly' doesn't download (fails if it isn't cached)"
+                description={{
+                    checks: "FastImage.preload with cache: 'cacheOnly' of an image that isn't cached fails without a request, as a view does (#406: iOS downloaded it, since preload didn't follow cache).",
+                    steps: "Preloads the logo from a url new each launch with cache: 'cacheOnly'. Passes when the result is not ok and the server got no request for it.",
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -4459,7 +4803,11 @@ function MemoryCacheOffCase() {
                           ? 'OK'
                           : `requested ${requests} times`
                 }
-                description="memoryCache false: the image shows, and a second view gets it from the disk cache"
+                description={{
+                    checks: 'memoryCache: false: the image shows, and a second view of it loads from the disk cache.',
+                    steps: "Loads a photo with memoryCache: false; once it has loaded, a second view with the same source mounts. Passes when the second has loaded and the server got one request (that it isn't kept in memory isn't visible here).",
+                    shows: 'Two photos of a pug in a blanket side by side. An empty gray square on the right means the second never loaded.',
+                }}
             />
         </View>
     )
@@ -4521,7 +4869,11 @@ function DiskCacheOffCase() {
             <CaseStatus
                 id="disk-cache-off"
                 status={status}
-                description="diskCache false: a view of the same size gets it from memory, a larger one downloads it again, and it isn't on disk"
+                description={{
+                    checks: "diskCache: false keeps an image off disk: a second view of the same size gets it from memory, a larger one downloads it again, and getCachePath doesn't find it.",
+                    steps: "Loads a 200×200 photo of a pug in a 48×48 view with diskCache: false. On its onLoad, adds a second 48×48 view and an 88×88 one with the same source. When the large one loads, passes if the image server got two requests (the first view's and the large one's), and getCachePath resolves not ok for the uri with cache: 'cacheOnly' and for the source itself.",
+                    shows: 'The pug photo three times: two small, then a larger one.',
+                }}
             />
         </View>
     )
@@ -4584,14 +4936,18 @@ function DiskCacheOffWebCase() {
             <CaseStatus
                 id="disk-cache-off-web"
                 status={status}
-                description="diskCache false with cache 'web': after a preload of its url, each view downloads it, though the server allows caching it"
+                description={{
+                    checks: "diskCache: false with cache: 'web': each view downloads the image, though the server lets caches keep it and a preload stored its url on disk.",
+                    steps: "Preloads the pug photo's url (the default cache), from a route the image server sends with Cache-Control: max-age=3600. Then a view loads it with cache: 'web' and diskCache: false, and on its onLoad a second view of the same size does too. Passes when the second loads, if the image server got three requests (the preload's and each view's).",
+                    shows: 'The pug photo twice, side by side.',
+                }}
             />
         </View>
     )
 }
 
 const diskCacheStyles = StyleSheet.create({
-    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    large: { width: 88, height: 88, backgroundColor: '#eee' },
 })
 
 // A view with cache 'cacheOnly' (or React Native's 'only-if-cached', the same)
@@ -4600,11 +4956,15 @@ const diskCacheStyles = StyleSheet.create({
 function CacheOnlyMissCase({
     id = 'cache-only-miss',
     cache = 'cacheOnly',
-    description = "cacheOnly: an image that isn't cached gets onError (not onLoad), without a request",
+    description = {
+        checks: "A view with cache: 'cacheOnly' for an image that isn't cached gets onError and onLoadEnd (not ok), without a request (#1315: iOS sent onLoad and onLoadEnd for an image it didn't have).",
+        steps: "Loads a photo of a pug that nothing has loaded (a url only this case uses) with cache: 'cacheOnly'. When onError fires, asks the image server how many requests it got for the url. Passes if it got none, onLoadEnd's ok was false, and onLoad never fired.",
+        shows: 'An empty gray square: the image is never loaded. The pug here would mean it was downloaded.',
+    },
 }: {
     id?: string
     cache?: 'cacheOnly' | 'only-if-cached'
-    description?: string
+    description?: Description
 }) {
     const path = `/picsum/1025-200x200.jpg?${id}=${RUN}`
     const [status, setStatus] = useState('waiting')
@@ -4708,7 +5068,11 @@ function ConfigureCacheCase() {
             <CaseStatus
                 id="configure-cache"
                 status={status}
-                description="configureCache: the native config's limit is in effect, with the disk cache's size; a change applies (iOS: at once), and null resets it"
+                description={{
+                    checks: "FastImage.configureCache: the maxDiskSize in the app's native config (300 MB) is in effect from the start, with the disk cache's size; a runtime change applies (iOS at once, Android from the next launch), and null resets it.",
+                    steps: "Reads configureCache(): the limit, and a disk size above 0 from earlier groups' images. iOS: downloads a photo with getCachePath, sets maxDiskSize to 1 byte, which empties the disk cache, checks the photo is gone (getCachePath with cache: 'cacheOnly'), then resets it with null. Android: sets 1 byte, then null, and the limit in effect stays 300 MB. Passes when every value matches.",
+                    shows: 'An empty gray square: no image is shown.',
+                }}
             />
         </View>
     )
@@ -4734,7 +5098,7 @@ function WriteToCacheCase({
     avif,
 }: {
     id: string
-    description: string
+    description: Description
     byCacheKey?: boolean
     keyOnly?: boolean
     cached?: boolean
@@ -4830,7 +5194,7 @@ function CachePathAfterClearCase({
     loaded,
 }: {
     id: string
-    description: string
+    description: Description
     loaded?: boolean
 }) {
     const path = `/picsum/1022-120x120.jpg?${id}=${RUN}`
@@ -4946,7 +5310,11 @@ function ClearDiskCacheThreadCase() {
             <CaseStatus
                 id="clear-disk-cache-thread"
                 status={status}
-                description="clearDiskCache doesn't hold up a native call made after it (getCachePath of a file:// uri, answered right away)"
+                description={{
+                    checks: "clearDiskCache doesn't hold up a native call made after it (#1295: Android cleared the cache on React Native's native modules thread, so every module's async calls waited for it).",
+                    steps: "Without awaiting, queues 200 getCachePath lookups with cache: 'cacheOnly' (images that aren't cached), then FastImage.clearDiskCache(), then getCachePath of a file:// uri, which is answered right away. Passes if the clear resolves ok and the file:// call resolves before it.",
+                    shows: 'An empty gray square: the case shows no image.',
+                }}
             />
         </View>
     )
@@ -4972,7 +5340,7 @@ function CachePathCase({
     keyOnly,
 }: {
     id: string
-    description: string
+    description: Description
     loaded?: boolean
     byCacheKey?: boolean
     // Asks with only the cacheKey (no uri): only looked up.
@@ -5139,7 +5507,11 @@ function PreloadDiskCase() {
                           ? 'OK'
                           : `${JSON.stringify(result)}, ${requests} requests`
                 }
-                description="preload with memoryCache false reports the size, and the image then shows from the disk cache"
+                description={{
+                    checks: "FastImage.preload with memoryCache: false (to disk only, without decoding) still reports the image's size, and a view then loads it from the disk cache.",
+                    steps: 'Preloads a 200×200 photo with memoryCache: false, then shows it in a view with the same source. Passes when the preload resolved ok with 200×200, the view has loaded, and the server got one request.',
+                    shows: 'A photo of a pug in a blanket.',
+                }}
             />
         </View>
     )
@@ -5262,7 +5634,7 @@ function FadeCase({
     // for the other cases), which fades for the platform's usual length.
     defaultTransition?: boolean
     fades: boolean
-    description: string
+    description: Description
 }) {
     const sample = useContext(SampleContext)
     const inRunner = useContext(InRunnerContext)
@@ -5578,7 +5950,11 @@ function PreloadResultsCase() {
             <CaseStatus
                 id="preload-results"
                 status={status}
-                description="preload resolves with each source's result and size"
+                description={{
+                    checks: "FastImage.preload resolves with each source's result, in order: ok with its size for the ones that loaded, not ok with an error for the others.",
+                    steps: 'Preloads six sources: a 200×200 photo, a url that 404s, an empty uri, null, a 120×120 photo the server only sends with the header x-token (given), and another that needs the header (not given). Passes when the results are 200x200, failed, failed, failed, 120x120, failed, and every failed one has an error.',
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -5619,7 +5995,11 @@ function PreloadUnknownValuesCase() {
             <CaseStatus
                 id="preload-unknown-values"
                 status={status}
-                description="preload loads sources with an unknown cache or priority"
+                description={{
+                    checks: "FastImage.preload loads sources with a cache or priority value Fast Image doesn't know, with the default (Android threw for them).",
+                    steps: "Preloads the photo three times (three urls) with cache: 'reload', priority: 'urgent', and cache: 1 with priority: true. Passes when all three resolve ok with 200x200.",
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -5662,7 +6042,11 @@ function PreloadNonObjectCase() {
             <CaseStatus
                 id="preload-non-object"
                 status={status}
-                description="#592: preload with a url string or a number instead of a source resolves not ok for it (crashed)"
+                description={{
+                    checks: 'FastImage.preload with a url string or a number where a source object goes resolves that entry not ok, in its place among the results (#592: native read it as a source and crashed the app: Android cast it to a map, iOS sent it an unrecognized selector).',
+                    steps: "Preloads a url string, then { uri } with the same 200×200 photo, then the number 42. Passes when the results are, in order: not ok ('Invalid source: no uri'), ok at 200x200, not ok.",
+                    shows: 'An empty gray square: no image is shown.',
+                }}
             />
         </View>
     )
@@ -5700,7 +6084,13 @@ function CachePathNonObjectCase({ write }: { write?: boolean }) {
                         : 'cache-path-non-object'
                 }
                 status={status}
-                description={`${name} with a url string instead of a source resolves not ok`}
+                description={{
+                    checks: `FastImage.${name} with a url string where a source object goes resolves not ok with an error (native read it as a source and crashed the app).`,
+                    steps: write
+                        ? "Calls FastImage.writeToCache with a url string as the source and a file path that doesn't exist. Passes when it resolves { ok: false } with an error."
+                        : 'Calls FastImage.getCachePath with a url string as the source. Passes when it resolves { ok: false } with an error.',
+                    shows: 'An empty gray square: no image is shown.',
+                }}
             />
         </View>
     )
@@ -5746,7 +6136,11 @@ function PreloadLimitCase() {
             <CaseStatus
                 id="preload-limit"
                 status={status}
-                description="preload loads a few sources at a time"
+                description={{
+                    checks: "FastImage.preload loads a few sources at a time (3, or SDWebImagePrefetcher's limit on iOS), so a long list doesn't hold up the images the app shows.",
+                    steps: 'Preloads four images from the slow server (about a second each), then asks the server how many it was sending at the same time. Passes when all four loaded, from four requests, with at most 3 at once (without the limit, both platforms load all 4 at once).',
+                    shows: 'An empty gray square: the case only preloads.',
+                }}
             />
         </View>
     )
@@ -5782,7 +6176,11 @@ function SizeChangeCase() {
             <CaseStatus
                 id="size-change"
                 status={done ? 'OK' : 'waiting'}
-                description="#983: an image in a view that gets taller after it loaded looks like Image next to it (not zoomed in)"
+                description={{
+                    checks: "An image in a view that gets taller after it has loaded looks like React Native's Image next to it (#983: Android showed a zoomed-in slice, since Glide had cropped the image for the first size).",
+                    steps: "Loads a 600×1200 image of 12 px black and white vertical stripes with objectFit cover in a 96×16 view, next to React Native's Image with resizeMode cover; 300 ms after onLoad, both views become 96×96. Passes 1 s later.",
+                    shows: 'Two identical squares of thin black and white vertical stripes. Wider stripes on the left (zoomed in) are the bug.',
+                }}
             />
         </View>
     )
@@ -5798,8 +6196,21 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
     },
     group: {
+        marginTop: 8,
+        marginBottom: 12,
+    },
+    fill: {
+        flex: 1,
+    },
+    liveStatus: {
         color: '#666',
-        marginBottom: 8,
+        marginLeft: 12,
+    },
+    details: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
     },
     row: {
         flexDirection: 'row',
@@ -5844,7 +6255,11 @@ function ImageBackgroundCase() {
             <CaseStatus
                 id="image-background"
                 status={loaded ? 'OK' : 'loading'}
-                description="FastImageBackground: the image fills the view (cover, rounded corners), with the text on top"
+                description={{
+                    checks: 'FastImageBackground: the image fills the view behind its children, with imageStyle applied to the image.',
+                    steps: 'Shows a 120×120 photo in a 96×48 FastImageBackground (cover, the default) with imageStyle={{ borderRadius: 8 }} and a Text child. Passes on onLoad; the rest is checked by the screenshot.',
+                    shows: 'A wide photo of a bear on rocks, cropped to fill the view, with rounded corners and "on top" in bold white text across its middle.',
+                }}
             />
         </View>
     )
@@ -5865,7 +6280,7 @@ function LoadEndResultCase({
 }: {
     id: string
     uri: string
-    description: string
+    description: Description
 }) {
     const [expected, setExpected] = useState<LoadResult>()
     const [result, setResult] = useState<LoadResult>()
@@ -5923,7 +6338,7 @@ function GifLoopCase({
     animates,
 }: {
     id: string
-    description: string
+    description: Description
     loop?: boolean | number
     // How many plays to wait for before the screenshot.
     plays: number
@@ -5955,6 +6370,88 @@ function GifLoopCase({
                 id={id}
                 status={ok ? 'OK' : 'waiting'}
                 description={description}
+            />
+        </View>
+    )
+}
+
+// A GIF without a loop count, recorded from when it's shown (a video sample):
+// it plays once, magenta then cyan, and stops on cyan. Android looped every
+// GIF forever (#651), showing magenta again. The screenshot alone can't tell:
+// it's taken once the group is done, which can be on a looping GIF's cyan.
+// A url of its own each time it mounts: a GIF from the memory cache can be
+// drawn at once, or already stopped on its last frame, so the sample wouldn't
+// see it play.
+function GifLoopOnceCase() {
+    const id = 'gif-loop-once'
+    const [uri] = useState(() =>
+        imageUrl(`loop-once.gif?loop-once=${RUN}-${Date.now()}`),
+    )
+    const sample = useContext(SampleContext)
+    const view = useRef<React.ComponentRef<typeof View>>(null)
+    const started = useRef(false)
+    const done = useRef(() => {})
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    const [shown, setShown] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    const expect = [BLANK, MAGENTA, CYAN]
+    const record = async () => {
+        const area = await measureView(view.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const result = await sample(
+            {
+                name: id,
+                area,
+                // At most: it's done 2.4 s after onLoad.
+                durationMs: 10000,
+                expect,
+                palette: [MAGENTA, BLANK, CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setShown(true)
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={styles.row}>
+            <View
+                ref={view}
+                collapsable={false}
+                style={styles.image}
+                onLayout={() => {
+                    if (started.current) return
+                    started.current = true
+                    record().catch((e) => setStatus(`error: ${e}`))
+                }}
+            >
+                {shown ? (
+                    <FastImage
+                        style={styles.image}
+                        source={{ uri }}
+                        onLoad={() => {
+                            clearTimeout(timer.current)
+                            // Three plays' worth: a looping GIF shows magenta
+                            // again after one.
+                            timer.current = setTimeout(
+                                () => done.current(),
+                                3 * GIF_PLAY,
+                            )
+                        }}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={{
+                    checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
+                    steps: 'A video sample: the screen is recorded while the case shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop, until 2.4 s after onLoad; the color in the middle of the view must go from gray to magenta to cyan, and stay cyan.',
+                    shows: 'A cyan square: the last frame. In the recording: gray, magenta, cyan; magenta again after cyan means it looped.',
+                }}
             />
         </View>
     )
@@ -6008,8 +6505,16 @@ function GifPausedCase({
                 status={ok ? 'OK' : 'waiting'}
                 description={
                     resume
-                        ? `paused, then paused={false} with loop={false}${kind}: plays once and stops on blue`
-                        : `paused: ${kind ? `an image${kind}` : 'a GIF'} that loops forever by itself stays on its first frame (red)`
+                        ? {
+                              checks: `paused, then paused={false}, with loop={false}${kind}: the image plays once and stops on its last frame.`,
+                              steps: "Loads an image that loops forever by itself (red, then blue, 400 ms each) with paused and loop={false}. A play's length (0.8 s) after onLoad, it sets paused={false}. Passes a play (and a margin) later.",
+                              shows: "A blue square (the last frame); red would mean resuming didn't play it.",
+                          }
+                        : {
+                              checks: `paused: ${kind ? `an image${kind}` : 'a GIF'} that loops forever by itself stays on its first frame.`,
+                              steps: "Loads the image (red, then blue, 400 ms each, looping) with paused. Passes a play's length (0.8 s) after onLoad.",
+                              shows: 'A red square (the first frame); blue would mean it played.',
+                          }
                 }
             />
         </View>
@@ -6046,7 +6551,11 @@ function GifResumeFinishedCase() {
             <CaseStatus
                 id="gif-resume-finished"
                 status={ok ? 'OK' : 'waiting'}
-                description="A GIF that played once, paused, then resumed: plays again (red), as on iOS"
+                description={{
+                    checks: "A GIF that has finished its one play, paused and then resumed, plays again from the start, on both platforms (as iOS's player does).",
+                    steps: 'Loads a GIF that plays once: 1.5 s red, then 0.1 s blue. 2.2 s after onLoad (its play is over) sets paused, and 0.2 s later unpauses it. Passes 0.3 s later, while it shows its first frame again.',
+                    shows: "A red square (a slightly darker red than the paused case's): the first frame, playing again. Blue means it didn't play again.",
+                }}
             />
         </View>
     )
@@ -6078,7 +6587,11 @@ function GifLoopChangeCase() {
             <CaseStatus
                 id="gif-loop-change"
                 status={ok ? 'OK' : 'waiting'}
-                description="Changing loop from false to true plays the GIF again and keeps looping (orange and purple)"
+                description={{
+                    checks: 'loop changed from false to true after the GIF has stopped plays it again, and it keeps looping.',
+                    steps: "Loads a GIF that loops forever by itself, orange then purple, with loop={false}; 1.4 s after onLoad (it has stopped on purple), sets loop to true. Passes 0.4 s later if the app hasn't crashed.",
+                    shows: "An orange or purple square: it's animated, so it's not compared.",
+                }}
             />
         </View>
     )
@@ -6100,7 +6613,7 @@ function WebpLoopUnsetCase({
 }: {
     id: string
     remount?: boolean
-    description: string
+    description: Description
 }) {
     const sample = useContext(SampleContext)
     const view = useRef<React.ComponentRef<typeof View>>(null)
@@ -6195,38 +6708,66 @@ function ErrorMessageCase() {
                           ? 'OK'
                           : error
                 }
-                description="#200: onError says what went wrong (here a 404)"
+                description={{
+                    checks: "onError's error says what went wrong (#200: onError had no details).",
+                    steps: "Loads a url the image server answers with a 404. Passes when onError's error contains '404'.",
+                    shows: 'An empty gray square: the image never loads.',
+                }}
             />
         </View>
     )
 }
 
-// imageRendering: each row shows an image at its own size (one image pixel
-// per screen pixel, cropped), then drawn in each mode (columns: auto, smooth,
-// pixelated). Checked by the screenshot; each row says what to expect. Shrunk
-// with auto or pixelated, the first two rows lose detail, differently on each
-// platform (they drop different pixels). smooth is iOS only (the same as auto
-// on Android).
+// imageRendering: a case per image, each shown at its own size (one image
+// pixel per screen pixel, cropped to a strip; not the page of text, whose
+// strip would only show part of its first line), then drawn in each mode,
+// left to right: auto, smooth, pixelated. Checked by the screenshot. Shrunk with
+// auto or pixelated, the stripes and the text lose detail, differently on
+// each platform (they drop different pixels). smooth is iOS only (the same as
+// auto on Android).
 const RENDERING_MODES = ['auto', 'smooth', 'pixelated'] as const
-const RENDERING_COLUMN = 96
-const RENDERING_ROWS = [
+const RENDERING_CASES: {
+    id: string
+    image: string
+    size: { width: number; height: number }
+    drawn: { width: number; height: number }
+    // Without the strip of it at its own size.
+    noOriginal?: boolean
+    description: Description
+}[] = [
     {
+        id: 'image-rendering-stripes',
         image: 'stripes.png',
         size: { width: 1024, height: 1024 },
         drawn: { width: 48, height: 48 },
-        label: 'Shrunk: 1px black and white stripes (1024px) drawn at 48. smooth (iOS): an even gray (#445)',
+        description: {
+            checks: 'imageRendering on an image drawn much smaller than its size: smooth (iOS only; the same as auto on Android) averages its pixels.',
+            steps: 'Shows 1024 px black and white stripes, 1 px each, at their own size (a 200×24 strip of them), then drawn at 48 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'A strip of fine stripes, then three squares, left to right auto, smooth and pixelated. On iOS smooth is an even gray (#445), and auto and pixelated show uneven stripes; on Android all three show uneven stripes.',
+        },
     },
     {
+        id: 'image-rendering-text',
         image: 'text-page.png',
         size: { width: 1600, height: 1000 },
-        drawn: { width: 96, height: 60 },
-        label: 'Shrunk: a page of small text (1600px wide) drawn at 96. smooth (iOS): the lines of text stay continuous',
+        drawn: { width: 96, height: 64 },
+        noOriginal: true,
+        description: {
+            checks: 'imageRendering on a page of small text drawn much smaller than its size: smooth (iOS only; the same as auto on Android) keeps the lines of text continuous.',
+            steps: 'Draws a 1600×1000 page of small text at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'The page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up.',
+        },
     },
     {
+        id: 'image-rendering-pixel-art',
         image: 'sprite-12.png',
         size: { width: 12, height: 12 },
-        drawn: { width: 60, height: 60 },
-        label: 'Enlarged: 12px pixel art drawn at 60. pixelated: sharp pixels; auto and smooth blur it (#926)',
+        drawn: { width: 64, height: 64 },
+        description: {
+            checks: 'imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).',
+            steps: 'Shows 12 px pixel art at its own size, then drawn at 64 points with imageRendering auto, smooth and pixelated. Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'A tiny sprite, then three large ones, left to right auto, smooth and pixelated: auto and smooth blurred, pixelated with sharp square pixels.',
+        },
     },
 ]
 
@@ -6253,56 +6794,53 @@ function OriginalCrop({
     )
 }
 
-function ImageRenderingCase() {
+function ImageRenderingCase({
+    id,
+    image,
+    size,
+    drawn,
+    noOriginal,
+    description,
+}: (typeof RENDERING_CASES)[number]) {
     const [loads, setLoads] = useState(0)
     const onLoad = () => setLoads((n) => n + 1)
-    const total = RENDERING_MODES.length * RENDERING_ROWS.length
+    const total = RENDERING_MODES.length
     return (
-        <View>
-            {RENDERING_ROWS.map((row) => (
-                <View key={row.image} style={renderingStyles.row}>
-                    <Text style={styles.description}>{row.label}</Text>
-                    <OriginalCrop image={row.image} size={row.size} />
-                    <View style={renderingStyles.columns}>
-                        {RENDERING_MODES.map((mode) => (
-                            <View key={mode} style={renderingStyles.column}>
-                                <Text style={styles.description}>{mode}</Text>
-                                <FastImage
-                                    style={row.drawn}
-                                    source={{ uri: imageUrl(row.image) }}
-                                    imageRendering={mode}
-                                    // Drawn from the full image, not one
-                                    // decoded smaller (downsample).
-                                    downsample={false}
-                                    onLoad={onLoad}
-                                />
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            ))}
-            <View style={caseStyles.row}>
-                <CaseStatus
-                    id="image-rendering"
-                    status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
-                    description="imageRendering: each image at its own size, then auto, smooth and pixelated"
-                />
+        <View style={renderingStyles.case}>
+            {noOriginal ? null : <OriginalCrop image={image} size={size} />}
+            <View style={renderingStyles.modes}>
+                {RENDERING_MODES.map((mode, i) => (
+                    <FastImage
+                        key={mode}
+                        style={[drawn, i > 0 && styles.gap]}
+                        source={{ uri: imageUrl(image) }}
+                        imageRendering={mode}
+                        // Drawn from the full image, not one decoded smaller
+                        // (downsample).
+                        downsample={false}
+                        onLoad={onLoad}
+                    />
+                ))}
             </View>
+            <CaseStatus
+                id={id}
+                status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
+                description={description}
+            />
         </View>
     )
 }
 
 const renderingStyles = StyleSheet.create({
-    row: { marginBottom: 10 },
+    case: { marginBottom: 16 },
     original: {
         width: 200,
         height: 24,
         overflow: 'hidden',
         backgroundColor: '#eee',
-        marginVertical: 4,
+        marginBottom: 8,
     },
-    columns: { flexDirection: 'row' },
-    column: { width: RENDERING_COLUMN, marginRight: 12 },
+    modes: { flexDirection: 'row' },
 })
 
 // Shows status OK once `total` images have loaded (count with the returned
@@ -6357,13 +6895,15 @@ function BlurCase() {
                     onLoad={onLoad}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="blur"
-                    status={status}
-                    description="blurRadius={6}: a photo sharp, blurred by React Native's Image (on Android it blurs in the file's pixels, so this 1024 px photo hardly changes), then by FastImage from a 1024 px and a 256 px file (alike)"
-                />
-            </View>
+            <CaseStatus
+                id="blur"
+                status={status}
+                description={{
+                    checks: "blurRadius is in points: blurRadius={6} looks about the same as React Native's Image on iOS, and the same from a large file and a small one, since the image is blurred at the size it's shown at. The blurred views don't change an unblurred one of the same file.",
+                    steps: "Four 64 dp squares: FastImage with a 1024 px photo, no blur; React Native's Image with the same photo and blurRadius={6}; FastImage with the same photo and blurRadius={6}; FastImage with a 256 px file of the photo and blurRadius={6}. Passes 0.5 s after all four have loaded.",
+                    shows: "A sharp photo of green cliffs, then three blurred alike. On Android the second (React Native's Image) is nearly sharp: it blurs in the file's pixels, and this file is large.",
+                }}
+            />
         </View>
     )
 }
@@ -6397,7 +6937,11 @@ function BlurKindsCase() {
             <CaseStatus
                 id="blur-kinds"
                 status={status}
-                description="Blurred: a bundled image, a tinted logo (soft green) and a GIF (its first frame, still)"
+                description={{
+                    checks: 'blurRadius on other kinds of image: a bundled image, a tinted one, and a GIF, which shows its first frame, blurred and still.',
+                    steps: 'Shows a bundled photo with blurRadius={6}; the logo with tintColor green, blurRadius={4} and objectFit="contain"; a jellyfish GIF with blurRadius={6}. Passes 0.5 s after all three have loaded.',
+                    shows: "A blurred aerial photo of fields; a soft green React logo on gray; the jellyfish's first frame, blurred and not moving (a pink and orange blur on blue).",
+                }}
             />
         </View>
     )
@@ -6442,7 +6986,11 @@ function BlurTintChangeCase() {
             <CaseStatus
                 id="blur-tint-change"
                 status={done ? 'OK' : 'loading'}
-                description="tintColor changed from green to purple on a blurred logo after it loaded (should match the right one)"
+                description={{
+                    checks: 'tintColor changed on a blurred image after it has loaded shows the new color, blurred, like an image tinted that color from the start (iOS shows it without blurring the image again).',
+                    steps: 'Loads the logo twice with blurRadius={4} and objectFit="contain": the left with tintColor green, changed to purple (#9324c3) 300 ms after both have loaded; the right purple from the start. Passes 500 ms after the change.',
+                    shows: 'Two identical blurred purple React logos on gray. A green or sharp left one is the bug.',
+                }}
             />
         </View>
     )
@@ -6516,19 +7064,21 @@ function BlurChangeCase() {
                     source={source}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="blur-change"
-                    status={
-                        late.length > 0
-                            ? `fired again: ${late.join(', ')}`
-                            : done
-                              ? 'OK'
-                              : 'waiting'
-                    }
-                    description="blurRadius changed after load: 0 → 6 (like the second), 6 → 0 (like the fourth), without load events"
-                />
-            </View>
+            <CaseStatus
+                id="blur-change"
+                status={
+                    late.length > 0
+                        ? `fired again: ${late.join(', ')}`
+                        : done
+                          ? 'OK'
+                          : 'waiting'
+                }
+                description={{
+                    checks: "blurRadius changed once the image has loaded blurs or unblurs the image that's showing, without load events (Android loaded the image again, with its events).",
+                    steps: 'Four photos of a pug: the first loads with blurRadius 0, set to 6 after its onLoadEnd; the second has 6 from the start; the third loads with 6, set to 0 after its onLoadEnd; the fourth has no blur. Fails if onLoadStart, onProgress, onLoad or onLoadEnd fires on the first or third after that; passes 1.5 s after both changes.',
+                    shows: 'Two pugs blurred alike, a gap, then two sharp ones alike.',
+                }}
+            />
         </View>
     )
 }
@@ -6552,7 +7102,7 @@ function BlurStepsCase({
     progress = false,
 }: {
     id: string
-    description: string
+    description: Description
     source: Source
     steps: number[]
     interval?: number
@@ -6600,21 +7150,19 @@ function BlurStepsCase({
                     blurRadius={steps[steps.length - 1]}
                 />
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id={id}
-                    status={
-                        late.length > 0
-                            ? `fired again: ${late.join(', ')}`
-                            : !done
-                              ? 'waiting'
-                              : progress && !progressed
-                                ? 'no onProgress before onLoad'
-                                : 'OK'
-                    }
-                    description={description}
-                />
-            </View>
+            <CaseStatus
+                id={id}
+                status={
+                    late.length > 0
+                        ? `fired again: ${late.join(', ')}`
+                        : !done
+                          ? 'waiting'
+                          : progress && !progressed
+                            ? 'no onProgress before onLoad'
+                            : 'OK'
+                }
+                description={description}
+            />
         </View>
     )
 }
@@ -6642,7 +7190,11 @@ function BlurDefaultSourceCase() {
             <CaseStatus
                 id="blur-default-source"
                 status={failed ? 'OK' : 'waiting'}
-                description="blurRadius with a source that fails: defaultSource shows, sharp"
+                description={{
+                    checks: "blurRadius doesn't blur defaultSource, as with React Native's Image.",
+                    steps: 'Loads a url the image server answers with a 404, with a bundled defaultSource and blurRadius={6}. Passes on onError.',
+                    shows: 'The defaultSource, sharp: on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom.',
+                }}
             />
         </View>
     )
@@ -6650,13 +7202,13 @@ function BlurDefaultSourceCase() {
 
 const blurStyles = StyleSheet.create({
     image: { width: 64, height: 64, backgroundColor: '#eee' },
-    large: { width: 140, height: 140, backgroundColor: '#eee' },
-    next: { marginLeft: 4 },
+    large: { width: 144, height: 144, backgroundColor: '#eee' },
+    next: { marginLeft: 8 },
     gap: { marginLeft: 16 },
-    // The images, then the status under them (CaseStatus's text is indented).
+    // The images, then the status under them, in one view: the runner
+    // measures the view a CaseStatus is in as its case's area.
     stacked: { marginBottom: 12 },
-    images: { flexDirection: 'row', marginBottom: 4 },
-    status: { flexDirection: 'row', marginLeft: -12 },
+    images: { flexDirection: 'row', marginBottom: 8 },
 })
 
 // downsample (iOS, the default; Android always decodes at about the view's
@@ -6672,7 +7224,7 @@ function DownsampleCase({
     objectFit = 'cover',
 }: {
     id: string
-    description: string
+    description: Description
     image: string
     size: string
     style: { width: number; height: number }
@@ -6763,7 +7315,11 @@ function DownsampleDetailCase() {
                           ? 'OK'
                           : `requested ${requests} times`
                 }
-                description="downsample: a larger view of the same image decodes it again (sharp) without downloading it again"
+                description={{
+                    checks: 'downsample: a larger view of an image already shown smaller decodes it again at its own size, from the disk cache, without downloading it again.',
+                    steps: 'Loads a 2048x2048 photo (a url of its own) into a 48-point view with downsample; once it loads, a 96-point view of the same url mounts. Once both have loaded, asks the image server how many times the url was requested: passes at once.',
+                    shows: 'A photo of orange rocks under a cloudy sky, small, then larger and sharp. A blurry larger photo is a failure.',
+                }}
             />
         </View>
     )
@@ -6809,7 +7365,11 @@ function DownsampleGrowCase() {
                           ? 'OK'
                           : counts
                 }
-                description="downsample: a view that grows after loading decodes the image again for its size (sharp text), without load events"
+                description={{
+                    checks: 'downsample: a view that grows after its image loaded decodes it again for the new size, without sending the load events again.',
+                    steps: 'Loads a 1600x1000 page of text into a 48-point view with downsample; 300 ms after onLoad the view grows to 96 points. Passes a second later if onLoadStart and onLoad fired once each.',
+                    shows: 'A 96-point crop of the middle of the page, the text sharp. Blurry text (the small decode enlarged) is a failure.',
+                }}
             />
         </View>
     )
@@ -6845,7 +7405,11 @@ function DownsampleNoSizeCase() {
             <CaseStatus
                 id="downsample-no-size"
                 status={laidOut ? 'OK' : 'waiting'}
-                description="downsample: an image in a view sized from onLoad (no size before) still loads"
+                description={{
+                    checks: 'downsample: an image in a view with no size until it loads (sized from onLoad) still loads.',
+                    steps: 'Loads a 600x300 photo with downsample and no style, inside a 48-point gray square; onLoad sizes it 48 wide and 24 tall. Passes once it has been laid out with a width.',
+                    shows: 'A photo of green hills across the top half of the gray square, gray below. An empty gray square is a failure.',
+                }}
             />
         </View>
     )
@@ -6924,7 +7488,11 @@ function DownsamplePreloadingCase() {
                             ? `requested ${requests} times`
                             : 'OK'
                 }
-                description="downsample: an image that's still being preloaded is downloaded once, and cropped to cover the view, not stretched; onLoad reports its full size"
+                description={{
+                    checks: "downsample: a view of an image that's still being preloaded shares the preload's download, decodes it to cover the view (cropped, not stretched), and onLoad reports its full size (iOS downloaded it again).",
+                    steps: 'Preloads a 1600x1000 page of text from the slow server (about a second); once the server has the request, a 40x96 view with downsample loads the same source. Passes when onLoad reports 1600x1000 and the server got one request.',
+                    shows: 'A tall crop of the middle of the page, the text at its usual shape. Squashed text (the page stretched to the tall view) is a failure.',
+                }}
             />
         </View>
     )
@@ -6959,7 +7527,11 @@ function DownsampleGifCase() {
                           ? 'OK'
                           : `${size}, expected ${JELLYFISH_SIZE}`
                 }
-                description={`downsample: an animated GIF loads and plays; onLoad reports its full size (${JELLYFISH_SIZE}; masked)`}
+                description={{
+                    checks: 'downsample: an animated GIF loads and plays, and onLoad reports its own size.',
+                    steps: 'Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.',
+                    shows: "The jellyfish cropped to the small square; animated, so it isn't compared.",
+                }}
             />
         </View>
     )
@@ -7015,7 +7587,11 @@ function DownsampleOrderCase() {
                           ? 'OK'
                           : `started ${order.join(', ')}`
                 }
-                description="downsample: images mounted together start loading in order, left to right (iOS, New Architecture)"
+                description={{
+                    checks: 'downsample: images mounted together start loading in the order of their views, left to right (iOS started them as UIKit laid the views out, last first).',
+                    steps: 'Mounts six 32-point cells, each with an image filling it, of a 2048x2048 photo at six new urls, with downsample. Passes once all six have started and loaded, and, on iOS with the New Architecture, their onLoadStart events came left to right (Android loads in another order, so the order is only checked on iOS).',
+                    shows: 'Six small copies of a photo of orange rocks under a cloudy sky, in a row.',
+                }}
             />
         </View>
     )
@@ -7060,7 +7636,11 @@ function DownsampleMemoryCase() {
             <CaseStatus
                 id="downsample-memory"
                 status={step >= 3 ? 'OK' : `step ${step}`}
-                description="Full size (left), smaller (middle), full size again (right): the right one is as sharp as the left"
+                description={{
+                    checks: "A view that downsamples an image from the disk cache, after a view showed it at full size, doesn't leave its smaller copy where full-size views look (iOS kept it in the memory cache under the full-size image's key).",
+                    steps: 'Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled, from the disk cache); 300 ms after that, another 80x50 view with downsample={false}. Passes once the third has loaded; the screenshot checks its sharpness.',
+                    shows: 'The whole page small, a 32-point crop of it, then the whole page again, as sharp as the first. A blurrier right page is a failure.',
+                }}
             />
         </View>
     )
@@ -7105,7 +7685,11 @@ function DownsamplePreloadCase() {
             <CaseStatus
                 id="downsample-preload"
                 status={status}
-                description="Full size (left), smaller (right), then a preload: it resolves with the image's own size"
+                description={{
+                    checks: "FastImage.preload, after a view downsampled the image from the disk cache, resolves with the image's own size (iOS resolved with the smaller copy's).",
+                    steps: 'Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled); 300 ms after that, preloads the url. Passes when the preload resolves ok with 1600x1000.',
+                    shows: 'The whole page small, then a 32-point crop of it.',
+                }}
             />
         </View>
     )
@@ -7140,13 +7724,15 @@ function DownsampleZoomCase() {
                     </View>
                 ))}
             </View>
-            <View style={blurStyles.status}>
-                <CaseStatus
-                    id="downsample-zoom"
-                    status={status}
-                    description="A view zoomed in on 4 times with a transform: downsampled (left) the text is blurry, with downsample={false} (right) it's sharp"
-                />
-            </View>
+            <CaseStatus
+                id="downsample-zoom"
+                status={status}
+                description={{
+                    checks: "downsample={false} decodes an image at full size, so a view zoomed in on with a transform (as a pinch-to-zoom viewer does) stays sharp (Android decoded it at about the view's size either way).",
+                    steps: 'Loads a 1600x1000 page of text into two 80x50 views drawn 4 times larger with a transform, each clipped to a 140x88 area showing its top-left corner: the left with downsample (the default), the right with downsample={false}. Passes once both have loaded (and a moment more).',
+                    shows: 'The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure.',
+                }}
+            />
         </View>
     )
 }
@@ -7193,7 +7779,7 @@ function PhotoLibraryCase({
 }: {
     id: string
     type: string
-    description: string
+    description: Description
 }) {
     const [photo, setPhoto] = useState<LibraryPhoto>()
     const [status, setStatus] = useState('listing the photo library')
@@ -7295,7 +7881,11 @@ function PhotoLibraryAgainCase() {
             <CaseStatus
                 id="photo-library-again"
                 status={status}
-                description="A photo shown again after clearMemoryCache (in a new view): onLoad still has the photo's own size"
+                description={{
+                    checks: 'A photo library photo shown again after FastImage.clearMemoryCache(), in a new view, still has its own size in onLoad, not the size it was decoded at (iOS reported the view-sized copy, which it had stored on disk as the photo).',
+                    steps: "Finds a JPEG in the simulator's photo library and shows it (ph://) in a 48 pt view. On onLoad it checks the size, calls clearMemoryCache and shows the photo in a new view. Passes when the second onLoad also has the photo's own size.",
+                    shows: 'The same photo as the JPEG row (a waterfall; the four colored quadrants on tvOS), cropped to fill the square.',
+                }}
             />
         </View>
     )
@@ -7356,7 +7946,11 @@ function PhotoLibraryGifCase() {
             <CaseStatus
                 id="photo-library-gif"
                 status={status}
-                description="A GIF from the photo library animates (recorded: red, then blue)"
+                description={{
+                    checks: 'A GIF from the photo library (ph://) animates.',
+                    steps: "Finds the GIF verify.mts adds to the simulator's library (red, then blue, 400 ms each, looping) and shows it with paused and loop={false}. On onLoad it starts recording and sets paused={false}, so it plays once.",
+                    shows: 'A blue square (the last frame). Recorded: red, then blue.',
+                }}
             />
         </View>
     )
@@ -7372,7 +7966,7 @@ function PhotoLibraryErrorCase({
     id: string
     uri: string
     expected: string
-    description: string
+    description: Description
 }) {
     const [status, setStatus] = useState('waiting')
     return (
@@ -7400,6 +7994,11 @@ export type { RegressionGroup }
 // which: 100 px red, 300 px green, 900 px blue. Each case checks onLoad's
 // size against the same rule worked out here for the view's size.
 const SIZES = [100, 300, 900]
+const SIZE_COLORS: Record<number, string> = {
+    100: 'red',
+    300: 'green',
+    900: 'blue',
+}
 const sizedSources = (id: string) =>
     SIZES.map((size) => ({
         uri: imageUrl(`sized-${size}.png?${id}=${RUN}`),
@@ -7452,9 +8051,13 @@ function SeveralSourcesCase({
             <CaseStatus
                 id={id}
                 status={status}
-                description={`several sources (100, 300, 900 px) in a ${size} pt view${
-                    border ? ` with ${border} pt borders` : ''
-                }: loads the ${expected} px one (red 100, green 300, blue 900)`}
+                description={{
+                    checks: `source as an array of sizes: the view loads the one whose size in pixels is closest to its own${border ? ', measured inside its borders, where the image is drawn (Android picked for the whole view)' : ''}.`,
+                    steps: `Gives a ${size} pt view${border ? ` with ${border} pt black borders` : ''} three sources: 100, 300 and 900 px squares (red, green, blue). Passes when onLoad's width is ${expected} px, the closest to the ${border ? 'inner box' : 'view'} at this screen's scale.`,
+                    shows: border
+                        ? `A ${size} pt black square (the borders) with the ${SIZE_COLORS[expected]} ${expected} px image filling the box inside them.`
+                        : `A ${size} pt ${SIZE_COLORS[expected]} square (the ${expected} px image); another color means it picked another size.`,
+                }}
             />
         </View>
     )
@@ -7490,7 +8093,14 @@ function SeveralSourcesBundledCase({ id, size }: { id: string; size: number }) {
             <CaseStatus
                 id={id}
                 status={status}
-                description={`a bundled 48 px image and a 300 px one in a ${size} pt view: loads the ${expected === 48 ? 'bundled magenta' : 'green 300 px'} one`}
+                description={{
+                    checks: "A require()d image among several sources counts at its file's size (48 px): the view loads whichever source is closest to its own size in pixels.",
+                    steps: `Gives a ${size} pt view two sources: the bundled 48 px magenta square and a 300 px green one from the image server. Passes when onLoad's width is ${expected} px.`,
+                    shows:
+                        expected === 48
+                            ? `A tiny ${size} pt magenta square (the bundled image).`
+                            : `A ${size} pt green square (the 300 px image); magenta would mean it picked the bundled one.`,
+                }}
             />
         </View>
     )
@@ -7540,7 +8150,11 @@ function SeveralSourcesBorderChangeCase() {
             <CaseStatus
                 id="several-border-change"
                 status={status}
-                description={`several sources: a ${size} pt view loads the ${first} px one, then gets ${border} pt borders and loads the ${expected} px one for the box inside them`}
+                description={{
+                    checks: 'source as an array of sizes, with borders added after the image loaded: the view loads the size that fits the box inside them (Android kept the source picked for the whole view).',
+                    steps: `Gives a ${size} pt view three sources: 100, 300 and 900 px squares (red, green, blue). Once it has loaded the ${first} px one, it gets ${border} pt black borders. Passes when the next onLoad has the ${expected} px one.`,
+                    shows: `A ${size} pt black square (the borders) with the ${SIZE_COLORS[expected]} ${expected} px image filling the box inside them${first === expected ? '' : `; ${SIZE_COLORS[first]} would mean it kept the first pick`}.`,
+                }}
             />
         </View>
     )
@@ -7582,7 +8196,11 @@ function SeveralSourcesResizeCase() {
             <CaseStatus
                 id="several-resize"
                 status={status}
-                description={`several sources: a ${small} pt view that grows to ${large} pt after loading loads the ${expectedSize(large, large)} px size`}
+                description={{
+                    checks: 'source as an array of sizes: a view that grows after its image loaded loads the size that fits it better.',
+                    steps: `Gives a ${small} pt view three sources: 100, 300 and 900 px squares (red, green, blue). Once it has loaded the ${expectedSize(small, small)} px one, the view grows to ${large} pt. Passes when the next onLoad has the ${expectedSize(large, large)} px one.`,
+                    shows: `A ${large} pt ${SIZE_COLORS[expectedSize(large, large)]} square; ${SIZE_COLORS[expectedSize(small, small)]} would mean it kept the small view's pick.`,
+                }}
             />
         </View>
     )
@@ -7624,7 +8242,11 @@ function SeveralSourcesEdgeCase() {
                         ? 'OK'
                         : `one: ${one}; no size: ${none}`
                 }
-                description="an array of one source loads it as it is (blue), and a view with no size loads the largest"
+                description={{
+                    checks: 'An array of one source loads that source as it is (not picked by size), and a view with no size loads the largest of several.',
+                    steps: 'Shows a 48 pt view with an array of just the 900 px blue source, and a 0×0 view with all three (100, 300, 900 px). Passes when both onLoads have 900 px.',
+                    shows: 'A blue square (the one-source array); the 0×0 view takes no space.',
+                }}
             />
         </View>
     )
@@ -7649,7 +8271,7 @@ function FormatCase({
     expected: FormatResult
     // The sample's size: 80x80, except where the format has fixed sizes.
     size?: number
-    description: string
+    description: Description
 }) {
     const [status, setStatus] = useState('waiting')
     return (
@@ -7695,7 +8317,7 @@ function FormatAnimationCase({
     id: string
     file: string
     expected: AnimationResult
-    description: string
+    description: Description
     imageProps?: Partial<FastImageProps>
 }) {
     const sample = useContext(SampleContext)
@@ -7780,7 +8402,7 @@ function SvgCase({
     objectFit?: FastImageProps['objectFit']
     tintColor?: string
     downsample?: boolean
-    description: string
+    description: Description
 }) {
     const [status, setStatus] = useState('loading')
     return (
@@ -7834,7 +8456,11 @@ function SvgSharpCase() {
                 status={
                     error ? `error: ${error}` : loaded >= 2 ? 'OK' : 'loading'
                 }
-                description="An SVG at 24 and 160: the large one has thin, sharp rings"
+                description={{
+                    checks: 'An SVG shown large is drawn at its size, not scaled up from a small bitmap.',
+                    steps: 'Loads the same 20×20 SVG (three thin black rings on white) in a 24 pt view and a 160 pt view. Passes when both have fired onLoad; the sharpness is checked by the screenshot.',
+                    shows: 'Small rings, then the same rings at 160 pt: thin, sharp black circles on white. Blurry or thick edges on the large one would mean it was scaled up from a bitmap.',
+                }}
             />
         </View>
     )
@@ -7864,7 +8490,11 @@ function WebCachePathAtStartCase() {
             <CaseStatus
                 id="cache-path-web-at-start"
                 status={status}
-                description="getCachePath for a cache 'web' image before any image has loaded: downloads it into the HTTP cache"
+                description={{
+                    checks: "FastImage.getCachePath for a cache: 'web' image works as the app's first Fast Image call (Android failed, saying Glide isn't set up: the HTTP cache of web images was only set up once a view had loaded an image).",
+                    steps: "With no image view on screen, calls FastImage.getCachePath with cache: 'web' for a photo the image server marks as cacheable for an hour (a new url each run), which downloads it into the HTTP cache. Passes when the result is ok.",
+                    shows: 'An empty gray square: the case shows no image.',
+                }}
             />
         </View>
     )
@@ -7894,7 +8524,11 @@ function AppImageNameCase() {
             <CaseStatus
                 id="app-image-name"
                 status={status}
-                description="#410: an image by its name in the app (the asset catalog on iOS, a drawable on Android) loads (the quadrants)"
+                description={{
+                    checks: "An image in the app by its name (in the asset catalog on iOS, a drawable on Android) loads (#410: iOS looked for a file of that name in the app's resources, which an asset catalog image isn't, so it didn't load).",
+                    steps: "Loads { uri: 'regression_quadrants' }. Passes when onLoad reports 80x80, the image's size.",
+                    shows: 'The quadrants filling the square: red top left, green top right, blue bottom left, yellow bottom right.',
+                }}
             />
         </View>
     )
@@ -7910,7 +8544,7 @@ function ViewStyleCase({
     images,
 }: {
     id: string
-    description: string
+    description: Description
     images: FastImageProps[]
 }) {
     const [loaded, setLoaded] = useState(0)
@@ -7967,7 +8601,11 @@ function GradientCase() {
             <CaseStatus
                 id="style-gradient"
                 status={loaded ? 'OK' : 'waiting'}
-                description="a gradient background under a contained image (left), as on a View (right)"
+                description={{
+                    checks: "A gradient background (experimental_backgroundImage) shows under a contained image, as on a View (Android drew no gradient on FastImage's view).",
+                    steps: 'Loads the wide photo with objectFit="contain" in a square with experimental_backgroundImage linear-gradient(#ff0000, #0000ff), next to a View with the same gradient. Passes on onLoad.',
+                    shows: "Left: the photo across the middle, with the gradient's red above it and blue below. Right: the whole gradient, red at the top to blue at the bottom.",
+                }}
             />
         </View>
     )
@@ -8006,7 +8644,11 @@ function BorderChangeCase() {
             <CaseStatus
                 id="style-border-change"
                 status={status}
-                description="a 40 dp top border removed after the image loaded (left): the image fills the box, as without a border (right)"
+                description={{
+                    checks: 'A border removed after the image has loaded: the image fills the box again (Android kept the image it had loaded for the smaller box inside the border, stretched).',
+                    steps: 'Loads a 600×300 photo in two 96×56 boxes; the left one has a 40 dp black top border, removed 100 ms after onLoad. Passes 1 s later.',
+                    shows: 'Two identical photos of green cliffs filling their boxes. A black band at the top of the left one, or the photo stretched, is the bug.',
+                }}
             />
         </View>
     )
@@ -8052,7 +8694,11 @@ function BorderRemovedCase() {
             <CaseStatus
                 id="style-border-removed"
                 status={status}
-                description="a 30 dp left border removed after the image loaded, with 6 dp borders (left): 6 dp borders all round, as from the start (right)"
+                description={{
+                    checks: "One edge's border width removed after the image has loaded, under a width for every edge: that edge falls back to the width for every edge, and the image stays inside the borders (on Android with React Native 0.83 to 0.87, the removed width reached the view as NaN and the image was drawn over the left border).",
+                    steps: 'Loads a 600×300 photo in two 96×56 boxes with a 6 dp black border; the left one also has borderLeftWidth 30, removed 100 ms after onLoad. Passes 1 s later.',
+                    shows: 'Two identical photos inside even 6 dp black borders. A thick left border, or the photo over the left border, is the bug.',
+                }}
             />
         </View>
     )
@@ -8094,7 +8740,11 @@ function OverflowChangeCase() {
             <CaseStatus
                 id="style-overflow-change"
                 status={status}
-                description="overflow from hidden to visible after the image loaded, with a radius (left): square corners, as visible from the start (right)"
+                description={{
+                    checks: "overflow switched from 'hidden' to 'visible' after the image has loaded, with a borderRadius: the corners become square, as on an image that was visible from the start (iOS kept the rounded mask).",
+                    steps: "Loads the wide photo in two squares with borderRadius 16; the left one starts with overflow: 'hidden', switched to 'visible' 100 ms after onLoad. Passes 1 s later.",
+                    shows: 'Two identical photos of green cliffs with square corners. Rounded corners on the left one are the bug.',
+                }}
             />
         </View>
     )
@@ -8104,7 +8754,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="style-corners"
         id="style-corners"
-        description="per-corner and logical radii with a border: the image is clipped inside it, with its inner radii"
+        description={{
+            checks: 'Per-corner and logical corner radii, with a border: the image is clipped inside the border, with the matching inner radii.',
+            steps: 'Two squares: one with corner radii 0 (top left), 24 (top right), 8 (bottom right) and 16 (bottom left) and a 3 dp blue border; one with borderTopStartRadius and borderBottomEndRadius 24.',
+            shows: 'Left: the photo inside a blue border, its top left corner square, the top right much rounder than the bottom ones, and no photo outside the border. Right: the photo with its top left and bottom right corners rounded.',
+        }}
         images={[
             {
                 style: [
@@ -8130,7 +8784,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="style-border-sides"
         id="style-border-sides"
-        description="borders of different widths and colors on each side, a 50% radius on a wide box, and a dashed border"
+        description={{
+            checks: 'Borders of a different width and color on each side, a 50% radius on a wide box, and a dashed border.',
+            steps: "Three images: a square with borderRadius 12 and borders of 2 (red, top), 6 (green, right), 10 (blue, bottom) and 4 (orange, left); a 96×56 box with borderRadius '50%'; a square with borderRadius 8 and a 2 dp dashed black border.",
+            shows: 'Left to right: the photo framed by a thin red top, green right, thick blue bottom and orange left border, with rounded corners; the photo clipped to an ellipse; the photo inside a dashed black border with rounded corners.',
+        }}
         images={[
             {
                 style: [
@@ -8165,7 +8823,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="style-padding"
         id="style-padding"
-        description="padding 8 (left) doesn't inset the image: same as none (middle); overflow visible: square corners (right)"
+        description={{
+            checks: "padding doesn't inset the image, which fills the box as without padding, and overflow: 'visible' with a radius leaves the image's corners square.",
+            steps: "Three squares: padding 8 with a 2 dp black border and borderRadius 12; the same border and radius without padding; borderRadius 16 with overflow: 'visible'.",
+            shows: 'Left to right: two identical photos inside rounded black borders, filling them (a gap inside the left border is the bug); a photo with square corners.',
+        }}
         images={[
             {
                 style: [
@@ -8195,7 +8857,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="style-effects"
         id="style-effects"
-        description="opacity 0.5, a rotation with a radius, a box shadow, and elevation with a radius and background"
+        description={{
+            checks: 'opacity, a rotation, a box shadow and elevation on the image, each with a radius but the first.',
+            steps: "Four squares: opacity 0.5; borderRadius 12 rotated 15 degrees; borderRadius 12 with boxShadow '0 4px 8px rgba(0, 0, 0, 0.6)'; borderRadius 12 with elevation 8.",
+            shows: 'Left to right: the photo at half opacity; rounded and tilted clockwise; rounded with a dark shadow below; rounded, with a soft shadow on Android only (elevation is Android only).',
+        }}
         images={[
             { style: [viewStyles.box, { opacity: 0.5 }] },
             {
@@ -8221,7 +8887,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="style-backface"
         id="style-backface"
-        description="turned around (rotateY 180°): with backfaceVisibility hidden it doesn't show at all (left, empty); visible shows it mirrored (right)"
+        description={{
+            checks: "backfaceVisibility on an image turned around (rotateY 180°): 'hidden' doesn't show it, and 'visible' shows it mirrored.",
+            steps: "Two squares with transform rotateY: '180deg': backfaceVisibility 'hidden', then 'visible'.",
+            shows: 'Left: nothing at all, not even the gray background. Right: the photo mirrored, the cliffs on the left.',
+        }}
         images={[
             {
                 style: [
@@ -8246,7 +8916,11 @@ const VIEW_STYLE_CASES = [
     <ViewStyleCase
         key="tint-prop-wins"
         id="tint-prop-wins"
-        description="the tintColor prop (green) wins over style's tintColor (red), as with React Native's Image"
+        description={{
+            checks: "The tintColor prop wins over tintColor in style, as with React Native's Image.",
+            steps: 'Loads the logo with objectFit="contain", tintColor green and style tintColor red.',
+            shows: "The React logo in solid green on a gray square. A red logo means style's tintColor won.",
+        }}
         images={[
             {
                 source: { uri: LOGO },
@@ -8339,7 +9013,11 @@ function ThumbhashLoadingCase() {
             <CaseStatus
                 id="thumbhash-loading"
                 status={status}
-                description="thumbhash while the image loads, over defaultSource: red on the left to blue on the right, blurred (no magenta)"
+                description={{
+                    checks: 'source.thumbhash shows while the image loads, in place of defaultSource.',
+                    steps: 'A 96 × 72 view loads a photo the slow server holds (it sends nothing until the case unmounts), with a red-to-blue thumbhash and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it (the download should be held).',
+                    shows: 'A red-to-blue gradient, red on the left and blue on the right, filling the view. A failure: a magenta rectangle (defaultSource).',
+                }}
             />
         </View>
     )
@@ -8367,7 +9045,11 @@ function ThumbhashScaleDownCase() {
             <CaseStatus
                 id="thumbhash-scale-down"
                 status={status}
-                description="thumbhash with objectFit scale-down and transparency: a soft magenta disc, as tall as the view, centered on gray"
+                description={{
+                    checks: "A thumbhash with transparency and objectFit scale-down is drawn as contain (the image's size isn't known yet), with the view's background around it.",
+                    steps: 'A 96 × 72 view loads a photo the slow server holds, with the thumbhash of a magenta disc on transparent and objectFit="scale-down". Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'A soft, blurred magenta disc as tall as the view, centered on the gray background.',
+                }}
             />
         </View>
     )
@@ -8394,7 +9076,11 @@ function ThumbhashFailsCase() {
             <CaseStatus
                 id="thumbhash-fails"
                 status={status}
-                description="thumbhash after the image fails, objectFit contain: green at the top to yellow at the bottom, centered on gray"
+                description={{
+                    checks: 'source.thumbhash stays when the image fails to load.',
+                    steps: 'A 96 × 72 view with objectFit="contain" loads a url the slow server answers with a 404, with a 3:4 green-to-yellow thumbhash. Passes on onError.',
+                    shows: 'A narrow green-to-yellow rectangle (green at the top, yellow at the bottom) centered on gray. A failure: an empty gray rectangle.',
+                }}
             />
         </View>
     )
@@ -8444,7 +9130,11 @@ function ThumbhashChangeLoadedCase() {
             <CaseStatus
                 id="thumbhash-change-loaded"
                 status={status}
-                description="A new thumbhash for an image that has loaded: no new load, the photo stays"
+                description={{
+                    checks: "A new thumbhash for an image that has loaded doesn't load it again, and the photo stays.",
+                    steps: 'A 96 × 72 view loads a photo from the slow server (about 350 ms) with a red-to-blue thumbhash; 1 s after onLoad the thumbhash changes to cyan-to-orange. Passes 2.5 s after onLoad if the server got one request for it and onLoad fired once.',
+                    shows: 'A gray photo of a misty forest, cropped to fill the view. A failure: a cyan-to-orange gradient.',
+                }}
             />
         </View>
     )
@@ -8498,7 +9188,11 @@ function ThumbhashPlaceholderLateCase() {
             <CaseStatus
                 id="thumbhash-placeholder-late"
                 status={status}
-                description="placeholder's thumbhash after the image has loaded (defaultSource until then): no new load, the photo stays"
+                description={{
+                    checks: "A placeholder thumbhash that arrives after the image has loaded doesn't load it again, and the photo stays.",
+                    steps: 'A 96 × 72 view loads a photo from the slow server (about 350 ms) with a magenta defaultSource and placeholder={{ thumbhash: undefined }}; 1 s after onLoad, placeholder gets a cyan-to-orange thumbhash. Passes 2.5 s after onLoad if the server got one request for it and onLoad fired once.',
+                    shows: 'A gray photo of a misty forest, cropped to fill the view. A failure: a cyan-to-orange gradient.',
+                }}
             />
         </View>
     )
@@ -8546,7 +9240,11 @@ function ThumbhashChangeLoadingCase() {
             <CaseStatus
                 id="thumbhash-change-loading"
                 status={status}
-                description="A new thumbhash while the image loads: shows at once (cyan on the left to orange on the right), the download isn't restarted"
+                description={{
+                    checks: 'A new thumbhash while the image loads shows at once, without starting the download again.',
+                    steps: 'A 96 × 72 view loads a photo the slow server holds, with a red-to-blue thumbhash; half a second after onLoadStart the thumbhash changes to cyan-to-orange. Passes 1.5 s after onLoadStart if the server got one request; a second onLoadStart or an onLoad fails it.',
+                    shows: 'A cyan-to-orange gradient, cyan on the left and orange on the right. A failure: the red-to-blue one.',
+                }}
             />
         </View>
     )
@@ -8590,7 +9288,11 @@ function ThumbhashSizesCase() {
             <CaseStatus
                 id="thumbhash-sizes"
                 status={status}
-                description="Several sizes with their own thumbhash: the picked size's (cyan on the left to orange on the right, not red to blue)"
+                description={{
+                    checks: 'With several sizes, each with its own thumbhash, the view shows the thumbhash of the size it picks.',
+                    steps: 'A 40 × 30 view gets two held sources: 100 × 75 with a cyan-to-orange thumbhash and 1000 × 750 with a red-to-blue one; it picks the small one. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: "A small cyan-to-orange gradient. A failure: red to blue (the large size's hash).",
+                }}
             />
         </View>
     )
@@ -8628,7 +9330,11 @@ function ThumbhashRecycledCase() {
             <CaseStatus
                 id="thumbhash-recycled"
                 status={status}
-                description="A recycled row (new recyclingKey) with a thumbhash: green at the top to yellow at the bottom, not the previous photo"
+                description={{
+                    checks: "A recycled view (a new recyclingKey) with a thumbhash shows the hash, not the previous item's image.",
+                    steps: "A 96 × 72 view loads a photo with recyclingKey 'a'; on its onLoad, it gets recyclingKey 'b' and a photo the slow server holds, with a green-to-yellow thumbhash. Passes half a second after the second onLoadStart; its onLoad fails it.",
+                    shows: 'A green-to-yellow gradient (green at the top, yellow at the bottom) filling the view. A failure: the first photo.',
+                }}
             />
         </View>
     )
@@ -8663,7 +9369,11 @@ function PlaceholderDataUriCase() {
             <CaseStatus
                 id="placeholder-data-uri"
                 status={status}
-                description="placeholder as a data uri while the image loads: red, green, blue and yellow quadrants blending into each other (no magenta)"
+                description={{
+                    checks: 'The placeholder prop as a data uri shows while the image loads, decoded at once, in place of defaultSource.',
+                    steps: 'A 96 × 72 view loads a photo the slow server holds, with placeholder set to a 2 × 2 PNG data uri (red, green, blue and yellow pixels) and a magenta defaultSource. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'Red (top left), green (top right), blue (bottom left) and yellow (bottom right) blending into each other, filling the view. A failure: magenta.',
+                }}
             />
         </View>
     )
@@ -8693,7 +9403,11 @@ function BlurDataUriCase() {
             <CaseStatus
                 id="blur-data-uri"
                 status={status}
-                description="a source's blurDataUri with objectFit scale-down: an orange-to-teal band, blurred smoothly from one color to the other, as wide as the view, half as tall, centered on gray (no magenta)"
+                description={{
+                    checks: "A source's blurDataUri shows while the image loads, blurred, over the placeholder prop; with objectFit scale-down it's drawn as contain, as a thumbhash is.",
+                    steps: 'A 96 × 72 view with objectFit="scale-down" loads a photo the slow server holds, with blurDataUri set to a 2 × 1 PNG (orange on the left, teal on the right) and a magenta placeholder. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'An orange-to-teal band, blurred smoothly from one to the other, as wide as the view and half as tall, centered on gray. A failure: magenta.',
+                }}
             />
         </View>
     )
@@ -8736,7 +9450,11 @@ function PlaceholderSizesCase() {
             <CaseStatus
                 id="placeholder-sizes"
                 status={status}
-                description="Several sizes with one thumbhash as the placeholder prop: green at the top to yellow at the bottom, filling the view"
+                description={{
+                    checks: "With several sizes and no thumbhash of their own, the placeholder prop's thumbhash shows for the picked size.",
+                    steps: 'A 96 × 72 view gets two held sources (100 × 75 and 1000 × 750) and placeholder={{ thumbhash }} with a green-to-yellow hash. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'A green-to-yellow gradient (green at the top, yellow at the bottom) filling the view.',
+                }}
             />
         </View>
     )
@@ -8771,7 +9489,11 @@ function PlaceholderDataUriSizeCase() {
             <CaseStatus
                 id="placeholder-data-uri-size"
                 status={status}
-                description="placeholder as a 48 px data uri with objectFit none: red, green, blue and yellow quadrants, half as wide as the view and two thirds as tall, centered on gray"
+                description={{
+                    checks: 'The placeholder prop as a data uri with objectFit none is drawn at its size, one pixel per point (Android drew it one pixel per pixel, much smaller).',
+                    steps: 'A 96 × 72 view with objectFit="none" loads a photo the slow server holds, with placeholder set to a 48 × 48 PNG data uri of red, green, blue and yellow quadrants. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'Sharp red, green, blue and yellow quadrants, 48 × 48 (half as wide as the view, two thirds as tall), centered on gray.',
+                }}
             />
         </View>
     )
@@ -8800,7 +9522,11 @@ function ThumbhashTintCase() {
             <CaseStatus
                 id="thumbhash-tint"
                 status={status}
-                description="tintColor blue with a transparent thumbhash while the image loads: tinted as the image will be, a blurred blue disc centered on gray (no magenta)"
+                description={{
+                    checks: 'tintColor tints a thumbhash with transparency, as it will tint the image.',
+                    steps: 'A 96 × 72 view with objectFit="contain" and tintColor="#1e40ff" loads a photo the slow server holds, with the thumbhash of a magenta disc on transparent. Passes half a second after onLoadStart; onLoad fails it.',
+                    shows: 'A soft blue disc, as tall as the view, centered on gray. A failure: a magenta disc.',
+                }}
             />
         </View>
     )
@@ -8844,7 +9570,11 @@ function HdrCase() {
                 status={
                     error ? `onError: ${error}` : loaded >= 3 ? 'OK' : 'waiting'
                 }
-                description="An HDR photo with dynamicRangeLimit standard, constrained and no-limit: the first flat gray (the others aren't compared in the simulator); on an HDR display, the second's right half brighter, and the third's brighter still"
+                description={{
+                    checks: "An HDR photo (a gain map) loads with each dynamicRangeLimit: 'standard', 'constrained' and 'no-limit'.",
+                    steps: "Three 64 × 48 views load the same photo: flat gray in standard range, its right half brighter in HDR. Passes once all three have fired onLoad; onError fails it. The simulator can't show HDR, so the last two are left out of the comparison; Android ignores dynamicRangeLimit.",
+                    shows: "A flat gray rectangle, then two that aren't compared (black or gray in the iOS simulator, gray on Android). On an HDR iPhone, the second's right half is brighter, and the third's brighter still.",
+                }}
             />
         </View>
     )
@@ -8896,7 +9626,11 @@ function PlaceholderUrlCase() {
             <CaseStatus
                 id="placeholder-url"
                 status={status}
-                description="A url as placeholder while the image loads: red, green, blue and yellow quadrants, loaded"
+                description={{
+                    checks: "The placeholder prop as a url that isn't cached: it loads, and shows while the image loads.",
+                    steps: 'A 96 × 72 view loads a photo the slow server holds, with placeholder set to the url of a 20 × 20 image of red, green, blue and yellow quadrants (a new url each run). Passes 1 s after onLoadStart; onLoad fails it.',
+                    shows: 'Red, green, blue and yellow quadrants filling the view. A failure: an empty gray rectangle.',
+                }}
             />
         </View>
     )
@@ -8939,7 +9673,11 @@ function PlaceholderUrlCacheOnlyCase() {
             <CaseStatus
                 id="placeholder-url-cache-only"
                 status={status}
-                description="A url as placeholder with cache cacheOnly, not cached: gray (no cyan), and not requested"
+                description={{
+                    checks: "A url placeholder with cache: 'cacheOnly' that isn't cached shows nothing and isn't requested.",
+                    steps: "A 96 × 72 view loads a photo the slow server holds, with placeholder={{ uri, cache: 'cacheOnly' }} for a cyan image not loaded before. Passes if, 1 s after onLoadStart, the image server got no request for the cyan url; onLoad fails it.",
+                    shows: 'An empty gray rectangle. A failure: cyan.',
+                }}
             />
         </View>
     )
@@ -8981,7 +9719,11 @@ function PlaceholderUrlCachedCase() {
             <CaseStatus
                 id="placeholder-url-cached"
                 status={status}
-                description="A url shown small, then as a larger view's placeholder with cache cacheOnly: the quadrants in both"
+                description={{
+                    checks: "A url placeholder with cache: 'cacheOnly' shows when it's cached, as for a list's thumbnail shown while the full image loads.",
+                    steps: "A 40 × 30 view loads the quadrants image; on its onLoad, a 96 × 72 view mounts with a photo the slow server holds and placeholder={{ uri, cache: 'cacheOnly' }} for the same url. Passes 1 s after onLoadStart; onLoad fails it.",
+                    shows: 'The red, green, blue and yellow quadrants small, then larger on the right. A failure: an empty gray rectangle on the right.',
+                }}
             />
         </View>
     )
@@ -9001,7 +9743,11 @@ function PlaceholderUrlErrorCase() {
             <CaseStatus
                 id="placeholder-url-error"
                 status={status}
-                description="A url as placeholder when the image fails (a 404): cyan"
+                description={{
+                    checks: 'A url placeholder shows when the image fails.',
+                    steps: "A 96 × 72 view loads a url the image server answers with a 404, with placeholder set to a cyan image's url. Passes 1 s after onError.",
+                    shows: 'A cyan rectangle. A failure: an empty gray rectangle.',
+                }}
             />
         </View>
     )
@@ -9033,7 +9779,11 @@ function PlaceholderUrlLateCase() {
             <CaseStatus
                 id="placeholder-url-late"
                 status={status}
-                description="A url placeholder that comes after the image: the image stays (magenta, no quadrants)"
+                description={{
+                    checks: "A url placeholder that arrives after the image has loaded doesn't replace it.",
+                    steps: "A 96 × 72 view loads a magenta image, with placeholder set to the quadrants from the slow server, held until the image's onLoad releases it. Passes 1 s after onLoad.",
+                    shows: 'A magenta rectangle. A failure: the red, green, blue and yellow quadrants.',
+                }}
             />
         </View>
     )
@@ -9048,32 +9798,53 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // First, before any view has loaded an image.
         name: 'start',
+        description: {
+            checks: "Fast Image calls that must work as the app's first, before any view has loaded an image.",
+        },
         cases: [<WebCachePathAtStartCase key="cache-path-web-at-start" />],
     },
     {
         name: 'load-end',
+        description: {
+            checks: "onLoadEnd's event: whether the load worked, with onLoad's size or onError's error.",
+        },
         cases: [
             <LoadEndResultCase
                 key="load-end-ok"
                 id="load-end-ok"
                 uri={LOGO}
-                description="onLoadEnd gets ok and the size onLoad got"
+                description={{
+                    checks: "onLoadEnd's event has the load's result: for an image that loads, ok: true and the same width and height onLoad got.",
+                    steps: "Loads the logo from the image server, with onLoad and onLoadEnd. Passes once both have fired and onLoadEnd's event is { ok: true, width, height } with onLoad's size.",
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
             />,
             <LoadEndResultCase
                 key="load-end-error"
                 id="load-end-error"
                 uri={MISSING}
-                description="onLoadEnd gets not ok and the error onError got (a 404)"
+                description={{
+                    checks: "onLoadEnd's event has the load's result: for an image that fails, ok: false and the same error onError got.",
+                    steps: "Loads a url the image server answers with a 404, with onError and onLoadEnd. Passes once both have fired and onLoadEnd's event is { ok: false, error } with onError's error.",
+                    shows: 'An empty gray square: the image never loads.',
+                }}
             />,
         ],
     },
     {
         name: 'events',
+        description: {
+            checks: "Event handlers and source values that crashed or failed loads: tintColor without an image, handlers removed after firing, source values Fast Image doesn't know, and images without handlers.",
+        },
         cases: [
             <EventCase
                 key="tint-remote"
                 id="tint-remote"
-                description="#1082: tintColor on a remote image with no defaultSource"
+                description={{
+                    checks: 'tintColor on a remote image without a defaultSource (#1082: iOS crashed tinting an image with no size, before the remote one had loaded).',
+                    steps: 'Loads the logo with tintColor green and no defaultSource. Passes on onLoad.',
+                    shows: 'The React logo in solid green instead of its usual light blue.',
+                }}
                 event="onLoad"
                 source={{ uri: LOGO }}
                 tintColor="green"
@@ -9081,7 +9852,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="tint-404"
                 id="tint-404"
-                description="#1082: tintColor on an image that fails to load"
+                description={{
+                    checks: 'tintColor on an image that fails to load (#1082: iOS crashed tinting an image with no size).',
+                    steps: 'Loads a url the image server answers with a 404, with tintColor green. Passes on onError.',
+                    shows: "An empty gray square: nothing loads, so there's nothing to tint.",
+                }}
                 event="onError"
                 source={{ uri: MISSING }}
                 tintColor="green"
@@ -9089,7 +9864,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="remove-onLoad"
                 id="remove-onLoad"
-                description="#1088: onLoad removed after it fires"
+                description={{
+                    checks: 'Removing the onLoad handler after it has fired (#1088: iOS called the removed handler and crashed).',
+                    steps: 'Loads the logo with onLoad; when it fires, the case re-renders without onLoad. Passes once it has fired; a crash after that fails the whole run.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 removeAfter
                 source={{ uri: LOGO }}
@@ -9097,7 +9876,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="remove-onLoadEnd"
                 id="remove-onLoadEnd"
-                description="#1088: onLoadEnd removed after it fires"
+                description={{
+                    checks: 'Removing the onLoadEnd handler after it has fired (#1088: iOS called the removed handler and crashed).',
+                    steps: 'Loads the logo with onLoadEnd; when it fires, the case re-renders without onLoadEnd. Passes once it has fired; a crash after that fails the whole run.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoadEnd"
                 removeAfter
                 source={{ uri: LOGO }}
@@ -9105,7 +9888,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="remove-onError"
                 id="remove-onError"
-                description="#1088: onError removed after it fires"
+                description={{
+                    checks: 'Removing the onError handler after it has fired (#1088: iOS called the removed handler and crashed).',
+                    steps: 'Loads a url the image server answers with a 404 with onError; when it fires, the case re-renders without onError. Passes once it has fired; a crash after that fails the whole run.',
+                    shows: 'An empty gray square: the image never loads.',
+                }}
                 event="onError"
                 removeAfter
                 source={{ uri: MISSING }}
@@ -9113,7 +9900,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="unknown-cache"
                 id="unknown-cache"
-                description="An unknown source.cache loads as the default"
+                description={{
+                    checks: "A source.cache that isn't one of Fast Image's values ('sometimes') is treated as the default ('immutable') instead of failing.",
+                    steps: "Loads the logo with cache: 'sometimes'. Passes on onLoad.",
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 // @ts-expect-error not one of Fast Image's values
                 source={{ uri: LOGO, cache: 'sometimes' }}
@@ -9121,14 +9912,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="react-native-reload"
                 id="react-native-reload"
-                description="React Native's cache 'reload' loads as the default"
+                description={{
+                    checks: "React Native Image's cache: 'reload', which Fast Image doesn't have, is treated as the default instead of failing.",
+                    steps: "Loads the logo with cache: 'reload'. Passes on onLoad.",
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 source={{ uri: LOGO, cache: 'reload' }}
             />,
             <EventCase
                 key="unknown-priority"
                 id="unknown-priority"
-                description="An unknown source.priority loads as the default"
+                description={{
+                    checks: "A source.priority that isn't one of Fast Image's values ('urgent') is treated as the default ('normal') instead of failing.",
+                    steps: "Loads the logo with priority: 'urgent'. Passes on onLoad.",
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 // @ts-expect-error not one of Fast Image's values
                 source={{ uri: LOGO, priority: 'urgent' }}
@@ -9136,7 +9935,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="non-string-cache"
                 id="non-string-cache"
-                description="A source.cache that isn't a string loads as the default"
+                description={{
+                    checks: "A source.cache that isn't a string (the number 1) is treated as the default instead of failing or crashing.",
+                    steps: 'Loads the logo with cache: 1. Passes on onLoad.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 // @ts-expect-error not one of Fast Image's values
                 source={{ uri: LOGO, cache: 1 }}
@@ -9146,25 +9949,40 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'errors',
+        description: {
+            checks: "Sources that fail fire onError: a data uri that isn't an image, an empty or null uri, and a 404, whose error says so.",
+        },
         cases: [
             <EventCase
                 key="error-invalid-data-uri"
                 id="error-invalid-data-uri"
-                description="A data: uri that isn't an image fires onError (iOS fired onLoad with 0x0)"
+                description={{
+                    checks: "A data: uri whose data isn't an image fires onError (iOS fired onLoad, with a size of 0x0).",
+                    steps: "Loads a data:image/png;base64 uri whose data is the text 'not an image'. Passes on onError.",
+                    shows: 'An empty gray square: nothing loads.',
+                }}
                 event="onError"
                 source={{ uri: 'data:image/png;base64,bm90IGFuIGltYWdl' }}
             />,
             <EventCase
                 key="error-empty-uri"
                 id="error-empty-uri"
-                description="#1028: an empty uri fires onError (Android didn't)"
+                description={{
+                    checks: "An empty uri fires onError (#1028: Android didn't fire it).",
+                    steps: "Loads { uri: '' }. Passes on onError.",
+                    shows: 'An empty gray square: nothing loads.',
+                }}
                 event="onError"
                 source={{ uri: '' }}
             />,
             <EventCase
                 key="error-null-uri-default"
                 id="error-null-uri-default"
-                description="#945: a null uri fires onError and shows defaultSource (Android showed nothing)"
+                description={{
+                    checks: 'A null uri fires onError and shows defaultSource (#945: Android showed nothing).',
+                    steps: 'Loads { uri: null } with a defaultSource bundled in the app. Passes on onError.',
+                    shows: "The defaultSource: on iOS an aerial photo of fields; on Android a text field's underline drawable (a short black line near the bottom of the gray square). An empty gray square means defaultSource didn't show.",
+                }}
                 event="onError"
                 source={{ uri: null as unknown as string }}
                 defaultSource={DEFAULT}
@@ -9172,7 +9990,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="error-null-uri-downsample"
                 id="error-null-uri-downsample"
-                description="a null uri with downsample fires onError (iOS crashed)"
+                description={{
+                    checks: 'A null uri with downsample fires onError (iOS crashed).',
+                    steps: 'Loads { uri: null } with downsample. Passes on onError; a crash fails the whole run.',
+                    shows: 'An empty gray square: nothing loads.',
+                }}
                 event="onError"
                 source={{ uri: null as unknown as string }}
                 downsample
@@ -9182,32 +10004,51 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'headers-invalid',
+        description: {
+            checks: "source.headers that isn't an object of strings (null, an array, values that aren't strings) on views and in FastImage.preload, and a uri that isn't a string.",
+        },
         cases: [
             <EventCase
                 key="headers-null"
                 id="headers-null"
-                description="headers: null loads (Android crashed)"
+                description={{
+                    checks: 'headers: null (e.g. a header object built only when signed in) is treated as no headers, and the image loads (Android crashed).',
+                    steps: 'Loads the logo with headers: null. Passes on onLoad.',
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 source={{ uri: LOGO, headers: null as unknown as {} }}
             />,
             <EventCase
                 key="headers-array"
                 id="headers-array"
-                description="headers as an array loads (Android crashed)"
+                description={{
+                    checks: "headers given as an array doesn't stop the image loading (Android crashed).",
+                    steps: "Loads the logo with headers: ['x-token']. Passes on onLoad.",
+                    shows: 'The React logo (light blue) on the gray square.',
+                }}
                 event="onLoad"
                 source={{ uri: LOGO, headers: ['x-token'] as unknown as {} }}
             />,
             <EventCase
                 key="headers-non-string"
                 id="headers-non-string"
-                description="header values that aren't strings are left out, and the string ones sent (Android crashed, iOS sent none)"
+                description={{
+                    checks: "Header values that aren't strings are left out and the string ones still sent (Android crashed; iOS sent no headers at all when one wasn't a string).",
+                    steps: "Loads a photo from the image server's /private/ path, which answers 403 without the header x-token: fast-image, with headers { 'x-token': 'fast-image', 'x-null': null, 'x-object': {} }. Passes on onLoad, which needs x-token to have been sent.",
+                    shows: "A photo of a bear on rocks, letterboxed. An empty gray square means the string header wasn't sent (a 403).",
+                }}
                 event="onLoad"
                 source={{ uri: HEADERS_PRIVATE, headers: INVALID_HEADERS }}
             />,
             <EventCase
                 key="uri-non-string"
                 id="uri-non-string"
-                description="a uri that isn't a string fires onError"
+                description={{
+                    checks: "A uri that isn't a string fires onError.",
+                    steps: 'Loads { uri: 1 }. Passes on onError.',
+                    shows: 'An empty gray square: nothing loads.',
+                }}
                 event="onError"
                 source={{ uri: 1 as unknown as string }}
             />,
@@ -9216,18 +10057,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'no-crash',
+        description: {
+            checks: 'Props and calls that crashed the app or never loaded: defaultSource without a source, FastImage.preload with missing or unresolvable uris, asset:/ uris (Android), and views with a width or height of 0.',
+        },
         cases: [
             <NoCrashCase
                 key="default-no-source"
                 id="default-no-source"
-                description="#973: defaultSource with no source (Android crashed)"
+                description={{
+                    checks: 'defaultSource with no source at all (#973: Android crashed).',
+                    steps: 'Renders a FastImage with only a defaultSource bundled in the app. Passes if the app is still running 750 ms after it mounts.',
+                    shows: "The defaultSource: on iOS an aerial photo of fields; on Android a text field's underline drawable (a short black line near the bottom of the gray square).",
+                }}
             >
                 <FastImage style={styles.image} defaultSource={DEFAULT} />
             </NoCrashCase>,
             <NoCrashCase
                 key="preload-no-uri"
                 id="preload-no-uri"
-                description="#774: preload with an empty, missing or null uri, or a null source (crashed)"
+                description={{
+                    checks: 'FastImage.preload with sources that have no uri, or a null source (#774: Android crashed).',
+                    steps: "Calls FastImage.preload with { uri: '' }, {}, { uri: null } and null. Passes if the app is still running 750 ms later.",
+                    shows: 'An empty gray square: the case shows no image.',
+                }}
                 onMount={() =>
                     FastImage.preload([
                         { uri: '' },
@@ -9240,7 +10092,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <NoCrashCase
                 key="preload-unresolved"
                 id="preload-unresolved"
-                description="#849: preload with a uri that can't be resolved (Android crashed)"
+                description={{
+                    checks: "FastImage.preload with a uri that can't be resolved, a bare file name (#849: Android crashed).",
+                    steps: "Calls FastImage.preload with { uri: 'not-a-real-image.jpg' }. Passes if the app is still running 750 ms later.",
+                    shows: 'An empty gray square: the case shows no image.',
+                }}
                 onMount={() =>
                     FastImage.preload([{ uri: 'not-a-real-image.jpg' }])
                 }
@@ -9249,7 +10105,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 <EventCase
                     key="asset-uri"
                     id="asset-uri"
-                    description="#1068: an asset:/ uri (a file in the app's Android assets) loads"
+                    description={{
+                        checks: "An asset:/ uri, a file in the app's Android assets, loads (#1068: Android didn't support them).",
+                        steps: 'Loads asset:/fastimage-logo.png. Passes on onLoad.',
+                        shows: 'The React logo (light blue) on the gray square.',
+                    }}
                     event="onLoad"
                     source={{ uri: 'asset:/fastimage-logo.png' }}
                 />
@@ -9257,13 +10117,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 <NoCrashCase
                     key="asset-uri"
                     id="asset-uri"
-                    description="#1068: asset:/ uris are Android only"
+                    description={{
+                        checks: "asset:/ uris are Android only (#1068), so there's nothing to check on iOS and tvOS.",
+                        steps: 'Renders an empty placeholder. Passes 750 ms after it mounts.',
+                        shows: 'An empty gray square.',
+                    }}
                 />
             ),
             <EventCase
                 key="zero-size"
                 id="zero-size"
-                description="#865: a 0×0 image still loads (Android never did)"
+                description={{
+                    checks: 'An image in a view with a width and height of 0 still loads and fires onLoad (#865: Android never fired it).',
+                    steps: 'Loads a photo with style { width: 0, height: 0 }. Passes on onLoad.',
+                    shows: 'Nothing: the view has no size.',
+                }}
                 event="onLoad"
                 source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
                 style={{ width: 0, height: 0 }}
@@ -9271,15 +10139,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="zero-height"
                 id="zero-height"
-                description="#865: an image with a width but no height still loads"
+                description={{
+                    checks: 'An image in a view with a width but a height of 0 still loads and fires onLoad (#865: Android never fired it).',
+                    steps: 'Loads a photo with style { width: 64, height: 0 }. Passes on onLoad.',
+                    shows: 'Nothing: the view is 0 tall.',
+                }}
                 event="onLoad"
                 source={{ uri: imageUrl('picsum/1021-120x120.jpg') }}
-                style={{ width: 60, height: 0 }}
+                style={{ width: 64, height: 0 }}
             />,
         ],
     },
     {
         name: 'layout',
+        description: {
+            checks: 'Layout and sizes: onLayout, measure through refs, images in the app by name, tintColor in style, and the image size onLoad reports.',
+        },
         cases: [
             <LayoutCase key="layout" id="layout" />,
             <RefMeasureCase key="ref-measure" />,
@@ -9287,7 +10162,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <EventCase
                 key="tint-style"
                 id="tint-style"
-                description="#946: tintColor in style (should be green)"
+                description={{
+                    checks: "tintColor in style tints the image, as with React Native's Image (#946: iOS ignored it).",
+                    steps: "Loads the logo with style tintColor: 'green'. Passes on onLoad.",
+                    shows: 'The React logo in solid green instead of its usual light blue. A light blue logo means the tint was ignored.',
+                }}
                 event="onLoad"
                 source={{ uri: LOGO }}
                 style={[styles.image, { tintColor: 'green' }]}
@@ -9295,7 +10174,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SourceSizeCase
                 key="source-size"
                 id="source-size"
-                description="#608: onLoad reports the image's size, not the size decoded for the view (600x300)"
+                description={{
+                    checks: "onLoad reports the image's own size, not the size it was decoded at for the view (#608: Android reported the size of the smaller bitmap it decoded).",
+                    steps: 'Loads a 600×300 photo into a 48×48 view with objectFit="contain". Passes when onLoad reports 600x300.',
+                    shows: 'A wide photo of green cliffs, letterboxed: gray above and below it.',
+                }}
                 uri={imageUrl('picsum/1018-600x300.jpg')}
                 width={600}
                 height={300}
@@ -9303,10 +10186,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <SourceSizeCase
                 key="source-size-gif"
                 id="source-size-gif"
-                description="#608: the same for a GIF (500x281)"
+                description={{
+                    checks: "onLoad reports a GIF's own size too, not the size it was decoded at for the view (#608).",
+                    steps: 'Loads a 500×281 animated GIF of a jellyfish into a 48×48 view with objectFit="contain". Passes when onLoad reports 500x281.',
+                    shows: "The jellyfish GIF (a pink and orange jellyfish on deep blue), letterboxed: gray above and below it. Animated, so it isn't compared.",
+                }}
                 uri={imageUrl('jellyfish.gif')}
                 width={500}
                 height={281}
+                animated
             />,
             <SourceSizeCachedCase key="source-size-cached" />,
         ],
@@ -9314,11 +10202,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // FastImage's View style props, on its single native view (10.0).
         name: 'view-style',
+        description: {
+            checks: "View style props on FastImage's single native view: borders, radii, padding, overflow, opacity, transforms, shadows, backfaceVisibility and tintColor, drawn and clipped as on a View.",
+            steps: 'Every image but the last is the same wide photo of green cliffs (2:1) with the default objectFit cover, in a 56 dp square or a 96×56 box. Each case passes once its images have loaded; the screenshot does the checking.',
+        },
         cases: VIEW_STYLE_CASES,
     },
     {
         // Checked by screenshot as much as by status.
         name: 'view-style-more',
+        description: {
+            checks: 'Style changes after the image has loaded (a border removed, overflow switched) and a gradient background, each next to an image that should look the same.',
+            steps: 'Each case passes a moment after its change; the screenshot does the checking.',
+        },
         cases: [
             <GradientCase key="style-gradient" />,
             <BorderChangeCase key="style-border-change" />,
@@ -9329,29 +10225,31 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Checked by screenshot as much as by status.
         name: 'visual',
+        description: {
+            checks: 'Changes after load, checked by screenshot (tintColor removed, objectFit changed, a view that gets taller), and a GIF without a loop count, checked by a video sample.',
+        },
         cases: [
             <ClearTintCase key="clear-tint" />,
             <ObjectFitChangeCropCase key="fit-change" />,
-            <NoCrashCase
-                key="gif-loop-once"
-                id="gif-loop-once"
-                description="#651: a GIF without a loop count plays once and stops on cyan (Android looped every GIF forever)"
-            >
-                <FastImage
-                    style={styles.image}
-                    source={{ uri: imageUrl('loop-once.gif') }}
-                />
-            </NoCrashCase>,
+            <GifLoopOnceCase key="gif-loop-once" />,
             <SizeChangeCase key="size-change" />,
         ],
     },
     {
         name: 'gif-loop',
+        description: {
+            checks: 'The loop and paused props on GIFs: stopping after one or two plays, looping a GIF that plays once, changing loop, pausing, and resuming.',
+            steps: 'The GIFs have two frames of a solid color each (0.4 s each, unless a case says otherwise); each case waits for its plays after onLoad.',
+        },
         cases: [
             <GifLoopCase
                 key="gif-loop-false"
                 id="gif-loop-false"
-                description="loop={false}: a GIF that loops forever by itself plays once and stops on blue"
+                description={{
+                    checks: 'loop={false} plays a GIF that loops forever by itself once, and it stops on its last frame.',
+                    steps: 'Loads a GIF that loops forever, red then blue, with loop={false}. Passes 1.4 s after onLoad (one play and a margin).',
+                    shows: 'A blue square: the last frame. Red means it was still playing.',
+                }}
                 loop={false}
                 plays={1}
                 source="loop-forever.gif"
@@ -9359,7 +10257,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <GifLoopCase
                 key="gif-loop-count"
                 id="gif-loop-count"
-                description="loop={2}: a GIF that loops forever by itself plays twice and stops on purple"
+                description={{
+                    checks: 'loop={2} plays a GIF that loops forever by itself twice, and it stops on its last frame.',
+                    steps: 'Loads a GIF that loops forever, orange then purple, with loop={2}. Passes 2.2 s after onLoad (two plays and a margin).',
+                    shows: 'A purple square: the last frame. Orange means it was still playing.',
+                }}
                 loop={2}
                 plays={2}
                 source="loop-forever-2.gif"
@@ -9367,7 +10269,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <GifLoopCase
                 key="gif-loop-true"
                 id="gif-loop-true"
-                description="loop: a GIF that plays once by itself keeps looping (yellow and green; masked)"
+                description={{
+                    checks: 'loop (true) keeps a GIF that plays once by itself looping.',
+                    steps: "Loads a GIF without a loop count, yellow then green, with loop. Passes 1.4 s after onLoad if the app hasn't crashed.",
+                    shows: "A yellow or green square: it's animated, so it's not compared.",
+                }}
                 loop
                 plays={1}
                 source="loop-once-2.gif"
@@ -9381,10 +10287,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'image-rendering',
-        cases: [<ImageRenderingCase key="image-rendering" />],
+        description: {
+            checks: 'imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size.',
+        },
+        cases: RENDERING_CASES.map((c) => (
+            <ImageRenderingCase key={c.id} {...c} />
+        )),
     },
     {
         name: 'blur',
+        description: {
+            checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource.",
+        },
         cases: [
             <BlurCase key="blur" />,
             <BlurKindsCase key="blur-kinds" />,
@@ -9394,15 +10308,25 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'blur-tint',
+        description: {
+            checks: 'tintColor changed on a blurred image after it has loaded.',
+        },
         cases: [<BlurTintChangeCase key="blur-tint-change" />],
     },
     {
         name: 'blur-events',
+        description: {
+            checks: 'blurRadius changed in quick steps after the image has loaded: no load events fire again, and the image ends up with the last radius.',
+        },
         cases: [
             <BlurStepsCase
                 key="blur-change-twice"
                 id="blur-change-twice"
-                description="blurRadius 5, then 10 300 ms later, after a slow `web` image (with onProgress) loaded: like the second, without load events"
+                description={{
+                    checks: "blurRadius changed twice, 300 ms apart, after a slow cache: 'web' image has loaded: no load events fire again, and it ends up like an image blurred that much from the start (Android loads the image again for each new blur; a change during that load started the image's load again, which sent onProgress, onLoad and onLoadEnd).",
+                    steps: "Loads a photo of a pug with cache: 'web' and onProgress from the slow server, which sends no cache headers, so each load downloads it again (in about 2 s). After its onLoadEnd, sets blurRadius 5, then 10 300 ms later. Fails if a load event fires after that first onLoadEnd or onProgress didn't fire before it; passes 4 s after the last change.",
+                    shows: 'Two photos of a pug blurred alike: the one that changed, and one with blurRadius 10 from the start.',
+                }}
                 source={BLUR_TWICE_SOURCE}
                 steps={[5, 10]}
                 interval={300}
@@ -9411,7 +10335,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <BlurStepsCase
                 key="blur-change-steps"
                 id="blur-change-steps"
-                description="blurRadius 2, 4, 6, 8 and 10 in renders one after the other, after the image loaded: like the second, without load events"
+                description={{
+                    checks: 'blurRadius changed in five steps in renders right after each other (before the next frame), as an animated blur or a slider changes it, after the image has loaded: no load events fire again, and it ends up like an image blurred that much from the start.',
+                    steps: 'Loads a photo of a pug. After its onLoadEnd, renders blurRadius 2, 4, 6, 8 and 10, each its own commit. Fails if a load event fires after that first onLoadEnd; passes 4 s after the last step.',
+                    shows: 'Two photos of a pug blurred alike: the one that changed, and one with blurRadius 10 from the start.',
+                }}
                 source={{
                     uri: imageUrl(`picsum/1025-200x200.jpg?blur-steps=${RUN}`),
                 }}
@@ -9422,6 +10350,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Checked by screenshot.
         name: 'object-fit',
+        description: {
+            checks: "objectFit's values, checked by screenshot: images larger and smaller than the view, an SVG, with blurRadius, in style, and changed after load.",
+        },
         cases: [
             <ObjectFitCase key="object-fit" />,
             <ObjectFitSizeCase key="object-fit-size" />,
@@ -9436,6 +10367,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // A new fit sends no load events (Android loaded the image again,
         // with onLoadStart, onLoad and onLoadEnd).
         name: 'object-fit-events',
+        description: {
+            checks: 'Changing objectFit after load sends no load events again.',
+        },
         cases: [
             <ObjectFitEventsCase
                 key="object-fit-events"
@@ -9455,6 +10389,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // and a fade into a positioned image keeps it in place (iOS moved the
         // image view during the fade, with its clip already moved).
         name: 'object-position-changes',
+        description: {
+            checks: 'Changes after load with objectPosition: a new position sends no load events, and a fade into a positioned image keeps it in place.',
+        },
         cases: [
             <PositionEventsCase key="position-events" id="position-events" />,
             <PositionEventsCase
@@ -9473,13 +10410,20 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="placeholder"
                 positioned
                 fades
-                description="transition with objectPosition left: a wide image cross-dissolves from defaultSource in place (its right edge recorded: magenta, blue-violet, cyan; black mustn't appear)"
+                description={{
+                    checks: "A transition into an image with objectPosition left cross-dissolves from defaultSource with the image in place (iOS moved the image view during the fade, with its clip already moved, so the view's black background showed at its edge).",
+                    steps: "A 48-point view on black, with a magenta defaultSource and no source; 500 ms later its source becomes a wide cyan image (600x300) from the slow server (about 350 ms), with cover, objectPosition 'left' and a 1 s transition. A video sample records the view's right 4 pixels.",
+                    shows: 'A cyan square. The recording sees magenta, then blue-violet (halfway), then cyan; black must never appear.',
+                }}
             />,
         ],
     },
     {
         // Checked by screenshot.
         name: 'object-position',
+        description: {
+            checks: "objectPosition's values, checked by screenshot: with cover, contain, none and scale-down, with the view's style and other props, changed after load, and for defaultSource.",
+        },
         cases: [
             <ObjectPositionCoverCase key="object-position-cover" />,
             <ObjectPositionContainCase key="object-position-contain" />,
@@ -9490,11 +10434,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'downsampling',
+        description: {
+            checks: "downsample decodes large images at about the view's size, keeping them sharp, upright and at their own reported size.",
+        },
         cases: [
             <DownsampleCase
                 key="downsample-stripes"
                 id="downsample-stripes"
-                description="downsample (left): 1px stripes (1024px) in a 48 view decode to an even gray on iOS (black on Android: Glide keeps every nth pixel of a PNG), not the stripes drawn smaller (right)"
+                description={{
+                    checks: "downsample decodes a large image at about the view's size, and onLoad still reports the image's own size.",
+                    steps: 'Loads a 1024x1024 image of 1-pixel black and white stripes into two 48-point views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1024x1024.',
+                    shows: 'On iOS, an even gray square (the stripes averaged), then the stripes drawn smaller. On Android, a black square (Glide keeps every nth pixel of a PNG), then the stripes.',
+                }}
                 image="stripes.png"
                 size="1024x1024"
                 style={downsampleStyles.stripes}
@@ -9502,7 +10453,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleCase
                 key="downsample-cover"
                 id="downsample-cover"
-                description="downsample (left) with cover: a wide page of text in a tall view is as sharp as without (right), decoded to cover the view, not fit in it"
+                description={{
+                    checks: 'downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, so it is as sharp as without downsample.',
+                    steps: 'Loads a 1600x1000 page of text into two 40x96 views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1600x1000.',
+                    shows: 'Two tall crops of the middle of the page, the text equally sharp in both. A blurrier left crop is a failure.',
+                }}
                 image="text-page.png"
                 size="1600x1000"
                 style={downsampleStyles.tall}
@@ -9510,7 +10465,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleCase
                 key="downsample-orientation"
                 id="downsample-orientation"
-                description="downsample (left): a JPEG stored sideways with an EXIF orientation shows upright and as sharp as without (right)"
+                description={{
+                    checks: "downsample keeps a JPEG's EXIF orientation: an image stored sideways shows upright, as sharp as without downsample.",
+                    steps: 'Loads a JPEG stored sideways with EXIF orientation 6 (800x1200 upright) into two 64x96 views with objectFit="contain": the left with downsample, the right with downsample={false}. Passes once both onLoad events report 800x1200.',
+                    shows: 'Two upright blue arrows over the word UP, each in a red frame, equally sharp. A sideways arrow is a failure.',
+                }}
                 image="exif-rotated.jpg"
                 size="800x1200"
                 style={downsampleStyles.rotated}
@@ -9522,6 +10481,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'downsampling-reload',
+        description: {
+            checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in.',
+        },
         cases: [
             <DownsampleDetailCase key="downsample-detail" />,
             <DownsampleGrowCase key="downsample-grow" />,
@@ -9533,10 +10495,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'downsample-zoom',
+        description: {
+            checks: "downsample={false} keeps an image that's zoomed in on with a transform sharp.",
+        },
         cases: [<DownsampleZoomCase key="downsample-zoom" />],
     },
     {
         name: 'loading',
+        description: {
+            checks: "Loading: props that don't reload, source changes, onLoadStart and onProgress, cache: 'web' and cookies.",
+        },
         cases: [
             <NoReloadCase key="no-reload" />,
             <SourceSwapCase key="source-swap" />,
@@ -9551,15 +10519,24 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'progress-data-uri',
+        description: {
+            checks: 'onProgress for a data: image.',
+        },
         cases: [<ProgressDataUriCase key="progress-data-uri" />],
     },
     {
         // Loads many images and churns views, so on its own.
         name: 'progress-shared-url',
+        description: {
+            checks: 'onProgress for many images on one url while others on it mount and unmount.',
+        },
         cases: [<ProgressSharedUrlCase key="progress-shared-url" />],
     },
     {
         name: 'progress-by-url',
+        description: {
+            checks: 'onProgress reaching the right images when downloads are shared, urls are written differently or the server holds part of the download.',
+        },
         cases: [
             <ProgressAfterLoadCase key="progress-after-load" />,
             <ProgressUrlFormCase key="progress-url-form" />,
@@ -9570,6 +10547,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Holds sixteen downloads, so on its own.
         name: 'download-queue',
+        description: {
+            checks: "Android's downloads waiting to start: the priority and url a waiting download has as requests for it join and leave (three checks on one set of images).",
+        },
         cases: [
             Platform.OS === 'android' ? (
                 <PriorityLoweredCase key="priority-lowered" />
@@ -9577,7 +10557,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 <NoCrashCase
                     key="priority-lowered"
                     id="priority-lowered"
-                    description="a waiting download's priority after a more urgent request leaves, and its url (Android only)"
+                    description={{
+                        checks: "A waiting download's priority after a more urgent request for it leaves, and the url it downloads. Android only: iOS's downloads are SDWebImage's, whose order depends on timing.",
+                        steps: 'Nothing to load on iOS: passes if the app is still running a moment after it mounts.',
+                        shows: 'An empty gray square.',
+                    }}
                 />
             ),
         ],
@@ -9585,10 +10569,17 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Twenty-one downloads at once, so on its own.
         name: 'download-priority',
+        description: {
+            checks: "An image with priority: 'high' that starts loading after twenty others is downloaded before most of them.",
+        },
         cases: [<DownloadPriorityCase key="download-priority" />],
     },
     {
         name: 'shared-downloads',
+        description: {
+            checks: 'Downloads shared by several images of one url (one request for all of them), through unmounts, errors and responses without a Content-Length, and a download that stalls.',
+            steps: 'The images come from the slow server, which sends each in eight parts with a pause between them, and can hold the rest of a response until the case releases it. The images have no background, so where nothing shows the screen is white.',
+        },
         cases: [
             <SharedDownloadSizesCase key="shared-download-sizes" />,
             <SharedDownloadCancelCase key="shared-download-cancel" />,
@@ -9601,6 +10592,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // A cacheKey's urls when one fails (the shared download's retry).
         name: 'cachekey-retries',
+        description: {
+            checks: "Images with one cacheKey and different urls when one url fails: on Android, which shares one download per cacheKey, the download is retried with another of the cacheKey's urls.",
+            steps: "In each case the first image's url 404s; the slow server holds that response until the other images have started loading. The images have no background, so where nothing shows the screen is white.",
+        },
         cases: [
             <SharedDownloadRetryCase key="shared-download-retry" />,
             <RetryProgressCase key="retry-progress" />,
@@ -9611,17 +10606,26 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Clears the caches, so on its own.
         name: 'web-cache-clear',
+        description: {
+            checks: "FastImage.clearDiskCache also clears the HTTP cache that cache: 'web' images use.",
+        },
         cases: [<WebCacheClearCase key="web-cache-clear" />],
     },
     {
         // Clears the caches, so on its own.
         name: 'web-cache-clear-preload',
+        description: {
+            checks: "A cache: 'web' image preloaded right after FastImage.clearDiskCache resolves is downloaded again, not taken from the HTTP cache.",
+        },
         cases: [<WebCacheClearPreloadCase key="web-cache-clear-preload" />],
     },
     {
         // The slow ones: the slow server takes about 1 s per image here, and
         // preload-limit loads 4 of them, 3 at a time.
         name: 'preload',
+        description: {
+            checks: 'FastImage.preload: what it downloads and caches, the headers it sends, how many sources it loads at once, its results, and the source values it accepts.',
+        },
         cases: [
             <PreloadCase key="preload" />,
             <PreloadHeadersCase key="preload-headers" />,
@@ -9630,12 +10634,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadLimitCase key="preload-limit" />,
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
-            <PreloadRetryCase key="preload-retry" id="preload-retry" />,
+            ...(Platform.OS === 'ios'
+                ? []
+                : [
+                      <PreloadRetryCase
+                          key="preload-retry"
+                          id="preload-retry"
+                      />,
+                  ]),
             <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },
     {
         name: 'bad-responses',
+        description: {
+            checks: "Urls whose response isn't the image (an HTML page, a 503, a 404, the wrong Content-Type): a later load downloads them again, and a failure isn't requested twice.",
+        },
         cases: [
             <PreloadRetryCase
                 key="preload-retry-web"
@@ -9650,41 +10664,66 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'cache-key',
+        description: {
+            checks: 'source.cacheKey, which caches an image under a key of its own instead of its url, and memoryCache: false.',
+        },
         cases: [
             <CacheKeyCase
                 key="cache-key"
                 id="cache-key"
-                description="#524: source.cacheKey: the same image with another token in its url comes from the cache (the new url isn't requested)"
+                description={{
+                    checks: 'source.cacheKey: an image whose url has another token but the same cacheKey comes from the cache (#524: a key for images whose url changes, like short-lived private urls).',
+                    steps: 'Loads a photo with ?token=a and a cacheKey; once it has loaded, a second view (downsample false) loads it with ?token=b and the same cacheKey. Passes when the second has loaded and the server got no request for the token=b url.',
+                    shows: 'Two photos of a pug in a blanket side by side. An empty gray square on the right means the second never loaded.',
+                }}
             />,
             <CacheKeyCase
                 key="cache-key-preload"
                 id="cache-key-preload"
                 preload
-                description="source.cacheKey with preload: a preloaded image is found under its cacheKey"
+                description={{
+                    checks: 'source.cacheKey with FastImage.preload: a preloaded image is found under its cacheKey by a view of another url.',
+                    steps: 'Preloads a photo with ?token=a and a cacheKey; once the preload resolves, a view loads it with ?token=b and the same cacheKey. Passes when the view has loaded and the server got no request for the token=b url.',
+                    shows: 'An empty gray square (the preload has no view), then a photo of a pug in a blanket.',
+                }}
             />,
             <CacheKeyCase
                 key="cache-key-downsample"
                 id="cache-key-downsample"
                 downsample
-                description="source.cacheKey with downsample: the downloaded file is found under the cacheKey"
+                description={{
+                    checks: 'source.cacheKey with downsample: a view that downsamples finds the file downloaded for the cacheKey instead of requesting its own url.',
+                    steps: 'Loads a photo with ?token=a and a cacheKey; once it has loaded, a second view with downsample loads it with ?token=b and the same cacheKey. Passes when the second has loaded and the server got no request for the token=b url.',
+                    shows: 'Two photos of a pug in a blanket side by side.',
+                }}
             />,
             <MemoryCacheOffCase key="memory-cache-off" />,
         ],
     },
     {
         name: 'cache-only',
+        description: {
+            checks: "Views with cache: 'cacheOnly', or React Native's 'only-if-cached', for an image that isn't cached.",
+        },
         cases: [
             <CacheOnlyMissCase key="cache-only-miss" />,
             <CacheOnlyMissCase
                 key="only-if-cached-miss"
                 id="only-if-cached-miss"
                 cache="only-if-cached"
-                description="React Native's cache 'only-if-cached' is cacheOnly: an image that isn't cached gets onError, without a request"
+                description={{
+                    checks: "React Native's cache: 'only-if-cached' works as cacheOnly: an image that isn't cached gets onError and onLoadEnd (not ok), without a request.",
+                    steps: "Loads a photo of a pug that nothing has loaded (a url only this case uses) with cache: 'only-if-cached'. When onError fires, asks the image server how many requests it got for the url. Passes if it got none, onLoadEnd's ok was false, and onLoad never fired.",
+                    shows: 'An empty gray square: the image is never loaded. The pug here would mean it was downloaded.',
+                }}
             />,
         ],
     },
     {
         name: 'disk-cache',
+        description: {
+            checks: "source.diskCache false: the image isn't kept on disk or in an HTTP cache, or read from them.",
+        },
         cases: [
             <DiskCacheOffCase key="disk-cache-off" />,
             <DiskCacheOffWebCase key="disk-cache-off-web" />,
@@ -9692,55 +10731,89 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'cache-path',
+        description: {
+            checks: "FastImage.getCachePath: the file of a source's image in the disk cache, or not ok when there isn't one.",
+        },
         cases: [
             <CachePathCase
                 key="cache-path"
                 id="cache-path"
                 loaded
-                description="getCachePath for an image a view loaded: its file (right)"
+                description={{
+                    checks: 'getCachePath for an image a view has loaded gives its file in the disk cache.',
+                    steps: "A view loads a 120×120 photo of a green aurora over a tree. On its onLoad, calls getCachePath with the same source and shows the file it gives in a second view, as a file:// uri. Passes once that view loads and the image server got one request for the url (the first view's).",
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-key"
                 id="cache-path-key"
                 loaded
                 byCacheKey
-                description="getCachePath for an image with a cacheKey: its file"
+                description={{
+                    checks: 'getCachePath for an image with a cacheKey, which a view has loaded, gives its file.',
+                    steps: 'A view loads the aurora photo with a cacheKey. On its onLoad, calls getCachePath with the same uri and cacheKey and shows the file it gives in a second view. Passes once that view loads and the image server got one request.',
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-download"
                 id="cache-path-download"
-                description="getCachePath for an image that wasn't loaded: downloads it (one request) and gives its file"
+                description={{
+                    checks: "getCachePath for an image that wasn't loaded downloads it and gives its file.",
+                    steps: 'Calls getCachePath for the aurora photo (a url nothing has loaded) on mount, and shows the file it gives. Passes once that view loads and the image server got exactly one request (the download).',
+                    shows: 'An empty gray square (no view loads the url), then the aurora photo from the file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-cache-only"
                 id="cache-path-cache-only"
                 cacheOnly
-                description="getCachePath with cache 'cacheOnly' for an image that wasn't loaded: not ok, no request"
+                description={{
+                    checks: "getCachePath with cache: 'cacheOnly' for an image that wasn't loaded resolves not ok, without downloading it.",
+                    steps: "Calls getCachePath for the aurora photo (a url nothing has loaded) with cache: 'cacheOnly' on mount. Passes if it resolves not ok and the image server got no request for the url.",
+                    shows: 'Two empty gray squares: no view loads the url, and there is no file to show. The photo on the right would mean it was downloaded.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-404"
                 id="cache-path-404"
                 missing
-                description="getCachePath for a url that 404s: not ok, with the status"
+                description={{
+                    checks: 'getCachePath for a url that 404s resolves not ok, with the status in its error.',
+                    steps: 'Calls getCachePath on mount for a url the image server answers with a 404. Passes if it resolves not ok with an error that has 404 in it.',
+                    shows: "Two empty gray squares: there's no image and no file.",
+                }}
             />,
             <CachePathCase
                 key="cache-path-space"
                 id="cache-path-space"
                 loaded
                 space
-                description="getCachePath for a url with a space: its file"
+                description={{
+                    checks: 'getCachePath for a url with a space in it gives its file (iOS caches such a url escaped).',
+                    steps: 'A view loads the aurora photo from a url with a space in its query (name=a b). On its onLoad, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the image server got one request.',
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
         ],
     },
     {
         name: 'cache-path-more',
+        description: {
+            checks: "More getCachePath cases: cache: 'web' images, only a cacheKey, and an image still downloading.",
+        },
         cases: [
             <CachePathCase
                 key="cache-path-web"
                 id="cache-path-web"
                 loaded
                 web
-                description="getCachePath for an image with cache 'web' (on Android, in the HTTP cache)"
+                description={{
+                    checks: "getCachePath for an image loaded with cache: 'web' gives its file (on Android, in the HTTP cache).",
+                    steps: "A view loads the aurora photo with cache: 'web', from a url the image server sends with Cache-Control: max-age=3600. On its onLoad, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the image server got one request.",
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-web-cache-only"
@@ -9748,105 +10821,172 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 loaded
                 web
                 cacheOnly
-                description="getCachePath with cache 'cacheOnly' for an image loaded with cache 'web': its file, on both platforms"
+                description={{
+                    checks: "getCachePath with cache: 'cacheOnly' finds an image a view loaded with cache: 'web', on both platforms.",
+                    steps: "A view loads the aurora photo with cache: 'web' (sent with max-age=3600). On its onLoad, calls getCachePath with the same uri and cache: 'cacheOnly' and shows the file it gives. Passes once that view loads and the image server got one request.",
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-key-only"
                 id="cache-path-key-only"
                 loaded
                 keyOnly
-                description="getCachePath with only a cacheKey (no uri), for an image a view loaded: its file"
+                description={{
+                    checks: 'getCachePath with only a cacheKey (no uri) finds the file of an image a view loaded with that cacheKey.',
+                    steps: "A view loads the aurora photo with a cacheKey. On its onLoad, calls getCachePath with only the cacheKey and shows the file it gives. Passes once that view loads and the image server got one request (the view's).",
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
             <CachePathCase
                 key="cache-path-key-only-missing"
                 id="cache-path-key-only-missing"
                 keyOnly
-                description="getCachePath with only a cacheKey that isn't cached: not ok, no request"
+                description={{
+                    checks: "getCachePath with only a cacheKey that isn't cached resolves not ok, without a request.",
+                    steps: 'Calls getCachePath on mount with only a cacheKey nothing has used. Passes if it resolves not ok and the image server got no request.',
+                    shows: "Two empty gray squares: no view loads the image, and there's no file to show.",
+                }}
             />,
             <CachePathCase
                 key="cache-path-while-loading"
                 id="cache-path-while-loading"
                 whileLoading
-                description="getCachePath while a view is still downloading the image: its file"
+                description={{
+                    checks: "getCachePath while a view is still downloading the image gives its file, and shares the view's download (Android downloaded it a second time with Glide).",
+                    steps: 'A view loads the aurora photo from the slow server (in 8 parts, 150 ms apart). On its onLoadStart, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the slow server got one request for both.',
+                    shows: 'The aurora photo twice: the view, then its file.',
+                }}
             />,
         ],
     },
     {
         // Clears the disk cache, so on its own.
         name: 'cache-path-after-clear',
+        description: {
+            checks: 'getCachePath after FastImage.clearDiskCache(), for an image getCachePath downloaded.',
+        },
         cases: [
             <CachePathAfterClearCase
                 key="cache-path-after-clear"
                 id="cache-path-after-clear"
-                description="getCachePath after clearDiskCache: cache 'cacheOnly' doesn't find the image, and without it, it's downloaded again and its file is there"
+                description={{
+                    checks: "After clearDiskCache, getCachePath with cache: 'cacheOnly' doesn't find an image, and without it downloads the image again (#1294: Android kept the file's path in Glide's memory cache, so both gave the old path, though the clear had deleted the file).",
+                    steps: "getCachePath downloads the aurora photo; then awaits FastImage.clearDiskCache(); then getCachePath with cache: 'cacheOnly', and then without it. Passes if the cacheOnly call resolves not ok, the other gives a file that's there, and the image server got two requests (the first download and the one after the clear).",
+                    shows: 'An empty gray square: the case shows no image.',
+                }}
             />,
         ],
     },
     {
         // Clears the disk cache, so on its own.
         name: 'cache-path-after-clear-loaded',
+        description: {
+            checks: 'getCachePath after FastImage.clearDiskCache(), for an image a view showed.',
+        },
         cases: [
             <CachePathAfterClearCase
                 key="cache-path-after-clear-loaded"
                 id="cache-path-after-clear-loaded"
                 loaded
-                description="getCachePath after clearDiskCache, for an image a view showed: cache 'cacheOnly' doesn't find it, and without it, it's downloaded again and its file is there"
+                description={{
+                    checks: "After clearDiskCache, getCachePath with cache: 'cacheOnly' doesn't find an image a view showed, and without it downloads the image again (#1294: Android kept the result of its lookup on disk in Glide's memory cache, so both gave the old path, though the clear had deleted the file).",
+                    steps: "A view loads the aurora photo. On its onLoad, getCachePath finds its file; then awaits FastImage.clearDiskCache(); then getCachePath with cache: 'cacheOnly', and then without it. Passes if the cacheOnly call resolves not ok, the other gives a file that's there, and the image server got two requests (the view's and the one after the clear).",
+                    shows: 'The aurora photo: the view, which keeps showing it after the clear.',
+                }}
             />,
         ],
     },
     {
         // Clears the disk cache, so on its own.
         name: 'clear-disk-cache-thread',
+        description: {
+            checks: "FastImage.clearDiskCache() doesn't hold up native calls made after it.",
+        },
         cases: [<ClearDiskCacheThreadCase key="clear-disk-cache-thread" />],
     },
     {
         name: 'write-to-cache',
+        description: {
+            checks: "FastImage.writeToCache: storing a local file as a source's image, and the cases where it resolves not ok.",
+        },
         cases: [
             <WriteToCacheCase
                 key="write-to-cache"
                 id="write-to-cache"
-                description="writeToCache: a url shows the stored file (green), without a request"
+                description={{
+                    checks: "writeToCache stores a local file as a url's image: a view of the url shows the file, without a request.",
+                    steps: "getCachePath downloads the aurora photo, and writeToCache stores its file as the image of a pug photo's url that nothing has loaded. Then a view shows that url. Passes on its onLoad if the image server got no request for the url.",
+                    shows: 'The green aurora photo, not the pug the url would download.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-avif"
                 id="write-to-cache-avif"
                 avif
-                description="writeToCache with an AVIF file: the url shows it (the quadrants), without a request"
+                description={{
+                    checks: "writeToCache with an AVIF file: a view of the url shows it, without a request (iOS rejected the file as not an image, since SDWebImage's format check didn't know AVIF; fixed in #1239).",
+                    steps: "getCachePath downloads an AVIF of four colored quadrants, and writeToCache stores its file as the image of a pug photo's url. Then a view shows that url. Passes on its onLoad if the image server got no request for the url.",
+                    shows: 'Four quadrants: red, green, blue and yellow. The pug would mean the url was downloaded.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-key"
                 id="write-to-cache-key"
                 byCacheKey
-                description="writeToCache with a cacheKey: the url shows the stored file"
+                description={{
+                    checks: 'writeToCache for a source with a cacheKey: a view of that source shows the stored file, without a request.',
+                    steps: "getCachePath downloads the aurora photo, and writeToCache stores its file for a pug photo's url with a cacheKey. Then a view shows the same url and cacheKey. Passes on its onLoad if the image server got no request for the url.",
+                    shows: 'The green aurora photo, not the pug.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-key-only"
                 id="write-to-cache-key-only"
                 keyOnly
-                description="writeToCache with only a cacheKey (no uri): the url with that cacheKey shows the stored file"
+                description={{
+                    checks: 'writeToCache with only a cacheKey (no uri): a view of a url with that cacheKey shows the stored file, without a request.',
+                    steps: "getCachePath downloads the aurora photo, and writeToCache stores its file under only a cacheKey. Then a view shows a pug photo's url with that cacheKey. Passes on its onLoad if the image server got no request for the url.",
+                    shows: 'The green aurora photo, not the pug.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-cached"
                 id="write-to-cache-cached"
                 cached
-                description="writeToCache for a url that's cached: not replaced"
+                description={{
+                    checks: "writeToCache for a url that's already cached doesn't replace its image: it resolves not ok.",
+                    steps: "getCachePath downloads the aurora photo (the file) and the pug photo's url (so it's cached). Then writeToCache stores the file for the pug's url. Passes if it resolves not ok with 'Already in the disk cache'.",
+                    shows: 'An empty gray square: no view is shown.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-missing"
                 id="write-to-cache-missing"
                 missing
-                description="writeToCache with a file that doesn't exist: not ok"
+                description={{
+                    checks: "writeToCache with a file that doesn't exist resolves not ok.",
+                    steps: 'Calls writeToCache for a pug photo\'s url with file:///no/such/image.jpg. Passes if it resolves not ok with "Can\'t read the file".',
+                    shows: 'An empty gray square: no view is shown.',
+                }}
             />,
             <WriteToCacheCase
                 key="write-to-cache-web"
                 id="write-to-cache-web"
                 web
-                description="writeToCache for a cache 'web' source: not ok"
+                description={{
+                    checks: "writeToCache for a cache: 'web' source resolves not ok: those images are kept by HTTP caching, not stored this way.",
+                    steps: "getCachePath downloads the aurora photo, and writeToCache stores its file for a pug photo's url with cache: 'web'. Passes if it resolves not ok with \"Can't store cache: 'web'\".",
+                    shows: 'An empty gray square: no view is shown.',
+                }}
             />,
         ],
     },
     {
         name: 'source-change',
+        description: {
+            checks: 'Changing or clearing source while a slow image is still loading: the old load is cancelled, sends no events, and never replaces what is shown.',
+        },
         cases: [
             <SourceChangeWhileLoadingCase
                 key="source-change-loading"
@@ -9871,20 +11011,32 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Recorded (video samples).
         name: 'fade',
+        description: {
+            checks: 'transition fades an image in when it loads: downloads and blurred images fade, images from the memory cache show at once unless skipOnCacheHit is none.',
+            steps: 'Video samples: the screen is recorded while each case makes its change, and the color in the middle of its black 48 × 48 view must go through the listed colors in order. The runner turns fades off by default; these cases pass transition { duration: 1000 } (1 s), with the other settings each names.',
+        },
         cases: [
             <FadeCase
                 key="fade"
                 id="fade"
                 from="download"
                 fades
-                description="transition: a downloaded image fades in over 1 s (recorded: black, half cyan, cyan)"
+                description={{
+                    checks: 'transition fades a downloaded image in over its duration.',
+                    steps: 'A black view mounts with a cyan image from the slow server (about 350 ms to download), with transition { duration: 1000 }. Recorded from the mount until 1.5 s after onLoad.',
+                    shows: 'Recorded: black, then one steady fade through teal (half cyan) to cyan. At the end, a cyan square.',
+                }}
             />,
             <FadeCase
                 key="fade-memory"
                 id="fade-memory"
                 from="memory"
                 fades={false}
-                description="transition: the same image from the memory cache (right) shows at once (recorded: black, then cyan)"
+                description={{
+                    checks: "With transition's default skipOnCacheHit ('memory'), an image from the memory cache shows at once, without a fade.",
+                    steps: 'A view (left) loads a cyan image; once it has, a second view (right, on black) mounts with the same source and transition { duration: 1000 }, so it comes from the memory cache. Recorded on the right until 1.5 s after its onLoad.',
+                    shows: 'Recorded: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-memory-none"
@@ -9892,7 +11044,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="memory"
                 skipOnCacheHit="none"
                 fades
-                description="transition with skipOnCacheHit none: the same image from the memory cache (right) fades in (recorded: black, half cyan, cyan)"
+                description={{
+                    checks: "transition with skipOnCacheHit: 'none' fades in an image from the memory cache too.",
+                    steps: "A view (left) loads a cyan image; once it has, a second view (right, on black) mounts with the same source and transition { duration: 1000, skipOnCacheHit: 'none' }, so it comes from the memory cache.",
+                    shows: 'Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-blur"
@@ -9900,13 +11056,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="download"
                 blurRadius={6}
                 fades
-                description="transition with blurRadius: a downloaded image fades in once it's blurred (recorded: black, half cyan, cyan; blurring a flat color keeps it)"
+                description={{
+                    checks: 'transition with blurRadius: a downloaded image fades in already blurred.',
+                    steps: 'A black view mounts with a cyan image from the slow server (about 350 ms), with blurRadius={6} and transition { duration: 1000 }. Blurring a flat color keeps it, so the colors are those of a plain fade.',
+                    shows: 'Recorded: black, teal (half cyan), cyan. At the end, a cyan square.',
+                }}
             />,
         ],
     },
     {
         // Recorded (video samples).
         name: 'fade-web',
+        description: {
+            checks: "cache: 'web' images shown again: they show at once without transition and with it, and fade in with skipOnCacheHit none (Android faded them in each time, from its HTTP cache).",
+            steps: "Video samples, as in the fade group. In each case a view (left) loads a cyan image the server sends with Cache-Control: max-age=3600, with cache: 'web'; then a second view (right, on black) mounts with the same source: Android reads it from its HTTP cache without a request, iOS from the memory cache.",
+        },
         cases: [
             <FadeCase
                 key="fade-web"
@@ -9914,14 +11078,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="web"
                 defaultTransition
                 fades={false}
-                description="without transition: a cache web image shown again, from its HTTP cache without a request, shows at once (recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+                description={{
+                    checks: "Without transition (the built-in default), a cache: 'web' image shown again from its HTTP cache shows at once (Android faded it in each time).",
+                    steps: 'The right view has no transition prop, and the built-in default is turned back on for it (FastImage.setDefaults({ transition: null })), which fades on Android (300 ms) and not on iOS.',
+                    shows: 'Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-web-transition"
                 id="fade-web-transition"
                 from="web"
                 fades={false}
-                description="transition: a cache web image shown again shows at once, on Android from its HTTP cache without a request (right; recorded: black, then cyan; half cyan mustn't appear). Android faded it in each time"
+                description={{
+                    checks: "transition: a cache: 'web' image shown again shows at once, on Android from its HTTP cache without a request (Android faded it in each time).",
+                    steps: 'The right view has transition { duration: 1000 }.',
+                    shows: 'Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-web-none"
@@ -9929,13 +11101,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="web"
                 skipOnCacheHit="none"
                 fades
-                description="skipOnCacheHit 'none': a cache web image from its HTTP cache fades in (recorded: black, half cyan, cyan)"
+                description={{
+                    checks: "transition with skipOnCacheHit: 'none' fades in a cache: 'web' image shown again from its HTTP cache.",
+                    steps: "The right view has transition { duration: 1000, skipOnCacheHit: 'none' }.",
+                    shows: 'Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares.',
+                }}
             />,
         ],
     },
     {
         // Recorded (video samples).
         name: 'fade-default',
+        description: {
+            checks: 'The built-in default transition: downloads fade in on Android (300 ms) and show at once on iOS.',
+            steps: 'A video sample, as in the fade group.',
+        },
         cases: [
             <FadeCase
                 key="fade-default"
@@ -9945,8 +11125,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 fades={Platform.OS === 'android'}
                 description={
                     Platform.OS === 'android'
-                        ? 'without transition: a downloaded image fades in by default on Android (300 ms; recorded: black, half cyan, cyan)'
-                        : "without transition: a downloaded image shows at once by default on iOS (recorded: black, then cyan; half cyan mustn't appear)"
+                        ? {
+                              checks: 'Without transition, a downloaded image fades in by default on Android (300 ms).',
+                              steps: 'A black view mounts with a cyan image from the slow server (about 350 ms) and no transition prop, with the built-in default turned back on (FastImage.setDefaults({ transition: null }); the runner turns fades off otherwise).',
+                              shows: 'Recorded: black, teal (half cyan), cyan. At the end, a cyan square.',
+                          }
+                        : {
+                              checks: 'Without transition, a downloaded image shows at once by default on iOS.',
+                              steps: 'A black view mounts with a cyan image from the slow server (about 350 ms) and no transition prop, with the built-in default turned back on (FastImage.setDefaults({ transition: null }); the runner turns fades off otherwise).',
+                              shows: 'Recorded: black, then cyan; never teal (half cyan, a fade). At the end, a cyan square.',
+                          }
                 }
             />,
         ],
@@ -9954,40 +11142,64 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Recorded (video samples).
         name: 'fade-source',
+        description: {
+            checks: 'transition by where the image comes from: a new source from the memory cache shows at once, local files and bundled images fade in.',
+            steps: 'Video samples, as in the fade group.',
+        },
         cases: [
             <FadeCase
                 key="fade-change"
                 id="fade-change"
                 from="change"
                 fades={false}
-                description="transition: a new source from the memory cache shows at once over the image showing, as in a reused list row (right; recorded: magenta, then cyan)"
+                description={{
+                    checks: 'transition without betweenImages: a new source from the memory cache replaces the image showing at once, as in a reused list row.',
+                    steps: "A view (left) loads a cyan image; a second one (right, on black) shows a magenta image, with transition { duration: 1000 }. Once both have loaded (and 1.5 s more for the fades), the right view's source changes to the cyan one, from the memory cache.",
+                    shows: 'Recorded on the right: magenta, then cyan; never blue-violet (a cross-dissolve). At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-file"
                 id="fade-file"
                 from="file"
                 fades
-                description="transition: a local file:// image fades in (right; the file getCachePath gives for the left one; recorded: black, half cyan, cyan)"
+                description={{
+                    checks: "transition fades in a local file:// image: it isn't a memory cache hit.",
+                    steps: 'A view (left) loads a cyan image; FastImage.getCachePath gives its file in the disk cache, and a second view (right, on black) mounts with that file as a file:// source and transition { duration: 1000 }.',
+                    shows: 'Recorded on the right: black, teal (half cyan), cyan. At the end, two cyan squares.',
+                }}
             />,
             <FadeCase
                 key="fade-bundled"
                 id="fade-bundled"
                 from="bundled"
                 fades
-                description="transition: a bundled require() image fades in, as with Glide and Coil (recorded: black, half cyan, cyan)"
+                description={{
+                    checks: 'transition fades in a bundled require() image too, not only downloaded ones.',
+                    steps: "A black view mounts with require('./images/cyan.png') (from Metro in debug builds, from the app in release builds) and transition { duration: 1000 }.",
+                    shows: 'Recorded: black, teal (half cyan), cyan. At the end, a cyan square.',
+                }}
             />,
         ],
     },
     {
         // Recorded (video samples).
         name: 'fade-between',
+        description: {
+            checks: "transition's betweenImages: without it a new source replaces the image showing at once, with it the new image cross-dissolves from the old one.",
+            steps: 'Video samples, as in the fade group. Each view shows a magenta image first, then its source changes to cyan.',
+        },
         cases: [
             <FadeCase
                 key="fade-change-download"
                 id="fade-change-download"
                 from="change-download"
                 fades={false}
-                description="transition: a new source that downloads replaces the image showing at once, once it has loaded (recorded: magenta, then cyan)"
+                description={{
+                    checks: 'transition without betweenImages: a new source that downloads replaces the image showing at once, once it has loaded.',
+                    steps: 'The view (on black) shows a magenta image, with transition { duration: 1000 }; 1.5 s after it loads, its source changes to a cyan image from the slow server (about 350 ms).',
+                    shows: 'Recorded: magenta (kept while cyan downloads), then cyan; never blue-violet (a cross-dissolve). At the end, a cyan square.',
+                }}
             />,
             <FadeCase
                 key="fade-between"
@@ -9995,7 +11207,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="change-download"
                 betweenImages
                 fades
-                description="transition with betweenImages: a new source that downloads cross-dissolves from the image showing (recorded: magenta, blue-violet, cyan)"
+                description={{
+                    checks: 'transition with betweenImages: a new source that downloads cross-dissolves from the image showing.',
+                    steps: 'The view (on black) shows a magenta image, with transition { duration: 1000, betweenImages: true }; 1.5 s after it loads, its source changes to a cyan image from the slow server (about 350 ms).',
+                    shows: 'Recorded: magenta, blue-violet (halfway), cyan. At the end, a cyan square.',
+                }}
             />,
             <FadeCase
                 key="fade-between-memory"
@@ -10004,7 +11220,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 betweenImages
                 skipOnCacheHit="none"
                 fades
-                description="transition with betweenImages and skipOnCacheHit none: a new source from the memory cache cross-dissolves from the image showing (right; recorded: magenta, blue-violet, cyan)"
+                description={{
+                    checks: "transition with betweenImages and skipOnCacheHit: 'none': a new source from the memory cache cross-dissolves from the image showing.",
+                    steps: "A view (left) loads a cyan image; a second one (right, on black) shows a magenta image, with transition { duration: 1000, betweenImages: true, skipOnCacheHit: 'none' }. Once both have loaded (and 1.5 s more), the right view's source changes to the cyan one, from the memory cache.",
+                    shows: 'Recorded on the right: magenta, blue-violet (halfway), cyan. At the end, two cyan squares.',
+                }}
             />,
         ],
     },
@@ -10013,13 +11233,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // one group, the legacy example's recordings on the Android emulator
         // had pauses of 200 to 350 ms, and missed some fades' middle.
         name: 'fade-placeholder',
+        description: {
+            checks: "transition from defaultSource: the image cross-dissolves from it, and defaultSource fades out under images with transparency and where the image doesn't cover the view (Android skips fading it out only under an opaque image that covers the view).",
+            steps: 'Video samples, as in the fade group. Each view (on black) shows a magenta defaultSource with no source; half a second later it gets a cyan image from the slow server (about 350 ms), with transition { duration: 1000 }.',
+        },
         cases: [
             <FadeCase
                 key="fade-placeholder"
                 id="fade-placeholder"
                 from="placeholder"
                 fades
-                description="transition: an image that downloads cross-dissolves from defaultSource (recorded: magenta, blue-violet, cyan)"
+                description={{
+                    checks: 'transition: an image that downloads cross-dissolves from defaultSource.',
+                    steps: 'The view shows a magenta defaultSource; half a second later it gets a cyan image from the slow server.',
+                    shows: 'Recorded: magenta, blue-violet (halfway), cyan. At the end, a cyan square.',
+                }}
             />,
             <FadeCase
                 key="fade-placeholder-translucent"
@@ -10027,7 +11255,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="placeholder"
                 image="cyan-half"
                 fades
-                description="transition: an image at half opacity cross-dissolves from defaultSource, which fades out under it (recorded: magenta, dark blue-violet, half cyan)"
+                description={{
+                    checks: 'transition: an image with transparency cross-dissolves from defaultSource, which fades out under it.',
+                    steps: 'The view shows a magenta defaultSource; half a second later it gets a cyan image at half opacity (cyan-half.png) from the slow server.',
+                    shows: 'Recorded: magenta, dark blue-violet (halfway), teal (half cyan over black); never blue-violet (magenta left under the image). At the end, a teal square.',
+                }}
             />,
             <FadeCase
                 key="fade-placeholder-contain"
@@ -10035,7 +11267,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="placeholder"
                 tall
                 fades
-                description="transition with objectFit contain: defaultSource fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
+                description={{
+                    checks: "transition with objectFit contain: defaultSource fades out where the image doesn't cover the view.",
+                    steps: 'The view is 48 × 144 with objectFit contain, cut to its top third: the square cyan image covers the middle third, so the part shown has only defaultSource (magenta; on iOS a tall one, since iOS fits defaultSource as it fits the image), then the black background.',
+                    shows: 'Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a black square.',
+                }}
             />,
             // Android's: how it decides the image covers the view.
             ...(Platform.OS === 'android'
@@ -10046,7 +11282,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           from="placeholder"
                           edge
                           fades
-                          description="transition with objectFit contain and an image a pixel shorter than the view (magnified): defaultSource fades out in the half pixel the image leaves at the top (recorded: magenta, half magenta, black)"
+                          description={{
+                              checks: 'transition with objectFit contain and an image that leaves half a pixel of the view uncovered: defaultSource fades out there too (Android checks whether the image covers the view to skip fading defaultSource out).',
+                              steps: 'A 16 dp view on black, magnified 8 times, with objectFit contain and a cyan image (42 × 41 px) a pixel shorter than the view (42 px on the emulator): it leaves half a pixel at the top and bottom, 4 px on the screen. Recorded in the top 4 px.',
+                              shows: 'Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a large cyan square with a thin black line along its top and bottom edges.',
+                          }}
                       />,
                   ]
                 : []),
@@ -10055,6 +11295,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // source.thumbhash, checked by screenshot (see ThumbhashLoadingCase).
         name: 'thumbhash',
+        description: {
+            checks: "source.thumbhash: the ThumbHash shows, decoded, while the image loads and when it fails, in place of defaultSource, and changing it after the load starts or ends doesn't load again.",
+            steps: 'Most cases hold their download on the slow server (it sends nothing until the case unmounts), so the hash stays on screen for the screenshot. The hashes come from flat test images: a 4:3 red-to-blue gradient, a 3:4 green-to-yellow one, a magenta disc on transparent, and a 4:3 cyan-to-orange gradient.',
+        },
         cases: [
             <ThumbhashLoadingCase key="thumbhash-loading" />,
             <ThumbhashScaleDownCase key="thumbhash-scale-down" />,
@@ -10068,6 +11312,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'placeholder',
+        description: {
+            checks: "The placeholder prop and a source's blurDataUri: data uris and ThumbHashes shown while the image loads, sized and tinted as the image will be.",
+            steps: 'Each case holds its download on the slow server (it sends nothing until the case unmounts), so the placeholder stays on screen for the screenshot.',
+        },
         cases: [
             <PlaceholderDataUriCase key="placeholder-data-uri" />,
             <BlurDataUriCase key="blur-data-uri" />,
@@ -10078,10 +11326,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'hdr',
+        description: {
+            checks: 'An HDR photo loads with each dynamicRangeLimit.',
+        },
         cases: [<HdrCase key="hdr" />],
     },
     {
         name: 'placeholder-url',
+        description: {
+            checks: "The placeholder prop as a url: it loads and shows while the image loads or after it fails, with cache: 'cacheOnly' only if cached, and never over an image that has loaded.",
+        },
         cases: [
             <PlaceholderUrlCase key="placeholder-url" />,
             <PlaceholderUrlCacheOnlyCase key="placeholder-url-cache-only" />,
@@ -10093,6 +11347,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Recorded (video samples).
         name: 'fade-drawables',
+        description: {
+            checks: 'transition with other kinds of drawables: an animated WebP fading in and, on Android, vector and animated WebP defaultSource drawables fading out around or under the image.',
+            steps: 'Video samples, as in the fade group.',
+        },
         cases: [
             <FadeCase
                 key="fade-animated-webp"
@@ -10100,7 +11358,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="download"
                 image="cyan-animated"
                 fades
-                description="transition: a downloaded animated WebP fades in (recorded: black, half cyan, cyan)"
+                description={{
+                    checks: 'transition fades in a downloaded animated WebP (an AnimatedImageDrawable on Android 9+).',
+                    steps: 'A black view mounts with an animated WebP of two cyan frames from the slow server (about 350 ms), with transition { duration: 1000 }.',
+                    shows: 'Recorded: black, teal (half cyan), cyan. At the end, a cyan square.',
+                }}
             />,
             // defaultSource drawables that are only Android's.
             ...(Platform.OS === 'android'
@@ -10112,7 +11374,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           tall
                           defaultDrawable="vector"
                           fades
-                          description="transition with objectFit contain, over a vector drawable defaultSource: it fades out where the image doesn't cover the view (its top third, recorded: magenta, half magenta, black)"
+                          description={{
+                              checks: "transition with objectFit contain over a vector drawable defaultSource (a VectorDrawable): it fades out where the image doesn't cover the view.",
+                              steps: 'The view is 48 × 144 with objectFit contain, cut to its top third, and shows a magenta vector drawable as defaultSource; half a second later it gets a square cyan image from the slow server, which covers the middle third, with transition { duration: 1000 }.',
+                              shows: 'Recorded: magenta, half magenta (dark purple), black; never cyan. At the end, a black square.',
+                          }}
                       />,
                       <FadeCase
                           key="fade-placeholder-animated-translucent"
@@ -10121,7 +11387,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           image="cyan-half"
                           defaultDrawable="animated"
                           fades
-                          description="transition: an image at half opacity, over an animated WebP drawable defaultSource, which fades out under it (recorded: magenta, dark blue-violet, half cyan)"
+                          description={{
+                              checks: 'transition: an image with transparency cross-dissolves from an animated WebP drawable defaultSource (an AnimatedImageDrawable on Android 9+), which fades out under it.',
+                              steps: 'The view (on black) shows a magenta animated WebP drawable as defaultSource; half a second later it gets a cyan image at half opacity from the slow server, with transition { duration: 1000 }.',
+                              shows: 'Recorded: magenta, dark blue-violet (halfway), teal (half cyan over black); never blue-violet (magenta left under the image). At the end, a teal square.',
+                          }}
                       />,
                   ]
                 : []),
@@ -10131,6 +11401,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Recorded (video samples). A group of their own: see
         // fade-placeholder.
         name: 'fade-opacity',
+        description: {
+            checks: "transition at half opacity: the image cross-dissolves from what the view showed, which fades out under it (on Android, React Native applies a View's opacity to each drawing in it, so what the view showed would otherwise show through).",
+            steps: 'Video samples, as in the fade group. Each case fades from magenta to an opaque cyan image from the slow server (about 350 ms), at half opacity over black.',
+        },
         cases: [
             <FadeCase
                 key="fade-placeholder-opacity"
@@ -10138,7 +11412,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="placeholder"
                 opacity="style"
                 fades
-                description="transition with opacity 0.5: an image that downloads cross-dissolves from defaultSource, which fades out under it (recorded: half magenta, dark blue, half cyan)"
+                description={{
+                    checks: 'transition with opacity 0.5 in the style: an image that downloads cross-dissolves from defaultSource, which fades out under it.',
+                    steps: 'FastImage (opacity 0.5, in a black view) shows a magenta defaultSource; half a second later it gets a cyan image from the slow server, with transition { duration: 1000 }.',
+                    shows: 'Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square.',
+                }}
             />,
             <FadeCase
                 key="fade-between-opacity"
@@ -10147,7 +11425,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 betweenImages
                 opacity="parent"
                 fades
-                description="transition with betweenImages, in a View at half opacity: a new source that downloads cross-dissolves from the image showing, which fades out under it (recorded: half magenta, dark blue, half cyan)"
+                description={{
+                    checks: 'transition with betweenImages, in a View at opacity 0.5: a new source that downloads cross-dissolves from the image showing, which fades out under it.',
+                    steps: 'FastImage, in a View at opacity 0.5 on black, shows a magenta image, with transition { duration: 1000, betweenImages: true }; 1.5 s after it loads, its source changes to a cyan image from the slow server.',
+                    shows: 'Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square.',
+                }}
             />,
             // Android's: a view animation, which the example apps' MainActivity
             // starts.
@@ -10159,7 +11441,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           from="placeholder"
                           opacity="animation"
                           fades
-                          description="transition, in a View with a view animation at half alpha (an AlphaAnimation): an image that downloads cross-dissolves from defaultSource, which fades out under it (recorded: half magenta, dark blue, half cyan)"
+                          description={{
+                              checks: "transition in a View with a view animation at half alpha (an AlphaAnimation, which doesn't change the View's opacity): an image that downloads cross-dissolves from defaultSource, which fades out under it.",
+                              steps: "The example app's MainActivity starts the AlphaAnimation (0.5) on the View FastImage is in (in the runner only). FastImage shows a magenta defaultSource; half a second later it gets a cyan image from the slow server, with transition { duration: 1000 }.",
+                              shows: 'Recorded: half magenta (dark purple), dark blue (halfway), teal (half cyan); never light blue (magenta left under the image). At the end, a teal square.',
+                          }}
                       />,
                   ]
                 : []),
@@ -10168,13 +11454,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Recorded. Clears the memory cache, so on its own.
         name: 'fade-disk',
+        description: {
+            checks: 'transition for images from the disk cache: they fade in by default, and show at once with skipOnCacheHit all.',
+            steps: 'Video samples, as in the fade group. In each case a view (left) loads a cyan image, then unmounts; half a second later FastImage.clearMemoryCache() runs, and a second view (right, on black) mounts with the same source, so it loads from the disk cache.',
+        },
         cases: [
             <FadeCase
                 key="fade-disk"
                 id="fade-disk"
                 from="disk"
                 fades
-                description="transition: an image from the disk cache fades in (right; recorded: black, half cyan, cyan)"
+                description={{
+                    checks: "transition fades in an image from the disk cache (the default skipOnCacheHit, 'memory', only skips the memory cache).",
+                    steps: 'The right view has transition { duration: 1000 }.',
+                    shows: 'Recorded on the right: black, teal (half cyan), cyan. At the end, an empty gray square and a cyan square.',
+                }}
             />,
             <FadeCase
                 key="fade-disk-all"
@@ -10182,7 +11476,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 from="disk"
                 skipOnCacheHit="all"
                 fades={false}
-                description="transition with skipOnCacheHit all: an image from the disk cache shows at once (right; recorded: black, then cyan)"
+                description={{
+                    checks: "transition with skipOnCacheHit: 'all': an image from the disk cache shows at once.",
+                    steps: "The right view has transition { duration: 1000, skipOnCacheHit: 'all' }.",
+                    shows: 'Recorded on the right: black, then cyan; never teal (half cyan, a fade). At the end, an empty gray square and a cyan square.',
+                }}
             />,
         ],
     },
@@ -10190,42 +11488,90 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Recorded. An empty key is a key: iOS took it as none (Codegen sends
         // '' for a key that isn't set), so the image stayed.
         name: 'recycling-key-empty',
+        description: {
+            checks: "recyclingKey '' is a key like any other.",
+            steps: 'A video sample: the screen is recorded while the case changes its source, and the color in the middle of the view must go through the listed colors in order.',
+        },
         cases: [
             <KeepPreviousCase
                 key="recycling-key-empty"
                 id="recycling-key-empty"
                 recycle
                 emptyKey
+                description={{
+                    checks: "Changing recyclingKey from '' with the source clears the image while the new one loads (iOS took '' as no key, since Codegen sends '' for a key that isn't set, so the previous image stayed).",
+                    steps: "The view shows a magenta image with recyclingKey ''; then its source changes to a cyan image from the slow server (about 1 s) and recyclingKey to 'second'. Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, blank (the view's light gray background), cyan. At the end, a cyan square.",
+                }}
             />,
         ],
     },
     {
         // Recorded (video samples).
         name: 'keep-previous',
+        description: {
+            checks: 'A source change keeps the image showing until the new one has loaded, and clears it when recyclingKey changes too.',
+            steps: 'Video samples: the screen is recorded while each case changes its source from a magenta image to a cyan one from the slow server (about 1 s), and the color in the middle of the view must go through the listed colors in order.',
+        },
         cases: [
-            <KeepPreviousCase key="keep-previous" id="keep-previous" />,
-            <KeepPreviousCase key="recycling-key" id="recycling-key" recycle />,
+            <KeepPreviousCase
+                key="keep-previous"
+                id="keep-previous"
+                description={{
+                    checks: 'Changing the source keeps the image showing until the new one has loaded (#747: the view went blank between the two images).',
+                    steps: "The view shows a magenta image; then its source changes to a cyan image from the slow server (about 1 s). Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square.",
+                }}
+            />,
+            <KeepPreviousCase
+                key="recycling-key"
+                id="recycling-key"
+                recycle
+                description={{
+                    checks: 'Changing recyclingKey with the source clears the image while the new one loads, for views reused for other content.',
+                    steps: "The view shows a magenta image with recyclingKey 'first'; then its source changes to a cyan image from the slow server (about 1 s) and recyclingKey to 'second'. Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, blank (the view's light gray background), cyan. At the end, a cyan square.",
+                }}
+            />,
             <KeepPreviousCase
                 key="keep-previous-no-memory"
                 id="keep-previous-no-memory"
                 memoryCache={false}
+                description={{
+                    checks: "Changing the source keeps the image showing until the new one has loaded, with memoryCache: false (the image isn't kept in the memory cache).",
+                    steps: "As the first row, with memoryCache: false on both sources. Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square.",
+                }}
             />,
             <KeepPreviousCase
                 key="keep-previous-twice"
                 id="keep-previous-twice"
                 twice
+                description={{
+                    checks: 'Changing the source twice quickly keeps the image showing until the last one has loaded (Android went blank).',
+                    steps: "The view shows a magenta image; then its source changes to a slow image (about 7 s), and 150 ms later to a cyan one from the slow server (about 1 s). Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square.",
+                }}
             />,
             <KeepPreviousCase
                 key="keep-previous-twice-no-memory"
                 id="keep-previous-twice-no-memory"
                 memoryCache={false}
                 twice
+                description={{
+                    checks: 'Changing the source twice quickly keeps the image showing until the last one has loaded, with memoryCache: false (Android went blank).',
+                    steps: "As the row above, with memoryCache: false on all three sources. Recorded until cyan's onLoad.",
+                    shows: "Recorded: magenta, then cyan; never blank (the view's light gray background). At the end, a cyan square.",
+                }}
             />,
         ],
     },
     {
         // Recorded (video samples).
         name: 'tint',
+        description: {
+            checks: 'tintColor over time, recorded on video: a tinted GIF playing, and tintColor changed or removed after the image loaded.',
+        },
         cases: [
             <TintSampleCase
                 key="tint-gif"
@@ -10233,7 +11579,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 uri="blink-once.gif"
                 change="play"
                 expect={[GREEN, BLANK, GREEN]}
-                description="A tinted GIF plays, tinted (recorded: green, blank, green)"
+                description={{
+                    checks: "A tinted GIF plays, with every frame tinted (#1195: iOS showed the first frame tinted and didn't play it).",
+                    steps: 'Loads a GIF that plays once (magenta, transparent, magenta, 400 ms each) with tintColor green and paused. On onLoad it starts recording and sets paused={false}. Passes when the recording sees green, blank, green, in that order.',
+                    shows: 'A green square (the last frame, tinted). Recorded: green, blank (the gray background through the transparent frame), then green.',
+                }}
             />,
             <TintSampleCase
                 key="tint-change"
@@ -10241,7 +11591,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 uri="magenta.png"
                 change="recolor"
                 expect={[GREEN, CYAN]}
-                description="tintColor changed after load (recorded: green, then cyan)"
+                description={{
+                    checks: 'Changing tintColor after the image loaded retints it.',
+                    steps: 'Loads a magenta square with tintColor green. On onLoad it starts recording and changes tintColor to cyan. Passes when the recording sees green, then cyan.',
+                    shows: 'A cyan square. Recorded: green, then cyan.',
+                }}
             />,
             <TintSampleCase
                 key="tint-gif-clear"
@@ -10249,12 +11603,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 uri="blink-once.gif"
                 change="clear"
                 expect={[GREEN, MAGENTA]}
-                description="tintColor removed from a paused GIF (recorded: green, then its magenta first frame)"
+                description={{
+                    checks: "Removing tintColor from a paused GIF shows the frame's own colors again.",
+                    steps: 'Loads a GIF (magenta, transparent, magenta) with tintColor green and paused, so it stays on its first frame. On onLoad it starts recording and removes tintColor. Passes when the recording sees green, then magenta.',
+                    shows: 'A magenta square (the first frame, untinted). Recorded: green, then magenta.',
+                }}
             />,
         ],
     },
     {
         name: 'several-sources',
+        description: {
+            checks: 'source as an array of sizes: the view loads the source whose size in pixels is closest to its own, including a require()d image among them.',
+        },
         cases: [
             <SeveralSourcesCase key="several-48" id="several-48" size={48} />,
             <SeveralSourcesCase
@@ -10278,6 +11639,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Large views, on their own.
         name: 'several-sources-large',
+        description: {
+            checks: 'source as an array of sizes in large views: a large view picks a larger source, and a view that grows loads a larger one.',
+        },
         cases: [
             <SeveralSourcesCase
                 key="several-240"
@@ -10290,6 +11654,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // Bordered views: the source fits the box inside the borders.
         name: 'several-sources-border',
+        description: {
+            checks: 'source as an array of sizes in views with borders: the source is picked for the box inside the borders, where the image is drawn.',
+        },
         cases: [
             <SeveralSourcesCase
                 key="several-border"
@@ -10302,73 +11669,115 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'image-background',
+        description: {
+            checks: 'FastImageBackground draws its image behind its children.',
+        },
         cases: [<ImageBackgroundCase key="image-background" />],
     },
     {
         name: 'formats',
+        description: {
+            checks: 'Which still image formats load on each platform, for the tables in docs/formats.md: each case loads the same picture in one format.',
+        },
         cases: [
             <FormatCase
                 key="format-jpeg"
                 id="format-jpeg"
                 file="quadrants.jpg"
                 expected="loads"
-                description="JPEG loads"
+                description={{
+                    checks: 'A JPEG image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a JPEG (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-png"
                 id="format-png"
                 file="quadrants.png"
                 expected="loads"
-                description="PNG loads"
+                description={{
+                    checks: 'A PNG image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a PNG (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-gif"
                 id="format-gif"
                 file="quadrants.gif"
                 expected="loads"
-                description="GIF (a still one) loads"
+                description={{
+                    checks: 'A still GIF image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a still GIF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-webp"
                 id="format-webp"
                 file="quadrants.webp"
                 expected="loads"
-                description="WebP loads"
+                description={{
+                    checks: 'A WebP image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a WebP (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-avif"
                 id="format-avif"
                 file="quadrants.avif"
                 expected="loads"
-                description="AVIF loads"
+                description={{
+                    checks: 'An AVIF image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as an AVIF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-heic"
                 id="format-heic"
                 file="quadrants.heic"
                 expected="loads"
-                description="HEIC loads"
+                description={{
+                    checks: 'A HEIC image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a HEIC (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-bmp"
                 id="format-bmp"
                 file="quadrants.bmp"
                 expected="loads"
-                description="BMP loads"
+                description={{
+                    checks: 'A BMP image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as a BMP (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-ico"
                 id="format-ico"
                 file="quadrants.ico"
                 expected="loads"
-                description="ICO loads"
+                description={{
+                    checks: 'An ICO image loads on every platform, at its own size (as the tables in docs/formats.md say).',
+                    steps: 'Loads the test picture as an ICO (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes when onLoad has 80×80.',
+                    shows: 'The four quadrants: red top left, green top right, blue bottom left, yellow bottom right. A blank gray square means it failed.',
+                }}
             />,
             <FormatCase
                 key="format-tiff"
                 id="format-tiff"
                 file="quadrants.tiff"
                 expected={Platform.OS === 'ios' ? 'loads' : 'fails'}
-                description="TIFF: loads on iOS, fails on Android"
+                description={{
+                    checks: "A TIFF image loads on iOS and fails on Android, as docs/formats.md says (a change in what's supported fails the case).",
+                    steps: 'Loads the test picture as a TIFF (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes on iOS when onLoad has 80×80, on Android on onError.',
+                    shows: 'iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android: an empty gray square.',
+                }}
             />,
             <FormatCase
                 key="format-icns"
@@ -10380,11 +11789,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 }
                 // An icon size (formats.sh).
                 size={128}
-                description={
-                    Platform.isTV
-                        ? 'ICNS: fails on tvOS'
-                        : 'ICNS: loads on iOS, fails on Android'
-                }
+                description={{
+                    checks: "An ICNS image loads on iOS and fails on Android and tvOS (whose ImageIO doesn't decode it), as docs/formats.md says (a change in what's supported fails the case).",
+                    steps: 'Loads the test picture as an ICNS (128×128, an icon size: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes on iOS when onLoad has 128×128, on Android and tvOS on onError.',
+                    shows: 'iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android and tvOS: an empty gray square.',
+                }}
             />,
             <FormatCase
                 key="format-psd"
@@ -10393,51 +11802,74 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 expected={
                     Platform.OS === 'ios' && !Platform.isTV ? 'loads' : 'fails'
                 }
-                description={
-                    Platform.isTV
-                        ? 'PSD: fails on tvOS'
-                        : 'PSD: loads on iOS, fails on Android'
-                }
+                description={{
+                    checks: "A PSD image loads on iOS and fails on Android and tvOS (whose ImageIO doesn't decode it), as docs/formats.md says (a change in what's supported fails the case).",
+                    steps: 'Loads the test picture as a PSD (80×80: red, green, blue and yellow quadrants) in a 48 pt view with objectFit="contain". Passes on iOS when onLoad has 80×80, on Android and tvOS on onError.',
+                    shows: 'iOS: the four quadrants (red top left, green top right, blue bottom left, yellow bottom right). Android and tvOS: an empty gray square.',
+                }}
             />,
         ],
     },
     {
         name: 'formats-animated',
+        description: {
+            checks: 'Which animated formats animate on each platform (GIF, APNG, WebP, a large downsampled WebP, AVIF), checked by recording each view.',
+        },
         cases: [
             <FormatAnimationCase
                 key="format-animated-gif"
                 id="format-animated-gif"
                 file="animated.gif"
                 expected="animates"
-                description="An animated GIF animates (red and blue; masked)"
+                description={{
+                    checks: 'An animated GIF animates.',
+                    steps: 'Loads an animated GIF (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-apng"
                 id="format-animated-apng"
                 file="animated.png"
                 expected="animates"
-                description="An APNG animates (red and blue; on Android with APNG4Android, which the example apps have; masked)"
+                description={{
+                    checks: 'An animated PNG (APNG) animates (on Android with APNG4Android, which the example apps include).',
+                    steps: 'Loads an APNG (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-webp"
                 id="format-animated-webp"
                 file="animated.webp"
                 expected="animates"
-                description="An animated WebP animates (red and blue; masked)"
+                description={{
+                    checks: 'An animated WebP animates.',
+                    steps: 'Loads an animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-webp-downsampled"
                 id="format-animated-webp-downsampled"
                 file="animated-large.webp"
                 expected="animates"
-                description="A large animated WebP, downsampled, animates (masked)"
+                description={{
+                    checks: "A large animated WebP, decoded at about the view's size (downsample, the default), still animates.",
+                    steps: 'Loads a 400×400 animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-avif"
                 id="format-animated-avif"
                 file="animated.avif"
                 expected="animates"
-                description="An animated AVIF animates (masked)"
+                description={{
+                    checks: 'An animated AVIF animates.',
+                    steps: 'Loads an animated AVIF (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
         ],
     },
@@ -10445,11 +11877,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // loop and paused with an animated AVIF (ImageIO's on iOS, Android's
         // ImageDecoder on Android).
         name: 'avif-animation',
+        description: {
+            checks: "loop and paused with an animated AVIF (ImageIO's decoder on iOS, Android's ImageDecoder on Android).",
+        },
         cases: [
             <GifLoopCase
                 key="avif-loop-false"
                 id="avif-loop-false"
-                description="loop={false}: an animated AVIF that loops forever by itself plays once and stops on blue"
+                description={{
+                    checks: 'loop={false} on an animated AVIF that loops forever by itself: it plays once and stops on its last frame.',
+                    steps: 'Loads an animated AVIF that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.',
+                    shows: 'A blue square (the last frame, where it stopped); one that kept looping could show either frame.',
+                }}
                 loop={false}
                 plays={1}
                 source="formats/animated.avif"
@@ -10457,7 +11896,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <GifLoopCase
                 key="avif-loop-file"
                 id="avif-loop-file"
-                description="loop not set: an animated AVIF that plays once by itself (no repetitions) stops on blue"
+                description={{
+                    checks: 'Without loop, an animated AVIF that plays once by itself (no repetitions in the file) plays once and stops on its last frame.',
+                    steps: 'Loads an animated AVIF that plays once (red, then blue, 400 ms each) without loop. Passes a play (0.8 s) and a margin after onLoad.',
+                    shows: 'A blue square (the last frame); red would mean it never played.',
+                }}
                 plays={1}
                 source="formats/animated-once.avif"
             />,
@@ -10477,11 +11920,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         // loop, paused and two views, with an animated WebP.
         name: 'webp-animation',
+        description: {
+            checks: 'loop, paused, two views of one image, and blurRadius with an animated WebP.',
+        },
         cases: [
             <GifLoopCase
                 key="webp-loop-false"
                 id="webp-loop-false"
-                description="loop={false}: an animated WebP that loops forever by itself plays once and stops on blue"
+                description={{
+                    checks: 'loop={false} on an animated WebP that loops forever by itself: it plays once and stops on its last frame.',
+                    steps: 'Loads an animated WebP that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.',
+                    shows: 'A blue square (the last frame, where it stopped); one that kept looping could show either frame.',
+                }}
                 loop={false}
                 plays={1}
                 source="formats/animated.webp"
@@ -10489,13 +11939,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <WebpLoopUnsetCase
                 key="webp-loop-unset"
                 id="webp-loop-unset"
-                description="loop={false}, then not set: the animated WebP loops forever again, as the file says (masked)"
+                description={{
+                    checks: 'loop={false}, then loop removed on the same view: the animated WebP loops forever again, as the file says, rather than staying stopped.',
+                    steps: 'Loads an animated WebP that loops forever (red, then blue, 400 ms each) with loop={false}. After a play it removes loop, waits a play, then records the view. Passes when the recording sees both red and blue (still looping).',
+                    shows: 'A red or blue square: animated, so masked and not compared.',
+                }}
             />,
             <WebpLoopUnsetCase
                 key="webp-loop-remount"
                 id="webp-loop-remount"
                 remount
-                description="A view without loop, after another with loop={false} switched to another image: the animated WebP loops forever, as the file says (masked)"
+                description={{
+                    checks: "A new view without loop shows an animated WebP looping forever, as the file says, after another view showed it with loop={false} (on Android a new view can get the drawable a view that's gone had, with its loop).",
+                    steps: 'Loads an animated WebP that loops forever (red, then blue) with loop={false}; after a play the view switches to another image (the quadrants), then a new view without loop shows the WebP again. A play after it loads, the view is recorded. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square: animated, so masked and not compared.',
+                }}
             />,
             <GifPausedCase
                 key="webp-paused"
@@ -10517,14 +11975,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="format-animated-webp-twice-1"
                 file="animated.webp"
                 expected="animates"
-                description="The same animated WebP in two views: this one animates (masked)"
+                description={{
+                    checks: 'The same animated WebP in two views: each animates on its own (on Android, Glide would give both views one drawable, which would share its playback with the paused one).',
+                    steps: 'Loads the animated WebP the paused cases above use (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-webp-twice-2"
                 id="format-animated-webp-twice-2"
                 file="animated.webp"
                 expected="animates"
-                description="...and so does this one (masked)"
+                description={{
+                    checks: 'The second view of the same animated WebP also animates.',
+                    steps: 'Loads the same animated WebP (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             // Not animated (as a GIF isn't): blurred.
             <FormatAnimationCase
@@ -10533,18 +11999,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 file="animated.webp"
                 expected="first frame"
                 imageProps={{ blurRadius: 6 }}
-                description="Blurred: an animated WebP shows its first frame (red), blurred and still (masked)"
+                description={{
+                    checks: 'blurRadius on an animated WebP: it shows its first frame, blurred and still, as a blurred GIF does.',
+                    steps: 'Loads the animated WebP (red, then blue, 400 ms each, looping) with blurRadius 6. On onLoad it records the view for two plays. Passes when the recording sees only red.',
+                    shows: 'A red square (the first frame; blurring a flat color leaves it the same): masked, so not compared.',
+                }}
             />,
         ],
     },
     {
         // As webp-animation, for APNG (on Android, with APNG4Android).
         name: 'apng-animation',
+        description: {
+            checks: 'loop, paused, two views of one image, and blurRadius with an APNG (on Android with APNG4Android, which the example apps include).',
+        },
         cases: [
             <GifLoopCase
                 key="png-loop-false"
                 id="png-loop-false"
-                description="loop={false}: an APNG that loops forever by itself plays once and stops on blue"
+                description={{
+                    checks: 'loop={false} on an APNG that loops forever by itself: it plays once and stops on its last frame.',
+                    steps: 'Loads an APNG that loops forever (red, then blue, 400 ms each) with loop={false}. Passes a play (0.8 s) and a margin after onLoad.',
+                    shows: 'A blue square (the last frame, where it stopped); one that kept looping could show either frame.',
+                }}
                 loop={false}
                 plays={1}
                 source="formats/animated.png"
@@ -10565,14 +12042,22 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="format-animated-apng-twice-1"
                 file="animated.png"
                 expected="animates"
-                description="The same APNG in two views: this one animates (masked)"
+                description={{
+                    checks: 'The same APNG in two views: each animates on its own, rather than sharing one playback with the paused one.',
+                    steps: 'Loads the APNG the paused cases above use (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="format-animated-apng-twice-2"
                 id="format-animated-apng-twice-2"
                 file="animated.png"
                 expected="animates"
-                description="...and so does this one (masked)"
+                description={{
+                    checks: 'The second view of the same APNG also animates.',
+                    steps: 'Loads the same APNG (red, then blue, 400 ms each, looping) in a 48 pt view. On onLoad it records the view for two plays. Passes when the recording sees both red and blue.',
+                    shows: 'A red or blue square, depending on the frame: animated, so masked and not compared.',
+                }}
             />,
             <FormatAnimationCase
                 key="blur-apng"
@@ -10580,52 +12065,79 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 file="animated.png"
                 expected="first frame"
                 imageProps={{ blurRadius: 6 }}
-                description="Blurred: an APNG shows its first frame (red), blurred and still (masked)"
+                description={{
+                    checks: 'blurRadius on an APNG: it shows its first frame, blurred and still, as a blurred GIF does.',
+                    steps: 'Loads the APNG (red, then blue, 400 ms each, looping) with blurRadius 6. On onLoad it records the view for two plays. Passes when the recording sees only red.',
+                    shows: 'A red square (the first frame; blurring a flat color leaves it the same): masked, so not compared.',
+                }}
             />,
         ],
     },
     {
         name: 'svg',
+        description: {
+            checks: 'SVG images (SDWebImageSVGCoder on iOS, AndroidSVG on Android, which Fast Image includes): remote and bundled, their sizes in onLoad, a wrong Content-Type, tintColor and downsample.',
+        },
         cases: [
             <SvgCase
                 key="svg-remote"
                 id="svg-remote"
                 source={{ uri: imageUrl('svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
-                description="A remote SVG loads (red and blue halves); onLoad has its size"
+                description={{
+                    checks: 'A remote SVG loads, and onLoad has its own size.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from the image server in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
+                }}
             />,
             <SvgCase
                 key="svg-bundled"
                 id="svg-bundled"
                 source={require('./images/svg-flag.svg')}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
-                description="A bundled (require()d) SVG loads, also in release builds"
+                description={{
+                    checks: 'A require()d SVG, bundled with the app, loads, in debug and release builds.',
+                    steps: "Shows the 100×50 SVG (left half red, right half blue) from the app's bundle in a 96×48 view. Passes when onLoad has 100×50.",
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
+                }}
             />,
             <SvgCase
                 key="svg-viewbox"
                 id="svg-viewbox"
                 source={{ uri: imageUrl('svg-viewbox.svg') }}
-                style={{ width: 60, height: 30 }}
+                style={{ width: 64, height: 32 }}
                 expected={[60, 30]}
-                description="An SVG with only a viewBox (green and yellow): onLoad has the viewBox's size"
+                description={{
+                    checks: "An SVG with only a viewBox (no width or height) loads, and onLoad has the viewBox's size.",
+                    steps: 'Loads an SVG with viewBox="0 0 60 30" (left half green, right half yellow) in a 64×32 view. Passes when onLoad has 60×30.',
+                    shows: 'A 64×32 rectangle: green on the left, yellow on the right.',
+                }}
             />,
             <SvgCase
                 key="svg-nosize"
                 id="svg-nosize"
                 source={{ uri: imageUrl('svg-nosize.svg') }}
-                style={{ width: 60, height: 30 }}
+                style={{ width: 64, height: 32 }}
                 expected={[300, 150]}
-                description="An SVG with no size or viewBox is 300x150 (cyan and magenta)"
+                description={{
+                    checks: 'An SVG with no width, height or viewBox loads at 300×150, the default size for one.',
+                    steps: 'Loads an SVG without a size (a 300×150 magenta rectangle with a 150×150 cyan square on its left) in a 64×32 view. Passes when onLoad has 300×150.',
+                    shows: 'A 64×32 rectangle: cyan on the left, magenta on the right (the whole SVG, scaled down).',
+                }}
             />,
             <SvgCase
                 key="svg-mislabeled"
                 id="svg-mislabeled"
                 source={{ uri: imageUrl('mislabeled/svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
-                description="An SVG sent as text/plain loads"
+                description={{
+                    checks: 'An SVG the server sends with Content-Type: text/plain still loads.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from a server route that sends it as text/plain, in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
+                }}
             />,
             <SvgCase
                 key="svg-tint"
@@ -10634,21 +12146,32 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={{ width: 48, height: 48 }}
                 expected={[24, 24]}
                 tintColor="green"
-                description="tintColor on an SVG icon: a green ring"
+                description={{
+                    checks: 'tintColor on an SVG icon tints it.',
+                    steps: 'Loads a 24×24 SVG icon (a black ring) with tintColor green in a 48×48 view. Passes when onLoad has 24×24.',
+                    shows: 'A green ring filling the gray square; a black ring would mean the tint was ignored.',
+                }}
             />,
             <SvgCase
                 key="svg-downsample"
                 id="svg-downsample"
                 source={{ uri: imageUrl('svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
                 downsample
-                description="An SVG with downsample stays a vector image (sharp); onLoad has its size (iOS drew it into a bitmap the view's size)"
+                description={{
+                    checks: "An SVG with downsample stays a vector image, drawn sharp, and onLoad has its own size (iOS drew it into a bitmap the view's size).",
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) with downsample in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right, with a sharp edge between them.',
+                }}
             />,
         ],
     },
     {
         name: 'svg-sizes',
+        description: {
+            checks: 'How SVGs fit their views: objectFit contain and cover, and an SVG drawn sharp at a large size.',
+        },
         cases: [
             <SvgCase
                 key="svg-contain"
@@ -10657,7 +12180,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={{ width: 64, height: 64 }}
                 expected={[100, 50]}
                 objectFit="contain"
-                description="contain: the whole SVG, with gray above and below"
+                description={{
+                    checks: 'objectFit="contain" on an SVG: the whole image fits inside the view.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) in a 64×64 view with objectFit="contain". Passes when onLoad has 100×50.',
+                    shows: 'A 64 pt square: a red and blue band across the middle (the whole SVG), with gray above and below.',
+                }}
             />,
             <SvgCase
                 key="svg-cover"
@@ -10666,13 +12193,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={{ width: 64, height: 64 }}
                 expected={[100, 50]}
                 objectFit="cover"
-                description="cover: the middle of the SVG, half red and half blue, filling the view"
+                description={{
+                    checks: 'objectFit="cover" on an SVG: the image fills the view, cropped at the sides.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) in a 64×64 view with objectFit="cover". Passes when onLoad has 100×50.',
+                    shows: 'A 64 pt square, the left half red and the right half blue (the middle of the SVG); gray above and below would mean it was contained.',
+                }}
             />,
             <SvgSharpCase key="svg-sharp" />,
         ],
     },
     {
         name: 'photo-library',
+        description: {
+            checks: 'Photo library images (ph:// urls, iOS, with SDWebImagePhotosPlugin): a JPEG and a HEIC, a photo shown again after clearing the memory cache, an animated GIF, and urls that fail.',
+            steps: "Uses the simulator's photo library, which verify.mts grants access to and adds a GIF to (and on tvOS, whose simulator has no photos, a JPEG and a HEIC of the four colored quadrants).",
+        },
         cases:
             Platform.OS === 'ios'
                 ? [
@@ -10680,13 +12215,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           key="photo-library-jpeg"
                           id="photo-library-jpeg"
                           type="public.jpeg"
-                          description="#410: a JPEG from the photo library (ph://) loads; onLoad has the photo's own size"
+                          description={{
+                              checks: "A JPEG from the photo library (a ph:// url) loads, and onLoad has the photo's own size, not the size it's decoded at (#410: local photos didn't load on iOS).",
+                              steps: "Finds a JPEG in the simulator's photo library and shows it by its ph:// url in a 48 pt view. Passes when onLoad has the photo's width and height as the library lists them.",
+                              shows: 'A photo of a waterfall, cropped to fill the square (on tvOS, the four colored quadrants verify.mts adds).',
+                          }}
                       />,
                       <PhotoLibraryCase
                           key="photo-library-heic"
                           id="photo-library-heic"
                           type="public.heic"
-                          description="#410: a HEIC photo from the photo library (ph://) loads; onLoad has the photo's own size"
+                          description={{
+                              checks: "A HEIC photo from the photo library (a ph:// url) loads, and onLoad has the photo's own size, not the size it's decoded at (#410: local photos didn't load on iOS).",
+                              steps: "Finds a HEIC photo in the simulator's photo library and shows it by its ph:// url in a 48 pt view. Passes when onLoad has the photo's width and height as the library lists them.",
+                              shows: 'A photo of pink and red flowers, cropped to fill the square (on tvOS, the four colored quadrants verify.mts adds).',
+                          }}
                       />,
                       <PhotoLibraryAgainCase key="photo-library-again" />,
                       <PhotoLibraryGifCase key="photo-library-gif" />,
@@ -10695,33 +12238,51 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           id="photo-library-missing"
                           uri="ph://00000000-0000-0000-0000-000000000000/L0/001"
                           expected="localIdentifier"
-                          description="A ph:// id that isn't in the library fails with onError"
+                          description={{
+                              checks: "A ph:// url whose id isn't in the photo library fails with onError.",
+                              steps: "Loads ph://00000000-0000-0000-0000-000000000000/L0/001, an id no photo has. Passes when onError's error mentions the localIdentifier.",
+                              shows: 'An empty gray square: nothing loads.',
+                          }}
                       />,
                       <PhotoLibraryErrorCase
                           key="photo-library-assets-library"
                           id="photo-library-assets-library"
                           uri="assets-library://asset/asset.JPG?id=00000000-0000-0000-0000-000000000000&ext=JPG"
                           expected="ph://"
-                          description="#314: an assets-library:// url fails with onError, pointing to ph:// urls"
+                          description={{
+                              checks: 'An assets-library:// url (the old camera roll url) fails with onError, with a message pointing to ph:// urls (#314: they showed a blank image on iOS, with no error).',
+                              steps: "Loads an assets-library://asset/asset.JPG?id=… url. Passes when onError's error mentions ph://.",
+                              shows: 'An empty gray square: nothing loads.',
+                          }}
                       />,
                   ]
                 : [
                       <NoCrashCase
                           key="photo-library"
                           id="photo-library"
-                          description="Photo library (ph://) urls are iOS only; Android's photo pickers give content:// urls, which load"
+                          description={{
+                              checks: "Photo library (ph://) urls are iOS only: Android's photo pickers give content:// urls, which load like other local files. A placeholder for the group on Android.",
+                              steps: 'Shows nothing. Passes once the app has run for a moment.',
+                              shows: 'An empty gray square.',
+                          }}
                       />,
                   ],
     },
     {
         // Empties the disk cache on iOS, so it's near the end.
         name: 'configure-cache',
+        description: {
+            checks: 'FastImage.configureCache and the disk cache limit set in the native config.',
+        },
         cases: [<ConfigureCacheCase key="configure-cache" />],
     },
     {
         // Near the end: before the fix, these crashed the app, which ended
         // the run.
         name: 'non-object-sources',
+        description: {
+            checks: 'preload, getCachePath and writeToCache with a url string where a source object goes: each resolves not ok instead of crashing the app.',
+        },
         cases: [
             <PreloadNonObjectCase key="preload-non-object" />,
             <CachePathNonObjectCase key="cache-path-non-object" />,
@@ -10732,6 +12293,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // Tapped by scripts/verify.mts (maestro/touch.yaml) while it's shown.
         // Last, so starting maestro-runner doesn't hold up the others.
         name: 'touch',
+        description: {
+            checks: 'Touches, accessibility labels and keyboard focus on FastImage, with real input: the touch flow (maestro/touch.yaml) taps each case while the group is shown.',
+            steps: 'The flow taps, in order: the image inside the Touchable, the Pressable under the pointerEvents="none" image, the one under the box-none image, the image found by its accessibilityLabel, the one found by its aria-label, and the small gray square beside the hitSlop image; on Android it then taps the focus case\'s text field and presses Tab twice. tvOS leaves this group out.',
+        },
         cases: [
             <TouchableCase key="touchable" />,
             <PointerEventsCase key="pointer-events" />,
@@ -10746,20 +12311,32 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
 
 export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
+    // Each description's steps and what it shows, not only what it checks.
+    const [details, setDetails] = useState(false)
     return (
-        <ScrollView
-            style={{ marginTop: statusBarHeight }}
-            contentContainerStyle={styles.container}
-        >
-            <Text style={styles.title}>Regression checks</Text>
-            <BackgroundCases />
-            <ClearWithoutActivityCase />
-            {REGRESSION_GROUPS.map((group) => (
-                <React.Fragment key={group.name}>
-                    <Text style={styles.group}>{group.name}</Text>
-                    {group.cases}
-                </React.Fragment>
-            ))}
-        </ScrollView>
+        <DetailsContext.Provider value={details}>
+            <ScrollView
+                style={{ marginTop: statusBarHeight }}
+                contentContainerStyle={styles.container}
+            >
+                <Text style={styles.title}>Regression checks</Text>
+                <View style={styles.details}>
+                    <Text>Details</Text>
+                    <Switch value={details} onValueChange={setDetails} />
+                </View>
+                <BackgroundCases />
+                <ClearWithoutActivityCase />
+                {REGRESSION_GROUPS.map((group) => (
+                    <React.Fragment key={group.name}>
+                        <DescriptionText
+                            title={group.name}
+                            description={group.description}
+                            style={styles.group}
+                        />
+                        {group.cases}
+                    </React.Fragment>
+                ))}
+            </ScrollView>
+        </DetailsContext.Provider>
     )
 }

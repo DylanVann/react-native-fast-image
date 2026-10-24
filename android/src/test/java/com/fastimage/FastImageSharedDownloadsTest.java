@@ -304,6 +304,7 @@ public class FastImageSharedDownloadsTest {
     @Test
     public void waitingDownloadsStartMostUrgentFirst() throws Exception {
         List<TestServer.Route> running = runSixteen();
+        holdWhenStarted("/low", "/normal", "/high");
         load(url("/low"), Priority.LOW);
         load(url("/normal"), Priority.NORMAL);
         load(url("/high"), Priority.HIGH);
@@ -316,6 +317,7 @@ public class FastImageSharedDownloadsTest {
     @Test
     public void aMoreUrgentRequestMovesAWaitingDownloadUp() throws Exception {
         List<TestServer.Route> running = runSixteen();
+        holdWhenStarted("/preload", "/other");
         load(url("/preload"), Priority.LOW);
         load(url("/other"), Priority.NORMAL);
         load(url("/preload"), Priority.HIGH);
@@ -326,6 +328,7 @@ public class FastImageSharedDownloadsTest {
     @Test
     public void aWaitingDownloadGoesBackDownWhenTheUrgentRequestLeaves() throws Exception {
         List<TestServer.Route> running = runSixteen();
+        holdWhenStarted("/preload", "/other");
         load(url("/preload"), Priority.LOW);
         Load view = load(url("/preload"), Priority.IMMEDIATE);
         view.cancel();
@@ -439,6 +442,14 @@ public class FastImageSharedDownloadsTest {
         }
         server.awaitRequests(16);
         return running;
+    }
+
+    // The downloads of these paths stay running once started, so each one
+    // startNext lets start keeps its slot: one that ended would start the
+    // next one waiting at the same time as startNext's, and the two requests
+    // could reach the server in either order.
+    private void holdWhenStarted(String... paths) {
+        for (String path : paths) server.route(path).holdAfter(1);
     }
 
     // Lets `count` of the waiting downloads start, one at a time.

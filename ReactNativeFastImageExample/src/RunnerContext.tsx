@@ -9,7 +9,42 @@ import React, {
 import { View, ViewProps } from 'react-native'
 
 // A group of cases the regression runner (RegressionRunner.tsx) shows at once.
-export type RegressionGroup = { name: string; cases: React.ReactElement[] }
+export type RegressionGroup = {
+    name: string
+    description: GroupDescription
+    cases: React.ReactElement[]
+    // Its cases fill the screen's width (the example screens' sections). In
+    // the runner, other groups' cases are only as wide as what they show, so
+    // each case's area (and screenshot) is its images. A wide group's
+    // screenshot is compared as a whole.
+    wide?: boolean
+}
+
+// What a case checks, in plain English, for someone reviewing its screenshot
+// who hasn't read its code. The Regression tab shows it, and the runner sends
+// it to scripts/verify.mts (results.json).
+export type Description = {
+    // What it checks, and the bug it's for: the issue, the platform and what
+    // went wrong.
+    checks: string
+    // What it does, in order: its sources and props, the changes it makes,
+    // how the image server answers. Left out when `checks` says it all.
+    steps?: string
+    // What its part of the screenshot shows once it has passed (left to
+    // right), and what a failure looks like there; for a video sample, the
+    // colors it records in order.
+    shows: string
+}
+
+// What a group checks as a whole; its cases describe themselves. `steps` is
+// for what its cases share (the server's behavior, video samples), and
+// `shows` only for groups whose cases don't describe themselves (the example
+// screens).
+export type GroupDescription = {
+    checks: string
+    steps?: string
+    shows?: string
+}
 
 // How the regression runner (RegressionRunner.tsx) hears from the cases and
 // examples it shows. Outside the runner (the app's tabs) the contexts do
@@ -18,6 +53,11 @@ export type RegressionGroup = { name: string; cases: React.ReactElement[] }
 // Reports a case's status; 'OK' means it passed.
 export const ReportContext = createContext<
     (id: string, status: string) => void
+>(() => {})
+
+// Gives the runner a case's description, as it mounts.
+export const DescribeContext = createContext<
+    (id: string, description: Description) => void
 >(() => {})
 
 // Reports a status whenever it changes.
@@ -96,6 +136,13 @@ export type MeasureMask = () => Promise<Rect | undefined>
 export const MaskContext = createContext<(measure: MeasureMask) => () => void>(
     () => () => {},
 )
+
+// Registers a case's area (its row: the view its CaseStatus is in) with the
+// runner, which sends it with the masks so a reviewer can find the case in
+// the screenshot; returns a function that unregisters it.
+export const CaseAreaContext = createContext<
+    (id: string, measure: MeasureMask) => () => void
+>(() => () => {})
 
 // Wraps content that differs between runs (an animated image, a timing) so
 // its area isn't compared. The runner measures it when a screenshot is taken,

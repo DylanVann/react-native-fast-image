@@ -1,0 +1,98 @@
+{
+    "smoke": {
+        "description": {
+            "checks": "FastImage works at all in an Expo app (the Expo example, on iOS, Android and the web): an image loads, a missing one fails, reload() after a failure, a bundled image, several sizes, preload, and the cache methods (on the web, that getCachePath isn't supported)."
+        },
+        "cases": {
+            "smoke-load": {
+                "checks": "A remote image loads: onLoad with its size, then onLoadEnd with ok: true and the same size.",
+                "steps": "Loads the 200×200 photo of a pug in a blanket from the image server (a new url each run). Passes when onLoad gave 200×200 and onLoadEnd's result is { ok: true, width: 200, height: 200 }.",
+                "shows": "The pug photo in a small square."
+            },
+            "smoke-error": {
+                "checks": "A missing image fails: onError with a message, then onLoadEnd with ok: false and an error.",
+                "steps": "Loads a url the image server answers with a 404. Passes when onError's error isn't empty and onLoadEnd's result is { ok: false, error } with an error that isn't empty.",
+                "shows": "An empty gray square: the image never loads."
+            },
+            "smoke-reload": {
+                "checks": "reload() on the ref loads an image again after its request failed.",
+                "steps": "Loads the pug photo from a url the image server answers with a 503 the first time and the image after. On onError, calls the ref's reload(). Passes on the onLoad that follows; a second onError, or a ref without reload(), fails.",
+                "shows": "The pug photo in a small square. A failure leaves an empty gray square."
+            },
+            "smoke-bundled": {
+                "checks": "A bundled image (require()) loads, at the size of its file.",
+                "steps": "Shows require('./images/logo.png'), the 1000×1000 React logo. Passes when onLoad's size is 1000×1000.",
+                "shows": "The light blue React logo on a small gray square."
+            },
+            "smoke-sizes": {
+                "checks": "A source of several sizes loads the one that fits the view: on iOS and Android the one closest to the view's size in pixels, on the web the smallest at least as wide (the browser picks it from a srcset).",
+                "steps": "Gives a 96 dp view three sizes of a square from the image server: 100 px (red), 300 px (green) and 900 px (blue). Passes when onLoad's width is the size expected for the screen's pixel ratio: 300 px on the test phones (3× on iOS, 2.625× on Android), 100 px on the web at 1×.",
+                "shows": "A solid square, larger than the other rows' images: green on iOS and Android, red on the web. Red or blue on a phone means the wrong size was loaded."
+            },
+            "smoke-preload": {
+                "checks": "FastImage.preload resolves with a result per source: ok with the size for an image that loads, not ok for a missing one.",
+                "steps": "Preloads a 120×120 photo and a url the image server answers with a 404, when it mounts. Passes when the first result is { ok: true, width: 120, height: 120 } and the second isn't ok.",
+                "shows": "An empty gray square: the images are only preloaded, not shown."
+            },
+            "smoke-cache-path": {
+                "checks": "FastImage.getCachePath gives the file of an image a view has loaded.",
+                "steps": "Loads a 120×120 photo of the northern lights; on onLoad, calls FastImage.getCachePath with the same source. Passes when the result is ok with a path.",
+                "shows": "The northern lights photo (green sky over a dark tree) in a small square."
+            },
+            "smoke-cache-limits": {
+                "checks": "FastImage.configureCache() reports no limits on Android in an app with expo-image: FastImage's AppGlideModule applies the disk size limit, and the app uses expo-image's instead.",
+                "steps": "Calls FastImage.configureCache() without changes when it mounts. Passes when it reports no values.",
+                "shows": "An empty gray square: nothing loads here."
+            }
+        }
+    },
+    "smoke-glide": {
+        "description": {
+            "checks": "Features that on Android go through the Glide components FastImage registers itself when the app's AppGlideModule is expo-image's: onProgress, cache: 'web', writeToCache, SVG and APNG images. iOS runs the same cases."
+        },
+        "cases": {
+            "smoke-progress": {
+                "checks": "onProgress comes while a remote image downloads, the last one with all of it loaded, before onLoad. On Android in an app with expo-image, it goes through the Glide components FastImage registers itself.",
+                "steps": "Loads the pug photo from the image server with onProgress. Passes on onLoad if the last onProgress had loaded equal to total.",
+                "shows": "The pug photo in a small square."
+            },
+            "smoke-web-cache": {
+                "checks": "A source with cache: 'web' uses the HTTP cache: loaded twice from a url the server marks as cacheable, it's requested once.",
+                "steps": "Loads the pug photo with cache: 'web' from a url the image server sends with Cache-Control: max-age=3600, then mounts a new view for it once it has loaded. After the second onLoad, removes the view and asks the image server how many times the url was requested; passes on 1.",
+                "shows": "An empty gray square: the image view is gone after the second load."
+            },
+            "smoke-write-to-cache": {
+                "checks": "FastImage.writeToCache stores a file as a url's image, which a view then shows from the cache without downloading it.",
+                "steps": "Downloads a 120×120 photo of the northern lights with FastImage.getCachePath, then calls FastImage.writeToCache with the pug photo's url and that file. Then shows the pug url with cache: 'cacheOnly'; passes when onLoad's width is 120 (the stored file, not the 200×200 pug).",
+                "shows": "The northern lights photo (green sky over a dark tree) in a small square. The pug, or an empty gray square, is a failure."
+            },
+            "smoke-svg": {
+                "checks": "An SVG image from a url loads. expo-image brings the SVG libraries into this app too, so this doesn't check that FastImage includes them (the main example does).",
+                "steps": "Loads a 24×24 SVG of a black ring from the image server. Passes on onLoad.",
+                "shows": "A thick black ring on a small gray square."
+            },
+            "smoke-apng": {
+                "checks": "An animated PNG (APNG) animates.",
+                "steps": "Loads an APNG of two frames, red then blue, 400 ms each and looping. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees both red and blue.",
+                "shows": "A red or blue square (animated, so it's not compared). The recording sees red and blue in turn; never the gray background."
+            },
+            "smoke-apng-blur": {
+                "checks": "An animated PNG (APNG) with blurRadius shows its first frame, blurred and still. On Android in an app with expo-image, Glide also has APNG4Android's plugin for APNGs, which ignores Glide's \"don't animate\" option.",
+                "steps": "Loads an APNG of two frames, red then blue, 400 ms each and looping, with blurRadius 4. On onLoad, records the image for 1.6 s (two plays). Passes when the recording sees red only.",
+                "shows": "A red square (animated images are masked, so it's not compared). The recording sees red only; never blue."
+            }
+        }
+    },
+    "expo-image": {
+        "description": {
+            "checks": "expo-image works next to FastImage in the same app."
+        },
+        "cases": {
+            "expo-image": {
+                "checks": "expo-image's Image loads in the same app as FastImage. On Android both use Glide, and the app's AppGlideModule is expo-image's (FastImage leaves its own out), so expo-image keeps its own setup.",
+                "steps": "Loads a 120×120 photo of a bear on rocks from the image server with expo-image's Image (a new url each run). Passes on onLoad; onError fails.",
+                "shows": "The bear photo in a small square."
+            }
+        }
+    }
+}
