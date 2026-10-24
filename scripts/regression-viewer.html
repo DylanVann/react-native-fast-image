@@ -376,9 +376,7 @@
 
             function render() {
                 const groups = shownGroups()
-                const review = data.entries
-                    .flatMap((e) => e.groups)
-                    .filter((g) => g.state === 'new' || g.state === 'differs')
+                const review = toApprove()
                 $('approve-all').disabled = review.length === 0
                 $('approve-all').textContent =
                     `Approve all to review (${review.length})`
@@ -415,7 +413,7 @@
                 return (
                     `<p><b>Checks</b> ${esc(d.checks)}</p>` +
                     (d.steps ? `<p><b>Steps</b> ${esc(d.steps)}</p>` : '') +
-                    `<p><b>Shows</b> ${esc(d.shows)}</p>`
+                    (d.shows ? `<p><b>Shows</b> ${esc(d.shows)}</p>` : '')
                 )
             }
 
@@ -484,7 +482,6 @@
                     $('main').innerHTML = '<p class="empty">Select a group.</p>'
                     return
                 }
-                const canApprove = g.shot && g.state !== 'failed'
                 const images =
                     $('mode').value === 'slider' && g.reference && g.shot
                         ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(g.reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(g.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
@@ -511,8 +508,9 @@
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
                         <span class="badge">${g.state}</span>
-                        ${canApprove && g.state !== 'ok' && g.state !== 'approved' ? '<button class="primary" id="approve">Approve (a)</button>' : ''}
+                        ${g.approvable && g.state !== 'ok' && g.state !== 'approved' ? '<button class="primary" id="approve">Approve (a)</button>' : ''}
                     </div>
+                    ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
                     ${g.detail ? `<p class="detail">${esc(g.detail)}</p>` : ''}
                     <div class="description">${descriptionHtml(g.description)}</div>
                     <div class="layout">
@@ -546,6 +544,7 @@
                 for (const g of groups) {
                     await fetch('/api/approve', {
                         method: 'POST',
+                        headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({ key: g.key, name: g.name }),
                     })
                 }
@@ -575,10 +574,17 @@
             })
             $('filter').addEventListener('change', render)
             $('mode').addEventListener('change', render)
-            $('approve-all').addEventListener('click', () => {
-                const groups = data.entries
+            // The groups to review whose screenshots may become references.
+            const toApprove = () =>
+                data.entries
                     .flatMap((e) => e.groups)
-                    .filter((g) => g.state === 'new' || g.state === 'differs')
+                    .filter(
+                        (g) =>
+                            g.approvable &&
+                            (g.state === 'new' || g.state === 'differs'),
+                    )
+            $('approve-all').addEventListener('click', () => {
+                const groups = toApprove()
                 if (
                     confirm(
                         `Copy ${groups.length} screenshots over their references?`,
@@ -588,6 +594,8 @@
             })
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, select')) return
+                // Not the browser's own shortcuts (Cmd+A selects all).
+                if (e.metaKey || e.ctrlKey || e.altKey) return
                 if (e.key === 'j' || e.key === 'ArrowDown') move(1)
                 else if (e.key === 'k' || e.key === 'ArrowUp') move(-1)
                 else if (e.key === 'a') $('approve')?.click()
