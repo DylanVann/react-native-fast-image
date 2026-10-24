@@ -1244,6 +1244,29 @@ function orphanedReferences(
     return orphans
 }
 
+// Why a case's area (dp, as measured) has a size that's a whole number of dp
+// but ends on half a pixel, if it does (e.g. 60 dp at 2.625× is 157.5 px).
+// Layout snaps edges to whole pixels, and a tie is decided by rounding error,
+// so its crop can be a pixel larger or smaller from one run to the next.
+// Measured sizes are already snapped (157 or 158 px), so it's found from
+// them: half a pixel either way is a whole number of dp.
+function halfPixelSize(area: PixelRect, scale: number) {
+    // The smallest step in dp that's a whole number of pixels.
+    const step =
+        Array.from({ length: 64 }, (_, i) => i + 1).find(
+            (n) => Math.abs(n * scale - Math.round(n * scale)) < 1e-6,
+        ) ?? 1
+    for (const dimension of ['width', 'height'] as const) {
+        const pixels = Math.round(area[dimension] * scale)
+        for (const half of [-0.5, 0.5]) {
+            const dp = (pixels + half) / scale
+            if (pixels > 0 && Math.abs(dp - Math.round(dp)) < 1e-6)
+                return `its ${dimension} is ${Math.round(dp)} dp, ${pixels + half} px at ${scale}×, which rounds either way (make it a multiple of ${step} dp)`
+        }
+    }
+    return undefined
+}
+
 // Masks (pixels) as odiff's ignoreRegions.
 const odiffRegions = (masks: PixelRect[]) =>
     masks
@@ -2051,6 +2074,15 @@ async function runRegression(
                     },
                 ]),
             )
+            for (const [id, r] of Object.entries(
+                (casesDp ?? {}) as Record<string, PixelRect>,
+            )) {
+                const tie = halfPixelSize(r, scale)
+                if (!tie) continue
+                const failure = `${name}/${id}: ${tie}`
+                failuresOf(index).push(failure)
+                failures = [...failures, failure]
+            }
             return compareGroup(index, name, file, masks, cases, failures)
         })
         shots.push(shot)

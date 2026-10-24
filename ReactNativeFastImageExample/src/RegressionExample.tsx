@@ -270,7 +270,7 @@ function ClearTintCase() {
                 source={{ uri: LOGO }}
             />
             <FastImage
-                style={[styles.image, { marginLeft: 4 }]}
+                style={[styles.image, { marginLeft: 8 }]}
                 objectFit="contain"
                 source={{ uri: LOGO }}
                 tintColor={tinted ? 'green' : undefined}
@@ -553,7 +553,7 @@ function ObjectFitChangeCropCase() {
         <View style={styles.row}>
             <FastImage style={styles.image} objectFit="contain" source={WIDE} />
             <FastImage
-                style={[styles.image, { marginLeft: 4 }]}
+                style={[styles.image, { marginLeft: 8 }]}
                 objectFit={fit}
                 source={WIDE}
                 onLoad={() => setFit('contain')}
@@ -1652,7 +1652,7 @@ function ProgressCacheKeyCase() {
                 }
                 description={{
                     checks: "onProgress for two images of different sizes and urls with the same cacheKey, loading at the same time (Android looked images up by their own url, so the image whose url wasn't downloaded got no onProgress, and it downloaded each size).",
-                    steps: 'A 30-point and a 60-point image load the same 200x200 photo from the slow server at two urls (another query) with one cacheKey. Passes once both have loaded, if each got onProgress before its onLoad, never going back, ending at 1 and none after, and the server got one request on Android (which shares downloads by cache key) or two on iOS (SDWebImage shares them by url).',
+                    steps: 'A 32-point and a 64-point image load the same 200x200 photo from the slow server at two urls (another query) with one cacheKey. Passes once both have loaded, if each got onProgress before its onLoad, never going back, ending at 1 and none after, and the server got one request on Android (which shares downloads by cache key) or two on iOS (SDWebImage shares them by url).',
                     shows: 'Two photos of a pug wrapped in a blanket, small then larger, side by side.',
                 }}
             />
@@ -2086,7 +2086,7 @@ function RetryProgressCase() {
                 description={{
                     checks: "After a cacheKey's first url fails, its other urls load from one download, and each image gets its own progress (Android downloaded both urls once the first had failed, and sent both downloads' progress to both images, so the slow one got 1 from the fast one's download while its own still came).",
                     steps: 'A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of a fast url and a large image of a slow one mount with the same cacheKey, and a second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, each got onProgress 1 at most a second before its onLoad, and the server got 2 requests on Android (one download for both) or 3 on iOS (which shares downloads by url).',
-                    shows: 'Blank space where the 404 is (30 points), then a medium (45-point) and a large (60-point) photo of a pug in a blanket.',
+                    shows: 'Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket.',
                 }}
             />
         </View>
@@ -2186,7 +2186,7 @@ function RetryLatestUrlCase() {
                 description={{
                     checks: "After a cacheKey's url fails, the retry downloads the latest of its other urls, since they're the same image (Android tried the other urls one at a time, the earliest first).",
                     steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); then a medium image of another url mounts with that cacheKey, and half a second later a large image of a third url. A second later the 404 is sent. Passes when the small one has had onError, the other two have loaded, and, on Android, the server got the latest url's request and none for the earlier one's (iOS shares downloads by url, so it downloads both).",
-                    shows: 'Blank space where the 404 is (30 points), then a medium (45-point) and a large (60-point) photo of a pug in a blanket.',
+                    shows: 'Blank space where the 404 is (32 points), then a medium (48-point) and a large (64-point) photo of a pug in a blanket.',
                 }}
             />
         </View>
@@ -2276,7 +2276,7 @@ function RetryNewerUrlCase() {
                 description={{
                     checks: "A newer url that joins a cacheKey's retry is downloaded when the retry fails too (Android retried a failed download once, so the newer url was never requested).",
                     steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); a medium image of a second missing url mounts with that cacheKey, and the first 404 is sent, so the retry downloads the second url (also held). While it's held, a large image of a url that works mounts with the cacheKey, then the second 404 is sent. Passes when the first two have had onError and the large one has loaded.",
-                    shows: "Blank space twice (30 and 45 points, the two urls that 404), then a large (60-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes.",
+                    shows: "Blank space twice (32 and 48 points, the two urls that 404), then a large (64-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes.",
                 }}
             />
         </View>
@@ -2284,7 +2284,7 @@ function RetryNewerUrlCase() {
 }
 
 const retryStyles = StyleSheet.create({
-    medium: { width: 45, height: 45 },
+    medium: { width: 48, height: 48 },
 })
 
 // Twenty images from the slow server, each its own url, load with normal
@@ -2456,8 +2456,8 @@ function SharedDownloadSizesCase() {
                 }
                 description={{
                     checks: 'Two images of one url at different sizes, loading at the same time, share one download, and each gets onProgress up to 1 (Glide only shares a download between requests for the same size, so Android downloaded it twice).',
-                    steps: 'Loads the photo from the slow server in a 30-point and a 60-point image at once. Passes when both have loaded, the last onProgress each got before its onLoad was 1, and the server got one request.',
-                    shows: 'A small (30-point) and a large (60-point) photo of a pug in a blanket, side by side.',
+                    steps: 'Loads the photo from the slow server in a 32-point and a 64-point image at once. Passes when both have loaded, the last onProgress each got before its onLoad was 1, and the server got one request.',
+                    shows: 'A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side.',
                 }}
             />
         </View>
@@ -2533,7 +2533,7 @@ function SharedDownloadCancelCase() {
                 description={{
                     checks: 'A download shared by two images goes on for one of them when the other unmounts.',
                     steps: 'Loads one url from the slow server in a small and a large image; the server holds it halfway. Once both have had onProgress, the small one unmounts and the server sends the rest. Passes when the large one has loaded and the server got one request.',
-                    shows: 'Blank space where the small image was, then the large (60-point) photo of a pug in a blanket.',
+                    shows: 'Blank space where the small image was, then the large (64-point) photo of a pug in a blanket.',
                 }}
             />
         </View>
@@ -2579,7 +2579,7 @@ function SharedDownloadErrorCase() {
                 description={{
                     checks: 'Two images of one url that 404s, at different sizes and loading at the same time, both get onError with the status in their error.',
                     steps: 'Loads a missing image from the slow server in a small and a large image at once. Passes when both have had onError and both errors mention 404 (onLoad fails it).',
-                    shows: 'Blank space: the two images (30 and 60 points) have no background and nothing loads.',
+                    shows: 'Blank space: the two images (32 and 64 points) have no background and nothing loads.',
                 }}
             />
         </View>
@@ -2673,7 +2673,7 @@ function SharedDownloadRetryCase() {
                 description={{
                     checks: "An image whose url works loads when another url with the same cacheKey 404s, and the image of that url gets onError (on Android, which shares downloads by cacheKey, the second image's request joins the first's download and is retried with its own url once that fails).",
                     steps: 'A small image loads a missing url from the slow server with a cacheKey; once the server has the request it holds the 404, a large image of the photo with the same cacheKey mounts, and a second later the 404 is sent. Passes when the small one has had onError and the large one has loaded.',
-                    shows: 'Blank space where the 404 is (30 points), then a large (60-point) photo of a pug in a blanket.',
+                    shows: 'Blank space where the 404 is (32 points), then a large (64-point) photo of a pug in a blanket.',
                 }}
             />
         </View>
@@ -2747,7 +2747,7 @@ function ChunkedDownloadCancelCase() {
                 description={{
                     checks: 'An image unmounts while it downloads a response without a Content-Length, and a later image of that url still loads (on Android, closing the response on the main thread would read the socket and throw NetworkOnMainThreadException, so the call is cancelled instead).',
                     steps: 'Loads the photo from the slow server, sent without a Content-Length, in a small image; the server holds it halfway. The image unmounts, half a second later the server is released, and a large image of the same url mounts. Passes when the large one loads, with no onError.',
-                    shows: 'Blank space where the small image was, then the large (60-point) photo of a pug in a blanket.',
+                    shows: 'Blank space where the small image was, then the large (64-point) photo of a pug in a blanket.',
                 }}
             />
         </View>
@@ -2804,8 +2804,8 @@ function SharedDownloadChunkedCase() {
                 }
                 description={{
                     checks: "Two images of one url at different sizes share one download when its response has no Content-Length (Android didn't share a response of unknown length: the second image downloaded it again once the first's had arrived).",
-                    steps: 'Loads the photo from the slow server, sent without a Content-Length, in a 30-point and a 60-point image at once. Passes when both have loaded and the server got one request.',
-                    shows: 'A small (30-point) and a large (60-point) photo of a pug in a blanket, side by side.',
+                    steps: 'Loads the photo from the slow server, sent without a Content-Length, in a 32-point and a 64-point image at once. Passes when both have loaded and the server got one request.',
+                    shows: 'A small (32-point) and a large (64-point) photo of a pug in a blanket, side by side.',
                 }}
             />
         </View>
@@ -2842,7 +2842,7 @@ function StalledDownloadCase() {
                 description={{
                     checks: "A download that gets nothing for 15 seconds fails with onError (Android's client had no timeouts, so the image, and every request sharing its download, waited forever).",
                     steps: 'Loads the photo from the slow server, which sends half of it and then holds the rest. Passes on onError, about 15 seconds later (onLoad fails it); the server is then released.',
-                    shows: 'Blank space (60 points, no background): the image never loads.',
+                    shows: 'Blank space (64 points, no background): the image never loads.',
                 }}
             />
         </View>
@@ -2850,8 +2850,8 @@ function StalledDownloadCase() {
 }
 
 const sharedStyles = StyleSheet.create({
-    small: { width: 30, height: 30 },
-    large: { width: 60, height: 60 },
+    small: { width: 32, height: 32 },
+    large: { width: 64, height: 64 },
 })
 
 // A data: image with onProgress: iOS sends one event for it, which needs
@@ -3397,7 +3397,7 @@ function ObjectFitFromCoverCase() {
                 status={status}
                 description={{
                     checks: 'Changing objectFit from cover after load, while the image for the new fit loads: the view keeps showing the cover image as it was until then (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).',
-                    steps: "Three 84-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
+                    steps: "Three 88-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
                     shows: 'iOS shows the new fit at once: the whole page small with gray above and below, then large letters from the middle of the page twice. Android still shows the cover crop in all three: the middle of the page, small text filling the square. A squashed or enlarged crop, or a blank view, is a failure.',
                 }}
             />
@@ -3432,8 +3432,8 @@ function ObjectFitBlurCase() {
                 status={status}
                 description={{
                     checks: 'objectFit scale-down with blurRadius shows the blurred image at its own size in points (dp), the same size as without the blur.',
-                    steps: 'Loads a 120x120 photo into two 140-point views with scale-down, the second with blurRadius 30. Passes once both have loaded (and a moment more, for the blur).',
-                    shows: 'Two gray 140-point squares, each with a 120-point photo of a bear on a hillside centered in it: sharp on the left, blurred on the right. A blurred image larger or smaller than the sharp one is a failure.',
+                    steps: 'Loads a 120x120 photo into two 144-point views with scale-down, the second with blurRadius 30. Passes once both have loaded (and a moment more, for the blur).',
+                    shows: 'Two gray 144-point squares, each with a 120-point photo of a bear on a hillside centered in it: sharp on the left, blurred on the right. A blurred image larger or smaller than the sharp one is a failure.',
                 }}
             />
         </View>
@@ -3582,13 +3582,15 @@ function ObjectFitChangeCase() {
 
 const objectFitStyles = StyleSheet.create({
     image: { width: 48, height: 48, backgroundColor: '#eee' },
-    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    large: { width: 88, height: 88, backgroundColor: '#eee' },
     svg: { width: 72, height: 72, backgroundColor: '#eee' },
-    svgReference: { width: 60, height: 60 },
+    // The SVG's own size, so its 1-unit stripes stay crisp, and 4 dp after
+    // it, so the row is a multiple of 8 dp (whole pixels at 2.625×).
+    svgReference: { width: 60, height: 60, marginRight: 4 },
     visible: { overflow: 'visible' },
     // The images, then the status under them (CaseStatus's text is indented).
     stacked: { marginBottom: 12 },
-    images: { flexDirection: 'row', marginBottom: 4 },
+    images: { flexDirection: 'row', marginBottom: 8 },
 })
 
 // objectPosition: where the image is when it doesn't fill the view, as CSS's
@@ -4890,7 +4892,7 @@ function DiskCacheOffCase() {
                 status={status}
                 description={{
                     checks: "diskCache: false keeps an image off disk: a second view of the same size gets it from memory, a larger one downloads it again, and getCachePath doesn't find it.",
-                    steps: "Loads a 200×200 photo of a pug in a 48×48 view with diskCache: false. On its onLoad, adds a second 48×48 view and an 84×84 one with the same source. When the large one loads, passes if the image server got two requests (the first view's and the large one's), and getCachePath resolves not ok for the uri with cache: 'cacheOnly' and for the source itself.",
+                    steps: "Loads a 200×200 photo of a pug in a 48×48 view with diskCache: false. On its onLoad, adds a second 48×48 view and an 88×88 one with the same source. When the large one loads, passes if the image server got two requests (the first view's and the large one's), and getCachePath resolves not ok for the uri with cache: 'cacheOnly' and for the source itself.",
                     shows: 'The pug photo three times: two small, then a larger one.',
                 }}
             />
@@ -4966,7 +4968,7 @@ function DiskCacheOffWebCase() {
 }
 
 const diskCacheStyles = StyleSheet.create({
-    large: { width: 84, height: 84, backgroundColor: '#eee' },
+    large: { width: 88, height: 88, backgroundColor: '#eee' },
 })
 
 // A view with cache 'cacheOnly' (or React Native's 'only-if-cached', the same)
@@ -7196,13 +7198,13 @@ function BlurDefaultSourceCase() {
 
 const blurStyles = StyleSheet.create({
     image: { width: 64, height: 64, backgroundColor: '#eee' },
-    large: { width: 140, height: 140, backgroundColor: '#eee' },
-    next: { marginLeft: 4 },
+    large: { width: 144, height: 144, backgroundColor: '#eee' },
+    next: { marginLeft: 8 },
     gap: { marginLeft: 16 },
     // The images, then the status under them, in one view: the runner
     // measures the view a CaseStatus is in as its case's area.
     stacked: { marginBottom: 12 },
-    images: { flexDirection: 'row', marginBottom: 4 },
+    images: { flexDirection: 'row', marginBottom: 8 },
 })
 
 // downsample (iOS, the default; Android always decodes at about the view's
@@ -10135,12 +10137,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 id="zero-height"
                 description={{
                     checks: 'An image in a view with a width but a height of 0 still loads and fires onLoad (#865: Android never fired it).',
-                    steps: 'Loads a photo with style { width: 60, height: 0 }. Passes on onLoad.',
+                    steps: 'Loads a photo with style { width: 64, height: 0 }. Passes on onLoad.',
                     shows: 'Nothing: the view is 0 tall.',
                 }}
                 event="onLoad"
                 source={{ uri: imageUrl('picsum/1021-120x120.jpg') }}
-                style={{ width: 60, height: 0 }}
+                style={{ width: 64, height: 0 }}
             />,
         ],
     },
@@ -12068,60 +12070,60 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="svg-remote"
                 id="svg-remote"
                 source={{ uri: imageUrl('svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
                 description={{
                     checks: 'A remote SVG loads, and onLoad has its own size.',
-                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from the image server in a 100×50 view. Passes when onLoad has 100×50.',
-                    shows: 'A 100×50 rectangle: red on the left, blue on the right.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from the image server in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
                 }}
             />,
             <SvgCase
                 key="svg-bundled"
                 id="svg-bundled"
                 source={require('./images/svg-flag.svg')}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
                 description={{
                     checks: 'A require()d SVG, bundled with the app, loads, in debug and release builds.',
-                    steps: "Shows the 100×50 SVG (left half red, right half blue) from the app's bundle in a 100×50 view. Passes when onLoad has 100×50.",
-                    shows: 'A 100×50 rectangle: red on the left, blue on the right.',
+                    steps: "Shows the 100×50 SVG (left half red, right half blue) from the app's bundle in a 96×48 view. Passes when onLoad has 100×50.",
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
                 }}
             />,
             <SvgCase
                 key="svg-viewbox"
                 id="svg-viewbox"
                 source={{ uri: imageUrl('svg-viewbox.svg') }}
-                style={{ width: 60, height: 30 }}
+                style={{ width: 64, height: 32 }}
                 expected={[60, 30]}
                 description={{
                     checks: "An SVG with only a viewBox (no width or height) loads, and onLoad has the viewBox's size.",
-                    steps: 'Loads an SVG with viewBox="0 0 60 30" (left half green, right half yellow) in a 60×30 view. Passes when onLoad has 60×30.',
-                    shows: 'A 60×30 rectangle: green on the left, yellow on the right.',
+                    steps: 'Loads an SVG with viewBox="0 0 60 30" (left half green, right half yellow) in a 64×32 view. Passes when onLoad has 60×30.',
+                    shows: 'A 64×32 rectangle: green on the left, yellow on the right.',
                 }}
             />,
             <SvgCase
                 key="svg-nosize"
                 id="svg-nosize"
                 source={{ uri: imageUrl('svg-nosize.svg') }}
-                style={{ width: 60, height: 30 }}
+                style={{ width: 64, height: 32 }}
                 expected={[300, 150]}
                 description={{
                     checks: 'An SVG with no width, height or viewBox loads at 300×150, the default size for one.',
-                    steps: 'Loads an SVG without a size (a 300×150 magenta rectangle with a 150×150 cyan square on its left) in a 60×30 view. Passes when onLoad has 300×150.',
-                    shows: 'A 60×30 rectangle: cyan on the left, magenta on the right (the whole SVG, scaled down).',
+                    steps: 'Loads an SVG without a size (a 300×150 magenta rectangle with a 150×150 cyan square on its left) in a 64×32 view. Passes when onLoad has 300×150.',
+                    shows: 'A 64×32 rectangle: cyan on the left, magenta on the right (the whole SVG, scaled down).',
                 }}
             />,
             <SvgCase
                 key="svg-mislabeled"
                 id="svg-mislabeled"
                 source={{ uri: imageUrl('mislabeled/svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
                 description={{
                     checks: 'An SVG the server sends with Content-Type: text/plain still loads.',
-                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from a server route that sends it as text/plain, in a 100×50 view. Passes when onLoad has 100×50.',
-                    shows: 'A 100×50 rectangle: red on the left, blue on the right.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) from a server route that sends it as text/plain, in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right.',
                 }}
             />,
             <SvgCase
@@ -12141,13 +12143,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="svg-downsample"
                 id="svg-downsample"
                 source={{ uri: imageUrl('svg-flag.svg') }}
-                style={{ width: 100, height: 50 }}
+                style={{ width: 96, height: 48 }}
                 expected={[100, 50]}
                 downsample
                 description={{
                     checks: "An SVG with downsample stays a vector image, drawn sharp, and onLoad has its own size (iOS drew it into a bitmap the view's size).",
-                    steps: 'Loads the 100×50 SVG (left half red, right half blue) with downsample in a 100×50 view. Passes when onLoad has 100×50.',
-                    shows: 'A 100×50 rectangle: red on the left, blue on the right, with a sharp edge between them.',
+                    steps: 'Loads the 100×50 SVG (left half red, right half blue) with downsample in a 96×48 view. Passes when onLoad has 100×50.',
+                    shows: 'A 96×48 rectangle: red on the left, blue on the right, with a sharp edge between them.',
                 }}
             />,
         ],
