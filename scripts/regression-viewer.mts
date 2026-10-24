@@ -143,31 +143,60 @@ function findResults(dir: string): string[] {
     return found
 }
 
-// The latest folder in verify-output/ with a regression run in it, not a
-// CI run's (--pr).
-function latestRun() {
-    const dirs = fs.existsSync(OUTPUT)
+// The folders in verify-output/ with regression runs in them, newest first.
+const runs = () =>
+    fs.existsSync(OUTPUT)
         ? fs
               .readdirSync(OUTPUT, { withFileTypes: true })
-              .filter((e) => e.isDirectory() && !e.name.startsWith('ci-'))
+              .filter((e) => e.isDirectory())
               .map((e) => path.join(OUTPUT, e.name))
               .filter((d) => findResults(d).length > 0)
               .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
         : []
-    if (!dirs[0]) {
-        console.error('No regression runs in verify-output/.')
-        process.exit(1)
-    }
-    return dirs[0]
+
+const readResults = (file: string) =>
+    JSON.parse(fs.readFileSync(file, 'utf8')) as Results
+
+// The latest local run (not a CI run's, --pr) that has its comparisons in
+// results.json: runs from before it did can't be compared. None: the
+// references alone.
+function latestRun() {
+    return runs().find(
+        (d) =>
+            !path.basename(d).startsWith('ci-') &&
+            findResults(d).some((f) => readResults(f).screenshots),
+    )
 }
 
-const RUN = path.resolve(
-    options.pr
-        ? downloadPr(options.pr)
-        : positionals[0]
-          ? positionals[0]
-          : latestRun(),
-)
+const run = options.pr
+    ? downloadPr(options.pr)
+    : (positionals[0] ?? latestRun())
+const RUN = run && path.resolve(run)
+
+// The groups' descriptions, and their order, by app and platform (e.g.
+// main-ios), from the newest runs that have them: for groups the run being
+// shown doesn't have (the app sends them as it runs a group).
+const known = new Map<
+    string,
+    {
+        groups: string[]
+        descriptions: NonNullable<Results['descriptions']>
+    }
+>()
+for (const dir of runs()) {
+    for (const file of findResults(dir)) {
+        const key = path.basename(path.dirname(path.dirname(file)))
+        const results = readResults(file)
+        const entry = known.get(key) ?? { groups: [], descriptions: {} }
+        if (entry.groups.length === 0)
+            entry.groups = results.hello?.groups ?? []
+        for (const [name, description] of Object.entries(
+            results.descriptions ?? {},
+        ))
+            entry.descriptions[name] ??= description
+        known.set(key, entry)
+    }
+}
 
 type Description = { checks: string; steps?: string; shows?: string }
 type Rect = { x: number; y: number; width: number; height: number }
@@ -192,12 +221,13 @@ type Results = {
 
 // An image compared with its reference. state: new (no reference, or one
 // the run seeded), differs (from the reference), approved (the reference is
-// now this image), ok.
-type State = 'new' | 'differs' | 'approved' | 'ok'
+// now this image), ok, or reference: a reference the run didn't compare (no
+// shot), to look at.
+type State = 'new' | 'differs' | 'approved' | 'ok' | 'reference'
 type Compared = {
     state: State
     detail?: string
-    shot: string
+    shot?: string
     reference: string
     hasReference: boolean
     diff?: string
@@ -269,12 +299,26 @@ function compared(
     }
 }
 
-const ORDER: Group['state'][] = ['failed', 'new', 'differs', 'approved', 'ok']
+const ORDER: Group['state'][] = [
+    'failed',
+    'new',
+    'differs',
+    'approved',
+    'ok',
+    'reference',
+]
 
-// The run's groups, by app and platform (e.g. main-ios), shards merged.
+const referenceOnly = (reference: string): Compared => ({
+    state: 'reference',
+    reference,
+    hasReference: true,
+})
+
+// The run's groups, by app and platform (e.g. main-ios), shards merged, and
+// the references of the groups it didn't compare.
 function load() {
     const byKey = new Map<string, Group[]>()
-    for (const file of findResults(RUN)) {
+    for (const file of RUN ? findResults(RUN) : []) {
         const dir = path.dirname(file)
         const key = path.basename(path.dirname(dir))
         const results = JSON.parse(fs.readFileSync(file, 'utf8')) as Results
@@ -291,23 +335,30 @@ function load() {
                 Object.entries(info?.cases ?? {}).filter(([, c]) => c.file),
             )
             const byCase = Object.keys(caseInfo).length > 0
-            const descriptions = results.descriptions?.[name]
+            const descriptions =
+                results.descriptions?.[name] ??
+                known.get(key)?.descriptions[name]
             const cases = Object.entries(statuses).map(([id, status]) => {
                 const c = caseInfo[id]
+                const reference = path.join(SCREENSHOTS, key, name, `${id}.png`)
                 return {
                     id,
                     status,
                     description: descriptions?.cases?.[id],
                     area: c?.area,
-                    image:
-                        c &&
-                        compared(
-                            path.join(dir, c.file),
-                            path.join(SCREENSHOTS, key, name, `${id}.png`),
-                            c,
-                            dir,
-                            written,
-                        ),
+                    image: c
+                        ? compared(
+                              path.join(dir, c.file),
+                              reference,
+                              c,
+                              dir,
+                              written,
+                          )
+                        : // Not compared (e.g. a run from before results.json
+                          // said): its reference.
+                          !info && fs.existsSync(reference)
+                          ? referenceOnly(reference)
+                          : undefined,
                 }
             })
             const whole =
@@ -339,7 +390,11 @@ function load() {
                 failures,
                 detail: info?.detail,
                 description: descriptions?.description,
-                shot: info && path.join(dir, info.file),
+                shot: info
+                    ? path.join(dir, info.file)
+                    : files.includes(`${prefix}.png`)
+                      ? path.join(dir, `${prefix}.png`)
+                      : undefined,
                 whole,
                 cases,
                 samples: files
@@ -353,17 +408,67 @@ function load() {
             byKey.set(key, list)
         }
     }
+    // The references of groups the run didn't show, for every app and
+    // platform.
+    for (const key of fs.existsSync(SCREENSHOTS)
+        ? fs.readdirSync(SCREENSHOTS)
+        : []) {
+        const keyDir = path.join(SCREENSHOTS, key)
+        if (!fs.statSync(keyDir).isDirectory()) continue
+        const list = byKey.get(key) ?? []
+        const order = known.get(key)?.groups ?? []
+        for (const entry of fs.readdirSync(keyDir, { withFileTypes: true })) {
+            if (entry.name.startsWith('.')) continue
+            const name = entry.isDirectory()
+                ? entry.name
+                : entry.name.replace(/\.png$/, '')
+            if (list.some((g) => g.name === name)) continue
+            const descriptions = known.get(key)?.descriptions[name]
+            const file = path.join(keyDir, entry.name)
+            list.push({
+                key,
+                name,
+                index:
+                    order.indexOf(name) === -1
+                        ? Number.MAX_SAFE_INTEGER
+                        : order.indexOf(name),
+                state: 'reference',
+                approvable: false,
+                failures: [],
+                description: descriptions?.description,
+                whole: entry.isDirectory() ? undefined : referenceOnly(file),
+                cases: entry.isDirectory()
+                    ? fs
+                          .readdirSync(file)
+                          .filter((f) => f.endsWith('.png'))
+                          .map((f) => {
+                              const id = f.replace(/\.png$/, '')
+                              return {
+                                  id,
+                                  status: '',
+                                  description: descriptions?.cases?.[id],
+                                  image: referenceOnly(path.join(file, f)),
+                              }
+                          })
+                    : [],
+                samples: [],
+            })
+        }
+        byKey.set(key, list)
+    }
     return [...byKey.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, groups]) => ({
             key,
-            groups: groups.sort((a, b) => a.index - b.index),
+            groups: groups.sort(
+                (a, b) => a.index - b.index || a.name.localeCompare(b.name),
+            ),
         }))
 }
 
 // Only files in the run and the references are served.
 const servable = (file: string) =>
-    [RUN, SCREENSHOTS].some((root) => file.startsWith(root + path.sep))
+    [RUN, SCREENSHOTS].some((root) => root && file.startsWith(root + path.sep))
 
 const TYPES: Record<string, string> = {
     '.png': 'image/png',
@@ -415,7 +520,7 @@ const server = http.createServer((request, response) => {
             return send(
                 200,
                 JSON.stringify({
-                    run: path.relative(ROOT, RUN),
+                    run: RUN ? path.relative(ROOT, RUN) : null,
                     entries: load(),
                 }),
                 'application/json',
@@ -481,7 +586,13 @@ function approve(body: string, send: Send) {
         ...(group?.cases ?? []).flatMap((c) =>
             c.image && (!id || c.id === id) ? [c.image] : [],
         ),
-    ].filter((image) => image.state !== 'ok' && fs.existsSync(image.shot))
+    ].filter(
+        (image): image is Compared & { shot: string } =>
+            image.state !== 'ok' &&
+            image.state !== 'reference' &&
+            !!image.shot &&
+            fs.existsSync(image.shot),
+    )
     if (images.length === 0) return send(404, 'nothing to approve')
     for (const image of images) {
         fs.mkdirSync(path.dirname(image.reference), { recursive: true })
@@ -493,6 +604,6 @@ function approve(body: string, send: Send) {
 
 server.listen(port, '127.0.0.1', () => {
     console.log(
-        `Regression viewer for ${path.relative(ROOT, RUN) || RUN}: http://localhost:${port} (Ctrl-C to stop)`,
+        `Regression viewer for ${RUN ? path.relative(ROOT, RUN) || RUN : 'the references (no run with comparisons in verify-output/)'}: http://localhost:${port} (Ctrl-C to stop)`,
     )
 })

@@ -131,7 +131,8 @@
             .state-approved {
                 --state: var(--approved);
             }
-            .state-ok {
+            .state-ok,
+            .state-reference {
                 --state: var(--ok);
             }
             .dot,
@@ -392,7 +393,15 @@
             async function refresh() {
                 data = await (await fetch('/api/runs')).json()
                 version++
-                $('run').textContent = data.run
+                $('run').textContent = data.run ?? 'references only (no run)'
+                // Every group, when the first load has none to review.
+                if (
+                    version === 1 &&
+                    !data.entries.some((e) =>
+                        e.groups.some((g) => TO_REVIEW.includes(g.state)),
+                    )
+                )
+                    $('filter').value = 'all'
                 const groups = shownGroups()
                 if (!groups.some((g) => groupId(g) === selected))
                     selected = groups[0] && groupId(groups[0])
@@ -515,6 +524,15 @@
             }
 
             const reviewable = (state) => state === 'new' || state === 'differs'
+            // A state as the page says it: reference is a reference the run
+            // didn't compare.
+            const label = (state) =>
+                state === 'reference' ? 'not in this run' : state
+            // A case's status, unless it passed (or the run didn't have it).
+            const status = (c) =>
+                c.status && c.status !== 'OK'
+                    ? `<span class="status">${esc(c.status)}</span>`
+                    : ''
 
             // A case compared on its own: its description, then its crop of
             // the reference, this run and the diff. approvable: its group's.
@@ -523,13 +541,15 @@
                 const crop = (src, label) =>
                     `<figure><figcaption>${label}</figcaption>${src ? `<img src="${file(src)}" />` : '<div class="missing">none</div>'}</figure>`
                 return `<div class="case" data-case="${esc(c.id)}">
-                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${image.state}</span>` : ''}${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
+                    <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${image ? `<span class="badge state-${image.state}">${label(image.state)}</span>` : ''}${status(c)}${approvable && image && reviewable(image.state) ? `<button data-approve="${esc(c.id)}">Approve</button>` : ''}</div>
                     ${image?.detail ? `<p class="detail">${esc(image.detail)}</p>` : ''}
                     ${caseDescription(c)}
                     ${
-                        image
-                            ? `<div class="crops">${crop(image.hasReference ? image.reference : undefined, 'Reference')}${crop(image.shot, 'This run')}${image.diff ? crop(image.diff, 'Diff') : ''}</div>`
-                            : '<p class="detail">Nothing to compare (no area).</p>'
+                        image?.state === 'reference'
+                            ? `<div class="crops">${crop(image.reference, 'Reference')}</div>`
+                            : image
+                              ? `<div class="crops">${crop(image.hasReference ? image.reference : undefined, 'Reference')}${crop(image.shot, 'This run')}${image.diff ? crop(image.diff, 'Diff') : ''}</div>`
+                              : '<p class="detail">Nothing to compare (no area).</p>'
                     }
                 </div>`
             }
@@ -544,18 +564,20 @@
                 if (w) {
                     const reference = w.hasReference ? w.reference : undefined
                     const images =
-                        $('mode').value === 'slider' && reference
-                            ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
-                            : frame(reference, g, 'Reference') +
-                              frame(w.shot, g, 'This run') +
-                              (w.diff ? frame(w.diff, g, 'Diff') : '')
+                        w.state === 'reference'
+                            ? frame(reference, g, 'Reference')
+                            : $('mode').value === 'slider' && reference
+                              ? `<figure class="slider"><figcaption>Reference ← → this run</figcaption><div class="frame"><img src="${file(reference)}" onload="overlay(this)"/><div class="top" id="top"><img src="${file(w.shot)}"/></div><svg data-areas preserveAspectRatio="none"></svg></div><input type="range" min="0" max="100" value="50" id="split"/></figure>`
+                              : frame(reference, g, 'Reference') +
+                                frame(w.shot, g, 'This run') +
+                                (w.diff ? frame(w.diff, g, 'Diff') : '')
                     const cases = g.cases
                         .map(
                             (
                                 c,
                                 i,
                             ) => `<div class="case" data-case="${esc(c.id)}">
-                            <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${c.status === 'OK' ? '' : `<span class="status">${esc(c.status)}</span>`}</div>
+                            <div class="head"><span class="n">${i + 1}</span><span class="id">${esc(c.id)}</span>${status(c)}</div>
                             ${caseDescription(c)}
                         </div>`,
                         )
@@ -565,17 +587,24 @@
                         <div class="cases">${cases || '<p class="detail">No cases reported.</p>'}</div>
                     </div>`
                 } else {
-                    // By case: the whole screenshot for context, each case
-                    // compared on its own.
-                    layout = `<div class="layout by-case">
+                    // By case: the whole screenshot for context (if the run
+                    // has it), each case compared on its own.
+                    const cases =
+                        g.cases
+                            .map((c, i) => caseRow(c, i, g.approvable))
+                            .join('') ||
+                        '<p class="detail">No cases reported.</p>'
+                    layout = g.shot
+                        ? `<div class="layout by-case">
                         <div class="images">${frame(g.shot, g, 'This run')}</div>
-                        <div class="cases">${g.cases.map((c, i) => caseRow(c, i, g.approvable)).join('') || '<p class="detail">No cases reported.</p>'}</div>
+                        <div class="cases">${cases}</div>
                     </div>`
+                        : `<div class="cases">${cases}</div>`
                 }
                 $('main').innerHTML = `
                     <div class="title state-${g.state}">
                         <h2>${esc(g.key)} / ${esc(g.name)}</h2>
-                        <span class="badge">${g.state}</span>
+                        <span class="badge">${label(g.state)}</span>
                         ${g.approvable && reviewable(g.state) ? '<button class="primary" id="approve">Approve all (a)</button>' : ''}
                     </div>
                     ${g.failures.map((f) => `<p class="detail">${esc(f)}</p>`).join('')}
