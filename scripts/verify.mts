@@ -1207,6 +1207,66 @@ const CASE_PADDING = 6
 
 type PixelRect = { x: number; y: number; width: number; height: number }
 
+// The references in an app and platform's folder (dir) that nothing would
+// compare: a group's that the app doesn't have (groups: all of them), and of
+// the groups compared (compared), a case's that the group didn't report
+// (cases), and a whole group's for a group compared by case, or the other way
+// round. Cheap enough for every run: a directory listing per group.
+function orphanedReferences(
+    dir: string,
+    groups: string[],
+    compared: string[],
+    whole: (group: string) => boolean,
+    cases: (group: string) => string[],
+) {
+    if (!fs.existsSync(dir)) return []
+    const orphans: string[] = []
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name.startsWith('.')) continue
+        const file = path.join(dir, entry.name)
+        const group = entry.isDirectory()
+            ? entry.name
+            : entry.name.replace(/\.png$/, '')
+        if (!groups.includes(group)) orphans.push(file)
+        else if (!compared.includes(group)) continue
+        else if (!entry.isDirectory()) {
+            if (!whole(group)) orphans.push(file)
+        } else if (whole(group)) orphans.push(file)
+        else {
+            const ids = cases(group)
+            for (const name of fs.readdirSync(file)) {
+                if (name.startsWith('.')) continue
+                if (!ids.includes(name.replace(/\.png$/, '')))
+                    orphans.push(path.join(file, name))
+            }
+        }
+    }
+    return orphans
+}
+
+// Why a case's area (dp, as measured) has a size that's a whole number of dp
+// but ends on half a pixel, if it does (e.g. 60 dp at 2.625× is 157.5 px).
+// Layout snaps edges to whole pixels, and a tie is decided by rounding error,
+// so its crop can be a pixel larger or smaller from one run to the next.
+// Measured sizes are already snapped (157 or 158 px), so it's found from
+// them: half a pixel either way is a whole number of dp.
+function halfPixelSize(area: PixelRect, scale: number) {
+    // The smallest step in dp that's a whole number of pixels.
+    const step =
+        Array.from({ length: 64 }, (_, i) => i + 1).find(
+            (n) => Math.abs(n * scale - Math.round(n * scale)) < 1e-6,
+        ) ?? 1
+    for (const dimension of ['width', 'height'] as const) {
+        const pixels = Math.round(area[dimension] * scale)
+        for (const half of [-0.5, 0.5]) {
+            const dp = (pixels + half) / scale
+            if (pixels > 0 && Math.abs(dp - Math.round(dp)) < 1e-6)
+                return `its ${dimension} is ${Math.round(dp)} dp, ${pixels + half} px at ${scale}×, which rounds either way (make it a multiple of ${step} dp)`
+        }
+    }
+    return undefined
+}
+
 // Masks (pixels) as odiff's ignoreRegions.
 const odiffRegions = (masks: PixelRect[]) =>
     masks
@@ -1755,6 +1815,8 @@ async function runRegression(
     const seeded: string[] = []
     const noReference: string[] = []
     const unseeded: string[] = []
+    // The groups compared as a whole (no cases), for orphanedReferences.
+    const comparedWhole = new Set<string>()
     // Each group's screenshot and its comparison, and each case's area in it
     // (pixels, with its padding), its crop and that one's comparison (file
     // names relative to dir), for the regression viewer: whether they may
@@ -1841,6 +1903,7 @@ async function runRegression(
         }
         // A group without cases (the example screens) is compared whole.
         if (Object.keys(cases).length === 0) {
+            comparedWhole.add(name)
             const compared = await compareScreenshot(
                 app,
                 platform,
@@ -2011,6 +2074,15 @@ async function runRegression(
                     },
                 ]),
             )
+            for (const [id, r] of Object.entries(
+                (casesDp ?? {}) as Record<string, PixelRect>,
+            )) {
+                const tie = halfPixelSize(r, scale)
+                if (!tie) continue
+                const failure = `${name}/${id}: ${tie}`
+                failuresOf(index).push(failure)
+                failures = [...failures, failure]
+            }
             return compareGroup(index, name, file, masks, cases, failures)
         })
         shots.push(shot)
@@ -2559,6 +2631,19 @@ async function runRegression(
     ws.close()
     await Promise.all(shots)
     failures.push(...[...groupFailures.values()].flat())
+    // References no case or group uses any more (a case renamed, moved or
+    // removed, a group removed): of the groups this run compared, and of
+    // groups the app doesn't have. Not from a --ref run, whose app is older.
+    if (!REF) {
+        for (const file of orphanedReferences(
+            path.join(SCREENSHOTS, `${app}-${platform}`),
+            groups,
+            Object.keys(screenshots),
+            (group) => comparedWhole.has(group),
+            (group) => Object.keys(statuses[group] ?? {}),
+        ))
+            failures.push(`${rel(file)}: no case uses it (delete it)`)
+    }
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),

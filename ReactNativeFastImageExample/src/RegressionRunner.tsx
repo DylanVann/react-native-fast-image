@@ -412,7 +412,10 @@ function Group({
                                     <View
                                         ref={cases}
                                         collapsable={false}
-                                        style={styles.cases}
+                                        style={[
+                                            styles.cases,
+                                            !group.wide && styles.narrow,
+                                        ]}
                                     >
                                         {group.cases}
                                     </View>
@@ -451,6 +454,10 @@ const styles = StyleSheet.create({
     cases: {
         flexGrow: 1,
         flexShrink: 0,
+    },
+    // Cases as wide as their content (see RegressionGroup's `wide`).
+    narrow: {
+        alignItems: 'flex-start',
     },
     connection: {
         color: '#666',
