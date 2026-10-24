@@ -16,7 +16,7 @@ import http2 from 'node:http2'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs, promisify } from 'node:util'
-import { compare } from 'odiff-bin'
+import { ODiffServer } from 'odiff-bin'
 
 const HELP = `Checks the library and runs the example apps on iOS and Android.
 
@@ -554,11 +554,16 @@ let bundleWarm: Promise<void> = Promise.resolve()
 // Screen recordings in progress (recordScreen), stopped on exit: a simulator
 // whose recording isn't stopped refuses to start another.
 const recorders = new Set<ChildProcess>()
+// One odiff process for every comparison (a few hundred a run), started on
+// the first.
+let odiffServer: ODiffServer | undefined
+const odiff = () => (odiffServer ??= new ODiffServer())
 let cleanedUp = false
 function cleanup() {
     if (cleanedUp) return
     cleanedUp = true
     for (const child of recorders) child.kill('SIGINT')
+    odiffServer?.stop()
     // Ask everything still running to stop, give it a moment, then force what's
     // left (this runs on exit, so it can't wait asynchronously).
     for (const pgid of groups) killGroup(pgid)
@@ -1112,7 +1117,7 @@ async function sameOutside(
     fs.writeFileSync(fileA, a)
     fs.writeFileSync(fileB, b)
     try {
-        const result = await compare(fileA, fileB, fileA, {
+        const result = await odiff().compare(fileA, fileB, fileA, {
             antialiasing: true,
             failOnLayoutDiff: true,
             noFailOnFsErrors: true,
@@ -1127,8 +1132,19 @@ async function sameOutside(
     }
 }
 
-// Crops a screenshot (pixels) into another file.
-async function cropTo(file: string, to: string, crop: PixelRect) {
+// Crops a screenshot (pixels) into several files, with one ffmpeg (a process
+// per crop took about 10 times as long).
+async function cropEach(
+    file: string,
+    crops: { to: string; area: PixelRect }[],
+) {
+    const graph = [
+        `[0]split=${crops.length}${crops.map((_, i) => `[s${i}]`).join('')}`,
+        ...crops.map(
+            ({ area: c }, i) =>
+                `[s${i}]crop=${c.width}:${c.height}:${c.x}:${c.y}[o${i}]`,
+        ),
+    ].join(';')
     await promisify(execFile)(
         'ffmpeg',
         [
@@ -1137,9 +1153,9 @@ async function cropTo(file: string, to: string, crop: PixelRect) {
             '-y',
             '-i',
             file,
-            '-vf',
-            `crop=${crop.width}:${crop.height}:${crop.x}:${crop.y}`,
-            to,
+            '-filter_complex',
+            graph,
+            ...crops.flatMap(({ to }, i) => ['-map', `[o${i}]`, to]),
         ],
         { timeout: 30_000 },
     )
@@ -1150,7 +1166,7 @@ async function cropTo(file: string, to: string, crop: PixelRect) {
 async function cropScreenshot(file: string, crop: PixelRect) {
     const cropped = file.replace(/\.png$/, '-cropped.png')
     try {
-        await cropTo(file, cropped, crop)
+        await cropEach(file, [{ to: cropped, area: crop }])
     } catch {
         // Compared uncropped, then (and failing: the size differs).
     }
@@ -1237,9 +1253,9 @@ async function compareScreenshot(
     }
     const diffFile = file.replace(/\.png$/, '-diff.png')
     const ignoreRegions = odiffRegions(masks)
-    let result: Awaited<ReturnType<typeof compare>>
+    let result: Awaited<ReturnType<ODiffServer['compare']>>
     try {
-        result = await compare(reference, file, diffFile, {
+        result = await odiff().compare(reference, file, diffFile, {
             antialiasing: true,
             failOnLayoutDiff: true,
             noFailOnFsErrors: true,
@@ -1833,13 +1849,19 @@ async function runRegression(
             return
         }
         const results: (typeof screenshots)[string]['cases'] = {}
+        const caseFile = (id: string) =>
+            path.join(dir, path.basename(file, '.png'), `${id}.png`)
+        fs.mkdirSync(path.join(dir, path.basename(file, '.png')), {
+            recursive: true,
+        })
+        const cropError = await cropEach(
+            file,
+            areas.map(([id, area]) => ({ to: caseFile(id), area })),
+        ).then(
+            () => undefined,
+            (error: Error) => error,
+        )
         for (const [id, area] of areas) {
-            const caseFile = path.join(
-                dir,
-                path.basename(file, '.png'),
-                `${id}.png`,
-            )
-            fs.mkdirSync(path.dirname(caseFile), { recursive: true })
             const caseMasks = masks.flatMap((m) => {
                 const x = Math.max(m.x, area.x)
                 const y = Math.max(m.y, area.y)
@@ -1849,27 +1871,25 @@ async function runRegression(
                     ? [{ x: x - area.x, y: y - area.y, width: w, height: h }]
                     : []
             })
-            const compared = await cropTo(file, caseFile, area).then(
-                () =>
-                    compareScreenshot(
-                        app,
-                        platform,
-                        `${name}/${id}`,
-                        caseFile,
-                        caseMasks,
-                        canSeed,
-                    ),
-                (error: Error) => ({
-                    result: 'differs' as const,
-                    detail: `couldn't crop it: ${error.message}`,
-                }),
-            )
+            const compared = cropError
+                ? {
+                      result: 'differs' as const,
+                      detail: `couldn't crop it: ${cropError.message}`,
+                  }
+                : await compareScreenshot(
+                      app,
+                      platform,
+                      `${name}/${id}`,
+                      caseFile(id),
+                      caseMasks,
+                      canSeed,
+                  )
             recordResult(index, `${name}/${id}`, compared)
             results[id] = {
                 ...compared,
                 area,
-                file: path.relative(dir, caseFile),
-                diff: diffOf(caseFile),
+                file: path.relative(dir, caseFile(id)),
+                diff: diffOf(caseFile(id)),
             }
         }
         const counts = new Map<string, number>()
