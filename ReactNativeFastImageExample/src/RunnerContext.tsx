@@ -15,7 +15,8 @@ export type RegressionGroup = {
     cases: React.ReactElement[]
     // Its cases fill the screen's width (the example screens' sections). In
     // the runner, other groups' cases are only as wide as what they show, so
-    // each case's area (and screenshot) is its images.
+    // each case's area (and screenshot) is its images. A wide group's
+    // screenshot is compared as a whole.
     wide?: boolean
 }
 

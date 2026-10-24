@@ -1221,8 +1221,10 @@ function checkDescriptions(
     shown: Record<string, unknown>,
 ) {
     const file = path.join(dir, DESCRIPTIONS)
-    const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '{}'
-    const saved = JSON.parse(before) as Record<string, unknown>
+    const before = fs.existsSync(file)
+        ? fs.readFileSync(file, 'utf8')
+        : undefined
+    const saved = JSON.parse(before ?? '{}') as Record<string, unknown>
     const next = { ...saved }
     const failures: string[] = []
     const seeded: string[] = []
@@ -1255,7 +1257,8 @@ function checkDescriptions(
             null,
             4,
         ) + '\n'
-    if (after !== before) {
+    // Not an empty file where there was none (no group was shown).
+    if (after !== (before ?? '{}\n')) {
         fs.mkdirSync(dir, { recursive: true })
         fs.writeFileSync(file, after)
     }
@@ -1886,6 +1889,8 @@ async function runRegression(
                 string,
                 Comparison & { area: PixelRect; file: string }
             >
+            // Compared whole (see compareGroup).
+            whole: boolean
             approvable: boolean
             failures: string[]
         }
@@ -1916,6 +1921,7 @@ async function runRegression(
         file: string,
         masks: PixelRect[],
         cases: Record<string, PixelRect>,
+        whole: boolean,
         // The group's failures: none, or it can't seed (see
         // compareScreenshot).
         failures: string[],
@@ -1956,8 +1962,10 @@ async function runRegression(
             approvable: canSeed && !REF,
             failures: [...failures, ...groupFailures],
         }
-        // A group without cases (the example screens) is compared whole.
-        if (Object.keys(cases).length === 0) {
+        // The example screens (the app's wide groups) are compared whole.
+        // Not a group whose case areas are missing (the app didn't send
+        // them): it has failed, and its cases' references stay.
+        if (whole) {
             comparedWhole.add(name)
             const compared = await compareScreenshot(
                 app,
@@ -1978,6 +1986,7 @@ async function runRegression(
                 file: path.relative(dir, file),
                 diff: diffOf(file),
                 cases: {},
+                whole: true,
                 ...approval,
             }
             return
@@ -2051,6 +2060,7 @@ async function runRegression(
             result,
             file: path.relative(dir, file),
             cases: results,
+            whole: false,
             ...approval,
         }
     }
@@ -2070,6 +2080,7 @@ async function runRegression(
         masksDp: unknown,
         casesDp: unknown,
         area: PixelRect | undefined,
+        whole: boolean,
         // The group's failures so far.
         failures: string[],
     ): Promise<{ shot: Promise<void> }> => {
@@ -2138,7 +2149,15 @@ async function runRegression(
                 failuresOf(index).push(failure)
                 failures = [...failures, failure]
             }
-            return compareGroup(index, name, file, masks, cases, failures)
+            return compareGroup(
+                index,
+                name,
+                file,
+                masks,
+                cases,
+                whole,
+                failures,
+            )
         })
         shots.push(shot)
         return { shot }
@@ -2657,6 +2676,7 @@ async function runRegression(
             measured?.masks,
             measured?.cases,
             measured?.safeArea as PixelRect | undefined,
+            shown.wide === true,
             [...own],
         )
         const seconds = ((Date.now() - groupStart) / 1000).toFixed(1)
@@ -2701,7 +2721,7 @@ async function runRegression(
     }
     // The groups' descriptions, next to the references.
     let descriptionsSeeded: string[] = []
-    if (!REF && platform !== 'web') {
+    if (!REF) {
         const checked = checkDescriptions(
             path.join(SCREENSHOTS, `${app}-${platform}`),
             groups,

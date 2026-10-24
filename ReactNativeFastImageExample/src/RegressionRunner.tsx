@@ -43,8 +43,9 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //   { type: 'hello', platform, version, arch, groups: [names], window:
 //     { width, height }, scale }                   on connecting (window in
 //                                                 dp; scale = pixels per dp)
-//   { type: 'group', index, name, cases: [ids], description, descriptions:
-//     { id: description } }                       once a group is on screen
+//   { type: 'group', index, name, wide, cases: [ids], description,
+//     descriptions: { id: description } }         once a group is on screen
+//                                                 (wide: compared whole)
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
 //   { type: 'masks', group, id, masks, cases, content, visible, safeArea }
 //                                                 the reply to 'measure'
@@ -384,6 +385,7 @@ function Group({
             type: 'group',
             index,
             name: group.name,
+            wide: group.wide === true,
             cases: [...statuses.current.keys()],
             description: group.description,
             descriptions: Object.fromEntries(descriptions.current),
