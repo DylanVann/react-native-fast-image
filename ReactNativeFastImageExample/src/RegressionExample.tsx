@@ -6733,32 +6733,52 @@ function ErrorMessageCase() {
     )
 }
 
-// imageRendering: each row shows an image at its own size (one image pixel
-// per screen pixel, cropped), then drawn in each mode (columns: auto, smooth,
-// pixelated). Checked by the screenshot; each row says what to expect. Shrunk
-// with auto or pixelated, the first two rows lose detail, differently on each
-// platform (they drop different pixels). smooth is iOS only (the same as auto
-// on Android).
+// imageRendering: a case per image, each shown at its own size (one image
+// pixel per screen pixel, cropped to a strip), then drawn in each mode, left
+// to right: auto, smooth, pixelated. Checked by the screenshot. Shrunk with
+// auto or pixelated, the stripes and the text lose detail, differently on
+// each platform (they drop different pixels). smooth is iOS only (the same as
+// auto on Android).
 const RENDERING_MODES = ['auto', 'smooth', 'pixelated'] as const
-const RENDERING_COLUMN = 96
-const RENDERING_ROWS = [
+const RENDERING_CASES: {
+    id: string
+    image: string
+    size: { width: number; height: number }
+    drawn: { width: number; height: number }
+    description: Description
+}[] = [
     {
+        id: 'image-rendering-stripes',
         image: 'stripes.png',
         size: { width: 1024, height: 1024 },
         drawn: { width: 48, height: 48 },
-        label: 'Shrunk: 1px black and white stripes (1024px) drawn at 48. smooth (iOS): an even gray (#445)',
+        description: {
+            checks: 'imageRendering on an image drawn much smaller than its size: smooth (iOS only; the same as auto on Android) averages its pixels.',
+            steps: 'Shows 1024 px black and white stripes, 1 px each, at their own size (a 200×24 strip of them), then drawn at 48 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'A strip of fine stripes, then three squares, left to right auto, smooth and pixelated. On iOS smooth is an even gray (#445), and auto and pixelated show uneven stripes; on Android all three show uneven stripes.',
+        },
     },
     {
+        id: 'image-rendering-text',
         image: 'text-page.png',
         size: { width: 1600, height: 1000 },
-        drawn: { width: 96, height: 60 },
-        label: 'Shrunk: a page of small text (1600px wide) drawn at 96. smooth (iOS): the lines of text stay continuous',
+        drawn: { width: 96, height: 64 },
+        description: {
+            checks: 'imageRendering on a page of small text drawn much smaller than its size: smooth (iOS only; the same as auto on Android) keeps the lines of text continuous.',
+            steps: 'Shows a 1600×1000 page of small text at its own size (a 200×24 strip of it), then drawn at 96×64 points with imageRendering auto, smooth and pixelated, from the full image (downsample={false}). Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'A strip of the page, then the page three times, left to right auto, smooth and pixelated. On iOS smooth has continuous gray lines of text, and auto and pixelated broken ones; on Android all three are broken up.',
+        },
     },
     {
+        id: 'image-rendering-pixel-art',
         image: 'sprite-12.png',
         size: { width: 12, height: 12 },
-        drawn: { width: 60, height: 60 },
-        label: 'Enlarged: 12px pixel art drawn at 60. pixelated: sharp pixels; auto and smooth blur it (#926)',
+        drawn: { width: 64, height: 64 },
+        description: {
+            checks: 'imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).',
+            steps: 'Shows 12 px pixel art at its own size, then drawn at 64 points with imageRendering auto, smooth and pixelated. Passes when the three have loaded; the screenshot does the checking.',
+            shows: 'A tiny sprite, then three large ones, left to right auto, smooth and pixelated: auto and smooth blurred, pixelated with sharp square pixels.',
+        },
     },
 ]
 
@@ -6785,58 +6805,52 @@ function OriginalCrop({
     )
 }
 
-function ImageRenderingCase() {
+function ImageRenderingCase({
+    id,
+    image,
+    size,
+    drawn,
+    description,
+}: (typeof RENDERING_CASES)[number]) {
     const [loads, setLoads] = useState(0)
     const onLoad = () => setLoads((n) => n + 1)
-    const total = RENDERING_MODES.length * RENDERING_ROWS.length
+    const total = RENDERING_MODES.length
     return (
-        <View>
-            {RENDERING_ROWS.map((row) => (
-                <View key={row.image} style={renderingStyles.row}>
-                    <Text style={styles.description}>{row.label}</Text>
-                    <OriginalCrop image={row.image} size={row.size} />
-                    <View style={renderingStyles.columns}>
-                        {RENDERING_MODES.map((mode) => (
-                            <View key={mode} style={renderingStyles.column}>
-                                <Text style={styles.description}>{mode}</Text>
-                                <FastImage
-                                    style={row.drawn}
-                                    source={{ uri: imageUrl(row.image) }}
-                                    imageRendering={mode}
-                                    // Drawn from the full image, not one
-                                    // decoded smaller (downsample).
-                                    downsample={false}
-                                    onLoad={onLoad}
-                                />
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            ))}
+        <View style={renderingStyles.case}>
+            <OriginalCrop image={image} size={size} />
+            <View style={renderingStyles.modes}>
+                {RENDERING_MODES.map((mode, i) => (
+                    <FastImage
+                        key={mode}
+                        style={[drawn, i > 0 && styles.gap]}
+                        source={{ uri: imageUrl(image) }}
+                        imageRendering={mode}
+                        // Drawn from the full image, not one decoded smaller
+                        // (downsample).
+                        downsample={false}
+                        onLoad={onLoad}
+                    />
+                ))}
+            </View>
             <CaseStatus
-                id="image-rendering"
+                id={id}
                 status={loads >= total ? 'OK' : `loaded ${loads}/${total}`}
-                description={{
-                    checks: "imageRendering on images drawn smaller and larger than their size: smooth (iOS only; the same as auto on Android) averages the pixels of a shrunk image, and pixelated keeps an enlarged one's pixels sharp (#926).",
-                    steps: 'Each row shows an image at its own size (one image pixel per screen pixel, cropped to a 200×24 strip), then drawn with imageRendering auto, smooth and pixelated, from the full image (downsample={false}): 1024 px stripes at 48, a 1600 px wide page of text at 96, and 12 px pixel art at 60. Passes when all nine have loaded; the screenshot does the checking.',
-                    shows: "Each row's label says what to expect. Stripes: on iOS smooth is an even gray, while auto and pixelated show uneven stripes, different on each platform. Text: on iOS smooth keeps the lines of text continuous. Pixel art: auto and smooth blurred, pixelated with sharp square pixels.",
-                }}
+                description={description}
             />
         </View>
     )
 }
 
 const renderingStyles = StyleSheet.create({
-    row: { marginBottom: 10 },
+    case: { marginBottom: 16 },
     original: {
         width: 200,
         height: 24,
         overflow: 'hidden',
         backgroundColor: '#eee',
-        marginVertical: 4,
+        marginBottom: 8,
     },
-    columns: { flexDirection: 'row' },
-    column: { width: RENDERING_COLUMN, marginRight: 12 },
+    modes: { flexDirection: 'row' },
 })
 
 // Shows status OK once `total` images have loaded (count with the returned
@@ -10286,7 +10300,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size.',
         },
-        cases: [<ImageRenderingCase key="image-rendering" />],
+        cases: RENDERING_CASES.map((c) => (
+            <ImageRenderingCase key={c.id} {...c} />
+        )),
     },
     {
         name: 'blur',
