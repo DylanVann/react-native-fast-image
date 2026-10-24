@@ -10134,20 +10134,18 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [
             <ClearTintCase key="clear-tint" />,
             <ObjectFitChangeCropCase key="fit-change" />,
-            <NoCrashCase
+            <GifLoopCase
                 key="gif-loop-once"
                 id="gif-loop-once"
                 description={{
                     checks: 'A GIF without a loop count plays once and stops on its last frame (#651: Android looped every GIF forever).',
-                    steps: 'Shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop. Passes if the app is still running 750 ms after it mounts; the screenshot checks where it stopped.',
+                    steps: 'Shows a GIF of two 0.4 s frames, magenta then cyan, with no loop count and no loop prop. Passes 1 s after onLoad: after its one play (0.8 s), and during the magenta frame of a second play if it loops; the screenshot checks where it stopped.',
                     shows: 'A cyan square: the last frame. Magenta means it was still playing (looping).',
                 }}
-            >
-                <FastImage
-                    style={styles.image}
-                    source={{ uri: imageUrl('loop-once.gif') }}
-                />
-            </NoCrashCase>,
+                source="loop-once.gif"
+                // 1 s after onLoad (see the steps).
+                plays={0.5}
+            />,
             <SizeChangeCase key="size-change" />,
         ],
     },
