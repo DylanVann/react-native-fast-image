@@ -554,16 +554,21 @@ let bundleWarm: Promise<void> = Promise.resolve()
 // Screen recordings in progress (recordScreen), stopped on exit: a simulator
 // whose recording isn't stopped refuses to start another.
 const recorders = new Set<ChildProcess>()
-// One odiff process for every comparison (a few hundred a run), started on
-// the first.
+// One odiff process for the comparisons (a few hundred a run), started on the
+// first, and one for the screenshots' settle checks, which shouldn't wait
+// behind a group's comparisons. A comparison that takes longer than
+// ODIFF_TIMEOUT fails (the process answers one at a time).
 let odiffServer: ODiffServer | undefined
+let settleServer: ODiffServer | undefined
 const odiff = () => (odiffServer ??= new ODiffServer())
+const ODIFF_TIMEOUT = 30_000
 let cleanedUp = false
 function cleanup() {
     if (cleanedUp) return
     cleanedUp = true
     for (const child of recorders) child.kill('SIGINT')
     odiffServer?.stop()
+    settleServer?.stop()
     // Ask everything still running to stop, give it a moment, then force what's
     // left (this runs on exit, so it can't wait asynchronously).
     for (const pgid of groups) killGroup(pgid)
@@ -1117,12 +1122,18 @@ async function sameOutside(
     fs.writeFileSync(fileA, a)
     fs.writeFileSync(fileB, b)
     try {
-        const result = await odiff().compare(fileA, fileB, fileA, {
-            antialiasing: true,
-            failOnLayoutDiff: true,
-            noFailOnFsErrors: true,
-            ignoreRegions,
-        })
+        const result = await (settleServer ??= new ODiffServer()).compare(
+            fileA,
+            fileB,
+            fileA,
+            {
+                antialiasing: true,
+                failOnLayoutDiff: true,
+                noFailOnFsErrors: true,
+                ignoreRegions,
+                timeout: ODIFF_TIMEOUT,
+            },
+        )
         return result.match
     } catch {
         return false
@@ -1378,6 +1389,7 @@ async function compareScreenshot(
             failOnLayoutDiff: true,
             noFailOnFsErrors: true,
             ...(ignoreRegions.length > 0 ? { ignoreRegions } : {}),
+            timeout: ODIFF_TIMEOUT,
         })
     } catch (error) {
         return {
@@ -1926,7 +1938,6 @@ async function runRegression(
         // compareScreenshot).
         failures: string[],
     ) => {
-        const canSeed = failures.length === 0
         const { width, height } = pngSize(file)
         const pad = Math.round(CASE_PADDING * scale)
         // Each case's area, padded, within the screenshot. Cases with nothing
@@ -1952,10 +1963,20 @@ async function runRegression(
             logLine(
                 `screenshot ${name}: not compared (zero size): ${empty.join(', ')}`,
             )
-        const groupFailures = outside.map(
-            (id) => `${name}/${id}: outside the screenshot`,
-        )
+        // A case that reported a status but whose area didn't arrive isn't
+        // compared, so it fails.
+        const unmeasured = whole
+            ? []
+            : Object.keys(statuses[name] ?? {}).filter((id) => !(id in cases))
+        const groupFailures = [
+            ...outside.map((id) => `${name}/${id}: outside the screenshot`),
+            ...unmeasured.map(
+                (id) => `${name}/${id}: its area wasn't measured`,
+            ),
+        ]
         failuresOf(index).push(...groupFailures)
+        // A group that failed doesn't seed (see compareScreenshot).
+        const canSeed = failures.length === 0 && groupFailures.length === 0
         // Whether its images may become references, and the group's
         // failures, for the viewer.
         const approval = {
