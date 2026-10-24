@@ -2249,22 +2249,26 @@ function RetryNewerUrlCase() {
             {failing(0, RETRY_NEWER_FIRST, sharedStyles.small)}
             {mounted >= 1 && failing(1, RETRY_NEWER_SECOND, retryStyles.medium)}
             {mounted >= 2 && (
-                <FastImage
-                    style={sharedStyles.large}
-                    source={{
-                        uri: slowImageUrl(
-                            `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
-                        ),
-                        headers: SLOW_HEADERS,
-                        cacheKey: RETRY_NEWER_KEY,
-                    }}
-                    onLoad={() => setLoaded(true)}
-                    onError={(e) => {
-                        // Read the event now: the updater runs later.
-                        const error = String(e.nativeEvent.error)
-                        fail(`image 3: onError: ${error}`)
-                    }}
-                />
+                // Masked: it's drawn from one of two decodes, depending on how
+                // the downloads raced (the case checks requests and events).
+                <Masked>
+                    <FastImage
+                        style={sharedStyles.large}
+                        source={{
+                            uri: slowImageUrl(
+                                `picsum/1025-200x200.jpg?retry-newer=${RUN}&delay=50`,
+                            ),
+                            headers: SLOW_HEADERS,
+                            cacheKey: RETRY_NEWER_KEY,
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={(e) => {
+                            // Read the event now: the updater runs later.
+                            const error = String(e.nativeEvent.error)
+                            fail(`image 3: onError: ${error}`)
+                        }}
+                    />
+                </Masked>
             )}
             <CaseStatus
                 id="retry-newer-url"
@@ -2272,7 +2276,7 @@ function RetryNewerUrlCase() {
                 description={{
                     checks: "A newer url that joins a cacheKey's retry is downloaded when the retry fails too (Android retried a failed download once, so the newer url was never requested).",
                     steps: "A small image loads a missing url from the slow server with a cacheKey (the 404 held); a medium image of a second missing url mounts with that cacheKey, and the first 404 is sent, so the retry downloads the second url (also held). While it's held, a large image of a url that works mounts with the cacheKey, then the second 404 is sent. Passes when the first two have had onError and the large one has loaded.",
-                    shows: 'Blank space twice (30 and 45 points, the two urls that 404), then a large (60-point) photo of a pug in a blanket.',
+                    shows: "Blank space twice (30 and 45 points, the two urls that 404), then a large (60-point) photo of a pug in a blanket, which isn't compared: it can come from either of two decodes.",
                 }}
             />
         </View>
