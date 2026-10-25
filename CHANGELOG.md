@@ -1,3 +1,10 @@
+## [10.9.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.2...v10.9.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ios:** don't show a downsampled copy in a full-size view of the same image ([#1382](https://github.com/DylanVann/react-native-fast-image/issues/1382)) ([99e7e56](https://github.com/DylanVann/react-native-fast-image/commit/99e7e562ee82ff88a897a8ab79e3f26db567dfc2))
+
 ## [10.9.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.1...v10.9.2) (2026-10-25)
 
 
