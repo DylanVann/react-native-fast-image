@@ -1950,11 +1950,28 @@
                 "checks": "An SVG shown large is drawn at its size, not scaled up from a small bitmap.",
                 "steps": "Loads the same 20×20 SVG (three thin black rings on white) in a 24 pt view and a 160 pt view. Passes when both have fired onLoad; the sharpness is checked by the screenshot.",
                 "shows": "Small rings, then the same rings at 160 pt: thin, sharp black circles on white. Blurry or thick edges on the large one would mean it was scaled up from a bitmap."
-            },
+            }
+        }
+    },
+    "svg-tint-sizes": {
+        "description": {
+            "checks": "A tinted SVG is drawn sharp at the size it fills: after its view grows, as a placeholder, and zoomed in on with downsample={false}."
+        },
+        "cases": {
             "svg-tint-grow": {
                 "checks": "A tinted SVG whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).",
                 "steps": "Loads a 24×24 SVG icon (a black ring) with tintColor green in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.",
                 "shows": "A green ring filling a 160 pt square, with sharp edges. Blurry edges would mean it was scaled up from the 24 pt bitmap."
+            },
+            "svg-tint-placeholder": {
+                "checks": "A tinted SVG as the placeholder url, with objectFit none, is drawn at the size it fills, sharp (on iOS it was drawn at its own size and scaled up).",
+                "steps": "A 160 pt view with objectFit=\"none\" and tintColor green loads a photo the slow server holds, with placeholder set to the url of a 24×24 SVG icon (a black ring). Passes 1 s after onLoadStart; onLoad fails it.",
+                "shows": "A green ring filling the 160 pt square, with sharp edges."
+            },
+            "svg-tint-zoom": {
+                "checks": "downsample={false} keeps a tinted SVG zoomed in on with a transform sharp, up to its own size (on iOS it was drawn at the view's size and scaled up).",
+                "steps": "Loads a 120×120 SVG (a black ring) with tintColor green and downsample={false} in a 24 pt view, scaled 5 times with a transform, so it shows at 120 pt. Passes once it has loaded (and a moment more).",
+                "shows": "A green ring filling a 120 pt square, with sharp edges."
             }
         }
     },

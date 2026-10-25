@@ -8923,6 +8923,85 @@ function SvgTintGrowCase() {
     )
 }
 
+// A tinted SVG as the placeholder, with objectFit none: a url placeholder is
+// shown as with contain, so it fills the view (on iOS it was drawn at its own
+// size, 24 pt, and scaled up).
+function SvgTintPlaceholderCase() {
+    const { status, setStatus, after } = usePlaceholderUrlStatus()
+    useEffect(() => () => void releaseThumbhashHold('svg-tint-placeholder'), [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: 160, height: 160 }}
+                source={{
+                    uri: thumbhashHeld('svg-tint-placeholder'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={imageUrl(
+                    `svg-icon.svg?svg-tint-placeholder=${RUN}`,
+                )}
+                objectFit="none"
+                tintColor="green"
+                onLoadStart={after}
+                onLoad={() => setStatus('onLoad: the download should be held')}
+            />
+            <CaseStatus
+                id="svg-tint-placeholder"
+                status={status}
+                description={{
+                    checks: 'A tinted SVG as the placeholder url, with objectFit none, is drawn at the size it fills, sharp (on iOS it was drawn at its own size and scaled up).',
+                    steps: 'A 160 pt view with objectFit="none" and tintColor green loads a photo the slow server holds, with placeholder set to the url of a 24×24 SVG icon (a black ring). Passes 1 s after onLoadStart; onLoad fails it.',
+                    shows: 'A green ring filling the 160 pt square, with sharp edges.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A tinted SVG with downsample={false}, in a view zoomed in on with a
+// transform: drawn at least at its own size, so it's sharp up to that (on iOS
+// it was drawn at the view's size, and the zoom scaled it up).
+function SvgTintZoomCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={styles.row}>
+            <View style={svgZoomStyles.clip}>
+                <FastImage
+                    style={svgZoomStyles.zoomed}
+                    source={{
+                        uri: imageUrl('svg-ring-120.svg?case=svg-tint-zoom'),
+                    }}
+                    tintColor="green"
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="svg-tint-zoom"
+                status={status}
+                description={{
+                    checks: "downsample={false} keeps a tinted SVG zoomed in on with a transform sharp, up to its own size (on iOS it was drawn at the view's size and scaled up).",
+                    steps: 'Loads a 120×120 SVG (a black ring) with tintColor green and downsample={false} in a 24 pt view, scaled 5 times with a transform, so it shows at 120 pt. Passes once it has loaded (and a moment more).',
+                    shows: 'A green ring filling a 120 pt square, with sharp edges.',
+                }}
+            />
+        </View>
+    )
+}
+
+const svgZoomStyles = StyleSheet.create({
+    clip: { width: 120, height: 120, overflow: 'hidden' },
+    // Scaled about its center, so it fills the clip.
+    zoomed: {
+        position: 'absolute',
+        left: 48,
+        top: 48,
+        width: 24,
+        height: 24,
+        transform: [{ scale: 5 }],
+    },
+})
+
 // getCachePath for a `cache: 'web'` image as the app's first FastImage call
 // (the runner's first group, without views): on Android the HTTP cache of
 // `web` images is set up when FastImage's Glide components are registered,
@@ -12683,7 +12762,17 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <SvgSharpCase key="svg-sharp" />,
+        ],
+    },
+    {
+        name: 'svg-tint-sizes',
+        description: {
+            checks: 'A tinted SVG is drawn sharp at the size it fills: after its view grows, as a placeholder, and zoomed in on with downsample={false}.',
+        },
+        cases: [
             <SvgTintGrowCase key="svg-tint-grow" />,
+            <SvgTintPlaceholderCase key="svg-tint-placeholder" />,
+            <SvgTintZoomCase key="svg-tint-zoom" />,
         ],
     },
     {
