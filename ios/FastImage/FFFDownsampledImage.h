@@ -29,11 +29,12 @@
 // the load can't use it, so it decodes the file from the disk cache:
 // - for a full-size load (a view that doesn't downsample, or a preload), a
 //   smaller image: SDWebImage puts an image it decoded smaller from the disk
-//   cache under the full-size image's key too (SDWebImageManager writes what
-//   its original cache query finds back there), which would show blurry, or
-//   be a preload's size. FastImage's own loads don't (addToContext's
-//   original cache has no memory), but other SDWebImage loads in the app
-//   can.
+//   cache under the full-size image's key too (SDWebImageManager 5.21.6 and
+//   later writes what its original cache query finds back there; 5.21.5's
+//   SDImageCache moved it to its own key), which would show blurry, or be a
+//   preload's size. FastImage's own loads don't (addToContext's original
+//   cache keeps only full-size images in memory), but other SDWebImage loads
+//   in the app can.
 // - one decoded the other way, to HDR or SDR (dynamicRangeLimit), since
 //   SDWebImage's memory cache key is the same for both.
 + (void) forgetUnusableImageForURL: (NSURL*)url context: (SDWebImageContext*)context;
