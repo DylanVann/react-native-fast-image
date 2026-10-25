@@ -1,3 +1,10 @@
+## [10.9.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.0...v10.9.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ios:** share one memory budget between animated images' frames ([#1353](https://github.com/DylanVann/react-native-fast-image/issues/1353)) ([9097255](https://github.com/DylanVann/react-native-fast-image/commit/9097255039fd1704b03d53e4784766ec3a727d5b)), closes [#1339](https://github.com/DylanVann/react-native-fast-image/issues/1339), thanks [@lewiscasewell](https://github.com/lewiscasewell)
+
 # [10.9.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.8.10...v10.9.0) (2026-10-23)
 
 
