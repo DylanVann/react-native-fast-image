@@ -25,7 +25,8 @@ static CGFloat const FFFMaxPixels = 4096.0 * 4096.0;
 // each way (64 megapixels) is decoded at its own size: decoding it to more
 // than half its size decodes it at full size first (see initWithData), so its
 // peak is larger. On a Mac a 6000 x 4000 JPEG took 268 MB at its peak decoded
-// to 84% of its size, 200 MB at full size, and 80 MB at half its size.
+// to 84% of its size, 200 MB at full size, and 80 MB at half its size; a
+// 10000 x 8000 PNG 697 MB at full size and 274 MB at 16 megapixels.
 static CGFloat FFFCappedLongestSide(CGSize pixelSize) {
     CGFloat ratio = sqrt(FFFMaxPixels / (pixelSize.width * pixelSize.height));
     if (pixelSize.width <= 0 || pixelSize.height <= 0 || ratio > 0.5) {

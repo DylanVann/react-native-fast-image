@@ -1530,6 +1530,9 @@ NSString *FFFErrorMessage(NSError *error)
                 // layout (e.g. while offline).
                 weakSelf.decodedBox = CGSizeZero;
             }
+            if (image && weakSelf.loadCount == load) {
+                [weakSelf reloadIfSmallerCopy: image context: context];
+            }
         }];
         return;
     }
@@ -1615,8 +1618,25 @@ NSString *FFFErrorMessage(NSError *error)
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: YES]);
                     }
+                    [weakSelf reloadIfSmallerCopy: image context: context];
                 }
             }];
+}
+
+// A load at the image's own size (objectFit none) that got it decoded smaller:
+// another view's decode at 16 megapixels of an image over 64, which
+// SDImageCache found in memory as it read the file (it looks there again
+// before it decodes). Loaded again, once, from the disk cache only, which
+// doesn't look in memory.
+- (void) reloadIfSmallerCopy: (UIImage*)image context: (SDWebImageContext*)context {
+    NSNumber* query = context[SDWebImageContextQueryCacheType];
+    if (!self.decodedUncapped || (query && query.integerValue != SDImageCacheTypeAll) ||
+        ![FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES]) {
+        return;
+    }
+    SDWebImageMutableContext* fromDisk = [context mutableCopy];
+    fromDisk[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+    [self downloadImage: _source options: [self loadOptions] | SDWebImageDelayPlaceholder context: fromDisk events: NO];
 }
 
 // Downloads the source now if the app is active, or once it is (unless
