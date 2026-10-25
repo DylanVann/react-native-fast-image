@@ -35,6 +35,8 @@ const SUMMARY_METRICS = [
     'Frame Rate',
     'Memory Peak Physical',
     'Absolute Memory Physical',
+    'Memory Peak Total',
+    'Absolute Memory Total',
 ]
 
 const median = (values: number[]) => {

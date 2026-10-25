@@ -22,7 +22,13 @@ import type { Adapter } from './adapter'
 // many image requests it got, measures the network (`probe`), writes the
 // results to Documents/results-<run>.json (which run.ts copies from the
 // device over USB, no network permission needed) and turns the marker blue.
-export type ScenarioName = 'grid' | 'scroll' | 'large' | 'sizes' | 'detail'
+export type ScenarioName =
+    | 'grid'
+    | 'scroll'
+    | 'large'
+    | 'sizes'
+    | 'detail'
+    | 'animated'
 
 type Config = {
     columns: number
@@ -38,6 +44,9 @@ type Config = {
     // width over the others, which go on loading under it, at high priority
     // (for the libraries with a priority): only it is timed.
     detail?: { index: number; afterMs: number }
+    // Animated images play this long after they've loaded before it's done,
+    // as the libraries decode (and may keep) their frames while they play.
+    playMs?: number
     // For subjects without load events (Nitro Image), done after this long
     // on each platform. With no bandwidth limit every subject shows every
     // image within 1 s (iPhone 15 Pro Max, Pixel 8); with `--mbps 50`, within
@@ -98,6 +107,15 @@ export const SCENARIOS: Record<ScenarioName, Config> = {
         set: 'grid',
         detail: { index: 59, afterMs: 100 },
         fixedMs: { ios: 2_000, android: 3_000 },
+    },
+    // 32 animated WebPs (800 px, 48 frames of 40 ms, each a different photo)
+    // in a grid, playing for about 5 loops after they've shown: memory, as
+    // with many GIFs or stickers on screen.
+    animated: {
+        columns: 4,
+        list: false,
+        playMs: 10_000,
+        fixedMs: { ios: 3_000, android: 3_000 },
     },
 }
 
@@ -235,8 +253,11 @@ export function Scenario({
     useEffect(() => {
         let cancelled = false
         ;(async () => {
+            // The run id: not an earlier run's response from the HTTP cache
+            // (from before a new set, e.g.).
+            const query = `run=${encodeURIComponent(run)}`
             const manifest: Manifest = await (
-                await fetch(`${server}/manifest.json`)
+                await fetch(`${server}/manifest.json?${query}`)
             ).json()
             const images = manifest.sets[config.set ?? name].images.slice(
                 0,
@@ -306,8 +327,8 @@ export function Scenario({
     const finish = useCallback(async () => {
         if (finished.current) return
         finished.current = true
-        // Let the last images draw before measuring.
-        await new Promise((r) => setTimeout(r, 300))
+        // Let the last images draw (and animations play) before measuring.
+        await new Promise((r) => setTimeout(r, 300 + (config.playMs ?? 0)))
         setPhase('measuring')
         const rects = await Promise.all(
             cells.map((cell) => measure(views.current.get(cell.index) ?? null)),

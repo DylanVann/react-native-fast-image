@@ -1,14 +1,16 @@
 // Serves the benchmark's images (../../images/out, in this test bundle) on
 // the phone, at http://127.0.0.1:<port>, as the Android tests do
-// (ImageServer.kt): GET /<set>/<index>.jpg?run=<id> and /manifest.json, the
-// query ignored for the lookup, and /requests?run=<id>, how many image
-// requests it got for that run id (the probe's aren't counted): how many
-// downloads a library made, e.g. one per photo shown at two sizes when it
-// shares them. The app loads them over HTTP with each
-// library's own networking, but every run gets the same network: `latencyMs`
-// before each response (and before a new connection's first, for its
-// handshake), and `mbps` shared by every response at once, as on one real
-// link (0 for no limit). The manifest's and the network probe's (`?…&close`)
+// (ImageServer.kt): GET /<set>/<index>.jpg (or .webp)?run=<id> and
+// /manifest.json, the query ignored for the lookup, and /requests?run=<id>,
+// how many image requests it got for that run id (the probe's aren't
+// counted): how many downloads a library made, e.g. one per photo shown at
+// two sizes when it shares them. GET
+// /memory?run=<id>&footprint=…&peak=…&bitmaps=… is the app's memory
+// (TotalMemoryMetric), kept for the run being measured (`measureMemory`). The
+// app loads them over HTTP with each library's own networking, but every
+// run gets the same network: `latencyMs` before each response (and before a
+// new connection's first, for its handshake), and `mbps` shared by every
+// response at once, as on one real link (0 for no limit). The manifest's and the network probe's (`?…&close`)
 // responses close their connection, so no library starts with one open. The
 // files are read when it starts, so every run is served from memory. It runs
 // in the test runner's process, not the app's.
@@ -25,6 +27,32 @@ final class ImageServer {
     // Image requests by run id.
     private var requests: [String: Int] = [:]
     private let requestsLock = NSLock()
+    // The app's memory samples for `measuredRun`, as they arrived.
+    private var memory: [MemorySample] = []
+    private var measuredRun: String?
+    private let memoryLock = NSLock()
+
+    struct MemorySample {
+        let date: Date
+        let footprint: UInt64
+        let footprintPeak: UInt64
+        let bitmaps: UInt64
+    }
+
+    // Keeps the memory samples of this run (the app launched next), and
+    // drops the earlier ones.
+    func measureMemory(of run: String) {
+        memoryLock.lock()
+        measuredRun = run
+        memory = []
+        memoryLock.unlock()
+    }
+
+    func memorySamples(from start: Date, to end: Date) -> [MemorySample] {
+        memoryLock.lock()
+        defer { memoryLock.unlock() }
+        return memory.filter { $0.date >= start && $0.date <= end }
+    }
 
     var url: String { "http://127.0.0.1:\(port)" }
 
@@ -37,7 +65,7 @@ final class ImageServer {
 
     func start() throws {
         let paths = FileManager.default.enumerator(atPath: root.path)?.allObjects as? [String] ?? []
-        for path in paths where path.hasSuffix(".jpg") || path.hasSuffix(".json") {
+        for path in paths where path.hasSuffix(".jpg") || path.hasSuffix(".webp") || path.hasSuffix(".json") {
             files[path] = try Data(contentsOf: root.appendingPathComponent(path))
         }
         listener = socket(AF_INET, SOCK_STREAM, 0)
@@ -100,10 +128,24 @@ final class ImageServer {
             let closing = path == "manifest.json" || query.contains("close")
             let run = query.first { $0.hasPrefix("run=") }
                 .flatMap { $0.dropFirst(4).removingPercentEncoding }
-            if let run, !closing, path.hasSuffix(".jpg") {
+            if let run, !closing, path.hasSuffix(".jpg") || path.hasSuffix(".webp") {
                 requestsLock.lock()
                 requests[run, default: 0] += 1
                 requestsLock.unlock()
+            }
+            if path == "memory" {
+                // Not a network request: recorded and answered at once.
+                let value = { (name: String) in
+                    query.first { $0.hasPrefix("\(name)=") }.flatMap { UInt64($0.dropFirst(name.count + 1)) } ?? 0
+                }
+                memoryLock.lock()
+                if let run, run == measuredRun {
+                    memory.append(MemorySample(date: Date(), footprint: value("footprint"), footprintPeak: value("peak"),
+                        bitmaps: value("bitmaps")))
+                }
+                memoryLock.unlock()
+                guard write(client, Data("HTTP/1.1 204 No Content\r\n\r\n".utf8)) else { return }
+                continue
             }
             sleep(milliseconds: latencyMs)
             if path == "requests" {
@@ -119,7 +161,7 @@ final class ImageServer {
                 guard write(client, Data("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".utf8)) else { return }
                 continue
             }
-            let type = path.hasSuffix(".json") ? "application/json" : "image/jpeg"
+            let type = path.hasSuffix(".json") ? "application/json" : path.hasSuffix(".webp") ? "image/webp" : "image/jpeg"
             let headers = "HTTP/1.1 200 OK\r\nContent-Type: \(type)\r\nContent-Length: \(body.count)\r\n"
                 + "Cache-Control: public, max-age=31536000, immutable\r\n"
                 + (closing ? "Connection: close\r\n" : "") + "\r\n"
