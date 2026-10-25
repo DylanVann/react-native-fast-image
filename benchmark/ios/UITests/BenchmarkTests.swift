@@ -1,11 +1,12 @@
 // Measures the benchmark app (../../app) on a device, with the images served
 // on the phone (ImageServer). scripts/run.ts runs these with `xcodebuild`:
 // testServe while it records the timed runs (it launches the app itself),
-// then the XCTest metrics for one subject (hitches while scrolling, memory),
-// read from the result bundle. Environment (passed as TEST_RUNNER_BENCH_…):
-// BENCH_BUNDLE_ID (the subject's app), BENCH_ITERATIONS (how many times each
-// metric is measured), BENCH_PORT, BENCH_LATENCY_MS and BENCH_MBPS (the image
-// server's).
+// then the XCTest metrics for one subject (hitches while scrolling, memory:
+// the app's, XCTMemoryMetric and TotalMemoryMetric, and the phone's free
+// memory, DeviceMemoryMetric), read from the result bundle. Environment
+// (passed as TEST_RUNNER_BENCH_…): BENCH_BUNDLE_ID (the subject's app),
+// BENCH_ITERATIONS (how many times each metric is measured), BENCH_PORT,
+// BENCH_LATENCY_MS and BENCH_MBPS (the image server's).
 import XCTest
 
 final class BenchmarkTests: XCTestCase {
@@ -31,6 +32,13 @@ final class BenchmarkTests: XCTestCase {
         server.stop()
     }
 
+    // The app's memory: its physical footprint (XCTMemoryMetric), with the
+    // bitmap data iOS leaves out of it (TotalMemoryMetric), and the phone's
+    // free memory (DeviceMemoryMetric, in the result bundle only).
+    private func memoryMetrics(_ app: XCUIApplication) -> [XCTMetric] {
+        [XCTMemoryMetric(application: app), TotalMemoryMetric(server: server), DeviceMemoryMetric()]
+    }
+
     private func options() -> XCTMeasureOptions {
         let options = XCTMeasureOptions()
         options.iterationCount = iterations
@@ -46,11 +54,14 @@ final class BenchmarkTests: XCTestCase {
     }
 
     // Launches the app on a scenario with a new run id (so no image comes
-    // from an earlier run's caches) and waits for it to be done.
+    // from an earlier run's caches) and waits for it to be done. The app
+    // sends its memory to the server (TotalMemoryMetric).
     @discardableResult
     private func launch(_ app: XCUIApplication, scenario: String) -> XCUIApplication {
+        let run = "xctest-\(scenario)-\(UUID().uuidString)"
+        server.measureMemory(of: run)
         app.launchArguments = [
-            "-scenario", scenario, "-run", "xctest-\(scenario)-\(UUID().uuidString)", "-server", server.url,
+            "-scenario", scenario, "-run", run, "-server", server.url, "-memorySamples", "YES",
         ]
         app.launch()
         XCTAssert(app.staticTexts["done"].waitForExistence(timeout: 120), "\(scenario) didn't finish")
@@ -61,8 +72,18 @@ final class BenchmarkTests: XCTestCase {
     // once they're shown. Each iteration launches the app again.
     func testLargeMemory() {
         let app = XCUIApplication(bundleIdentifier: bundleId)
-        measure(metrics: [XCTMemoryMetric(application: app)], options: options()) {
+        measure(metrics: memoryMetrics(app), options: options()) {
             launch(app, scenario: "large")
+        }
+        app.terminate()
+    }
+
+    // The animated scenario (32 animated images playing): memory while they
+    // load and play. Each iteration launches the app again.
+    func testAnimatedMemory() {
+        let app = XCUIApplication(bundleIdentifier: bundleId)
+        measure(metrics: memoryMetrics(app), options: options()) {
+            launch(app, scenario: "animated")
         }
         app.terminate()
     }
@@ -84,7 +105,9 @@ final class BenchmarkTests: XCTestCase {
         }
         pass()
         measure(
-            metrics: [XCTOSSignpostMetric.scrollingAndDecelerationMetric, XCTMemoryMetric(application: app)],
+            metrics: [
+                XCTOSSignpostMetric.scrollingAndDecelerationMetric
+            ] + memoryMetrics(app),
             options: options(),
             block: pass)
         app.terminate()

@@ -2,9 +2,9 @@
 // own color. A tinted photo keeps a photo's detail, so it costs what a photo
 // costs to download and decode, and it has its own average color, so a screen
 // recording shows when each image appears, in which cell. Writes
-// out/<set>/<index>.jpg and out/manifest.json (each image's key, photo, bytes
-// and average color), which the benchmark's tests serve on the phone (see
-// ../README.md).
+// out/<set>/<index>.jpg (and the animated set's out/animated/<index>.webp)
+// and out/manifest.json (each image's key, photo, bytes and average color), which
+// the benchmark's tests serve on the phone (see ../README.md).
 //
 //   bun make-images.ts
 //
@@ -28,6 +28,10 @@ const SETS = [
 ] as const
 
 const QUALITY = 82
+
+// Animated WebPs (the animated scenario): each of its frames (40 ms) a
+// different photo of the grid's, so no two frames are alike.
+const ANIMATED = { count: 32, frames: 48, delay: 40, size: 800 }
 
 const PHOTOS: Record<string, string[]> = JSON.parse(
     fs.readFileSync(path.join(DIR, 'photos.json'), 'utf8'),
@@ -111,6 +115,45 @@ for (const set of SETS) {
     })
     manifest[set.name] = { width: set.width, height: set.height, images }
     console.log(`${set.name}: ${images.length} images`)
+}
+{
+    const images = await pool(
+        PHOTOS.grid.slice(0, ANIMATED.count),
+        8,
+        async (photo, index) => {
+            const key = `animated/${index}.webp`
+            const file = path.join(OUT, key)
+            fs.mkdirSync(path.dirname(file), { recursive: true })
+            // As in a clip with a lot of motion.
+            const frames = await Promise.all(
+                Array.from({ length: ANIMATED.frames }, async (_, frame) => {
+                    const id = PHOTOS.grid[(index + frame) % PHOTOS.grid.length]
+                    return sharp(
+                        await download(id, ANIMATED.size, ANIMATED.size),
+                    )
+                        .png()
+                        .toBuffer()
+                }),
+            )
+            await sharp(frames, { join: { animated: true } })
+                .webp({
+                    delay: Array(ANIMATED.frames).fill(ANIMATED.delay),
+                    loop: 0,
+                    quality: QUALITY,
+                })
+                .toFile(file)
+            const { channels } = await sharp(frames[0]).stats()
+            const [r, g, b] = channels.map((channel) => channel.mean)
+            return {
+                key,
+                photo,
+                bytes: fs.statSync(file).size,
+                color: hex({ r, g, b }),
+            }
+        },
+    )
+    manifest.animated = { width: ANIMATED.size, height: ANIMATED.size, images }
+    console.log(`animated: ${images.length} images`)
 }
 fs.writeFileSync(
     path.join(OUT, 'manifest.json'),

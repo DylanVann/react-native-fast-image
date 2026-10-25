@@ -68,6 +68,9 @@ module.exports = (config) => {
                 path.join(target, 'src', 'main', 'assets', 'images'),
                 {
                     recursive: true,
+                    // Not the animated set: no Android test uses it (it's
+                    // iOS's frame buffers), and it's most of the images.
+                    filter: (src) => src !== path.join(IMAGES, 'animated'),
                 },
             )
             const xml = path.join(

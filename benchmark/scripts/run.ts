@@ -36,6 +36,7 @@ const CAPTURE = path.join(IOS, 'capture')
 const METRIC_TESTS: Record<string, string> = {
     scroll: 'testScroll',
     'large-memory': 'testLargeMemory',
+    'animated-memory': 'testAnimatedMemory',
 }
 // How long a run may take: the app's longest wait (30 s, for a subject that
 // doesn't send every load event) and launch.
