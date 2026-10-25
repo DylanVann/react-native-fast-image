@@ -7765,6 +7765,44 @@ function LargeViewCase() {
     )
 }
 
+// The same view, cross-dissolving to a new source: the fade drew what the
+// view showed into a bitmap the view's size (about 160 MB), which Android
+// won't draw either.
+function LargeViewFadeCase() {
+    const [second, setSecond] = useState(false)
+    const [status, onLoad] = useLoadedThenOk(2)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: imageUrl(
+                            second
+                                ? 'quadrants.png?case=large-view-fade-2'
+                                : 'quadrants.png?case=large-view-fade',
+                        ),
+                    }}
+                    transition={{ duration: 300, betweenImages: true }}
+                    onLoad={() => {
+                        onLoad()
+                        setSecond(true)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-fade"
+                status={status}
+                description={{
+                    checks: "transition's betweenImages in a view far larger than the screen (on Android the fade copied what the view showed into a bitmap the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'The large-view case, with transition { duration: 300, betweenImages: true }: once the image loads, its source changes to the same image at another url, which cross-dissolves from it. Passes once both have loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -10542,9 +10580,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // A crash takes the app down: on its own.
         name: 'large-view',
         description: {
-            checks: 'An image in a view far larger than the screen shows.',
+            checks: 'An image in a view far larger than the screen shows, also cross-dissolving to a new source.',
         },
-        cases: [<LargeViewCase key="large-view" />],
+        cases: [
+            <LargeViewCase key="large-view" />,
+            <LargeViewFadeCase key="large-view-fade" />,
+        ],
     },
     {
         name: 'loading',

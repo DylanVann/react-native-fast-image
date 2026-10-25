@@ -24,8 +24,6 @@ final class FastImageSvgRenderer {
     // An SVG with neither a size nor a viewBox, as browsers size one.
     private static final float DEFAULT_WIDTH = 300;
     private static final float DEFAULT_HEIGHT = 150;
-    // At most this many pixels (a 4096 x 4096 bitmap), however large the view.
-    private static final float MAX_PIXELS = 4096f * 4096f;
 
     private FastImageSvgRenderer() {
     }
@@ -85,8 +83,8 @@ final class FastImageSvgRenderer {
             }
         }
         if (Float.isNaN(scale) || Float.isInfinite(scale) || scale <= 0) scale = 1f;
-        float pixels = sourceWidth * scale * sourceHeight * scale;
-        if (pixels > MAX_PIXELS) scale *= (float) Math.sqrt(MAX_PIXELS / pixels);
+        // At most FastImageSourceSize.MAX_PIXELS, however large the view.
+        scale *= FastImageSourceSize.capScale(sourceWidth * scale * sourceHeight * scale);
         int bitmapWidth = Math.max(1, Math.round(sourceWidth * scale));
         int bitmapHeight = Math.max(1, Math.round(sourceHeight * scale));
 

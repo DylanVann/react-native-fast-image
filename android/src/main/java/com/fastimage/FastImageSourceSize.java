@@ -185,6 +185,11 @@ final class FastImageSourceSize {
 
     static final float MAX_PIXELS = 4096f * 4096f;
 
+    // The scale that brings this many pixels down to at most MAX_PIXELS, or 1.
+    static float capScale(float pixels) {
+        return pixels > MAX_PIXELS ? (float) Math.sqrt(MAX_PIXELS / pixels) : 1;
+    }
+
     // The box (in pixels) Glide decodes an image for in a view: the view's
     // size, or that scaled down to at most MAX_PIXELS pixels, keeping its
     // shape. Glide crops or fits an image to the box, scaling it up if it's
@@ -192,9 +197,8 @@ final class FastImageSourceSize {
     // get a bitmap its size, which Android won't draw over 100 MB ("Canvas:
     // trying to draw too large bitmap"). The view scales it up as it draws it.
     static int[] box(int width, int height) {
-        float pixels = (float) width * height;
-        if (width <= 0 || height <= 0 || pixels <= MAX_PIXELS) return new int[]{width, height};
-        double scale = Math.sqrt(MAX_PIXELS / pixels);
+        float scale = capScale((float) width * height);
+        if (width <= 0 || height <= 0 || scale == 1) return new int[]{width, height};
         return new int[]{
                 Math.max(1, (int) Math.floor(width * scale)),
                 Math.max(1, (int) Math.floor(height * scale))};
@@ -203,8 +207,7 @@ final class FastImageSourceSize {
     private static final class FullSize extends DownsampleStrategy {
         @Override
         public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
-            float pixels = (float) sourceWidth * sourceHeight;
-            return pixels > MAX_PIXELS ? (float) Math.sqrt(MAX_PIXELS / pixels) : 1;
+            return capScale((float) sourceWidth * sourceHeight);
         }
 
         @Override

@@ -744,8 +744,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // view after the fade, still drawing (and animating) the previous image.
     @Nullable
     private ValueAnimator mFade;
+    // At most the size Android draws a bitmap at (see
+    // FastImageSourceSize.box), stretched to the view.
     @Nullable
     private Bitmap mFadeFrom;
+    private final Rect mFadeFromBounds = new Rect();
     // Or, instead of a copy, the placeholder prop the view showed, with the
     // matrix it drew it with: FastImage's own drawable, which Glide doesn't
     // recycle, so it's drawn again as it was, rather than copied into a
@@ -778,8 +781,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             fromMatrix = new Matrix(getImageMatrix());
         } else if (shown != null) {
             try {
-                from = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                onDraw(new Canvas(from));
+                int[] box = FastImageSourceSize.box(width, height);
+                from = Bitmap.createBitmap(box[0], box[1], Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(from);
+                canvas.scale((float) box[0] / width, (float) box[1] / height);
+                onDraw(canvas);
             } catch (OutOfMemoryError | RuntimeException e) {
                 // Out of memory, or a hardware bitmap (Android 8+; an app's
                 // Glide module can enable them), which a software canvas
@@ -903,7 +909,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             drawFadeFrom(canvas, mFadeFromDrawable, 255 - alpha);
         } else {
             mFadeFromPaint.setAlpha(255 - alpha);
-            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+            mFadeFromBounds.set(0, 0, getWidth(), getHeight());
+            canvas.drawBitmap(mFadeFrom, null, mFadeFromBounds, mFadeFromPaint);
         }
         mFadeInPaint.setAlpha(alpha);
         canvas.saveLayer(0, 0, width, height, mFadeInPaint);
@@ -933,7 +940,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             drawFadeFrom(canvas, mFadeFromDrawable, 255);
         } else if (mFadeFrom != null) {
             mFadeFromPaint.setAlpha(255);
-            canvas.drawBitmap(mFadeFrom, 0, 0, mFadeFromPaint);
+            mFadeFromBounds.set(0, 0, getWidth(), getHeight());
+            canvas.drawBitmap(mFadeFrom, null, mFadeFromBounds, mFadeFromPaint);
         }
         // Without the drawable asking the view to draw again.
         Drawable.Callback callback = image.getCallback();
@@ -1616,7 +1624,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         super.onSizeChanged(w, h, oldw, oldh);
         // During a fade, what the view showed was drawn at the old size: the
         // image fades in over nothing instead.
-        if (mFadeFrom != null && (w != mFadeFrom.getWidth() || h != mFadeFrom.getHeight())) {
+        if (mFadeFrom != null && (w != oldw || h != oldh)) {
             mFadeFrom.recycle();
             mFadeFrom = null;
             invalidate();
