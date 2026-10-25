@@ -7803,6 +7803,68 @@ function LargeViewFadeCase() {
     )
 }
 
+// The same view with a GIF: the view's own copy of its animation (see
+// FastImageGif) cropped each frame to the view's size, about 160 MB.
+function LargeViewGifCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: imageUrl('loop-once.gif?case=large-view-gif'),
+                    }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-gif"
+                status={status}
+                description={{
+                    checks: "A GIF in a view far larger than the screen shows (on Android each frame was cropped to the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'Loads an 80x80 GIF that plays once, magenta then cyan, into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).',
+                    shows: 'A 120x120 cyan square. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// The same view with a placeholder url, shown while the image comes from the
+// slow server: the placeholder was loaded at the view's size, about 160 MB.
+function LargeViewPlaceholderCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: slowImageUrl(
+                            'quadrants.png?case=large-view-placeholder&delay=600',
+                        ),
+                        headers: SLOW_HEADERS,
+                    }}
+                    placeholder={{
+                        uri: imageUrl('logo.png?case=large-view-placeholder'),
+                    }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-placeholder"
+                status={status}
+                description={{
+                    checks: "A placeholder url in a view far larger than the screen shows while the image loads (on Android it was loaded at the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'The large-view case, with the image from the slow server (about 4 s) and a placeholder url of the logo, which shows meanwhile. Passes once the image has loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -10580,11 +10642,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // A crash takes the app down: on its own.
         name: 'large-view',
         description: {
-            checks: 'An image in a view far larger than the screen shows, also cross-dissolving to a new source.',
+            checks: 'An image in a view far larger than the screen shows: a still image, one cross-dissolving to a new source, a GIF and a placeholder url.',
         },
         cases: [
             <LargeViewCase key="large-view" />,
             <LargeViewFadeCase key="large-view-fade" />,
+            <LargeViewGifCase key="large-view-gif" />,
+            <LargeViewPlaceholderCase key="large-view-placeholder" />,
         ],
     },
     {
