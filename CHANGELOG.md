@@ -1,3 +1,10 @@
+## [10.9.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.1...v10.9.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* **android:** keep bitmaps for very large views under Android's drawing limit ([#1379](https://github.com/DylanVann/react-native-fast-image/issues/1379)) ([d11bb53](https://github.com/DylanVann/react-native-fast-image/commit/d11bb53f73dd32805a73ba5d69d55da0c9018f05))
+
 ## [10.9.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.0...v10.9.1) (2026-10-25)
 
 
