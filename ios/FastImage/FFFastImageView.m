@@ -27,7 +27,7 @@
 // The view's size when the image showing was blurred.
 @property(nonatomic, assign) CGSize blurredForSize;
 // The pixels per point a tinted vector image showing was drawn at (see
-// rasterizedImage), or zero.
+// rasterizedImage), or zero (also for an image just set).
 @property(nonatomic, assign) CGFloat rasterizedScale;
 // The blurred image showing (untinted), so a tint change can re-show it.
 @property(nonatomic, strong) UIImage* blurredImage;
@@ -637,6 +637,7 @@ static void FFFShareAnimationBudget(void) {
 
 - (void) setImage: (UIImage*)image {
     self.imageCount++;
+    self.rasterizedScale = 0;
     self.showsHash = image != nil && (image == self.hashImage || image == self.urlPlaceholderImage);
     self.showsPlaceholder = self.showsHash || (image != nil && image == _placeholder);
     if ([_imageRendering isEqualToString: @"pixelated"]) {
@@ -667,18 +668,22 @@ static void FFFShareAnimationBudget(void) {
 }
 
 // Pixels per point of the image that draw it sharp at the size the view shows
-// it at, for its objectFit (fill by its larger scale), or zero before the
-// view has a size.
+// it at, for its objectFit (fill by its larger scale), at least its own size
+// with downsample false (for a view zoomed in on with a transform), or zero
+// while the view shows none of it (it has no size yet).
 - (CGFloat) rasterScale: (UIImage*)image {
     CGSize size = image.size;
-    CGSize view = self.bounds.size;
-    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+    if (size.width <= 0 || size.height <= 0) {
         return 0;
     }
+    CGSize view = self.bounds.size;
     CGFloat x = view.width / size.width;
     CGFloat y = view.height / size.height;
+    // A source's placeholder is shown as with contain (updateContentMode).
+    BOOL contain = _objectFit == FFFObjectFitContain ||
+        (self.showsHash && (_objectFit == FFFObjectFitNone || _objectFit == FFFObjectFitScaleDown));
     CGFloat shown;
-    switch (_objectFit) {
+    switch (contain ? FFFObjectFitContain : _objectFit) {
         case FFFObjectFitContain:
             shown = MIN(x, y);
             break;
@@ -692,6 +697,9 @@ static void FFFShareAnimationBudget(void) {
             shown = MAX(x, y);
             break;
     }
+    if (!_downsample) {
+        shown = MAX(shown, 1);
+    }
     return shown * (self.window.screen.scale ?: [UIScreen mainScreen].scale);
 }
 
@@ -703,6 +711,12 @@ static void FFFShareAnimationBudget(void) {
 - (UIImage*) rasterizedImage: (UIImage*)image {
     CGSize size = image.size;
     CGFloat scale = [self rasterScale: image];
+    // Drawn again because the view grew (an animated resize grows it a little
+    // every frame): a quarter larger than it needs, so it isn't drawn again on
+    // every frame.
+    if (self.rasterizedScale > 0 && scale > self.rasterizedScale) {
+        scale *= 1.25;
+    }
     self.rasterizedScale = scale;
     if (scale <= 0) {
         return image;
