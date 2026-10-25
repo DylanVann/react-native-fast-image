@@ -87,11 +87,23 @@
 // dynamicRangeLimit switched between HDR and SDR: the image is decoded again,
 // quietly (see reloadForDynamicRange).
 @property(nonatomic, assign) BOOL needsDynamicRangeReload;
+// The animated image whose frames count in the views' shared budget (see
+// FFFShareAnimationBudget), its tint (the transformer's key) if it's tinted,
+// and the view's share of the budget in bytes.
+@property(nonatomic, strong) UIImage* budgetedImage;
+@property(nonatomic, copy) NSString* budgetedTint;
+@property(nonatomic, assign) NSUInteger animationShare;
+
+- (id) animationBuffer;
+- (NSUInteger) animationBytes;
 
 @end
 
 // When the app last went to the background (CACurrentMediaTime), or 0.
 static CFTimeInterval FFFEnteredBackgroundAt = 0;
+
+// The views playing an animated image (in a window, not paused).
+static NSHashTable<FFFastImageView*>* FFFAnimatingViews;
 
 static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, BOOL downscale);
 
@@ -124,7 +136,104 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     // Images are decoded at about the size they're shown at unless
     // downsample is false, as on Android.
     _downsample = YES;
+    // An animation that stops (paused, or out of the window) lets go of its
+    // decoded frames, keeping the one it shows, unless another view plays
+    // them (see FFFShareAnimationBudget).
+    self.clearBufferWhenStopped = YES;
     return self;
+}
+
+// Animated images' decoded frames. SDAnimatedImageView keeps up to
+// maxBufferSize bytes of them per view, and by default sizes that for each
+// view alone (up to a fifth of the device's memory), so many views playing
+// animations at once can keep more than the device can spare: iOS doesn't
+// count these frames in the app's memory, and once the device runs out it
+// closes other apps, then the app. Instead the playing views share one
+// budget, 1/8 of the device's memory: animations that fit keep all their
+// frames, smallest first, and the ones that don't split what's left evenly,
+// decoding frames again as they play (as Android does). Views showing the
+// same image share its frames (one buffer per image, and per tint, in
+// SDWebImage), so it counts once. Stopping a view that shares its frames with
+// another one playing keeps them.
+static void FFFShareAnimationBudget(void) {
+    NSArray<FFFastImageView*>* views = FFFAnimatingViews.allObjects;
+    NSMutableDictionary<id, NSNumber*>* needs = [NSMutableDictionary new];
+    NSCountedSet* players = [NSCountedSet new];
+    for (FFFastImageView* view in views) {
+        needs[[view animationBuffer]] = @([view animationBytes]);
+        [players addObject: [view animationBuffer]];
+    }
+    NSArray* buffers = [needs keysSortedByValueUsingSelector: @selector(compare:)];
+    NSMutableDictionary<id, NSNumber*>* shares = [NSMutableDictionary new];
+    NSUInteger left = NSProcessInfo.processInfo.physicalMemory / 8;
+    NSUInteger count = buffers.count;
+    for (id buffer in buffers) {
+        NSUInteger share = MIN([needs objectForKey: buffer].unsignedIntegerValue, left / count);
+        shares[buffer] = @(share);
+        left -= share;
+        count--;
+    }
+    for (FFFastImageView* view in views) {
+        [view setAnimationShare: shares[[view animationBuffer]].unsignedIntegerValue];
+        view.clearBufferWhenStopped = [players countForObject: [view animationBuffer]] == 1;
+    }
+}
+
+// The frame buffer the view's animation uses, as a key: its image's, or the
+// image's in its tint (SDWebImage's player then decodes through a provider
+// that's equal for the same image and transformer key).
+- (id) animationBuffer {
+    if (self.budgetedTint) {
+        return [NSString stringWithFormat: @"%p %@", self.budgetedImage, self.budgetedTint];
+    }
+    return [NSValue valueWithNonretainedObject: self.budgetedImage];
+}
+
+// The bytes of all the animation's frames, decoded: as SDAnimatedImagePlayer
+// counts them, each the size of the first.
+- (NSUInteger) animationBytes {
+    CGImageRef frame = self.budgetedImage.CGImage;
+    return CGImageGetBytesPerRow(frame) * CGImageGetHeight(frame) * [(id<SDAnimatedImage>)self.budgetedImage animatedImageFrameCount];
+}
+
+- (void) setAnimationShare: (NSUInteger)share {
+    NSUInteger previous = _animationShare;
+    _animationShare = share;
+    // At least a frame: 0 would be SDWebImage's own size.
+    self.maxBufferSize = MAX(share, 1);
+    // The player only trims its buffer as it decodes more frames, which it
+    // stops doing once it has them all: a smaller share than the frames
+    // drops them, to fill again up to it.
+    if (share < previous && share < [self animationBytes]) {
+        [self.player clearFrameBuffer];
+    }
+}
+
+// Joins or leaves the views sharing the budget, as the view's animated image,
+// its tint, its window or paused change.
+- (void) updateAnimationBudget {
+    UIImage* image = self.player && self.window && !_paused ? super.image : nil;
+    NSString* tint = image ? self.animationTransformer.transformerKey : nil;
+    if (image == self.budgetedImage && (tint == self.budgetedTint || [tint isEqualToString: self.budgetedTint])) {
+        return;
+    }
+    self.budgetedImage = image;
+    self.budgetedTint = tint;
+    if (!FFFAnimatingViews) {
+        FFFAnimatingViews = [NSHashTable weakObjectsHashTable];
+    }
+    if (image) {
+        [FFFAnimatingViews addObject: self];
+    } else {
+        [FFFAnimatingViews removeObject: self];
+        _animationShare = 0;
+    }
+    FFFShareAnimationBudget();
+}
+
+- (void) didMoveToWindow {
+    [super didMoveToWindow];
+    [self updateAnimationBudget];
 }
 
 - (void) setImageRendering: (NSString*)imageRendering {
@@ -263,6 +372,7 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     } else {
         [self startAnimating];
     }
+    [self updateAnimationBudget];
 }
 
 - (void) setObjectFit: (FFFObjectFit)objectFit {
@@ -512,6 +622,10 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     BOOL animated = [image conformsToProtocol: @protocol(SDAnimatedImage)] && [(id<SDAnimatedImage>)image animatedImageFrameCount] > 1;
     self.tintColor = tint;
     self.animationTransformer = tint && animated ? [SDImageTintTransformer transformerWithColor: tint] : nil;
+    // SDAnimatedImageView stops an animated image's new player as it sets it
+    // up, which would drop the frames of other views playing the same image.
+    BOOL clears = self.clearBufferWhenStopped;
+    self.clearBufferWhenStopped = NO;
     if (tint && animated) {
         BOOL changed = super.image != image;
         super.image = image;
@@ -532,7 +646,9 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
         }
         super.image = image;
     }
+    self.clearBufferWhenStopped = clears;
     [self updateContentMode];
+    [self updateAnimationBudget];
 }
 
 - (void) setBlurRadius: (CGFloat)blurRadius {
@@ -1539,6 +1655,13 @@ NSString *FFFErrorMessage(NSError *error)
     [self sd_cancelLatestImageLoad];
     // Fabric frees views it doesn't recycle without stop.
     [_urlPlaceholderOperation cancel];
+    // The other views share its part of the budget (it's gone from the
+    // views by then).
+    if (_budgetedImage) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            FFFShareAnimationBudget();
+        });
+    }
 }
 
 @end
