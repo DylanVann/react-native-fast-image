@@ -142,7 +142,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
-    [FFFDownsampledImage addFullSizeToContext:context];
+    [FFFDownsampledImage addFullSizeToContext:context uncapped:NO];
     return context;
 }
 
@@ -313,8 +313,13 @@ static NSDictionary *FFFFile(NSString *path)
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
+                // The image's own size, also when it was decoded smaller.
+                CGSize size = [FFFDownsampledImage sourceSizeOfImage:image];
+                if (size.width <= 0 || size.height <= 0) {
+                    size = image.size;
+                }
                 results[idx] = image
-                    ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
+                    ? @{@"ok": @YES, @"width": @(size.width), @"height": @(size.height)}
                     : FFFFailure([source errorMessage:error]);
                 finishOne();
             });

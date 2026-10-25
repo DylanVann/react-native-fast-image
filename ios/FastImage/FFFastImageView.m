@@ -1228,12 +1228,20 @@ NSString *FFFErrorMessage(NSError *error)
 // size, keeping the current one until then. It comes from the disk cache
 // (the downloaded file is kept there whatever size it's decoded at).
 - (void) reloadIfResized {
-    if (!_source || _needsReload || self.hasErrored || CGSizeEqualToSize(self.decodedBox, CGSizeZero)) {
+    if (!_source || _needsReload || self.hasErrored) {
         return;
     }
-    // Already at full size (it's no larger than the view it was decoded for).
     UIImage* image = self.originalImage ?: super.image;
-    if (self.hasCompleted && CGSizeEqualToSize(image.size, [FFFDownsampledImage sourceSizeOfImage: image])) {
+    // objectFit none shows an image at its own size: one over 64 megapixels
+    // decoded at 16 for another fit is loaded again.
+    BOOL capped = _objectFit == FFFObjectFitNone && self.hasCompleted &&
+        [FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES];
+    if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
+        return;
+    }
+    // Already at full size (it's no larger than the view it was decoded for,
+    // or decoded at 16 megapixels).
+    if (self.hasCompleted && !capped && [FFFDownsampledImage isFullSizeImage: image]) {
         return;
     }
     CGSize box = [self decodeBox];
@@ -1410,7 +1418,8 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextImageDecodeToHDR] = @([self decodesToHDR]);
     }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
-        [FFFDownsampledImage addFullSizeToContext: context];
+        // objectFit none shows it at its own size, however large.
+        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
