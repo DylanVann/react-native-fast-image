@@ -1971,7 +1971,7 @@
             "svg-tint-zoom": {
                 "checks": "downsample={false} keeps a tinted SVG zoomed in on with a transform sharp, up to its own size (on iOS it was drawn at the view's size and scaled up).",
                 "steps": "Loads a 120×120 SVG (a black ring) with tintColor green and downsample={false} in a 24 pt view, scaled 5 times with a transform, so it shows at 120 pt. Passes once it has loaded (and a moment more).",
-                "shows": "A green ring filling a 120 pt square, with sharp edges."
+                "shows": "A green ring filling a 120 pt square, with sharp edges (on Android soft: Android draws an SVG for its view's size, also with downsample={false})."
             }
         }
     },
