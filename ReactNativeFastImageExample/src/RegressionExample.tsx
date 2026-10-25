@@ -7720,6 +7720,75 @@ function DownsampleZoomCase() {
     )
 }
 
+// An image over 64 megapixels (10000x8000), at full size, zoomed in on its
+// top left corner, of 1-pixel stripes: with downsample={false} it's decoded at
+// 16 megapixels (on iOS it was decoded at its own size, 320 MB), so the stripes
+// average out, and with objectFit none at its own size on iOS (on Android at
+// 16 megapixels too, which Android can still draw). onLoad and preload report
+// its own size.
+function DownsampleOverLimitCase() {
+    const capped = imageUrl('stripes-80mp.png?case=downsample-over-limit')
+    const [sizes, setSizes] = useState<string[]>([])
+    const [preloaded, setPreloaded] = useState<string>()
+    const onLoad = (e: { nativeEvent: { width: number; height: number } }) => {
+        // Read now: the event is reused after the handler.
+        const size = `${e.nativeEvent.width}x${e.nativeEvent.height}`
+        setSizes((s) => [...s, size])
+    }
+    const expected = '10000x8000'
+    const done = sizes.length === 2 && preloaded !== undefined
+    return (
+        <View style={styles.row}>
+            <View style={downsampleStyles.overLimit}>
+                <FastImage
+                    style={downsampleStyles.overLimitZoomed}
+                    source={{ uri: capped }}
+                    objectFit="fill"
+                    downsample={false}
+                    onLoad={(e) => {
+                        onLoad(e)
+                        // From the memory cache.
+                        FastImage.preload([{ uri: capped }]).then(([result]) =>
+                            setPreloaded(
+                                result.ok
+                                    ? `${result.width}x${result.height}`
+                                    : result.error,
+                            ),
+                        )
+                    }}
+                />
+            </View>
+            <FastImage
+                style={[downsampleStyles.overLimit, styles.gap]}
+                source={{
+                    uri: imageUrl(
+                        'stripes-80mp.png?case=downsample-over-limit-none',
+                    ),
+                }}
+                objectFit="none"
+                objectPosition="left top"
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="downsample-over-limit"
+                status={
+                    !done
+                        ? 'waiting'
+                        : sizes.every((s) => s === expected) &&
+                            preloaded === expected
+                          ? 'OK'
+                          : `onLoad ${sizes.join(', ')}, preload ${preloaded}, expected ${expected}`
+                }
+                description={{
+                    checks: 'An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.',
+                    steps: 'Loads a 10000x8000 image, white with 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit="none" and objectPosition="left top". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.',
+                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two gray rectangles (Android decodes both at 16 megapixels).',
+                }}
+            />
+        </View>
+    )
+}
+
 // A view much larger than the screen (2400x2400, about 6300 px square on the
 // Android emulator), drawn 20 times smaller with a transform. Glide fits an
 // image to the view's size, so the bitmap would be about 160 MB, which Android
@@ -7927,7 +7996,17 @@ const downsampleStyles = StyleSheet.create({
     fill: { flex: 1 },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
-    overLimit: { width: 96, height: 64 },
+    overLimit: { width: 96, height: 64, overflow: 'hidden' },
+    // Scaled 100 times about its center, so its top left corner is the
+    // clip's: 1 point per pixel of the image.
+    overLimitZoomed: {
+        position: 'absolute',
+        left: 4950,
+        top: 3960,
+        width: 100,
+        height: 80,
+        transform: [{ scale: 100 }],
+    },
     zoomClip: {
         width: 140,
         height: 88,
@@ -10668,18 +10747,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={downsampleStyles.rotated}
                 objectFit="contain"
             />,
-            <DownsampleCase
-                key="downsample-over-limit"
-                id="downsample-over-limit"
-                description={{
-                    checks: 'An image over 16 megapixels is decoded at most at that size, also with downsample={false}, and onLoad still reports its own size.',
-                    steps: 'Loads a 6000x4000 (24-megapixel) image of four colored quadrants into two 96x64 views: the left with downsample, the right with downsample={false} (decoded at about 5016x3344). Passes once both onLoad events report 6000x4000.',
-                    shows: 'The same red, green, blue and yellow quadrants twice.',
-                }}
-                image="quadrants-24mp.png"
-                size="6000x4000"
-                style={downsampleStyles.overLimit}
-            />,
+            <DownsampleOverLimitCase key="downsample-over-limit" />,
             <DownsampleMemoryCase key="downsample-memory" />,
             <DownsamplePreloadCase key="downsample-preload" />,
         ],

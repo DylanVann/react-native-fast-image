@@ -581,9 +581,9 @@
                 "shows": "Two upright blue arrows over the word UP, each in a red frame, equally sharp. A sideways arrow is a failure."
             },
             "downsample-over-limit": {
-                "checks": "An image over 16 megapixels is decoded at most at that size, also with downsample={false}, and onLoad still reports its own size.",
-                "steps": "Loads a 6000x4000 (24-megapixel) image of four colored quadrants into two 96x64 views: the left with downsample, the right with downsample={false} (decoded at about 5016x3344). Passes once both onLoad events report 6000x4000.",
-                "shows": "The same red, green, blue and yellow quadrants twice."
+                "checks": "An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.",
+                "steps": "Loads a 10000x8000 image, white with 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit=\"none\" and objectPosition=\"left top\". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.",
+                "shows": "On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two gray rectangles (Android decodes both at 16 megapixels)."
             },
             "downsample-memory": {
                 "checks": "A view that downsamples an image from the disk cache, after a view showed it at full size, doesn't leave its smaller copy where full-size views look (iOS kept it in the memory cache under the full-size image's key).",
