@@ -54,11 +54,12 @@ static CGSize FFFPixelSize(NSData* data) {
 
 // The cache a downsampled load reads the downloaded file from (SDWebImage's
 // original image cache): the manager's, without its memory, except for an
-// image decoded at full size. SDWebImageManager (5.21.6 and later) puts the
-// image it decodes from that file in memory under the full-size image's key,
-// also when it's decoded smaller, where a full-size load of the url started
-// at the same time could find it (SDImageCache looks in memory again before
-// it decodes from disk) and show it blurry.
+// image decoded at full size, which full-size loads can use (5.21.5 keeps
+// every downsampled decode under its own key). SDWebImageManager (5.21.6 and
+// later) puts the image it decodes from that file in memory under the
+// full-size image's key, also when it's decoded smaller, where a full-size
+// load of the url started at the same time could find it (SDImageCache looks
+// in memory again before it decodes from disk) and show it blurry.
 @interface FFFOriginalImageCache : NSObject <SDImageCache>
 @end
 
@@ -112,7 +113,8 @@ static CGSize FFFPixelSize(NSData* data) {
     id<SDImageCache> cache = self.cache;
     // An image decoded at full size (the view needs most of it) is the one
     // full-size loads use: kept in memory for them, as without downsample.
-    BOOL memory = cacheType != SDImageCacheTypeDisk && image && [FFFDownsampledImage sourceSizeOfImage: image].width > 0 &&
+    BOOL memory = (cacheType == SDImageCacheTypeMemory || cacheType == SDImageCacheTypeAll) && image &&
+        [FFFDownsampledImage sourceSizeOfImage: image].width > 0 &&
         ![FFFDownsampledImage isSmallerFullSizeImage: image context: nil];
     if (memory) {
         [cache storeImage: image imageData: nil forKey: key cacheType: SDImageCacheTypeMemory completion: nil];
