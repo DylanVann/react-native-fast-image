@@ -7706,24 +7706,7 @@ function DownsampleZoomCase() {
     const source = { uri: imageUrl('text-page.png?case=downsample-zoom') }
     return (
         <View style={blurStyles.stacked}>
-            <View style={blurStyles.images}>
-                {[true, false].map((downsample) => (
-                    <View
-                        key={String(downsample)}
-                        style={[
-                            downsampleStyles.zoomClip,
-                            !downsample && styles.gap,
-                        ]}
-                    >
-                        <FastImage
-                            style={downsampleStyles.zoomed}
-                            source={source}
-                            downsample={downsample}
-                            onLoad={onLoad}
-                        />
-                    </View>
-                ))}
-            </View>
+            <DownsampleZoomPair source={source} onLoad={onLoad} />
             <CaseStatus
                 id="downsample-zoom"
                 status={status}
@@ -7861,6 +7844,77 @@ function LargeViewPlaceholderCase() {
                     shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
                 }}
             />
+        </View>
+    )
+}
+
+// As DownsampleZoomCase, with the image on disk but not in memory (as after
+// the app restarts), both views mounted together. The downsampled view's
+// image, decoded from the disk cache, was put in memory under the full-size
+// image's key while the full-size view's load was reading the same file, so
+// the right one showed it, blurry. A url of its own each run, preloaded to
+// disk only (memoryCache: false).
+function DownsampleFromDiskCase() {
+    const [uri] = useState(() =>
+        imageUrl(`text-page.png?case=downsample-from-disk-${RUN}`),
+    )
+    const [preloaded, setPreloaded] = useState<PreloadResult>()
+    const [status, onLoad] = useLoadedThenOk(2)
+    useEffect(() => {
+        FastImage.preload([{ uri, memoryCache: false }]).then(([r]) =>
+            setPreloaded(r),
+        )
+    }, [uri])
+    return (
+        <View style={blurStyles.stacked}>
+            <DownsampleZoomPair
+                source={preloaded?.ok ? { uri } : undefined}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="downsample-from-disk"
+                status={
+                    preloaded && !preloaded.ok
+                        ? `preload: ${preloaded.error}`
+                        : status
+                }
+                description={{
+                    checks: "downsample={false} decodes at full size an image that's on disk but not in memory (as after the app restarts) when a downsampled view of it mounts at the same time (the downsampled view's copy showed, blurry).",
+                    steps: 'Preloads a 1600x1000 page of text to the disk cache only (memoryCache: false), then mounts two 80x50 views of it together, drawn 4 times larger with a transform and clipped to 140x88: the left with downsample, the right with downsample={false}. Passes once both have loaded (and a moment more).',
+                    shows: 'The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// The page's top-left corner zoomed in on, downsampled (left) and with
+// downsample={false} (right).
+function DownsampleZoomPair({
+    source,
+    onLoad,
+}: {
+    source: { uri: string } | undefined
+    onLoad: () => void
+}) {
+    return (
+        <View style={blurStyles.images}>
+            {[true, false].map((downsample) => (
+                <View
+                    key={String(downsample)}
+                    style={[
+                        downsampleStyles.zoomClip,
+                        !downsample && styles.gap,
+                    ]}
+                >
+                    <FastImage
+                        style={downsampleStyles.zoomed}
+                        source={source}
+                        downsample={downsample}
+                        onLoad={onLoad}
+                    />
+                </View>
+            ))}
         </View>
     )
 }
@@ -10650,6 +10704,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <LargeViewGifCase key="large-view-gif" />,
             <LargeViewPlaceholderCase key="large-view-placeholder" />,
         ],
+    },
+    {
+        name: 'downsample-from-disk',
+        description: {
+            checks: "downsample={false} decodes at full size an image that's on disk but not in memory while a downsampled view of it loads.",
+        },
+        cases: [<DownsampleFromDiskCase key="downsample-from-disk" />],
     },
     {
         name: 'loading',
