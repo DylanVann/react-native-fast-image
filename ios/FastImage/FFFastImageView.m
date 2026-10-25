@@ -56,6 +56,8 @@
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
 @property(nonatomic, assign) BOOL decodedCover;
+// Whether it's decoded at full size however large (objectFit none).
+@property(nonatomic, assign) BOOL decodedUncapped;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
 // The frame the view was laid out at (the box the image fits in), and how far
@@ -1234,7 +1236,7 @@ NSString *FFFErrorMessage(NSError *error)
     UIImage* image = self.originalImage ?: super.image;
     // objectFit none shows an image at its own size: one over 64 megapixels
     // decoded at 16 for another fit is loaded again.
-    BOOL capped = _objectFit == FFFObjectFitNone && self.hasCompleted &&
+    BOOL capped = _objectFit == FFFObjectFitNone && !self.decodedUncapped && self.hasCompleted &&
         [FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES];
     if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
         return;
@@ -1277,6 +1279,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     [self updateHashImage];
     self.decodedBox = CGSizeZero;
+    self.decodedUncapped = NO;
     // The previous load, if it's still running, is for a source the view no
     // longer shows: cancel it (a new download would, but a data uri or no
     // source doesn't start one), and ignore what it still sends (SDWebImage
@@ -1382,6 +1385,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
+    self.decodedUncapped = CGSizeEqualToSize(box, CGSizeZero) && _objectFit == FFFObjectFitNone;
     return [self contextForSource: _source box: box cover: self.decodedCover];
 }
 
