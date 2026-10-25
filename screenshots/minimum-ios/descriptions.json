@@ -226,6 +226,11 @@
                 "steps": "Loads a 10000x8000 image, white with 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit=\"none\" and objectPosition=\"left top\". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.",
                 "shows": "On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles: Android decodes both at 16 megapixels, from every other pixel of the PNG (the white stripes)."
             },
+            "downsample-over-limit-shared": {
+                "checks": "objectFit none shows an image over 64 megapixels at its own size on iOS when another view of the url decodes it at 16 megapixels at the same time, from the disk cache (the other view's copy showed, at less than half its size).",
+                "steps": "Preloads the 10000x8000 striped image of downsample-over-limit to the disk cache only (memoryCache: false), then shows it in the same two views, the right one 100 ms after the left. Passes 3 s after both have loaded (the right one loads again, without events).",
+                "shows": "On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles (decoded at 16 megapixels from every other pixel)."
+            },
             "downsample-memory": {
                 "checks": "A view that downsamples an image from the disk cache, after a view showed it at full size, doesn't leave its smaller copy where full-size views look (iOS kept it in the memory cache under the full-size image's key).",
                 "steps": "Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled, from the disk cache); 300 ms after that, another 80x50 view with downsample={false}. Passes once the third has loaded; the screenshot checks its sharpness.",

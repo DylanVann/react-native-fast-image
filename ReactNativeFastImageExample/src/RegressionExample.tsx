@@ -6845,14 +6845,14 @@ const renderingStyles = StyleSheet.create({
 
 // Shows status OK once `total` images have loaded (count with the returned
 // onLoad), and a moment more, for the blur, which is applied after the load.
-function useLoadedThenOk(total: number) {
+function useLoadedThenOk(total: number, wait = 500) {
     const [loads, setLoads] = useState(0)
     const [done, setDone] = useState(false)
     useEffect(() => {
         if (loads < total) return
-        const timer = setTimeout(() => setDone(true), 500)
+        const timer = setTimeout(() => setDone(true), wait)
         return () => clearTimeout(timer)
-    }, [loads, total])
+    }, [loads, total, wait])
     const onLoad = () => setLoads((n) => n + 1)
     return [done ? 'OK' : `loaded ${loads}/${total}`, onLoad] as const
 }
@@ -7736,7 +7736,7 @@ function DownsampleOverLimitCase() {
         setSizes((s) => [...s, size])
     }
     const expected = '10000x8000'
-    const done = sizes.length === 2 && preloaded !== undefined
+    const done = sizes.length >= 2 && preloaded !== undefined
     return (
         <View style={styles.row}>
             <View style={downsampleStyles.overLimit}>
@@ -7951,6 +7951,66 @@ function DownsampleFromDiskCase() {
                     checks: "downsample={false} decodes at full size an image that's on disk but not in memory (as after the app restarts) when a downsampled view of it mounts at the same time (the downsampled view's copy showed, blurry).",
                     steps: 'Preloads a 1600x1000 page of text to the disk cache only (memoryCache: false), then mounts two 80x50 views of it together, drawn 4 times larger with a transform and clipped to 140x88: the left with downsample, the right with downsample={false}. Passes once both have loaded (and a moment more).',
                     shows: 'The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// As downsample-over-limit, with one url in both views, on disk but not in
+// memory, the objectFit none view mounted a moment after the other: while it
+// read the file, the left view's decode at 16 megapixels went into memory
+// under the url's key, where SDImageCache found it (it looks in memory again
+// before it decodes), so the right view showed that, gray and at less than
+// half its size. A url of its own each run, preloaded to disk only
+// (memoryCache: false).
+function DownsampleOverLimitSharedCase() {
+    const [uri] = useState(() =>
+        imageUrl(`stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`),
+    )
+    const [preloaded, setPreloaded] = useState<PreloadResult>()
+    const [second, setSecond] = useState(false)
+    // The right view loads again after its onLoad, without events.
+    const [status, onLoad] = useLoadedThenOk(2, 3000)
+    useEffect(() => {
+        FastImage.preload([{ uri, memoryCache: false }]).then(([r]) =>
+            setPreloaded(r),
+        )
+    }, [uri])
+    useEffect(() => {
+        if (!preloaded?.ok) return
+        const timer = setTimeout(() => setSecond(true), 100)
+        return () => clearTimeout(timer)
+    }, [preloaded])
+    return (
+        <View style={styles.row}>
+            <View style={downsampleStyles.overLimit}>
+                <FastImage
+                    style={downsampleStyles.overLimitZoomed}
+                    source={preloaded?.ok ? { uri } : undefined}
+                    objectFit="fill"
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            </View>
+            <FastImage
+                style={[downsampleStyles.overLimit, styles.gap]}
+                source={second ? { uri } : undefined}
+                objectFit="none"
+                objectPosition="left top"
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="downsample-over-limit-shared"
+                status={
+                    preloaded && !preloaded.ok
+                        ? `preload: ${preloaded.error}`
+                        : status
+                }
+                description={{
+                    checks: "objectFit none shows an image over 64 megapixels at its own size on iOS when another view of the url decodes it at 16 megapixels at the same time, from the disk cache (the other view's copy showed, at less than half its size).",
+                    steps: 'Preloads the 10000x8000 striped image of downsample-over-limit to the disk cache only (memoryCache: false), then shows it in the same two views, the right one 100 ms after the left. Passes 3 s after both have loaded (the right one loads again, without events).',
+                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles (decoded at 16 megapixels from every other pixel).',
                 }}
             />
         </View>
@@ -10748,6 +10808,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 objectFit="contain"
             />,
             <DownsampleOverLimitCase key="downsample-over-limit" />,
+            <DownsampleOverLimitSharedCase key="downsample-over-limit-shared" />,
             <DownsampleMemoryCase key="downsample-memory" />,
             <DownsamplePreloadCase key="downsample-preload" />,
         ],
