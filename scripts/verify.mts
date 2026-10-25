@@ -1135,20 +1135,27 @@ function idbRecordScreen(file: string, screen: Screen) {
         const seconds = ((arrivals.at(-1) ?? 0) - (arrivals[0] ?? 0)) / 1000
         return `${arrivals.length} frames (${width}x${height}) in ${seconds.toFixed(1)} s, longest gap ${Math.max(0, ...gaps)} ms${odd ? `, ${odd} messages of another size` : ''}`
     }
-    // Each frame's average color in the middle half of `area` (points), as
-    // frameColors does it.
+    // Each frame's average color in `area` (points): of the pixels wholly in
+    // its middle half, as frameColors (or in all of it when none is: a
+    // sample of a view's edge can be a few points wide, and a pixel per point
+    // only has one or two in it).
     const colors = (area: PixelRect, windowWidthDp: number) => {
         const px = width / windowWidthDp
-        const w = Math.max(2, Math.round((area.width / 2) * px))
-        const h = Math.max(2, Math.round((area.height / 2) * px))
-        const x = Math.min(
-            width - w,
-            Math.max(0, Math.round((area.x + area.width / 4) * px)),
-        )
-        const y = Math.min(
-            height - h,
-            Math.max(0, Math.round((area.y + area.height / 4) * px)),
-        )
+        const inside = (start: number, length: number, limit: number) => {
+            const span = (from: number, to: number) => [
+                Math.max(0, Math.ceil(from * px - 1e-6)),
+                Math.min(limit, Math.floor(to * px + 1e-6)),
+            ]
+            let [a, b] = span(start + length / 4, start + (length * 3) / 4)
+            if (b <= a) [a, b] = span(start, start + length)
+            if (b <= a) {
+                a = Math.min(limit - 1, Math.floor((start + length / 2) * px))
+                b = a + 1
+            }
+            return [a, b - a]
+        }
+        const [x, w] = inside(area.x, area.width, width)
+        const [y, h] = inside(area.y, area.height, height)
         const fd = fs.openSync(raw, 'r')
         const line = Buffer.alloc(w * 4)
         try {
