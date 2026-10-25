@@ -7782,7 +7782,7 @@ function DownsampleOverLimitCase() {
                 description={{
                     checks: 'An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.',
                     steps: 'Loads a 10000x8000 image, white with 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit="none" and objectPosition="left top". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.',
-                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two gray rectangles (Android decodes both at 16 megapixels).',
+                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles: Android decodes both at 16 megapixels, from every other pixel of the PNG (the white stripes).',
                 }}
             />
         </View>
