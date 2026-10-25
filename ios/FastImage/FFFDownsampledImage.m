@@ -52,6 +52,102 @@ static CGSize FFFPixelSize(NSData* data) {
 
 @end
 
+// The cache a downsampled load reads the downloaded file from (SDWebImage's
+// original image cache): the manager's, without its memory, except for an
+// image decoded at full size, which full-size loads can use (5.21.5 keeps
+// every downsampled decode under its own key). SDWebImageManager (5.21.6 and
+// later) puts the image it decodes from that file in memory under the
+// full-size image's key, also when it's decoded smaller, where a full-size
+// load of the url started at the same time could find it (SDImageCache looks
+// in memory again before it decodes from disk) and show it blurry.
+@interface FFFOriginalImageCache : NSObject <SDImageCache>
+@end
+
+@interface FFFDownsampledImage ()
++ (BOOL) isSmallerFullSizeImage: (UIImage*)image context: (SDWebImageContext*)context;
+@end
+
+@implementation FFFOriginalImageCache
+
++ (instancetype) sharedCache {
+    static FFFOriginalImageCache* cache;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        cache = [FFFOriginalImageCache new];
+    });
+    return cache;
+}
+
+- (id<SDImageCache>) cache {
+    return [SDWebImageManager sharedManager].imageCache;
+}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+- (nullable id<SDWebImageOperation>) queryImageForKey: (nullable NSString*)key options: (SDWebImageOptions)options context: (nullable SDWebImageContext*)context completion: (nullable SDImageCacheQueryCompletionBlock)completionBlock {
+    return [self queryImageForKey: key options: options context: context cacheType: SDImageCacheTypeAll completion: completionBlock];
+}
+
+- (nullable id<SDWebImageOperation>) queryImageForKey: (nullable NSString*)key options: (SDWebImageOptions)options context: (nullable SDWebImageContext*)context cacheType: (SDImageCacheType)cacheType completion: (nullable SDImageCacheQueryCompletionBlock)completionBlock {
+    // The file, not an image in memory (another load's, of another size).
+    if (cacheType == SDImageCacheTypeMemory || cacheType == SDImageCacheTypeNone) {
+        if (completionBlock) {
+            completionBlock(nil, nil, SDImageCacheTypeNone);
+        }
+        return nil;
+    }
+    cacheType = SDImageCacheTypeDisk;
+    id<SDImageCache> cache = self.cache;
+    if ([cache respondsToSelector: @selector(queryImageForKey:options:context:cacheType:completion:)]) {
+        return [cache queryImageForKey: key options: options context: context cacheType: cacheType completion: completionBlock];
+    }
+    return [cache queryImageForKey: key options: options context: context completion: completionBlock];
+}
+
+- (void) storeImage: (nullable UIImage*)image imageData: (nullable NSData*)imageData forKey: (nullable NSString*)key cacheType: (SDImageCacheType)cacheType completion: (nullable SDWebImageNoParamsBlock)completionBlock {
+    [self storeImage: image imageData: imageData forKey: key options: 0 context: nil cacheType: cacheType completion: completionBlock];
+}
+
+- (void) storeImage: (nullable UIImage*)image imageData: (nullable NSData*)imageData forKey: (nullable NSString*)key options: (SDWebImageOptions)options context: (nullable SDWebImageContext*)context cacheType: (SDImageCacheType)cacheType completion: (nullable SDWebImageNoParamsBlock)completionBlock {
+    id<SDImageCache> cache = self.cache;
+    // An image decoded at full size (the view needs most of it) is the one
+    // full-size loads use: kept in memory for them, as without downsample.
+    BOOL memory = (cacheType == SDImageCacheTypeMemory || cacheType == SDImageCacheTypeAll) && image &&
+        [FFFDownsampledImage sourceSizeOfImage: image].width > 0 &&
+        ![FFFDownsampledImage isSmallerFullSizeImage: image context: nil];
+    if (memory) {
+        [cache storeImage: image imageData: nil forKey: key cacheType: SDImageCacheTypeMemory completion: nil];
+    }
+    if (cacheType != SDImageCacheTypeDisk && cacheType != SDImageCacheTypeAll) {
+        if (completionBlock) {
+            completionBlock();
+        }
+        return;
+    }
+    if ([cache respondsToSelector: @selector(storeImage:imageData:forKey:options:context:cacheType:completion:)]) {
+        [cache storeImage: image imageData: imageData forKey: key options: options context: context cacheType: SDImageCacheTypeDisk completion: completionBlock];
+    } else {
+        [cache storeImage: image imageData: imageData forKey: key cacheType: SDImageCacheTypeDisk completion: completionBlock];
+    }
+}
+
+- (void) removeImageForKey: (nullable NSString*)key cacheType: (SDImageCacheType)cacheType completion: (nullable SDWebImageNoParamsBlock)completionBlock {
+    [self.cache removeImageForKey: key cacheType: cacheType completion: completionBlock];
+}
+
+- (void) containsImageForKey: (nullable NSString*)key cacheType: (SDImageCacheType)cacheType completion: (nullable SDImageCacheContainsCompletionBlock)completionBlock {
+    [self.cache containsImageForKey: key cacheType: cacheType completion: completionBlock];
+}
+
+- (void) clearWithCacheType: (SDImageCacheType)cacheType completion: (nullable SDWebImageNoParamsBlock)completionBlock {
+    [self.cache clearWithCacheType: cacheType completion: completionBlock];
+}
+
+#pragma clang diagnostic pop
+
+@end
+
 @implementation FFFDownsampledImage
 
 + (void) addFullSizeToContext: (SDWebImageMutableContext*)context {
@@ -70,6 +166,8 @@ static CGSize FFFPixelSize(NSData* data) {
     // Only in memory: the disk cache has the downloaded file.
     context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeMemory);
     context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeMemory);
+    // The downloaded file is read from and written to the disk cache there.
+    context[SDWebImageContextOriginalImageCache] = [FFFOriginalImageCache sharedCache];
 }
 
 + (CGSize) sourceSizeOfImage: (UIImage*)image {

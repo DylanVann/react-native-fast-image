@@ -177,6 +177,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code. Show an HDR photo (e.g. an iPhone photo with a gain map) in a view without the prop, then the same url in a view with it, on an HDR iPhone.
 - **How Fast Image handles it:** `dynamicRangeLimit` drops a memory-cached copy decoded the other way before a load, so each view decodes the file as it asked for.
 
+## iOS: a full-size view can show the smaller copy a tinted view decoded
+
+- **What happens:** with SDWebImage 5.21.6 or later (Expo Image allows `~> 5.21.0`), an image a view with `tintColor` or `enforceEarlyResizing` decoded smaller from the disk cache is also put in memory under the image's full-size key. A view of the same url without them, with `cachePolicy` `'memory'` or `'memory-disk'`, then shows that smaller copy, enlarged and soft. With the default (`'disk'`) the copy only takes memory.
+- **Where:** `packages/expo-image/ios/Utils/ImageUtils.swift`, `createSDWebImageContext` sets `.originalQueryCacheType` to the `cachePolicy`'s type for every source but photo library assets (`ImageSource.cacheOriginalImage`), and `ImageView.swift`'s `thumbnailPixelSize(for:)` sets `.imageThumbnailPixelSize` for those loads. SDWebImageManager's `callOriginalCacheProcessForOperation` decodes the original file with the thumbnail size and, for a disk hit, stores the result in memory under the original key (`storeImage:… cacheType:SDImageCacheTypeMemory`, which ignores `.storeCacheType`; 5.21.5's `SDImageCache` moved a thumbnail to its own key).
+- **How to reproduce:** Found by reading the code, not run. With an image on disk but not in memory (after restarting the app), show it in a small view with `tintColor`, then in a large view of the same url with `cachePolicy="memory-disk"`: the large view shows a blurry, enlarged copy.
+- **How Fast Image handles it:** a downsampled load reads the file through its own original cache, which keeps only images decoded at full size in memory, so the full-size key never holds a smaller copy; full-size loads also drop a smaller copy found there before they start ([#1382](https://github.com/DylanVann/react-native-fast-image/pull/1382)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
