@@ -1624,12 +1624,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         super.onSizeChanged(w, h, oldw, oldh);
         // During a fade, what the view showed was drawn at the old size: the
         // image fades in over nothing instead.
-        if (mFadeFrom != null && (w != oldw || h != oldh)) {
+        if (mFadeFrom != null) {
             mFadeFrom.recycle();
             mFadeFrom = null;
             invalidate();
         }
-        if (mFadeFromDrawable != null && (w != oldw || h != oldh)) {
+        if (mFadeFromDrawable != null) {
             mFadeFromDrawable = null;
             mFadeFromMatrix = null;
             invalidate();
