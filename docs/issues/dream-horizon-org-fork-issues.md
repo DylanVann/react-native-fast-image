@@ -97,6 +97,13 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **How to reproduce:** Found by reading the code. Fast Image before the fix below, which loaded the same way, showed the image zoomed in about 5 times in a regression case where the view's height grows after it loads.
 - **How Fast Image handles it:** when the view's size changes after the image loaded, the same image loads again at the new size, without events, keeping the current image until then ([#1142](https://github.com/DylanVann/react-native-fast-image/pull/1142)).
 
+## Android crashes with an image in a very large view
+
+- **What happens:** an image in a view of more than about 26 million pixels (a 2400 × 2400 view on a 2.625× phone, or a long image shown full width) crashes the app with "Canvas: trying to draw too large bitmap".
+- **Where:** `FastImageViewWithUrl.onAfterUpdate()` loads with `into(this)`, so Glide crops or fits the image to the view's size (the `CENTER_CROP` and `FIT_CENTER` scale types from `FastImageViewConverter`), scaling a smaller image up. The bitmap is then the view's size at 4 bytes a pixel, and Android throws when drawing a bitmap over 100 MB.
+- **How to reproduce:** Found by reading the code. Fast Image before the fix below, which loaded the same way, crashed in regression cases with a 20 × 20 image, a GIF and a placeholder url in a 2400 × 2400 view.
+- **How Fast Image handles it:** in a very large view, an image is decoded for the view's size scaled down to at most 16 megapixels (4096 × 4096, 64 MB), keeping its shape, and the view scales it up as it draws it. The same goes for placeholder urls, GIFs and the cross-dissolve's copy of the previous image ([#1379](https://github.com/DylanVann/react-native-fast-image/pull/1379)).
+
 ## Android views showing the same animated image share one animation
 
 - **What happens:** GIFs, APNGs and animated WebPs are decoded by APNG4Android's Glide plugin, and every view showing the same image at the same size gets the same drawable. When one of those views loads another source, Glide stops the drawable it showed, so the other views' animations stop too.

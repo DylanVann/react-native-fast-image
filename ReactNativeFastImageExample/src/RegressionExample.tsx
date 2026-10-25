@@ -7737,6 +7737,134 @@ function DownsampleZoomCase() {
     )
 }
 
+// A view much larger than the screen (2400x2400, about 6300 px square on the
+// Android emulator), drawn 20 times smaller with a transform. Glide fits an
+// image to the view's size, so the bitmap would be about 160 MB, which Android
+// won't draw ("Canvas: trying to draw too large bitmap"): the app crashed.
+function LargeViewCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{ uri: imageUrl('quadrants.png?case=large-view') }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view"
+                status={status}
+                description={{
+                    checks: "An image in a view far larger than the screen shows (on Android its bitmap was the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'Loads a 20x20 image of four colored squares into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// The same view, cross-dissolving to a new source: the fade drew what the
+// view showed into a bitmap the view's size (about 160 MB), which Android
+// won't draw either.
+function LargeViewFadeCase() {
+    const [second, setSecond] = useState(false)
+    const [status, onLoad] = useLoadedThenOk(2)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: imageUrl(
+                            second
+                                ? 'quadrants.png?case=large-view-fade-2'
+                                : 'quadrants.png?case=large-view-fade',
+                        ),
+                    }}
+                    transition={{ duration: 300, betweenImages: true }}
+                    onLoad={() => {
+                        onLoad()
+                        setSecond(true)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-fade"
+                status={status}
+                description={{
+                    checks: "transition's betweenImages in a view far larger than the screen (on Android the fade copied what the view showed into a bitmap the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'The large-view case, with transition { duration: 300, betweenImages: true }: once the image loads, its source changes to the same image at another url, which cross-dissolves from it. Passes once both have loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// The same view with a GIF: the view's own copy of its animation (see
+// FastImageGif) cropped each frame to the view's size, about 160 MB.
+function LargeViewGifCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: imageUrl('loop-once.gif?case=large-view-gif'),
+                    }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-gif"
+                status={status}
+                description={{
+                    checks: "A GIF in a view far larger than the screen shows (on Android each frame was cropped to the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'Loads an 80x80 GIF that plays once, magenta then cyan, into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).',
+                    shows: 'A 120x120 cyan square. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// The same view with a placeholder url, shown while the image comes from the
+// slow server: the placeholder was loaded at the view's size, about 160 MB.
+function LargeViewPlaceholderCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={blurStyles.stacked}>
+            <View style={downsampleStyles.largeViewClip}>
+                <FastImage
+                    style={downsampleStyles.largeView}
+                    source={{
+                        uri: slowImageUrl(
+                            'quadrants.png?case=large-view-placeholder&delay=600',
+                        ),
+                        headers: SLOW_HEADERS,
+                    }}
+                    placeholder={{
+                        uri: imageUrl('logo.png?case=large-view-placeholder'),
+                    }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="large-view-placeholder"
+                status={status}
+                description={{
+                    checks: "A placeholder url in a view far larger than the screen shows while the image loads (on Android it was loaded at the view's size, about 160 MB, and the app crashed drawing it).",
+                    steps: 'The large-view case, with the image from the slow server (about 4 s) and a placeholder url of the logo, which shows meanwhile. Passes once the image has loaded (and a moment more).',
+                    shows: 'A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 const downsampleStyles = StyleSheet.create({
     page: { width: 80, height: 50 },
     large: { width: 96, height: 96, backgroundColor: '#eee' },
@@ -7750,6 +7878,16 @@ const downsampleStyles = StyleSheet.create({
         height: 88,
         overflow: 'hidden',
         backgroundColor: '#eee',
+    },
+    largeViewClip: { width: 120, height: 120, overflow: 'hidden' },
+    // Scaled about its center, so it fills the clip.
+    largeView: {
+        position: 'absolute',
+        left: -1140,
+        top: -1140,
+        width: 2400,
+        height: 2400,
+        transform: [{ scale: 0.05 }],
     },
     // Scaled about its center, so it spans 320x200 from the clip's top left.
     zoomed: {
@@ -10499,6 +10637,19 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             checks: "downsample={false} keeps an image that's zoomed in on with a transform sharp.",
         },
         cases: [<DownsampleZoomCase key="downsample-zoom" />],
+    },
+    {
+        // A crash takes the app down: on its own.
+        name: 'large-view',
+        description: {
+            checks: 'An image in a view far larger than the screen shows: a still image, one cross-dissolving to a new source, a GIF and a placeholder url.',
+        },
+        cases: [
+            <LargeViewCase key="large-view" />,
+            <LargeViewFadeCase key="large-view-fade" />,
+            <LargeViewGifCase key="large-view-gif" />,
+            <LargeViewPlaceholderCase key="large-view-placeholder" />,
+        ],
     },
     {
         name: 'loading',
