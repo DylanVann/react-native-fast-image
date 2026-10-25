@@ -1035,30 +1035,89 @@ function streamRecording(file: string, input = ['-f', 'h264']) {
     }
 }
 
+// The app's window: its size in points and their scale.
+type Screen = { width: number; height: number; scale: number }
+
 // A screen recording from the companion (see recordScreen), or undefined
-// without one. Its video_stream sends the screen as H.264, 60 frames a second
-// whether it changes or not, from about 100 ms after it's asked (the first
-// stream of a companion takes about 600).
-function idbRecordScreen(file: string) {
+// without one. Its video_stream sends the screen 60 times a second whether it
+// changes or not, from about 100 ms after it's asked (the first stream of a
+// companion takes about 600). As raw frames at a pixel per point (at most
+// 400,000 pixels): on CI's virtual machines its H.264 encoder fell behind now
+// and then (300 ms a frame), and the few frames that came were old; full-size
+// frames (13 MB) came 16 a second on an M-series Mac. The frames go to a file
+// as they come, timed by when they came (ffmpeg's clock started late, when it
+// read the first few at once), the samples are checked in it (`colors`), and
+// `finish` makes the mp4 (the raw file stays if ffmpeg fails).
+function idbRecordScreen(file: string, screen: Screen) {
     const session = idb
-    if (!session) return undefined
-    const video = streamRecording(file)
-    // A VideoStreamRequest's start: { fps: 60 } (H.264 is the default format).
+    if (!session || !screen.width || !screen.height) return undefined
+    const [sourceWidth, sourceHeight] = [screen.width, screen.height].map(
+        (points) => Math.round(points * screen.scale),
+    )
+    const factor = Math.min(
+        1 / screen.scale,
+        Math.sqrt(400_000 / (sourceWidth * sourceHeight)),
+    )
+    // The companion's size for a factor under 1 (floor of the product).
+    const [width, height] =
+        factor < 1
+            ? [sourceWidth, sourceHeight].map((n) => Math.floor(factor * n))
+            : [sourceWidth, sourceHeight]
+    const row = width * 4
+    const size = row * height
+    const raw = file.replace(/\.mp4$/, '.bgra')
+    const out = fs.createWriteStream(raw)
+    const written = new Promise<void>((resolve) => {
+        out.on('close', resolve)
+        out.on('error', () => resolve())
+    })
+    // When each frame came (wall clock).
+    const arrivals: number[] = []
+    let settle: (at: number | undefined) => void = () => {}
+    const started = new Promise<number | undefined>((resolve) => {
+        const timer = setTimeout(() => resolve(undefined), 10_000)
+        settle = (at) => {
+            clearTimeout(timer)
+            resolve(at)
+        }
+    })
+    // A VideoStreamRequest's start: { fps: 60, format: RBGA (1),
+    // scale_factor } (a double).
+    const scaleFactor = Buffer.alloc(8)
+    scaleFactor.writeDoubleLE(factor < 1 ? factor : 0)
     const stream = session.request({
         ':method': 'POST',
         ':path': '/idb.CompanionService/video_stream',
         'content-type': 'application/grpc',
         te: 'trailers',
     })
-    stream.write(grpcFrame([0x0a, 0x02, 0x10, 60]))
+    stream.write(grpcFrame([0x0a, 13, 0x10, 60, 0x18, 1, 0x29, ...scaleFactor]))
     const ended = new Promise<void>((resolve) => stream.on('close', resolve))
-    ended.then(video.ended)
-    // VideoStreamResponses, each with a Payload (2) whose data (2) is the
-    // next part of the video.
+    ended.then(() => settle(undefined))
+    // VideoStreamResponses, each with a Payload (2) whose data (2) is a
+    // frame: BGRA rows, each padded to a multiple of 16 bytes or more (and
+    // full-size frames at the end too).
+    let odd = 0
     onGrpcMessages(stream, (message) => {
         const payload = protobufField(message, 2)
         const data = payload && protobufField(payload, 2)
-        if (data) video.write(data)
+        if (!data) return
+        const stride = Math.floor(data.length / height / 16) * 16
+        if (stride < row) {
+            odd++
+            return
+        }
+        const at = Date.now()
+        settle(at)
+        arrivals.push(at)
+        if (stride === row) {
+            out.write(data.subarray(0, size))
+            return
+        }
+        const frame = Buffer.allocUnsafe(size)
+        for (let y = 0; y < height; y++)
+            data.copy(frame, y * row, y * stride, y * stride + row)
+        out.write(frame)
     })
     stream.on('error', () => {})
     const stop = async () => {
@@ -1066,9 +1125,132 @@ function idbRecordScreen(file: string) {
         if (!stream.closed) stream.end(grpcFrame([0x12, 0x00]))
         await Promise.race([ended, sleep(5000)])
         stream.close()
-        return video.finish()
+        out.end()
+        await written
+        return arrivals.length > 0
     }
-    return { started: video.started, stop, busy: () => false }
+    // What came: the frames, and the longest wait for one.
+    const stats = () => {
+        const gaps = arrivals.slice(1).map((t, i) => t - arrivals[i])
+        const seconds = ((arrivals.at(-1) ?? 0) - (arrivals[0] ?? 0)) / 1000
+        return `${arrivals.length} frames (${width}x${height}) in ${seconds.toFixed(1)} s, longest gap ${Math.max(0, ...gaps)} ms${odd ? `, ${odd} messages of another size` : ''}`
+    }
+    // Each frame's average color in `area` (points): of the pixels wholly in
+    // its middle half, as frameColors (or in all of it when none is: a
+    // sample of a view's edge can be a few points wide, and a pixel per point
+    // only has one or two in it).
+    const colors = (area: PixelRect, windowWidthDp: number) => {
+        const px = width / windowWidthDp
+        const inside = (start: number, length: number, limit: number) => {
+            const span = (from: number, to: number) => [
+                Math.max(0, Math.ceil(from * px - 1e-6)),
+                Math.min(limit, Math.floor(to * px + 1e-6)),
+            ]
+            let [a, b] = span(start + length / 4, start + (length * 3) / 4)
+            if (b <= a) [a, b] = span(start, start + length)
+            if (b <= a) {
+                a = Math.min(limit - 1, Math.floor((start + length / 2) * px))
+                b = a + 1
+            }
+            return [a, b - a]
+        }
+        const [x, w] = inside(area.x, area.width, width)
+        const [y, h] = inside(area.y, area.height, height)
+        const fd = fs.openSync(raw, 'r')
+        const line = Buffer.alloc(w * 4)
+        try {
+            return arrivals.map((at, i) => {
+                const sum = [0, 0, 0]
+                for (let r = 0; r < h; r++) {
+                    fs.readSync(
+                        fd,
+                        line,
+                        0,
+                        line.length,
+                        i * size + (y + r) * row + x * 4,
+                    )
+                    for (let p = 0; p < w; p++) {
+                        sum[0] += line[p * 4 + 2]
+                        sum[1] += line[p * 4 + 1]
+                        sum[2] += line[p * 4]
+                    }
+                }
+                const color = sum.map((c) => Math.round(c / (w * h))) as Rgb
+                return { time: (at - arrivals[0]) / 1000, color }
+            })
+        } finally {
+            fs.closeSync(fd)
+        }
+    }
+    // The mp4: 60 frames a second, each the last frame that had come by
+    // then.
+    const finish = async () => {
+        if (arrivals.length === 0) {
+            fs.rmSync(raw, { force: true })
+            return
+        }
+        const ffmpeg = spawn(
+            'ffmpeg',
+            [
+                '-v',
+                'error',
+                '-y',
+                '-f',
+                'rawvideo',
+                '-pix_fmt',
+                'bgra',
+                '-s',
+                `${width}x${height}`,
+                '-r',
+                '60',
+                '-i',
+                'pipe:0',
+                '-vf',
+                'pad=ceil(iw/2)*2:ceil(ih/2)*2',
+                '-c:v',
+                'libx264',
+                '-preset',
+                'veryfast',
+                '-crf',
+                '18',
+                '-pix_fmt',
+                'yuv420p',
+                file,
+            ],
+            { stdio: ['pipe', 'ignore', 'ignore'] },
+        )
+        const exited = new Promise<number | null>((resolve) =>
+            ffmpeg.on('close', resolve),
+        )
+        ffmpeg.stdin.on('error', () => {})
+        const fd = fs.openSync(raw, 'r')
+        const frame = Buffer.alloc(size)
+        try {
+            let shown = -1
+            const end = arrivals.at(-1)! - arrivals[0]
+            for (let t = 0, i = 0; t <= end; t += 1000 / 60) {
+                while (
+                    i + 1 < arrivals.length &&
+                    arrivals[i + 1] - arrivals[0] <= t
+                )
+                    i++
+                if (i !== shown) {
+                    fs.readSync(fd, frame, 0, size, i * size)
+                    shown = i
+                }
+                if (!ffmpeg.stdin.write(frame))
+                    await new Promise((resolve) =>
+                        ffmpeg.stdin.once('drain', resolve),
+                    )
+            }
+        } finally {
+            fs.closeSync(fd)
+            ffmpeg.stdin.end()
+        }
+        const code = await Promise.race([exited, sleep(120_000)])
+        if (code === 0) fs.rmSync(raw, { force: true })
+    }
+    return { started, stop, busy: () => false, stats, colors, finish }
 }
 
 // A regression group's screenshot: from the companion when there is one (or
@@ -1493,12 +1675,30 @@ const hexToRgb = (hex: string): Rgb => {
 // if the recorder didn't start); `stop` ends the recording and resolves once
 // the file is complete. The emulator's and the companion's recordings start
 // at their first frame; without the companion, simctl's.
-function recordScreen(platform: Platform, device: string, file: string) {
+function recordScreen(
+    platform: Platform,
+    device: string,
+    file: string,
+    screen: Screen,
+): {
+    started: Promise<number | undefined>
+    stop: () => Promise<boolean>
+    busy: () => boolean
+    // When the recording keeps its frames itself: what came, each frame's
+    // color in an area (as frameColors), and what makes `file` once the
+    // samples are checked.
+    stats?: () => string
+    colors?: (
+        area: PixelRect,
+        windowWidthDp: number,
+    ) => { time: number; color: Rgb }[]
+    finish?: () => Promise<void>
+} {
     if (platform === 'android')
         return (
             emulatorRecordScreen(device, file) ?? adbRecordScreen(device, file)
         )
-    return idbRecordScreen(file) ?? simctlRecordScreen(device, file)
+    return idbRecordScreen(file, screen) ?? simctlRecordScreen(device, file)
 }
 
 // The emulator's screen from the emulator itself, over its gRPC API, when the
@@ -1873,6 +2073,7 @@ async function runRegression(
     let groups: string[] = []
     let scale = 1
     let windowWidth = 0
+    let windowHeight = 0
     const failures: string[] = []
     // Each group's failures, by index.
     const groupFailures = new Map<number, string[]>()
@@ -2200,6 +2401,16 @@ async function runRegression(
         stop: Promise<() => Promise<boolean>>
         // Whether the simulator said a recording was already in progress.
         busy: Promise<() => boolean>
+        // See recordScreen.
+        stats: Promise<(() => string) | undefined>
+        colors: Promise<
+            | ((
+                  area: PixelRect,
+                  windowWidthDp: number,
+              ) => { time: number; color: Rgb }[])
+            | undefined
+        >
+        finish: Promise<(() => Promise<void>) | undefined>
         samples: Sample[]
         active: number
         stopTimer?: ReturnType<typeof setTimeout>
@@ -2220,7 +2431,11 @@ async function runRegression(
                 `${String(index + 1).padStart(2, '0')}-${groups[index]}-samples${count > 1 ? `-${count}` : ''}.mp4`,
             )
             const recording = stopped.then(() =>
-                recordScreen(platform, device, file),
+                recordScreen(platform, device, file, {
+                    width: windowWidth,
+                    height: windowHeight,
+                    scale,
+                }),
             )
             session = {
                 index,
@@ -2228,6 +2443,9 @@ async function runRegression(
                 started: recording.then((r) => r.started),
                 stop: recording.then((r) => r.stop),
                 busy: recording.then((r) => r.busy),
+                colors: recording.then((r) => r.colors),
+                stats: recording.then((r) => r.stats),
+                finish: recording.then((r) => r.finish),
                 samples: [],
                 active: 0,
             }
@@ -2274,6 +2492,9 @@ async function runRegression(
         const finished = (async () => {
             const t0 = await current.started
             const saved = await (await current.stop)()
+            const recordedColors = await current.colors
+            const stats = await current.stats
+            if (stats) logLine(`recording ${rel(current.file)}: ${stats()}`)
             let error: string | undefined
             if (t0 === undefined)
                 error = (await current.busy)()
@@ -2291,7 +2512,9 @@ async function runRegression(
                     const expect = (message.expect as string[]) ?? []
                     const palette = (message.palette as string[]) ?? []
                     const frames = framesBetween(
-                        frameColors(current.file, area, windowWidth),
+                        recordedColors
+                            ? recordedColors(area, windowWidth)
+                            : frameColors(current.file, area, windowWidth),
                         sample.start / 1000,
                         ((sample.end ?? 0) + SAMPLE_TAIL_MS) / 1000,
                     )
@@ -2360,6 +2583,9 @@ async function runRegression(
                 )
                 send({ type: 'sampled', group: current.index, name, ...result })
             }
+            await (
+                await current.finish
+            )?.()
         })()
         stopped = finished.catch(() => {})
         shots.push(stopped)
@@ -2549,6 +2775,7 @@ async function runRegression(
     groups = hello.groups as string[]
     scale = Number(hello.scale) || 1
     windowWidth = Number((hello.window as { width?: number })?.width) || 0
+    windowHeight = Number((hello.window as { height?: number })?.height) || 0
     const timings: string[] = []
     let measureRequests = 0
     const statuses: Record<string, Record<string, string>> = {}
