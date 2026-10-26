@@ -1,3 +1,10 @@
+## [10.9.5](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.4...v10.9.5) (2026-10-26)
+
+
+### Bug Fixes
+
+* **android:** keep a popped screen's images while it slides away ([#1386](https://github.com/DylanVann/react-native-fast-image/issues/1386)) ([2d12786](https://github.com/DylanVann/react-native-fast-image/commit/2d12786119f640a63c7048c71d7906db609c2b47)), closes [#1385](https://github.com/DylanVann/react-native-fast-image/issues/1385)
+
 ## [10.9.4](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.3...v10.9.4) (2026-10-26)
 
 
