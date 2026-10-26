@@ -7721,13 +7721,14 @@ function DownsampleZoomCase() {
 }
 
 // An image over 64 megapixels (10000x8000), at full size, zoomed in on its
-// top left corner, of 1-pixel stripes: with downsample={false} it's decoded at
-// 16 megapixels (on iOS it was decoded at its own size, 320 MB), so the stripes
-// average out, and with objectFit none at its own size on iOS (on Android at
-// 16 megapixels too, which Android can still draw). onLoad and preload report
-// its own size.
+// top left corner, of a black block and 1-pixel stripes: with
+// downsample={false} it's decoded at 16 megapixels (on iOS it was decoded at
+// its own size, 320 MB), so the stripes average out, and with objectFit none
+// at its own size on iOS (on Android at 16 megapixels too, which Android can
+// still draw). The block shows that the image is drawn, and where: on Android
+// the stripes come out white. onLoad and preload report its own size.
 function DownsampleOverLimitCase() {
-    const capped = imageUrl('stripes-80mp.png?case=downsample-over-limit')
+    const capped = imageUrl('block-stripes-80mp.png?case=downsample-over-limit')
     const [sizes, setSizes] = useState<string[]>([])
     const [preloaded, setPreloaded] = useState<string>()
     const onLoad = (e: { nativeEvent: { width: number; height: number } }) => {
@@ -7762,7 +7763,7 @@ function DownsampleOverLimitCase() {
                 style={[downsampleStyles.overLimit, styles.gap]}
                 source={{
                     uri: imageUrl(
-                        'stripes-80mp.png?case=downsample-over-limit-none',
+                        'block-stripes-80mp.png?case=downsample-over-limit-none',
                     ),
                 }}
                 objectFit="none"
@@ -7781,8 +7782,8 @@ function DownsampleOverLimitCase() {
                 }
                 description={{
                     checks: 'An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.',
-                    steps: 'Loads a 10000x8000 image, white with 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit="none" and objectPosition="left top". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.',
-                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles: Android decodes both at 16 megapixels, from every other pixel of the PNG (the white stripes).',
+                    steps: 'Loads a 10000x8000 image, white with a 32x64 black block and 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 100 times with a transform; the right with objectFit="none" and objectPosition="left top". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.',
+                    shows: 'Each view: a black block on its left third, then the stripes. On iOS, gray on the left (the stripes decoded smaller, averaged) and sharp black and white stripes on the right. On Android, white in both: Android decodes both at 16 megapixels, from every other pixel of the PNG (the white stripes).',
                 }}
             />
         </View>
@@ -7966,7 +7967,9 @@ function DownsampleFromDiskCase() {
 // (memoryCache: false).
 function DownsampleOverLimitSharedCase() {
     const [uri] = useState(() =>
-        imageUrl(`stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`),
+        imageUrl(
+            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`,
+        ),
     )
     const [preloaded, setPreloaded] = useState<PreloadResult>()
     const [second, setSecond] = useState(false)
@@ -8010,7 +8013,7 @@ function DownsampleOverLimitSharedCase() {
                 description={{
                     checks: "objectFit none shows an image over 64 megapixels at its own size on iOS when another view of the url decodes it at 16 megapixels at the same time, from the disk cache (the other view's copy showed, at less than half its size).",
                     steps: 'Preloads the 10000x8000 striped image of downsample-over-limit to the disk cache only (memoryCache: false), then shows it in the same two views, the right one 100 ms after the left. Passes 3 s after both have loaded (the right one loads again, without events).',
-                    shows: 'On iOS, a gray rectangle (the stripes decoded smaller, averaged), then sharp black and white stripes. On Android, two white rectangles (decoded at 16 megapixels from every other pixel).',
+                    shows: 'Each view: a black block on its left third, then the stripes. On iOS, gray on the left (the stripes decoded smaller, averaged) and sharp black and white stripes on the right. On Android, white in both (decoded at 16 megapixels from every other pixel).',
                 }}
             />
         </View>
