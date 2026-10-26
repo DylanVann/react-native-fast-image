@@ -205,6 +205,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run in Expo Image. Fast Image measured the Core Graphics behavior on an iPhone 15 Pro Max: a 200-shape SVG drawn on 8 threads at once came out wrong in 10–20% of the drawings, and drawn one at a time never.
 - **How Fast Image handles it:** every SVG it parses or draws goes through one lock, the main thread first ([#1390](https://github.com/DylanVann/react-native-fast-image/pull/1390)).
 
+## iOS: every change of a view's size loads its image again
+
+- **What happens:** each time an image view's size changes, its image is loaded again: the running load is cancelled and a new one starts. In an animated resize that's a load per frame. With `tintColor` (or `enforceEarlyResizing`) the image is decoded for the view's size, so each new size is a different cache key, decoded again.
+- **Where:** `packages/expo-image/ios/ImageView.swift`, the `bounds` property's `didSet` calls `reload()` whenever the size changes and isn't empty; `reload(force:)` cancels the pending operation and starts a load. `thumbnailPixelSize(for:)` sets `.imageThumbnailPixelSize` from the view's bounds for those images.
+- **How to reproduce:** Found by reading the code (expo repository at `5599fba0d`), not run. Animate the width of an `Image` with `tintColor`, and count the loads (or watch the decodes in Instruments).
+- **How Fast Image handles it:** with `downsample` (the default), a view loads its image again only when it grows by more than a fifth, and an SVG is drawn for the new size in the load, off the main thread ([#1389](https://github.com/DylanVann/react-native-fast-image/pull/1389)). With `downsample={false}`, a tinted SVG is drawn again from the vector image it has when the view needs more pixels of it, with a quarter to spare, without loading it again ([#1381](https://github.com/DylanVann/react-native-fast-image/pull/1381)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
