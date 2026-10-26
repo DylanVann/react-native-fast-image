@@ -645,7 +645,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     void drop() {
         mDropped = true;
-        clearView(requestManager);
+        // A dropped view can still be drawn: react-native-screens keeps a
+        // popped screen's views on screen for its exit animation
+        // (startViewTransition), and React Native drops them as it starts.
+        // Clearing the request puts the placeholder back (or nothing), so a
+        // view still attached that shows an image clears it once it's
+        // detached (onDetachedFromWindow, #1385). Its bitmap can't be kept
+        // after a clear instead: Glide can reuse it. One that shows only its
+        // placeholder clears now, which cancels its load.
+        if (!isAttachedToWindow() || mShowsPlaceholder || getDrawable() == null) {
+            clearView(requestManager);
+        }
         clearUrlPlaceholderTarget();
         endProgress();
     }
@@ -1010,6 +1020,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     protected void onDetachedFromWindow() {
         endFade();
         super.onDetachedFromWindow();
+        // Dropped while it was still drawn (see drop).
+        if (mDropped) clearView(requestManager);
     }
 
     public void setPaused(boolean paused) {

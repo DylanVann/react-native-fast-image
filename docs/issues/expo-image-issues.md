@@ -184,6 +184,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run. With an image on disk but not in memory (after restarting the app), show it in a small view with `tintColor`, then in a large view of the same url with `cachePolicy="memory-disk"`: the large view shows a blurry, enlarged copy.
 - **How Fast Image handles it:** a downsampled load reads the file through its own original cache, which keeps only images decoded at full size in memory, so the full-size key never holds a smaller copy; full-size loads also drop a smaller copy found there before they start ([#1382](https://github.com/DylanVann/react-native-fast-image/pull/1382)).
 
+## Android: an image in a popped screen goes blank while the screen slides away
+
+- **What happens:** when a native stack (react-native-screens) pops a screen, its images are blank for the rest of the screen's exit animation.
+- **Where:** `packages/expo-image/android/src/main/java/expo/modules/image/ExpoImageViewWrapper.kt`, `onViewDestroys()` sets both image views' drawables to `null` and clears their requests; `ExpoImageModule.kt` calls it from `OnViewDestroys`, when React Native drops the view. React Native drops a popped screen's views as its animation starts, while react-native-screens still draws them until it ends (`Screen.startRemovalTransition()` calls `startViewTransition` on each of them).
+- **How to reproduce:** Found by reading the code (expo repository at `5599fba0d`), not run. Push a screen with an `Image` in a native stack, let it load and go back. Fast Image's regression case `navigation-pop-thumbhash` saw its own image go back to its placeholder there before the fix below.
+- **How Fast Image handles it:** on Android, a view dropped while it's still attached keeps its image, and its request is cleared once it's detached ([#1386](https://github.com/DylanVann/react-native-fast-image/pull/1386)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
