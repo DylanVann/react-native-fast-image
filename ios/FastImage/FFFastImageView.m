@@ -1298,9 +1298,6 @@ NSString *FFFErrorMessage(NSError *error)
         [self reloadForDynamicRange];
     } else {
         [self reloadIfResized];
-        // A tinted vector image is drawn for downsample too (rasterScale),
-        // which reloadIfResized doesn't load again for.
-        [self rasterizeAgainIfResized];
     }
     // A new placeholderSource while the image loads, or after it failed (a
     // load waiting for the view's size starts it with the image's).
