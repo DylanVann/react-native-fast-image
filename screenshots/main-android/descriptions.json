@@ -2068,6 +2068,19 @@
             }
         }
     },
+    "navigation-pop": {
+        "description": {
+            "checks": "An image in a screen that a native stack pops stays until the screen is gone.",
+            "steps": "A video sample: the screen is recorded while the case pops the screen, and the color in the middle of the view must go through the listed colors in order."
+        },
+        "cases": {
+            "navigation-pop-thumbhash": {
+                "checks": "A loaded image stays while its screen slides away (#1385: on Android, React Native drops the views of a popped screen as the animation starts, and the image went back to its ThumbHash for the rest of it).",
+                "steps": "A 96 × 96 native stack (react-native-screens' ScreenStack) of two screens: a black one, and over it one with a magenta image with a cyan ThumbHash. Once the image has loaded, the top screen is popped with stackAnimation slide_from_right. Recorded for a second.",
+                "shows": "Recorded: magenta until the screen has slid away, then black; cyan (the ThumbHash) must not show. At the end, a black square."
+            }
+        }
+    },
     "examples-1": {
         "description": {
             "checks": "The example screens' priority and GIF sections: three photos loaded with source.priority low, normal and high, and an animated GIF.",
