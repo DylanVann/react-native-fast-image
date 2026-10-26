@@ -6845,14 +6845,14 @@ const renderingStyles = StyleSheet.create({
 
 // Shows status OK once `total` images have loaded (count with the returned
 // onLoad), and a moment more, for the blur, which is applied after the load.
-function useLoadedThenOk(total: number) {
+function useLoadedThenOk(total: number, wait = 500) {
     const [loads, setLoads] = useState(0)
     const [done, setDone] = useState(false)
     useEffect(() => {
         if (loads < total) return
-        const timer = setTimeout(() => setDone(true), 500)
+        const timer = setTimeout(() => setDone(true), wait)
         return () => clearTimeout(timer)
-    }, [loads, total])
+    }, [loads, total, wait])
     const onLoad = () => setLoads((n) => n + 1)
     return [done ? 'OK' : `loaded ${loads}/${total}`, onLoad] as const
 }
@@ -7720,6 +7720,76 @@ function DownsampleZoomCase() {
     )
 }
 
+// An image over 64 megapixels (10000x8000), at full size, zoomed in on its
+// top left corner, of a black block and 1-pixel stripes: with
+// downsample={false} it's decoded at 16 megapixels (on iOS it was decoded at
+// its own size, 320 MB), so the stripes average out, and with objectFit none
+// at its own size on iOS (on Android at 16 megapixels too, which Android can
+// still draw). The block shows that the image is drawn, and where: on Android
+// the stripes come out white. onLoad and preload report its own size.
+function DownsampleOverLimitCase() {
+    const capped = imageUrl('block-stripes-80mp.png?case=downsample-over-limit')
+    const [sizes, setSizes] = useState<string[]>([])
+    const [preloaded, setPreloaded] = useState<string>()
+    const onLoad = (e: { nativeEvent: { width: number; height: number } }) => {
+        // Read now: the event is reused after the handler.
+        const size = `${e.nativeEvent.width}x${e.nativeEvent.height}`
+        setSizes((s) => [...s, size])
+    }
+    const expected = '10000x8000'
+    const done = sizes.length >= 2 && preloaded !== undefined
+    return (
+        <View style={styles.row}>
+            <View style={downsampleStyles.overLimit}>
+                <FastImage
+                    style={downsampleStyles.overLimitZoomed}
+                    source={{ uri: capped }}
+                    objectFit="fill"
+                    downsample={false}
+                    onLoad={(e) => {
+                        onLoad(e)
+                        // From the memory cache.
+                        FastImage.preload([{ uri: capped }]).then(([result]) =>
+                            setPreloaded(
+                                result.ok
+                                    ? `${result.width}x${result.height}`
+                                    : result.error,
+                            ),
+                        )
+                    }}
+                />
+            </View>
+            <FastImage
+                style={[downsampleStyles.overLimit, styles.gap]}
+                source={{
+                    uri: imageUrl(
+                        'block-stripes-80mp.png?case=downsample-over-limit-none',
+                    ),
+                }}
+                objectFit="none"
+                objectPosition="left top"
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="downsample-over-limit"
+                status={
+                    !done
+                        ? 'waiting'
+                        : sizes.every((s) => s === expected) &&
+                            preloaded === expected
+                          ? 'OK'
+                          : `onLoad ${sizes.join(', ')}, preload ${preloaded}, expected ${expected}`
+                }
+                description={{
+                    checks: 'An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.',
+                    steps: 'Loads a 10000x8000 image, white with a 32x64 black block and 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 125 times with a transform; the right with objectFit="none" and objectPosition="left top". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.',
+                    shows: 'Two rectangles, each with a black block over its left third. On iOS the rest of the left one is gray (the stripes, decoded smaller, average out), and the right one has stripes 1 point wide, soft-edged (on tvOS dark and light gray). On Android the rest of both is white: it decodes both at 16 megapixels, keeping every other pixel of the PNG (the white stripes).',
+                }}
+            />
+        </View>
+    )
+}
+
 // A view much larger than the screen (2400x2400, about 6300 px square on the
 // Android emulator), drawn 20 times smaller with a transform. Glide fits an
 // image to the view's size, so the bitmap would be about 160 MB, which Android
@@ -7888,6 +7958,68 @@ function DownsampleFromDiskCase() {
     )
 }
 
+// As downsample-over-limit, with one url in both views, on disk but not in
+// memory, the objectFit none view mounted a moment after the other: while it
+// read the file, the left view's decode at 16 megapixels went into memory
+// under the url's key, where SDImageCache found it (it looks in memory again
+// before it decodes), so the right view showed that, gray and at less than
+// half its size. A url of its own each run, preloaded to disk only
+// (memoryCache: false).
+function DownsampleOverLimitSharedCase() {
+    const [uri] = useState(() =>
+        imageUrl(
+            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`,
+        ),
+    )
+    const [preloaded, setPreloaded] = useState<PreloadResult>()
+    const [second, setSecond] = useState(false)
+    // On iOS the right view loads again after its onLoad, without events.
+    const [status, onLoad] = useLoadedThenOk(2, 3000)
+    useEffect(() => {
+        FastImage.preload([{ uri, memoryCache: false }]).then(([r]) =>
+            setPreloaded(r),
+        )
+    }, [uri])
+    useEffect(() => {
+        if (!preloaded?.ok) return
+        const timer = setTimeout(() => setSecond(true), 100)
+        return () => clearTimeout(timer)
+    }, [preloaded])
+    return (
+        <View style={styles.row}>
+            <View style={downsampleStyles.overLimit}>
+                <FastImage
+                    style={downsampleStyles.overLimitZoomed}
+                    source={preloaded?.ok ? { uri } : undefined}
+                    objectFit="fill"
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            </View>
+            <FastImage
+                style={[downsampleStyles.overLimit, styles.gap]}
+                source={second ? { uri } : undefined}
+                objectFit="none"
+                objectPosition="left top"
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="downsample-over-limit-shared"
+                status={
+                    preloaded && !preloaded.ok
+                        ? `preload: ${preloaded.error}`
+                        : status
+                }
+                description={{
+                    checks: "objectFit none shows an image over 64 megapixels at its own size on iOS when another view of the url decodes it at 16 megapixels at the same time, from the disk cache (the other view's copy showed, at less than half its size).",
+                    steps: 'Preloads the 10000x8000 striped image of downsample-over-limit to the disk cache only (memoryCache: false), then shows it in the same two views, the right one 100 ms after the left. Passes 3 s after both have loaded (on iOS the right one loads again, without events).',
+                    shows: 'Two rectangles, each with a black block over its left third. On iOS the rest of the left one is gray (the stripes, decoded smaller, average out), and the right one has stripes 1 point wide, soft-edged (on tvOS dark and light gray). On Android the rest of both is white: it decodes both at 16 megapixels, keeping every other pixel of the PNG (the white stripes).',
+                }}
+            />
+        </View>
+    )
+}
+
 // The page's top-left corner zoomed in on, downsampled (left) and with
 // downsample={false} (right).
 function DownsampleZoomPair({
@@ -7927,6 +8059,20 @@ const downsampleStyles = StyleSheet.create({
     fill: { flex: 1 },
     tall: { width: 40, height: 96 },
     rotated: { width: 64, height: 96 },
+    overLimit: { width: 96, height: 64, overflow: 'hidden' },
+    // Scaled 125 times about its center, so its top left corner is the
+    // clip's: 1 point per pixel of the image. Its edges are whole pixels at
+    // 2, 2.625 and 3 pixels per point: React Native rounds them to pixels,
+    // which the scale would make tens of pixels (at 100 times, 100 x 80, the
+    // width rounded to 262 pixels on Android moved the image 25).
+    overLimitZoomed: {
+        position: 'absolute',
+        left: 4960,
+        top: 3968,
+        width: 80,
+        height: 64,
+        transform: [{ scale: 125 }],
+    },
     zoomClip: {
         width: 140,
         height: 88,
@@ -10667,6 +10813,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 style={downsampleStyles.rotated}
                 objectFit="contain"
             />,
+            <DownsampleOverLimitCase key="downsample-over-limit" />,
+            <DownsampleOverLimitSharedCase key="downsample-over-limit-shared" />,
             <DownsampleMemoryCase key="downsample-memory" />,
             <DownsamplePreloadCase key="downsample-preload" />,
         ],

@@ -14,16 +14,25 @@
 // or fit in.
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover;
 
-// Sets a load's context to decode the image at full size, through this class.
+// Sets a load's context to decode the image at full size, through this
+// class: an image over 64 megapixels at 16 megapixels unless `uncapped`.
 // Every FastImage load uses it, so loads of the same url
 // can share a download: SDWebImage's downloader decodes each load of a
 // download with the first load's image class (and each with its own size),
 // and SDWebImage's own thumbnail decoding can't cover a box.
-+ (void) addFullSizeToContext: (SDWebImageMutableContext*)context;
++ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped;
 
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.
 + (CGSize) sourceSizeOfImage: (UIImage*)image;
+
+// Whether an image loaded this way is at least the size a full-size load
+// (not uncapped) decodes it at.
++ (BOOL) isFullSizeImage: (UIImage*)image;
+
+// Whether an image loaded this way is smaller than a full-size load decodes it
+// at, or NO for other images.
++ (BOOL) isSmallerThanFullSize: (UIImage*)image uncapped: (BOOL)uncapped;
 
 // Drops the memory cache's image for a load (call it before the load) when
 // the load can't use it, so it decodes the file from the disk cache:

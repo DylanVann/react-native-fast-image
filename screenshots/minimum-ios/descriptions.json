@@ -221,6 +221,16 @@
                 "steps": "Loads a JPEG stored sideways with EXIF orientation 6 (800x1200 upright) into two 64x96 views with objectFit=\"contain\": the left with downsample, the right with downsample={false}. Passes once both onLoad events report 800x1200.",
                 "shows": "Two upright blue arrows over the word UP, each in a red frame, equally sharp. A sideways arrow is a failure."
             },
+            "downsample-over-limit": {
+                "checks": "An image over 64 megapixels is decoded at 16 megapixels with downsample={false}, and at its own size with objectFit none on iOS; onLoad and preload report its own size.",
+                "steps": "Loads a 10000x8000 image, white with a 32x64 black block and 1-pixel black and white stripes in its top left corner, into two 96x64 views, each showing that corner at 1 point per pixel: the left with downsample={false}, zoomed 125 times with a transform; the right with objectFit=\"none\" and objectPosition=\"left top\". Once the left one has loaded, preloads its url. Passes once both onLoad events and the preload report 10000x8000.",
+                "shows": "Two rectangles, each with a black block over its left third. On iOS the rest of the left one is gray (the stripes, decoded smaller, average out), and the right one has stripes 1 point wide, soft-edged (on tvOS dark and light gray). On Android the rest of both is white: it decodes both at 16 megapixels, keeping every other pixel of the PNG (the white stripes)."
+            },
+            "downsample-over-limit-shared": {
+                "checks": "objectFit none shows an image over 64 megapixels at its own size on iOS when another view of the url decodes it at 16 megapixels at the same time, from the disk cache (the other view's copy showed, at less than half its size).",
+                "steps": "Preloads the 10000x8000 striped image of downsample-over-limit to the disk cache only (memoryCache: false), then shows it in the same two views, the right one 100 ms after the left. Passes 3 s after both have loaded (on iOS the right one loads again, without events).",
+                "shows": "Two rectangles, each with a black block over its left third. On iOS the rest of the left one is gray (the stripes, decoded smaller, average out), and the right one has stripes 1 point wide, soft-edged (on tvOS dark and light gray). On Android the rest of both is white: it decodes both at 16 megapixels, keeping every other pixel of the PNG (the white stripes)."
+            },
             "downsample-memory": {
                 "checks": "A view that downsamples an image from the disk cache, after a view showed it at full size, doesn't leave its smaller copy where full-size views look (iOS kept it in the memory cache under the full-size image's key).",
                 "steps": "Loads a 1600x1000 page of text into an 80x50 view with downsample={false}; 300 ms after it loads, a 32-point view of the same url (downsampled, from the disk cache); 300 ms after that, another 80x50 view with downsample={false}. Passes once the third has loaded; the screenshot checks its sharpness.",

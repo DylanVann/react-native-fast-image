@@ -142,7 +142,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
-    [FFFDownsampledImage addFullSizeToContext:context];
+    [FFFDownsampledImage addFullSizeToContext:context uncapped:NO];
     return context;
 }
 
@@ -308,13 +308,21 @@ static NSDictionary *FFFFile(NSString *path)
             [FFFDownsampledImage forgetUnusableImageForURL:source.url context:context];
             if (!source.memoryCache) {
                 // Not decoded (only its header is read, for the size), and not
-                // kept in memory, also when it comes from the disk cache.
+                // kept in memory, also when it comes from the disk cache. At
+                // full size even if it's over 64 megapixels: ImageIO decodes
+                // a smaller copy at once.
+                [FFFDownsampledImage addFullSizeToContext:context uncapped:YES];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
+                // The image's own size, also when it was decoded smaller.
+                CGSize size = [FFFDownsampledImage sourceSizeOfImage:image];
+                if (size.width <= 0 || size.height <= 0) {
+                    size = image.size;
+                }
                 results[idx] = image
-                    ? @{@"ok": @YES, @"width": @(image.size.width), @"height": @(image.size.height)}
+                    ? @{@"ok": @YES, @"width": @(size.width), @"height": @(size.height)}
                     : FFFFailure([source errorMessage:error]);
                 finishOne();
             });

@@ -56,6 +56,8 @@
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
 @property(nonatomic, assign) BOOL decodedCover;
+// Whether it's decoded at full size however large (objectFit none).
+@property(nonatomic, assign) BOOL decodedUncapped;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
 // The frame the view was laid out at (the box the image fits in), and how far
@@ -1228,12 +1230,20 @@ NSString *FFFErrorMessage(NSError *error)
 // size, keeping the current one until then. It comes from the disk cache
 // (the downloaded file is kept there whatever size it's decoded at).
 - (void) reloadIfResized {
-    if (!_source || _needsReload || self.hasErrored || CGSizeEqualToSize(self.decodedBox, CGSizeZero)) {
+    if (!_source || _needsReload || self.hasErrored) {
         return;
     }
-    // Already at full size (it's no larger than the view it was decoded for).
     UIImage* image = self.originalImage ?: super.image;
-    if (self.hasCompleted && CGSizeEqualToSize(image.size, [FFFDownsampledImage sourceSizeOfImage: image])) {
+    // objectFit none shows an image at its own size: one over 64 megapixels
+    // decoded at 16 for another fit is loaded again.
+    BOOL capped = _objectFit == FFFObjectFitNone && !self.decodedUncapped && self.hasCompleted &&
+        [FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES];
+    if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
+        return;
+    }
+    // Already at full size (it's no larger than the view it was decoded for,
+    // or decoded at 16 megapixels).
+    if (self.hasCompleted && !capped && [FFFDownsampledImage isFullSizeImage: image]) {
         return;
     }
     CGSize box = [self decodeBox];
@@ -1269,6 +1279,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     [self updateHashImage];
     self.decodedBox = CGSizeZero;
+    self.decodedUncapped = NO;
     // The previous load, if it's still running, is for a source the view no
     // longer shows: cancel it (a new download would, but a data uri or no
     // source doesn't start one), and ignore what it still sends (SDWebImage
@@ -1374,6 +1385,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
+    self.decodedUncapped = CGSizeEqualToSize(box, CGSizeZero) && _objectFit == FFFObjectFitNone;
     return [self contextForSource: _source box: box cover: self.decodedCover];
 }
 
@@ -1410,7 +1422,8 @@ NSString *FFFErrorMessage(NSError *error)
         context[SDWebImageContextImageDecodeToHDR] = @([self decodesToHDR]);
     }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
-        [FFFDownsampledImage addFullSizeToContext: context];
+        // objectFit none shows it at its own size, however large.
+        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
@@ -1517,6 +1530,9 @@ NSString *FFFErrorMessage(NSError *error)
                 // layout (e.g. while offline).
                 weakSelf.decodedBox = CGSizeZero;
             }
+            if (image && weakSelf.loadCount == load) {
+                [weakSelf reloadIfSmallerCopy: image context: context];
+            }
         }];
         return;
     }
@@ -1602,8 +1618,29 @@ NSString *FFFErrorMessage(NSError *error)
                     if (weakSelf.onFastImageLoadEnd) {
                         weakSelf.onFastImageLoadEnd([weakSelf loadEndEvent: YES]);
                     }
+                    [weakSelf reloadIfSmallerCopy: image context: context];
                 }
             }];
+}
+
+// Called when a load has finished, with or without events. With objectFit
+// none, an image over 64 megapixels is decoded at its own size, but the load
+// can still end with a 16-megapixel copy: when another view of the url (with
+// another fit) decodes it at the same time, its copy goes into the memory
+// cache under the same key, and SDImageCache, after reading the file from
+// disk, looks in memory again before decoding it, so this load gets that
+// copy. Then this loads the image again, without events, from the disk cache
+// only, which doesn't look in memory, so it's decoded at its own size. That
+// load isn't checked again (only loads that look in memory are).
+- (void) reloadIfSmallerCopy: (UIImage*)image context: (SDWebImageContext*)context {
+    NSNumber* query = context[SDWebImageContextQueryCacheType];
+    if (!self.decodedUncapped || (query && query.integerValue != SDImageCacheTypeAll) ||
+        ![FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES]) {
+        return;
+    }
+    SDWebImageMutableContext* fromDisk = [context mutableCopy];
+    fromDisk[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+    [self downloadImage: _source options: [self loadOptions] | SDWebImageDelayPlaceholder context: fromDisk events: NO];
 }
 
 // Downloads the source now if the app is active, or once it is (unless
