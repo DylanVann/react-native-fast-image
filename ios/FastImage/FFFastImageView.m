@@ -1623,11 +1623,15 @@ NSString *FFFErrorMessage(NSError *error)
             }];
 }
 
-// A load at the image's own size (objectFit none) that got it decoded smaller:
-// another view's decode at 16 megapixels of an image over 64, which
-// SDImageCache found in memory as it read the file (it looks there again
-// before it decodes). Loaded again, once, from the disk cache only, which
-// doesn't look in memory.
+// Called when a load has finished, with or without events. With objectFit
+// none, an image over 64 megapixels is decoded at its own size, but the load
+// can still end with a 16-megapixel copy: when another view of the url (with
+// another fit) decodes it at the same time, its copy goes into the memory
+// cache under the same key, and SDImageCache, after reading the file from
+// disk, looks in memory again before decoding it, so this load gets that
+// copy. Then this loads the image again, without events, from the disk cache
+// only, which doesn't look in memory, so it's decoded at its own size. That
+// load isn't checked again (only loads that look in memory are).
 - (void) reloadIfSmallerCopy: (UIImage*)image context: (SDWebImageContext*)context {
     NSNumber* query = context[SDWebImageContextQueryCacheType];
     if (!self.decodedUncapped || (query && query.integerValue != SDImageCacheTypeAll) ||
