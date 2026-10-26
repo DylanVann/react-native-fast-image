@@ -1,3 +1,10 @@
+## [10.9.6](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.5...v10.9.6) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ios:** draw downsampled images on whole pixels, not blurred on a half pixel ([#1384](https://github.com/DylanVann/react-native-fast-image/issues/1384)) ([1b96b19](https://github.com/DylanVann/react-native-fast-image/commit/1b96b19fefce255b57b4139a83c56e47411ca6d9))
+
 ## [10.9.5](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.4...v10.9.5) (2026-10-26)
 
 
