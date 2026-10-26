@@ -1,3 +1,10 @@
+## [10.9.4](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.3...v10.9.4) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ios:** decode images over 64 megapixels at 16 megapixels ([#1380](https://github.com/DylanVann/react-native-fast-image/issues/1380)) ([21dbeea](https://github.com/DylanVann/react-native-fast-image/commit/21dbeeabccb101ea7f6a9b9194efddb1adf5fabe))
+
 ## [10.9.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.2...v10.9.3) (2026-10-25)
 
 
