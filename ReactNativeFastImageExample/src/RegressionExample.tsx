@@ -6837,14 +6837,9 @@ function ImageRenderingCase({
 // off), to auto, which it then moves onto whole pixels, as if auto from the
 // start (the right view).
 function ImageRenderingChangeCase() {
-    const [rendering, setRendering] = useState<'pixelated' | 'auto'>(
-        'pixelated',
-    )
     const [loads, setLoads] = useState(0)
     const onLoad = () => setLoads((n) => n + 1)
-    useEffect(() => {
-        if (loads >= 2) setRendering('auto')
-    }, [loads])
+    const rendering = loads >= 2 ? 'auto' : 'pixelated'
     return (
         <View style={styles.row}>
             <FastImage
