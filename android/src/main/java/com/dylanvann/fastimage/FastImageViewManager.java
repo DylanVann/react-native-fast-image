@@ -194,8 +194,9 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> {
 
     @Override
     public void onDropViewInstance(@NonNull FastImageViewWithUrl view) {
-        // Cancels its request, and nothing loads or tracks progress for it
-        // any more (the progress map doesn't keep it, or its Activity).
+        // Cancels its request (once it's detached, if it's still drawn), and
+        // nothing loads or tracks progress for it any more (the progress map
+        // doesn't keep it, or its Activity).
         view.drop();
 
         super.onDropViewInstance(view);
