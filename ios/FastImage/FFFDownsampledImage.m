@@ -15,9 +15,9 @@ static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
 static SDImageCoderOption const FFFDecodeUncapped = @"FFFDecodeUncapped";
 
 // The most pixels a full-size load decodes an image of at least twice that
-// size each way at (each frame, for an animated image): 4096 x 4096, 64 MB.
-// At full size a 10000 x 10000 photo would take 400 MB, for each view that
-// doesn't downsample it.
+// size each way at (each frame, for an animated image): 4096 x 4096, 64 MB
+// (128 MB decoded to HDR, at 8 bytes per pixel). At full size a 10000 x 10000
+// photo would take 400 MB, for each view that doesn't downsample it.
 static CGFloat const FFFMaxPixels = 4096.0 * 4096.0;
 
 // The longest side (in pixels) a full-size load decodes an image of this size

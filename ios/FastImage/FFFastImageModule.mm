@@ -308,7 +308,10 @@ static NSDictionary *FFFFile(NSString *path)
             [FFFDownsampledImage forgetUnusableImageForURL:source.url context:context];
             if (!source.memoryCache) {
                 // Not decoded (only its header is read, for the size), and not
-                // kept in memory, also when it comes from the disk cache.
+                // kept in memory, also when it comes from the disk cache. At
+                // full size even if it's over 64 megapixels: ImageIO decodes
+                // a smaller copy at once.
+                [FFFDownsampledImage addFullSizeToContext:context uncapped:YES];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
