@@ -2076,8 +2076,13 @@
         "cases": {
             "navigation-pop-thumbhash": {
                 "checks": "A loaded image stays while its screen slides away (#1385: on Android, React Native drops the views of a popped screen as the animation starts, and the image went back to its ThumbHash for the rest of it).",
-                "steps": "A 96 × 96 native stack (react-native-screens' ScreenStack) of two screens: a black one, and over it one with a magenta image with a cyan ThumbHash. Once the image has loaded, the top screen is popped with stackAnimation slide_from_right. Recorded for a second.",
+                "steps": "A 96 × 96 native stack (react-native-screens' ScreenStack) of two screens: a black one, and over it a gray one with a magenta image with a cyan ThumbHash. Once the image has loaded, the top screen is popped with stackAnimation slide_from_right. Recorded for a second.",
                 "shows": "Recorded: magenta until the screen has slid away, then black; cyan (the ThumbHash) must not show. At the end, a black square."
+            },
+            "navigation-pop": {
+                "checks": "A loaded image without a placeholder stays while its screen slides away (#1385: on Android, React Native drops the views of a popped screen as the animation starts, and the image went blank for the rest of it).",
+                "steps": "A 96 × 96 native stack (react-native-screens' ScreenStack) of two screens: a black one, and over it a gray one with a magenta image. Once the image has loaded, the top screen is popped with stackAnimation slide_from_right. Recorded for a second.",
+                "shows": "Recorded: magenta until the screen has slid away, then black; gray (the screen behind a blank image) must not show. At the end, a black square."
             }
         }
     },
