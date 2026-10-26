@@ -254,6 +254,9 @@ static void FFFShareAnimationBudget(void) {
         self.layer.minificationFilter = kCAFilterLinear;
         self.layer.magnificationFilter = kCAFilterLinear;
     }
+    // Only a filtered image is moved onto whole pixels (see
+    // updatePixelAlignment).
+    [self updatePosition];
 }
 
 - (void) setLoopCount: (NSInteger)loopCount {
@@ -459,6 +462,7 @@ static void FFFShareAnimationBudget(void) {
 // bounds) only has to move back (see updateMask). Not moved, as most images
 // are, the view clips to its bounds as before.
 - (void) updatePosition {
+    [self updatePixelAlignment];
     CGPoint offset = [self imageOffset];
     if (!CGPointEqualToPoint(offset, self.positionOffset)) {
         self.positionOffset = offset;
@@ -467,33 +471,91 @@ static void FFFShareAnimationBudget(void) {
     [self updateMask];
 }
 
+// The scale the content mode draws an image of this size (in points) at in
+// the view, or 0 for fill (or another mode), which stretches it.
+- (CGFloat) contentScale: (CGSize)size {
+    CGSize view = self.box.size;
+    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+        return 0;
+    }
+    switch (self.contentMode) {
+        case UIViewContentModeScaleAspectFill:
+            return MAX(view.width / size.width, view.height / size.height);
+        case UIViewContentModeScaleAspectFit:
+            return MIN(view.width / size.width, view.height / size.height);
+        case UIViewContentModeCenter:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+// The image's size as the layer shows it: without the column or row
+// updatePixelAlignment leaves out.
+- (CGSize) shownImageSize {
+    CGSize size = super.image.size;
+    CGRect rect = self.layer.contentsRect;
+    return CGSizeMake(size.width * rect.size.width, size.height * rect.size.height);
+}
+
 // How far objectPosition moves the image from the center: on each axis its
 // left or top edge is at (view - image) * fraction + offset, where the
 // content mode centers it at (view - image) / 2. Nothing for fill, which
 // fills the view.
 - (CGPoint) imageOffset {
     CGSize view = self.box.size;
-    CGSize size = super.image.size;
-    if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
+    CGSize size = [self shownImageSize];
+    CGFloat scale = [self contentScale: size];
+    if (scale <= 0) {
         return CGPointZero;
-    }
-    CGFloat scale;
-    switch (self.contentMode) {
-        case UIViewContentModeScaleAspectFill:
-            scale = MAX(view.width / size.width, view.height / size.height);
-            break;
-        case UIViewContentModeScaleAspectFit:
-            scale = MIN(view.width / size.width, view.height / size.height);
-            break;
-        case UIViewContentModeCenter:
-            scale = 1;
-            break;
-        default:
-            return CGPointZero;
     }
     CGFloat x = (view.width - size.width * scale) * (_objectPositionX - 0.5) + _objectPositionXOffset;
     CGFloat y = (view.height - size.height * scale) * (_objectPositionY - 0.5) + _objectPositionYOffset;
     return CGPointMake(isfinite(x) ? x : 0, isfinite(y) ? y : 0);
+}
+
+// A downsampled image is decoded at the size it's shown at, a pixel of it for
+// each pixel on screen, which is only sharp with its edges on the screen's
+// pixels. Centered (cover and contain, by default), an odd number of pixels
+// cropped off or left empty puts them on a half pixel, where each pixel on
+// screen is drawn from two of the image's: blurred. ImageIO decodes to a
+// longest side and rounds the other, so that one can also come out a pixel
+// over the view's, drawn a little smaller. The layer then leaves out the
+// image's last column or row (or both), if that shows it a pixel per pixel,
+// on whole pixels.
+- (void) updatePixelAlignment {
+    CGRect rect = CGRectMake(0, 0, 1, 1);
+    UIImage* image = super.image;
+    CGFloat screenScale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGSize view = self.box.size;
+    CGFloat width = image.size.width * image.scale;
+    CGFloat height = image.size.height * image.scale;
+    // A pixelated image is drawn without filtering: a half pixel doesn't blur
+    // it.
+    if (image && width >= 2 && height >= 2 && view.width > 0 && view.height > 0 &&
+        ![_imageRendering isEqualToString: @"pixelated"]) {
+        for (int trim = 0; trim < 4; trim++) {
+            CGFloat shownWidth = width - (trim & 1);
+            CGFloat shownHeight = height - (trim >> 1);
+            CGSize size = CGSizeMake(shownWidth / image.scale, shownHeight / image.scale);
+            CGFloat scale = [self contentScale: size];
+            // Pixels on screen per pixel of the image, and the image's left
+            // and top edges in pixels.
+            CGFloat pixels = scale * screenScale / image.scale;
+            CGFloat left = ((view.width - size.width * scale) * _objectPositionX + _objectPositionXOffset) * screenScale;
+            CGFloat top = ((view.height - size.height * scale) * _objectPositionY + _objectPositionYOffset) * screenScale;
+            if (fabs(pixels - 1) < 1e-3 && fabs(left - round(left)) < 1e-3 && fabs(top - round(top)) < 1e-3) {
+                rect = CGRectMake(0, 0, shownWidth / width, shownHeight / height);
+                break;
+            }
+        }
+    }
+    if (!CGRectEqualToRect(self.layer.contentsRect, rect)) {
+        [CATransaction begin];
+        [CATransaction setDisableActions: YES];
+        self.layer.contentsRect = rect;
+        [CATransaction commit];
+    }
 }
 
 - (void) updateMask {

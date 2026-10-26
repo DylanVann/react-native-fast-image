@@ -383,6 +383,11 @@
                 "checks": "imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).",
                 "steps": "Shows 12 px pixel art at its own size, then drawn at 64 points with imageRendering auto, smooth and pixelated. Passes when the three have loaded; the screenshot does the checking.",
                 "shows": "A tiny sprite, then three large ones, left to right auto, smooth and pixelated: auto and smooth blurred, pixelated with sharp square pixels."
+            },
+            "image-rendering-change": {
+                "checks": "imageRendering changed after load, from pixelated to auto: on iOS the image moves onto whole pixels then, as sharp as auto from the start.",
+                "steps": "Loads a 1600x1000 page of text into two 40x96 views with downsample and cover: the left with imageRendering=\"pixelated\", changed to auto once both have loaded, the right with auto. Passes once it has changed; the screenshot does the checking.",
+                "shows": "Two tall crops of the middle of the page, the same and both sharp. A blurry left one is a failure."
             }
         }
     },
@@ -571,9 +576,9 @@
                 "shows": "On iOS, an even gray square (the stripes averaged), then the stripes drawn smaller. On Android, a black square (Glide keeps every nth pixel of a PNG), then wide soft gray bands (the stripes, aliased)."
             },
             "downsample-cover": {
-                "checks": "downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, so it is as sharp as without downsample.",
+                "checks": "downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, and shows it a pixel per pixel on whole pixels (on iOS, centered, it was on a half pixel: blurred).",
                 "steps": "Loads a 1600x1000 page of text into two 40x96 views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1600x1000.",
-                "shows": "Two tall crops of the middle of the page, the text equally sharp in both. A blurrier left crop is a failure."
+                "shows": "Two tall crops of the middle of the page, both sharp: the left smooth (the page averaged to the view's size), the right crisper and more jagged (the whole page drawn smaller). Blurry text on the left is a failure."
             },
             "downsample-orientation": {
                 "checks": "downsample keeps a JPEG's EXIF orientation: an image stored sideways shows upright, as sharp as without downsample.",
