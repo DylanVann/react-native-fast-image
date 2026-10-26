@@ -399,38 +399,36 @@ static void FFFShareAnimationBudget(void) {
     }
 }
 
-// The content mode for objectFit. `scale-down` scales an image larger than
-// the view down to fit, and shows a smaller one at its own size
-// (UIViewContentModeCenter alone would show large images at full size,
-// cropped), so it depends on the image and the view's size. `none` is the
-// image at its own size, centered, whatever its size (cropped by the view).
-- (void) updateContentMode {
-    UIViewContentMode contentMode;
+// The content mode for objectFit, for an image of this size (in points).
+// `scale-down` scales an image larger than the view down to fit, and shows a
+// smaller one at its own size (UIViewContentModeCenter alone would show large
+// images at full size, cropped), so it depends on the image and the view's
+// size. `none` is the image at its own size, centered, whatever its size
+// (cropped by the view).
+- (UIViewContentMode) contentModeForImageSize: (CGSize)imageSize {
     switch (_objectFit) {
         case FFFObjectFitContain:
-            contentMode = UIViewContentModeScaleAspectFit;
-            break;
+            return UIViewContentModeScaleAspectFit;
         case FFFObjectFitFill:
-            contentMode = UIViewContentModeScaleToFill;
-            break;
+            return UIViewContentModeScaleToFill;
         case FFFObjectFitNone:
             // A source's placeholder stands for an image whose size isn't
             // known yet: as with contain, here and for scale-down.
-            contentMode = self.showsHash ? UIViewContentModeScaleAspectFit : UIViewContentModeCenter;
-            break;
+            return self.showsHash ? UIViewContentModeScaleAspectFit : UIViewContentModeCenter;
         case FFFObjectFitScaleDown: {
-            CGSize imageSize = super.image.size;
             CGSize viewSize = self.bounds.size;
-            contentMode = self.showsHash || imageSize.width > viewSize.width || imageSize.height > viewSize.height
+            return self.showsHash || imageSize.width > viewSize.width || imageSize.height > viewSize.height
                 ? UIViewContentModeScaleAspectFit
                 : UIViewContentModeCenter;
-            break;
         }
         case FFFObjectFitCover:
         default:
-            contentMode = UIViewContentModeScaleAspectFill;
-            break;
+            return UIViewContentModeScaleAspectFill;
     }
+}
+
+- (void) updateContentMode {
+    UIViewContentMode contentMode = [self contentModeForImageSize: super.image.size];
     if (self.contentMode != contentMode) {
         self.contentMode = contentMode;
     }
@@ -479,14 +477,15 @@ static void FFFShareAnimationBudget(void) {
     [self updateMask];
 }
 
-// The scale the content mode draws an image of this size (in points) at in
-// the view, or 0 for fill (or another mode), which stretches it.
-- (CGFloat) contentScale: (CGSize)size {
+// The scale a content mode draws an image of this size (in points) at in the
+// view, or 0 for fill (or another mode), which stretches it, and before the
+// view has a size.
+- (CGFloat) contentScale: (CGSize)size mode: (UIViewContentMode)contentMode {
     CGSize view = self.box.size;
     if (size.width <= 0 || size.height <= 0 || view.width <= 0 || view.height <= 0) {
         return 0;
     }
-    switch (self.contentMode) {
+    switch (contentMode) {
         case UIViewContentModeScaleAspectFill:
             return MAX(view.width / size.width, view.height / size.height);
         case UIViewContentModeScaleAspectFit:
@@ -513,7 +512,7 @@ static void FFFShareAnimationBudget(void) {
 - (CGPoint) imageOffset {
     CGSize view = self.box.size;
     CGSize size = [self shownImageSize];
-    CGFloat scale = [self contentScale: size];
+    CGFloat scale = [self contentScale: size mode: self.contentMode];
     if (scale <= 0) {
         return CGPointZero;
     }
@@ -546,7 +545,7 @@ static void FFFShareAnimationBudget(void) {
             CGFloat shownWidth = width - (trim & 1);
             CGFloat shownHeight = height - (trim >> 1);
             CGSize size = CGSizeMake(shownWidth / image.scale, shownHeight / image.scale);
-            CGFloat scale = [self contentScale: size];
+            CGFloat scale = [self contentScale: size mode: self.contentMode];
             // Pixels on screen per pixel of the image, and the image's left
             // and top edges in pixels.
             CGFloat pixels = scale * screenScale / image.scale;
@@ -668,34 +667,18 @@ static void FFFShareAnimationBudget(void) {
 }
 
 // Pixels per point of the image that draw it sharp at the size the view shows
-// it at, for its objectFit (fill by its larger scale), at least its own size
-// with downsample false (for a view zoomed in on with a transform), or zero
-// while the view shows none of it (it has no size yet).
+// it at (fill by its larger scale), at least its own size with downsample
+// false (for a view zoomed in on with a transform), or zero before the view
+// has a size (it shows none of it).
 - (CGFloat) rasterScale: (UIImage*)image {
     CGSize size = image.size;
-    if (size.width <= 0 || size.height <= 0) {
-        return 0;
+    UIViewContentMode mode = [self contentModeForImageSize: size];
+    if (mode == UIViewContentModeScaleToFill) {
+        mode = UIViewContentModeScaleAspectFill;
     }
-    CGSize view = self.bounds.size;
-    CGFloat x = view.width / size.width;
-    CGFloat y = view.height / size.height;
-    // A source's placeholder is shown as with contain (updateContentMode).
-    BOOL contain = _objectFit == FFFObjectFitContain ||
-        (self.showsHash && (_objectFit == FFFObjectFitNone || _objectFit == FFFObjectFitScaleDown));
-    CGFloat shown;
-    switch (contain ? FFFObjectFitContain : _objectFit) {
-        case FFFObjectFitContain:
-            shown = MIN(x, y);
-            break;
-        case FFFObjectFitScaleDown:
-            shown = MIN(MIN(x, y), 1);
-            break;
-        case FFFObjectFitNone:
-            shown = 1;
-            break;
-        default:
-            shown = MAX(x, y);
-            break;
+    CGFloat shown = [self contentScale: size mode: mode];
+    if (shown <= 0) {
+        return 0;
     }
     if (!_downsample) {
         shown = MAX(shown, 1);
