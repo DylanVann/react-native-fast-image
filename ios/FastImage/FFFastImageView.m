@@ -254,6 +254,9 @@ static void FFFShareAnimationBudget(void) {
         self.layer.minificationFilter = kCAFilterLinear;
         self.layer.magnificationFilter = kCAFilterLinear;
     }
+    // Only a filtered image is moved onto whole pixels (see
+    // updatePixelAlignment).
+    [self updatePosition];
 }
 
 - (void) setLoopCount: (NSInteger)loopCount {

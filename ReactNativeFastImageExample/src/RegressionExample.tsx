@@ -6831,6 +6831,48 @@ function ImageRenderingCase({
     )
 }
 
+// imageRendering changed after the image has loaded: from pixelated, which
+// iOS leaves where the content mode puts it (on a half pixel here: a page
+// decoded at the view's size with cover, an odd number of pixels cropped
+// off), to auto, which it then moves onto whole pixels, as if auto from the
+// start (the right view).
+function ImageRenderingChangeCase() {
+    const [rendering, setRendering] = useState<'pixelated' | 'auto'>(
+        'pixelated',
+    )
+    const [loads, setLoads] = useState(0)
+    const onLoad = () => setLoads((n) => n + 1)
+    useEffect(() => {
+        if (loads >= 2) setRendering('auto')
+    }, [loads])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={downsampleStyles.tall}
+                source={{ uri: imageUrl('text-page.png') }}
+                imageRendering={rendering}
+                downsample
+                onLoad={onLoad}
+            />
+            <FastImage
+                style={[downsampleStyles.tall, styles.gap]}
+                source={{ uri: imageUrl('text-page.png') }}
+                downsample
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="image-rendering-change"
+                status={rendering === 'auto' ? 'OK' : `loaded ${loads}/2`}
+                description={{
+                    checks: 'imageRendering changed after load, from pixelated to auto: on iOS the image moves onto whole pixels then, as sharp as auto from the start.',
+                    steps: 'Loads a 1600x1000 page of text into two 40x96 views with downsample and cover: the left with imageRendering="pixelated", changed to auto once both have loaded, the right with auto. Passes once it has changed; the screenshot does the checking.',
+                    shows: 'Two tall crops of the middle of the page, the same and both sharp. A blurry left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 const renderingStyles = StyleSheet.create({
     case: { marginBottom: 16 },
     original: {
@@ -10628,9 +10670,12 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         description: {
             checks: 'imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size.',
         },
-        cases: RENDERING_CASES.map((c) => (
-            <ImageRenderingCase key={c.id} {...c} />
-        )),
+        cases: [
+            ...RENDERING_CASES.map((c) => (
+                <ImageRenderingCase key={c.id} {...c} />
+            )),
+            <ImageRenderingChangeCase key="image-rendering-change" />,
+        ],
     },
     {
         name: 'blur',

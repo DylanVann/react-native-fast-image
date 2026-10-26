@@ -383,6 +383,11 @@
                 "checks": "imageRendering on an image drawn larger than its size: pixelated keeps its pixels sharp (#926).",
                 "steps": "Shows 12 px pixel art at its own size, then drawn at 64 points with imageRendering auto, smooth and pixelated. Passes when the three have loaded; the screenshot does the checking.",
                 "shows": "A tiny sprite, then three large ones, left to right auto, smooth and pixelated: auto and smooth blurred, pixelated with sharp square pixels."
+            },
+            "image-rendering-change": {
+                "checks": "imageRendering changed after load, from pixelated to auto: on iOS the image moves onto whole pixels then, as sharp as auto from the start.",
+                "steps": "Loads a 1600x1000 page of text into two 40x96 views with downsample and cover: the left with imageRendering=\"pixelated\", changed to auto once both have loaded, the right with auto. Passes once it has changed; the screenshot does the checking.",
+                "shows": "Two tall crops of the middle of the page, the same and both sharp. A blurry left one is a failure."
             }
         }
     },
