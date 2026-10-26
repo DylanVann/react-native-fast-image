@@ -10792,9 +10792,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 key="downsample-cover"
                 id="downsample-cover"
                 description={{
-                    checks: 'downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, so it is as sharp as without downsample.',
+                    checks: 'downsample with cover decodes a wide image large enough to cover a tall view, not to fit in it, and shows it a pixel per pixel on whole pixels (on iOS, centered, it was on a half pixel: blurred).',
                     steps: 'Loads a 1600x1000 page of text into two 40x96 views with cover: the left with downsample, the right with downsample={false}. Passes once both onLoad events report 1600x1000.',
-                    shows: 'Two tall crops of the middle of the page, the text equally sharp in both. A blurrier left crop is a failure.',
+                    shows: "Two tall crops of the middle of the page, both sharp: the left smooth (the page averaged to the view's size), the right crisper and more jagged (the whole page drawn smaller). Blurry text on the left is a failure.",
                 }}
                 image="text-page.png"
                 size="1600x1000"
