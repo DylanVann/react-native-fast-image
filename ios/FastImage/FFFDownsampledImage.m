@@ -68,6 +68,36 @@ static CGSize FFFPixelSize(NSData* data) {
     return CGSizeMake(width, height);
 }
 
+void FFFWithSVGLock(void (^block)(void)) {
+    static NSCondition* condition;
+    static BOOL busy;
+    static NSInteger mainWaiting;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        condition = [NSCondition new];
+    });
+    // The main thread goes before background threads waiting their turn, so
+    // it waits for the drawing in progress at most.
+    BOOL main = [NSThread isMainThread];
+    [condition lock];
+    if (main) {
+        mainWaiting++;
+    }
+    while (busy || (!main && mainWaiting > 0)) {
+        [condition wait];
+    }
+    if (main) {
+        mainWaiting--;
+    }
+    busy = YES;
+    [condition unlock];
+    block();
+    [condition lock];
+    busy = NO;
+    [condition broadcast];
+    [condition unlock];
+}
+
 // An SVG (a vector image, its size in points) drawn into a bitmap for a box
 // (in pixels) to fit in or cover, with at most maxScale pixels per point if
 // it's not zero, on SDWebImage's decode queue. Shown as a
@@ -95,9 +125,13 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     // which takes twice the memory).
     format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
-    return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-        [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
-    }];
+    __block UIImage* drawn;
+    FFFWithSVGLock(^{
+        drawn = [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+            [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
+        }];
+    });
+    return drawn;
 }
 
 // Where the decode puts the full image's size, passed in the load's decode
@@ -349,7 +383,10 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     if ([NSData sd_imageFormatForImageData: data] == SDImageFormatSVG) {
         NSMutableDictionary* vectorOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
         [vectorOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
-        UIImage* image = [[SDImageCodersManager sharedManager] decodedImageWithData: data options: vectorOptions];
+        __block UIImage* image;
+        FFFWithSVGLock(^{
+            image = [[SDImageCodersManager sharedManager] decodedImageWithData: data options: vectorOptions];
+        });
         FFFSourceSize* sourceSize = options[FFFDecodeSourceSize];
         if (!image || ![sourceSize isKindOfClass: [FFFSourceSize class]]) {
             sourceSize = nil;
