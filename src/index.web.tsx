@@ -178,6 +178,29 @@ function FastImageBase({
         )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
+    // The loaded image's size, kept until another image loads. A side the
+    // style leaves open follows it, as on iOS and Android: the view gets the
+    // image's aspect ratio (unless the style has one), and with neither side
+    // set, the image's width (at most the space there is) from a spacer, so
+    // a stretched view still fills its parent.
+    const [imageSize, setImageSize] = useState<{
+        width: number
+        height: number
+    }>()
+    const flatStyle = StyleSheet.flatten(style) ?? {}
+    const sizeStyle =
+        imageSize && imageSize.width > 0 && imageSize.height > 0
+            ? { aspectRatio: imageSize.width / imageSize.height }
+            : undefined
+    const spacer =
+        sizeStyle &&
+        flatStyle.width === undefined &&
+        flatStyle.height === undefined ? (
+            <View
+                style={{ width: imageSize!.width, maxWidth: '100%' }}
+                pointerEvents="none"
+            />
+        ) : null
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
@@ -207,11 +230,16 @@ function FastImageBase({
         <View
             {...viewProps}
             {...({ 'aria-label': label } as {})}
-            style={[styles.container, style]}
+            style={
+                sizeStyle
+                    ? [styles.container, sizeStyle, style]
+                    : [styles.container, style]
+            }
             onLayout={onLayout}
             pointerEvents={pointerEvents}
             ref={ref}
         >
+            {spacer}
             {defaultUri && showDefault ? (
                 <Picture
                     key={`default ${defaultUri}`}
@@ -287,6 +315,7 @@ function FastImageBase({
                     onLoad={(image) => {
                         const { width, height } = loadedSize(image, sized)
                         setResult({ key, ok: true })
+                        setImageSize({ width, height })
                         onLoad?.({ nativeEvent: { width, height } })
                         onLoadEnd?.({ ok: true, width, height })
                     }}

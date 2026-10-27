@@ -172,6 +172,10 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     // The shadow node's state: the loaded image's size, which its layout
     // follows (see FastImageViewShadowNode).
     FastImageViewShadowNode::ConcreteState::Shared _state;
+    // The loaded image's size in points (zero until one loads), and whether
+    // the layout follows it (the autoSize prop).
+    CGSize _imageSize;
+    BOOL _autoSize;
     // The props aren't on the image view yet (a new one): set them all,
     // rather than the ones that changed.
     BOOL _setsAllProps;
@@ -236,19 +240,27 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
 {
     _state = std::static_pointer_cast<const FastImageViewShadowNode::ConcreteState>(state);
+    [self updateImageSizeState];
 }
 
-// Lays the view out again for a loaded image of another size.
 - (void)setImageSize:(CGSize)size
 {
-    if (!_state) {
+    _imageSize = size;
+    [self updateImageSizeState];
+}
+
+// Lays the view out again for a loaded image of another size, if its layout
+// follows it: a state update lays out the whole screen again.
+- (void)updateImageSizeState
+{
+    if (!_autoSize || !_state || CGSizeEqualToSize(_imageSize, CGSizeZero)) {
         return;
     }
     const auto &data = _state->getData();
-    if (data.width == size.width && data.height == size.height) {
+    if (data.width == _imageSize.width && data.height == _imageSize.height) {
         return;
     }
-    _state->updateState(FastImageViewState{size.width, size.height});
+    _state->updateState(FastImageViewState{_imageSize.width, _imageSize.height});
 }
 
 // The image view's event as it built it (not the generated event structs,
@@ -287,6 +299,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     _imageView = nil;
     self.contentView = nil;
     _state.reset();
+    _imageSize = CGSizeZero;
     // A fade from the old image view (see FFFastImageView's fadeIn:).
     [self.layer removeAnimationForKey: kCATransition];
 }
@@ -301,6 +314,11 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     BOOL all = _setsAllProps;
     _setsAllProps = NO;
     FFFastImageView *view = _imageView;
+
+    if (_autoSize != newViewProps.autoSize) {
+        _autoSize = newViewProps.autoSize;
+        [self updateImageSizeState];
+    }
 
     if (all || oldViewProps.source != newViewProps.source) {
         // One source, or several (an array). Only a change besides their

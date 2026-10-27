@@ -1132,6 +1132,10 @@ function FastImageBase({
             )}
             source={resolvedSource}
             placeholder={resolvedPlaceholder}
+            autoSize={
+                fromStyle(style, 'width') == null ||
+                fromStyle(style, 'height') == null
+            }
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

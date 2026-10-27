@@ -3,13 +3,12 @@
 import { StyleSheet } from 'react-native'
 import type { ImageStyle, ObjectFit } from './index'
 
-// Finds a key (tintColor, objectFit) in a style prop, where the last style
+// Finds a key (tintColor, objectFit, width, height) in a style prop, where the last style
 // that sets it wins, as with StyleSheet.flatten, but without flattening (which
 // allocates a merged object for an array style on every render).
-export function fromStyle<K extends 'tintColor' | 'objectFit'>(
-    style: unknown,
-    key: K,
-): ImageStyle[K] {
+export function fromStyle<
+    K extends 'tintColor' | 'objectFit' | 'width' | 'height',
+>(style: unknown, key: K): ImageStyle[K] {
     if (Array.isArray(style)) {
         for (let i = style.length - 1; i >= 0; i--) {
             const found = fromStyle(style[i], key)

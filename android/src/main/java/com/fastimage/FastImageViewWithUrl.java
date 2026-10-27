@@ -1394,23 +1394,45 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // The shadow node's state (see FastImageViewShadowNode): the loaded
     // image's size in dp, which the view's layout follows where its style
-    // leaves it open. The last size set, so the same one isn't set again.
+    // leaves it open (the autoSize prop). Only set then: a state update lays
+    // out the whole screen again. The last size set, so the same one isn't
+    // set again.
     @Nullable
     private StateWrapper mStateWrapper;
+    private boolean mAutoSize = false;
     private float mLayoutWidth = 0;
     private float mLayoutHeight = 0;
+    private float mStateWidth = 0;
+    private float mStateHeight = 0;
 
     void setStateWrapper(@Nullable StateWrapper stateWrapper) {
         mStateWrapper = stateWrapper;
+        updateSizeState();
+    }
+
+    boolean getAutoSize() {
+        return mAutoSize;
+    }
+
+    void setAutoSize(boolean autoSize) {
+        mAutoSize = autoSize;
+        updateSizeState();
     }
 
     private void setLayoutSize(float width, float height) {
-        if (mStateWrapper == null || (width == mLayoutWidth && height == mLayoutHeight)) return;
         mLayoutWidth = width;
         mLayoutHeight = height;
+        updateSizeState();
+    }
+
+    private void updateSizeState() {
+        if (!mAutoSize || mStateWrapper == null || mLayoutWidth <= 0 || mLayoutHeight <= 0) return;
+        if (mLayoutWidth == mStateWidth && mLayoutHeight == mStateHeight) return;
+        mStateWidth = mLayoutWidth;
+        mStateHeight = mLayoutHeight;
         WritableMap state = new WritableNativeMap();
-        state.putDouble("width", width);
-        state.putDouble("height", height);
+        state.putDouble("width", mLayoutWidth);
+        state.putDouble("height", mLayoutHeight);
         mStateWrapper.updateState(state);
     }
 

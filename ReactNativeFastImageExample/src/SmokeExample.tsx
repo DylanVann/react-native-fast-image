@@ -7,6 +7,7 @@ import {
     Masked,
     measureView,
     SampleContext,
+    type Description,
     type RegressionGroup,
 } from './RunnerContext'
 
@@ -789,6 +790,110 @@ function BlurDataUriCase() {
     )
 }
 
+// #436: a side the style leaves open follows the loaded image (its aspect
+// ratio, or with neither side set its own size), as an <img>'s does. Passes
+// once the image has loaded and the view's layout is `expected` (within half
+// a point). objectFit="fill" stretches the image if the box is wrong.
+function AutoSizeCase({
+    id,
+    uri,
+    style,
+    expected,
+    description,
+}: {
+    id: string
+    uri: string
+    style: React.ComponentProps<typeof FastImage>['style']
+    expected: (layout: { width: number; height: number }) => {
+        width: number
+        height: number
+    }
+    description: Description
+}) {
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    const want = layout && expected(layout)
+    const ok =
+        loaded &&
+        layout !== undefined &&
+        want !== undefined &&
+        Math.abs(layout.width - want.width) < 0.5 &&
+        Math.abs(layout.height - want.height) < 0.5
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    style={style}
+                    objectFit="fill"
+                    source={{ uri }}
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        setLayout({ width, height })
+                    }}
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id={id}
+                status={
+                    ok
+                        ? 'OK'
+                        : !loaded || !layout || !want
+                          ? 'waiting'
+                          : `${layout.width}x${layout.height}, expected ${want.width}x${want.height}`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
+// Shared with the main, minimum and tvOS apps' regression groups.
+export const AUTO_SIZE_GROUP: RegressionGroup = {
+    name: 'auto-size',
+    description: {
+        checks: "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set.",
+    },
+    cases: [
+        <AutoSizeCase
+            key="auto-size-width"
+            id="auto-size-width"
+            uri={imageUrl('picsum/1018-600x300.jpg')}
+            style={{ width: '100%' }}
+            expected={({ width }) => ({ width, height: width / 2 })}
+            description={{
+                checks: 'An image with only a width (100%) gets the height its aspect ratio gives.',
+                steps: 'Loads a 600x300 photo with style { width: "100%" } and objectFit fill. Passes once it has loaded and its layout is half as tall as wide.',
+                shows: 'The photo across the screen at 2:1, not stretched.',
+            }}
+        />,
+        <AutoSizeCase
+            key="auto-size-height"
+            id="auto-size-height"
+            uri={imageUrl('picsum/1018-600x300.jpg')}
+            style={{ height: 64 }}
+            expected={() => ({ width: 128, height: 64 })}
+            description={{
+                checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
+                steps: 'Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.',
+                shows: 'The photo at 128x64 on the left.',
+            }}
+        />,
+        <AutoSizeCase
+            key="auto-size-natural"
+            id="auto-size-natural"
+            uri={imageUrl('picsum/1020-120x120.jpg')}
+            style={{}}
+            expected={() => ({ width: 120, height: 120 })}
+            description={{
+                checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
+                steps: 'Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.',
+                shows: 'The 120x120 photo at 120x120 points on the left.',
+            }}
+        />,
+    ],
+}
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -811,6 +916,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
+    AUTO_SIZE_GROUP,
     ...(Platform.OS === 'web'
         ? [
               {

@@ -397,6 +397,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     @Override
+    public void setAutoSize(FastImageViewWithUrl view, boolean autoSize) {
+        view.setAutoSize(autoSize);
+    }
+
+    @Override
     public void setTransitionDuration(FastImageViewWithUrl view, double transitionDuration) {
         view.setTransitionDuration((int) transitionDuration);
     }
