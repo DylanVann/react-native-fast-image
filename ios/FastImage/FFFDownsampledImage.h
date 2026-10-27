@@ -1,6 +1,18 @@
 #import <SDWebImage/SDAnimatedImage.h>
 #import <SDWebImage/SDWebImageDefine.h>
 
+// Runs block (parsing or drawing an SVG) while no other thread of Fast
+// Image's parses or draws one, and returns what it returns. Core Graphics draws antialiased translucent
+// shapes wrongly when several threads draw them at once, even into separate
+// bitmaps (FB25211753, confirmed by Apple on iOS 26 and 27:
+// https://developer.apple.com/forums/thread/851778): on an iPhone 15 Pro
+// Max, drawing a 200-shape SVG on 8 threads made 10-20% of the bitmaps come
+// out with some shapes' edges jagged and in the wrong colors, and parsing an
+// SVG while another one was drawn made some too. One at a time, all came out
+// right. The main thread goes first, waiting for the drawing in progress at
+// most.
+FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
+
 // An image decoded at about the size it's shown at (the `downsample`
 // prop), instead of at full size. The view asks for it with SDWebImage's
 // thumbnail context: the box to fill (the view's size in pixels), and

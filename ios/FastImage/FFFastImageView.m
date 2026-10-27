@@ -5,6 +5,7 @@
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
 #import <SDWebImage/SDImageCodersManager.h>
+#import <SDWebImage/NSData+ImageContentType.h>
 #import "FFFDownsampledImage.h"
 #import "FFFThumbHash.h"
 #import "FFFBoxBlur.h"
@@ -673,9 +674,11 @@ static void FFFShareAnimationBudget(void) {
     format.scale = (self.window.screen.scale ?: [UIScreen mainScreen].scale) * shown;
     format.opaque = NO;
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
-    return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-        [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
-    }];
+    return FFFWithSVGLock(^id {
+        return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+            [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
+        }];
+    });
 }
 
 // Shows the image, tinted as React Native's Image does it: UIKit draws a
@@ -872,7 +875,15 @@ static UIImage* FFFBlurredImage(UIImage* image, CGFloat scale, CGFloat radius, B
     CGContextScaleCTM(context, 1, -1);
     CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
     UIGraphicsPushContext(context);
-    [image drawInRect: CGRectMake(0, 0, width, height)];
+    // A vector image (an SVG) is drawn while no other SVG is (FFFWithSVGLock).
+    if (image.CGImage) {
+        [image drawInRect: CGRectMake(0, 0, width, height)];
+    } else {
+        FFFWithSVGLock(^id {
+            [image drawInRect: CGRectMake(0, 0, width, height)];
+            return nil;
+        });
+    }
     UIGraphicsPopContext();
 
     FFFBoxBlur(context, boxSize);
@@ -1375,10 +1386,16 @@ NSString *FFFErrorMessage(NSError *error)
             // Use SDWebImage API to support external format like WebP images
             // (as sd_imageWithData does), decoded to HDR or SDR as a
             // download is (see contextForSource).
-            UIImage* image = [[SDImageCodersManager sharedManager] decodedImageWithData: [NSData dataWithContentsOfURL: _source.url] options: @{
+            NSData* data = [NSData dataWithContentsOfURL: _source.url];
+            NSDictionary* options = @{
                 SDImageCoderDecodeScaleFactor: @1,
                 SDImageCoderDecodeToHDR: @([self decodesToHDR]),
-            }];
+            };
+            id (^decode)(void) = ^id {
+                return [[SDImageCodersManager sharedManager] decodedImageWithData: data options: options];
+            };
+            // An SVG is parsed while no other SVG is drawn (FFFWithSVGLock).
+            UIImage* image = [NSData sd_imageFormatForImageData: data] == SDImageFormatSVG ? FFFWithSVGLock(decode) : decode();
             if (!image) {
                 // Not decodable: fail like a remote image, showing the
                 // placeholder.
