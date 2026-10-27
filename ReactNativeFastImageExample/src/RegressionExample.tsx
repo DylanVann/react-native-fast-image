@@ -3437,6 +3437,45 @@ function ZoomCase({
     )
 }
 
+// The zoom group's SVG of thin rings as a data uri, zoomed 4 times with a
+// transform: with downsample={false} drawn at its own size, as from a url
+// (on iOS a data uri was decoded at once and shown as a vector, which UIKit
+// drew for the 30-point view and the zoom scaled up).
+const ZOOM_SVG_DATA_URI =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">${Array.from(
+            { length: 13 },
+            (_, i) =>
+                `<circle cx="60" cy="60" r="${6 + i * 4}" fill="none" stroke="#000" stroke-width="1"/>`,
+        ).join('')}</svg>`,
+    )
+
+function ZoomDataUriCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={zoomStyles.case}>
+            <View style={zoomStyles.clip}>
+                <FastImage
+                    style={zoomStyles.transformed}
+                    source={{ uri: ZOOM_SVG_DATA_URI }}
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="zoom-data-uri"
+                status={status}
+                description={{
+                    checks: 'An SVG data uri with downsample={false}, scaled 4 times with a transform, is as sharp as at its own size, as from a url (iOS showed it as a vector, drawn for the view and scaled up).',
+                    steps: 'A 30-point view in a 120-point clip, scaled 4 times about its center, shows a data uri of a 120x120 SVG of thin rings with downsample={false}. Passes once it has loaded; the screenshot checks the sharpness.',
+                    shows: "Thin rings filling the square, sharp (as zoom-transform's bottom left on iOS).",
+                }}
+            />
+        </View>
+    )
+}
+
 const zoomStyles = StyleSheet.create({
     // Apart from the cases around it, whose screenshots reach a little
     // beyond them.
@@ -12803,6 +12842,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares.',
                 }}
             />,
+            <ZoomDataUriCase key="zoom-data-uri" />,
         ],
     },
     {
