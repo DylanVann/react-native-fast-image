@@ -936,10 +936,7 @@ NSString *FFFErrorMessage(NSError *error)
             @"height": [NSNumber numberWithDouble: size.height]
     };
     if (self.onImageSize) {
-        // A bundled image's size in points (its pixels divided by its scale);
-        // other images' scale is 1.
-        CGFloat scale = image.scale ?: 1;
-        self.onImageSize(CGSizeMake(size.width / scale, size.height / scale));
+        self.onImageSize(size);
     }
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
@@ -1299,7 +1296,27 @@ NSString *FFFErrorMessage(NSError *error)
 
 // The size in pixels to decode the image for, or zero for full size.
 - (CGSize) decodeBox {
-    return [self downsamples] ? [self viewBox] : CGSizeZero;
+    if (![self downsamples]) {
+        return CGSizeZero;
+    }
+    if ([self decodesForOneSide]) {
+        // A box 1 pixel across the other way, which the image covers (see
+        // decodeCovers): the side's pixels decide the size.
+        CGFloat scale = [self screenScale];
+        CGSize size = self.bounds.size;
+        return CGSizeMake(MAX(ceil(size.width * scale), 1), MAX(ceil(size.height * scale), 1));
+    }
+    return [self viewBox];
+}
+
+// Whether the view has only a width or a height, the other side following
+// the image (see FastImageViewShadowNode): it's laid out at the image's
+// shape, so the image is decoded for that side. (Not for scale-down, which
+// shows it no larger than its own size, or a photo library image, which
+// Photos makes for the size asked for.)
+- (BOOL) decodesForOneSide {
+    CGSize size = self.bounds.size;
+    return (size.width > 0) != (size.height > 0) && _objectFit != FFFObjectFitScaleDown && ![_source isPhotoLibrary];
 }
 
 // The screen's pixels per point (the main screen's before the view is in a
@@ -1336,7 +1353,7 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the image has to cover the box, rather than fit in it.
 - (BOOL) decodeCovers {
-    return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill;
+    return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill || [self decodesForOneSide];
 }
 
 // The view grew (by more than a fifth, as React Native's Image reloads), or
@@ -1381,7 +1398,16 @@ NSString *FFFErrorMessage(NSError *error)
         if (![self hasSize]) {
             return;
         }
-        BOOL grew = box.width > self.decodedBox.width * 1.2 || box.height > self.decodedBox.height * 1.2;
+        // Decoded for one side (see decodeBox): for the box it gives at the
+        // image's shape, which the view now has.
+        CGSize decoded = self.decodedBox;
+        CGSize full = [FFFDownsampledImage sourceSizeOfImage: image];
+        if ((decoded.width <= 1 || decoded.height <= 1) && full.width > 0 && full.height > 0) {
+            decoded = decoded.height <= 1
+                ? CGSizeMake(decoded.width, decoded.width * full.height / full.width)
+                : CGSizeMake(decoded.height * full.width / full.height, decoded.height);
+        }
+        BOOL grew = box.width > decoded.width * 1.2 || box.height > decoded.height * 1.2;
         // Or an SVG drawn for the box is no longer, or now, drawn at most
         // at its own size (other images are decoded the same either way).
         BOOL maxScaleChanged = [self decodeMaxScale] != self.decodedMaxScale && [FFFDownsampledImage isDrawnForBox: image];
