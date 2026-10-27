@@ -3300,6 +3300,46 @@ function ObjectFitSizeCase() {
     )
 }
 
+// An SVG with downsample={false} in a view larger than its own size, once a
+// smaller view of it has loaded: drawn for the larger view, sharp. A full-size
+// load draws an SVG at its own size, or for the view if that's larger, and the
+// second view gets the first one's drawing from the memory cache, so it's
+// drawn again for it.
+function SvgFullSizeLargerCase() {
+    const [first, setFirst] = useState(false)
+    const [status, onLoad] = useLoadedThenOk(1)
+    const source = {
+        uri: imageUrl(`svg-rings.svg?svg-full-size-larger=${RUN}`),
+    }
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: 40, height: 40 }}
+                source={source}
+                downsample={false}
+                onLoad={() => setFirst(true)}
+            />
+            {first && (
+                <FastImage
+                    style={[{ width: 160, height: 160 }, styles.gap]}
+                    source={source}
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            )}
+            <CaseStatus
+                id="svg-full-size-larger"
+                status={first ? status : 'loading'}
+                description={{
+                    checks: 'An SVG with downsample={false} shown larger than its own size is drawn for the view, sharp, also when a smaller view of it loaded first (whose drawing the memory cache has).',
+                    steps: 'A 40 pt view loads a 20×20 SVG (three thin black rings on white) with downsample={false}; once it has loaded, a 160 pt view of the same url mounts. Passes a moment after that one loads; the screenshot checks the sharpness.',
+                    shows: 'The rings at 40 pt, then at 160 pt, both thin and sharp. Blurry or thick rings in the large one would mean it was scaled up from the small drawing.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A tinted SVG as the placeholder, with objectFit none: a url placeholder is
 // shown as with contain, so it's drawn for the view's size, filling it, not
 // at its own size (24 pt) and scaled up as a full-size load would draw it.
@@ -12799,6 +12839,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             />,
             <SvgSharpCase key="svg-sharp" />,
             <SvgTintPlaceholderCase key="svg-tint-placeholder" />,
+            <SvgFullSizeLargerCase key="svg-full-size-larger" />,
         ],
     },
     {
