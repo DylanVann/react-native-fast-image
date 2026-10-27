@@ -935,6 +935,12 @@ NSString *FFFErrorMessage(NSError *error)
             @"width": [NSNumber numberWithDouble: size.width],
             @"height": [NSNumber numberWithDouble: size.height]
     };
+    if (self.onImageSize) {
+        // A bundled image's size in points (its pixels divided by its scale);
+        // other images' scale is 1.
+        CGFloat scale = image.scale ?: 1;
+        self.onImageSize(CGSizeMake(size.width / scale, size.height / scale));
+    }
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
     }
@@ -1774,6 +1780,7 @@ NSString *FFFErrorMessage(NSError *error)
     self.onFastImageLoad = nil;
     self.onFastImageError = nil;
     self.onFastImageLoadEnd = nil;
+    self.onImageSize = nil;
     // As a new load does (see reloadImage): a completion still on its way is
     // ignored, and a load waiting for the view's size doesn't start.
     self.loadCount++;

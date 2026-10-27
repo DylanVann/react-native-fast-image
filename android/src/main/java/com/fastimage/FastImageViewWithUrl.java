@@ -53,6 +53,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.i18nmanager.I18nUtil;
 import com.facebook.react.touch.ReactHitSlopView;
+import com.facebook.react.uimanager.StateWrapper;
 import com.facebook.react.uimanager.BackgroundStyleApplicator;
 import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.PointerEvents;
@@ -1386,6 +1387,31 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mImageHeight = size != null ? size[1] : 0;
         mImageScale = mLoadingScale;
         updateImageMatrix();
+        if (size != null) {
+            setLayoutSize((float) (size[0] / mImageScale), (float) (size[1] / mImageScale));
+        }
+    }
+
+    // The shadow node's state (see FastImageViewShadowNode): the loaded
+    // image's size in dp, which the view's layout follows where its style
+    // leaves it open. The last size set, so the same one isn't set again.
+    @Nullable
+    private StateWrapper mStateWrapper;
+    private float mLayoutWidth = 0;
+    private float mLayoutHeight = 0;
+
+    void setStateWrapper(@Nullable StateWrapper stateWrapper) {
+        mStateWrapper = stateWrapper;
+    }
+
+    private void setLayoutSize(float width, float height) {
+        if (mStateWrapper == null || (width == mLayoutWidth && height == mLayoutHeight)) return;
+        mLayoutWidth = width;
+        mLayoutHeight = height;
+        WritableMap state = new WritableNativeMap();
+        state.putDouble("width", width);
+        state.putDouble("height", height);
+        mStateWrapper.updateState(state);
     }
 
     // Pixels on screen per pixel of the loaded image at its own size: an image

@@ -2,7 +2,7 @@
 
 #import <React/RCTConversions.h>
 #import <React/RCTConvert.h>
-#import <react/renderer/components/RNFastImageSpec/ComponentDescriptors.h>
+#import <react/renderer/components/FastImage/FastImageViewComponentDescriptor.h>
 #import <react/renderer/components/RNFastImageSpec/EventEmitters.h>
 #import <react/renderer/components/RNFastImageSpec/Props.h>
 #import <react/renderer/components/RNFastImageSpec/RCTComponentViewHelpers.h>
@@ -169,6 +169,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 
 @implementation FFFastImageViewComponentView {
     FFFastImageView *_imageView;
+    // The shadow node's state: the loaded image's size, which its layout
+    // follows (see FastImageViewShadowNode).
+    FastImageViewShadowNode::ConcreteState::Shared _state;
     // The props aren't on the image view yet (a new one): set them all,
     // rather than the ones that changed.
     BOOL _setsAllProps;
@@ -211,6 +214,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     _imageView.onFastImageLoadEnd = ^(NSDictionary *event) {
         [weakSelf sendEvent:FFFEventLoadEnd type:"fastImageLoadEnd" payload:event];
     };
+    _imageView.onImageSize = ^(CGSize size) {
+        [weakSelf setImageSize:size];
+    };
     _setsAllProps = YES;
     self.contentView = _imageView;
     _imageView.frame = RCTCGRectFromRect(_layoutMetrics.getPaddingFrame());
@@ -225,6 +231,24 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 {
     [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:oldLayoutMetrics];
     _imageView.frame = RCTCGRectFromRect(layoutMetrics.getPaddingFrame());
+}
+
+- (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
+{
+    _state = std::static_pointer_cast<const FastImageViewShadowNode::ConcreteState>(state);
+}
+
+// Lays the view out again for a loaded image of another size.
+- (void)setImageSize:(CGSize)size
+{
+    if (!_state) {
+        return;
+    }
+    const auto &data = _state->getData();
+    if (data.width == size.width && data.height == size.height) {
+        return;
+    }
+    _state->updateState(FastImageViewState{size.width, size.height});
 }
 
 // The image view's event as it built it (not the generated event structs,
@@ -262,6 +286,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     [_imageView stop];
     _imageView = nil;
     self.contentView = nil;
+    _state.reset();
     // A fade from the old image view (see FFFastImageView's fadeIn:).
     [self.layer removeAnimationForKey: kCATransition];
 }
