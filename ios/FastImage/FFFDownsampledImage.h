@@ -13,6 +13,11 @@
 // most.
 FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 
+// A vector image (an SVG) drawn into a bitmap at `scale` pixels per point,
+// keeping its size in points, at most 16 megapixels, with 8 bits per channel;
+// nil for an image with no size. Safe off the main thread; drawn under FFFWithSVGLock.
+FOUNDATION_EXTERN UIImage* FFFDrawnVectorImage(UIImage* image, CGFloat scale);
+
 // An image decoded at about the size it's shown at (the `downsample`
 // prop), instead of at full size. The view asks for it with SDWebImage's
 // thumbnail context: the box to fill (the view's size in pixels), and

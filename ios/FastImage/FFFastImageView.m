@@ -688,31 +688,17 @@ static void FFFShareAnimationBudget(void) {
 
 // A vector image drawn into a bitmap, with its size in points, at the pixels
 // it takes on screen: a 512-point icon shown at 24 points on a 3x screen is
-// 72 x 72 pixels, not 1536 x 1536. Before the view has a size it stays as it
-// is (the view shows nothing yet), and it's drawn once it has one
-// (rasterizeAgainIfResized).
+// 72 x 72 pixels, not 1536 x 1536. Drawn here, on the main thread, when it's
+// set, so it shows in this frame (an icon takes a fraction of a millisecond).
+// Before the view has a size it stays as it is (the view shows nothing yet),
+// and it's drawn once it has one (rasterizeAgainIfResized).
 - (UIImage*) rasterizedImage: (UIImage*)image {
-    CGSize size = image.size;
     CGFloat scale = [self rasterScale: image];
-    // Drawn again because the view grew (an animated resize grows it a little
-    // every frame): a quarter larger than it needs, so it isn't drawn again on
-    // every frame.
-    if (self.rasterizedScale > 0 && scale > self.rasterizedScale) {
-        scale *= 1.25;
-    }
     self.rasterizedScale = scale;
     if (scale <= 0) {
         return image;
     }
-    UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
-    format.scale = scale;
-    format.opaque = NO;
-    UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
-    return FFFWithSVGLock(^id {
-        return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
-            [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
-        }];
-    });
+    return FFFDrawnVectorImage(image, scale) ?: image;
 }
 
 // Shows the image, tinted as React Native's Image does it: UIKit draws a
@@ -866,7 +852,11 @@ static void FFFShareAnimationBudget(void) {
 
 // A tinted vector image is drawn for the size it's shown at (rasterizedImage):
 // drawn again when the view needs more pixels of it (it grows, or objectFit
-// changes), so it stays sharp, or fewer than half.
+// changes), so it stays sharp, or fewer than half. Not drawn yet (the view
+// had no size), it's drawn now, as when it's set. Drawn again, it's drawn off
+// the main thread (a large SVG took 20-55 ms on an iPhone 15 Pro Max, on each
+// step of an animated resize), and the view shows the bitmap it has, scaled,
+// until then.
 - (void) rasterizeAgainIfResized {
     UIImage* image = self.originalImage;
     if (!image || image.CGImage || !self.imageColor || [self blurs: image]) {
@@ -877,7 +867,29 @@ static void FFFShareAnimationBudget(void) {
     if (scale <= 0 || (scale <= drawn && scale >= drawn / 2)) {
         return;
     }
-    [self showImage: image];
+    if (drawn <= 0) {
+        [self showImage: image];
+        return;
+    }
+    // Grown (an animated resize grows it a little every frame): a quarter
+    // larger than it needs, so it isn't drawn again for every step.
+    if (scale > drawn) {
+        scale *= 1.25;
+    }
+    self.rasterizedScale = scale;
+    NSUInteger count = self.imageCount;
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        UIImage* bitmap = FFFDrawnVectorImage(image, scale);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            FFFastImageView* view = weakSelf;
+            // Only the latest drawing of the image still showing (a new image
+            // or tint sets another one).
+            if (bitmap && view && view.imageCount == count && view.rasterizedScale == scale) {
+                [view showImage: bitmap];
+            }
+        });
+    });
 }
 
 // The image (its first frame, for an animated image) drawn at scale times its

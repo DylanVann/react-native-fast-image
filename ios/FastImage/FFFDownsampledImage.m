@@ -103,24 +103,10 @@ id FFFWithSVGLock(id (^block)(void)) {
     }
 }
 
-// An SVG (a vector image, its size in points) drawn into a bitmap for a box
-// (in pixels) to fit in or cover, with at most maxScale pixels per point if
-// it's not zero, on SDWebImage's decode queue. Shown as a
-// vector, UIKit draws it on the main thread whenever the view shows it at a
-// new size (on an iPhone 15 Pro Max, mounting 40 cached 24-point icons took
-// 36 ms of the main thread against 11 ms as PNGs). It keeps the SVG's size in
-// points, with the pixels per point the box needs, so objectFit and onLoad
-// treat it as the SVG, and at most FFFMaxPixels (a thin SVG covering a box).
-static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxScale) {
+UIImage* FFFDrawnVectorImage(UIImage* image, CGFloat scale) {
     CGSize size = image.size;
-    if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
+    if (size.width <= 0 || size.height <= 0 || scale <= 0) {
         return nil;
-    }
-    CGFloat widthRatio = box.width / size.width;
-    CGFloat heightRatio = box.height / size.height;
-    CGFloat scale = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
-    if (maxScale > 0) {
-        scale = MIN(scale, maxScale);
     }
     scale = MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
@@ -135,6 +121,27 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
             [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
         }];
     });
+}
+
+// An SVG (a vector image, its size in points) drawn into a bitmap for a box
+// (in pixels) to fit in or cover, with at most maxScale pixels per point if
+// it's not zero, on SDWebImage's decode queue. Shown as a vector, UIKit draws
+// it on the main thread whenever the view shows it at a new size (on an
+// iPhone 15 Pro Max, mounting 40 cached 24-point icons took 36 ms of the main
+// thread against 11 ms as PNGs). It keeps the SVG's size in points, with the
+// pixels per point the box needs, so objectFit and onLoad treat it as the SVG.
+static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxScale) {
+    CGSize size = image.size;
+    if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
+        return nil;
+    }
+    CGFloat widthRatio = box.width / size.width;
+    CGFloat heightRatio = box.height / size.height;
+    CGFloat scale = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
+    if (maxScale > 0) {
+        scale = MIN(scale, maxScale);
+    }
+    return FFFDrawnVectorImage(image, scale);
 }
 
 // Where the decode puts the full image's size, passed in the load's decode
