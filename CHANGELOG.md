@@ -1,3 +1,10 @@
+## [10.9.7](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.6...v10.9.7) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ios:** draw SVGs for the view's size in the load, off the main thread ([#1389](https://github.com/DylanVann/react-native-fast-image/issues/1389)) ([cc19043](https://github.com/DylanVann/react-native-fast-image/commit/cc190432c2a4b0f7e4eeaead2dd5ecd54ca5b187))
+
 ## [10.9.6](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.5...v10.9.6) (2026-10-26)
 
 
