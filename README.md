@@ -546,11 +546,11 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 The image's style: View's style props (`borderRadius` clips the image, and borders inset it, but padding doesn't), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
 
-A width or height the style leaves out follows the loaded image, as with an `<img>` on the web:
+A width or height the style leaves out (or sets to `auto`) follows the loaded image, as with an `<img>` on the web:
 
 - Only a width (or one from the parent, e.g. stretched in a column): the height from the image's aspect ratio.
 - Only a height: the width from it.
-- Neither: the image's own size (a 600 × 300 px image is 600 × 300 points), at most the space there is.
+- Neither: the image's own size (a 600 × 300 px image is 600 × 300 points, a bundled `@3x` one a third of that), at most the space there is.
 
 Until the image has loaded, those sides are 0, so the layout changes when it loads. To keep its space, set both sides, or a width and an `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s result).
 
