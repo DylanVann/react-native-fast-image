@@ -709,8 +709,8 @@ static void FFFShareAnimationBudget(void) {
             if (!image.CGImage) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
                 // template: drawn into a bitmap at the size it's shown at.
-                // Only a full-size load's or a data uri's: a downsampled
-                // load draws it in the load (FFFDrawnSVG).
+                // Only a data uri's: a load draws it into a bitmap
+                // (FFFDrawnSVG).
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
@@ -1152,7 +1152,10 @@ NSString *FFFErrorMessage(NSError *error)
         return;
     }
     SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
-    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO];
+    // Shown as with contain whatever objectFit is (contentModeForImageSize),
+    // so decoded for the view's size, also with downsample false or objectFit
+    // none (an SVG is then drawn for it, not at its own size).
+    SDWebImageContext* context = [self contextForSource: source box: [self viewBox] cover: NO maxScale: 0];
     __weak typeof(self) weakSelf = self;
     self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
         if (!finished || weakSelf.urlPlaceholderLoad != load) {
@@ -1289,7 +1292,12 @@ NSString *FFFErrorMessage(NSError *error)
 
 // The size in pixels to decode the image for, or zero for full size.
 - (CGSize) decodeBox {
-    if (![self downsamples] || ![self hasSize]) {
+    return [self downsamples] ? [self viewBox] : CGSizeZero;
+}
+
+// The view's size in pixels, or zero before it has one.
+- (CGSize) viewBox {
+    if (![self hasSize]) {
         return CGSizeZero;
     }
     CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
@@ -1508,6 +1516,10 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover {
+    return [self contextForSource: source box: box cover: cover maxScale: [self decodeMaxScale]];
+}
+
+- (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale {
     SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
@@ -1519,12 +1531,12 @@ NSString *FFFErrorMessage(NSError *error)
     }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         // objectFit none shows it at its own size, however large.
-        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone];
+        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone screenScale: self.window.screen.scale ?: [UIScreen mainScreen].scale];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
     }
-    [FFFDownsampledImage addToContext: context box: box cover: cover maxScale: [self decodeMaxScale]];
+    [FFFDownsampledImage addToContext: context box: box cover: cover maxScale: maxScale];
     if ([source isPhotoLibrary]) {
         // Photos makes the photo at the size asked for, with no file
         // downloaded: SDWebImage would keep this smaller copy on disk as the

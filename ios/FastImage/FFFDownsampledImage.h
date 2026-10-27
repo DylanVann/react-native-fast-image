@@ -29,12 +29,12 @@ FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale;
 
 // Sets a load's context to decode the image at full size, through this
-// class: an image over 64 megapixels at 16 megapixels unless `uncapped`.
-// Every FastImage load uses it, so loads of the same url
+// class: an image over 64 megapixels at 16 megapixels unless `uncapped`, and
+// an SVG drawn at its own size at `screenScale`. Every FastImage load uses it, so loads of the same url
 // can share a download: SDWebImage's downloader decodes each load of a
 // download with the first load's image class (and each with its own size),
 // and SDWebImage's own thumbnail decoding can't cover a box.
-+ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped;
++ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped screenScale: (CGFloat)screenScale;
 
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.

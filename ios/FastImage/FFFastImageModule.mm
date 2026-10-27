@@ -2,6 +2,7 @@
 #import "RCTConvert+FFFastImage.h"
 #import "FFFastImageView.h"
 #import "FFFDownsampledImage.h"
+#import <React/RCTUtils.h>
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDImageCoderHelper.h>
@@ -142,7 +143,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
-    [FFFDownsampledImage addFullSizeToContext:context uncapped:NO];
+    [FFFDownsampledImage addFullSizeToContext:context uncapped:NO screenScale:RCTScreenScale()];
     return context;
 }
 
@@ -311,7 +312,7 @@ static NSDictionary *FFFFile(NSString *path)
                 // kept in memory, also when it comes from the disk cache. At
                 // full size even if it's over 64 megapixels: ImageIO decodes
                 // a smaller copy at once.
-                [FFFDownsampledImage addFullSizeToContext:context uncapped:YES];
+                [FFFDownsampledImage addFullSizeToContext:context uncapped:YES screenScale:RCTScreenScale()];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
