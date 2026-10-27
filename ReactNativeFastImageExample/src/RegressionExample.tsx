@@ -7688,7 +7688,7 @@ function DownsampleGrowCase() {
 }
 
 // A view without a size until its image loads (sized from onLoad): it still
-// loads, at full size.
+// loads (on iOS, decoded for the width it's stretched to).
 function DownsampleNoSizeCase() {
     const [size, setSize] = useState<{ width: number; height: number }>()
     // Passes once the view has been laid out at that size (the screenshot
