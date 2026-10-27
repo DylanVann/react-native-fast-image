@@ -1994,8 +1994,8 @@
         },
         "cases": {
             "svg-tint-grow": {
-                "checks": "A tinted SVG whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).",
-                "steps": "Loads a 24×24 SVG icon (a black ring) with tintColor green in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.",
+                "checks": "A tinted SVG with downsample={false} whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).",
+                "steps": "Loads a 24×24 SVG icon (a black ring) with tintColor green and downsample={false} in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.",
                 "shows": "A green ring filling a 160 pt square, with sharp edges. Blurry edges would mean it was scaled up from the 24 pt bitmap."
             },
             "svg-tint-placeholder": {

@@ -8890,9 +8890,11 @@ function SvgSharpCase() {
     )
 }
 
-// A tinted SVG is drawn into a bitmap for the size it's shown at (iOS): when
-// its view grows after it loaded, it's drawn again for the new size, so it
-// stays sharp. It was scaled up from the first bitmap.
+// A tinted SVG with downsample={false} (which keeps it a vector image) is
+// drawn into a bitmap by the view for the size it's shown at (iOS): when its
+// view grows after it loaded, it's drawn again for the new size, so it stays
+// sharp. It was scaled up from the first bitmap. (With downsample, the load
+// draws it for the view's size, and again when the view grows.)
 function SvgTintGrowCase() {
     const [loaded, setLoaded] = useState(false)
     const [done, setDone] = useState(false)
@@ -8908,14 +8910,15 @@ function SvgTintGrowCase() {
                 style={{ width: size, height: size }}
                 source={{ uri: imageUrl('svg-icon.svg?case=svg-tint-grow') }}
                 tintColor="green"
+                downsample={false}
                 onLoad={() => setLoaded(true)}
             />
             <CaseStatus
                 id="svg-tint-grow"
                 status={done ? 'OK' : 'loading'}
                 description={{
-                    checks: 'A tinted SVG whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).',
-                    steps: 'Loads a 24×24 SVG icon (a black ring) with tintColor green in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.',
+                    checks: 'A tinted SVG with downsample={false} whose view grows after it loaded is drawn again at the new size, sharp (on iOS it was scaled up from a bitmap of the old size).',
+                    steps: 'Loads a 24×24 SVG icon (a black ring) with tintColor green and downsample={false} in a 24 pt view, which grows to 160 pt once it has loaded. Passes a moment after that.',
                     shows: 'A green ring filling a 160 pt square, with sharp edges. Blurry edges would mean it was scaled up from the 24 pt bitmap.',
                 }}
             />
