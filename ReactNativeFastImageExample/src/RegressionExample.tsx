@@ -3300,6 +3300,91 @@ function ObjectFitSizeCase() {
     )
 }
 
+// A zoom viewer: a 30-point image shown 4 times larger, with a transform or
+// a zoomed ScrollView (iOS), as pinch-to-zoom does. downsample={false}
+// decodes the photo (a 1600x1000 page of text) at full size, so it stays
+// sharp; with downsample it's decoded for 30 points and enlarged. The SVG (a
+// 120x120 set of thin rings) is shown at its own size.
+function ZoomCase({
+    id,
+    scrollView,
+    description,
+}: {
+    id: string
+    scrollView?: boolean
+    description: Description
+}) {
+    const [status, onLoad] = useLoadedThenOk(4)
+    // Zoomed once it's laid out: a zoomScale set as it mounts is ignored.
+    const [zoom, setZoom] = useState(1)
+    const images = (
+        [
+            ['text-page.png', false],
+            ['text-page.png', true],
+            ['svg-zoom.svg', false],
+            ['svg-zoom.svg', true],
+        ] as const
+    ).map(([file, downsample]) => {
+        const image = (
+            <FastImage
+                style={scrollView ? zoomStyles.image : zoomStyles.transformed}
+                source={{ uri: imageUrl(`${file}?case=${id}-${downsample}`) }}
+                downsample={downsample}
+                onLoad={onLoad}
+            />
+        )
+        const key = `${file}-${downsample}`
+        return scrollView ? (
+            <ScrollView
+                key={key}
+                style={zoomStyles.clip}
+                contentContainerStyle={zoomStyles.image}
+                maximumZoomScale={4}
+                zoomScale={zoom}
+                onLayout={() => setZoom(4)}
+                scrollEnabled={false}
+                contentInsetAdjustmentBehavior="never"
+                automaticallyAdjustContentInsets={false}
+            >
+                {image}
+            </ScrollView>
+        ) : (
+            <View key={key} style={zoomStyles.clip}>
+                {image}
+            </View>
+        )
+    })
+    return (
+        <View style={zoomStyles.case}>
+            <View style={zoomStyles.grid}>{images}</View>
+            <CaseStatus id={id} status={status} description={description} />
+        </View>
+    )
+}
+
+const zoomStyles = StyleSheet.create({
+    // Apart from the cases around it, whose screenshots reach a little
+    // beyond them.
+    case: { paddingTop: 16, paddingBottom: 16 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: 248 },
+    clip: {
+        width: 120,
+        height: 120,
+        overflow: 'hidden',
+        backgroundColor: '#eee',
+    },
+    image: { width: 30, height: 30 },
+    // Scaled about its center, so it fills the clip.
+    transformed: {
+        position: 'absolute',
+        left: 45,
+        top: 45,
+        width: 30,
+        height: 30,
+        transform: [{ scale: 4 }],
+    },
+})
+
 // objectFit scale-down and none with an SVG of 60x60 black and white stripes,
 // one unit wide: drawn at its size in points (dp), as sharp as with contain in
 // a 60 point view (right). Android drew it at its size in pixels and enlarged
@@ -12613,6 +12698,34 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     checks: "An SVG with downsample stays a vector image, drawn sharp, and onLoad has its own size (iOS drew it into a bitmap the view's size).",
                     steps: 'Loads the 100×50 SVG (left half red, right half blue) with downsample in a 96×48 view. Passes when onLoad has 100×50.',
                     shows: 'A 96×48 rectangle: red on the left, blue on the right, with a sharp edge between them.',
+                }}
+            />,
+        ],
+    },
+    {
+        // Checked by screenshot.
+        name: 'zoom',
+        description: {
+            checks: 'Images zoomed in on as a pinch-to-zoom viewer does, with downsample={false} and without, checked by screenshot.',
+        },
+        cases: [
+            <ZoomCase
+                key="zoom-transform"
+                id="zoom-transform"
+                description={{
+                    checks: 'A 30-point image scaled 4 times with a transform: downsample={false} keeps a photo sharp (decoded at full size), and an SVG as sharp as at its own size.',
+                    steps: 'Four 30-point views in 120-point clips, each scaled 4 times about its center: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.',
+                    shows: 'Top: large text, sharp on the left and blurry on the right. Bottom: thin rings filling the square, sharp on the left (iOS 10.9.8: soft, the SVG was drawn for 30 points) and soft on the right.',
+                }}
+            />,
+            <ZoomCase
+                key="zoom-scroll-view"
+                id="zoom-scroll-view"
+                scrollView
+                description={{
+                    checks: 'A 30-point image in a ScrollView zoomed 4 times (zoomScale, iOS only), as a pinch-to-zoom viewer zooms: downsample={false} keeps a photo sharp, and an SVG as sharp as at its own size.',
+                    steps: 'Four 120-point ScrollViews with maximumZoomScale and zoomScale 4, each with a 30-point image: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.',
+                    shows: 'iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares.',
                 }}
             />,
         ],

@@ -1931,6 +1931,23 @@
             }
         }
     },
+    "zoom": {
+        "description": {
+            "checks": "Images zoomed in on as a pinch-to-zoom viewer does, with downsample={false} and without, checked by screenshot."
+        },
+        "cases": {
+            "zoom-transform": {
+                "checks": "A 30-point image scaled 4 times with a transform: downsample={false} keeps a photo sharp (decoded at full size), and an SVG as sharp as at its own size.",
+                "steps": "Four 30-point views in 120-point clips, each scaled 4 times about its center: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.",
+                "shows": "Top: large text, sharp on the left and blurry on the right. Bottom: thin rings filling the square, sharp on the left (iOS 10.9.8: soft, the SVG was drawn for 30 points) and soft on the right."
+            },
+            "zoom-scroll-view": {
+                "checks": "A 30-point image in a ScrollView zoomed 4 times (zoomScale, iOS only), as a pinch-to-zoom viewer zooms: downsample={false} keeps a photo sharp, and an SVG as sharp as at its own size.",
+                "steps": "Four 120-point ScrollViews with maximumZoomScale and zoomScale 4, each with a 30-point image: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.",
+                "shows": "iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares."
+            }
+        }
+    },
     "svg-sizes": {
         "description": {
             "checks": "How SVGs fit their views: objectFit contain and cover, and an SVG drawn sharp at a large size."
