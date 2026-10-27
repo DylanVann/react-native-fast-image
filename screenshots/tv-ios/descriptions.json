@@ -11,6 +11,28 @@
             }
         }
     },
+    "auto-size": {
+        "description": {
+            "checks": "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set."
+        },
+        "cases": {
+            "auto-size-width": {
+                "checks": "An image with only a width (in a row) gets the height its aspect ratio gives.",
+                "steps": "Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.",
+                "shows": "The photo at 240x120 on the left, not stretched."
+            },
+            "auto-size-height": {
+                "checks": "An image with only a height (in a row) gets the width its aspect ratio gives.",
+                "steps": "Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
+                "shows": "The photo at 128x64 on the left."
+            },
+            "auto-size-natural": {
+                "checks": "An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.",
+                "steps": "Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The 120x120 photo at 120x120 points on the left."
+            }
+        }
+    },
     "load-end": {
         "description": {
             "checks": "onLoadEnd's event: whether the load worked, with onLoad's size or onError's error."
@@ -668,6 +690,33 @@
                 "checks": "downsample={false} decodes an image at full size, so a view zoomed in on with a transform (as a pinch-to-zoom viewer does) stays sharp (Android decoded it at about the view's size either way).",
                 "steps": "Loads a 1600x1000 page of text into two 80x50 views drawn 4 times larger with a transform, each clipped to a 140x88 area showing its top-left corner: the left with downsample (the default), the right with downsample={false}. Passes once both have loaded (and a moment more).",
                 "shows": "The first lines of the page, enlarged, twice: blurry on the left, sharp on the right. Blurry text on the right is a failure."
+            }
+        }
+    },
+    "large-view": {
+        "description": {
+            "checks": "An image in a view far larger than the screen shows: a still image, one cross-dissolving to a new source, a GIF and a placeholder url."
+        },
+        "cases": {
+            "large-view": {
+                "checks": "An image in a view far larger than the screen shows (on Android its bitmap was the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "Loads a 20x20 image of four colored squares into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
+            },
+            "large-view-fade": {
+                "checks": "transition's betweenImages in a view far larger than the screen (on Android the fade copied what the view showed into a bitmap the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "The large-view case, with transition { duration: 300, betweenImages: true }: once the image loads, its source changes to the same image at another url, which cross-dissolves from it. Passes once both have loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
+            },
+            "large-view-gif": {
+                "checks": "A GIF in a view far larger than the screen shows (on Android each frame was cropped to the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "Loads an 80x80 GIF that plays once, magenta then cyan, into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).",
+                "shows": "A 120x120 cyan square. The app closing is a failure."
+            },
+            "large-view-placeholder": {
+                "checks": "A placeholder url in a view far larger than the screen shows while the image loads (on Android it was loaded at the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "The large-view case, with the image from the slow server (about 4 s) and a placeholder url of the logo, which shows meanwhile. Passes once the image has loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
             }
         }
     },
