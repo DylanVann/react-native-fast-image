@@ -4,8 +4,6 @@
 #import <React/RCTUtils.h>
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
-#import <SDWebImage/SDImageCodersManager.h>
-#import <SDWebImage/NSData+ImageContentType.h>
 #import "FFFDownsampledImage.h"
 #import "FFFThumbHash.h"
 #import "FFFBoxBlur.h"
@@ -1264,11 +1262,6 @@ NSString *FFFErrorMessage(NSError *error)
     if (!_source || self.hasErrored || self.waitsForSize) {
         return;
     }
-    // A data uri is decoded at once, with its events (see reloadImage).
-    if ([[_source.url absoluteString] hasPrefix: @"data:image"]) {
-        [self reloadImage];
-        return;
-    }
     SDWebImageOptions options = [self loadOptions];
     if (self.showsLoadedImage) {
         options |= SDWebImageDelayPlaceholder;
@@ -1409,62 +1402,13 @@ NSString *FFFErrorMessage(NSError *error)
     self.decodedUncapped = NO;
     self.redrawnSVGScale = 0;
     // The previous load, if it's still running, is for a source the view no
-    // longer shows: cancel it (a new download would, but a data uri or no
-    // source doesn't start one), and ignore what it still sends (SDWebImage
-    // completes a cancelled load with an error; see downloadImage:).
+    // longer shows: cancel it (a new download would, but no source doesn't
+    // start one), and ignore what it still sends (SDWebImage completes a
+    // cancelled load with an error; see downloadImage:).
     self.loadCount++;
     [self sd_cancelLatestImageLoad];
 
     if (_source) {
-        // Load base64 images.
-        NSString* url = [_source.url absoluteString];
-        if (url && [url hasPrefix: @"data:image"]) {
-            if (self.onFastImageLoadStart) {
-                self.onFastImageLoadStart(@{});
-            }
-            // Use SDWebImage API to support external format like WebP images
-            // (as sd_imageWithData does), decoded to HDR or SDR as a
-            // download is (see contextForSource).
-            NSData* data = [NSData dataWithContentsOfURL: _source.url];
-            NSDictionary* options = @{
-                SDImageCoderDecodeScaleFactor: @1,
-                SDImageCoderDecodeToHDR: @([self decodesToHDR]),
-            };
-            id (^decode)(void) = ^id {
-                return [[SDImageCodersManager sharedManager] decodedImageWithData: data options: options];
-            };
-            // An SVG is parsed while no other SVG is drawn (FFFWithSVGLock).
-            UIImage* image = [NSData sd_imageFormatForImageData: data] == SDImageFormatSVG ? FFFWithSVGLock(decode) : decode();
-            if (!image) {
-                // Not decodable: fail like a remote image, showing the
-                // placeholder.
-                [self setImage: [self shownPlaceholder]];
-                self.showsLoadedImage = NO;
-                [self sendOnError: @"Failed to decode the image"];
-                [self startUrlPlaceholderLoad];
-                if (self.onFastImageLoadEnd) {
-                    self.onFastImageLoadEnd([self loadEndEvent: NO]);
-                }
-                return;
-            }
-            [self showLoadedImage: image fade: [self fadesImageFromCache: SDImageCacheTypeNone]];
-            if (self.onFastImageProgress) {
-                self.onFastImageProgress(@{
-                        @"loaded": @(1),
-                        @"total": @(1),
-                        @"progress": @(1)
-                });
-            }
-            self.hasCompleted = YES;
-            self.showsLoadedImage = YES;
-            [self sendOnLoad: image];
-
-            if (self.onFastImageLoadEnd) {
-                self.onFastImageLoadEnd([self loadEndEvent: YES]);
-            }
-            return;
-        }
-
         SDWebImageOptions options = [self loadOptions];
 
         // Keep showing the loaded image until the new one has loaded, instead
@@ -1525,12 +1469,12 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 // Whether the view loads as it's laid out, so its image shows in this frame:
-// one in the memory cache, where SDWebImage finds it as the load starts, or one
-// that isn't downloaded (no source, which shows the placeholder prop, or a data
-// uri). Also when that can't be told (an app's own image cache), as before.
+// one in the memory cache, where SDWebImage finds it as the load starts, or no
+// source, which shows the placeholder prop. Also when that can't be told (an
+// app's own image cache), as before.
 - (BOOL) loadsDuringLayout {
     FFFastImageSource* source = [self picksSource] ? [self sourceForSize] : _source;
-    if (!source.url || [source.url.scheme isEqualToString: @"data"]) {
+    if (!source.url) {
         return YES;
     }
     if (!source.memoryCache) {
@@ -1585,7 +1529,9 @@ NSString *FFFErrorMessage(NSError *error)
 // smaller (addToContext keeps those in memory only, as the disk cache has the
 // downloaded file).
 - (void) applyCacheOptions: (SDWebImageMutableContext*)context source: (FFFastImageSource*)source fullSize: (BOOL)fullSize {
-    if (!source.diskCache) {
+    // A data uri's data is the app's own: decoded off the main thread and
+    // kept in memory like any image, but not written to the disk cache.
+    if (!source.diskCache || [source isDataUri]) {
         // Neither the downloaded file (the original, for a smaller decode)
         // nor the decoded image is read from or written to the disk cache. A
         // `web` one isn't kept in memory either, as on Android: it's

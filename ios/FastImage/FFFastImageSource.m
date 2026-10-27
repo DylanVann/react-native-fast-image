@@ -13,6 +13,7 @@
 #import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
 #import <Photos/Photos.h>
 #import <ImageIO/ImageIO.h>
+#import <CommonCrypto/CommonDigest.h>
 
 // In FFFastImageView.m.
 FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
@@ -316,7 +317,10 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 @end
 
-@implementation FFFastImageSource
+@implementation FFFastImageSource {
+    // See dataUriKey.
+    NSString *_dataUriKey;
+}
 
 + (void)initialize
 {
@@ -386,6 +390,11 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 - (SDWebImageCacheKeyFilter *)cacheKeyFilter
 {
     NSString* cacheKey = _cacheKey;
+    // A data uri can be hundreds of kilobytes, and SDWebImage parses its
+    // cache keys as urls: a hash of it instead.
+    if (cacheKey.length == 0 && [self isDataUri]) {
+        cacheKey = [self dataUriKey];
+    }
     // `cache: 'web'` follows the HTTP cache, which is keyed by url.
     if (cacheKey.length == 0 || _cacheControl == FFFCacheControlWeb) {
         return nil;
@@ -419,6 +428,29 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 - (BOOL)isPhotoLibrary
 {
     return [_url.scheme isEqualToString:@"ph"];
+}
+
+- (BOOL)isDataUri
+{
+    return [_url.scheme caseInsensitiveCompare:@"data"] == NSOrderedSame;
+}
+
+// A data uri's cache key: a SHA-256 of the uri, worked out once.
+- (NSString *)dataUriKey
+{
+    @synchronized (self) {
+        if (!_dataUriKey) {
+            NSData *uri = [_url.absoluteString dataUsingEncoding:NSUTF8StringEncoding];
+            unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+            CC_SHA256(uri.bytes, (CC_LONG)uri.length, digest);
+            NSMutableString *key = [NSMutableString stringWithString:@"fastimage-data-uri:"];
+            for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+                [key appendFormat:@"%02x", digest[i]];
+            }
+            _dataUriKey = key;
+        }
+        return _dataUriKey;
+    }
 }
 
 - (CGSize)photoPixelSize
