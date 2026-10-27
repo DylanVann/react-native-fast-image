@@ -68,8 +68,10 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // which is decoded at about the view's size.
 - (BOOL)isPhotoLibrary;
 
-// Whether the source is a data uri, which is kept in memory only (the data is
-// the app's own) and cached under a hash of the uri (see cacheKeyFilter).
+// Whether the source is a data uri: its data is the app's own, so `cache`
+// doesn't apply (cacheControl is immutable), it's kept in memory only
+// (diskCache is NO), read by a downloader of its own (imageLoader), and cached
+// under a hash of the uri (cacheKeyFilter).
 - (BOOL)isDataUri;
 
 // The error's message, for onError.

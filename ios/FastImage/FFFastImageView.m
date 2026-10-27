@@ -710,8 +710,9 @@ static void FFFShareAnimationBudget(void) {
             if (!image.CGImage) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
                 // template: drawn into a bitmap at the size it's shown at.
-                // Only a data uri's: a load draws it into a bitmap
-                // (FFFDrawnSVG).
+                // Loads draw SVGs into bitmaps (FFFDrawnSVG), so only an
+                // SVG that didn't come from one, e.g. the placeholder
+                // prop's.
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
@@ -1125,8 +1126,8 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Loads placeholderSource's image with the image's load (after layout, so at
 // the view's size, with the props applied), or after the image failed: not
-// if the image shows at once (from the memory cache, or a data uri), or the
-// placeholder is already loaded or loading.
+// if the image shows at once (from the memory cache), or the placeholder is
+// already loaded or loading.
 - (void) startUrlPlaceholderLoad {
     self.needsUrlPlaceholderLoad = NO;
     if (!_placeholderSource.url || self.urlPlaceholderImage || self.urlPlaceholderOperation) {
@@ -1529,9 +1530,7 @@ NSString *FFFErrorMessage(NSError *error)
 // smaller (addToContext keeps those in memory only, as the disk cache has the
 // downloaded file).
 - (void) applyCacheOptions: (SDWebImageMutableContext*)context source: (FFFastImageSource*)source fullSize: (BOOL)fullSize {
-    // A data uri's data is the app's own: decoded off the main thread and
-    // kept in memory like any image, but not written to the disk cache.
-    if (!source.diskCache || [source isDataUri]) {
+    if (!source.diskCache) {
         // Neither the downloaded file (the original, for a smaller decode)
         // nor the decoded image is read from or written to the disk cache. A
         // `web` one isn't kept in memory either, as on Android: it's
