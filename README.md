@@ -24,6 +24,7 @@ React Native's `Image` component handles image caching like browsers for the mos
 - **Headers**, e.g. for authentication ([`headers`](#sourceheaders)).
 - **Priorities** for which images load first ([`priority`](#sourcepriority)).
 - **Responsive images**: give several sizes, and the one that fits the view loads ([`source`](#source)).
+- **Sized from the image**: a width or height the style leaves out follows the loaded image's aspect ratio ([`style`](#style)).
 - **Animated images** (GIF, WebP, APNG and AVIF) that can [loop](#loop) and [pause](#paused).
 - **Fades** in and between images ([`transition`](#transition)).
 - **Placeholders**: a blurred preview from a [ThumbHash](#sourcethumbhash) or a [tiny image](#sourceblurdatauri) while an image loads, a bundled image, or a url, e.g. a thumbnail that's already cached ([`placeholder`](#placeholder)).
@@ -531,7 +532,7 @@ Called when the image finishes loading, whether it was successful or an error, w
 <FastImage
     source={{ uri }}
     onLoadEnd={(result) => {
-        if (result.ok) setAspectRatio(result.width / result.height)
+        if (result.ok) setLoaded(true)
         else setFailed(result.error)
     }}
 />
@@ -544,6 +545,18 @@ Called when the image finishes loading, whether it was successful or an error, w
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `StyleProp<ImageStyle>`
 
 The image's style: View's style props (`borderRadius` clips the image, and borders inset it, but padding doesn't), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
+
+A width or height the style leaves out follows the loaded image, as with an `<img>` on the web:
+
+- Only a width (or one from the parent, e.g. stretched in a column): the height from the image's aspect ratio.
+- Only a height: the width from it.
+- Neither: the image's own size (a 600 × 300 px image is 600 × 300 points), at most the space there is.
+
+Until the image has loaded, those sides are 0, so the layout changes when it loads. To keep its space, set both sides, or a width and an `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s result).
+
+```jsx
+<FastImage source={{ uri }} style={{ width: '100%' }} />
+```
 
 ---
 
