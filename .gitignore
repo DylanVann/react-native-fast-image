@@ -60,3 +60,6 @@ verify-output/
 
 # scripts/verify.mts --record output
 recordings/
+
+# scripts/verify.mts's references for a phone (ANDROID_SERIAL)
+/screenshots/*-android-*/

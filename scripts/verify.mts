@@ -94,7 +94,11 @@ Environment:
                   the references' device, with the newest runtime). For the
                   tvOS example, TVOS_SIMULATOR (default: "RNFI Apple TV", an
                   Apple TV 4K (3rd generation)).
-  ANDROID_AVD     Emulator to start if no device is connected (default: the
+  ANDROID_SERIAL  The Android device to run on (adb's serial, from adb
+                  devices), e.g. a phone; its reference screenshots are in
+                  screenshots/<app>-android-<model>/ (not committed). Without
+                  it, a running emulator, or one this script starts.
+  ANDROID_AVD     Emulator to start if none is running (default: the
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
                   started with -gpu host, no window and its gRPC API on port
@@ -1393,6 +1397,15 @@ function pngSize(file: string) {
 // --update-screenshots replaces them all. On a mismatch the diff is written
 // next to the screenshot in verify-output/.
 const SCREENSHOTS = path.join(ROOT, 'screenshots')
+// A phone's (ANDROID_SERIAL) are its own, screenshots/<app>-android-<model>,
+// seeded by its first run and ignored by git.
+const referenceDir = (app: App, platform: Platform) =>
+    path.join(
+        SCREENSHOTS,
+        platform === 'android' && androidModel
+            ? `${app}-android-${androidModel}`
+            : `${app}-${platform}`,
+    )
 const SCREENSHOT_MAX_DIFF = 0.1
 // Around each case's area (dp).
 const CASE_PADDING = 6
@@ -1551,7 +1564,7 @@ async function compareScreenshot(
     result: 'match' | 'seeded' | 'none' | 'unseeded' | 'differs'
     detail?: string
 }> {
-    const dir = path.join(SCREENSHOTS, `${app}-${platform}`)
+    const dir = referenceDir(app, platform)
     const reference = path.join(dir, `${name}.png`)
     if (!fs.existsSync(reference) || UPDATE_SCREENSHOTS) {
         // Not from a --ref run: it shows the library as it was.
@@ -2164,10 +2177,13 @@ async function runRegression(
                 `screenshot ${name}: not compared (zero size): ${empty.join(', ')}`,
             )
         // A case that reported a status but whose area didn't arrive isn't
-        // compared, so it fails.
+        // compared, so it fails (one left out on purpose aside).
         const unmeasured = whole
             ? []
-            : Object.keys(statuses[name] ?? {}).filter((id) => !(id in cases))
+            : Object.keys(statuses[name] ?? {}).filter(
+                  (id) =>
+                      !(id in cases) && !uncompared.includes(`${name}/${id}`),
+              )
         const groupFailures = [
             ...outside.map((id) => `${name}/${id}: outside the screenshot`),
             ...unmeasured.map(
@@ -2287,6 +2303,10 @@ async function runRegression(
     }
     // Video samples a stalled recording couldn't check (see stopSession).
     const unchecked: string[] = []
+    // A phone's cases whose size ends on half a pixel at its scale (see
+    // halfPixelSize): they're sized for the references' devices, so they're
+    // left out rather than failed.
+    const uncompared: string[] = []
     // A screenshot of the group on screen (index), once it's all OK (or timed
     // out), compared with its reference. Comparisons (and video samples) run
     // in the background; `shots` is awaited at the end.
@@ -2364,6 +2384,11 @@ async function runRegression(
             )) {
                 const tie = halfPixelSize(r, scale)
                 if (!tie) continue
+                if (platform === 'android' && androidModel) {
+                    delete cases[id]
+                    uncompared.push(`${name}/${id}`)
+                    continue
+                }
                 const failure = `${name}/${id}: ${tie}`
                 failuresOf(index).push(failure)
                 failures = [...failures, failure]
@@ -2960,7 +2985,7 @@ async function runRegression(
     // groups the app doesn't have. Not from a --ref run, whose app is older.
     if (!REF) {
         for (const file of orphanedReferences(
-            path.join(SCREENSHOTS, `${app}-${platform}`),
+            referenceDir(app, platform),
             groups,
             Object.keys(screenshots),
             (group) => comparedWhole.has(group),
@@ -2972,7 +2997,7 @@ async function runRegression(
     let descriptionsSeeded: string[] = []
     if (!REF) {
         const checked = checkDescriptions(
-            path.join(SCREENSHOTS, `${app}-${platform}`),
+            referenceDir(app, platform),
             groups,
             descriptions,
         )
@@ -2993,6 +3018,7 @@ async function runRegression(
                 noReference,
                 unseeded,
                 unchecked,
+                uncompared,
                 timings,
             },
             null,
@@ -3002,7 +3028,7 @@ async function runRegression(
     logLine(`done in ${total}s: ${timings.join(', ')}`)
     const seededNote =
         (descriptionsSeeded.length > 0
-            ? `; the descriptions of ${descriptionsSeeded.length} group${descriptionsSeeded.length === 1 ? '' : 's'} added to ${rel(path.join(SCREENSHOTS, `${app}-${platform}`, DESCRIPTIONS))}`
+            ? `; the descriptions of ${descriptionsSeeded.length} group${descriptionsSeeded.length === 1 ? '' : 's'} added to ${rel(path.join(referenceDir(app, platform), DESCRIPTIONS))}`
             : '') +
         (seeded.length > 0
             ? `; ${seeded.length} reference screenshot${seeded.length === 1 ? '' : 's'} seeded in ${rel(SCREENSHOTS)}, look at them before committing`
@@ -3015,6 +3041,9 @@ async function runRegression(
             : '') +
         (unchecked.length > 0
             ? `; samples not checked (their recordings couldn't show the change): ${unchecked.join(', ')}`
+            : '') +
+        (uncompared.length > 0
+            ? `; ${uncompared.length} case${uncompared.length === 1 ? '' : 's'} not compared (sizes on half a pixel at this device's scale, in results.json)`
             : '')
     if (failures.length > 0) {
         record(
@@ -3811,6 +3840,8 @@ async function flowsIos(app: App) {
 // --- Android -------------------------------------------------------------
 
 let androidSerial = ''
+// A phone's model (e.g. sm-a576b), empty on an emulator.
+let androidModel = ''
 // Resolves once the device has booted: an emulator boots while the apps
 // build, and buildAndroid waits for it before installing.
 let androidBooted: Promise<void> = Promise.resolve()
@@ -3832,15 +3863,43 @@ function ensureJava() {
     if (jdk) env.JAVA_HOME = jdk
 }
 
-const connectedDevice = () =>
-    capture(ADB, ['devices'])
-        ?.split('\n')
-        .slice(1)
-        .map((line) => line.split('\t'))
-        .find(([, state]) => state === 'device')?.[0] ?? ''
+// The device ANDROID_SERIAL names, else an emulator: a phone only when it's
+// named, since its screenshots differ from the emulator's references.
+const connectedDevice = () => {
+    const serials =
+        capture(ADB, ['devices'])
+            ?.split('\n')
+            .slice(1)
+            .map((line) => line.split('\t'))
+            .filter(([, state]) => state === 'device')
+            .map(([serial]) => serial) ?? []
+    return (
+        serials.find((serial) =>
+            env.ANDROID_SERIAL
+                ? serial === env.ANDROID_SERIAL
+                : serial.startsWith('emulator-'),
+        ) ?? ''
+    )
+}
 
 async function androidDevice() {
     androidSerial = connectedDevice()
+    if (!androidSerial && env.ANDROID_SERIAL) return false
+    if (androidSerial && !androidSerial.startsWith('emulator-')) {
+        // A phone: its own references (referenceDir), named after its model.
+        androidModel = (
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'getprop',
+                'ro.product.model',
+            ]) ?? androidSerial
+        )
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+    }
     if (!androidSerial) {
         const emulator = path.join(ANDROID_HOME, 'emulator/emulator')
         // An AVD of the script's own (see the iOS simulator above) when
@@ -3886,6 +3945,7 @@ async function androidDevice() {
         if (!androidSerial) return false
         emulatorGrpc = true
     } else if (
+        !androidModel &&
         capture('pgrep', ['-f', 'qemu-system']) &&
         !capture('pgrep', ['-f', 'qemu-system.*-no-window'])
     ) {
@@ -3893,10 +3953,9 @@ async function androidDevice() {
             '    Note: the emulator has a window. Keep it visible while the flows run, or quit it and let this script start one without a window.',
         )
     }
-    emulatorGrpc ||= !!capture('pgrep', [
-        '-f',
-        `qemu-system.*-grpc ${EMULATOR_GRPC_PORT}`,
-    ])
+    emulatorGrpc ||=
+        !androidModel &&
+        !!capture('pgrep', ['-f', `qemu-system.*-grpc ${EMULATOR_GRPC_PORT}`])
     androidBooted = (async () => {
         const deadline = Date.now() + 300_000
         while (
@@ -3935,6 +3994,22 @@ async function androidDevice() {
                 'android.intent.action.CLOSE_SYSTEM_DIALOGS',
             ])
         }
+        // Portrait, as the references are: a phone turned on its side
+        // mid-run would otherwise take landscape screenshots (and seed them).
+        for (const [setting, value] of [
+            ['accelerometer_rotation', '0'],
+            ['user_rotation', '0'],
+        ])
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'settings',
+                'put',
+                'system',
+                setting,
+                value,
+            ])
     })()
     return true
 }
@@ -4062,11 +4137,19 @@ async function buildAndroid(app: App) {
             return false
         }
     }
-    capture(ADB, ['-s', androidSerial, 'reverse', 'tcp:8081', 'tcp:8081'])
+    // Metro, and on a phone the image server (imageServer.ts).
+    for (const port of androidModel ? [8081, 8090, 8091] : [8081])
+        capture(ADB, [
+            '-s',
+            androidSerial,
+            'reverse',
+            `tcp:${port}`,
+            `tcp:${port}`,
+        ])
     record(
         'PASS',
         `${app} android build`,
-        `gradle ${duration(bootStart - buildStart)}, waiting for the emulator ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
+        `gradle ${duration(bootStart - buildStart)}, waiting for the ${androidModel ? 'device' : 'emulator'} ${duration(installStart - bootStart)}, install ${duration(Date.now() - installStart)}`,
     )
     // Once per run (in the first shard of a sharded one).
     if (
@@ -4246,7 +4329,14 @@ async function main() {
             } else {
                 ensureJava()
                 if (await androidDevice()) ready.push('android')
-                else record('FAIL', 'android', 'no device or emulator')
+                else
+                    record(
+                        'FAIL',
+                        'android',
+                        env.ANDROID_SERIAL
+                            ? `${env.ANDROID_SERIAL} (ANDROID_SERIAL) isn't connected`
+                            : 'no emulator',
+                    )
             }
         }
 

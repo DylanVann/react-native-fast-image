@@ -3,8 +3,15 @@ import { Platform } from 'react-native'
 // Remote images come from the example image server
 // (ReactNativeFastImageExampleServer) rather than the internet, so the
 // examples and flows don't depend on other servers. The Android emulator
-// reaches the computer at 10.0.2.2.
-const HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost'
+// reaches the computer at 10.0.2.2, and a phone at localhost through
+// `adb reverse` (scripts/verify.mts sets it up for 8090 and 8091). Emulators
+// are told apart by their build fingerprint, as React Native does for Metro's
+// host (AndroidInfoHelpers), and AOSP images (sdk_phone64_*) too.
+const HOST =
+    Platform.OS === 'android' &&
+    /generic|sdk_g?phone/.test(Platform.constants.Fingerprint)
+        ? '10.0.2.2'
+        : 'localhost'
 
 export const imageUrl = (path: string) => `http://${HOST}:8090/${path}`
 
