@@ -198,6 +198,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run; the main-thread times are Fast Image's own measurements of vector images in its views before [#1389](https://github.com/DylanVann/react-native-fast-image/pull/1389). Show a tinted 24-point SVG icon and check the image's `CGImage` size (216 × 216 on a 3× screen); show an SVG whose view animates its size and watch the main thread in Instruments.
 - **How Fast Image handles it:** an SVG is drawn into a bitmap for the view's size in pixels in the load, off the main thread, tinted or not, and kept in the memory cache at that size; it's drawn again when the view grows by a fifth, as other images are decoded again ([#1389](https://github.com/DylanVann/react-native-fast-image/pull/1389)).
 
+## iOS: tinted SVGs drawn at the same time can come out with wrong pixels
+
+- **What happens:** Core Graphics draws antialiased translucent shapes wrongly when several threads draw them at once, even into separate bitmaps (FB25211753, which Apple confirmed on iOS 26 and 27 in [this forum thread](https://developer.apple.com/forums/thread/851778)): some shapes' edges come out jagged and in the wrong colors. Expo Image draws a tinted SVG into a bitmap on SDWebImage's decode threads, which run one per download at the same time, so tinted SVGs loading together can come out wrong.
+- **Where:** `packages/expo-image/ios/ImageView.swift`, `thumbnailPixelSize(for:)` asks for a bitmap with `tintColor`, and `packages/expo-image/ios/Coders/SVGCoder.swift` decodes with SDWebImageSVGCoder, whose `createBitmapSVGWithData:targetSize:preserveAspectRatio:` draws the document (`SDCGContextDrawSVGDocument`) on the thread decoding it, with nothing keeping two drawings apart.
+- **How to reproduce:** Found by reading the code, not run in Expo Image. Fast Image measured the Core Graphics behavior on an iPhone 15 Pro Max: a 200-shape SVG drawn on 8 threads at once came out wrong in 10–20% of the drawings, and drawn one at a time never.
+- **How Fast Image handles it:** every SVG it parses or draws goes through one lock, the main thread first ([#1390](https://github.com/DylanVann/react-native-fast-image/pull/1390)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
