@@ -2,7 +2,7 @@
 #import <SDWebImage/SDWebImageDefine.h>
 
 // Runs block (parsing or drawing an SVG) while no other thread of Fast
-// Image's parses or draws one. Core Graphics draws antialiased translucent
+// Image's parses or draws one, and returns what it returns. Core Graphics draws antialiased translucent
 // shapes wrongly when several threads draw them at once, even into separate
 // bitmaps (FB25211753, confirmed by Apple on iOS 26 and 27:
 // https://developer.apple.com/forums/thread/851778): on an iPhone 15 Pro
@@ -11,7 +11,7 @@
 // SVG while another one was drawn made some too. One at a time, all came out
 // right. The main thread goes first, waiting for the drawing in progress at
 // most.
-void FFFWithSVGLock(void (^block)(void));
+FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 
 // An image decoded at about the size it's shown at (the `downsample`
 // prop), instead of at full size. The view asks for it with SDWebImage's
