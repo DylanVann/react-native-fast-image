@@ -35,7 +35,7 @@ bun run ios
 bun run android
 ```
 
-The examples load their remote images from a local server (`ReactNativeFastImageExampleServer`, run with Bun) instead of the internet, so they work offline and the flows don't depend on other servers. It serves `ReactNativeFastImageExampleServer/images` on port 8090; the app reaches it at `localhost` on iOS and `10.0.2.2` (the host machine) on the Android emulator. A path that doesn't exist returns 404, and query strings are ignored. The images were downloaded from their original URLs by `ReactNativeFastImageExampleServer/download.ts`, which lists each source; run it again to add one.
+The examples load their remote images from a local server (`ReactNativeFastImageExampleServer`, run with Bun) instead of the internet, so they work offline and the flows don't depend on other servers. It serves `ReactNativeFastImageExampleServer/images` on port 8090; the app reaches it at `localhost` on iOS and on Android phones (through `adb reverse`, which `verify.mts` sets up), and at `10.0.2.2` (the host machine) on the Android emulator. A path that doesn't exist returns 404, and query strings are ignored. The images were downloaded from their original URLs by `ReactNativeFastImageExampleServer/download.ts`, which lists each source; run it again to add one.
 
 ## The legacy architecture (FastImage 9)
 
@@ -135,7 +135,7 @@ Run `node scripts/verify.mts --help` for all options. Logs, screenshots and cras
 The flows run on devices of their own, so screenshots and recordings don't show other apps:
 
 - iOS: a simulator named "RNFI iPhone", created on first use from the newest iPhone simulator's device type and runtime.
-- Android: the first emulator whose name starts with `rnfi` (pick another with `ANDROID_AVD`); the script starts it if none is running. Create one (e.g. `rnfi_api36_aosp`) with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`).
+- Android: the first emulator whose name starts with `rnfi` (pick another with `ANDROID_AVD`); the script starts it if none is running. A phone or another device only runs when `ANDROID_SERIAL` names it (its serial from `adb devices`): its reference screenshots are its own, in `screenshots/<app>-android-<model>/`, seeded by its first run and not committed. Cases sized for the emulator's 2.625× whose sizes land on half a pixel at the phone's scale (see Screenshots) aren't compared there; the summary counts them. The script turns the device's auto-rotate off and puts it in portrait. Create an emulator (e.g. `rnfi_api36_aosp`) with a plain AOSP system image (`system-images;android-36;default;arm64-v8a`), at least 4 GB of RAM and hardware graphics (`hw.ramSize` and `hw.gpu.mode = host` in the AVD's `config.ini`).
 
 Google APIs images run Play services and other apps in the background; combined with the example's animated images they overload the emulator until system dialogs ("… isn't responding") cover the app and flows fail. ATD images are lighter still, but render a black screen, so screenshots are empty. The script starts emulators with `-gpu host` and no window (macOS throttles the emulator while its window is hidden or behind the iOS Simulator, and the app stalls until the window is brought forward), and sets `hide_error_dialogs` on them.
 
