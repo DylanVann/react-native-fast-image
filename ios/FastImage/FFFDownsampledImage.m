@@ -7,12 +7,17 @@
 #import <SDWebImage/SDImageCodersManager.h>
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
+#import <SDWebImage/SDImageTransformer.h>
 
 // The decode option that carries the full image's size to the view.
 static SDImageCoderOption const FFFDecodeSourceSize = @"FFFDecodeSourceSize";
 // The decode option for a full-size load that decodes an image at its own
 // size however large it is (objectFit none, which shows it at that size).
 static SDImageCoderOption const FFFDecodeUncapped = @"FFFDecodeUncapped";
+// The decode option for a view that shows an image no larger than its own
+// size (objectFit scale-down): the screen's scale, the most pixels per point
+// an SVG is drawn at (see FFFDrawnSVG).
+static SDImageCoderOption const FFFDecodeMaxScale = @"FFFDecodeMaxScale";
 
 // The most pixels a full-size load decodes an image of at least twice that
 // size each way at (each frame, for an animated image): 4096 x 4096, 64 MB
@@ -64,13 +69,14 @@ static CGSize FFFPixelSize(NSData* data) {
 }
 
 // An SVG (a vector image, its size in points) drawn into a bitmap for a box
-// (in pixels) to fit in or cover, on SDWebImage's decode queue. Shown as a
+// (in pixels) to fit in or cover, with at most maxScale pixels per point if
+// it's not zero, on SDWebImage's decode queue. Shown as a
 // vector, UIKit draws it on the main thread whenever the view shows it at a
 // new size (on an iPhone 15 Pro Max, mounting 40 cached 24-point icons took
 // 36 ms of the main thread against 11 ms as PNGs). It keeps the SVG's size in
 // points, with the pixels per point the box needs, so objectFit and onLoad
 // treat it as the SVG, and at most FFFMaxPixels (a thin SVG covering a box).
-static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
+static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxScale) {
     CGSize size = image.size;
     if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
         return nil;
@@ -78,6 +84,9 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
     CGFloat widthRatio = box.width / size.width;
     CGFloat heightRatio = box.height / size.height;
     CGFloat scale = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
+    if (maxScale > 0) {
+        scale = MIN(scale, maxScale);
+    }
     scale = MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
     format.scale = scale;
@@ -113,6 +122,21 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
 
 - (NSUInteger) hash {
     return 0;
+}
+
+@end
+
+// Gives a load its own memory cache key, which SDWebImage makes from the url,
+// the box and whether it's covered, not the decode options (see
+// FFFDecodeMaxScale). The image is unchanged.
+@interface FFFKeyTransformer : NSObject <SDImageTransformer>
+@property (nonatomic, copy) NSString* transformerKey;
+@end
+
+@implementation FFFKeyTransformer
+
+- (UIImage*) transformedImageWithImage: (UIImage*)image forKey: (NSString*)key {
+    return image;
 }
 
 @end
@@ -222,14 +246,21 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
         : @{FFFDecodeSourceSize: [FFFSourceSize new]};
 }
 
-+ (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover {
++ (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale {
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
     // The memory cache key is the source's key with these (SDWebImage's
     // thumbnail key), so views of other sizes don't get this image. The disk
     // cache keeps the downloaded file under the source's key, for every size.
     context[SDWebImageContextImageThumbnailPixelSize] = [NSValue valueWithCGSize: box];
     context[SDWebImageContextImagePreserveAspectRatio] = @(!cover);
-    context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
+    if (maxScale > 0) {
+        context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new], FFFDecodeMaxScale: @(maxScale)};
+        FFFKeyTransformer* key = [FFFKeyTransformer new];
+        key.transformerKey = [NSString stringWithFormat: @"FFFMaxScale%g", maxScale];
+        context[SDWebImageContextImageTransformer] = key;
+    } else {
+        context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
+    }
     // Only in memory: the disk cache has the downloaded file.
     context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeMemory);
     context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeMemory);
@@ -260,8 +291,12 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
     }
 }
 
++ (BOOL) isDrawnForBox: (UIImage*)image {
+    return [self sourceSizeObjectOfImage: image].drawnForBox;
+}
+
 + (BOOL) isSmallerThanFullSize: (UIImage*)image uncapped: (BOOL)uncapped {
-    if ([self sourceSizeObjectOfImage: image].drawnForBox) {
+    if ([self isDrawnForBox: image]) {
         return YES;
     }
     CGSize fullSize = [self sourceSizeOfImage: image];
@@ -318,7 +353,8 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
         NSValue* boxValue = options[SDImageCoderDecodeThumbnailPixelSize];
         NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
         BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
-        UIImage* drawn = boxValue && image ? FFFDrawnSVG(image, boxValue.CGSizeValue, cover) : nil;
+        CGFloat maxScale = [options[FFFDecodeMaxScale] doubleValue];
+        UIImage* drawn = boxValue && image ? FFFDrawnSVG(image, boxValue.CGSizeValue, cover, maxScale) : nil;
         if (drawn) {
             image = drawn;
             sourceSize.drawnForBox = YES;

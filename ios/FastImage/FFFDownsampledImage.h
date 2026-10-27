@@ -11,8 +11,10 @@
 @interface FFFDownsampledImage : SDAnimatedImage
 
 // Sets a load's context to decode the image for a box (in pixels) to cover
-// or fit in.
-+ (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover;
+// or fit in. An SVG is drawn into a bitmap for it, with at most maxScale
+// pixels per point if it's not zero (objectFit scale-down shows an image no
+// larger than its own size).
++ (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale;
 
 // Sets a load's context to decode the image at full size, through this
 // class: an image over 64 megapixels at 16 megapixels unless `uncapped`.
@@ -25,6 +27,9 @@
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.
 + (CGSize) sourceSizeOfImage: (UIImage*)image;
+
+// Whether an image loaded this way is an SVG drawn into a bitmap for the box.
++ (BOOL) isDrawnForBox: (UIImage*)image;
 
 // Whether an image loaded this way is at least the size a full-size load
 // (not uncapped) decodes it at.
