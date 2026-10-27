@@ -20,7 +20,7 @@ FOUNDATION_EXTERN UIImage* FFFDrawnVectorImage(UIImage* image, CGFloat scale);
 
 // The pixels per point FFFDrawnVectorImage draws a vector image at for
 // `scale` (capped), or zero.
-CGFloat FFFDrawnVectorScale(UIImage* image, CGFloat scale);
+FOUNDATION_EXTERN CGFloat FFFDrawnVectorScale(UIImage* image, CGFloat scale);
 
 // An image decoded at about the size it's shown at (the `downsample`
 // prop), instead of at full size. The view asks for it with SDWebImage's
