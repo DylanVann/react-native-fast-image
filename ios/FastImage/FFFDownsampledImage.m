@@ -63,12 +63,43 @@ static CGSize FFFPixelSize(NSData* data) {
     return CGSizeMake(width, height);
 }
 
+// An SVG (a vector image, its size in points) drawn into a bitmap for a box
+// (in pixels) to fit in or cover, on SDWebImage's decode queue. Shown as a
+// vector, UIKit draws it on the main thread whenever the view shows it at a
+// new size (on an iPhone 15 Pro Max, mounting 40 cached 24-point icons took
+// 36 ms of the main thread against 11 ms as PNGs). It keeps the SVG's size in
+// points, with the pixels per point the box needs, so objectFit and onLoad
+// treat it as the SVG, and at most FFFMaxPixels (a thin SVG covering a box).
+static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover) {
+    CGSize size = image.size;
+    if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
+        return nil;
+    }
+    CGFloat widthRatio = box.width / size.width;
+    CGFloat heightRatio = box.height / size.height;
+    CGFloat scale = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
+    scale = MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
+    UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
+    format.scale = scale;
+    format.opaque = NO;
+    // 8 bits per channel, as SVG colors are (not the display's extended range,
+    // which takes twice the memory).
+    format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
+    UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
+    return [renderer imageWithActions: ^(UIGraphicsImageRendererContext* context) {
+        [image drawInRect: CGRectMake(0, 0, size.width, size.height)];
+    }];
+}
+
 // Where the decode puts the full image's size, passed in the load's decode
 // options. SDWebImage attaches those options to the image it ends up with
 // (sd_decodeOptions), also when its force decoding replaces the decoded image
 // with another one, which drops anything kept on the image itself.
 @interface FFFSourceSize : NSObject
 @property (atomic, assign) CGSize size;
+// The image is an SVG drawn into a bitmap for the box (see FFFDrawnSVG): it
+// has no full size to decode at, so it's always smaller than one.
+@property (atomic, assign) BOOL drawnForBox;
 @end
 
 @implementation FFFSourceSize
@@ -206,9 +237,14 @@ static CGSize FFFPixelSize(NSData* data) {
     context[SDWebImageContextOriginalImageCache] = [FFFOriginalImageCache sharedCache];
 }
 
-+ (CGSize) sourceSizeOfImage: (UIImage*)image {
++ (FFFSourceSize*) sourceSizeObjectOfImage: (UIImage*)image {
     id sourceSize = image.sd_decodeOptions[FFFDecodeSourceSize];
-    return [sourceSize isKindOfClass: [FFFSourceSize class]] ? ((FFFSourceSize*) sourceSize).size : CGSizeZero;
+    return [sourceSize isKindOfClass: [FFFSourceSize class]] ? sourceSize : nil;
+}
+
++ (CGSize) sourceSizeOfImage: (UIImage*)image {
+    FFFSourceSize* sourceSize = [self sourceSizeObjectOfImage: image];
+    return sourceSize ? sourceSize.size : CGSizeZero;
 }
 
 + (void) forgetUnusableImageForURL: (NSURL*)url context: (SDWebImageContext*)context {
@@ -225,6 +261,9 @@ static CGSize FFFPixelSize(NSData* data) {
 }
 
 + (BOOL) isSmallerThanFullSize: (UIImage*)image uncapped: (BOOL)uncapped {
+    if ([self sourceSizeObjectOfImage: image].drawnForBox) {
+        return YES;
+    }
     CGSize fullSize = [self sourceSizeOfImage: image];
     if (fullSize.width <= 0 || fullSize.height <= 0) {
         return NO;
@@ -263,17 +302,26 @@ static CGSize FFFPixelSize(NSData* data) {
 }
 
 - (instancetype) initWithData: (NSData*)data scale: (CGFloat)scale options: (SDImageCoderOptions*)options {
-    // An SVG isn't decoded smaller: it's a vector image, drawn at any size.
-    // This class can't decode it, and SDWebImage would then give it to the
-    // SVG coder with the box, which draws it into a bitmap that size. Decoded
-    // as without downsample instead (this init can return another image).
+    // An SVG, which this class can't decode (this init can return another
+    // image): a vector image from the SVG coder, without the box (it would
+    // draw it at the box's size in points, at the screen's scale), drawn here
+    // for the box (FFFDrawnSVG). A full-size load keeps the vector image.
     if ([NSData sd_imageFormatForImageData: data] == SDImageFormatSVG) {
         NSMutableDictionary* vectorOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
         [vectorOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
         UIImage* image = [[SDImageCodersManager sharedManager] decodedImageWithData: data options: vectorOptions];
         FFFSourceSize* sourceSize = options[FFFDecodeSourceSize];
-        if (image && [sourceSize isKindOfClass: [FFFSourceSize class]]) {
-            sourceSize.size = image.size;
+        if (!image || ![sourceSize isKindOfClass: [FFFSourceSize class]]) {
+            sourceSize = nil;
+        }
+        sourceSize.size = image.size;
+        NSValue* boxValue = options[SDImageCoderDecodeThumbnailPixelSize];
+        NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
+        BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
+        UIImage* drawn = boxValue && image ? FFFDrawnSVG(image, boxValue.CGSizeValue, cover) : nil;
+        if (drawn) {
+            image = drawn;
+            sourceSize.drawnForBox = YES;
         }
         self = (id) image;
         return self;

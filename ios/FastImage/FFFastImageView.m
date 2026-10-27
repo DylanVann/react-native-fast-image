@@ -704,6 +704,8 @@ static void FFFShareAnimationBudget(void) {
             if (!image.CGImage) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
                 // template: drawn into a bitmap at the size it's shown at.
+                // Only a full-size load's or a data uri's: a downsampled
+                // load draws it in the load (FFFDrawnSVG).
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
