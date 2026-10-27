@@ -648,6 +648,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     void drop() {
         mDropped = true;
+        // Its shadow node is gone: a load that still finishes doesn't set
+        // its state.
+        mStateWrapper = null;
         // A dropped view can still be drawn: react-native-screens keeps a
         // popped screen's views on screen for its exit animation
         // (startViewTransition), and React Native drops them as it starts.
@@ -1580,13 +1583,23 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mPixelated) {
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
+            mLoadingUncropped = false;
             options = new RequestOptions()
                     .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, String.valueOf(model)))
                     .dontTransform();
             if (blur != null) options = options.optionalTransform(blur);
         } else {
-            options = FastImageSourceSize.scaleTypeOptions(mFitScaleType,
-                    FastImageSourceSize.capture(mFitScaleType, model, mDownsample), positionedCrop(), blur,
+            // Cover, before an open side is laid out (it follows the image,
+            // see setAutoSize): Glide would crop the image to a size the view
+            // won't have. It's fitted instead, which looks the same once the
+            // view has the image's shape (see reloadForSize).
+            boolean uncropped = mAutoSize && mFitScaleType == ScaleType.CENTER_CROP
+                    && (contentWidth() <= 0 || contentHeight() <= 0);
+            ScaleType fit = uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
+            mLoadingUncropped = uncropped;
+            if (uncropped && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
+            options = FastImageSourceSize.scaleTypeOptions(fit,
+                    FastImageSourceSize.capture(fit, model, mDownsample), uncropped ? null : positionedCrop(), blur,
                     mDownsample);
             boolean ownSize = mFitScaleType == ScaleType.CENTER_INSIDE || mFitScaleType == ScaleType.CENTER;
             // scale-down and none show it at its own size in dp: an SVG is
@@ -1635,6 +1648,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mShownHeight = 0;
     private int mLoadingWidth = 0;
     private int mLoadingHeight = 0;
+    // Whether the shown and the loading image are cover ones fitted instead
+    // of cropped (see renderingOptions), and the shown one's size: fitted to
+    // the view's width or height, it's the size the view gets at the image's
+    // shape, which doesn't load it again.
+    private boolean mShownUncropped = false;
+    private boolean mLoadingUncropped = false;
+    private int mUncroppedWidth = 0;
+    private int mUncroppedHeight = 0;
     private boolean mResizeReloadPosted = false;
 
     @Nullable
@@ -1657,7 +1678,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     // The loading image loaded (FastImageRequestListener).
-    void onImageLoaded() {
+    void onImageLoaded(Drawable resource) {
         mLoadEnded = true;
         // The image came first: its placeholder isn't needed (not from
         // within Glide's callback).
@@ -1676,6 +1697,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
+        mShownUncropped = mLoadingUncropped;
+        Bitmap bitmap = mShownUncropped && resource instanceof BitmapDrawable
+                ? ((BitmapDrawable) resource).getBitmap()
+                : null;
+        mUncroppedWidth = bitmap != null ? bitmap.getWidth() : 0;
+        mUncroppedHeight = bitmap != null ? bitmap.getHeight() : 0;
         reloadIfResized();
     }
 
@@ -1725,7 +1752,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
-                && (width != mShownWidth || height != mShownHeight);
+                && (width != mShownWidth || height != mShownHeight)
+                && (width != mUncroppedWidth || height != mUncroppedHeight);
     }
 
     // The same image at the view's new size. Meanwhile, and if that fails, the
@@ -1738,11 +1766,18 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         Drawable meanwhile = shownCopy(shown);
         mLoadCount++;
         clearView(requestManager);
-        RequestBuilder<Drawable> builder = shown.clone()
+        // A cover image fitted before the view had its size is cropped now.
+        RequestBuilder<Drawable> request = shown;
+        if (mShownUncropped && mBaseRequest != null) {
+            request = mBaseRequest.clone().apply(renderingOptions(mModel));
+        } else {
+            mLoadingUncropped = mShownUncropped;
+        }
+        RequestBuilder<Drawable> builder = request.clone()
                 .error(current.clone())
                 .listener(new FastImageRequestListener(null, true, false));
         if (meanwhile == null) builder = builder.thumbnail(current);
-        into(shown, builder, meanwhile, true, "size");
+        into(request, builder, meanwhile, true, "size");
     }
 
     // blurRadius or objectFit changed, and nothing else that needs a reload:
