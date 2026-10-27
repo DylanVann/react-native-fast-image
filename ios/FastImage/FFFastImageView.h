@@ -27,6 +27,9 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
+// The loaded image's own size in points, as each image loads (whatever events
+// JS handles), for the view's layout.
+@property (nonatomic, copy) void (^onImageSize)(CGSize size);
 @property (nonatomic, assign) FFFObjectFit objectFit;
 // The `source` prop: one source, or several (sizes of one image), of which
 // the view loads the one whose size is closest to its own.

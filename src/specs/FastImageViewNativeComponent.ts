@@ -98,6 +98,8 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
     supportedCommands: ['reload'],
 })
 
-export default codegenNativeComponent<NativeProps>(
-    'FastImageView',
-) as HostComponent<NativeProps>
+// interfaceOnly: the shadow node is the library's own (common/cpp), which
+// measures the view from the loaded image's size.
+export default codegenNativeComponent<NativeProps>('FastImageView', {
+    interfaceOnly: true,
+}) as HostComponent<NativeProps>
