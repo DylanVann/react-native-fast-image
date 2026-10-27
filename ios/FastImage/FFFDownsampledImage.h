@@ -20,6 +20,14 @@ FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 // cover or fill) rather than fit in it (contain or scale-down). SDWebImage's
 // own thumbnail decoding can only fit, so this class works out the size from
 // the image's header before it decodes, as React Native's Image does.
+// The pixels per point an SVG of this size (in points) is drawn at for scale:
+// at most 16 megapixels.
+FOUNDATION_EXTERN CGFloat FFFDrawnSVGScale(CGSize size, CGFloat scale);
+
+// The scale that fits an image of this size (in points) in a box (in pixels),
+// or covers it, or zero.
+FOUNDATION_EXTERN CGFloat FFFBoxScale(CGSize size, CGSize box, BOOL cover);
+
 @interface FFFDownsampledImage : SDAnimatedImage
 
 // Sets a load's context to decode the image for a box (in pixels) to cover
@@ -30,11 +38,13 @@ FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 
 // Sets a load's context to decode the image at full size, through this
 // class: an image over 64 megapixels at 16 megapixels unless `uncapped`, and
-// an SVG drawn at its own size at `screenScale`. Every FastImage load uses it, so loads of the same url
+// an SVG drawn at its own size at `screenScale` (or kept a vector if it's
+// zero, for a load that only checks the file), or for `vectorBox` (in pixels,
+// to cover or fit) if that's larger. Every FastImage load uses it, so loads of the same url
 // can share a download: SDWebImage's downloader decodes each load of a
 // download with the first load's image class (and each with its own size),
 // and SDWebImage's own thumbnail decoding can't cover a box.
-+ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped screenScale: (CGFloat)screenScale;
++ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped screenScale: (CGFloat)screenScale vectorBox: (CGSize)vectorBox cover: (BOOL)cover;
 
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.
@@ -42,6 +52,10 @@ FOUNDATION_EXTERN id FFFWithSVGLock(id (^block)(void));
 
 // Whether an image loaded this way is an SVG drawn into a bitmap for the box.
 + (BOOL) isDrawnForBox: (UIImage*)image;
+
+// Whether an image loaded this way is an SVG a full-size load drew into a
+// bitmap (at its own size, or its vectorBox's).
++ (BOOL) isDrawnAtFullSize: (UIImage*)image;
 
 // Whether an image loaded this way is at least the size a full-size load
 // (not uncapped) decodes it at.

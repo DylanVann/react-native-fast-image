@@ -61,6 +61,9 @@
 @property(nonatomic, assign) CGFloat decodedMaxScale;
 // Whether it's decoded at full size however large (objectFit none).
 @property(nonatomic, assign) BOOL decodedUncapped;
+// The scale a full-size load's SVG was last asked to be drawn again at (see
+// reloadIfResized), or zero.
+@property(nonatomic, assign) CGFloat redrawnSVGScale;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
 // The frame the view was laid out at (the box the image fits in), and how far
@@ -529,7 +532,7 @@ static void FFFShareAnimationBudget(void) {
 - (void) updatePixelAlignment {
     CGRect rect = CGRectMake(0, 0, 1, 1);
     UIImage* image = super.image;
-    CGFloat screenScale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGFloat screenScale = [self screenScale];
     CGSize view = self.box.size;
     CGFloat width = image.size.width * image.scale;
     CGFloat height = image.size.height * image.scale;
@@ -671,7 +674,7 @@ static void FFFShareAnimationBudget(void) {
     CGSize view = self.bounds.size;
     CGFloat shown = MAX(1, MAX(view.width / size.width, view.height / size.height));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
-    format.scale = (self.window.screen.scale ?: [UIScreen mainScreen].scale) * shown;
+    format.scale = [self screenScale] * shown;
     format.opaque = NO;
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize: size format: format];
     return FFFWithSVGLock(^id {
@@ -752,7 +755,7 @@ static void FFFShareAnimationBudget(void) {
         self.blurredForSize = CGSizeZero;
         return;
     }
-    CGFloat screenScale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGFloat screenScale = [self screenScale];
     // How many pixels on screen a pixel of the image takes.
     CGFloat shownScale = [self shownScale: image] * screenScale / image.scale;
     // Blurred at the size it's shown at (a blurred image needs no more
@@ -963,7 +966,7 @@ NSString *FFFErrorMessage(NSError *error)
 // (by pixel count), or the largest while the view has no size (e.g. one sized
 // from onLoad).
 - (FFFastImageSource*) sourceForSize {
-    CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGFloat scale = [self screenScale];
     CGFloat viewPixels = self.bounds.size.width * self.bounds.size.height * scale * scale;
     FFFastImageSource* best = nil;
     CGFloat bestFit = CGFLOAT_MAX;
@@ -1152,10 +1155,10 @@ NSString *FFFErrorMessage(NSError *error)
         return;
     }
     SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
-    // Shown as with contain whatever objectFit is (contentModeForImageSize),
-    // so decoded for the view's size, also with downsample false or objectFit
-    // none (an SVG is then drawn for it, not at its own size).
-    SDWebImageContext* context = [self contextForSource: source box: [self viewBox] cover: NO maxScale: 0];
+    // Shown as with contain whatever objectFit is (contentModeForImageSize):
+    // an SVG is drawn for the view if that's larger than its own size, also
+    // with objectFit none.
+    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO maxScale: 0 vectorBox: [self viewBox]];
     __weak typeof(self) weakSelf = self;
     self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
         if (!finished || weakSelf.urlPlaceholderLoad != load) {
@@ -1295,12 +1298,25 @@ NSString *FFFErrorMessage(NSError *error)
     return [self downsamples] ? [self viewBox] : CGSizeZero;
 }
 
+// The screen's pixels per point (the main screen's before the view is in a
+// window).
+- (CGFloat) screenScale {
+    return self.window.screen.scale ?: [UIScreen mainScreen].scale;
+}
+
+// The box a full-size load draws an SVG for if it's larger than the SVG's own
+// size (downsample false): the view's, except for objectFit none, which shows
+// it at its own size.
+- (CGSize) vectorBox {
+    return _objectFit == FFFObjectFitNone ? CGSizeZero : [self viewBox];
+}
+
 // The view's size in pixels, or zero before it has one.
 - (CGSize) viewBox {
     if (![self hasSize]) {
         return CGSizeZero;
     }
-    CGFloat scale = self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    CGFloat scale = [self screenScale];
     CGSize size = self.bounds.size;
     return CGSizeMake(ceil(size.width * scale), ceil(size.height * scale));
 }
@@ -1311,7 +1327,7 @@ NSString *FFFErrorMessage(NSError *error)
     if (_objectFit != FFFObjectFitScaleDown) {
         return 0;
     }
-    return self.window.screen.scale ?: [UIScreen mainScreen].scale;
+    return [self screenScale];
 }
 
 // Whether the image has to cover the box, rather than fit in it.
@@ -1332,6 +1348,20 @@ NSString *FFFErrorMessage(NSError *error)
     // decoded at 16 for another fit is loaded again.
     BOOL capped = _objectFit == FFFObjectFitNone && !self.decodedUncapped && self.hasCompleted &&
         [FFFDownsampledImage isSmallerThanFullSize: image uncapped: YES];
+    // A full-size load's SVG, drawn at its own size or for the view if that's
+    // larger: drawn again when the view needs a fifth more of it (it grew, or
+    // another view drew it smaller), from the disk cache (the memory cache
+    // has this one, and keeps the larger one instead).
+    if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && self.hasCompleted && [FFFDownsampledImage isDrawnAtFullSize: image]) {
+        CGFloat needed = FFFDrawnSVGScale(image.size, MAX([self screenScale], FFFBoxScale(image.size, [self vectorBox], [self decodeCovers])));
+        if (needed > image.scale * 1.2 && needed > self.redrawnSVGScale) {
+            self.redrawnSVGScale = needed;
+            SDWebImageMutableContext* fromDisk = [[self loadContext] mutableCopy];
+            fromDisk[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+            [self downloadImage: _source options: [self loadOptions] | SDWebImageDelayPlaceholder context: fromDisk events: NO];
+        }
+        return;
+    }
     if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
         return;
     }
@@ -1377,6 +1407,7 @@ NSString *FFFErrorMessage(NSError *error)
     [self updateHashImage];
     self.decodedBox = CGSizeZero;
     self.decodedUncapped = NO;
+    self.redrawnSVGScale = 0;
     // The previous load, if it's still running, is for a source the view no
     // longer shows: cancel it (a new download would, but a data uri or no
     // source doesn't start one), and ignore what it still sends (SDWebImage
@@ -1516,10 +1547,10 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 - (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover {
-    return [self contextForSource: source box: box cover: cover maxScale: [self decodeMaxScale]];
+    return [self contextForSource: source box: box cover: cover maxScale: [self decodeMaxScale] vectorBox: [self vectorBox]];
 }
 
-- (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale {
+- (SDWebImageContext*) contextForSource: (FFFastImageSource*)source box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale vectorBox: (CGSize)vectorBox {
     SDWebImageMutableContext* context = [NSMutableDictionary dictionary];
     context[SDWebImageContextDownloadRequestModifier] = source.requestModifier;
     context[SDWebImageContextImageLoader] = source.imageLoader;
@@ -1531,7 +1562,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     if (CGSizeEqualToSize(box, CGSizeZero)) {
         // objectFit none shows it at its own size, however large.
-        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone screenScale: self.window.screen.scale ?: [UIScreen mainScreen].scale];
+        [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone screenScale: [self screenScale] vectorBox: vectorBox cover: cover];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
