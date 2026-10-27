@@ -72,7 +72,7 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             return false;
         }
         final FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
-        view.onImageLoaded();
+        view.onImageLoaded(resource);
         if (resource instanceof GifDrawable) {
             // The `loop` prop, or the file's own loop count as on iOS. Glide
             // loops every GIF forever by default (#651).
