@@ -103,12 +103,20 @@ id FFFWithSVGLock(id (^block)(void)) {
     }
 }
 
-UIImage* FFFDrawnVectorImage(UIImage* image, CGFloat scale) {
+CGFloat FFFDrawnVectorScale(UIImage* image, CGFloat scale) {
     CGSize size = image.size;
     if (size.width <= 0 || size.height <= 0 || scale <= 0) {
+        return 0;
+    }
+    return MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
+}
+
+UIImage* FFFDrawnVectorImage(UIImage* image, CGFloat scale) {
+    CGSize size = image.size;
+    scale = FFFDrawnVectorScale(image, scale);
+    if (scale <= 0) {
         return nil;
     }
-    scale = MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
     format.scale = scale;
     format.opaque = NO;
