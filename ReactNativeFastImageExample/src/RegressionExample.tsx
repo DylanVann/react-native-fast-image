@@ -3300,6 +3300,41 @@ function ObjectFitSizeCase() {
     )
 }
 
+// A tinted SVG as the placeholder, with objectFit none: a url placeholder is
+// shown as with contain, so it's drawn for the view's size, filling it, not
+// at its own size (24 pt) and scaled up as a full-size load would draw it.
+function SvgTintPlaceholderCase() {
+    const { status, setStatus, after } = usePlaceholderUrlStatus()
+    useEffect(() => () => void releaseThumbhashHold('svg-tint-placeholder'), [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={{ width: 160, height: 160 }}
+                source={{
+                    uri: thumbhashHeld('svg-tint-placeholder'),
+                    headers: SLOW_HEADERS,
+                }}
+                placeholder={imageUrl(
+                    `svg-icon.svg?svg-tint-placeholder=${RUN}`,
+                )}
+                objectFit="none"
+                tintColor="green"
+                onLoadStart={after}
+                onLoad={() => setStatus('onLoad: the download should be held')}
+            />
+            <CaseStatus
+                id="svg-tint-placeholder"
+                status={status}
+                description={{
+                    checks: 'A tinted SVG as the placeholder url, with objectFit none, is drawn for the size it fills, sharp (a url placeholder shows as with contain; drawn at its own size, 24 pt, it would be scaled up).',
+                    steps: 'A 160 pt view with objectFit="none" and tintColor green loads a photo the slow server holds, with placeholder set to the url of a 24×24 SVG icon (a black ring). Passes 1 s after onLoadStart; onLoad fails it.',
+                    shows: 'A green ring filling the 160 pt square, with sharp edges.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A zoom viewer: a 30-point image shown 4 times larger, with a transform or
 // a zoomed ScrollView (iOS), as pinch-to-zoom does. downsample={false}
 // decodes the photo (a 1600x1000 page of text) at full size, so it stays
@@ -12763,6 +12798,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <SvgSharpCase key="svg-sharp" />,
+            <SvgTintPlaceholderCase key="svg-tint-placeholder" />,
         ],
     },
     {
