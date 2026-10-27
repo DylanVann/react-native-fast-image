@@ -184,6 +184,11 @@
                 "steps": "Loads an SVG of 60x60 black and white stripes, one unit wide, with scale-down and none in 72-point views, and with contain in a 60-point view (the reference). Passes once all three have loaded; the screenshot checks the sharpness.",
                 "shows": "Black and white stripes three times: centered in a gray 72-point square, again, then on their own at 60 points, all with the same crisp 1-unit stripes. Soft or gray stripes in the first two are a failure."
             },
+            "object-fit-svg-change": {
+                "checks": "An SVG whose objectFit changes from scale-down to contain while it loads is drawn for contain, sharp at the view's size.",
+                "steps": "An 88-point view loads a 60x60 SVG of black and white stripes, one unit wide, from the slow server (8 parts, 150 ms apart) with scale-down, and changes to contain 300 ms later. An 88-point view next to it shows the same SVG with contain from the start. Passes once both have loaded; the screenshot checks the sharpness.",
+                "shows": "Black and white stripes filling two squares, both with the same crisp stripes. Soft or gray stripes in the first are a failure."
+            },
             "object-fit-from-cover": {
                 "checks": "Changing objectFit from cover after load, while the image for the new fit loads: on Android the view keeps showing the cover image as it was until then, and iOS shows the new fit at once (Android stretched the cropped image to its own size, squashed with scale-down and enlarged about 12 times with none; changed twice before the first change loaded, it went blank).",
                 "steps": "Three 88-point views load a 1600x1000 page of text from the slow server with cache: 'web' (so it isn't on disk) and cover. Once all three have loaded, the first changes to scale-down, the second to none, and the third to scale-down and 150 ms later to none. Passes 800 ms after the change, while the new images are still loading, which is when the screenshot is taken.",
