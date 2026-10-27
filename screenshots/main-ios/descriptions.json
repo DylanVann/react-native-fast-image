@@ -17,9 +17,9 @@
         },
         "cases": {
             "auto-size-width": {
-                "checks": "An image with only a width (100%) gets the height its aspect ratio gives.",
-                "steps": "Loads a 600x300 photo with style { width: \"100%\" } and objectFit fill. Passes once it has loaded and its layout is half as tall as wide.",
-                "shows": "The photo across the screen at 2:1, not stretched."
+                "checks": "An image with only a width (in a row) gets the height its aspect ratio gives.",
+                "steps": "Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.",
+                "shows": "The photo at 240x120 on the left, not stretched."
             },
             "auto-size-height": {
                 "checks": "An image with only a height (in a row) gets the width its aspect ratio gives.",
