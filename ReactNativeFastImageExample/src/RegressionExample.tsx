@@ -41,7 +41,7 @@ import {
     DescriptionText,
     DetailsContext,
 } from './CaseStatus'
-import { AUTO_SIZE_GROUP } from './SmokeExample'
+import { AUTO_SIZE_GROUPS } from './SmokeExample'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
@@ -10455,7 +10455,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         },
         cases: [<WebCachePathAtStartCase key="cache-path-web-at-start" />],
     },
-    AUTO_SIZE_GROUP,
+    ...AUTO_SIZE_GROUPS,
     {
         name: 'load-end',
         description: {

@@ -1,12 +1,17 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { PixelRatio, Platform, View } from 'react-native'
-import FastImage, { FastImageRef, LoadResult } from 'react-native-fast-image'
+import FastImage, {
+    FastImageBackground,
+    FastImageRef,
+    LoadResult,
+} from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
 import { imageUrl } from './imageServer'
 import {
     Masked,
     measureView,
     SampleContext,
+    sampleStatus,
     type Description,
     type RegressionGroup,
 } from './RunnerContext'
@@ -801,13 +806,13 @@ function BlurDataUriCase() {
 // a point). objectFit="fill" stretches the image if the box is wrong.
 function AutoSizeCase({
     id,
-    uri,
+    source,
     style,
     expected,
     description,
 }: {
     id: string
-    uri: string
+    source: React.ComponentProps<typeof FastImage>['source']
     style: React.ComponentProps<typeof FastImage>['style']
     expected: { width: number; height: number }
     description: Description
@@ -825,7 +830,7 @@ function AutoSizeCase({
                 <FastImage
                     style={style}
                     objectFit="fill"
-                    source={{ uri }}
+                    source={source}
                     onLayout={(e) => {
                         const { width, height } = e.nativeEvent.layout
                         setLayout({ width, height })
@@ -848,51 +853,247 @@ function AutoSizeCase({
     )
 }
 
-// Shared with the main, minimum and tvOS apps' regression groups.
-export const AUTO_SIZE_GROUP: RegressionGroup = {
-    name: 'auto-size',
-    description: {
-        checks: "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set.",
-    },
-    cases: [
-        <AutoSizeCase
-            key="auto-size-width"
-            id="auto-size-width"
-            uri={imageUrl('picsum/1018-600x300.jpg')}
-            style={{ width: 240 }}
-            expected={{ width: 240, height: 120 }}
-            description={{
-                checks: 'An image with only a width (in a row) gets the height its aspect ratio gives.',
-                steps: 'Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.',
-                shows: 'The photo at 240x120 on the left, not stretched.',
-            }}
-        />,
-        <AutoSizeCase
-            key="auto-size-height"
-            id="auto-size-height"
-            uri={imageUrl('picsum/1018-600x300.jpg')}
-            style={{ height: 64 }}
-            expected={{ width: 128, height: 64 }}
-            description={{
-                checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
-                steps: 'Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.',
-                shows: 'The photo at 128x64 on the left.',
-            }}
-        />,
-        <AutoSizeCase
-            key="auto-size-natural"
-            id="auto-size-natural"
-            uri={imageUrl('picsum/1020-120x120.jpg')}
-            style={{}}
-            expected={{ width: 120, height: 120 }}
-            description={{
-                checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
-                steps: 'Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.',
-                shows: 'The 120x120 photo at 120x120 points on the left.',
-            }}
-        />,
-    ],
+// A size a FastImageBackground sets (absoluteFill's insets) isn't open: its
+// image fills it after loading, whatever the image's shape.
+function AutoSizeBackgroundCase() {
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    const ok =
+        loaded &&
+        layout !== undefined &&
+        Math.abs(layout.width - 160) < 0.5 &&
+        Math.abs(layout.height - 160) < 0.5
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <FastImageBackground
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 160, height: 160 }}
+                imageProps={{
+                    onLayout: (e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        setLayout({ width, height })
+                    },
+                    onLoad: () => setLoaded(true),
+                }}
+            />
+            <CaseStatus
+                id="auto-size-background"
+                status={
+                    ok
+                        ? 'OK'
+                        : !loaded || !layout
+                          ? 'waiting'
+                          : `${layout.width}x${layout.height}, expected 160x160`
+                }
+                description={{
+                    checks: "A FastImageBackground's image fills it: its insets (absoluteFill) set its size, which doesn't follow the image.",
+                    steps: 'Shows the 600x300 photo in a 160x160 FastImageBackground. Passes once it has loaded and the image is 160x160.',
+                    shows: 'The photo covering a 160x160 square (its middle).',
+                }}
+            />
+        </View>
+    )
 }
+
+// The same text page at a fixed size, and with only a width, which follows
+// the image to the same size: it's decoded for the view's size either way
+// (on iOS, not at full size, which Core Animation would scale down).
+function AutoSizeDownsampleCase() {
+    const [loads, setLoads] = useState(0)
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(`text-page.png?auto-size-fixed=${RUN}`),
+                    }}
+                    style={{ width: 128, height: 80, marginRight: 8 }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                />
+                <FastImage
+                    source={{
+                        uri: imageUrl(`text-page.png?auto-size-open=${RUN}`),
+                    }}
+                    style={{ width: 128 }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-downsample"
+                status={loads >= 2 ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'An image with only a width is decoded for its size, as one with both sides set is: they look the same.',
+                    steps: 'Loads a 1600x1000 page of text at 128x80, and again (another url) with only a width of 128, which follows the image to 128x80. Passes once both have loaded.',
+                    shows: 'The same text page twice, at 128x80, with the same sharpness. A blurrier or more aliased right one means it was decoded at another size.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Cover (the default) with only a width: recorded at the view's left
+// quarter, as it loads, the image is magenta there (its left third), never
+// cyan (its middle), as it would be cropped to a size the view doesn't get.
+// (The page's background before it shows matches neither.)
+const MAGENTA = '#ff00ff'
+const CYAN = '#00ffff'
+function AutoSizeCoverCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [shown, setShown] = useState(false)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const expect = [MAGENTA]
+        const start = setTimeout(async () => {
+            const area = await measureView(box.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const result = await sample(
+                {
+                    name: 'auto-size-cover',
+                    area: { ...area, width: area.width / 4 },
+                    durationMs: 4000,
+                    expect,
+                    palette: [CYAN],
+                },
+                (sampleDone) => {
+                    done.current = sampleDone
+                    setShown(true)
+                },
+            )
+            setStatus(sampleStatus(result, expect))
+        }, 300)
+        return () => clearTimeout(start)
+    }, [sample])
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 120 }}
+            >
+                {shown ? (
+                    <FastImage
+                        source={{
+                            uri: imageUrl(`thirds.png?auto-size=${RUN}`),
+                        }}
+                        style={{ width: 240 }}
+                        onLoad={() => setTimeout(() => done.current(), 1500)}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id="auto-size-cover"
+                status={status}
+                description={{
+                    checks: "An image with only a width and objectFit cover shows the whole image as it loads, not a crop of its middle for a size the view doesn't get.",
+                    steps: 'Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    shows: 'The image at 240x120: magenta, cyan and magenta thirds.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Shared with the main, minimum and tvOS apps' regression groups.
+export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
+    {
+        name: 'auto-size',
+        description: {
+            checks: "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-width"
+                id="auto-size-width"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 240 }}
+                expected={{ width: 240, height: 120 }}
+                description={{
+                    checks: 'An image with only a width (in a row) gets the height its aspect ratio gives.',
+                    steps: 'Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.',
+                    shows: 'The photo at 240x120 on the left, not stretched.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-height"
+                id="auto-size-height"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ height: 64 }}
+                expected={{ width: 128, height: 64 }}
+                description={{
+                    checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
+                    steps: 'Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.',
+                    shows: 'The photo at 128x64 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-natural"
+                id="auto-size-natural"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{}}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
+                    steps: 'Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.',
+                    shows: 'The 120x120 photo at 120x120 points on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-auto"
+                id="auto-size-auto"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 240, height: 'auto' }}
+                expected={{ width: 240, height: 120 }}
+                description={{
+                    checks: "A height of 'auto' is open, as no height is.",
+                    steps: "Loads the 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
+                    shows: 'The photo at 240x120 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-scale"
+                id="auto-size-scale"
+                source={require('./images/center-dot.png')}
+                style={{}}
+                expected={{ width: 40, height: 40 }}
+                description={{
+                    checks: "A bundled @3x image with no size is its size in points: its pixels over its file's scale.",
+                    steps: "Shows require('./images/center-dot.png'), only a 120x120 @3x file, with no style in a row. Passes once it has loaded and its layout is 40x40.",
+                    shows: 'A 40x40 blue square on the left.',
+                }}
+            />,
+        ],
+    },
+    {
+        name: 'auto-size-more',
+        description: {
+            checks: "#436, continued: an SVG's own size, a FastImageBackground's image, and how an image with only a width is decoded and shown as it loads.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-svg"
+                id="auto-size-svg"
+                source={{ uri: imageUrl('svg-icon.svg?auto-size') }}
+                style={{}}
+                expected={{ width: 24, height: 24 }}
+                description={{
+                    checks: 'An SVG with no size is its own size: a 24x24 SVG is 24x24 points.',
+                    steps: 'Loads a 24x24 SVG of a black ring with no style in a row. Passes once it has loaded and its layout is 24x24.',
+                    shows: 'A 24x24 black ring on the left.',
+                }}
+            />,
+            <AutoSizeBackgroundCase key="auto-size-background" />,
+            <AutoSizeDownsampleCase key="auto-size-downsample" />,
+            // Not on the web, where the browser crops it as it draws it (and
+            // the runner doesn't record the screen).
+            ...(Platform.OS === 'web'
+                ? []
+                : [<AutoSizeCoverCase key="auto-size-cover" />]),
+        ],
+    },
+]
 
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
@@ -916,7 +1117,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
-    AUTO_SIZE_GROUP,
+    ...AUTO_SIZE_GROUPS,
     ...(Platform.OS === 'web'
         ? [
               {
