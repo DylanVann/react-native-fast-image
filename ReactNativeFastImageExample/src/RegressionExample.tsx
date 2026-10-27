@@ -3342,6 +3342,55 @@ function ObjectFitSvgCase() {
     )
 }
 
+// An SVG loading with objectFit scale-down, changed to contain before it has
+// loaded: it ends up drawn for contain, as sharp as the contain view next to
+// it. iOS draws an SVG smaller than a scale-down view at no more than its own
+// size, so it's drawn again for contain once it has loaded.
+function ObjectFitSvgChangeCase() {
+    const [contain, setContain] = useState(false)
+    const [status, onLoad] = useLoadedThenOk(2)
+    useEffect(() => {
+        const timer = setTimeout(() => setContain(true), 300)
+        return () => clearTimeout(timer)
+    }, [])
+    return (
+        <View style={objectFitStyles.stacked}>
+            <View style={objectFitStyles.images}>
+                <FastImage
+                    style={objectFitStyles.large}
+                    objectFit={contain ? 'contain' : 'scale-down'}
+                    source={{
+                        uri: slowImageUrl(
+                            'svg-stripes.svg?case=object-fit-svg-change&delay=150',
+                        ),
+                        headers: SLOW_HEADERS,
+                    }}
+                    onLoad={onLoad}
+                />
+                <FastImage
+                    style={[objectFitStyles.large, styles.gap]}
+                    objectFit="contain"
+                    source={{
+                        uri: imageUrl(
+                            'svg-stripes.svg?case=object-fit-svg-change-reference',
+                        ),
+                    }}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="object-fit-svg-change"
+                status={status}
+                description={{
+                    checks: "An SVG whose objectFit changes from scale-down to contain while it loads is drawn for contain, sharp at the view's size.",
+                    steps: 'An 88-point view loads a 60x60 SVG of black and white stripes, one unit wide, from the slow server (8 parts, 150 ms apart) with scale-down, and changes to contain 300 ms later. An 88-point view next to it shows the same SVG with contain from the start. Passes once both have loaded; the screenshot checks the sharpness.',
+                    shows: 'Black and white stripes filling two squares, both with the same crisp stripes. Soft or gray stripes in the first are a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // objectFit changed from cover to scale-down and none after load, while the
 // image for the new fit loads (slowly, from the slow server, with cache
 // 'web' so it isn't on disk): Android keeps the cover image as it was until
@@ -10736,6 +10785,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <ObjectFitSizeCase key="object-fit-size" />,
             <ObjectFitBlurCase key="object-fit-blur" />,
             <ObjectFitSvgCase key="object-fit-svg" />,
+            <ObjectFitSvgChangeCase key="object-fit-svg-change" />,
             <ObjectFitFromCoverCase key="object-fit-from-cover" />,
             <ObjectFitStyleCase key="object-fit-style" />,
             <ObjectFitChangeCase key="object-fit-change" />,

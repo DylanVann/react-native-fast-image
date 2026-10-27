@@ -56,6 +56,8 @@
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
 @property(nonatomic, assign) BOOL decodedCover;
+// The most pixels per point an SVG was drawn at for it (decodeMaxScale).
+@property(nonatomic, assign) CGFloat decodedMaxScale;
 // Whether it's decoded at full size however large (objectFit none).
 @property(nonatomic, assign) BOOL decodedUncapped;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
@@ -704,6 +706,8 @@ static void FFFShareAnimationBudget(void) {
             if (!image.CGImage) {
                 // A vector image (an SVG), which UIKit doesn't draw as a
                 // template: drawn into a bitmap at the size it's shown at.
+                // Only a full-size load's or a data uri's: a downsampled
+                // load draws it in the load (FFFDrawnSVG).
                 image = [self rasterizedImage: image];
             }
             image = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
@@ -1282,6 +1286,15 @@ NSString *FFFErrorMessage(NSError *error)
     return CGSizeMake(ceil(size.width * scale), ceil(size.height * scale));
 }
 
+// The most pixels per point an SVG is drawn at for the box, or zero: the
+// screen's scale for scale-down, which shows it no larger than its own size.
+- (CGFloat) decodeMaxScale {
+    if (_objectFit != FFFObjectFitScaleDown) {
+        return 0;
+    }
+    return self.window.screen.scale ?: [UIScreen mainScreen].scale;
+}
+
 // Whether the image has to cover the box, rather than fit in it.
 - (BOOL) decodeCovers {
     return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill;
@@ -1315,7 +1328,10 @@ NSString *FFFErrorMessage(NSError *error)
             return;
         }
         BOOL grew = box.width > self.decodedBox.width * 1.2 || box.height > self.decodedBox.height * 1.2;
-        if (!grew && (self.decodedCover || !cover)) {
+        // Or an SVG drawn for the box is no longer, or now, drawn at most
+        // at its own size (other images are decoded the same either way).
+        BOOL maxScaleChanged = [self decodeMaxScale] != self.decodedMaxScale && [FFFDownsampledImage isDrawnForBox: image];
+        if (!grew && (self.decodedCover || !cover) && !maxScaleChanged) {
             return;
         }
     }
@@ -1447,6 +1463,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
+    self.decodedMaxScale = CGSizeEqualToSize(box, CGSizeZero) ? 0 : [self decodeMaxScale];
     self.decodedUncapped = CGSizeEqualToSize(box, CGSizeZero) && _objectFit == FFFObjectFitNone;
     return [self contextForSource: _source box: box cover: self.decodedCover];
 }
@@ -1490,7 +1507,7 @@ NSString *FFFErrorMessage(NSError *error)
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
         return context;
     }
-    [FFFDownsampledImage addToContext: context box: box cover: cover];
+    [FFFDownsampledImage addToContext: context box: box cover: cover maxScale: [self decodeMaxScale]];
     if ([source isPhotoLibrary]) {
         // Photos makes the photo at the size asked for, with no file
         // downloaded: SDWebImage would keep this smaller copy on disk as the

@@ -670,8 +670,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * - `true`: an image at least twice the size its view needs is decoded
      *   at about the view's size (on Android, any image larger than its
-     *   view). If the view grows, the image is decoded again for its new size
-     *   (from the disk cache).
+     *   view), and an SVG is drawn at the size it's shown at. If the view
+     *   grows, the image is decoded again for its new size (from the disk
+     *   cache).
      * - `false`: images are decoded at full size, e.g. for an image that's
      *   zoomed in on with a transform (a pinch-to-zoom viewer), which would
      *   otherwise show the smaller copy enlarged. **It uses more memory:** a
