@@ -258,7 +258,12 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
         decodeOptions[FFFDecodeMaxScale] = @(maxScale);
         FFFKeyTransformer* key = [FFFKeyTransformer new];
         key.transformerKey = [NSString stringWithFormat: @"FFFMaxScale%g", maxScale];
-        context[SDWebImageContextImageTransformer] = key;
+        // A transformer in the context replaces the manager's: an app's own
+        // (SDWebImageManager's transformer) still applies, before this one.
+        id<SDImageTransformer> appTransformer = [SDWebImageManager sharedManager].transformer;
+        context[SDWebImageContextImageTransformer] = appTransformer
+            ? [SDImagePipelineTransformer transformerWithTransformers: @[appTransformer, key]]
+            : key;
     }
     context[SDWebImageContextImageDecodeOptions] = decodeOptions;
     // Only in memory: the disk cache has the downloaded file.
