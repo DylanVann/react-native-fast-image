@@ -1,3 +1,10 @@
+## [10.9.9](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.8...v10.9.9) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ios:** draw every SVG in the load, at its own size for a full-size load ([#1392](https://github.com/DylanVann/react-native-fast-image/issues/1392)) ([f669c7c](https://github.com/DylanVann/react-native-fast-image/commit/f669c7c012a015f60596af7a18cf9a5d3f784d1d))
+
 ## [10.9.8](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.7...v10.9.8) (2026-10-27)
 
 
