@@ -3441,15 +3441,9 @@ function ZoomCase({
 // transform: with downsample={false} drawn at its own size, as from a url
 // (on iOS a data uri was decoded at once and shown as a vector, which UIKit
 // drew for the 30-point view and the zoom scaled up).
+// Base64: Android's Glide reads only base64 data uris.
 const ZOOM_SVG_DATA_URI =
-    'data:image/svg+xml;utf8,' +
-    encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">${Array.from(
-            { length: 13 },
-            (_, i) =>
-                `<circle cx="60" cy="60" r="${6 + i * 4}" fill="none" stroke="#000" stroke-width="1"/>`,
-        ).join('')}</svg>`,
-    )
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PGNpcmNsZSBjeD0iNjAiIGN5PSI2MCIgcj0iNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIyMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIyNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI0MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI0NiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI1MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI1NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4='
 
 function ZoomDataUriCase() {
     const [status, onLoad] = useLoadedThenOk(1)
@@ -10568,6 +10562,23 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: LOGO, cache: 1 }}
             />,
             <NoHandlersCase key="no-handlers" />,
+            // iOS only: Android's Glide doesn't load a data uri with
+            // onlyRetrieveFromCache (ISSUES.local.md).
+            ...(Platform.OS === 'ios'
+                ? [
+                      <EventCase
+                          key="data-uri-cache-only"
+                          id="data-uri-cache-only"
+                          description={{
+                              checks: "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
+                              steps: "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
+                              shows: 'A yellow square.',
+                          }}
+                          event="onLoad"
+                          source={{ uri: YELLOW_DATA_URI, cache: 'cacheOnly' }}
+                      />,
+                  ]
+                : []),
         ],
     },
     {
