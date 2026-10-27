@@ -1918,8 +1918,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // Several sources: one is picked for the view's size, so a view that
         // hasn't been laid out yet loads after layout (props and layout are
         // applied in the same batch). A view that still has no size then
-        // (e.g. one sized from onLoad) loads the largest source.
-        if (severalSources() != null) {
+        // (e.g. one sized from onLoad) loads the largest source. Also cover
+        // with autoSize, which is fitted while a side has no size yet (see
+        // renderingOptions): a view that gets both from its layout (e.g. flex)
+        // is cropped as usual.
+        boolean several = severalSources() != null;
+        if (several || (mAutoSize && mFitScaleType == ScaleType.CENTER_CROP)) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
                 mWaitsForSize = true;
@@ -1935,7 +1939,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 return;
             }
             mWaitedForSize = false;
-            pickSource();
+            if (several) pickSource();
         }
         updatePlaceholder();
         // Only reload for changes that affect the request (source,
