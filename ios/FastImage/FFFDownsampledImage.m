@@ -253,14 +253,14 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     // cache keeps the downloaded file under the source's key, for every size.
     context[SDWebImageContextImageThumbnailPixelSize] = [NSValue valueWithCGSize: box];
     context[SDWebImageContextImagePreserveAspectRatio] = @(!cover);
+    NSMutableDictionary* decodeOptions = [@{FFFDecodeSourceSize: [FFFSourceSize new]} mutableCopy];
     if (maxScale > 0) {
-        context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new], FFFDecodeMaxScale: @(maxScale)};
+        decodeOptions[FFFDecodeMaxScale] = @(maxScale);
         FFFKeyTransformer* key = [FFFKeyTransformer new];
         key.transformerKey = [NSString stringWithFormat: @"FFFMaxScale%g", maxScale];
         context[SDWebImageContextImageTransformer] = key;
-    } else {
-        context[SDWebImageContextImageDecodeOptions] = @{FFFDecodeSourceSize: [FFFSourceSize new]};
     }
+    context[SDWebImageContextImageDecodeOptions] = decodeOptions;
     // Only in memory: the disk cache has the downloaded file.
     context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeMemory);
     context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeMemory);
