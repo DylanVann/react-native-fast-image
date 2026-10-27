@@ -31,7 +31,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { resolveObjectFit } from './objectFit'
+import { openSides, resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -178,24 +178,25 @@ function FastImageBase({
         )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
-    // The loaded image's size, kept until another image loads. A side the
-    // style leaves open follows it, as on iOS and Android: the view gets the
-    // image's aspect ratio (unless the style has one), and with neither side
-    // set, the image's width (at most the space there is) from a spacer, so
-    // a stretched view still fills its parent.
+    // The loaded image's size in points, kept until another image loads. A
+    // side the style leaves open follows it, as on iOS and Android: the view
+    // gets the image's aspect ratio (unless the style has one), and with
+    // neither side set, the image's width (at most the space there is) from a
+    // spacer, so a stretched view still fills its parent.
     const [imageSize, setImageSize] = useState<{
         width: number
         height: number
     }>()
-    const flatStyle = StyleSheet.flatten(style) ?? {}
+    const open = openSides(style)
     const sizeStyle =
-        imageSize && imageSize.width > 0 && imageSize.height > 0
+        imageSize &&
+        imageSize.width > 0 &&
+        imageSize.height > 0 &&
+        (open.width || open.height)
             ? { aspectRatio: imageSize.width / imageSize.height }
             : undefined
     const spacer =
-        sizeStyle &&
-        flatStyle.width === undefined &&
-        flatStyle.height === undefined ? (
+        sizeStyle && open.width && open.height ? (
             <View
                 style={{ width: imageSize!.width, maxWidth: '100%' }}
                 pointerEvents="none"
@@ -314,8 +315,17 @@ function FastImageBase({
                     alt={label ?? ''}
                     onLoad={(image) => {
                         const { width, height } = loadedSize(image, sized)
+                        const scale = loadedScale(
+                            image,
+                            { width },
+                            source,
+                            sized,
+                        )
                         setResult({ key, ok: true })
-                        setImageSize({ width, height })
+                        setImageSize({
+                            width: width / scale,
+                            height: height / scale,
+                        })
                         onLoad?.({ nativeEvent: { width, height } })
                         onLoadEnd?.({ ok: true, width, height })
                     }}
@@ -469,6 +479,7 @@ function sizedSources(entries: (SizedSource | number)[]) {
         .map((source) => ({
             uri: source.uri as string,
             width: Math.round((source.width ?? 0) * (source.scale ?? 1)),
+            scale: source.scale ?? 1,
         }))
     const largest = widths.reduce<(typeof widths)[number] | undefined>(
         (best, source) => (!best || source.width > best.width ? source : best),
@@ -503,13 +514,7 @@ function loadedSize(
     image: LoadedImage,
     sized: ReturnType<typeof sizedSources> | undefined,
 ) {
-    const picked = sized?.srcSet
-        ? sized.widths.find(
-              (source) =>
-                  new URL(source.uri, image.currentSrc).href ===
-                  image.currentSrc,
-          )
-        : undefined
+    const picked = pickedSource(image, sized)
     return {
         width: picked?.width ?? image.naturalWidth,
         height: picked
@@ -518,6 +523,40 @@ function loadedSize(
               )
             : image.naturalHeight,
     }
+}
+
+// Of several sizes, the one the browser loaded.
+function pickedSource(
+    image: LoadedImage,
+    sized: ReturnType<typeof sizedSources> | undefined,
+) {
+    return sized?.srcSet
+        ? sized.widths.find(
+              (source) =>
+                  new URL(source.uri, image.currentSrc).href ===
+                  image.currentSrc,
+          )
+        : undefined
+}
+
+// The loaded image's pixels per point, which a side the style leaves open
+// follows its size in points by, as on iOS and Android: a require()d image's
+// file's scale, or a source's pixels over its width (see `source`), otherwise
+// 1.
+function loadedScale(
+    image: LoadedImage,
+    size: { width: number },
+    source: unknown,
+    sized: ReturnType<typeof sizedSources> | undefined,
+) {
+    if (sized) return pickedSource(image, sized)?.scale ?? 1
+    const single = Array.isArray(source) ? source[0] : source
+    if (typeof single === 'number') {
+        const asset: PackagerAsset | undefined = getAssetByID(single)
+        return asset ? assetScale(asset) : 1
+    }
+    const width = (single as Source | undefined)?.width
+    return width && width > 0 ? size.width / width : 1
 }
 
 const fill = {

@@ -12,7 +12,7 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyle, resolveObjectFit } from './objectFit'
+import { fromStyle, openSides, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
@@ -861,14 +861,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * and borders inset it, but padding doesn't), and `tintColor`, as with
      * React Native's `Image` (the `tintColor` prop wins).
      *
-     * A width or height the style leaves out follows the loaded image, as with
-     * an `<img>` on the web:
+     * A width or height the style leaves out (or sets to `auto`) follows the
+     * loaded image, as with an `<img>` on the web:
      *
      * - Only a width (or one from the parent, e.g. stretched in a column): the
      *   height from the image's aspect ratio.
      * - Only a height: the width from it.
      * - Neither: the image's own size (a 600 × 300 px image is 600 × 300
-     *   points), at most the space there is.
+     *   points, a bundled `@3x` one a third of that), at most the space there
+     *   is.
      *
      * Until the image has loaded, those sides are 0, so the layout changes
      * when it loads. To keep its space, set both sides, or a width and an
@@ -1090,6 +1091,9 @@ function FastImageBase({
         tintColor != null ? tintColor : fromStyle(style, 'tintColor')
     const fit = resolveObjectFit(objectFit, style)
     const position = objectPositionOrCentered(objectPosition)
+    // The shadow node lays out a side the style leaves open from the loaded
+    // image: the view only gives it the image's size then.
+    const open = openSides(style)
 
     // One source, or several in an array, picked from natively for the
     // view's size (one in an array is a plain source), with their thumbhashes
@@ -1150,10 +1154,7 @@ function FastImageBase({
             )}
             source={resolvedSource}
             placeholder={resolvedPlaceholder}
-            autoSize={
-                fromStyle(style, 'width') == null ||
-                fromStyle(style, 'height') == null
-            }
+            autoSize={open.width || open.height}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only
