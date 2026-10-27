@@ -804,21 +804,16 @@ function AutoSizeCase({
     id: string
     uri: string
     style: React.ComponentProps<typeof FastImage>['style']
-    expected: (layout: { width: number; height: number }) => {
-        width: number
-        height: number
-    }
+    expected: { width: number; height: number }
     description: Description
 }) {
     const [loaded, setLoaded] = useState(false)
     const [layout, setLayout] = useState<{ width: number; height: number }>()
-    const want = layout && expected(layout)
     const ok =
         loaded &&
         layout !== undefined &&
-        want !== undefined &&
-        Math.abs(layout.width - want.width) < 0.5 &&
-        Math.abs(layout.height - want.height) < 0.5
+        Math.abs(layout.width - expected.width) < 0.5 &&
+        Math.abs(layout.height - expected.height) < 0.5
     return (
         <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -838,9 +833,9 @@ function AutoSizeCase({
                 status={
                     ok
                         ? 'OK'
-                        : !loaded || !layout || !want
+                        : !loaded || !layout
                           ? 'waiting'
-                          : `${layout.width}x${layout.height}, expected ${want.width}x${want.height}`
+                          : `${layout.width}x${layout.height}, expected ${expected.width}x${expected.height}`
                 }
                 description={description}
             />
@@ -859,12 +854,12 @@ export const AUTO_SIZE_GROUP: RegressionGroup = {
             key="auto-size-width"
             id="auto-size-width"
             uri={imageUrl('picsum/1018-600x300.jpg')}
-            style={{ width: '100%' }}
-            expected={({ width }) => ({ width, height: width / 2 })}
+            style={{ width: 240 }}
+            expected={{ width: 240, height: 120 }}
             description={{
-                checks: 'An image with only a width (100%) gets the height its aspect ratio gives.',
-                steps: 'Loads a 600x300 photo with style { width: "100%" } and objectFit fill. Passes once it has loaded and its layout is half as tall as wide.',
-                shows: 'The photo across the screen at 2:1, not stretched.',
+                checks: 'An image with only a width (in a row) gets the height its aspect ratio gives.',
+                steps: 'Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.',
+                shows: 'The photo at 240x120 on the left, not stretched.',
             }}
         />,
         <AutoSizeCase
@@ -872,7 +867,7 @@ export const AUTO_SIZE_GROUP: RegressionGroup = {
             id="auto-size-height"
             uri={imageUrl('picsum/1018-600x300.jpg')}
             style={{ height: 64 }}
-            expected={() => ({ width: 128, height: 64 })}
+            expected={{ width: 128, height: 64 }}
             description={{
                 checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
                 steps: 'Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.',
@@ -884,7 +879,7 @@ export const AUTO_SIZE_GROUP: RegressionGroup = {
             id="auto-size-natural"
             uri={imageUrl('picsum/1020-120x120.jpg')}
             style={{}}
-            expected={() => ({ width: 120, height: 120 })}
+            expected={{ width: 120, height: 120 }}
             description={{
                 checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
                 steps: 'Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.',

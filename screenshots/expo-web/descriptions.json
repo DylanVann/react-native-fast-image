@@ -41,6 +41,28 @@
             }
         }
     },
+    "auto-size": {
+        "description": {
+            "checks": "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set."
+        },
+        "cases": {
+            "auto-size-width": {
+                "checks": "An image with only a width (in a row) gets the height its aspect ratio gives.",
+                "steps": "Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.",
+                "shows": "The photo at 240x120 on the left, not stretched."
+            },
+            "auto-size-height": {
+                "checks": "An image with only a height (in a row) gets the width its aspect ratio gives.",
+                "steps": "Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
+                "shows": "The photo at 128x64 on the left."
+            },
+            "auto-size-natural": {
+                "checks": "An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.",
+                "steps": "Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The 120x120 photo at 120x120 points on the left."
+            }
+        }
+    },
     "smoke-web": {
         "description": {
             "checks": "The web version's own behavior: onLoad when the sizes change, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri."
