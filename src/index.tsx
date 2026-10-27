@@ -681,7 +681,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   is decoded at the largest size under that, which Android can still
      *   draw. On iOS, an image over 64 megapixels (8192 × 8192) is decoded
      *   at 16 megapixels, except with `objectFit="none"`, which shows it at
-     *   its own size.
+     *   its own size. On iOS, an SVG is drawn at its own size, or the
+     *   view's if that's larger.
      *
      * It doesn't change `onLoad`'s width and height (the image's own size) or
      * the cached file. Photo library images are always decoded at about the

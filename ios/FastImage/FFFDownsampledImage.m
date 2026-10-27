@@ -18,6 +18,13 @@ static SDImageCoderOption const FFFDecodeUncapped = @"FFFDecodeUncapped";
 // size (objectFit scale-down): the screen's scale, the most pixels per point
 // an SVG is drawn at (see FFFDrawnSVG).
 static SDImageCoderOption const FFFDecodeMaxScale = @"FFFDecodeMaxScale";
+// The decode options for a full-size load: the screen's scale, the pixels per
+// point an SVG is drawn at there (its own size), or zero to keep it a vector;
+// and the box (in pixels) to draw it for if that's larger, and whether it
+// covers it.
+static SDImageCoderOption const FFFDecodeScreenScale = @"FFFDecodeScreenScale";
+static SDImageCoderOption const FFFDecodeVectorBox = @"FFFDecodeVectorBox";
+static SDImageCoderOption const FFFDecodeVectorCover = @"FFFDecodeVectorCover";
 
 // The most pixels a full-size load decodes an image of at least twice that
 // size each way at (each frame, for an animated image): 4096 x 4096, 64 MB
@@ -103,26 +110,27 @@ id FFFWithSVGLock(id (^block)(void)) {
     }
 }
 
-// An SVG (a vector image, its size in points) drawn into a bitmap for a box
-// (in pixels) to fit in or cover, with at most maxScale pixels per point if
-// it's not zero, on SDWebImage's decode queue. Shown as a
-// vector, UIKit draws it on the main thread whenever the view shows it at a
-// new size (on an iPhone 15 Pro Max, mounting 40 cached 24-point icons took
-// 36 ms of the main thread against 11 ms as PNGs). It keeps the SVG's size in
-// points, with the pixels per point the box needs, so objectFit and onLoad
-// treat it as the SVG, and at most FFFMaxPixels (a thin SVG covering a box).
-static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxScale) {
+// An SVG (a vector image, its size in points) drawn into a bitmap at scale
+// pixels per point, on SDWebImage's decode queue. Shown as a vector, UIKit
+// draws it on the main thread whenever the view shows it at a new size (on an
+// iPhone 15 Pro Max, mounting 40 cached 24-point icons took 36 ms of the main
+// thread against 11 ms as PNGs), at the view's size, so it's soft when the
+// view is zoomed in on with a transform. It keeps the SVG's size in points,
+// so objectFit and onLoad treat it as the SVG, and at most FFFMaxPixels (a
+// thin SVG covering a box, or a large one at its own size).
+CGFloat FFFDrawnSVGScale(CGSize size, CGFloat scale) {
+    if (size.width <= 0 || size.height <= 0 || scale <= 0) {
+        return 0;
+    }
+    return MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
+}
+
+static UIImage* FFFDrawnSVGAtScale(UIImage* image, CGFloat scale) {
     CGSize size = image.size;
-    if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
+    scale = FFFDrawnSVGScale(size, scale);
+    if (scale <= 0) {
         return nil;
     }
-    CGFloat widthRatio = box.width / size.width;
-    CGFloat heightRatio = box.height / size.height;
-    CGFloat scale = cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
-    if (maxScale > 0) {
-        scale = MIN(scale, maxScale);
-    }
-    scale = MIN(scale, sqrt(FFFMaxPixels / (size.width * size.height)));
     UIGraphicsImageRendererFormat* format = [UIGraphicsImageRendererFormat preferredFormat];
     format.scale = scale;
     format.opaque = NO;
@@ -137,6 +145,25 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     });
 }
 
+CGFloat FFFBoxScale(CGSize size, CGSize box, BOOL cover) {
+    if (size.width <= 0 || size.height <= 0 || box.width <= 0 || box.height <= 0) {
+        return 0;
+    }
+    CGFloat widthRatio = box.width / size.width;
+    CGFloat heightRatio = box.height / size.height;
+    return cover ? MAX(widthRatio, heightRatio) : MIN(widthRatio, heightRatio);
+}
+
+// An SVG drawn for a box (in pixels) to fit in or cover, with at most maxScale
+// pixels per point if it's not zero.
+static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxScale) {
+    CGFloat scale = FFFBoxScale(image.size, box, cover);
+    if (maxScale > 0) {
+        scale = MIN(scale, maxScale);
+    }
+    return FFFDrawnSVGAtScale(image, scale);
+}
+
 // Where the decode puts the full image's size, passed in the load's decode
 // options. SDWebImage attaches those options to the image it ends up with
 // (sd_decodeOptions), also when its force decoding replaces the decoded image
@@ -146,6 +173,8 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
 // The image is an SVG drawn into a bitmap for the box (see FFFDrawnSVG): it
 // has no full size to decode at, so it's always smaller than one.
 @property (atomic, assign) BOOL drawnForBox;
+// The image is an SVG drawn into a bitmap by a full-size load.
+@property (atomic, assign) BOOL drawnAtFullSize;
 @end
 
 @implementation FFFSourceSize
@@ -276,11 +305,17 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
 
 @implementation FFFDownsampledImage
 
-+ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped {
++ (void) addFullSizeToContext: (SDWebImageMutableContext*)context uncapped: (BOOL)uncapped screenScale: (CGFloat)screenScale vectorBox: (CGSize)vectorBox cover: (BOOL)cover {
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
-    context[SDWebImageContextImageDecodeOptions] = uncapped
-        ? @{FFFDecodeSourceSize: [FFFSourceSize new], FFFDecodeUncapped: @YES}
-        : @{FFFDecodeSourceSize: [FFFSourceSize new]};
+    NSMutableDictionary* decodeOptions = [@{FFFDecodeSourceSize: [FFFSourceSize new], FFFDecodeScreenScale: @(screenScale)} mutableCopy];
+    if (uncapped) {
+        decodeOptions[FFFDecodeUncapped] = @YES;
+    }
+    if (vectorBox.width > 0 && vectorBox.height > 0) {
+        decodeOptions[FFFDecodeVectorBox] = [NSValue valueWithCGSize: vectorBox];
+        decodeOptions[FFFDecodeVectorCover] = @(cover);
+    }
+    context[SDWebImageContextImageDecodeOptions] = decodeOptions;
 }
 
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale {
@@ -337,6 +372,10 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     return [self sourceSizeObjectOfImage: image].drawnForBox;
 }
 
++ (BOOL) isDrawnAtFullSize: (UIImage*)image {
+    return [self sourceSizeObjectOfImage: image].drawnAtFullSize;
+}
+
 + (BOOL) isSmallerThanFullSize: (UIImage*)image uncapped: (BOOL)uncapped {
     if ([self isDrawnForBox: image]) {
         return YES;
@@ -382,7 +421,7 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     // An SVG, which this class can't decode (this init can return another
     // image): a vector image from the SVG coder, without the box (it would
     // draw it at the box's size in points, at the screen's scale), drawn here
-    // for the box (FFFDrawnSVG). A full-size load keeps the vector image.
+    // for the box (FFFDrawnSVG), or at its own size for a full-size load.
     if ([NSData sd_imageFormatForImageData: data] == SDImageFormatSVG) {
         NSMutableDictionary* vectorOptions = options ? [options mutableCopy] : [NSMutableDictionary dictionary];
         [vectorOptions removeObjectForKey: SDImageCoderDecodeThumbnailPixelSize];
@@ -398,10 +437,26 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
         NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
         BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
         CGFloat maxScale = [options[FFFDecodeMaxScale] doubleValue];
-        UIImage* drawn = boxValue && image ? FFFDrawnSVG(image, boxValue.CGSizeValue, cover, maxScale) : nil;
-        if (drawn) {
-            image = drawn;
-            sourceSize.drawnForBox = YES;
+        if (boxValue && image) {
+            UIImage* drawn = FFFDrawnSVG(image, boxValue.CGSizeValue, cover, maxScale);
+            if (drawn) {
+                image = drawn;
+                sourceSize.drawnForBox = YES;
+            }
+        } else if (image && [options[FFFDecodeScreenScale] doubleValue] > 0) {
+            // A full-size load: at its own size, its full size, or for the
+            // view if that's larger (downsample false, or a url placeholder,
+            // shown as with contain).
+            CGFloat scale = [options[FFFDecodeScreenScale] doubleValue];
+            NSValue* vectorBox = options[FFFDecodeVectorBox];
+            if (vectorBox) {
+                scale = MAX(scale, FFFBoxScale(image.size, vectorBox.CGSizeValue, [options[FFFDecodeVectorCover] boolValue]));
+            }
+            UIImage* drawn = FFFDrawnSVGAtScale(image, scale);
+            if (drawn) {
+                image = drawn;
+                sourceSize.drawnAtFullSize = YES;
+            }
         }
         self = (id) image;
         return self;
