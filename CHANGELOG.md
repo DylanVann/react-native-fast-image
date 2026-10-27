@@ -1,3 +1,10 @@
+## [10.9.8](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.7...v10.9.8) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ios:** draw SVGs one at a time ([#1390](https://github.com/DylanVann/react-native-fast-image/issues/1390)) ([e333e44](https://github.com/DylanVann/react-native-fast-image/commit/e333e44fe6a4a9f3427e7db7d272b60ba5f7092f))
+
 ## [10.9.7](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.6...v10.9.7) (2026-10-27)
 
 
