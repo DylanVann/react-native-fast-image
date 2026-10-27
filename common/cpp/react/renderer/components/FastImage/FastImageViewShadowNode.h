@@ -4,6 +4,7 @@
 #include <react/renderer/components/RNFastImageSpec/EventEmitters.h>
 #include <react/renderer/components/RNFastImageSpec/Props.h>
 #include <react/renderer/components/view/ConcreteViewShadowNode.h>
+#include <yoga/YGNode.h>
 
 #include "FastImageViewState.h"
 
@@ -22,7 +23,15 @@ class JSI_EXPORT FastImageViewShadowNode final : public ConcreteViewShadowNode<
                                                      FastImageViewEventEmitter,
                                                      FastImageViewState> {
   public:
-    using ConcreteViewShadowNode::ConcreteViewShadowNode;
+    // Yoga takes a node with a measure function for text, which it rounds to
+    // the pixel grid differently (sizes rounded up): an image is rounded as
+    // any view is, also where its style sets both sides. (Clones copy the
+    // node type.)
+    template <typename... Args>
+    FastImageViewShadowNode(Args &&...args) : ConcreteViewShadowNode(std::forward<Args>(args)...)
+    {
+        YGNodeSetNodeType(&yogaNode_, YGNodeTypeDefault);
+    }
 
     static ShadowNodeTraits BaseTraits()
     {
