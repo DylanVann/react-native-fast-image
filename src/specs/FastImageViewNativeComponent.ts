@@ -74,6 +74,11 @@ export interface NativeProps extends ViewProps {
     // (Android ignores it).
     dynamicRangeLimit?: string
     blurRadius?: CodegenTypes.Float
+    // Whether the style leaves the width or height open, which then follows
+    // the loaded image (see common/cpp's FastImageViewShadowNode): only then
+    // do the native views give the shadow node the image's size, which lays
+    // the screen out again.
+    autoSize?: boolean
     // The events JS has a handler for, as bits: 1 onFastImageLoadStart,
     // 2 onFastImageProgress, 4 onFastImageLoad, 8 onFastImageError, 16
     // onFastImageLoadEnd. The native views only send those (most images have
