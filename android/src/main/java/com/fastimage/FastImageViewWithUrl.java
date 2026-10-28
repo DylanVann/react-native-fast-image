@@ -1815,11 +1815,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
         mShownUncropped = mLoadingUncropped;
-        Bitmap bitmap = mShownUncropped && resource instanceof BitmapDrawable
-                ? ((BitmapDrawable) resource).getBitmap()
-                : null;
-        mUncroppedWidth = bitmap != null ? bitmap.getWidth() : 0;
-        mUncroppedHeight = bitmap != null ? bitmap.getHeight() : 0;
+        // A bitmap's size, or an animation's (a GIF or animated WebP, decoded
+        // at that size).
+        Bitmap bitmap = resource instanceof BitmapDrawable ? ((BitmapDrawable) resource).getBitmap() : null;
+        mUncroppedWidth = !mShownUncropped ? 0 : bitmap != null ? bitmap.getWidth() : resource.getIntrinsicWidth();
+        mUncroppedHeight = !mShownUncropped ? 0 : bitmap != null ? bitmap.getHeight() : resource.getIntrinsicHeight();
         reloadIfResized();
     }
 
