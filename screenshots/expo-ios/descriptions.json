@@ -107,13 +107,23 @@
     },
     "auto-size-styles": {
         "description": {
-            "checks": "#436, continued: padding, and a height a later style clears."
+            "checks": "#436, continued: padding, borders, and a height a later style clears."
         },
         "cases": {
             "auto-size-padding": {
                 "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
                 "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
+            },
+            "auto-size-padding-natural": {
+                "checks": "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
+                "steps": "Loads a 120x120 photo with style { padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The 120x120 photo at 120x120 points on the left."
+            },
+            "auto-size-border": {
+                "checks": "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
+                "steps": "Loads the 600x300 photo with style { width: 240, borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).",
+                "shows": "The photo at 224x112 inside an 8-point black border, on the left."
             },
             "auto-size-cleared": {
                 "checks": "A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.",

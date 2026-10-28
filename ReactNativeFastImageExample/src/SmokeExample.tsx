@@ -1518,7 +1518,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-styles',
         description: {
-            checks: '#436, continued: padding, and a height a later style clears.',
+            checks: '#436, continued: padding, borders, and a height a later style clears.',
         },
         cases: [
             <AutoSizeCase
@@ -1533,6 +1533,36 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                     shows: 'The photo at 96x48 on the left.',
                 }}
             />,
+            <AutoSizeCase
+                key="auto-size-padding-natural"
+                id="auto-size-padding-natural"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{ padding: 20 }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
+                    steps: 'Loads a 120x120 photo with style { padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.',
+                    shows: 'The 120x120 photo at 120x120 points on the left.',
+                }}
+            />,
+            // The web's aspect ratio is the border box's: there, the image's
+            // box is a little off its shape.
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-border"
+                          id="auto-size-border"
+                          source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                          style={{ width: 240, borderWidth: 8 }}
+                          expected={{ width: 240, height: 128 }}
+                          description={{
+                              checks: "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
+                              steps: 'Loads the 600x300 photo with style { width: 240, borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).',
+                              shows: 'The photo at 224x112 inside an 8-point black border, on the left.',
+                          }}
+                      />,
+                  ]),
             // React Native Web keeps the earlier height.
             ...(Platform.OS === 'web'
                 ? []
