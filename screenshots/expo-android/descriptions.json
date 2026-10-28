@@ -119,12 +119,17 @@
                 "checks": "A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.",
                 "steps": "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: undefined }] in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
+            },
+            "auto-size-padding-cover": {
+                "checks": "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
+                "steps": "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                "shows": "The image at 240x120: a magenta band at the top over cyan."
             }
         }
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder and a source change of an image with only a width."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width."
         },
         "cases": {
             "auto-size-placeholder": {
@@ -136,6 +141,16 @@
                 "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
                 "steps": "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The 600x300 image at 240x120: a magenta band at the top over cyan."
+            },
+            "auto-size-sources": {
+                "checks": "With several sizes of an image and only a width, the size for that width loads, and only that one.",
+                "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64 } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
+                "shows": "The photo at 64x64 on the left."
+            },
+            "auto-size-failed": {
+                "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
+                "steps": "Loads the 600x300 photo with style { width: 96 } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
+                "shows": "Nothing: the image is 0 high."
             }
         }
     },
