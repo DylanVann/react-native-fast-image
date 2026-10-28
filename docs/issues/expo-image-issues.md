@@ -205,6 +205,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run in Expo Image. Fast Image measured the Core Graphics behavior on an iPhone 15 Pro Max: a 200-shape SVG drawn on 8 threads at once came out wrong in 10–20% of the drawings, and drawn one at a time never.
 - **How Fast Image handles it:** every SVG it parses or draws goes through one lock, the main thread first ([#1390](https://github.com/DylanVann/react-native-fast-image/pull/1390)).
 
+## Android: a percent-encoded data uri doesn't load
+
+- **What happens:** a data uri whose data isn't base64, such as `data:image/svg+xml;utf8,<svg …>` (common for inline SVGs), doesn't load on Android. iOS loads it.
+- **Where:** `packages/expo-image/android/src/main/java/expo/modules/image/dataurls/Base64DataFetcher.kt`, `loadData` passes everything after the comma to `Base64.decode`, whatever the uri's header says.
+- **How to reproduce:** Found by reading the code, not run in Expo Image. Fast Image's Android version had the same gap with Glide's data url loader, which only reads `;base64,` uris: the `data-uri-utf8` case never loaded before [#1397](https://github.com/DylanVann/react-native-fast-image/pull/1397).
+- **How Fast Image handles it:** a percent-encoded data uri is decoded and encoded again as base64 before Glide loads it ([#1397](https://github.com/DylanVann/react-native-fast-image/pull/1397)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
