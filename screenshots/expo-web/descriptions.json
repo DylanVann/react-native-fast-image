@@ -109,7 +109,7 @@
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set."
         },
         "cases": {
             "auto-size-placeholder": {
