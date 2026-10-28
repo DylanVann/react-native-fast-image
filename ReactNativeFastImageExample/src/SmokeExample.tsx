@@ -6,7 +6,7 @@ import FastImage, {
     LoadResult,
 } from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
-import { imageUrl } from './imageServer'
+import { imageUrl, slowImageUrl } from './imageServer'
 import {
     Masked,
     measureView,
@@ -991,6 +991,119 @@ function AutoSizeCoverCase() {
     )
 }
 
+// A url placeholder, shown in a view with only a width (0 high until the image
+// loads) and then, the same url, in one at a fixed size, which shows the copy
+// the first decoded: decoded for the first view's width, not squeezed into a
+// box 1 pixel high (iOS decodes for the side that's set). The images load from
+// the slow server, so the placeholders stay.
+const SLOW_HEADERS = { 'x-token': 'fast-image' }
+function AutoSizePlaceholderCase() {
+    const [second, setSecond] = useState(false)
+    useEffect(() => {
+        const timer = setTimeout(() => setSecond(true), 2500)
+        return () => clearTimeout(timer)
+    }, [])
+    const placeholder = {
+        uri: imageUrl(`thirds.png?auto-size-placeholder=${RUN}`),
+    }
+    const source = (name: string) => ({
+        uri: slowImageUrl(
+            `picsum/1018-600x300.jpg?auto-size-placeholder-${name}=${RUN}&delay=5000`,
+        ),
+        headers: SLOW_HEADERS,
+    })
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <FastImage
+                style={{ width: 240 }}
+                source={source('open')}
+                placeholder={placeholder}
+            />
+            {second ? (
+                <FastImage
+                    style={{ width: 128, height: 64 }}
+                    source={source('fixed')}
+                    placeholder={placeholder}
+                />
+            ) : (
+                <View style={{ width: 128, height: 64 }} />
+            )}
+            <CaseStatus
+                id="auto-size-placeholder"
+                status={second ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.',
+                    steps: 'Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.',
+                    shows: 'The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A source change in a view with only a width (e.g. a recycled list cell):
+// recorded near its top, as the view goes from a square photo's shape to a
+// 2:1 image's, the image is magenta there (its top fifth), never cyan, as it
+// would be cropped to the square the view had (then zoomed in).
+function AutoSizeSourceChangeCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [uri, setUri] = useState(
+        imageUrl(`picsum/1020-120x120.jpg?auto-size-change=${RUN}`),
+    )
+    const loads = useRef(0)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    const record = async () => {
+        const area = await measureView(box.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const expect = [MAGENTA]
+        const result = await sample(
+            {
+                name: 'auto-size-source-change',
+                area: { x: area.x + 110, y: area.y + 3, width: 20, height: 10 },
+                durationMs: 4000,
+                expect,
+                palette: [CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setUri(imageUrl(`bands.png?auto-size-change=${RUN}`))
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 240 }}
+            >
+                <FastImage
+                    source={{ uri }}
+                    style={{ width: 240 }}
+                    onLoad={() => {
+                        loads.current++
+                        if (loads.current === 1) setTimeout(record, 500)
+                        else setTimeout(() => done.current(), 1500)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-source-change"
+                status={status}
+                description={{
+                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                    steps: "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    shows: 'The 600x300 image at 240x120: a magenta band at the top over cyan.',
+                }}
+            />
+        </View>
+    )
+}
+
 // Shared with the main, minimum and tvOS apps' regression groups.
 export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
@@ -1086,6 +1199,59 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
             ...(Platform.OS === 'web'
                 ? []
                 : [<AutoSizeCoverCase key="auto-size-cover" />]),
+        ],
+    },
+    {
+        name: 'auto-size-styles',
+        description: {
+            checks: '#436, continued: padding, and a height a later style clears.',
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-padding"
+                id="auto-size-padding"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 96, padding: 8 }}
+                expected={{ width: 96, height: 48 }}
+                description={{
+                    checks: "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                    steps: 'Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.',
+                    shows: 'The photo at 96x48 on the left.',
+                }}
+            />,
+            // React Native Web keeps the earlier height.
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-cleared"
+                          id="auto-size-cleared"
+                          source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                          style={[
+                              { height: 200 },
+                              { width: 96, height: undefined },
+                          ]}
+                          expected={{ width: 96, height: 48 }}
+                          description={{
+                              checks: 'A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.',
+                              steps: 'Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: undefined }] in a row. Passes once it has loaded and its layout is 96x48.',
+                              shows: 'The photo at 96x48 on the left.',
+                          }}
+                      />,
+                  ]),
+        ],
+    },
+    {
+        name: 'auto-size-changes',
+        description: {
+            checks: '#436, continued: a url placeholder and a source change of an image with only a width.',
+        },
+        cases: [
+            <AutoSizePlaceholderCase key="auto-size-placeholder" />,
+            // Not on the web (see auto-size-cover).
+            ...(Platform.OS === 'web'
+                ? []
+                : [<AutoSizeSourceChangeCase key="auto-size-source-change" />]),
         ],
     },
 ]
