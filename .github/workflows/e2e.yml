@@ -121,36 +121,46 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode_27.1.app
           xcodebuild -version
-      # Node at .node-version's version, with npm and npx (React Native's
-      # Gradle autolinking runs npx): from nodejs.org's release, checked
-      # against the release's SHA-256 list (setup-node also looks the version
-      # up and copies the release into a tool cache).
-      - name: Install Node
+      # Node, ffmpeg and ffprobe, XCLogParser and simslim
+      # (.github/install-tools.sh), downloaded once and kept in R2.
+      - name: Restore the tools
+        id: tools
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        # The caches (runs-on/cache, which takes actions/cache's inputs) are
+        # in Cloudflare R2, which restores them faster than GitHub's cache and
+        # shares them between branches. Pull requests from forks get no
+        # secrets: they restore with a read-only key (.github/r2-read-only.env)
+        # and don't save (R2_WRITE). Only the cache steps get the R2 keys, not
+        # the steps that run the dependencies' code.
+        env: &r2
+          RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
+          RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || env.R2_READ_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || env.R2_READ_SECRET }}
+          AWS_REGION: auto
+        with:
+          path: ${{ runner.temp }}/tools
+          key: tools-macos-${{ hashFiles('.github/install-tools.sh', '.node-version') }}
+      - name: Download the tools
+        if: steps.tools.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: .github/install-tools.sh "$RUNNER_TEMP/tools"
+      # From one job: they all download the same.
+      - name: Save the tools
+        if: env.R2_WRITE == 'true' && steps.tools.outputs.cache-hit != 'true' && matrix.app == 'main' && matrix.shard == 1
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: ${{ runner.temp }}/tools
+          key: ${{ steps.tools.outputs.cache-primary-key }}
+      - name: Put the tools on the PATH
         run: |
-          v=v$(cat .node-version)
-          n=node-$v-darwin-arm64
-          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
-          curl -fsSL --retry 3 --retry-all-errors -O "https://nodejs.org/dist/$v/$n.tar.gz"
-          curl -fsSL --retry 3 --retry-all-errors "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
-          mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
-          echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
-      # ffmpeg and ffprobe, for the video samples: static builds, checked
-      # against their SHA-256 (Homebrew took about 20 s).
-      - name: Install ffmpeg and ffprobe
-        run: |
-          base=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2
-          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
-          curl -fsSL --retry 3 --retry-all-errors -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
-          shasum -a 256 -c <<'EOF'
-          c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
-          fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
-          EOF
-          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       # idb's companion, for the regression screenshots and video samples
       # (verify.mts's VERIFY_IDB_COMPANION): screenshots in about 100 ms,
       # where simctl's take about 450, with the same pixels. idb 1.7.7 with a
@@ -172,18 +182,7 @@ jobs:
       - name: Restore the simulator
         id: simulator
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
-        # The caches (runs-on/cache, which takes actions/cache's inputs) are
-        # in Cloudflare R2, which restores them faster than GitHub's cache and
-        # shares them between branches. Pull requests from forks get no
-        # secrets: they restore with a read-only key (.github/r2-read-only.env)
-        # and don't save (R2_WRITE). Only the cache steps get the R2 keys, not
-        # the steps that run the dependencies' code.
-        env: &r2
-          RUNS_ON_S3_BUCKET_CACHE: react-native-fast-image-ci-cache
-          RUNS_ON_S3_BUCKET_ENDPOINT: https://752eb2e6c01a04c6af29caeb876f4415.r2.cloudflarestorage.com
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || env.R2_READ_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || env.R2_READ_SECRET }}
-          AWS_REGION: auto
+        env: *r2
         with:
           path: ~/simulator-cache
           key: ${{ env.SIMULATOR_KEY }}-${{ hashFiles('.github/simslim.json') }}
@@ -349,13 +348,10 @@ jobs:
           for app in ReactNativeFastImageExample ReactNativeFastImageExampleMinimum ReactNativeFastImageExampleTV; do
             xcrun simctl uninstall "$udid" "org.reactjs.native.example.$app" || true
           done
-          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/simslim.tar.gz" https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
-          echo "b47302da6fb83b8b4c21f4fdd61507469770c07b0ff07fd1f48207bda4270887  $RUNNER_TEMP/simslim.tar.gz" | shasum -a 256 -c
-          tar -xzf "$RUNNER_TEMP/simslim.tar.gz" -C "$RUNNER_TEMP"
           # Slow runners need longer than simslim's default time limits.
           export SIMSLIM_BOOT_TIMEOUT=20m SIMSLIM_SPAWN_TIMEOUT=5m
-          "$RUNNER_TEMP/simslim" on "$udid" --profile .github/simslim.json
-          "$RUNNER_TEMP/simslim" verify "$udid" --profile .github/simslim.json
+          simslim on "$udid" --profile .github/simslim.json
+          simslim verify "$udid" --profile .github/simslim.json
           xcrun simctl shutdown "$udid" || true
           mkdir -p ~/simulator-cache
           cp -R ~/Library/Developer/CoreSimulator/Devices/"$udid" ~/simulator-cache/
@@ -377,9 +373,6 @@ jobs:
         continue-on-error: true
         run: |
           log=$(ls -t "$APP_DIR"/ios/build/Logs/Build/*.xcactivitylog | head -1)
-          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/xclogparser.zip" https://github.com/MobileNativeFoundation/XCLogParser/releases/download/v0.2.49/XCLogParser-macOS-arm64-v0.2.49.zip
-          echo "96e4793d6c3c23a0238e18520c6742f5a1f3ac495857e13253223b0b9cbea5fa  $RUNNER_TEMP/xclogparser.zip" | shasum -a 256 -c
-          unzip -q -o "$RUNNER_TEMP/xclogparser.zip" -d "$RUNNER_TEMP/bin"
           xclogparser parse --file "$log" --reporter json --output verify-output/xcode-build.json
           python3 - <<'PY'
           import json
@@ -523,19 +516,30 @@ jobs:
       - name: Read the read-only R2 key
         if: env.R2_WRITE != 'true'
         run: grep '^R2_READ_' .github/r2-read-only.env >> "$GITHUB_ENV"
-      # Node at .node-version's version, with npm and npx (React Native's
-      # Gradle autolinking runs npx): from nodejs.org's release, checked
-      # against the release's SHA-256 list (setup-node also looks the version
-      # up and copies the release into a tool cache).
-      - name: Install Node
+      # Node, ffmpeg and ffprobe (.github/install-tools.sh), as in the iOS
+      # jobs.
+      - name: Restore the tools
+        id: tools
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: ${{ runner.temp }}/tools
+          key: tools-linux-${{ hashFiles('.github/install-tools.sh', '.node-version') }}
+      - name: Download the tools
+        if: steps.tools.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: .github/install-tools.sh "$RUNNER_TEMP/tools"
+      - name: Save the tools
+        if: env.R2_WRITE == 'true' && steps.tools.outputs.cache-hit != 'true' && matrix.app == 'main' && matrix.shard == 1
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: ${{ runner.temp }}/tools
+          key: ${{ steps.tools.outputs.cache-primary-key }}
+      - name: Put the tools on the PATH
         run: |
-          v=v$(cat .node-version)
-          n=node-$v-linux-x64
-          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP"
-          curl -fsSL --retry 3 --retry-all-errors -O "https://nodejs.org/dist/$v/$n.tar.gz"
-          curl -fsSL --retry 3 --retry-all-errors "https://nodejs.org/dist/$v/SHASUMS256.txt" | grep " $n.tar.gz$" | shasum -a 256 -c
-          mkdir -p node && tar xzf "$n.tar.gz" -C node --strip-components 1 "$n/bin" "$n/lib" && rm "$n.tar.gz"
-          echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -601,18 +605,6 @@ jobs:
         with:
           path: /usr/local/lib/android/sdk/system-images/android-36
           key: ${{ steps.image.outputs.cache-primary-key }}
-      # ffmpeg and ffprobe, as in the iOS jobs (apt took about 14 s).
-      - name: Install ffmpeg and ffprobe
-        run: |
-          base=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2
-          mkdir -p "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/bin"
-          curl -fsSL --retry 3 --retry-all-errors -O "$base/ffmpeg.zip" -O "$base/ffprobe.zip"
-          shasum -a 256 -c <<'EOF'
-          fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f  ffmpeg.zip
-          3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32  ffprobe.zip
-          EOF
-          unzip -q ffmpeg.zip && unzip -q ffprobe.zip && rm ffmpeg.zip ffprobe.zip
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: "Install the repo's dependencies"
         run: bun install --frozen-lockfile
       - name: "Restore Metro's cache"
