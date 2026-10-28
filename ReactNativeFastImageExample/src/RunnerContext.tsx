@@ -18,6 +18,10 @@ export type RegressionGroup = {
     // each case's area (and screenshot) is its images. A wide group's
     // screenshot is compared as a whole.
     wide?: boolean
+    // false: the work Fast Image does for it (its requests, decodes and
+    // loads) depends on timing (on this platform), so scripts/verify.mts
+    // records it but doesn't compare it with the reference (work.json).
+    countWork?: boolean
 }
 
 // What a case checks, in plain English, for someone reviewing its screenshot

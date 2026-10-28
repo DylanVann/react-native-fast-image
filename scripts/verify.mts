@@ -79,7 +79,8 @@ Options:
                       loading or lifecycle.
   --update-screenshots
                       Replace the reference screenshots in screenshots/ with
-                      this run's; a missing reference is always seeded from
+                      this run's (and the groups' descriptions and work
+                      counts); a missing reference is always seeded from
                       the run, except with --ref. Look at them, then commit
                       them with the change.
   --record            Record the screen while the flows run. Each flow's
@@ -1518,7 +1519,12 @@ function orphanedReferences(
     if (!fs.existsSync(dir)) return []
     const orphans: string[] = []
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (entry.name.startsWith('.') || entry.name === DESCRIPTIONS) continue
+        if (
+            entry.name.startsWith('.') ||
+            entry.name === DESCRIPTIONS ||
+            entry.name === WORK
+        )
+            continue
         const file = path.join(dir, entry.name)
         const group = entry.isDirectory()
             ? entry.name
@@ -2296,6 +2302,11 @@ async function runRegression(
     let windowWidth = 0
     let windowHeight = 0
     const failures: string[] = []
+    // When each group was shown (for reportWork), and the groups whose work
+    // isn't compared (countWork: false).
+    const groupStarts: { group: string; at: number }[] = []
+    const uncountedWork = new Set<string>()
+    let uncomparedWork: string | undefined
     // Each group's failures, by index.
     const groupFailures = new Map<number, string[]>()
     const failuresOf = (index: number) => {
@@ -3073,6 +3084,28 @@ async function runRegression(
             '100',
         ])
         capture('xcrun', ['simctl', 'terminate', device, appId])
+        // From empty caches (the disk caches, and cache: 'web''s HTTP
+        // cache), so each run does the same work (see reportWork) whatever
+        // an earlier run left.
+        const container = capture('xcrun', [
+            'simctl',
+            'get_app_container',
+            device,
+            appId,
+            'data',
+        ])?.trim()
+        if (container) {
+            for (const folder of ['Library/Caches', 'tmp']) {
+                const dir = path.join(container, folder)
+                for (const entry of fs.existsSync(dir)
+                    ? fs.readdirSync(dir)
+                    : [])
+                    fs.rmSync(path.join(dir, entry), {
+                        recursive: true,
+                        force: true,
+                    })
+            }
+        }
         // Without React Native's development banner ("Downloading 100%"),
         // which the first group's screenshot caught at the top. A default
         // rather than a launch argument, so it also applies when
@@ -3106,6 +3139,14 @@ async function runRegression(
         }
     } else {
         capture(ADB, ['-s', device, 'shell', 'am', 'force-stop', appId])
+        // From empty caches, as on iOS (a debug build's own files). One
+        // argument: adb shell joins them with spaces for the device's shell.
+        capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            `run-as ${appId} sh -c 'rm -rf cache/* cache/.[!.]*'`,
+        ])
         capture(
             ADB,
             [
@@ -3196,13 +3237,19 @@ async function runRegression(
               index === 0 || GROUP_NAMES.includes(group) ? [index] : [],
           )
         : Array.from({ length: end - first }, (_, i) => first + i)
-    if (indices[0] > 0) send({ type: 'show', index: indices[0] })
+    if (indices[0] > 0) {
+        send({ type: 'show', index: indices[0] })
+        // The app's first group, which it shows as it launches, does work
+        // that goes on into the group shown instead: not compared.
+        uncomparedWork = groups[indices[0]]
+    }
     // Shows a group's results once it's on screen (index): waits for its cases,
     // then takes its screenshot. connected: false if the app went away.
     const runGroup = async (index: number, label: string) => {
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
+        groupStarts.push({ group, at: groupStart })
         const own = failuresOf(index)
         const failGroup = (failure: string) => own.push(failure)
         const shown = await waitFor(
@@ -3216,6 +3263,7 @@ async function runRegression(
             return { connected: false }
         }
         const cases = shown.cases as string[]
+        if (shown.countWork === false) uncountedWork.add(group)
         descriptions[group] = {
             description: shown.description,
             cases: shown.descriptions,
@@ -3367,6 +3415,27 @@ async function runRegression(
         failures.push(...checked.failures)
         descriptionsSeeded = checked.seeded
     }
+    // The work each group made Fast Image do, and (not from a --ref run,
+    // whose library may not log it, or a release build, which doesn't) its
+    // check against the reference.
+    const work = await reportWork(app, platform, dir, groupStarts, startedAt)
+    let workSeeded: string[] = []
+    if (!REF && !RELEASE) {
+        const checked = checkWork(
+            referenceDir(app, platform),
+            dir,
+            groups,
+            Object.fromEntries(
+                Object.entries(work).filter(
+                    ([group]) => group !== uncomparedWork,
+                ),
+            ),
+            uncountedWork,
+            new Set(groups.filter((_, index) => failuresOf(index).length > 0)),
+        )
+        failures.push(...checked.failures)
+        workSeeded = checked.seeded
+    }
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),
@@ -3392,6 +3461,9 @@ async function runRegression(
     const seededNote =
         (descriptionsSeeded.length > 0
             ? `; the descriptions of ${descriptionsSeeded.length} group${descriptionsSeeded.length === 1 ? '' : 's'} added to ${rel(path.join(referenceDir(app, platform), DESCRIPTIONS))}`
+            : '') +
+        (workSeeded.length > 0
+            ? `; the work of ${workSeeded.length} group${workSeeded.length === 1 ? '' : 's'} added to ${rel(path.join(referenceDir(app, platform), WORK))}`
             : '') +
         (seeded.length > 0
             ? `; ${seeded.length} reference screenshot${seeded.length === 1 ? '' : 's'} seeded in ${rel(SCREENSHOTS)}, look at them before committing`
@@ -3421,6 +3493,226 @@ async function runRegression(
             `${indices.length} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
         )
     }
+}
+
+// The work each group made Fast Image do: its image requests (the image
+// server's request log, by the time the group was shown, and the platform
+// from the User-Agent: iOS and Android run at once; not the slow server's),
+// and on iOS and Android
+// the FastImageWork lines in the app's log (debug builds), after the group's
+// own line there (the app logs it before the group's cases mount). Counted by
+// kind, image and detail (e.g. a decode's sizes, a reload's reason), which
+// doesn't depend on the order the threads did it in. Run ids in urls (10 or
+// more digits) are RUN, and longer hex (hashes) HASH. In regression/work.json, and returned (every group
+// shown, with no work too).
+async function reportWork(
+    app: App,
+    platform: Platform,
+    dir: string,
+    starts: { group: string; at: number }[],
+    since: number,
+) {
+    const work: Record<string, Record<string, number>> = {}
+    const add = (group: string | undefined, line: string) => {
+        // A case's url with uncounted in its query: a case whose work
+        // depends on timing (its group's other cases are counted).
+        if (group === undefined || /[?&]uncounted\b/.test(line)) return
+        const counts = (work[group] ??= {})
+        // Run ids (and Math.random's) in urls, cache files' names (hashes of
+        // urls with run ids, in hex), and the app's container on a
+        // simulator, which each install changes.
+        const key = line
+            .replace(
+                /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/gi,
+                'UUID',
+            )
+            .replace(/[0-9a-f]{10,}/gi, (run) =>
+                /^\d+$/.test(run) ? 'RUN' : 'HASH',
+            )
+        counts[key] = (counts[key] ?? 0) + 1
+    }
+    // The image server's key for a url the app loads (see server.ts's
+    // request log): its path and query, the slow server's with slow:.
+    const serverPath = (url: string) => {
+        const match = url.match(/^https?:\/\/[^/]+:(\d+)(\/.*)$/)
+        if (!match) return undefined
+        if (Number(match[1]) === IMAGE_SERVER_PORT) return match[2]
+        return Number(match[1]) === IMAGE_SERVER_PORT + 1
+            ? `slow:${match[2]}`
+            : undefined
+    }
+    // Which groups loaded each of the server's paths (iOS and Android).
+    const loadedBy = new Map<string, Set<string>>()
+    if (platform === 'ios' || platform === 'android') {
+        // The log stream's last lines.
+        await sleep(1000)
+        const log = path.join(OUT, `${app}-${platform}`, 'app.log')
+        let group: string | undefined
+        const shownBefore = new Set<string>()
+        for (const line of (fs.existsSync(log)
+            ? fs.readFileSync(log, 'utf8')
+            : ''
+        ).split('\n')) {
+            const entry = line.match(/FastImageWork:? (.*)$/)?.[1]?.trim()
+            if (!entry) continue
+            if (entry.startsWith('group ')) {
+                const next = entry.slice(6)
+                // Not a group shown before: the app started again (the
+                // touch group) and showed its first group before this one.
+                if (!shownBefore.has(next)) group = next
+                shownBefore.add(next)
+                continue
+            }
+            add(group, entry)
+            const [kind, url] = entry.split(' ')
+            const key =
+                (kind === 'load' || kind === 'reload') && serverPath(url)
+            if (group !== undefined && key) {
+                const groups = loadedBy.get(key) ?? new Set()
+                loadedBy.set(key, groups.add(group))
+            }
+        }
+    }
+    const agentPlatform = (agent: string): Platform =>
+        /okhttp|Dalvik|Android/i.test(agent)
+            ? 'android'
+            : /CFNetwork|Darwin|iPhone|iPad|AppleTV|tvOS|iOS/.test(agent)
+              ? 'ios'
+              : 'web'
+    try {
+        const response = await fetch(
+            `http://localhost:${IMAGE_SERVER_PORT}/request-log?since=${since}`,
+        )
+        const requests = (await response.json()) as {
+            at: number
+            path: string
+            agent: string
+        }[]
+        for (const request of requests) {
+            // Not the slow server's: whether a download there is cancelled
+            // (by a source change, or its view unmounting) before it starts,
+            // and so never asked for, depends on how soon a thread was free.
+            if (request.path.startsWith('slow:')) continue
+            if (agentPlatform(request.agent) !== platform) continue
+            // The one group whose images loaded that url, or the last group
+            // shown by then (the first one's start: the app shows it as it
+            // launches).
+            const groups = loadedBy.get(request.path)
+            const group =
+                groups?.size === 1
+                    ? [...groups][0]
+                    : (starts.findLast((start) => start.at <= request.at)
+                          ?.group ?? starts[0]?.group)
+            add(group, `request ${request.path}`)
+        }
+    } catch {
+        // An older image server, without the request log.
+    }
+    const sorted = Object.fromEntries(
+        starts.map(({ group }) => [
+            group,
+            Object.fromEntries(
+                Object.entries(work[group] ?? {}).sort(([a], [b]) =>
+                    a.localeCompare(b),
+                ),
+            ),
+        ]),
+    )
+    fs.writeFileSync(
+        path.join(dir, WORK),
+        JSON.stringify(sorted, null, 2) + '\n',
+    )
+    return sorted
+}
+
+// Each group's work (see reportWork) in its app and platform's folder (ref)
+// next to the screenshots, committed with them, checked like the
+// descriptions: a group without any is added (seeded), one whose counts
+// differ fails (--update-screenshots replaces them; the differences are in
+// work-diff.txt in the run's folder, dir), and a group the app doesn't have
+// (groups: all of them), or doesn't count (uncounted, of the groups shown),
+// fails as unused. A failed group (failed) is compared but doesn't seed or
+// update. shown: the groups this run showed, and their work.
+const WORK = 'work.json'
+function checkWork(
+    ref: string,
+    dir: string,
+    groups: string[],
+    shown: Record<string, Record<string, number>>,
+    uncounted: Set<string>,
+    failed: Set<string>,
+) {
+    const file = path.join(ref, WORK)
+    const before = fs.existsSync(file)
+        ? fs.readFileSync(file, 'utf8')
+        : undefined
+    const saved = JSON.parse(before ?? '{}') as Record<
+        string,
+        Record<string, number>
+    >
+    const next = { ...saved }
+    const failures: string[] = []
+    const seeded: string[] = []
+    const diff: string[] = []
+    for (const [group, counts] of Object.entries(shown)) {
+        if (uncounted.has(group)) continue
+        if (!(group in saved)) {
+            if (failed.has(group)) continue
+            seeded.push(group)
+        } else if (isDeepStrictEqual(saved[group], counts)) continue
+        else {
+            const changes = [
+                ...new Set([
+                    ...Object.keys(saved[group]),
+                    ...Object.keys(counts),
+                ]),
+            ]
+                .sort((a, b) => a.localeCompare(b))
+                .filter((key) => saved[group][key] !== counts[key])
+                .map(
+                    (key) =>
+                        `${key}: ${saved[group][key] ?? 0} -> ${counts[key] ?? 0}`,
+                )
+            diff.push(`${group}:`, ...changes.map((change) => `    ${change}`))
+            if (!UPDATE_SCREENSHOTS || failed.has(group)) {
+                failures.push(
+                    `${group}: its work differs from ${rel(file)} (${changes.slice(0, 3).join(', ')}${changes.length > 3 ? `, and ${changes.length - 3} more in ${rel(path.join(dir, 'work-diff.txt'))}` : ''})`,
+                )
+                continue
+            }
+        }
+        next[group] = counts
+    }
+    for (const group of Object.keys(saved)) {
+        if (groups.includes(group) && !uncounted.has(group)) continue
+        if (UPDATE_SCREENSHOTS) delete next[group]
+        else
+            failures.push(
+                `${rel(file)}: ${uncounted.has(group) ? `group ${group} doesn't count its work` : `no group ${group}`} (remove its counts)`,
+            )
+    }
+    if (diff.length > 0)
+        fs.writeFileSync(
+            path.join(dir, 'work-diff.txt'),
+            diff.join('\n') + '\n',
+        )
+    const order = (group: string) =>
+        groups.includes(group) ? groups.indexOf(group) : groups.length
+    const after =
+        JSON.stringify(
+            Object.fromEntries(
+                Object.keys(next)
+                    .sort((a, b) => order(a) - order(b))
+                    .map((group) => [group, next[group]]),
+            ),
+            null,
+            4,
+        ) + '\n'
+    if (after !== (before ?? '{}\n')) {
+        fs.mkdirSync(ref, { recursive: true })
+        fs.writeFileSync(file, after)
+    }
+    return { failures, seeded }
 }
 
 // --- Flows ---------------------------------------------------------------
@@ -4144,7 +4436,14 @@ function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
             'packages',
             '-U',
             androidPackage(app),
-        ])?.match(/uid:(\d+)/)?.[1]
+        ])?.match(
+            // Its own line: the filter matches by prefix (the main example's
+            // package is the start of the legacy and minimum examples').
+            new RegExp(
+                `^package:${androidPackage(app).replaceAll('.', '\\.')} uid:(\\d+)$`,
+                'm',
+            ),
+        )?.[1]
         args = [
             ADB,
             [

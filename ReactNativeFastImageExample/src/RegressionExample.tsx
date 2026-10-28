@@ -8268,11 +8268,13 @@ function DownsampleFromDiskCase() {
 // under the url's key, where SDImageCache found it (it looks in memory again
 // before it decodes), so the right view showed that, gray and at less than
 // half its size. A url of its own each run, preloaded to disk only
-// (memoryCache: false).
+// (memoryCache: false). Its work isn't counted (uncounted, see
+// scripts/verify.mts): whether iOS decodes the right view's image at full
+// size at once or loads it again after depends on timing.
 function DownsampleOverLimitSharedCase() {
     const [uri] = useState(() =>
         imageUrl(
-            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`,
+            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}&uncounted`,
         ),
     )
     const [preloaded, setPreloaded] = useState<PreloadResult>()
@@ -10982,6 +10984,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'blur-events',
+        // How many of the quick steps' blurs Android runs before the next
+        // one replaces them depends on timing.
+        countWork: false,
         description: {
             checks: 'blurRadius changed in quick steps after the image has loaded: no load events fire again, and the image ends up with the last radius.',
         },
@@ -11215,8 +11220,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [<ProgressDataUriCase key="progress-data-uri" />],
     },
     {
-        // Loads many images and churns views, so on its own.
+        // Loads many images and churns views, so on its own. How many views
+        // mount while the downloads last depends on timing.
         name: 'progress-shared-url',
+        countWork: false,
         description: {
             checks: 'onProgress for many images on one url while others on it mount and unmount.',
         },

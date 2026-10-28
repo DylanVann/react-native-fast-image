@@ -792,6 +792,9 @@ function BlurDataUriCase() {
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
+        // On the web, whether the browser asks for the missing image again
+        // for reload() depends on timing.
+        countWork: Platform.OS !== 'web',
         description: {
             checks: "FastImage works at all in an Expo app (the Expo example, on iOS, Android and the web): an image loads, a missing one fails, reload() after a failure, a bundled image, several sizes, preload, and the cache methods (on the web, that getCachePath isn't supported).",
         },
