@@ -1,4 +1,5 @@
 #import "FFFDownsampledImage.h"
+#import "FFFWork.h"
 #import <ImageIO/ImageIO.h>
 #import <SDWebImage/SDImageCoder.h>
 #import <SDWebImage/SDImageCacheDefine.h>
@@ -25,6 +26,8 @@ static SDImageCoderOption const FFFDecodeMaxScale = @"FFFDecodeMaxScale";
 static SDImageCoderOption const FFFDecodeScreenScale = @"FFFDecodeScreenScale";
 static SDImageCoderOption const FFFDecodeVectorBox = @"FFFDecodeVectorBox";
 static SDImageCoderOption const FFFDecodeVectorCover = @"FFFDecodeVectorCover";
+// The url the decode is logged with (FFFWork), in debug builds.
+static SDImageCoderOption const FFFDecodeWorkURL = @"FFFDecodeWorkURL";
 
 // The most pixels a full-size load decodes an image of at least twice that
 // size each way at (each frame, for an animated image): 4096 x 4096, 64 MB
@@ -318,6 +321,14 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     context[SDWebImageContextImageDecodeOptions] = decodeOptions;
 }
 
++ (void) addWorkURL: (NSURL*)url toContext: (SDWebImageMutableContext*)context {
+#if DEBUG
+    NSMutableDictionary* decodeOptions = [context[SDWebImageContextImageDecodeOptions] mutableCopy] ?: [NSMutableDictionary dictionary];
+    decodeOptions[FFFDecodeWorkURL] = url;
+    context[SDWebImageContextImageDecodeOptions] = decodeOptions;
+#endif
+}
+
 + (void) addToContext: (SDWebImageMutableContext*)context box: (CGSize)box cover: (BOOL)cover maxScale: (CGFloat)maxScale {
     context[SDWebImageContextAnimatedImageClass] = [FFFDownsampledImage class];
     // The memory cache key is the source's key with these (SDWebImage's
@@ -437,6 +448,7 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
         NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
         BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
         CGFloat maxScale = [options[FFFDecodeMaxScale] doubleValue];
+        FFFWork(@"svg", options[FFFDecodeWorkURL], [NSString stringWithFormat: @"%gx%g for %gx%g", image.size.width, image.size.height, boxValue.CGSizeValue.width, boxValue.CGSizeValue.height]);
         if (boxValue && image) {
             UIImage* drawn = FFFDrawnSVG(image, boxValue.CGSizeValue, cover, maxScale);
             if (drawn) {
@@ -499,6 +511,7 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
         decodeOptions[SDImageCoderDecodeThumbnailPixelSize] = [NSValue valueWithCGSize: CGSizeMake(longest, longest)];
     }
 
+    FFFWork(@"decode", options[FFFDecodeWorkURL], [NSString stringWithFormat: @"%gx%g for %gx%g at %@", pixelSize.width, pixelSize.height, box.width, box.height, longest > 0 ? [NSString stringWithFormat: @"%g", longest] : @"full"]);
     self = [super initWithData: data scale: scale options: decodeOptions];
     if (self) {
         CGFloat imageScale = MAX(scale, 1);

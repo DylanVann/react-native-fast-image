@@ -67,23 +67,38 @@ final class FastImageSourceSize {
             this.key = key;
         }
 
-        private void record(int sourceWidth, int sourceHeight) {
-            // Called again with the sampled size; the first call has the image's.
-            if (!recorded) {
-                recorded = true;
-                SIZES.put(key, new int[]{sourceWidth, sourceHeight});
-            }
+        // Whether this is the decode's first call (called again with the
+        // sampled size; the first call has the image's), recording its size.
+        private boolean record(int sourceWidth, int sourceHeight) {
+            if (recorded) return false;
+            recorded = true;
+            SIZES.put(key, new int[]{sourceWidth, sourceHeight});
+            return true;
         }
 
         @Override
         public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
-            record(sourceWidth, sourceHeight);
-            return strategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
+            boolean first = record(sourceWidth, sourceHeight);
+            float scale = strategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
+            if (first) recordWork("decode", sourceWidth, sourceHeight, requestedWidth, requestedHeight, scale);
+            return scale;
         }
 
         float getVectorScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
-            record(sourceWidth, sourceHeight);
-            return vectorStrategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
+            boolean first = record(sourceWidth, sourceHeight);
+            float scale = vectorStrategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
+            if (first) recordWork("svg", sourceWidth, sourceHeight, requestedWidth, requestedHeight, scale);
+            return scale;
+        }
+
+        // The image's size, the box it was asked for, and the size it's
+        // decoded (or drawn) at, about (before the sample size's rounding).
+        private void recordWork(String kind, int sourceWidth, int sourceHeight, int requestedWidth,
+                int requestedHeight, float scale) {
+            if (!FastImageWork.enabled()) return;
+            FastImageWork.record(kind, key, sourceWidth + "x" + sourceHeight
+                    + " for " + requestedWidth + "x" + requestedHeight
+                    + " at " + Math.round(sourceWidth * scale) + "x" + Math.round(sourceHeight * scale));
         }
 
         @Override

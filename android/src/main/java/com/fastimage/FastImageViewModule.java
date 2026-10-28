@@ -44,6 +44,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
 
     FastImageViewModule(ReactApplicationContext reactContext) {
         super(reactContext);
+        FastImageWork.init(reactContext);
     }
 
     // At most this many preloaded sources load at a time, across all preload
