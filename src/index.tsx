@@ -866,13 +866,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * - Only a width (or one from the parent, e.g. stretched in a column): the
      *   height from the image's aspect ratio.
-     * - Only a height: the width from it.
+     * - Only a height: the width from it (in a row, or with `alignSelf` other
+     *   than `stretch`: in a column, the parent stretches the width by
+     *   default).
      * - Neither: the image's own size (a 600 × 300 px image is 600 × 300
      *   points, a bundled `@3x` one a third of that), at most the space there
      *   is.
      *
-     * Until the image has loaded, those sides are 0, so the layout changes
-     * when it loads. To keep its space, set both sides, or a width and an
+     * Until the image has loaded, and if it fails (`defaultSource` included),
+     * those sides are 0, so the layout changes when it loads. To keep its space, set both sides, or a width and an
      * `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s
      * result).
      *
