@@ -1493,11 +1493,20 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mLaidOutHeight = data != null && data.hasKey("height") ? (float) data.getDouble("height") : 0;
         if (imageLaidOut() != wasLaidOut) invalidate();
         updateSizeState();
+        // The layout for the shown image: a fitted cover image is cropped if
+        // the view didn't take its shape (see isResized).
+        if (mShownUncropped) reloadIfResized();
     }
 
     // Whether the layout has a loaded image's size.
     private boolean imageLaidOut() {
         return mLaidOutWidth > 0 && mLaidOutHeight > 0;
+    }
+
+    // Whether the layout has the shown image's size.
+    private boolean shownImageLaidOut() {
+        return imageLaidOut() && Math.abs(mLaidOutWidth - mLayoutWidth) < 0.01f
+                && Math.abs(mLaidOutHeight - mLayoutHeight) < 0.01f;
     }
 
     boolean getAutoSize() {
@@ -1510,17 +1519,21 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         updateSizeState();
     }
 
-    // Whether the style leaves one side open and the view has the shown
-    // image's shape (within a pixel), so that side follows the image: the
-    // next image (e.g. in a recycled list cell) will change the view's shape.
-    // Not with both open (e.g. flex: 1, sized by its parent).
+    // Whether the style leaves a side open and the view has the shown image's
+    // shape (within a pixel), so it follows the image: the next image (e.g. in
+    // a recycled list cell) will change the view's shape. With both open, the
+    // view may only have that shape by chance (e.g. flex: 1, sized by its
+    // parent): then the next image is cropped once its layout arrives (see
+    // isResized).
     private boolean followsImage() {
-        if (mLayoutWidth <= 0 || mLayoutHeight <= 0) return false;
+        if (mAutoSize == 0 || mLayoutWidth <= 0 || mLayoutHeight <= 0) return false;
         float width = contentWidth();
         float height = contentHeight();
-        if (mAutoSize == AUTO_HEIGHT) return Math.abs(height - width * mLayoutHeight / mLayoutWidth) <= 1;
-        if (mAutoSize == AUTO_WIDTH) return Math.abs(width - height * mLayoutWidth / mLayoutHeight) <= 1;
-        return false;
+        boolean byWidth = Math.abs(height - width * mLayoutHeight / mLayoutWidth) <= 1;
+        boolean byHeight = Math.abs(width - height * mLayoutWidth / mLayoutHeight) <= 1;
+        if (mAutoSize == AUTO_HEIGHT) return byWidth;
+        if (mAutoSize == AUTO_WIDTH) return byHeight;
+        return byWidth || byHeight;
     }
 
     private void setLayoutSize(float width, float height) {
@@ -1856,7 +1869,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
-                && (width != mShownWidth || height != mShownHeight)
+                && (width != mShownWidth || height != mShownHeight
+                        // A fitted cover image the view didn't take the shape
+                        // of, now that its layout has arrived.
+                        || mShownUncropped && shownImageLaidOut())
                 && (width != mUncroppedWidth || height != mUncroppedHeight);
     }
 
