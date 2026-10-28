@@ -109,13 +109,23 @@
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder and a source change of an image with only a width."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width."
         },
         "cases": {
             "auto-size-placeholder": {
                 "checks": "A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.",
                 "steps": "Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
                 "shows": "The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high."
+            },
+            "auto-size-sources": {
+                "checks": "With several sizes of an image and only a width, the size for that width loads, and only that one.",
+                "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64 } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
+                "shows": "The photo at 64x64 on the left."
+            },
+            "auto-size-failed": {
+                "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
+                "steps": "Loads the 600x300 photo with style { width: 96 } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
+                "shows": "Nothing: the image is 0 high."
             }
         }
     },

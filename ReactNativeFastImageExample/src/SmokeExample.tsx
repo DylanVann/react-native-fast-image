@@ -1104,6 +1104,171 @@ function AutoSizeSourceChangeCase() {
     )
 }
 
+// An image with only a width and padding: before it loads, the view is only
+// its padding high, which it isn't laid out for. Recorded near its top, the
+// image is magenta there (its top fifth), never cyan, as it would be cropped
+// to the padding's strip (its middle).
+function AutoSizePaddingCoverCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [shown, setShown] = useState(false)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const expect = [MAGENTA]
+        const start = setTimeout(async () => {
+            const area = await measureView(box.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const result = await sample(
+                {
+                    name: 'auto-size-padding-cover',
+                    area: {
+                        x: area.x + 110,
+                        y: area.y + 5,
+                        width: 20,
+                        height: 10,
+                    },
+                    durationMs: 4000,
+                    expect,
+                    palette: [CYAN],
+                },
+                (sampleDone) => {
+                    done.current = sampleDone
+                    setShown(true)
+                },
+            )
+            setStatus(sampleStatus(result, expect))
+        }, 300)
+        return () => clearTimeout(start)
+    }, [sample])
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 128 }}
+            >
+                {shown ? (
+                    <FastImage
+                        source={{
+                            uri: imageUrl(
+                                `bands.png?auto-size-padding-cover=${RUN}`,
+                            ),
+                        }}
+                        style={{ width: 240, padding: 8 }}
+                        onLoad={() => setTimeout(() => done.current(), 1500)}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id="auto-size-padding-cover"
+                status={status}
+                description={{
+                    checks: "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
+                    steps: 'Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    shows: 'The image at 240x120: a magenta band at the top over cyan.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Several sizes of an image, with only a width: the one for that width loads,
+// not the largest (as for a view with no size) and then the one for the size
+// it gets.
+function AutoSizeSourcesCase() {
+    const [status, setStatus] = useState('waiting')
+    const small = `picsum/1018-256x256.jpg?auto-size-sources-small=${RUN}`
+    const large = `picsum/1018-1024x1024.jpg?auto-size-sources-large=${RUN}`
+    const count = async (path: string) =>
+        (
+            await (
+                await fetch(
+                    imageUrl(`requests?path=${encodeURIComponent('/' + path)}`),
+                )
+            ).json()
+        ).count
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={[
+                        { uri: imageUrl(small), width: 256, height: 256 },
+                        { uri: imageUrl(large), width: 1024, height: 1024 },
+                    ]}
+                    style={{ width: 64 }}
+                    onLoad={() =>
+                        setTimeout(async () => {
+                            const [smallCount, largeCount] = [
+                                await count(small),
+                                await count(large),
+                            ]
+                            setStatus(
+                                smallCount === 1 && largeCount === 0
+                                    ? 'OK'
+                                    : `the 256 px one loaded ${smallCount} times, the 1024 px one ${largeCount}`,
+                            )
+                        }, 2000)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-sources"
+                status={status}
+                description={{
+                    checks: 'With several sizes of an image and only a width, the size for that width loads, and only that one.',
+                    steps: 'Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64 } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.',
+                    shows: 'The photo at 64x64 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
+// An image with only a width whose source changes to one that fails: the
+// open side goes back to 0, as for an image that never loaded, rather than
+// keeping the previous image's shape.
+function AutoSizeFailedCase() {
+    const [failing, setFailing] = useState(false)
+    const [failed, setFailed] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            failing
+                                ? `does-not-exist.jpg?auto-size-failed=${RUN}`
+                                : `picsum/1018-600x300.jpg?auto-size-failed=${RUN}`,
+                        ),
+                    }}
+                    style={{ width: 96 }}
+                    onLoad={() => setTimeout(() => setFailing(true), 500)}
+                    onError={() => setTimeout(() => setFailed(true), 1000)}
+                    onLayout={(e) => setLayout(e.nativeEvent.layout)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-failed"
+                status={
+                    !failed
+                        ? 'waiting'
+                        : layout?.width === 96 && layout.height === 0
+                          ? 'OK'
+                          : `${layout?.width}x${layout?.height} after onError`
+                }
+                description={{
+                    checks: "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
+                    steps: 'Loads the 600x300 photo with style { width: 96 } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.',
+                    shows: 'Nothing: the image is 0 high.',
+                }}
+            />
+        </View>
+    )
+}
+
 // Shared with the main, minimum and tvOS apps' regression groups.
 export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
@@ -1239,12 +1404,16 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                           }}
                       />,
                   ]),
+            // Not on the web (see auto-size-cover).
+            ...(Platform.OS === 'web'
+                ? []
+                : [<AutoSizePaddingCoverCase key="auto-size-padding-cover" />]),
         ],
     },
     {
         name: 'auto-size-changes',
         description: {
-            checks: '#436, continued: a url placeholder and a source change of an image with only a width.',
+            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width.',
         },
         cases: [
             <AutoSizePlaceholderCase key="auto-size-placeholder" />,
@@ -1252,6 +1421,8 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
             ...(Platform.OS === 'web'
                 ? []
                 : [<AutoSizeSourceChangeCase key="auto-size-source-change" />]),
+            <AutoSizeSourcesCase key="auto-size-sources" />,
+            <AutoSizeFailedCase key="auto-size-failed" />,
         ],
     },
 ]
