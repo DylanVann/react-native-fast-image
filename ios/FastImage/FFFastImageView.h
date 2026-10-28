@@ -30,11 +30,14 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 // The loaded image's own size in points, as each image loads (whatever events
 // JS handles), for the view's layout.
 @property (nonatomic, copy) void (^onImageSize)(CGSize size);
-// Whether the style leaves a side open, which follows the loaded image (the
-// autoSize prop), and the layout's size inside the view's padding and
-// borders: an open side is 0 there until an image has loaded.
-@property (nonatomic, assign) BOOL autoSize;
+// The sides the style leaves open, which follow the loaded image (the
+// autoSize prop's bits: 1 the width, 2 the height); the layout's size inside
+// the view's padding and borders, where an open side is 0 until an image has
+// loaded; and whether the layout has the loaded image's size (the shadow
+// node's state).
+@property (nonatomic, assign) NSInteger autoSize;
 @property (nonatomic, assign) CGSize contentSize;
+@property (nonatomic, assign) BOOL imageLaidOut;
 @property (nonatomic, assign) FFFObjectFit objectFit;
 // The `source` prop: one source, or several (sizes of one image), of which
 // the view loads the one whose size is closest to its own.
