@@ -1161,8 +1161,9 @@ NSString *FFFErrorMessage(NSError *error)
     SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
     // Shown as with contain whatever objectFit is (contentModeForImageSize):
     // an SVG is drawn for the view if that's larger than its own size, also
-    // with objectFit none.
-    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO maxScale: 0 vectorBox: [self viewBox]];
+    // with objectFit none. With only one side laid out, decoded for that side
+    // (decodeBox's other side is 1 pixel), as the image is.
+    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: [self decodesForOneSide] maxScale: 0 vectorBox: [self viewBox]];
     __weak typeof(self) weakSelf = self;
     FFFWork(@"load", source.url, @"url-placeholder");
     self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
