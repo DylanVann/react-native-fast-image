@@ -224,6 +224,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     _setsAllProps = YES;
     self.contentView = _imageView;
     _imageView.frame = RCTCGRectFromRect(_layoutMetrics.getPaddingFrame());
+    _imageView.contentSize = RCTCGSizeFromSize(_layoutMetrics.getContentFrame().size);
 }
 
 // Padding doesn't inset the image: it fills the view inside its borders (the
@@ -235,6 +236,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 {
     [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:oldLayoutMetrics];
     _imageView.frame = RCTCGRectFromRect(layoutMetrics.getPaddingFrame());
+    _imageView.contentSize = RCTCGSizeFromSize(layoutMetrics.getContentFrame().size);
 }
 
 - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
@@ -319,6 +321,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         _autoSize = newViewProps.autoSize != 0;
         [self updateImageSizeState];
     }
+    view.autoSize = _autoSize;
 
     if (all || oldViewProps.source != newViewProps.source) {
         // One source, or several (an array). Only a change besides their

@@ -271,8 +271,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     // React Native passes the layout's padding and borders together, but
     // padding doesn't inset the image: the view's padding is its border
     // widths instead (FastImageViewWithUrl.updateBorderPadding), as on iOS.
+    // The view only uses them to tell the layout's box inside them (see
+    // setLayoutInsets).
     @Override
-    public void setPadding(FastImageViewWithUrl view, int left, int top, int right, int bottom) {}
+    public void setPadding(FastImageViewWithUrl view, int left, int top, int right, int bottom) {
+        view.setLayoutInsets(left, top, right, bottom);
+    }
 
     // backfaceVisibility hides the view by its opacity, as React Native's View
     // does: these keep the two in step.

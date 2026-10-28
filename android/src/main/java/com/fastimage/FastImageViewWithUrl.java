@@ -21,6 +21,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewParent;
 import android.view.accessibility.AccessibilityEvent;
@@ -328,6 +329,40 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     private int contentHeight() {
         return getHeight() - getPaddingTop() - getPaddingBottom();
+    }
+
+    // The layout's padding and borders (FastImageViewManager.setPadding), and
+    // the box inside them: a side the style leaves open (autoSize) is 0 there
+    // until an image has loaded, whatever the padding.
+    private int mLayoutInsetLeft = 0;
+    private int mLayoutInsetTop = 0;
+    private int mLayoutInsetRight = 0;
+    private int mLayoutInsetBottom = 0;
+
+    void setLayoutInsets(int left, int top, int right, int bottom) {
+        if (left != mLayoutInsetLeft || top != mLayoutInsetTop || right != mLayoutInsetRight
+                || bottom != mLayoutInsetBottom) {
+            invalidate();
+        }
+        mLayoutInsetLeft = left;
+        mLayoutInsetTop = top;
+        mLayoutInsetRight = right;
+        mLayoutInsetBottom = bottom;
+    }
+
+    private int layoutContentWidth() {
+        return getWidth() - mLayoutInsetLeft - mLayoutInsetRight;
+    }
+
+    private int layoutContentHeight() {
+        return getHeight() - mLayoutInsetTop - mLayoutInsetBottom;
+    }
+
+    // Whether the style leaves a side open (autoSize) and the layout has only
+    // a width or a height so far: the other side follows the image, whose
+    // shape isn't known yet.
+    private boolean laysOutOneSide() {
+        return mAutoSize != 0 && (layoutContentWidth() > 0) != (layoutContentHeight() > 0);
     }
 
     // Of several sources, the index of the one whose size in pixels (width ×
@@ -886,6 +921,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // Nothing while a side the style leaves open is only padding: the
+        // image shows once the view has its shape, as it would without
+        // padding (that side is 0 until then).
+        if (laysOutOneSide()) return;
         // Clipped as React Native's Image (and the View it used to be in): to
         // the padding box, with the border radius, unless overflow is visible.
         int saved = canvas.save();
@@ -1068,7 +1107,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Passes on a size capped by FastImageSourceSize.box. Equal to another
     // for the same callback, so the target can remove it.
-    private static final class CappedSize implements SizeReadyCallback {
+    private final class CappedSize implements SizeReadyCallback {
         private final SizeReadyCallback cb;
 
         CappedSize(SizeReadyCallback cb) {
@@ -1077,6 +1116,18 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         @Override
         public void onSizeReady(int width, int height) {
+            // Only a width or a height laid out so far, with padding the other
+            // way (laysOutOneSide): the image is loaded for that side, as
+            // Glide does for a side that's 0 (it asks for the screen's length).
+            if (laysOutOneSide()) {
+                DisplayMetrics metrics = getResources().getDisplayMetrics();
+                int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
+                if (layoutContentWidth() > 0) {
+                    height = screen;
+                } else {
+                    width = screen;
+                }
+            }
             int[] box = FastImageSourceSize.box(width, height);
             cb.onSizeReady(box[0], box[1]);
         }
@@ -1421,6 +1472,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     void setAutoSize(int autoSize) {
+        if (autoSize != mAutoSize) invalidate();
         mAutoSize = autoSize;
         updateSizeState();
     }
@@ -1606,12 +1658,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (blur != null) options = options.optionalTransform(blur);
         } else {
             // Cover, before an open side is laid out (it follows the image,
-            // see setAutoSize), or while the view has the previous image's
-            // shape on it (followsImage): Glide would crop the image to a size
-            // the view won't have. It's fitted instead, which looks the same
-            // once the view has the image's shape (see reloadForSize).
+            // see setAutoSize; it can have padding meanwhile), or while the
+            // view has the previous image's shape on it (followsImage): Glide
+            // would crop the image to a size the view won't have. It's fitted
+            // instead, which looks the same once the view has the image's
+            // shape (see reloadForSize).
             boolean uncropped = mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP
-                    && (contentWidth() <= 0 || contentHeight() <= 0 || followsImage());
+                    && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0 || followsImage());
             ScaleType fit = uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             if (uncropped && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
