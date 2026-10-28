@@ -89,12 +89,17 @@
                 "checks": "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
                 "steps": "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The image at 240x120: a magenta band at the top over cyan."
+            },
+            "auto-size-padding-tall": {
+                "checks": "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
+                "steps": "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                "shows": "The image at 240x140, cover: a magenta band at the top over cyan."
             }
         }
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set."
         },
         "cases": {
             "auto-size-placeholder": {
@@ -106,6 +111,11 @@
                 "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
                 "steps": "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The 600x300 image at 240x120: a magenta band at the top over cyan."
+            },
+            "auto-size-natural-change": {
+                "checks": "An image with neither side set and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                "steps": "Loads a 120x120 photo with no style in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                "shows": "The thirds at 240x120: magenta, cyan and magenta."
             },
             "auto-size-sources": {
                 "checks": "With several sizes of an image and only a width, the size for that width loads, and only that one.",

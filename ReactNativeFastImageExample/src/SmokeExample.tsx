@@ -1274,6 +1274,150 @@ function AutoSizeFailedCase() {
     )
 }
 
+// An image with only a width and more padding than its shape gives the view:
+// inside the padding, the view stays 0 high once the image has loaded too.
+// Recorded near its top, the image shows there (magenta, its top fifth), as
+// cover in the padding box, rather than nothing.
+function AutoSizePaddingTallCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [shown, setShown] = useState(false)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const expect = [MAGENTA]
+        const start = setTimeout(async () => {
+            const area = await measureView(box.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const result = await sample(
+                {
+                    name: 'auto-size-padding-tall',
+                    area: {
+                        x: area.x + 110,
+                        y: area.y + 5,
+                        width: 20,
+                        height: 10,
+                    },
+                    durationMs: 4000,
+                    expect,
+                    palette: [CYAN],
+                },
+                (sampleDone) => {
+                    done.current = sampleDone
+                    setShown(true)
+                },
+            )
+            setStatus(sampleStatus(result, expect))
+        }, 300)
+        return () => clearTimeout(start)
+    }, [sample])
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 144 }}
+            >
+                {shown ? (
+                    <FastImage
+                        source={{
+                            uri: imageUrl(
+                                `bands.png?auto-size-padding-tall=${RUN}`,
+                            ),
+                        }}
+                        style={{ width: 240, padding: 70 }}
+                        onLoad={() => setTimeout(() => done.current(), 1500)}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id="auto-size-padding-tall"
+                status={status}
+                description={{
+                    checks: "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
+                    steps: 'Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    shows: 'The image at 240x140, cover: a magenta band at the top over cyan.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A source change in a view with neither side set, at its first image's size
+// (a 120x120 square): recorded right of its middle, outside the square, as
+// the view goes to the next image's 2:1 shape, the image is magenta there (its
+// right third), never cyan, as it would be cropped to the square the view had
+// (then stretched to the new shape).
+function AutoSizeNaturalChangeCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [uri, setUri] = useState(
+        imageUrl(`picsum/1020-120x120.jpg?auto-size-natural-change=${RUN}`),
+    )
+    const loads = useRef(0)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    const record = async () => {
+        const area = await measureView(box.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const expect = [MAGENTA]
+        const result = await sample(
+            {
+                name: 'auto-size-natural-change',
+                area: {
+                    x: area.x + 170,
+                    y: area.y + 45,
+                    width: 12,
+                    height: 10,
+                },
+                durationMs: 4000,
+                expect,
+                palette: [CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setUri(imageUrl(`thirds.png?auto-size-natural-change=${RUN}`))
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{
+                    width: 240,
+                    height: 128,
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                }}
+            >
+                <FastImage
+                    source={{ uri }}
+                    style={{}}
+                    onLoad={() => {
+                        loads.current++
+                        if (loads.current === 1) setTimeout(record, 500)
+                        else setTimeout(() => done.current(), 1500)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-natural-change"
+                status={status}
+                description={{
+                    checks: "An image with neither side set and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                    steps: "Loads a 120x120 photo with no style in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    shows: 'The thirds at 240x120: magenta, cyan and magenta.',
+                }}
+            />
+        </View>
+    )
+}
+
 // Shared with the main, minimum and tvOS apps' regression groups.
 export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
@@ -1412,20 +1556,26 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
             // Not on the web (see auto-size-cover).
             ...(Platform.OS === 'web'
                 ? []
-                : [<AutoSizePaddingCoverCase key="auto-size-padding-cover" />]),
+                : [
+                      <AutoSizePaddingCoverCase key="auto-size-padding-cover" />,
+                      <AutoSizePaddingTallCase key="auto-size-padding-tall" />,
+                  ]),
         ],
     },
     {
         name: 'auto-size-changes',
         description: {
-            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width.',
+            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set.',
         },
         cases: [
             <AutoSizePlaceholderCase key="auto-size-placeholder" />,
             // Not on the web (see auto-size-cover).
             ...(Platform.OS === 'web'
                 ? []
-                : [<AutoSizeSourceChangeCase key="auto-size-source-change" />]),
+                : [
+                      <AutoSizeSourceChangeCase key="auto-size-source-change" />,
+                      <AutoSizeNaturalChangeCase key="auto-size-natural-change" />,
+                  ]),
             <AutoSizeSourcesCase key="auto-size-sources" />,
             <AutoSizeFailedCase key="auto-size-failed" />,
         ],
