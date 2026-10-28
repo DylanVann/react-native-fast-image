@@ -917,6 +917,10 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) sendOnError: (nullable NSString*)message {
     self.hasErrored = YES;
+    // The layout's open sides go back to 0, as before an image loaded.
+    if (self.onImageSize) {
+        self.onImageSize(CGSizeZero);
+    }
     self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
     if (self.onFastImageError) {
         self.onFastImageError(self.onErrorEvent);
@@ -1507,6 +1511,10 @@ NSString *FFFErrorMessage(NSError *error)
         if ([self shownPlaceholder]) {
             [self setImage: [self shownPlaceholder]];
             self.showsLoadedImage = NO;
+        }
+        // The layout's open sides go back to 0, as before an image loaded.
+        if (self.onImageSize) {
+            self.onImageSize(CGSizeZero);
         }
         // No image: only placeholders show.
         [self startUrlPlaceholderLoad];

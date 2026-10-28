@@ -172,8 +172,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     // The shadow node's state: the loaded image's size, which its layout
     // follows (see FastImageViewShadowNode).
     FastImageViewShadowNode::ConcreteState::Shared _state;
-    // The loaded image's size in points (zero until one loads), and whether
-    // the layout follows it (the autoSize prop).
+    // The loaded image's size in points (zero until one loads, and after one
+    // failed or without a source), and whether the layout follows it (the
+    // autoSize prop).
     CGSize _imageSize;
     BOOL _autoSize;
     // The props aren't on the image view yet (a new one): set them all,
@@ -251,11 +252,12 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     [self updateImageSizeState];
 }
 
-// Lays the view out again for a loaded image of another size, if its layout
-// follows it: a state update lays out the whole screen again.
+// Lays the view out again for a loaded image of another size (zero after one
+// failed or without a source), if its layout follows it: a state update lays
+// out the whole screen again.
 - (void)updateImageSizeState
 {
-    if (!_autoSize || !_state || CGSizeEqualToSize(_imageSize, CGSizeZero)) {
+    if (!_autoSize || !_state) {
         return;
     }
     const auto &data = _state->getData();
