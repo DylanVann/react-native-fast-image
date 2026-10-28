@@ -1,3 +1,10 @@
+## [10.9.10](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.9...v10.9.10) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ios:** load data uris as other images, off the main thread and cached ([a303487](https://github.com/DylanVann/react-native-fast-image/commit/a30348703033e7d9f9e6345f5a13dc933f8a8405))
+
 ## [10.9.9](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.8...v10.9.9) (2026-10-27)
 
 
