@@ -123,7 +123,7 @@ jobs:
           xcodebuild -version
       # Node, ffmpeg and ffprobe, XCLogParser and simslim
       # (.github/install-tools.sh), downloaded once and kept in R2.
-      - name: Restore the tools
+      - name: "Restore the tools' cache"
         id: tools
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         # The caches (runs-on/cache, which takes actions/cache's inputs) are
@@ -141,22 +141,23 @@ jobs:
         with:
           path: ${{ runner.temp }}/tools
           key: tools-macos-${{ hashFiles('.github/install-tools.sh', '.node-version') }}
-      - name: Download the tools
-        if: steps.tools.outputs.cache-hit != 'true'
+      # Downloaded only when the cache missed.
+      - name: Install the tools
         timeout-minutes: 10
-        run: .github/install-tools.sh "$RUNNER_TEMP/tools"
+        run: |
+          if [ "${{ steps.tools.outputs.cache-hit }}" != true ]; then
+            .github/install-tools.sh "$RUNNER_TEMP/tools"
+          fi
+          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
       # From one job: they all download the same.
-      - name: Save the tools
+      - name: "Save the tools' cache"
         if: env.R2_WRITE == 'true' && steps.tools.outputs.cache-hit != 'true' && matrix.app == 'main' && matrix.shard == 1
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tools
           key: ${{ steps.tools.outputs.cache-primary-key }}
-      - name: Put the tools on the PATH
-        run: |
-          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
-          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -518,28 +519,29 @@ jobs:
         run: grep '^R2_READ_' .github/r2-read-only.env >> "$GITHUB_ENV"
       # Node, ffmpeg and ffprobe (.github/install-tools.sh), as in the iOS
       # jobs.
-      - name: Restore the tools
+      - name: "Restore the tools' cache"
         id: tools
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tools
           key: tools-linux-${{ hashFiles('.github/install-tools.sh', '.node-version') }}
-      - name: Download the tools
-        if: steps.tools.outputs.cache-hit != 'true'
+      # Downloaded only when the cache missed.
+      - name: Install the tools
         timeout-minutes: 10
-        run: .github/install-tools.sh "$RUNNER_TEMP/tools"
-      - name: Save the tools
+        run: |
+          if [ "${{ steps.tools.outputs.cache-hit }}" != true ]; then
+            .github/install-tools.sh "$RUNNER_TEMP/tools"
+          fi
+          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+      - name: "Save the tools' cache"
         if: env.R2_WRITE == 'true' && steps.tools.outputs.cache-hit != 'true' && matrix.app == 'main' && matrix.shard == 1
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tools
           key: ${{ steps.tools.outputs.cache-primary-key }}
-      - name: Put the tools on the PATH
-        run: |
-          echo "$RUNNER_TEMP/tools/node/bin" >> "$GITHUB_PATH"
-          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
