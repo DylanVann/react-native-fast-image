@@ -96,8 +96,11 @@ public class FastImageSource extends ImageSource {
     }
 
     // Percent-encoded data uris already made base64 (see base64DataUri), as
-    // a source is made again at every load: limited by the uris' length.
-    private static final LruCache<String, String> BASE64_DATA_URIS = new LruCache<String, String>(4 * 1024 * 1024) {
+    // a source is made again at every load: limited by the uris' length, and
+    // without ones over a quarter of that (adding one over the limit would
+    // empty the cache, and not keep it either).
+    private static final int BASE64_DATA_URIS_SIZE = 4 * 1024 * 1024;
+    private static final LruCache<String, String> BASE64_DATA_URIS = new LruCache<String, String>(BASE64_DATA_URIS_SIZE) {
         @Override
         protected int sizeOf(String uri, String base64) {
             return uri.length() + base64.length();
@@ -131,7 +134,9 @@ public class FastImageSource extends ImageSource {
             i += 2;
         }
         String base64 = header + ";base64," + Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP);
-        BASE64_DATA_URIS.put(uri, base64);
+        if (uri.length() + base64.length() <= BASE64_DATA_URIS_SIZE / 4) {
+            BASE64_DATA_URIS.put(uri, base64);
+        }
         return base64;
     }
 
