@@ -4,29 +4,34 @@ import { StyleSheet } from 'react-native'
 import type { ImageStyle, ObjectFit } from './index'
 
 // Finds a key (e.g. tintColor, objectFit) in a style prop, where the last
-// style that sets it wins, as with StyleSheet.flatten, but without flattening
-// (which allocates a merged object for an array style on every render).
+// style that has it wins, as with StyleSheet.flatten, but without flattening
+// (which allocates a merged object for an array style on every render). As
+// there, a later style's `undefined` clears it (e.g. `height: undefined`).
 export function fromStyle<K extends keyof ImageStyle>(
     style: unknown,
     key: K,
 ): ImageStyle[K] {
+    const found = findInStyle(style, key)
+    return found === NOT_FOUND ? undefined : (found as ImageStyle[K])
+}
+
+const NOT_FOUND = {}
+
+function findInStyle(style: unknown, key: string): unknown {
     if (Array.isArray(style)) {
         for (let i = style.length - 1; i >= 0; i--) {
-            const found = fromStyle(style[i], key)
-            if (found !== undefined) return found
+            const found = findInStyle(style[i], key)
+            if (found !== NOT_FOUND) return found
         }
-        return undefined
+        return NOT_FOUND
     }
     if (typeof style === 'number') {
         // A registered style from StyleSheet.create on older React Native.
-        const flattened = StyleSheet.flatten(style as any) as
-            | ImageStyle
-            | undefined
-        return flattened ? flattened[key] : undefined
+        style = StyleSheet.flatten(style as any)
     }
-    return style && typeof style === 'object'
-        ? (style as ImageStyle)[key]
-        : undefined
+    return style && typeof style === 'object' && key in style
+        ? (style as Record<string, unknown>)[key]
+        : NOT_FOUND
 }
 
 const FITS: Record<ObjectFit, true> = {
