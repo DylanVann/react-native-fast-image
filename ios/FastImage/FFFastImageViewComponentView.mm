@@ -315,8 +315,8 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     _setsAllProps = NO;
     FFFastImageView *view = _imageView;
 
-    if (_autoSize != newViewProps.autoSize) {
-        _autoSize = newViewProps.autoSize;
+    if (_autoSize != (newViewProps.autoSize != 0)) {
+        _autoSize = newViewProps.autoSize != 0;
         [self updateImageSizeState];
     }
 
