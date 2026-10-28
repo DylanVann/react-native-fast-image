@@ -5,6 +5,7 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.util.LruCache;
 
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
@@ -94,6 +95,15 @@ public class FastImageSource extends ImageSource {
         }
     }
 
+    // Percent-encoded data uris already made base64 (see base64DataUri), as
+    // a source is made again at every load: limited by the uris' length.
+    private static final LruCache<String, String> BASE64_DATA_URIS = new LruCache<String, String>(4 * 1024 * 1024) {
+        @Override
+        protected int sizeOf(String uri, String base64) {
+            return uri.length() + base64.length();
+        }
+    };
+
     // A data uri with its data in base64, which Glide's data url loader needs:
     // a percent-encoded one's (e.g. `data:image/svg+xml;utf8,<svg …>`) is
     // decoded and encoded again.
@@ -105,22 +115,32 @@ public class FastImageSource extends ImageSource {
         if (header.toLowerCase(Locale.ROOT).endsWith(";base64")) {
             return header.substring(0, header.length() - 7) + ";base64" + uri.substring(comma);
         }
-        String data = uri.substring(comma + 1);
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream(data.length());
-        int plain = 0;
-        for (int i = 0; i + 2 < data.length(); i++) {
-            int high = Character.digit(data.charAt(i + 1), 16);
-            int low = Character.digit(data.charAt(i + 2), 16);
-            if (data.charAt(i) != '%' || high < 0 || low < 0) continue;
-            byte[] text = data.substring(plain, i).getBytes(StandardCharsets.UTF_8);
-            bytes.write(text, 0, text.length);
+        String cached = BASE64_DATA_URIS.get(uri);
+        if (cached != null) return cached;
+        // The data's UTF-8 bytes, with each %XX escape decoded.
+        byte[] data = uri.substring(comma + 1).getBytes(StandardCharsets.UTF_8);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream(data.length);
+        for (int i = 0; i < data.length; i++) {
+            int high = data[i] == '%' && i + 2 < data.length ? hexDigit(data[i + 1]) : -1;
+            int low = high < 0 ? -1 : hexDigit(data[i + 2]);
+            if (low < 0) {
+                bytes.write(data[i]);
+                continue;
+            }
             bytes.write(high * 16 + low);
             i += 2;
-            plain = i + 1;
         }
-        byte[] text = data.substring(plain).getBytes(StandardCharsets.UTF_8);
-        bytes.write(text, 0, text.length);
-        return header + ";base64," + Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP);
+        String base64 = header + ";base64," + Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP);
+        BASE64_DATA_URIS.put(uri, base64);
+        return base64;
+    }
+
+    // An ASCII hex digit's value, or -1.
+    private static int hexDigit(byte c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
     }
 
 

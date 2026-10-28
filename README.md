@@ -215,9 +215,9 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 Whether the image is kept on disk. With `false` it isn't kept in the disk cache or an HTTP cache, or read from them. Use it for images the app shouldn't keep once they've been shown (e.g. disappearing messages, or where a security policy doesn't allow caching sensitive images), images that change every time they load, or large images shown once, which would push other images out of the disk cache. The image is downloaded again whenever it isn't in memory, e.g. for a view of another size (or on Android, a change of `blurRadius` or `objectFit`), so with `memoryCache: false` too it's downloaded each time it's shown. With `cache: 'web'` it isn't kept in memory either, so it's downloaded every time it loads. With `cache: 'cacheOnly'` it's only looked for in memory. On Android, a large download is held in a temporary file while it loads, as every download is, deleted as soon as it's opened.
 
-A data uri's image is kept on disk too.
-
 `FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok` for it: there's no file, and a view decodes the image for its own size, so it may download a preloaded one again. A source for the same url (or `cacheKey`) without `diskCache: false` still stores the image.
+
+A data uri's image is kept on disk too, unless it's `false`.
 
 ---
 
