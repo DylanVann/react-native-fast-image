@@ -1,3 +1,10 @@
+## [10.9.11](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.10...v10.9.11) (2026-10-28)
+
+
+### Bug Fixes
+
+* **android:** data uris load with cache: 'cacheOnly' and percent-encoded, and getCachePath gives their file ([2e625dd](https://github.com/DylanVann/react-native-fast-image/commit/2e625ddcc387fc768e733a225a3c7de7b6280f38))
+
 ## [10.9.10](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.9...v10.9.10) (2026-10-28)
 
 
