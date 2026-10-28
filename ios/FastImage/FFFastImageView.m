@@ -1301,23 +1301,45 @@ NSString *FFFErrorMessage(NSError *error)
         return CGSizeZero;
     }
     if ([self decodesForOneSide]) {
-        // A box 1 pixel across the other way, which the image covers (see
+        // The side's pixels (the image fills the padding too), and a box 1
+        // pixel across the other way, which the image covers (see
         // decodeCovers): the side's pixels decide the size.
         CGFloat scale = [self screenScale];
         CGSize size = self.bounds.size;
-        return CGSizeMake(MAX(ceil(size.width * scale), 1), MAX(ceil(size.height * scale), 1));
+        return self.contentSize.width > 0
+            ? CGSizeMake(MAX(ceil(size.width * scale), 1), 1)
+            : CGSizeMake(1, MAX(ceil(size.height * scale), 1));
     }
     return [self viewBox];
 }
 
-// Whether the view has only a width or a height, the other side following
-// the image (see FastImageViewShadowNode): it's laid out at the image's
-// shape, so the image is decoded for that side. (Not for scale-down, which
-// shows it no larger than its own size, or a photo library image, which
-// Photos makes for the size asked for.)
+// Whether the style leaves a side open (autoSize) and the layout has only a
+// width or a height so far (inside the padding, which is all an open side has
+// before an image loads): the other side follows the image (see
+// FastImageViewShadowNode), whose shape isn't known yet.
+- (BOOL) laysOutOneSide {
+    CGSize size = self.contentSize;
+    return self.autoSize && (size.width > 0) != (size.height > 0);
+}
+
+// Nothing shows while a side the style leaves open is only padding
+// (laysOutOneSide): the image shows once the view has its shape, as it would
+// without padding (that side is 0 until then).
+- (void) setAutoSize: (BOOL)autoSize {
+    _autoSize = autoSize;
+    self.hidden = [self laysOutOneSide];
+}
+
+- (void) setContentSize: (CGSize)contentSize {
+    _contentSize = contentSize;
+    self.hidden = [self laysOutOneSide];
+}
+
+// Whether the image is decoded for the one side laid out: the view gets the
+// image's shape. (Not for scale-down, which shows it no larger than its own
+// size, or a photo library image, which Photos makes for the size asked for.)
 - (BOOL) decodesForOneSide {
-    CGSize size = self.bounds.size;
-    return (size.width > 0) != (size.height > 0) && _objectFit != FFFObjectFitScaleDown && ![_source isPhotoLibrary];
+    return [self laysOutOneSide] && _objectFit != FFFObjectFitScaleDown && ![_source isPhotoLibrary];
 }
 
 // The screen's pixels per point (the main screen's before the view is in a
