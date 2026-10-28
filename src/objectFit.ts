@@ -55,12 +55,18 @@ export function resolveObjectFit(
 // The sides a style leaves open, which follow the loaded image: no width (or
 // height), or `auto`, unless an absolutely positioned view's insets on both
 // sides set it (e.g. StyleSheet.absoluteFill, as FastImageBackground's image
-// has).
+// has), or the style's aspectRatio sets it from the other side.
 export function openSides(style: unknown): { width: boolean; height: boolean } {
     const width = fromStyle(style, 'width')
     const height = fromStyle(style, 'height')
     let openWidth = width == null || width === 'auto'
     let openHeight = height == null || height === 'auto'
+    if (openWidth !== openHeight) {
+        const aspectRatio = fromStyle(style, 'aspectRatio')
+        if (aspectRatio != null && aspectRatio !== 'auto') {
+            openWidth = openHeight = false
+        }
+    }
     if (
         (openWidth || openHeight) &&
         fromStyle(style, 'position') === 'absolute'
