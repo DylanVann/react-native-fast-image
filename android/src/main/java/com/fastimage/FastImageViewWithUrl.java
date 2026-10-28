@@ -351,12 +351,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mLayoutInsetBottom = bottom;
     }
 
+    // React Native floors each inset to whole pixels, so a side that's only
+    // padding can be a pixel or two inside it: less than 2 counts as 0.
     private int layoutContentWidth() {
-        return getWidth() - mLayoutInsetLeft - mLayoutInsetRight;
+        int width = getWidth() - mLayoutInsetLeft - mLayoutInsetRight;
+        return width < 2 ? 0 : width;
     }
 
     private int layoutContentHeight() {
-        return getHeight() - mLayoutInsetTop - mLayoutInsetBottom;
+        int height = getHeight() - mLayoutInsetTop - mLayoutInsetBottom;
+        return height < 2 ? 0 : height;
     }
 
     // Whether the layout has only a width or a height so far, the other being
@@ -1133,17 +1137,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         @Override
         public void onSizeReady(int width, int height) {
-            // Only a width or a height laid out so far, with padding the other
-            // way (laysOutOneSide): the image is loaded for that side, as
-            // Glide does for a side that's 0 (it asks for the screen's length).
-            if (laysOutOneSide()) {
+            // Only a width or a height laid out so far, or neither, with
+            // padding (laysOutOneSide, laysOutNoSide): the image is loaded for
+            // the sides laid out, as Glide does for a side that's 0 (it asks
+            // for the screen's length).
+            if (laysOutOneSide() || laysOutNoSide()) {
                 DisplayMetrics metrics = getResources().getDisplayMetrics();
                 int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
-                if (layoutContentWidth() > 0) {
-                    height = screen;
-                } else {
-                    width = screen;
-                }
+                if (layoutContentWidth() <= 0) width = screen;
+                if (layoutContentHeight() <= 0) height = screen;
             }
             int[] box = FastImageSourceSize.box(width, height);
             cb.onSizeReady(box[0], box[1]);
@@ -1498,6 +1500,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mShownUncropped) reloadIfResized();
     }
 
+    // Whether the style leaves a side open and the layout has neither side
+    // yet (inside the padding), nor an image's size (e.g. no width or height:
+    // both follow the image).
+    private boolean laysOutNoSide() {
+        return mAutoSize != 0 && !imageLaidOut() && layoutContentWidth() <= 0 && layoutContentHeight() <= 0;
+    }
+
     // Whether the layout has a loaded image's size.
     private boolean imageLaidOut() {
         return mLaidOutWidth > 0 && mLaidOutHeight > 0;
@@ -1721,9 +1730,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // It's loaded no larger than its own size instead (an SVG at its
             // own size in dp), which a view at that size doesn't load again
             // (see isResized).
-            boolean unsized = mAutoSize != 0 && !imageLaidOut()
-                    && layoutContentWidth() <= 0 && layoutContentHeight() <= 0
-                    && mFitScaleType != ScaleType.CENTER;
+            boolean unsized = laysOutNoSide() && mFitScaleType != ScaleType.CENTER;
             ScaleType fit = unsized ? ScaleType.CENTER_INSIDE : uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             mLoadingUnsized = unsized;
@@ -1915,7 +1922,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         && width >= mShownBitmapWidth && height >= mShownBitmapHeight)
                 // Not while the view is only its padding on a side that follows
                 // the image: it gets its shape from the image.
-                && !laysOutOneSide();
+                && !laysOutOneSide() && !laysOutNoSide();
     }
 
     // Whether a box is the image's own size in dp, within a pixel.
