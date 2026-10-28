@@ -84,9 +84,14 @@
                 "shows": "Three copies of the same photo (a pug in a blanket)."
             },
             "data-uri-cache-only": {
-                "checks": "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
+                "checks": "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded). Android's Glide never loaded one (onlyRetrieveFromCache).",
                 "steps": "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
                 "shows": "A yellow square."
+            },
+            "data-uri-utf8": {
+                "checks": "A percent-encoded (utf8, not base64) SVG data uri loads. Android's Glide only read base64 data uris, so it never loaded.",
+                "steps": "Loads a magenta square SVG as a data:image/svg+xml;utf8 uri, with its # written %23. Passes on onLoad.",
+                "shows": "A magenta square."
             }
         }
     },

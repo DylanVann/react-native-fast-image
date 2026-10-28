@@ -310,7 +310,7 @@ final class FastImageSourceSize {
 
     private static InputStream open(Context context, FastImageSource source) throws IOException {
         if (source.isBase64Resource()) {
-            String data = source.getSource();
+            String data = source.getDataUri();
             byte[] bytes = Base64.decode(data.substring(data.indexOf(',') + 1), Base64.DEFAULT);
             return new ByteArrayInputStream(bytes);
         }

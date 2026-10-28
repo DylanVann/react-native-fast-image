@@ -4,10 +4,15 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Base64;
 
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
 import com.facebook.react.views.imagehelper.ImageSource;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import javax.annotation.Nullable;
 
@@ -20,6 +25,9 @@ public class FastImageSource extends ImageSource {
     private static final String ASSET_SCHEME = "asset";
     private final Headers mHeaders;
     private Uri mUri;
+    // A data uri, as base64 (see base64DataUri).
+    @Nullable
+    private String mDataUri;
 
     public static boolean isBase64Uri(Uri uri) {
         return DATA_SCHEME.equals(uri.getScheme());
@@ -80,6 +88,38 @@ public class FastImageSource extends ImageSource {
             // Image supports) to file:///android_asset/, which Glide loads.
             mUri = Uri.parse(LOCAL_FILE_SCHEME + ":///android_asset" + mUri.getPath());
         }
+
+        if (isBase64Uri(mUri)) {
+            mDataUri = base64DataUri(source);
+        }
+    }
+
+    // A data uri with its data in base64, which Glide's data url loader needs:
+    // a percent-encoded one's (e.g. `data:image/svg+xml;utf8,<svg …>`) is
+    // decoded and encoded again.
+    static String base64DataUri(String uri) {
+        int comma = uri.indexOf(',');
+        if (comma < 0) return uri;
+        String header = uri.substring(0, comma);
+        if (header.toLowerCase(Locale.ROOT).endsWith(";base64")) {
+            return header.substring(0, header.length() - 7) + ";base64" + uri.substring(comma);
+        }
+        String data = uri.substring(comma + 1);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream(data.length());
+        int plain = 0;
+        for (int i = 0; i + 2 < data.length(); i++) {
+            int high = Character.digit(data.charAt(i + 1), 16);
+            int low = Character.digit(data.charAt(i + 2), 16);
+            if (data.charAt(i) != '%' || high < 0 || low < 0) continue;
+            byte[] text = data.substring(plain, i).getBytes(StandardCharsets.UTF_8);
+            bytes.write(text, 0, text.length);
+            bytes.write(high * 16 + low);
+            i += 2;
+            plain = i + 1;
+        }
+        byte[] text = data.substring(plain).getBytes(StandardCharsets.UTF_8);
+        bytes.write(text, 0, text.length);
+        return header + ";base64," + Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP);
     }
 
 
@@ -95,6 +135,12 @@ public class FastImageSource extends ImageSource {
 
     public boolean isBase64Resource() {
         return mUri != null && FastImageSource.isBase64Uri(mUri);
+    }
+
+    // A data uri, as base64, or null.
+    @Nullable
+    String getDataUri() {
+        return mDataUri;
     }
 
     public boolean isResource() {
@@ -114,7 +160,7 @@ public class FastImageSource extends ImageSource {
             return getSource();
         }
         if (isBase64Resource()) {
-            return getSource();
+            return mDataUri;
         }
         if (isResource()) {
             return getUri();

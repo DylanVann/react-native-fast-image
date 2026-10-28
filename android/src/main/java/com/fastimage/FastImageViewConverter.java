@@ -41,7 +41,7 @@ class FastImageViewConverter {
     FastImageSource getImageSource(Context context, @Nullable FastImageSourceProps source) {
         if (source == null || !source.hasUri()) return null;
         FastImageSource imageSource = new FastImageSource(context, source.uri, source.headers);
-        imageSource.setWebCache(source.cache == FastImageCacheControl.WEB);
+        imageSource.setWebCache(source.cache == FastImageCacheControl.WEB && !imageSource.isBase64Resource());
         imageSource.setMemoryCache(source.memoryCache);
         imageSource.setDiskCache(source.diskCache);
         imageSource.setCacheKey(source.cacheKey);
@@ -50,7 +50,11 @@ class FastImageViewConverter {
 
     static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, @Nullable FastImageSourceProps source) {
         final Priority priority = source != null ? source.priorityOrNormal() : Priority.NORMAL;
-        final FastImageCacheControl cacheControl = source != null ? source.cache : FastImageCacheControl.IMMUTABLE;
+        // A data uri's data is the app's own, so `cache` doesn't apply to it
+        // (it's never downloaded: `cacheOnly` would never load it).
+        final FastImageCacheControl cacheControl = source != null && (imageSource == null || !imageSource.isBase64Resource())
+                ? source.cache
+                : FastImageCacheControl.IMMUTABLE;
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
         boolean onlyFromCache = false;
         boolean skipMemoryCache = false;

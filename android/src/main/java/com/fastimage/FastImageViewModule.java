@@ -442,13 +442,18 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
             promise.resolve(file.isFile() ? pathResult(file) : failure("No file at this uri"));
             return;
         }
-        if (!imageSource.isRemote()) {
-            // content://, a resource or a data uri: there's no file to give.
+        final boolean dataUri = imageSource.isBase64Resource();
+        if (!imageSource.isRemote() && !dataUri) {
+            // content:// or a resource: there's no file to give.
             promise.resolve(failure("Not a remote image"));
             return;
         }
-        final boolean cacheOnly = source.cache == FastImageCacheControl.CACHE_ONLY;
-        final RequestOptions options = preloadOptions(context, imageSource, source);
+        // A data uri ignores `cache`, and its decoded data is stored as a
+        // download is (Glide keeps a local source's data only with DATA).
+        final boolean cacheOnly = source.cache == FastImageCacheControl.CACHE_ONLY && !dataUri;
+        final RequestOptions options = dataUri
+                ? preloadOptions(context, imageSource, source).diskCacheStrategy(DiskCacheStrategy.DATA)
+                : preloadOptions(context, imageSource, source);
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {

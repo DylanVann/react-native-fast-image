@@ -4520,6 +4520,9 @@ function SourceClearedWhileLoadingCase({ id }: { id: string }) {
 const cachedPhoto = (id: string) => ({
     uri: imageUrl(`picsum/1020-120x120.jpg?${id}=${RUN}`),
 })
+// A magenta square SVG as a percent-encoded (not base64) data uri.
+const MAGENTA_SVG_UTF8_DATA_URI =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect width='8' height='8' fill='%23e0e'/></svg>"
 // An 8 × 8 yellow PNG.
 const YELLOW_DATA_URI =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAE0lEQVR4nGP8dYIBK2DCLjxYJQBkHQHSoiSr7AAAAABJRU5ErkJggg=='
@@ -10574,23 +10577,28 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: LOGO, cache: 1 }}
             />,
             <NoHandlersCase key="no-handlers" />,
-            // iOS only: Android's Glide doesn't load a data uri with
-            // onlyRetrieveFromCache (ISSUES.local.md).
-            ...(Platform.OS === 'ios'
-                ? [
-                      <EventCase
-                          key="data-uri-cache-only"
-                          id="data-uri-cache-only"
-                          description={{
-                              checks: "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
-                              steps: "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
-                              shows: 'A yellow square.',
-                          }}
-                          event="onLoad"
-                          source={{ uri: YELLOW_DATA_URI, cache: 'cacheOnly' }}
-                      />,
-                  ]
-                : []),
+            <EventCase
+                key="data-uri-cache-only"
+                id="data-uri-cache-only"
+                description={{
+                    checks: "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded). Android's Glide never loaded one (onlyRetrieveFromCache).",
+                    steps: "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
+                    shows: 'A yellow square.',
+                }}
+                event="onLoad"
+                source={{ uri: YELLOW_DATA_URI, cache: 'cacheOnly' }}
+            />,
+            <EventCase
+                key="data-uri-utf8"
+                id="data-uri-utf8"
+                description={{
+                    checks: "A percent-encoded (utf8, not base64) SVG data uri loads. Android's Glide only read base64 data uris, so it never loaded.",
+                    steps: 'Loads a magenta square SVG as a data:image/svg+xml;utf8 uri, with its # written %23. Passes on onLoad.',
+                    shows: 'A magenta square.',
+                }}
+                event="onLoad"
+                source={{ uri: MAGENTA_SVG_UTF8_DATA_URI }}
+            />,
         ],
     },
     {
@@ -11530,21 +11538,16 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'The aurora photo twice: the view, then its file.',
                 }}
             />,
-            // iOS only: Android gives no file for a data uri (ISSUES.local.md).
-            ...(Platform.OS === 'ios'
-                ? [
-                      <CachePathCase
-                          key="cache-path-data-uri"
-                          id="cache-path-data-uri"
-                          dataUri
-                          description={{
-                              checks: 'getCachePath for a data uri stores its image in the disk cache and gives its file.',
-                              steps: 'Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.',
-                              shows: 'An empty gray square, then a yellow square from the file.',
-                          }}
-                      />,
-                  ]
-                : []),
+            <CachePathCase
+                key="cache-path-data-uri"
+                id="cache-path-data-uri"
+                dataUri
+                description={{
+                    checks: 'getCachePath for a data uri stores its image in the disk cache and gives its file (Android resolved not ok: "Not a remote image").',
+                    steps: 'Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.',
+                    shows: 'An empty gray square, then a yellow square from the file.',
+                }}
+            />,
         ],
     },
     {
