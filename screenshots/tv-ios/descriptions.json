@@ -70,6 +70,40 @@
             }
         }
     },
+    "auto-size-styles": {
+        "description": {
+            "checks": "#436, continued: padding, and a height a later style clears."
+        },
+        "cases": {
+            "auto-size-padding": {
+                "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                "shows": "The photo at 96x48 on the left."
+            },
+            "auto-size-cleared": {
+                "checks": "A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.",
+                "steps": "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: undefined }] in a row. Passes once it has loaded and its layout is 96x48.",
+                "shows": "The photo at 96x48 on the left."
+            }
+        }
+    },
+    "auto-size-changes": {
+        "description": {
+            "checks": "#436, continued: a url placeholder and a source change of an image with only a width."
+        },
+        "cases": {
+            "auto-size-placeholder": {
+                "checks": "A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.",
+                "steps": "Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
+                "shows": "The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high."
+            },
+            "auto-size-source-change": {
+                "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                "steps": "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                "shows": "The 600x300 image at 240x120: a magenta band at the top over cyan."
+            }
+        }
+    },
     "load-end": {
         "description": {
             "checks": "onLoadEnd's event: whether the load worked, with onLoad's size or onError's error."

@@ -95,6 +95,30 @@
             }
         }
     },
+    "auto-size-styles": {
+        "description": {
+            "checks": "#436, continued: padding, and a height a later style clears."
+        },
+        "cases": {
+            "auto-size-padding": {
+                "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                "shows": "The photo at 96x48 on the left."
+            }
+        }
+    },
+    "auto-size-changes": {
+        "description": {
+            "checks": "#436, continued: a url placeholder and a source change of an image with only a width."
+        },
+        "cases": {
+            "auto-size-placeholder": {
+                "checks": "A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.",
+                "steps": "Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
+                "shows": "The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high."
+            }
+        }
+    },
     "smoke-web": {
         "description": {
             "checks": "The web version's own behavior: onLoad when the sizes change, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri."
