@@ -31,7 +31,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { openSides, resolveObjectFit } from './objectFit'
+import { fromStyle, openSides, resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -49,6 +49,7 @@ import type {
     FastImageProps,
     FastImageRef,
     FastImageStaticProperties,
+    ImageStyle,
     ObjectFit,
     PreloadResult,
     Priority,
@@ -183,7 +184,10 @@ function FastImageBase({
     // the style leaves open follows it, as on iOS and Android: the view
     // gets the image's aspect ratio (unless the style has one), and with
     // neither side set, the image's width (at most the space there is) from a
-    // spacer, so a stretched view still fills its parent.
+    // spacer, so a stretched view still fills its parent. The image fills the
+    // padding box, so the spacer is that less the padding. (The aspect ratio
+    // is the border box's: with borders, the image's box is a little off
+    // its shape, where iOS and Android give the padding box its shape.)
     const [imageSize, setImageSize] = useState<{
         width: number
         height: number
@@ -200,7 +204,10 @@ function FastImageBase({
     const spacer =
         sizeStyle && open.width && open.height ? (
             <View
-                style={{ width: imageSize!.width, maxWidth: '100%' }}
+                style={{
+                    width: Math.max(0, imageSize!.width - paddingX(style)),
+                    maxWidth: '100%',
+                }}
                 pointerEvents="none"
             />
         ) : null
@@ -464,6 +471,23 @@ function sizedSource(source: SizedSource | number): SizedSource | undefined {
               scale: assetScale(asset),
           }
         : undefined
+}
+
+// The style's left and right padding in points, where it's a number (a
+// percentage counts as 0): the padding of a view with neither side set, which
+// the image's width includes.
+function paddingX(style: unknown): number {
+    const side = (...keys: (keyof ImageStyle)[]) => {
+        for (const key of keys) {
+            const value = fromStyle(style, key)
+            if (value != null) return typeof value === 'number' ? value : 0
+        }
+        return 0
+    }
+    return (
+        side('paddingLeft', 'paddingStart', 'paddingHorizontal', 'padding') +
+        side('paddingRight', 'paddingEnd', 'paddingHorizontal', 'padding')
+    )
 }
 
 // Several sizes of an image, as a srcset (each size's width, times its
