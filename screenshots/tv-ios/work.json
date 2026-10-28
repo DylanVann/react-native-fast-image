@@ -1,6 +1,6 @@
 {
     "start": {
-        "decode - 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?start-web=RUN 200x200 for 0x0 at full": 1,
         "request /max-age/picsum/1025-200x200.jpg?start-web=RUN": 1
     },
     "load-end": {
@@ -32,13 +32,16 @@
         "request /does-not-exist.png": 1
     },
     "headers-invalid": {
-        "decode - 1000x1000 for 0x0 at full": 1,
-        "decode - 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/logo.png 1000x1000 for 96x96 at 96": 2,
+        "decode http://localhost:8090/logo.png?preload-headers-array 1000x1000 for 0x0 at full": 1,
+        "decode http://localhost:8090/logo.png?preload-headers-null 1000x1000 for 0x0 at full": 1,
         "decode http://localhost:8090/private/picsum/1020-120x120.jpg?invalid-headers=RUN 120x120 for 96x96 at full": 1,
+        "decode http://localhost:8090/private/picsum/1021-120x120.jpg?invalid-headers-preload=RUN 120x120 for 0x0 at full": 1,
         "load - source main": 1,
         "load http://localhost:8090/logo.png source main": 2,
         "load http://localhost:8090/private/picsum/1020-120x120.jpg?invalid-headers=RUN source main": 1,
+        "request /logo.png?preload-headers-array": 1,
+        "request /logo.png?preload-headers-null": 1,
         "request /private/picsum/1020-120x120.jpg?invalid-headers=RUN": 1,
         "request /private/picsum/1021-120x120.jpg?invalid-headers-preload=RUN": 1
     },
@@ -237,7 +240,6 @@
         "request /does-not-exist.png": 1
     },
     "downsampling": {
-        "decode - 10000x8000 for 0x0 at full": 1,
         "decode http://localhost:8090/block-stripes-80mp.png?case=downsample-over-limit 10000x8000 for 0x0 at 4579": 1,
         "decode http://localhost:8090/block-stripes-80mp.png?case=downsample-over-limit-none 10000x8000 for 0x0 at full": 1,
         "decode http://localhost:8090/exif-rotated.jpg 800x1200 for 0x0 at full": 1,
@@ -264,8 +266,6 @@
         "request /text-page.png?case=downsample-preload": 1
     },
     "downsampling-reload": {
-        "decode - 1600x1000 for 0x0 at full": 1,
-        "decode - 1600x1000 for 80x192 at 308": 1,
         "decode http://localhost:8090/jellyfish.gif 500x281 for 64x64 at 114": 1,
         "decode http://localhost:8090/picsum/1016-2048x2048.jpg?downsample=RUN-RUN 2048x2048 for 192x192 at 192": 1,
         "decode http://localhost:8090/picsum/1016-2048x2048.jpg?downsample=RUN-RUN 2048x2048 for 96x96 at 96": 1,
@@ -278,6 +278,8 @@
         "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 0x0 at full": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 192x192 at 308": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 96x96 at 154": 1,
+        "decode http://localhost:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN 1600x1000 for 0x0 at full": 1,
+        "decode http://localhost:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN 1600x1000 for 80x192 at 308": 1,
         "load http://localhost:8090/jellyfish.gif source main": 1,
         "load http://localhost:8090/picsum/1016-2048x2048.jpg?downsample=RUN-RUN source main": 2,
         "load http://localhost:8090/picsum/1016-2048x2048.jpg?order=RUN-0 source main": 1,
@@ -324,8 +326,7 @@
         "request /quadrants.png?case=large-view-fade-2": 1
     },
     "downsample-from-disk": {
-        "decode - 1600x1000 for 0x0 at full": 1,
-        "decode http://localhost:8090/text-page.png?case=downsample-from-disk-RUN 1600x1000 for 0x0 at full": 1,
+        "decode http://localhost:8090/text-page.png?case=downsample-from-disk-RUN 1600x1000 for 0x0 at full": 2,
         "decode http://localhost:8090/text-page.png?case=downsample-from-disk-RUN 1600x1000 for 160x100 at 160": 1,
         "load http://localhost:8090/text-page.png?case=downsample-from-disk-RUN source main": 2,
         "request /text-page.png?case=downsample-from-disk-RUN": 1
@@ -461,7 +462,16 @@
         "request /max-age/picsum/1025-200x200.jpg?web-clear=RUN-RUN": 2
     },
     "web-cache-clear-preload": {
-        "decode - 200x200 for 0x0 at full": 20,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-0 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-1 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-2 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-3 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-4 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-5 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-6 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-7 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-8 200x200 for 0x0 at full": 2,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-9 200x200 for 0x0 at full": 2,
         "request /max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-0": 2,
         "request /max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-1": 2,
         "request /max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-2": 2,
@@ -474,12 +484,23 @@
         "request /max-age/picsum/1025-200x200.jpg?web-clear-preload=RUN-RUN-9": 2
     },
     "preload": {
-        "decode - 120x120 for 0x0 at full": 6,
-        "decode - 200x200 for 0x0 at full": 7,
         "decode http://localhost:8090/no-token/picsum/1022-120x120.jpg?run=RUN 120x120 for 96x96 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg 200x200 for 96x96 at 96": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN 200x200 for 96x96 at 96": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?results=RUN 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?reuse=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?reuse=RUN 200x200 for 96x96 at 96": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=0 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=1 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=2 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/private/picsum/1021-120x120.jpg?results=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/private/picsum/1021-120x120.jpg?run=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=0&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=1&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=2&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=3&delay=150 120x120 for 0x0 at full": 1,
         "load http://localhost:8090/no-token/picsum/1022-120x120.jpg?run=RUN source main": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg source main": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN source main": 1,
@@ -498,8 +519,47 @@
         "request /private/picsum/1022-120x120.jpg?results=RUN": 1
     },
     "bad-responses": {
-        "decode - 200x200 for 0x0 at full": 40,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-0 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-0 200x200 for 96x96 at 96": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-1 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-10 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-11 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-12 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-13 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-14 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-15 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-16 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-17 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-18 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-19 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-2 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-20 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-21 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-22 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-23 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-24 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-25 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-26 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-27 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-28 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-29 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-3 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-30 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-31 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-32 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-33 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-34 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-35 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-36 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-37 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-38 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-39 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-4 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-5 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-6 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-7 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-8 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-9 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/bad-once/picsum/1025-200x200.jpg?view-retry=RUN 200x200 for 96x96 at 96": 1,
         "decode http://localhost:8090/fail-once/picsum/1025-200x200.jpg?reload=RUN 200x200 for 96x96 at 96": 1,
         "decode http://localhost:8090/mislabeled/picsum/1025-200x200.jpg?mislabeled=RUN 200x200 for 96x96 at 96": 1,
@@ -551,13 +611,52 @@
         "request /does-not-exist.jpg?web-404=RUN": 1,
         "request /fail-once/picsum/1025-200x200.jpg?reload=RUN": 2,
         "request /mislabeled/picsum/1025-200x200.jpg?mislabeled=RUN": 1,
-        "svg - 0x0 for 0x0": 40,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-0 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-1 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-10 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-11 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-12 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-13 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-14 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-15 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-16 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-17 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-18 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-19 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-2 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-20 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-21 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-22 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-23 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-24 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-25 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-26 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-27 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-28 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-29 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-3 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-30 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-31 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-32 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-33 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-34 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-35 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-36 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-37 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-38 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-39 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-4 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-5 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-6 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-7 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-8 0x0 for 0x0": 1,
+        "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?preload-retry-web=RUN-9 0x0 for 0x0": 1,
         "svg http://localhost:8090/bad-once/picsum/1025-200x200.jpg?view-retry=RUN 0x0 for 96x96": 1
     },
     "cache-key": {
-        "decode - 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?no-memory=RUN 200x200 for 96x96 at 96": 2,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?token=a&cache-key-downsample=RUN 200x200 for 96x96 at 96": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?token=a&cache-key-preload=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?token=a&cache-key=RUN 200x200 for 96x96 at 96": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?token=b&cache-key=RUN 200x200 for 0x0 at full": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg?no-memory=RUN source main": 2,
@@ -576,7 +675,7 @@
         "load http://localhost:8090/picsum/1025-200x200.jpg?only-if-cached-miss=RUN source main": 1
     },
     "disk-cache": {
-        "decode - 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?no-disk-web=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?no-disk-web=RUN 200x200 for 96x96 at 96": 2,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?no-disk=RUN 200x200 for 176x176 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?no-disk=RUN 200x200 for 96x96 at 96": 1,
@@ -586,9 +685,9 @@
         "request /picsum/1025-200x200.jpg?no-disk=RUN": 2
     },
     "cache-path": {
-        "decode - 120x120 for 0x0 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH 120x120 for 96x96 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH.jpg 120x120 for 96x96 at full": 3,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-download=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-key=RUN 120x120 for 96x96 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-space=RUN&name=a%20b 120x120 for 96x96 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path=RUN 120x120 for 96x96 at full": 1,
@@ -604,7 +703,7 @@
         "request /picsum/1022-120x120.jpg?cache-path=RUN": 1
     },
     "cache-path-more": {
-        "decode - 8x8 for 0x0 at full": 1,
+        "decode data:(144) 8x8 for 0x0 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH 120x120 for 96x96 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH 8x8 for 96x96 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH.jpg 120x120 for 96x96 at full": 3,
@@ -624,21 +723,25 @@
         "request /picsum/1022-120x120.jpg?cache-path-key-only=RUN": 1
     },
     "cache-path-after-clear": {
-        "decode - 120x120 for 0x0 at full": 2,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-after-clear=RUN 120x120 for 0x0 at full": 2,
         "request /picsum/1022-120x120.jpg?cache-path-after-clear=RUN": 2
     },
     "cache-path-after-clear-loaded": {
-        "decode - 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-after-clear-loaded=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-after-clear-loaded=RUN 120x120 for 96x96 at full": 1,
         "load http://localhost:8090/picsum/1022-120x120.jpg?cache-path-after-clear-loaded=RUN source main": 1,
         "request /picsum/1022-120x120.jpg?cache-path-after-clear-loaded=RUN": 2
     },
     "clear-disk-cache-thread": {},
     "write-to-cache": {
-        "decode - 120x120 for 0x0 at full": 5,
-        "decode - 200x200 for 0x0 at full": 1,
-        "decode - 80x80 for 0x0 at full": 1,
+        "decode http://localhost:8090/formats/quadrants.avif?write-to-cache-avif-file=RUN 80x80 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-cached-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-key-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-key-only-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-web-file=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-avif=RUN 80x80 for 96x96 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-cached=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-key-only=RUN 120x120 for 96x96 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-key=RUN 120x120 for 96x96 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache=RUN 120x120 for 96x96 at full": 1,
@@ -655,10 +758,12 @@
         "request /picsum/1025-200x200.jpg?write-to-cache-cached=RUN": 1
     },
     "source-change": {
-        "decode - 120x120 for 0x0 at full": 3,
         "decode data:(126) 8x8 for 96x96 at full": 1,
         "decode http://localhost:8090/magenta.png?source-change-keep-previous=RUN 300x300 for 96x96 at 96": 1,
+        "decode http://localhost:8090/picsum/1020-120x120.jpg?source-change-data=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1020-120x120.jpg?source-change-keep-previous=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1020-120x120.jpg?source-change-keep-previous=RUN 120x120 for 96x96 at full": 1,
+        "decode http://localhost:8090/picsum/1020-120x120.jpg?source-change-loading=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1020-120x120.jpg?source-change-loading=RUN 120x120 for 96x96 at full": 1,
         "load data:(126) source main": 1,
         "load http://localhost:8090/magenta.png?source-change-keep-previous=RUN source main": 1,
@@ -1051,11 +1156,11 @@
         "load ph://UUID/L0/001 source main": 6
     },
     "configure-cache": {
-        "decode - 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?configure-cache=RUN 120x120 for 0x0 at full": 1,
         "request /picsum/1022-120x120.jpg?configure-cache=RUN": 1
     },
     "non-object-sources": {
-        "decode - 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?non-object=RUN 200x200 for 0x0 at full": 1,
         "request /picsum/1025-200x200.jpg?non-object=RUN": 1
     }
 }

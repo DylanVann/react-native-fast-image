@@ -1,6 +1,6 @@
 {
     "start": {
-        "decode - 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?start-web=RUN 200x200 for 0x0 at full": 1,
         "request /max-age/picsum/1025-200x200.jpg?start-web=RUN": 1
     },
     "load-end": {
@@ -86,7 +86,6 @@
         "svg http://localhost:8091/svg-stripes.svg?case=object-fit-svg-change&delay=150 60x60 for 264x264": 2
     },
     "downsampling": {
-        "decode - 10000x8000 for 0x0 at full": 1,
         "decode http://localhost:8090/block-stripes-80mp.png?case=downsample-over-limit 10000x8000 for 0x0 at 4579": 1,
         "decode http://localhost:8090/block-stripes-80mp.png?case=downsample-over-limit-none 10000x8000 for 0x0 at full": 1,
         "decode http://localhost:8090/exif-rotated.jpg 800x1200 for 0x0 at full": 1,
@@ -144,12 +143,23 @@
         "request /picsum/1022-120x120.jpg": 1
     },
     "preload": {
-        "decode - 120x120 for 0x0 at full": 6,
-        "decode - 200x200 for 0x0 at full": 7,
         "decode http://localhost:8090/no-token/picsum/1022-120x120.jpg?run=RUN 120x120 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?results=RUN 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?reuse=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?reuse=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=0 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=1 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?unknown-values=RUN&n=2 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/private/picsum/1021-120x120.jpg?results=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/private/picsum/1021-120x120.jpg?run=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=0&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=1&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=2&delay=150 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8091/picsum/1020-120x120.jpg?group=limit-RUN&i=3&delay=150 120x120 for 0x0 at full": 1,
         "load http://localhost:8090/no-token/picsum/1022-120x120.jpg?run=RUN source main": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg source main": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg?preload-disk=RUN source main": 1,
@@ -172,9 +182,9 @@
         "load http://localhost:8090/picsum/1025-200x200.jpg?only-if-cached-miss=RUN source main": 1
     },
     "cache-path": {
-        "decode - 120x120 for 0x0 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH 120x120 for 144x144 at full": 1,
         "decode file:///Users/dylan/Library/Developer/CoreSimulator/Devices/UUID/data/Containers/Data/Application/UUID/Library/Caches/com.hackemist.SDImageCache/default/HASH.jpg 120x120 for 144x144 at full": 3,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-download=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-key=RUN 120x120 for 144x144 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path-space=RUN&name=a%20b 120x120 for 144x144 at full": 1,
         "decode http://localhost:8090/picsum/1022-120x120.jpg?cache-path=RUN 120x120 for 144x144 at full": 1,
@@ -190,10 +200,14 @@
         "request /picsum/1022-120x120.jpg?cache-path=RUN": 1
     },
     "write-to-cache": {
-        "decode - 120x120 for 0x0 at full": 5,
-        "decode - 200x200 for 0x0 at full": 1,
-        "decode - 80x80 for 0x0 at full": 1,
+        "decode http://localhost:8090/formats/quadrants.avif?write-to-cache-avif-file=RUN 80x80 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-cached-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-key-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-key-only-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?write-to-cache-web-file=RUN 120x120 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-avif=RUN 80x80 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-cached=RUN 200x200 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-key-only=RUN 120x120 for 144x144 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache-key=RUN 120x120 for 144x144 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?write-to-cache=RUN 120x120 for 144x144 at full": 1,
@@ -308,11 +322,11 @@
         "load ph://UUID/L0/001 source main": 6
     },
     "configure-cache": {
-        "decode - 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?configure-cache=RUN 120x120 for 0x0 at full": 1,
         "request /picsum/1022-120x120.jpg?configure-cache=RUN": 1
     },
     "non-object-sources": {
-        "decode - 200x200 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?non-object=RUN 200x200 for 0x0 at full": 1,
         "request /picsum/1025-200x200.jpg?non-object=RUN": 1
     }
 }

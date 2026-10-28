@@ -783,12 +783,20 @@ const HEADERS_PRIVATE = imageUrl(
 const HEADERS_PRELOAD_PRIVATE = imageUrl(
     `private/picsum/1021-120x120.jpg?invalid-headers-preload=${RUN}`,
 )
+// The logo preloaded twice, each with a url of its own: with one url, whether
+// iOS decodes it once or twice depends on whether the second preload joins
+// the first's download (see scripts/verify.mts's work counts).
+const HEADERS_PRELOAD_NULL = imageUrl('logo.png?preload-headers-null')
+const HEADERS_PRELOAD_ARRAY = imageUrl('logo.png?preload-headers-array')
 function PreloadInvalidHeadersCase() {
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         FastImage.preload([
-            { uri: LOGO, headers: null as unknown as {} },
-            { uri: LOGO, headers: ['x-token'] as unknown as {} },
+            { uri: HEADERS_PRELOAD_NULL, headers: null as unknown as {} },
+            {
+                uri: HEADERS_PRELOAD_ARRAY,
+                headers: ['x-token'] as unknown as {},
+            },
             { uri: HEADERS_PRELOAD_PRIVATE, headers: INVALID_HEADERS },
         ])
             .then((results) => {

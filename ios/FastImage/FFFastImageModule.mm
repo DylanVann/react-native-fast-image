@@ -145,6 +145,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     [FFFDownsampledImage addFullSizeToContext:context uncapped:NO screenScale:RCTScreenScale() vectorBox:CGSizeZero cover:NO];
+    [FFFDownsampledImage addWorkURL:source.url toContext:context];
     return context;
 }
 
@@ -373,6 +374,7 @@ static NSDictionary *FFFFile(NSString *path)
                 // a smaller copy at once.
                 // An SVG isn't drawn either (screen scale zero).
                 [FFFDownsampledImage addFullSizeToContext:context uncapped:YES screenScale:0 vectorBox:CGSizeZero cover:NO];
+                [FFFDownsampledImage addWorkURL:source.url toContext:context];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
@@ -445,6 +447,7 @@ static NSDictionary *FFFFile(NSString *path)
         SDWebImageMutableContext *context = FFFPreloadContext(source);
         // An SVG isn't drawn either (screen scale zero).
         [FFFDownsampledImage addFullSizeToContext:context uncapped:NO screenScale:0 vectorBox:CGSizeZero cover:NO];
+        [FFFDownsampledImage addWorkURL:source.url toContext:context];
         context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
         context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
         context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);

@@ -32,6 +32,8 @@
         "decode http://10.0.2.2:8090/private/picsum/1020-120x120.jpg?invalid-headers=RUN 120x120 for 126x126 at 126x126": 1,
         "load http://10.0.2.2:8090/logo.png source main": 2,
         "load http://10.0.2.2:8090/private/picsum/1020-120x120.jpg?invalid-headers=RUN source main": 1,
+        "request /logo.png?preload-headers-array": 1,
+        "request /logo.png?preload-headers-null": 1,
         "request /private/picsum/1020-120x120.jpg?invalid-headers=RUN": 1,
         "request /private/picsum/1021-120x120.jpg?invalid-headers-preload=RUN": 1
     },
