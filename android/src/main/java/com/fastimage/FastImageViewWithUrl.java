@@ -368,17 +368,27 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Of several sources, the index of the one whose size in pixels (width ×
     // height × scale²) is closest to the box the image is drawn in (by pixel
     // count), or of the largest while it has no size (e.g. a view sized from
-    // onLoad).
+    // onLoad). With only a width or a height laid out (laysOutOneSide), the
+    // box the view gets at each source's shape.
     private int sourceIndexForSize() {
         FastImageSourceProps[] sources = severalSources();
         if (sources == null) return -1;
-        double viewPixels = (double) Math.max(0, contentWidth()) * Math.max(0, contentHeight());
+        double width = Math.max(0, contentWidth());
+        double height = Math.max(0, contentHeight());
+        boolean oneSide = laysOutOneSide();
+        boolean byWidth = layoutContentWidth() > 0;
         int best = -1;
         double bestFit = Double.MAX_VALUE;
         for (int i = 0; i < sources.length; i++) {
             FastImageSourceProps source = sources[i];
             if (source == null) continue;
             double pixels = source.width * source.height * source.scale * source.scale;
+            double viewPixels = width * height;
+            if (oneSide && source.width > 0 && source.height > 0) {
+                viewPixels = byWidth
+                        ? width * width * source.height / source.width
+                        : height * height * source.width / source.height;
+            }
             double fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels;
             if (best < 0 || fit < bestFit) {
                 best = i;

@@ -968,14 +968,24 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Of several sources, the one whose size in pixels is closest to the view's
 // (by pixel count), or the largest while the view has no size (e.g. one sized
-// from onLoad).
+// from onLoad). With only a width or a height laid out (laysOutOneSide), the
+// size the view gets at each source's shape.
 - (FFFastImageSource*) sourceForSize {
     CGFloat scale = [self screenScale];
-    CGFloat viewPixels = self.bounds.size.width * self.bounds.size.height * scale * scale;
+    CGFloat width = self.bounds.size.width * scale;
+    CGFloat height = self.bounds.size.height * scale;
+    BOOL oneSide = [self laysOutOneSide];
+    BOOL byWidth = self.contentSize.width > 0;
     FFFastImageSource* best = nil;
     CGFloat bestFit = CGFLOAT_MAX;
     for (FFFastImageSource* source in _sources) {
-        CGFloat fit = viewPixels > 0 ? ABS(1 - source.pixelCount / viewPixels) : -source.pixelCount;
+        CGSize size = source.pixelSize;
+        CGFloat pixels = size.width * size.height;
+        CGFloat viewPixels = width * height;
+        if (oneSide && size.width > 0 && size.height > 0) {
+            viewPixels = byWidth ? width * width * size.height / size.width : height * height * size.width / size.height;
+        }
+        CGFloat fit = viewPixels > 0 ? ABS(1 - pixels / viewPixels) : -pixels;
         if (!best || fit < bestFit) {
             best = source;
             bestFit = fit;
