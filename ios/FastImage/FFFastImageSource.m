@@ -353,7 +353,10 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 @end
 
-@implementation FFFastImageSource
+@implementation FFFastImageSource {
+    // dataUriKey, once worked out.
+    NSString *_dataUriKey;
+}
 
 + (void)initialize
 {
@@ -477,11 +480,15 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     return [self isDataUri] ? FFFCacheControlImmutable : _cacheControl;
 }
 
-// A data uri's cache key: a SHA-256 of the uri, worked out once per uri (a
-// source is made again for every prop change and mount). The cache keeps the
-// uris themselves, so it's limited by their length (a few MB).
+// A data uri's cache key: a SHA-256 of the uri, worked out once per source,
+// and once per uri while it's in the cache of keys (a source is made again
+// for every prop change and mount). That cache keeps the uris themselves, so
+// it's limited by their length (a few MB).
 - (NSString *)dataUriKey
 {
+    if (_dataUriKey) {
+        return _dataUriKey;
+    }
     static NSCache<NSString *, NSString *> *keys;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
@@ -492,6 +499,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     NSString *uri = _url.absoluteString;
     NSString *key = [keys objectForKey:uri];
     if (key) {
+        _dataUriKey = key;
         return key;
     }
     NSData *data = [uri dataUsingEncoding:NSUTF8StringEncoding];
@@ -502,6 +510,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
         [hex appendFormat:@"%02x", digest[i]];
     }
     [keys setObject:hex forKey:uri cost:uri.length];
+    _dataUriKey = hex;
     return hex;
 }
 

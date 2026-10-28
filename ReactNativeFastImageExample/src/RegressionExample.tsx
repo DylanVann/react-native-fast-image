@@ -5569,8 +5569,8 @@ function ClearDiskCacheThreadCase() {
 //   - otherwise it isn't loaded before: getCachePath downloads it (one
 //     request), or with cacheOnly fails without a request;
 //   - whileLoading: asked for while a view is still downloading it (slowly);
-//   - dataUri: a data uri (the yellow PNG), stored like a download without a
-//     request.
+//   - dataUri: a data uri (the yellow PNG, with a parameter of its own, so
+//     no other view has stored it), stored like a download without a request.
 function CachePathCase({
     id,
     description,
@@ -5606,7 +5606,7 @@ function CachePathCase({
         ? `does-not-exist.jpg?${id}=${RUN}`
         : `${web ? 'max-age/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}${space ? '&name=a b' : ''}`
     const uri = dataUri
-        ? YELLOW_DATA_URI
+        ? YELLOW_DATA_URI.replace(';base64,', `;run=${RUN};base64,`)
         : whileLoading
           ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
           : imageUrl(path)
@@ -5632,6 +5632,12 @@ function CachePathCase({
                   : source,
         )
             .then(async (r) => {
+                // A data uri isn't requested.
+                if (dataUri) {
+                    setRequests(0)
+                    setResult(r)
+                    return
+                }
                 const response = await fetch(
                     whileLoading
                         ? imageUrl(`requests?group=${id}-${RUN}`)
@@ -5651,8 +5657,8 @@ function CachePathCase({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     // Requests the server got: the view's (if it loaded the image first) and
-    // getCachePath's download (if any); none for a data uri.
-    const expected = dataUri ? 0 : loaded ? 1 : cacheOnly || keyOnly ? 0 : 1
+    // getCachePath's download (if any).
+    const expected = loaded ? 1 : cacheOnly || keyOnly || dataUri ? 0 : 1
     const status =
         result === undefined
             ? 'waiting'
@@ -11533,7 +11539,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                           dataUri
                           description={{
                               checks: 'getCachePath for a data uri stores its image in the disk cache and gives its file.',
-                              steps: 'Calls getCachePath for an 8×8 yellow PNG data uri on mount, and shows the file it gives. Passes once that view loads.',
+                              steps: 'Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.',
                               shows: 'An empty gray square, then a yellow square from the file.',
                           }}
                       />,

@@ -1131,7 +1131,7 @@
             },
             "cache-path-data-uri": {
                 "checks": "getCachePath for a data uri stores its image in the disk cache and gives its file.",
-                "steps": "Calls getCachePath for an 8×8 yellow PNG data uri on mount, and shows the file it gives. Passes once that view loads.",
+                "steps": "Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.",
                 "shows": "An empty gray square, then a yellow square from the file."
             }
         }
