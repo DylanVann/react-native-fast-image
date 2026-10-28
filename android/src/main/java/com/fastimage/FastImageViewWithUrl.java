@@ -1488,10 +1488,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     void setStateWrapper(@Nullable StateWrapper stateWrapper) {
         mStateWrapper = stateWrapper;
         ReadableMap data = stateWrapper != null ? stateWrapper.getStateData() : null;
-        boolean wasLaidOut = imageLaidOut();
+        boolean wasHidden = laysOutOneSide();
         mLaidOutWidth = data != null && data.hasKey("width") ? (float) data.getDouble("width") : 0;
         mLaidOutHeight = data != null && data.hasKey("height") ? (float) data.getDouble("height") : 0;
-        if (imageLaidOut() != wasLaidOut) invalidate();
+        if (laysOutOneSide() != wasHidden) invalidate();
         updateSizeState();
         // The layout for the shown image: a fitted cover image is cropped if
         // the view didn't take its shape (see isResized).
@@ -1514,8 +1514,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     void setAutoSize(int autoSize) {
-        if (autoSize != mAutoSize) invalidate();
+        boolean wasHidden = laysOutOneSide();
         mAutoSize = autoSize;
+        if (laysOutOneSide() != wasHidden) invalidate();
         updateSizeState();
     }
 
