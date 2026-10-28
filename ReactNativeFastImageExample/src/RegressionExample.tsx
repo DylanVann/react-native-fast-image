@@ -3437,6 +3437,39 @@ function ZoomCase({
     )
 }
 
+// The zoom group's SVG of thin rings as a data uri, zoomed 4 times with a
+// transform: with downsample={false} drawn at its own size, as from a url
+// (on iOS a data uri was decoded at once and shown as a vector, which UIKit
+// drew for the 30-point view and the zoom scaled up).
+// Base64: Android's Glide reads only base64 data uris.
+const ZOOM_SVG_DATA_URI =
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PGNpcmNsZSBjeD0iNjAiIGN5PSI2MCIgcj0iNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIxOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIyMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIyNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSIzOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI0MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI0NiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI1MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI1NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4='
+
+function ZoomDataUriCase() {
+    const [status, onLoad] = useLoadedThenOk(1)
+    return (
+        <View style={zoomStyles.case}>
+            <View style={zoomStyles.clip}>
+                <FastImage
+                    style={zoomStyles.transformed}
+                    source={{ uri: ZOOM_SVG_DATA_URI }}
+                    downsample={false}
+                    onLoad={onLoad}
+                />
+            </View>
+            <CaseStatus
+                id="zoom-data-uri"
+                status={status}
+                description={{
+                    checks: 'An SVG data uri with downsample={false}, scaled 4 times with a transform, is as sharp as at its own size, as from a url (iOS showed it as a vector, drawn for the view and scaled up).',
+                    steps: 'A 30-point view in a 120-point clip, scaled 4 times about its center, shows a data uri of a 120x120 SVG of thin rings with downsample={false}. Passes once it has loaded; the screenshot checks the sharpness.',
+                    shows: "Thin rings filling the square, sharp (as zoom-transform's bottom left on iOS).",
+                }}
+            />
+        </View>
+    )
+}
+
 const zoomStyles = StyleSheet.create({
     // Apart from the cases around it, whose screenshots reach a little
     // beyond them.
@@ -5535,7 +5568,9 @@ function ClearDiskCacheThreadCase() {
 //   - loaded: a view shows the image first, then the path is asked for;
 //   - otherwise it isn't loaded before: getCachePath downloads it (one
 //     request), or with cacheOnly fails without a request;
-//   - whileLoading: asked for while a view is still downloading it (slowly).
+//   - whileLoading: asked for while a view is still downloading it (slowly);
+//   - dataUri: a data uri (the yellow PNG, with a parameter of its own, so
+//     no other view has stored it), stored like a download without a request.
 function CachePathCase({
     id,
     description,
@@ -5547,6 +5582,7 @@ function CachePathCase({
     missing,
     whileLoading,
     keyOnly,
+    dataUri,
 }: {
     id: string
     description: Description
@@ -5564,13 +5600,16 @@ function CachePathCase({
     // A url that 404s.
     missing?: boolean
     whileLoading?: boolean
+    dataUri?: boolean
 }) {
     const path = missing
         ? `does-not-exist.jpg?${id}=${RUN}`
         : `${web ? 'max-age/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}${space ? '&name=a b' : ''}`
-    const uri = whileLoading
-        ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
-        : imageUrl(path)
+    const uri = dataUri
+        ? YELLOW_DATA_URI.replace(';base64,', `;run=${RUN};base64,`)
+        : whileLoading
+          ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
+          : imageUrl(path)
     const source: Source = {
         uri,
         cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
@@ -5593,6 +5632,12 @@ function CachePathCase({
                   : source,
         )
             .then(async (r) => {
+                // A data uri isn't requested.
+                if (dataUri) {
+                    setRequests(0)
+                    setResult(r)
+                    return
+                }
                 const response = await fetch(
                     whileLoading
                         ? imageUrl(`requests?group=${id}-${RUN}`)
@@ -5613,7 +5658,7 @@ function CachePathCase({
     }, [])
     // Requests the server got: the view's (if it loaded the image first) and
     // getCachePath's download (if any).
-    const expected = loaded ? 1 : cacheOnly || keyOnly ? 0 : 1
+    const expected = loaded ? 1 : cacheOnly || keyOnly || dataUri ? 0 : 1
     const status =
         result === undefined
             ? 'waiting'
@@ -10529,6 +10574,23 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 source={{ uri: LOGO, cache: 1 }}
             />,
             <NoHandlersCase key="no-handlers" />,
+            // iOS only: Android's Glide doesn't load a data uri with
+            // onlyRetrieveFromCache (ISSUES.local.md).
+            ...(Platform.OS === 'ios'
+                ? [
+                      <EventCase
+                          key="data-uri-cache-only"
+                          id="data-uri-cache-only"
+                          description={{
+                              checks: "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
+                              steps: "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
+                              shows: 'A yellow square.',
+                          }}
+                          event="onLoad"
+                          source={{ uri: YELLOW_DATA_URI, cache: 'cacheOnly' }}
+                      />,
+                  ]
+                : []),
         ],
     },
     {
@@ -11468,6 +11530,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'The aurora photo twice: the view, then its file.',
                 }}
             />,
+            // iOS only: Android gives no file for a data uri (ISSUES.local.md).
+            ...(Platform.OS === 'ios'
+                ? [
+                      <CachePathCase
+                          key="cache-path-data-uri"
+                          id="cache-path-data-uri"
+                          dataUri
+                          description={{
+                              checks: 'getCachePath for a data uri stores its image in the disk cache and gives its file.',
+                              steps: 'Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.',
+                              shows: 'An empty gray square, then a yellow square from the file.',
+                          }}
+                      />,
+                  ]
+                : []),
         ],
     },
     {
@@ -12803,6 +12880,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares.',
                 }}
             />,
+            <ZoomDataUriCase key="zoom-data-uri" />,
         ],
     },
     {

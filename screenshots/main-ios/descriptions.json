@@ -82,6 +82,11 @@
                 "checks": "Images without event handlers send no events to JS (they sent onLoadStart, onLoad and onLoadEnd anyway, work for nothing on the JS thread).",
                 "steps": "Loads one photo in three images: the first two have no handlers, the third has onLoadEnd. Counts every Fast Image event React Native receives from the first two. Passes if, half a second after the third's onLoadEnd, none arrived.",
                 "shows": "Three copies of the same photo (a pug in a blanket)."
+            },
+            "data-uri-cache-only": {
+                "checks": "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
+                "steps": "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
+                "shows": "A yellow square."
             }
         }
     },
@@ -1123,6 +1128,11 @@
                 "checks": "getCachePath while a view is still downloading the image gives its file, and shares the view's download (Android downloaded it a second time with Glide).",
                 "steps": "A view loads the aurora photo from the slow server (in 8 parts, 150 ms apart). On its onLoadStart, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the slow server got one request for both.",
                 "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-data-uri": {
+                "checks": "getCachePath for a data uri stores its image in the disk cache and gives its file.",
+                "steps": "Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.",
+                "shows": "An empty gray square, then a yellow square from the file."
             }
         }
     },
@@ -1945,6 +1955,11 @@
                 "checks": "A 30-point image in a ScrollView zoomed 4 times (zoomScale, iOS only), as a pinch-to-zoom viewer zooms: downsample={false} keeps a photo sharp, and an SVG as sharp as at its own size.",
                 "steps": "Four 120-point ScrollViews with maximumZoomScale and zoomScale 4, each with a 30-point image: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.",
                 "shows": "iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares."
+            },
+            "zoom-data-uri": {
+                "checks": "An SVG data uri with downsample={false}, scaled 4 times with a transform, is as sharp as at its own size, as from a url (iOS showed it as a vector, drawn for the view and scaled up).",
+                "steps": "A 30-point view in a 120-point clip, scaled 4 times about its center, shows a data uri of a 120x120 SVG of thin rings with downsample={false}. Passes once it has loaded; the screenshot checks the sharpness.",
+                "shows": "Thin rings filling the square, sharp (as zoom-transform's bottom left on iOS)."
             }
         }
     },

@@ -13,6 +13,7 @@
 #import <SDWebImagePhotosPlugin/SDImagePhotosLoader.h>
 #import <Photos/Photos.h>
 #import <ImageIO/ImageIO.h>
+#import <CommonCrypto/CommonDigest.h>
 
 // In FFFastImageView.m.
 FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
@@ -316,7 +317,46 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 @end
 
-@implementation FFFastImageSource
+// Reads data uris: a downloader of their own, so they don't wait for a slot
+// behind downloads (SDWebImage's shared downloader runs 6 at a time), without
+// an HTTP cache, and a data uri that isn't an image isn't kept in the manager's
+// failed urls (the whole uri, for the app's life).
+@interface FFFDataUriDownloader : SDWebImageDownloader
+@end
+
+@implementation FFFDataUriDownloader
+
++ (instancetype)sharedDownloader
+{
+    static FFFDataUriDownloader *downloader;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        SDWebImageDownloaderConfig *config = [SDWebImageDownloaderConfig new];
+        NSURLSessionConfiguration *session = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+        session.URLCache = nil;
+        config.sessionConfiguration = session;
+        config.maxConcurrentDownloads = 8;
+        downloader = [[FFFDataUriDownloader alloc] initWithConfig:config];
+    });
+    return downloader;
+}
+
+- (BOOL)shouldBlockFailedURLWithURL:(NSURL *)url error:(NSError *)error
+{
+    return NO;
+}
+
+- (BOOL)shouldBlockFailedURLWithURL:(NSURL *)url error:(NSError *)error options:(SDWebImageOptions)options context:(SDWebImageContext *)context
+{
+    return NO;
+}
+
+@end
+
+@implementation FFFastImageSource {
+    // dataUriKey, once worked out.
+    NSString *_dataUriKey;
+}
 
 + (void)initialize
 {
@@ -386,8 +426,13 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 - (SDWebImageCacheKeyFilter *)cacheKeyFilter
 {
     NSString* cacheKey = _cacheKey;
+    // A data uri can be hundreds of kilobytes, and SDWebImage parses its
+    // cache keys as urls: a hash of it instead.
+    if (cacheKey.length == 0 && [self isDataUri]) {
+        cacheKey = [self dataUriKey];
+    }
     // `cache: 'web'` follows the HTTP cache, which is keyed by url.
-    if (cacheKey.length == 0 || _cacheControl == FFFCacheControlWeb) {
+    if (cacheKey.length == 0 || self.cacheControl == FFFCacheControlWeb) {
         return nil;
     }
     return [SDWebImageCacheKeyFilter cacheKeyFilterWithBlock: ^NSString* _Nullable (NSURL* _Nonnull url) {
@@ -397,12 +442,12 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 - (SDWebImageOptions)cacheOptions
 {
-    switch (_cacheControl) {
+    switch (self.cacheControl) {
         case FFFCacheControlWeb:
             // Without the disk cache, nor the HTTP cache: without this option
             // SDWebImage's requests neither read it nor store their responses
             // there.
-            return _diskCache ? SDWebImageRefreshCached : 0;
+            return self.diskCache ? SDWebImageRefreshCached : 0;
         case FFFCacheControlCacheOnly:
             return SDWebImageFromCacheOnly;
         case FFFCacheControlImmutable:
@@ -421,6 +466,54 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     return [_url.scheme isEqualToString:@"ph"];
 }
 
+- (BOOL)isDataUri
+{
+    NSString *scheme = _url.scheme;
+    return scheme && [scheme caseInsensitiveCompare:@"data"] == NSOrderedSame;
+}
+
+// A data uri's data is the app's own, so `cache` doesn't apply to it (it's
+// never downloaded: `cacheOnly` would never load it, and `web`'s HTTP cache
+// would keep it on disk).
+- (FFFCacheControl)cacheControl
+{
+    return [self isDataUri] ? FFFCacheControlImmutable : _cacheControl;
+}
+
+// A data uri's cache key: a SHA-256 of the uri, worked out once per source,
+// and once per uri while it's in the cache of keys (a source is made again
+// for every prop change and mount). That cache keeps the uris themselves, so
+// it's limited by their length (a few MB).
+- (NSString *)dataUriKey
+{
+    if (_dataUriKey) {
+        return _dataUriKey;
+    }
+    static NSCache<NSString *, NSString *> *keys;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        keys = [NSCache new];
+        keys.countLimit = 200;
+        keys.totalCostLimit = 4 * 1024 * 1024;
+    });
+    NSString *uri = _url.absoluteString;
+    NSString *key = [keys objectForKey:uri];
+    if (key) {
+        _dataUriKey = key;
+        return key;
+    }
+    NSData *data = [uri dataUsingEncoding:NSUTF8StringEncoding];
+    unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+    NSMutableString *hex = [NSMutableString stringWithString:@"fastimage-data-uri:"];
+    for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+        [hex appendFormat:@"%02x", digest[i]];
+    }
+    [keys setObject:hex forKey:uri cost:uri.length];
+    _dataUriKey = hex;
+    return hex;
+}
+
 - (CGSize)photoPixelSize
 {
     return [self isPhotoLibrary] ? FFFPhotoPixelSize(_url) : CGSizeZero;
@@ -437,7 +530,10 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     if (FFFBundleAssetName(_url)) {
         return [FFFBundleAssetLoader sharedLoader];
     }
-    if (_cacheControl != FFFCacheControlWeb) {
+    if ([self isDataUri]) {
+        return [FFFDataUriDownloader sharedDownloader];
+    }
+    if (self.cacheControl != FFFCacheControlWeb) {
         return nil;
     }
     static SDWebImageDownloader *downloader;
@@ -472,7 +568,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 - (void)forgetResponseAfterError:(NSError *)error
 {
-    if (_cacheControl != FFFCacheControlWeb || !_url) {
+    if (self.cacheControl != FFFCacheControlWeb || !_url) {
         return;
     }
     if (![error.domain isEqualToString:SDWebImageErrorDomain] || error.code != SDWebImageErrorBadImageData) {
@@ -543,7 +639,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 - (SDWebImageDownloaderRequestModifier *)requestModifier
 {
     NSDictionary* headers = _headers;
-    BOOL web = _cacheControl == FFFCacheControlWeb;
+    BOOL web = self.cacheControl == FFFCacheControlWeb;
     return [SDWebImageDownloaderRequestModifier requestModifierWithBlock: ^NSURLRequest* _Nullable (NSURLRequest* _Nonnull request) {
         NSMutableURLRequest* mutableRequest = [request mutableCopy];
         for (NSString* header in headers) {

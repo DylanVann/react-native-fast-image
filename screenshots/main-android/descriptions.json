@@ -1980,6 +1980,11 @@
                 "checks": "A 30-point image in a ScrollView zoomed 4 times (zoomScale, iOS only), as a pinch-to-zoom viewer zooms: downsample={false} keeps a photo sharp, and an SVG as sharp as at its own size.",
                 "steps": "Four 120-point ScrollViews with maximumZoomScale and zoomScale 4, each with a 30-point image: a 1600x1000 page of text with downsample={false} and with downsample, then a 120x120 SVG of thin rings with downsample={false} and with downsample. Passes once all four have loaded; the screenshot checks the sharpness.",
                 "shows": "iOS: the same as zoom-transform. Android has no ScrollView zoom: four 30-point images in the top-left corners of their squares."
+            },
+            "zoom-data-uri": {
+                "checks": "An SVG data uri with downsample={false}, scaled 4 times with a transform, is as sharp as at its own size, as from a url (iOS showed it as a vector, drawn for the view and scaled up).",
+                "steps": "A 30-point view in a 120-point clip, scaled 4 times about its center, shows a data uri of a 120x120 SVG of thin rings with downsample={false}. Passes once it has loaded; the screenshot checks the sharpness.",
+                "shows": "Thin rings filling the square, sharp (as zoom-transform's bottom left on iOS)."
             }
         }
     },

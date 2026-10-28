@@ -159,6 +159,8 @@ export type Source = {
      * temporary file while it loads, as every download is, deleted as soon
      * as it's opened.
      *
+     * On iOS a data uri's image is kept on disk too, as a downloaded one is.
+     *
      * `FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok`
      * for it: there's no file, and a view decodes the image for its own
      * size, so it may download a preloaded one again. A source for the same
