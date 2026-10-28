@@ -2,7 +2,7 @@
 
 exports[`FastImage (iOS) renders 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -40,7 +40,7 @@ exports[`FastImage (iOS) renders 1`] = `
 
 exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -74,7 +74,7 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 
 exports[`FastImage (iOS) renders defaultSource 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -108,7 +108,7 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
 
 exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -137,7 +137,7 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 
 exports[`FastImage (Android) renders a normal defaultSource when fails to load source 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -170,7 +170,7 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
 
 exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 "<FastImageView
-  autoSize={false}
+  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"

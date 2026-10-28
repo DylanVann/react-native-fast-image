@@ -1402,7 +1402,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // set again.
     @Nullable
     private StateWrapper mStateWrapper;
-    private boolean mAutoSize = false;
+    // The autoSize prop's bits: the sides the style leaves open.
+    static final int AUTO_WIDTH = 1;
+    static final int AUTO_HEIGHT = 2;
+    private int mAutoSize = 0;
     private float mLayoutWidth = 0;
     private float mLayoutHeight = 0;
     private float mStateWidth = 0;
@@ -1414,12 +1417,25 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     boolean getAutoSize() {
-        return mAutoSize;
+        return mAutoSize != 0;
     }
 
-    void setAutoSize(boolean autoSize) {
+    void setAutoSize(int autoSize) {
         mAutoSize = autoSize;
         updateSizeState();
+    }
+
+    // Whether the style leaves one side open and the view has the shown
+    // image's shape (within a pixel), so that side follows the image: the
+    // next image (e.g. in a recycled list cell) will change the view's shape.
+    // Not with both open (e.g. flex: 1, sized by its parent).
+    private boolean followsImage() {
+        if (mLayoutWidth <= 0 || mLayoutHeight <= 0) return false;
+        float width = contentWidth();
+        float height = contentHeight();
+        if (mAutoSize == AUTO_HEIGHT) return Math.abs(height - width * mLayoutHeight / mLayoutWidth) <= 1;
+        if (mAutoSize == AUTO_WIDTH) return Math.abs(width - height * mLayoutWidth / mLayoutHeight) <= 1;
+        return false;
     }
 
     private void setLayoutSize(float width, float height) {
@@ -1429,7 +1445,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     private void updateSizeState() {
-        if (!mAutoSize || mStateWrapper == null || mLayoutWidth <= 0 || mLayoutHeight <= 0) return;
+        if (mAutoSize == 0 || mStateWrapper == null || mLayoutWidth <= 0 || mLayoutHeight <= 0) return;
         if (mLayoutWidth == mStateWidth && mLayoutHeight == mStateHeight) return;
         mStateWidth = mLayoutWidth;
         mStateHeight = mLayoutHeight;
@@ -1590,11 +1606,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (blur != null) options = options.optionalTransform(blur);
         } else {
             // Cover, before an open side is laid out (it follows the image,
-            // see setAutoSize): Glide would crop the image to a size the view
-            // won't have. It's fitted instead, which looks the same once the
-            // view has the image's shape (see reloadForSize).
-            boolean uncropped = mAutoSize && mFitScaleType == ScaleType.CENTER_CROP
-                    && (contentWidth() <= 0 || contentHeight() <= 0);
+            // see setAutoSize), or while the view has the previous image's
+            // shape on it (followsImage): Glide would crop the image to a size
+            // the view won't have. It's fitted instead, which looks the same
+            // once the view has the image's shape (see reloadForSize).
+            boolean uncropped = mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP
+                    && (contentWidth() <= 0 || contentHeight() <= 0 || followsImage());
             ScaleType fit = uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             if (uncropped && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
@@ -1923,7 +1940,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // renderingOptions): a view that gets both from its layout (e.g. flex)
         // is cropped as usual.
         boolean several = severalSources() != null;
-        if (several || (mAutoSize && mFitScaleType == ScaleType.CENTER_CROP)) {
+        if (several || (mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP)) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
                 mWaitsForSize = true;
