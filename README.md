@@ -178,6 +178,8 @@ How fresh the image must be. See [how caching is handled](docs/how-is-caching-ha
 - `'web'`: follows the server's HTTP cache headers, as a browser does, checking with the server when it loads. These responses are kept in their own HTTP cache (50 MB on each platform), which `clearDiskCache` also clears.
 - `'cacheOnly'`: only shows a cached image, without making a request.
 
+A data uri ignores it: its image is never downloaded.
+
 ---
 
 ##### `source.cacheKey`
@@ -213,9 +215,9 @@ Whether the decoded image is kept in the memory cache. With `false` it's only ke
 
 Whether the image is kept on disk. With `false` it isn't kept in the disk cache or an HTTP cache, or read from them. Use it for images the app shouldn't keep once they've been shown (e.g. disappearing messages, or where a security policy doesn't allow caching sensitive images), images that change every time they load, or large images shown once, which would push other images out of the disk cache. The image is downloaded again whenever it isn't in memory, e.g. for a view of another size (or on Android, a change of `blurRadius` or `objectFit`), so with `memoryCache: false` too it's downloaded each time it's shown. With `cache: 'web'` it isn't kept in memory either, so it's downloaded every time it loads. With `cache: 'cacheOnly'` it's only looked for in memory. On Android, a large download is held in a temporary file while it loads, as every download is, deleted as soon as it's opened.
 
-On iOS a data uri's image is kept on disk too, as a downloaded one is.
-
 `FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok` for it: there's no file, and a view decodes the image for its own size, so it may download a preloaded one again. A source for the same url (or `cacheKey`) without `diskCache: false` still stores the image.
+
+A data uri's image is kept on disk too, unless it's `false`.
 
 ---
 
@@ -717,8 +719,8 @@ const { ok } = await FastImage.getCachePath({
 - The source's `headers`, `cacheKey` and `priority` apply, as for a view. Downloads wait in the same queue as `preload`'s, so they don't hold up the images on screen. If a view or a preload is downloading the same source, `getCachePath` shares that download instead of downloading the image again (on Android, except with `cache: 'web'`).
 - The file belongs to the cache, which can remove it at any time: copy it to keep it.
 - Its name may not have an image extension (on Android it ends in `.0` or `.1`): copy it with one for APIs that need it.
-- A `file://` source is its own path. Other local images (`require()` in a release build, `content://`) have no file to give.
-- A data uri's image is stored in the disk cache on iOS, which gives its file. Android has no file to give.
+- A `file://` source resolves with its own path. Other local images (`require()` in a release build, `content://`) resolve not `ok`.
+- A data uri's image is stored in the disk cache, and resolves with that file.
 - With `cache: 'web'`, Android only keeps the file if the server allows caching it (in an HTTP cache), and returns `ok: false` otherwise. If the server compressed the image with `Content-Encoding` (rare for images), that file is compressed.
 
 There's no way to remove a single image from the cache. To load an image again after it changed on the server, change its [`cacheKey`](#sourcecachekey).

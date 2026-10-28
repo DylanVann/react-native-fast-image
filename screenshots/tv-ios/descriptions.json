@@ -84,9 +84,14 @@
                 "shows": "Three copies of the same photo (a pug in a blanket)."
             },
             "data-uri-cache-only": {
-                "checks": "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded).",
+                "checks": "A data uri with cache: 'cacheOnly' loads: its data is the app's own, so cache doesn't apply (it's never downloaded). Android's Glide never loaded one (onlyRetrieveFromCache).",
                 "steps": "Loads an 8×8 yellow PNG data uri with cache: 'cacheOnly'. Passes on onLoad.",
                 "shows": "A yellow square."
+            },
+            "data-uri-utf8": {
+                "checks": "A percent-encoded (utf8, not base64) SVG data uri loads. Android's Glide only read base64 data uris, so it never loaded.",
+                "steps": "Loads a magenta square SVG as a data:image/svg+xml;utf8 uri, with its # written %23. Passes on onLoad.",
+                "shows": "A magenta square."
             }
         }
     },
@@ -1103,7 +1108,7 @@
                 "shows": "The aurora photo twice: the view, then its file."
             },
             "cache-path-data-uri": {
-                "checks": "getCachePath for a data uri stores its image in the disk cache and gives its file.",
+                "checks": "getCachePath for a data uri stores its image in the disk cache and gives its file (Android resolved not ok: \"Not a remote image\").",
                 "steps": "Calls getCachePath on mount for an 8×8 yellow PNG data uri that no view has shown (it has a parameter of its own), and shows the file it gives. Passes once that view loads.",
                 "shows": "An empty gray square, then a yellow square from the file."
             }
