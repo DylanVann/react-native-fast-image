@@ -97,6 +97,8 @@ export type Source = {
      *   also clears.
      * - `'cacheOnly'`: only shows a cached image, without making a request.
      *
+     * A data uri ignores it: its image is never downloaded.
+     *
      * @default 'immutable'
      * @platform android
      * @platform ios
@@ -159,7 +161,7 @@ export type Source = {
      * temporary file while it loads, as every download is, deleted as soon
      * as it's opened.
      *
-     * A data uri's image is kept on disk too, as a downloaded one is.
+     * A data uri's image is kept on disk too.
      *
      * `FastImage.preload`, `getCachePath` and `writeToCache` resolve not `ok`
      * for it: there's no file, and a view decodes the image for its own

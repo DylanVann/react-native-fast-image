@@ -101,6 +101,7 @@ public class FastImageSource extends ImageSource {
         int comma = uri.indexOf(',');
         if (comma < 0) return uri;
         String header = uri.substring(0, comma);
+        if (header.endsWith(";base64")) return uri;
         if (header.toLowerCase(Locale.ROOT).endsWith(";base64")) {
             return header.substring(0, header.length() - 7) + ";base64" + uri.substring(comma);
         }
