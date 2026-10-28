@@ -69,9 +69,8 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 - (BOOL)isPhotoLibrary;
 
 // Whether the source is a data uri: its data is the app's own, so `cache`
-// doesn't apply (cacheControl is immutable), it's kept in memory only
-// (diskCache is NO), read by a downloader of its own (imageLoader), and cached
-// under a hash of the uri (cacheKeyFilter).
+// doesn't apply (cacheControl is immutable), it's read by a downloader of its
+// own (imageLoader), and cached under a hash of the uri (cacheKeyFilter).
 - (BOOL)isDataUri;
 
 // The error's message, for onError.

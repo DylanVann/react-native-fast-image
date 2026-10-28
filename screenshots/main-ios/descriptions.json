@@ -1128,6 +1128,11 @@
                 "checks": "getCachePath while a view is still downloading the image gives its file, and shares the view's download (Android downloaded it a second time with Glide).",
                 "steps": "A view loads the aurora photo from the slow server (in 8 parts, 150 ms apart). On its onLoadStart, calls getCachePath with the same source and shows the file it gives. Passes once that view loads and the slow server got one request for both.",
                 "shows": "The aurora photo twice: the view, then its file."
+            },
+            "cache-path-data-uri": {
+                "checks": "getCachePath for a data uri stores its image in the disk cache and gives its file.",
+                "steps": "Calls getCachePath for an 8×8 yellow PNG data uri on mount, and shows the file it gives. Passes once that view loads.",
+                "shows": "An empty gray square, then a yellow square from the file."
             }
         }
     },

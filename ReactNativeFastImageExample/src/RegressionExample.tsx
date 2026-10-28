@@ -5568,7 +5568,9 @@ function ClearDiskCacheThreadCase() {
 //   - loaded: a view shows the image first, then the path is asked for;
 //   - otherwise it isn't loaded before: getCachePath downloads it (one
 //     request), or with cacheOnly fails without a request;
-//   - whileLoading: asked for while a view is still downloading it (slowly).
+//   - whileLoading: asked for while a view is still downloading it (slowly);
+//   - dataUri: a data uri (the yellow PNG), stored like a download without a
+//     request.
 function CachePathCase({
     id,
     description,
@@ -5580,6 +5582,7 @@ function CachePathCase({
     missing,
     whileLoading,
     keyOnly,
+    dataUri,
 }: {
     id: string
     description: Description
@@ -5597,13 +5600,16 @@ function CachePathCase({
     // A url that 404s.
     missing?: boolean
     whileLoading?: boolean
+    dataUri?: boolean
 }) {
     const path = missing
         ? `does-not-exist.jpg?${id}=${RUN}`
         : `${web ? 'max-age/' : ''}picsum/1022-120x120.jpg?${id}=${RUN}${space ? '&name=a b' : ''}`
-    const uri = whileLoading
-        ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
-        : imageUrl(path)
+    const uri = dataUri
+        ? YELLOW_DATA_URI
+        : whileLoading
+          ? slowImageUrl(`picsum/1022-120x120.jpg?group=${id}-${RUN}&delay=150`)
+          : imageUrl(path)
     const source: Source = {
         uri,
         cacheKey: byCacheKey || keyOnly ? `${id}-${RUN}` : undefined,
@@ -5645,8 +5651,8 @@ function CachePathCase({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     // Requests the server got: the view's (if it loaded the image first) and
-    // getCachePath's download (if any).
-    const expected = loaded ? 1 : cacheOnly || keyOnly ? 0 : 1
+    // getCachePath's download (if any); none for a data uri.
+    const expected = dataUri ? 0 : loaded ? 1 : cacheOnly || keyOnly ? 0 : 1
     const status =
         result === undefined
             ? 'waiting'
@@ -11518,6 +11524,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'The aurora photo twice: the view, then its file.',
                 }}
             />,
+            // iOS only: Android gives no file for a data uri (ISSUES.local.md).
+            ...(Platform.OS === 'ios'
+                ? [
+                      <CachePathCase
+                          key="cache-path-data-uri"
+                          id="cache-path-data-uri"
+                          dataUri
+                          description={{
+                              checks: 'getCachePath for a data uri stores its image in the disk cache and gives its file.',
+                              steps: 'Calls getCachePath for an 8×8 yellow PNG data uri on mount, and shows the file it gives. Passes once that view loads.',
+                              shows: 'An empty gray square, then a yellow square from the file.',
+                          }}
+                      />,
+                  ]
+                : []),
         ],
     },
     {

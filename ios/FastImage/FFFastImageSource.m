@@ -471,19 +471,15 @@ static BOOL FFFLooksLikeSVG(NSData *data)
 
 // A data uri's data is the app's own, so `cache` doesn't apply to it (it's
 // never downloaded: `cacheOnly` would never load it, and `web`'s HTTP cache
-// would keep it on disk), and it isn't kept in the disk cache.
+// would keep it on disk).
 - (FFFCacheControl)cacheControl
 {
     return [self isDataUri] ? FFFCacheControlImmutable : _cacheControl;
 }
 
-- (BOOL)diskCache
-{
-    return _diskCache && ![self isDataUri];
-}
-
 // A data uri's cache key: a SHA-256 of the uri, worked out once per uri (a
-// source is made again for every prop change and mount).
+// source is made again for every prop change and mount). The cache keeps the
+// uris themselves, so it's limited by their length (a few MB).
 - (NSString *)dataUriKey
 {
     static NSCache<NSString *, NSString *> *keys;
@@ -491,6 +487,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     dispatch_once(&once, ^{
         keys = [NSCache new];
         keys.countLimit = 200;
+        keys.totalCostLimit = 4 * 1024 * 1024;
     });
     NSString *uri = _url.absoluteString;
     NSString *key = [keys objectForKey:uri];
@@ -504,7 +501,7 @@ static BOOL FFFLooksLikeSVG(NSData *data)
     for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
         [hex appendFormat:@"%02x", digest[i]];
     }
-    [keys setObject:hex forKey:uri];
+    [keys setObject:hex forKey:uri cost:uri.length];
     return hex;
 }
 

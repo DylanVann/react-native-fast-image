@@ -295,7 +295,7 @@ static NSDictionary *FFFFile(NSString *path)
                 finishOne();
                 return;
             }
-            if (!source.diskCache && ![source isDataUri]) {
+            if (!source.diskCache) {
                 // Views decode an image for their own size, so one only
                 // preloaded into memory would be downloaded again.
                 [results addObject:FFFFailure(FFFNotOnDisk)];
@@ -316,13 +316,6 @@ static NSDictionary *FFFFile(NSString *path)
                 [FFFDownsampledImage addFullSizeToContext:context uncapped:YES screenScale:0 vectorBox:CGSizeZero cover:NO];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
-            }
-            if ([source isDataUri]) {
-                // Not kept on disk (see diskCache): in memory, unless
-                // memoryCache is false.
-                SDImageCacheType memory = source.memoryCache ? SDImageCacheTypeMemory : SDImageCacheTypeNone;
-                context[SDWebImageContextStoreCacheType] = @(memory);
-                context[SDWebImageContextQueryCacheType] = @(memory);
             }
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
                 // The image's own size, also when it was decoded smaller.
