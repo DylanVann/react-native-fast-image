@@ -50,6 +50,7 @@ import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
 import com.bumptech.glide.request.transition.TransitionFactory;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.i18nmanager.I18nUtil;
@@ -358,11 +359,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return getHeight() - mLayoutInsetTop - mLayoutInsetBottom;
     }
 
-    // Whether the style leaves a side open (autoSize) and the layout has only
-    // a width or a height so far: the other side follows the image, whose
-    // shape isn't known yet.
+    // Whether the layout has only a width or a height so far, the other being
+    // one the style leaves open (autoSize), and doesn't have an image's size
+    // yet: that side follows the image, whose shape isn't known yet. (Padding
+    // can leave it 0 inside after that too.)
     private boolean laysOutOneSide() {
-        return mAutoSize != 0 && (layoutContentWidth() > 0) != (layoutContentHeight() > 0);
+        if (imageLaidOut()) return false;
+        int width = layoutContentWidth();
+        int height = layoutContentHeight();
+        if (width > 0 && height <= 0) return (mAutoSize & AUTO_HEIGHT) != 0;
+        if (height > 0 && width <= 0) return (mAutoSize & AUTO_WIDTH) != 0;
+        return false;
     }
 
     // Of several sources, the index of the one whose size in pixels (width ×
@@ -1473,9 +1480,24 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private float mStateWidth = 0;
     private float mStateHeight = 0;
 
+    // The image size the layout has (the state's), which it gets after the
+    // view sets it.
+    private float mLaidOutWidth = 0;
+    private float mLaidOutHeight = 0;
+
     void setStateWrapper(@Nullable StateWrapper stateWrapper) {
         mStateWrapper = stateWrapper;
+        ReadableMap data = stateWrapper != null ? stateWrapper.getStateData() : null;
+        boolean wasLaidOut = imageLaidOut();
+        mLaidOutWidth = data != null && data.hasKey("width") ? (float) data.getDouble("width") : 0;
+        mLaidOutHeight = data != null && data.hasKey("height") ? (float) data.getDouble("height") : 0;
+        if (imageLaidOut() != wasLaidOut) invalidate();
         updateSizeState();
+    }
+
+    // Whether the layout has a loaded image's size.
+    private boolean imageLaidOut() {
+        return mLaidOutWidth > 0 && mLaidOutHeight > 0;
     }
 
     boolean getAutoSize() {
@@ -1675,7 +1697,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // instead, which looks the same once the view has the image's
             // shape (see reloadForSize).
             boolean uncropped = mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP
-                    && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0 || followsImage());
+                    && (!imageLaidOut() && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0)
+                            || followsImage());
             ScaleType fit = uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             if (uncropped && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());

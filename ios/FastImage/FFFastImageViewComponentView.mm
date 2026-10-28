@@ -243,6 +243,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
 {
     _state = std::static_pointer_cast<const FastImageViewShadowNode::ConcreteState>(state);
+    _imageView.imageLaidOut = _state && _state->getData().width > 0 && _state->getData().height > 0;
     [self updateImageSizeState];
 }
 
@@ -323,7 +324,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         _autoSize = newViewProps.autoSize != 0;
         [self updateImageSizeState];
     }
-    view.autoSize = _autoSize;
+    view.autoSize = newViewProps.autoSize;
 
     if (all || oldViewProps.source != newViewProps.source) {
         // One source, or several (an array). Only a change besides their

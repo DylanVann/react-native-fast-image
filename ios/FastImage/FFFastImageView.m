@@ -1327,25 +1327,40 @@ NSString *FFFErrorMessage(NSError *error)
     return [self viewBox];
 }
 
-// Whether the style leaves a side open (autoSize) and the layout has only a
-// width or a height so far (inside the padding, which is all an open side has
-// before an image loads): the other side follows the image (see
-// FastImageViewShadowNode), whose shape isn't known yet.
+// Whether the layout has only a width or a height so far (inside the
+// padding, which is all an open side has before an image loads), the other
+// being one the style leaves open (autoSize), and doesn't have an image's
+// size yet: that side follows the image (see FastImageViewShadowNode), whose
+// shape isn't known yet. (Padding can leave it 0 inside after that too.)
 - (BOOL) laysOutOneSide {
+    if (self.imageLaidOut) {
+        return NO;
+    }
     CGSize size = self.contentSize;
-    return self.autoSize && (size.width > 0) != (size.height > 0);
+    if (size.width > 0 && size.height <= 0) {
+        return (self.autoSize & 2) != 0;
+    }
+    if (size.height > 0 && size.width <= 0) {
+        return (self.autoSize & 1) != 0;
+    }
+    return NO;
 }
 
 // Nothing shows while a side the style leaves open is only padding
 // (laysOutOneSide): the image shows once the view has its shape, as it would
 // without padding (that side is 0 until then).
-- (void) setAutoSize: (BOOL)autoSize {
+- (void) setAutoSize: (NSInteger)autoSize {
     _autoSize = autoSize;
     self.hidden = [self laysOutOneSide];
 }
 
 - (void) setContentSize: (CGSize)contentSize {
     _contentSize = contentSize;
+    self.hidden = [self laysOutOneSide];
+}
+
+- (void) setImageLaidOut: (BOOL)imageLaidOut {
+    _imageLaidOut = imageLaidOut;
     self.hidden = [self laysOutOneSide];
 }
 
