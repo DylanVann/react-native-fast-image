@@ -178,8 +178,9 @@ function FastImageBase({
         )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
-    // The loaded image's size in points, kept until another image loads. A
-    // side the style leaves open follows it, as on iOS and Android: the view
+    // The loaded image's size in points, kept until another image loads (none
+    // after one failed, or without a source, as before one loads). A side
+    // the style leaves open follows it, as on iOS and Android: the view
     // gets the image's aspect ratio (unless the style has one), and with
     // neither side set, the image's width (at most the space there is) from a
     // spacer, so a stretched view still fills its parent.
@@ -187,6 +188,7 @@ function FastImageBase({
         width: number
         height: number
     }>()
+    if (!src && imageSize) setImageSize(undefined)
     const open = openSides(style)
     const sizeStyle =
         imageSize &&
@@ -332,6 +334,7 @@ function FastImageBase({
                     onError={(uri) => {
                         const error = `Failed to load resource ${uri}`
                         setResult({ key, ok: false })
+                        setImageSize(undefined)
                         onError?.({ nativeEvent: { error } })
                         onLoadEnd?.({ ok: false, error })
                     }}

@@ -1458,9 +1458,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // The shadow node's state (see FastImageViewShadowNode): the loaded
     // image's size in dp, which the view's layout follows where its style
-    // leaves it open (the autoSize prop). Only set then: a state update lays
-    // out the whole screen again. The last size set, so the same one isn't
-    // set again.
+    // leaves it open (the autoSize prop), or 0 after an image failed or
+    // without a source, as before one loads. Only set then: a state update
+    // lays out the whole screen again. The last size set, so the same one
+    // isn't set again.
     @Nullable
     private StateWrapper mStateWrapper;
     // The autoSize prop's bits: the sides the style leaves open.
@@ -1507,7 +1508,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     private void updateSizeState() {
-        if (mAutoSize == 0 || mStateWrapper == null || mLayoutWidth <= 0 || mLayoutHeight <= 0) return;
+        if (mAutoSize == 0 || mStateWrapper == null) return;
         if (mLayoutWidth == mStateWidth && mLayoutHeight == mStateHeight) return;
         mStateWidth = mLayoutWidth;
         mStateHeight = mLayoutHeight;
@@ -1962,6 +1963,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // does.
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
+        setLayoutSize(0, 0);
         endProgress();
         applyObjectFit();
         mShownRequest = null;
@@ -2042,6 +2044,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mBaseRequest = null;
         mModel = null;
 
+        if (mSource == null) setLayoutSize(0, 0);
         // Nothing to show.
         if (mSource == null && mShownPlaceholder == null) {
             mShownRequest = null;
@@ -2070,6 +2073,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
             FastImageEvents.sendLoadEnd(this, error);
 
+            setLayoutSize(0, 0);
             mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
