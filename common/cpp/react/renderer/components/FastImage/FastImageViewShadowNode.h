@@ -27,11 +27,16 @@ class JSI_EXPORT FastImageViewShadowNode final : public ConcreteViewShadowNode<
     // the pixel grid differently (sizes rounded up): an image is rounded as
     // any view is, also where its style sets both sides. (Clones copy the
     // node type.)
-    template <typename... Args>
-    FastImageViewShadowNode(Args &&...args) : ConcreteViewShadowNode(std::forward<Args>(args)...)
+    FastImageViewShadowNode(
+        const ShadowNodeFragment &fragment,
+        const ShadowNodeFamily::Shared &family,
+        ShadowNodeTraits traits)
+        : ConcreteViewShadowNode(fragment, family, traits)
     {
         YGNodeSetNodeType(&yogaNode_, YGNodeTypeDefault);
     }
+
+    FastImageViewShadowNode(const ShadowNode &sourceShadowNode, const ShadowNodeFragment &fragment);
 
     static ShadowNodeTraits BaseTraits()
     {
@@ -42,6 +47,19 @@ class JSI_EXPORT FastImageViewShadowNode final : public ConcreteViewShadowNode<
     }
 
     Size measureContent(const LayoutContext &layoutContext, const LayoutConstraints &layoutConstraints) const override;
+
+  protected:
+    // React Native dirties a measurable node on every clone (a prop or state
+    // change, or its parent's layout), laying it out again. Only the image's
+    // size changes what measureContent returns (a style change dirties it
+    // itself).
+    bool shouldNewRevisionDirtyMeasurement(const ShadowNode &sourceShadowNode, const ShadowNodeFragment &fragment)
+        const override;
+
+  private:
+    // Whether this clone has another image size than the node it was cloned
+    // from (shouldNewRevisionDirtyMeasurement gets this node, not that one).
+    bool imageSizeChanged_{false};
 };
 
 } // namespace facebook::react
