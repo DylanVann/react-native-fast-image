@@ -115,6 +115,30 @@ describe('FastImage (iOS)', () => {
         expect(fromProp.props.tintColor).toBe('red')
     })
 
+    it('sends the sides the style leaves open as autoSize (1 the width, 2 the height)', () => {
+        const source = { uri: 'https://example.com/image.png' }
+        const autoSize = (style: FastImageProps['style']) =>
+            (
+                renderer
+                    .create(<FastImage source={source} style={style} />)
+                    .toJSON() as any
+            ).props.autoSize
+        expect(autoSize({})).toBe(3)
+        expect(autoSize({ width: 240 })).toBe(2)
+        expect(autoSize({ width: 240, height: 'auto' })).toBe(2)
+        expect(autoSize({ height: 64 })).toBe(1)
+        expect(autoSize({ width: 240, height: 120 })).toBe(0)
+        // A later style's undefined clears a side, as StyleSheet.flatten does.
+        expect(
+            autoSize([{ height: 200 }, { width: 96, height: undefined }]),
+        ).toBe(2)
+        // aspectRatio sets the other side.
+        expect(autoSize({ width: '100%', aspectRatio: 16 / 9 })).toBe(0)
+        expect(autoSize({ aspectRatio: 1 })).toBe(3)
+        // An absolutely positioned view's insets set both.
+        expect(autoSize(StyleSheet.absoluteFill)).toBe(0)
+    })
+
     it('uses the last tintColor in a style array', () => {
         const tree: any = renderer
             .create(
