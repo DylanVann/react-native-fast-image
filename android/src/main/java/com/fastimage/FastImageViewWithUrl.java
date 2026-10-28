@@ -1698,6 +1698,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
             mLoadingUncropped = false;
+            mLoadingUnsized = false;
             options = new RequestOptions()
                     .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, String.valueOf(model)))
                     .dontTransform();
@@ -1712,19 +1713,29 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             boolean uncropped = mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP
                     && (!imageLaidOut() && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0)
                             || followsImage());
-            ScaleType fit = uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
+            // Before the view has any size (neither side laid out, e.g. no
+            // width or height: both follow the image), Glide asks for the
+            // screen's length both ways, and would scale the image up to it.
+            // It's loaded no larger than its own size instead (an SVG at its
+            // own size in dp), which a view at that size doesn't load again
+            // (see isResized).
+            boolean unsized = mAutoSize != 0 && !imageLaidOut()
+                    && layoutContentWidth() <= 0 && layoutContentHeight() <= 0
+                    && mFitScaleType != ScaleType.CENTER;
+            ScaleType fit = unsized ? ScaleType.CENTER_INSIDE : uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
-            if (uncropped && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
+            mLoadingUnsized = unsized;
+            if ((uncropped || unsized) && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
             options = FastImageSourceSize.scaleTypeOptions(fit,
-                    FastImageSourceSize.capture(fit, model, mDownsample), uncropped ? null : positionedCrop(), blur,
-                    mDownsample);
-            boolean ownSize = mFitScaleType == ScaleType.CENTER_INSIDE || mFitScaleType == ScaleType.CENTER;
+                    FastImageSourceSize.capture(fit, model, mDownsample),
+                    uncropped || unsized ? null : positionedCrop(), blur, mDownsample);
+            boolean ownSize = fit == ScaleType.CENTER_INSIDE || fit == ScaleType.CENTER;
             // scale-down and none show it at its own size in dp: an SVG is
             // drawn at that size, so it's sharp (not with a blur, which hides
             // the difference).
             if (ownSize && blur == null) {
                 options = options.set(FastImageSvg.DENSITY, loadingDensity())
-                        .set(FastImageSvg.FITS, mFitScaleType == ScaleType.CENTER_INSIDE);
+                        .set(FastImageSvg.FITS, fit == ScaleType.CENTER_INSIDE);
             }
         }
         return blur != null ? options.dontAnimate() : options;
@@ -1771,6 +1782,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // shape, which doesn't load it again.
     private boolean mShownUncropped = false;
     private boolean mLoadingUncropped = false;
+    // Whether the shown and the loading image were loaded before the view
+    // had any size, no larger than their own size (see renderingOptions).
+    private boolean mShownUnsized = false;
+    private boolean mLoadingUnsized = false;
     private int mUncroppedWidth = 0;
     private int mUncroppedHeight = 0;
     private boolean mResizeReloadPosted = false;
@@ -1815,6 +1830,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
         mShownUncropped = mLoadingUncropped;
+        mShownUnsized = mLoadingUnsized;
         // A bitmap's size, or an animation's (a GIF or animated WebP, decoded
         // at that size).
         Bitmap bitmap = resource instanceof BitmapDrawable ? ((BitmapDrawable) resource).getBitmap() : null;
@@ -1873,7 +1889,22 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         // A fitted cover image the view didn't take the shape
                         // of, now that its layout has arrived.
                         || mShownUncropped && shownImageLaidOut())
-                && (width != mUncroppedWidth || height != mUncroppedHeight);
+                && (width != mUncroppedWidth || height != mUncroppedHeight)
+                // Loaded before the view had a size, no larger than the
+                // image's own size: a view at that size (in dp) gets nothing
+                // more from loading it again.
+                && !(mShownUnsized && atImageSize(width, height))
+                // Not while the view is only its padding on a side that follows
+                // the image: it gets its shape from the image.
+                && !laysOutOneSide();
+    }
+
+    // Whether a box is the image's own size in dp, within a pixel.
+    private boolean atImageSize(int width, int height) {
+        float density = imageDensity();
+        return mImageWidth > 0 && mImageHeight > 0
+                && Math.abs(width - mImageWidth * density) <= 1
+                && Math.abs(height - mImageHeight * density) <= 1;
     }
 
     // The same image at the view's new size. Meanwhile, and if that fails, the
@@ -1886,12 +1917,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         Drawable meanwhile = shownCopy(shown);
         mLoadCount++;
         clearView(requestManager);
-        // A cover image fitted before the view had its size is cropped now.
+        // A cover image fitted before the view had its size is cropped now,
+        // and one loaded before it had any size is loaded for it.
         RequestBuilder<Drawable> request = shown;
-        if (mShownUncropped && mBaseRequest != null) {
+        if ((mShownUncropped || mShownUnsized) && mBaseRequest != null) {
             request = mBaseRequest.clone().apply(renderingOptions(mModel));
         } else {
             mLoadingUncropped = mShownUncropped;
+            mLoadingUnsized = mShownUnsized;
         }
         RequestBuilder<Drawable> builder = request.clone()
                 .error(current.clone())
@@ -2039,12 +2072,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // Several sources: one is picked for the view's size, so a view that
         // hasn't been laid out yet loads after layout (props and layout are
         // applied in the same batch). A view that still has no size then
-        // (e.g. one sized from onLoad) loads the largest source. Also cover
-        // with autoSize, which is fitted while a side has no size yet (see
+        // (e.g. one sized from onLoad) loads the largest source. Also with
+        // autoSize, whose image is loaded for the sides laid out (see
         // renderingOptions): a view that gets both from its layout (e.g. flex)
-        // is cropped as usual.
+        // loads as usual.
         boolean several = severalSources() != null;
-        if (several || (mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP)) {
+        if (several || mAutoSize != 0) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
                 mWaitsForSize = true;
