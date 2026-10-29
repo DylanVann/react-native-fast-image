@@ -854,6 +854,9 @@ async function startIdbCompanion(udid: string) {
     const binary = env.VERIFY_IDB_COMPANION
     if (!binary || idb || portInUse(IDB_COMPANION_PORT)) return
     const log = path.join(OUT, 'idb-companion.log')
+    // The log goes on from the last app's companion: only what this one adds
+    // counts.
+    const from = fs.existsSync(log) ? fs.statSync(log).size : 0
     idbCompanion = start(
         binary,
         ['--udid', udid, '--grpc-port', String(IDB_COMPANION_PORT)],
@@ -862,7 +865,7 @@ async function startIdbCompanion(udid: string) {
     if (idbCompanion !== undefined) groups.add(idbCompanion)
     // It prints its port once it listens.
     for (let i = 0; i < 60; i++) {
-        if (fs.readFileSync(log, 'utf8').includes('"grpc_port"')) break
+        if (fs.readFileSync(log).subarray(from).includes('"grpc_port"')) break
         await sleep(500)
     }
     const session = http2.connect(`http://127.0.0.1:${IDB_COMPANION_PORT}`)
