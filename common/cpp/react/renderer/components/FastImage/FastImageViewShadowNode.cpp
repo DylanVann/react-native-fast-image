@@ -1,6 +1,7 @@
 #include "FastImageViewShadowNode.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <react/renderer/core/LayoutConstraints.h>
 #include <react/renderer/core/LayoutContext.h>
@@ -22,7 +23,12 @@ Size FastImageViewShadowNode::measureContent(
     if (image.width <= 0 || image.height <= 0) {
         return layoutConstraints.clamp({0, 0});
     }
-    const auto ratio = image.width / image.height;
+    // The style's aspectRatio (NaN if it has none) wins over the image's:
+    // Yoga applies it to the size measured here, so a size of the image's
+    // shape would come out smaller (with neither side set, the height from
+    // the image's shape, then the width from the style's ratio).
+    const auto styleRatio = YGNodeStyleGetAspectRatio(&yogaNode_);
+    const auto ratio = std::isnan(styleRatio) || styleRatio <= 0 ? image.width / image.height : styleRatio;
     // Yoga has resolved the padding by now (it measures with it).
     const Float paddingX =
         YGNodeLayoutGetPadding(&yogaNode_, YGEdgeLeft) + YGNodeLayoutGetPadding(&yogaNode_, YGEdgeRight);
@@ -42,11 +48,9 @@ Size FastImageViewShadowNode::measureContent(
     } else if (minimum.height == maximum.height) {
         size = forHeight(maximum.height);
     } else {
-        // The image's own size, scaled down to fit the space there is,
-        // keeping its shape.
-        size = {
-            std::max<Float>(0, image.width - paddingX),
-            std::max<Float>(0, image.height - paddingY)};
+        // The image's own width, and the height its shape (or the style's
+        // ratio) gives, scaled down to fit the space there is.
+        size = forWidth(std::max<Float>(0, image.width - paddingX));
         if (size.width > maximum.width) {
             size = forWidth(maximum.width);
         }

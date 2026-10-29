@@ -107,6 +107,28 @@
             }
         }
     },
+    "auto-size-edges": {
+        "description": {
+            "checks": "#436, continued: the style's aspectRatio with neither side set, and a height that grows from about 0."
+        },
+        "cases": {
+            "auto-size-aspect-ratio": {
+                "checks": "The style's aspectRatio wins over the image's, also with neither side set: the image's width (at most the space there is), and the height from the style's ratio.",
+                "steps": "Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The photo stretched to a 120x120 square on the left."
+            },
+            "auto-size-aspect-ratio-column": {
+                "checks": "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
+                "steps": "Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The photo stretched to a 120x120 square on the left."
+            },
+            "auto-size-grow": {
+                "checks": "An image with both sides set and objectFit contain, whose height grows from about 0 once it has loaded, is decoded again for its new size, not left as the copy decoded for the first one.",
+                "steps": "Loads a 1024x1024 photo with style { width: 120, height: 1 / PixelRatio.get() } (a box 1 pixel high) and objectFit contain, and 300 ms after onLoad makes the height 120. Passes 1.5 s later; the screenshot shows whether it was decoded again.",
+                "shows": "The photo at 120x120, sharp. A flat color (one pixel stretched) means it kept the copy decoded for the first size."
+            }
+        }
+    },
     "auto-size-changes": {
         "description": {
             "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set."
