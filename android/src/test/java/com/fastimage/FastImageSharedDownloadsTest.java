@@ -112,6 +112,45 @@ public class FastImageSharedDownloadsTest {
         assertEquals(1, server.count("/image"));
     }
 
+    // A second later, its bytes are gone: a request downloads the image again
+    // (Glide's disk cache has it by then).
+    @Test
+    public void aRequestWellAfterTheDownloadEndedDownloadsItAgain() throws Exception {
+        server.route("/image");
+        Load first = load(url("/image"));
+        byte[] bytes = first.bytes();
+        Thread.sleep(1500);
+        Load later = load(url("/image"));
+        assertArrayEquals(bytes, later.bytes());
+        assertEquals(2, server.count("/image"));
+    }
+
+    // The bytes stand for the disk cache for that moment: clearing it
+    // (clearDiskCache) drops them, and a source with diskCache false doesn't
+    // read them.
+    @Test
+    public void aRequestAfterTheDiskCacheWasClearedDownloadsItAgain() throws Exception {
+        server.route("/image");
+        Load first = load(url("/image"));
+        byte[] bytes = first.bytes();
+        FastImageSharedDownloads.dropEnded();
+        Load again = load(url("/image"));
+        assertArrayEquals(bytes, again.bytes());
+        assertEquals(2, server.count("/image"));
+    }
+
+    @Test
+    public void aRequestOffDiskDoesntReadTheBytesOfAnEndedDownload() throws Exception {
+        server.route("/image");
+        Load first = load(url("/image"));
+        byte[] bytes = first.bytes();
+        Load offDisk = new Load(FastImageSharedDownloads.loadData(url("/image"), client, false).fetcher);
+        loads.add(offDisk);
+        offDisk.fetcher.loadData(Priority.NORMAL, offDisk);
+        assertArrayEquals(bytes, offDisk.bytes());
+        assertEquals(2, server.count("/image"));
+    }
+
     @Test
     public void aRequestThatLeavesLeavesTheDownloadToTheOthers() throws Exception {
         TestServer.Route image = server.route("/image").holdAfter(100);

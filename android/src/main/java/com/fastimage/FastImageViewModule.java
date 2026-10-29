@@ -697,6 +697,9 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     promise.resolve(failure(e));
                     return;
                 }
+                // And the bytes of ended downloads, which stand for it for a
+                // moment (see FastImageSharedDownloads.LINGER_MS).
+                FastImageSharedDownloads.dropEnded();
                 // And the HTTP cache of `cache: 'web'` images, which Glide
                 // doesn't cache (set up when FastImage's components are
                 // registered).

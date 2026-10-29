@@ -83,8 +83,9 @@ import okio.BufferedSource;
 final class FastImageSharedDownloads {
     // The longest response kept in memory, and the most bytes held in memory
     // for downloads at once: encoded images (not decoded bitmaps, which
-    // Glide's memory cache holds), each only until every request has read it.
-    // Others are kept in a temporary file.
+    // Glide's memory cache holds), each until every request has read it (and
+    // LINGER_MS more while under half the budget). Others are kept in a
+    // temporary file.
     private static final long MEMORY_MAX = 1024 * 1024;
     private static final long MEMORY_BUDGET = Runtime.getRuntime().maxMemory() / 16;
     // The longest response kept in memory, still within MEMORY_BUDGET, when
@@ -103,14 +104,16 @@ final class FastImageSharedDownloads {
     // a request that looked before the first request's image was stored
     // there, and gets to downloading just after the download ended, reads
     // them rather than downloading the image again (views of one url at
-    // different sizes, which Glide loads apart, at once).
+    // different sizes, which Glide loads apart, at once). They stand for the
+    // disk cache, so clearDiskCache drops them (dropEnded), and a request
+    // that keeps its image off disk (diskCache false) doesn't read them.
     private static final long LINGER_MS = 1000;
     // Progress is sent when a download has read another 0.5% (and at its
     // start and end).
     private static final long PROGRESS_STEPS = 200;
 
     // The download new requests for a key join: in progress, or ended and
-    // still being read. Guards the downloads' sharing, queue and progress
+    // still being read (or read less than LINGER_MS ago). Guards the downloads' sharing, queue and progress
     // (taken before a download's own lock, and FastImageViewManager's progress
     // lock).
     private static final Map<String, Download> downloads = new HashMap<>();
@@ -169,8 +172,6 @@ final class FastImageSharedDownloads {
 
     static {
         reading.allowCoreThreadTimeOut(true);
-        lingering.setKeepAliveTime(30, TimeUnit.SECONDS);
-        lingering.allowCoreThreadTimeOut(true);
     }
 
     private static final class Finished {
@@ -256,7 +257,30 @@ final class FastImageSharedDownloads {
     // A remote image's load data (FastImageOkHttpProgressGlideModule): its
     // download with the client, shared with the other requests for its key.
     static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client) {
-        return new ModelLoader.LoadData<>(url, new Fetcher(url, client));
+        return loadData(url, client, true);
+    }
+
+    // onDisk false: a source with diskCache false, which only joins a download
+    // in progress (see LINGER_MS).
+    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client, boolean onDisk) {
+        return new ModelLoader.LoadData<>(url, new Fetcher(url, client, onDisk));
+    }
+
+    // The disk cache was cleared: requests download again, rather than read
+    // the bytes of a download that has ended (those still being read are
+    // dropped once they have been).
+    static void dropEnded() {
+        List<Store> dropped = new ArrayList<>();
+        synchronized (downloads) {
+            for (Download download : new ArrayList<>(downloads.values())) {
+                synchronized (download) {
+                    if (!download.ended) continue;
+                    download.unmap();
+                    if (download.readers == 0) dropped.add(download.drop());
+                }
+            }
+        }
+        for (Store store : dropped) Download.release(store);
     }
 
     // As Glide's OkHttp fetcher requests it. A url or header OkHttp can't
@@ -335,6 +359,7 @@ final class FastImageSharedDownloads {
     private static final class Fetcher implements DataFetcher<InputStream> {
         final GlideUrl url;
         final OkHttpClient client;
+        final boolean onDisk;
         // Set when it loads (Glide also makes fetchers it doesn't use, e.g.
         // for an image in its disk cache).
         String key;
@@ -348,9 +373,10 @@ final class FastImageSharedDownloads {
         private volatile InputStream stream;
         private volatile boolean fromFile;
 
-        Fetcher(GlideUrl url, OkHttpClient client) {
+        Fetcher(GlideUrl url, OkHttpClient client, boolean onDisk) {
             this.url = url;
             this.client = client;
+            this.onDisk = onDisk;
         }
 
         @Override
@@ -645,9 +671,11 @@ final class FastImageSharedDownloads {
                 // Cancelled before it got here.
                 if (fetcher.cancelled) return;
                 download = downloads.get(fetcher.key);
-                // A `web` image follows its HTTP cache: it only joins a
-                // download in progress, not the bytes of one that has ended.
-                if (download != null && fetcher.url instanceof FastImageWebGlideUrl && download.hasEnded()) {
+                // A `web` image follows its HTTP cache, and one off disk
+                // downloads again (see LINGER_MS): they only join a download
+                // in progress, not the bytes of one that has ended.
+                if (download != null && (fetcher.url instanceof FastImageWebGlideUrl || !fetcher.onDisk)
+                        && download.hasEnded()) {
                     download = null;
                 }
                 if (download == null) {
@@ -832,10 +860,23 @@ final class FastImageSharedDownloads {
         // LINGER_MS later, unless a request has joined by then.
         void readerClosed() {
             final int at;
-            synchronized (this) {
-                readers--;
-                if (readers > 0) return;
-                at = ++idle;
+            Store dropped = null;
+            synchronized (downloads) {
+                synchronized (this) {
+                    readers--;
+                    if (readers > 0) return;
+                    // In memory, with more than half the budget taken: now, so
+                    // other downloads' bytes still fit in memory.
+                    if (reserved > 0 && held > MEMORY_BUDGET / 2) {
+                        unmap();
+                        dropped = drop();
+                    }
+                    at = ++idle;
+                }
+            }
+            if (dropped != null) {
+                release(dropped);
+                return;
             }
             lingering.schedule(new Runnable() {
                 @Override
