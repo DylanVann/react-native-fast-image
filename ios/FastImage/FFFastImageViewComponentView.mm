@@ -7,6 +7,7 @@
 #import <react/renderer/components/RNFastImageSpec/Props.h>
 #import <react/renderer/components/RNFastImageSpec/RCTComponentViewHelpers.h>
 
+#import "FFFWork.h"
 #import "FFFastImageView.h"
 #import "FFFThumbHash.h"
 #import "RCTConvert+FFFastImage.h"
@@ -265,6 +266,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     if (data.width == _imageSize.width && data.height == _imageSize.height) {
         return;
     }
+    FFFWork(@"layout-state", _imageView.sources.firstObject.url, [NSString stringWithFormat:@"%gx%g", _imageSize.width, _imageSize.height]);
     _state->updateState(FastImageViewState{_imageSize.width, _imageSize.height});
 }
 

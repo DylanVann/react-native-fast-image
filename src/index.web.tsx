@@ -31,7 +31,12 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyleKeys, openSides, resolveObjectFit } from './objectFit'
+import {
+    declaredSizeStyle,
+    fromStyleKeys,
+    openSides,
+    resolveObjectFit,
+} from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -192,7 +197,14 @@ function FastImageBase({
         height: number
     }>()
     if (!src && imageSize) setImageSize(undefined)
-    const open = openSides(style)
+    // A single source's own size (a require()d image's, or a source's width
+    // and height) sets the open sides at once (see declaredSizeStyle).
+    const single = several ? undefined : [source].flat()[0]
+    const declared = declaredSizeStyle(
+        typeof single === 'number' ? getAssetByID(single) : single,
+        openSides(style),
+    )
+    const open = declared ? { width: false, height: false } : openSides(style)
     const sizeStyle =
         imageSize &&
         imageSize.width > 0 &&
@@ -241,8 +253,15 @@ function FastImageBase({
             {...({ 'aria-label': label } as {})}
             style={
                 sizeStyle
-                    ? [styles.container, sizeStyle, style]
-                    : [styles.container, style]
+                    ? [
+                          styles.container,
+                          sizeStyle,
+                          spacer && styles.fits,
+                          style,
+                      ]
+                    : declared
+                      ? [styles.container, declared, style]
+                      : [styles.container, style]
             }
             onLayout={onLayout}
             pointerEvents={pointerEvents}
@@ -515,6 +534,7 @@ function sizedSources(entries: (SizedSource | number)[]) {
         .map((source) => ({
             uri: source.uri as string,
             width: Math.round((source.width ?? 0) * (source.scale ?? 1)),
+            height: Math.round((source.height ?? 0) * (source.scale ?? 1)),
             scale: source.scale ?? 1,
         }))
     const largest = widths.reduce<(typeof widths)[number] | undefined>(
@@ -544,20 +564,29 @@ type LoadedImage = {
 }
 
 // The size of the image that loaded, in pixels, as on native. With a srcset,
-// the natural size is divided by the density the browser picked (the
-// candidate's width over `sizes`): it's the picked candidate's size instead.
+// the picked candidate's size as its source gives it (its natural size is
+// divided by the density the browser picked, the candidate's width over
+// `sizes`, which is 0 for an image with no width yet), its height from the
+// file's shape if the source has none.
 function loadedSize(
     image: LoadedImage,
     sized: ReturnType<typeof sizedSources> | undefined,
 ) {
     const picked = pickedSource(image, sized)
+    if (!picked) {
+        return { width: image.naturalWidth, height: image.naturalHeight }
+    }
     return {
-        width: picked?.width ?? image.naturalWidth,
-        height: picked
-            ? Math.round(
-                  (image.naturalHeight * picked.width) / image.naturalWidth,
-              )
-            : image.naturalHeight,
+        width: picked.width,
+        height:
+            picked.height > 0
+                ? picked.height
+                : image.naturalWidth > 0
+                  ? Math.round(
+                        (image.naturalHeight * picked.width) /
+                            image.naturalWidth,
+                    )
+                  : 0,
     }
 }
 
@@ -854,6 +883,11 @@ FastImage.getCachePath = () => Promise.resolve(notSupported)
 const styles = StyleSheet.create({
     container: {
         overflow: 'hidden',
+    },
+    // With neither side set: at most the space there is (the spacer's
+    // maxWidth is relative to the view, whose width the spacer sets).
+    fits: {
+        maxWidth: '100%',
     },
 })
 

@@ -1347,6 +1347,67 @@ function AutoSizePaddingTallCase() {
     )
 }
 
+// A single source's width and height (128x64) with no style, from a download
+// that takes 2 s: the view is 128x64 before the image loads, so the layout
+// doesn't change when it does.
+function AutoSizeDeclaredCase() {
+    const [layouts, setLayouts] = useState<string[]>([])
+    const [loaded, setLoaded] = useState<number>()
+    const before = loaded === undefined ? layouts : layouts.slice(0, loaded)
+    const status =
+        loaded === undefined
+            ? 'waiting'
+            : before.length > 0 &&
+                layouts.every((layout) => layout === '128x64')
+              ? 'OK'
+              : `layouts ${layouts.join(', ') || 'none'} (${before.length} before onLoad), expected 128x64`
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={
+                        // The web can't send the slow server's header (and
+                        // lays the view out long before the image arrives).
+                        Platform.OS === 'web'
+                            ? {
+                                  uri: imageUrl(
+                                      `picsum/1018-600x300.jpg?auto-size-declared=${RUN}`,
+                                  ),
+                                  width: 128,
+                                  height: 64,
+                              }
+                            : {
+                                  uri: slowImageUrl(
+                                      `picsum/1018-600x300.jpg?auto-size-declared=${RUN}&delay=2000`,
+                                  ),
+                                  headers: SLOW_HEADERS,
+                                  width: 128,
+                                  height: 64,
+                              }
+                    }
+                    style={{}}
+                    objectFit="fill"
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        const layout = `${Math.round(width)}x${Math.round(height)}`
+                        setLayouts((all) => [...all, layout])
+                    }}
+                    onLoad={() => setLoaded(layouts.length)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-declared"
+                status={status}
+                description={{
+                    checks: "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
+                    steps: 'Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad, was 128x64.',
+                    shows: 'The photo at 128x64 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A view with both sides set and objectFit contain whose height grows from
 // about 0 (as in an animation) once its image has loaded: the image is
 // decoded again for the new size. iOS took a decode for a box 1 pixel high
@@ -1675,6 +1736,44 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <AutoSizeGrowCase key="auto-size-grow" />,
+        ],
+    },
+    {
+        name: 'auto-size-declared',
+        description: {
+            checks: "#436, continued: a source's own size: several sources' scale, and a single source's width and height, laid out before the image loads.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-sources-scale"
+                id="auto-size-sources-scale"
+                source={[
+                    {
+                        uri: imageUrl(
+                            'picsum/1025-200x200.jpg?auto-size-scale=a',
+                        ),
+                        width: 80,
+                        height: 80,
+                        scale: 2.5,
+                    },
+                    {
+                        uri: imageUrl(
+                            'picsum/1025-200x200.jpg?auto-size-scale=b',
+                        ),
+                        width: 80,
+                        height: 80,
+                        scale: 2.5,
+                    },
+                ]}
+                style={{}}
+                expected={{ width: 80, height: 80 }}
+                description={{
+                    checks: "A single source's width and height are its size in points, as with React Native's Image: a 120x120 image given as 60x60 is 60x60.",
+                    steps: 'Loads a 120x120 photo as { uri, width: 60, height: 60 } with no style in a row. Passes once it has loaded and its layout is 60x60.',
+                    shows: 'The photo at 60x60 on the left.',
+                }}
+            />,
+            <AutoSizeDeclaredCase key="auto-size-declared" />,
         ],
     },
     {

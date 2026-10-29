@@ -1450,6 +1450,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private double mImageScale = 1;
     // The loading source's scale.
     private double mLoadingScale = 1;
+    // And with several sources, the picked one's (see onImageSize).
+    private double mLoadingLayoutScale = 1;
     @Nullable
     private Matrix mImageMatrix;
 
@@ -1461,7 +1463,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mImageScale = mLoadingScale;
         updateImageMatrix();
         if (size != null) {
-            setLayoutSize((float) (size[0] / mImageScale), (float) (size[1] / mImageScale));
+            double scale = mImageScale * mLoadingLayoutScale;
+            setLayoutSize((float) (size[0] / scale), (float) (size[1] / scale));
         }
     }
 
@@ -1560,6 +1563,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         WritableMap state = new WritableNativeMap();
         state.putDouble("width", mLayoutWidth);
         state.putDouble("height", mLayoutHeight);
+        // A layout of the whole screen (debug builds: FastImageWork).
+        if (FastImageWork.enabled()) FastImageWork.record("layout-state", mModel, mLayoutWidth + "x" + mLayoutHeight);
         mStateWrapper.updateState(state);
     }
 
@@ -2159,6 +2164,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
 
         mLoadingScale = mSource != null && mSource.packagerAsset ? Math.max(mSource.scale, 0.01) : 1;
+        // The picked one of several sources' scale (their sizes are in pixels
+        // times it): an open side follows the image's pixels over it, as on
+        // iOS and the web.
+        mLoadingLayoutScale = mSource != null && severalSources() != null ? Math.max(mSource.scale, 0.01) : 1;
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
         // A source without a uri (empty, missing or null), or one that can't be

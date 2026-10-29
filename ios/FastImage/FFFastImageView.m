@@ -942,7 +942,10 @@ NSString *FFFErrorMessage(NSError *error)
             @"height": [NSNumber numberWithDouble: size.height]
     };
     if (self.onImageSize) {
-        self.onImageSize(size);
+        // Of several sources, the picked one's pixels over its scale (their
+        // sizes are in pixels times it), as on Android and the web.
+        CGFloat scale = [self picksSource] && _source.scale > 0 ? _source.scale : 1;
+        self.onImageSize(CGSizeMake(size.width / scale, size.height / scale));
     }
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);

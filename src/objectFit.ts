@@ -142,3 +142,31 @@ export function openSides(style: unknown): { width: boolean; height: boolean } {
     }
     return { width: openWidth, height: openHeight }
 }
+
+// A single source's own size in points (a require()d image's, or a source's
+// width and height), which the sides a style leaves open (open) take before
+// the image loads, as with React Native's Image: with neither side set, its
+// width (at most the space there is) and its aspect ratio; with one, the
+// other from its aspect ratio. Those sides then don't follow the loaded
+// image. Undefined for several sources, without both, or with no open side.
+export function declaredSizeStyle(
+    source: unknown,
+    open: { width: boolean; height: boolean },
+): ImageStyle | undefined {
+    if (!open.width && !open.height) return undefined
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        return undefined
+    }
+    const { width, height } = source as { width?: unknown; height?: unknown }
+    if (
+        typeof width !== 'number' ||
+        typeof height !== 'number' ||
+        !(width > 0) ||
+        !(height > 0)
+    ) {
+        return undefined
+    }
+    return open.width && open.height
+        ? { width, maxWidth: '100%', aspectRatio: width / height }
+        : { aspectRatio: width / height }
+}

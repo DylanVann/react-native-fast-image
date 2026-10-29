@@ -139,6 +139,46 @@ describe('FastImage (iOS)', () => {
         expect(autoSize(StyleSheet.absoluteFill)).toBe(0)
     })
 
+    it("lays out a single source's own size at once, keeping its aspect ratio", () => {
+        const render = (
+            source: FastImageProps['source'],
+            style: FastImageProps['style'],
+        ) =>
+            renderer
+                .create(<FastImage source={source} style={style} />)
+                .toJSON() as any
+        const sized = {
+            uri: 'https://example.com/image.png',
+            width: 60,
+            height: 30,
+        }
+        // Neither side: its width (at most the space there is) and its shape.
+        const natural = render(sized, {})
+        expect(natural.props.autoSize).toBe(0)
+        expect(StyleSheet.flatten(natural.props.style)).toMatchObject({
+            width: 60,
+            maxWidth: '100%',
+            aspectRatio: 2,
+        })
+        // One side: the other from its aspect ratio, not its height.
+        const byWidth = render(sized, { width: 240 })
+        expect(byWidth.props.autoSize).toBe(0)
+        expect(StyleSheet.flatten(byWidth.props.style)).toMatchObject({
+            width: 240,
+            aspectRatio: 2,
+        })
+        expect(StyleSheet.flatten(byWidth.props.style).height).toBeUndefined()
+        // Both set: unchanged.
+        const both = render(sized, { width: 40, height: 40 })
+        expect(StyleSheet.flatten(both.props.style).aspectRatio).toBeUndefined()
+        // Without both sizes, or with several sources: from the loaded image.
+        expect(render({ uri: sized.uri, width: 60 }, {}).props.autoSize).toBe(3)
+        expect(
+            render([sized, { ...sized, uri: 'https://example.com/b.png' }], {})
+                .props.autoSize,
+        ).toBe(3)
+    })
+
     it('uses the last tintColor in a style array', () => {
         const tree: any = renderer
             .create(
