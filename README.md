@@ -252,7 +252,7 @@ A tiny version of the image (e.g. 8 to 20 px) as a data uri, shown blurred while
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `number`
 
-The image's width in points, as with React Native's `Image`: with `height`, a side the style leaves open takes it before the image loads (see [`style`](#style)). With several sources (`source` as an array), the width of the image at this uri, from which the view picks the one for its size.
+The image's width in points, as with React Native's `Image`: with `height`, it lays out a side the style leaves out (or sets to `'auto'`) before the image loads (see `style`). With several sources (`source` as an array), the width of the image at this uri, from which the view picks the one for its size.
 
 ---
 
