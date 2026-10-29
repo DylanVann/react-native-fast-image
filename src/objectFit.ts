@@ -17,6 +17,41 @@ export function fromStyle<K extends keyof ImageStyle>(
 
 const NOT_FOUND = {}
 
+// fromStyle for several keys, in one walk of the style (each registered style
+// flattened once): each key's value, or undefined.
+export function fromStyleKeys<K extends keyof ImageStyle>(
+    style: unknown,
+    keys: readonly K[],
+): { [P in K]?: ImageStyle[P] } {
+    const found: Record<string, unknown> = {}
+    const missing = new Set<string>(keys)
+    collectFromStyle(style, found, missing)
+    return found as { [P in K]?: ImageStyle[P] }
+}
+
+function collectFromStyle(
+    style: unknown,
+    found: Record<string, unknown>,
+    missing: Set<string>,
+) {
+    if (Array.isArray(style)) {
+        for (let i = style.length - 1; i >= 0 && missing.size > 0; i--) {
+            collectFromStyle(style[i], found, missing)
+        }
+        return
+    }
+    if (typeof style === 'number') {
+        style = StyleSheet.flatten(style as any)
+    }
+    if (!style || typeof style !== 'object') return
+    for (const key of missing) {
+        if (key in style) {
+            found[key] = (style as Record<string, unknown>)[key]
+            missing.delete(key)
+        }
+    }
+}
+
 function findInStyle(style: unknown, key: string): unknown {
     if (Array.isArray(style)) {
         for (let i = style.length - 1; i >= 0; i--) {
@@ -56,22 +91,39 @@ export function resolveObjectFit(
 // height), or `auto`, unless an absolutely positioned view's insets on both
 // sides set it (e.g. StyleSheet.absoluteFill, as FastImageBackground's image
 // has), or the style's aspectRatio sets it from the other side.
+const SIDE_KEYS = [
+    'width',
+    'height',
+    'aspectRatio',
+    'position',
+    'inset',
+    'insetInline',
+    'insetInlineStart',
+    'insetInlineEnd',
+    'insetBlock',
+    'insetBlockStart',
+    'insetBlockEnd',
+    'left',
+    'right',
+    'start',
+    'end',
+    'top',
+    'bottom',
+] as const
+
 export function openSides(style: unknown): { width: boolean; height: boolean } {
-    const width = fromStyle(style, 'width')
-    const height = fromStyle(style, 'height')
+    const values = fromStyleKeys(style, SIDE_KEYS)
+    const { width, height } = values
     let openWidth = width == null || width === 'auto'
     let openHeight = height == null || height === 'auto'
     if (openWidth !== openHeight) {
-        const aspectRatio = fromStyle(style, 'aspectRatio')
+        const aspectRatio = values.aspectRatio
         if (aspectRatio != null && aspectRatio !== 'auto') {
             openWidth = openHeight = false
         }
     }
-    if (
-        (openWidth || openHeight) &&
-        fromStyle(style, 'position') === 'absolute'
-    ) {
-        const set = (key: keyof ImageStyle) => fromStyle(style, key) != null
+    if ((openWidth || openHeight) && values.position === 'absolute') {
+        const set = (key: (typeof SIDE_KEYS)[number]) => values[key] != null
         const inset = set('inset')
         openWidth &&=
             !inset &&

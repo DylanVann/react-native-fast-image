@@ -874,9 +874,9 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   is.
      *
      * Until the image has loaded, and if it fails (`defaultSource` included),
-     * those sides are 0, so the layout changes when it loads. To keep its space, set both sides, or a width and an
-     * `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s
-     * result).
+     * those sides are 0, so the layout changes when it loads. To keep its
+     * space, set both sides, or a width and an `aspectRatio` you know
+     * beforehand (e.g. from your API, or `preload`'s result).
      *
      * ```jsx
      * <FastImage source={{ uri }} style={{ width: '100%' }} />

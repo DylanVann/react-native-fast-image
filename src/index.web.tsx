@@ -31,7 +31,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyle, openSides, resolveObjectFit } from './objectFit'
+import { fromStyleKeys, openSides, resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -49,7 +49,6 @@ import type {
     FastImageProps,
     FastImageRef,
     FastImageStaticProperties,
-    ImageStyle,
     ObjectFit,
     PreloadResult,
     Priority,
@@ -473,13 +472,23 @@ function sizedSource(source: SizedSource | number): SizedSource | undefined {
         : undefined
 }
 
+const PADDING_X_KEYS = [
+    'paddingLeft',
+    'paddingRight',
+    'paddingStart',
+    'paddingEnd',
+    'paddingHorizontal',
+    'padding',
+] as const
+
 // The style's left and right padding in points, where it's a number (a
 // percentage counts as 0): the padding of a view with neither side set, which
 // the image's width includes.
 function paddingX(style: unknown): number {
-    const side = (...keys: (keyof ImageStyle)[]) => {
+    const values = fromStyleKeys(style, PADDING_X_KEYS)
+    const side = (...keys: (typeof PADDING_X_KEYS)[number][]) => {
         for (const key of keys) {
-            const value = fromStyle(style, key)
+            const value = values[key]
             if (value != null) return typeof value === 'number' ? value : 0
         }
         return 0
@@ -495,8 +504,8 @@ function paddingX(style: unknown): number {
 // device pixels, usually the smallest at least as wide, as expo-image does.
 // sizes="auto" (the default sizes) has the browser use the width the image
 // is laid out at; it only applies to lazy images, and otherwise, or in
-// browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
-// srcset.
+// browsers without it, the next value, 100vw (the viewport's width). src is
+// the largest, for browsers without srcset.
 function sizedSources(entries: (SizedSource | number)[]) {
     const sources = entries.map(sizedSource)
     const widths = sources
