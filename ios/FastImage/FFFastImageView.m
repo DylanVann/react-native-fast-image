@@ -56,6 +56,8 @@
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
 @property(nonatomic, assign) BOOL decodedCover;
+// Whether it was decoded for the one side laid out (decodesForOneSide).
+@property(nonatomic, assign) BOOL decodedForOneSide;
 // The most pixels per point an SVG was drawn at for it (decodeMaxScale).
 @property(nonatomic, assign) CGFloat decodedMaxScale;
 // Whether it's decoded at full size however large (objectFit none).
@@ -1349,19 +1351,23 @@ NSString *FFFErrorMessage(NSError *error)
 // Nothing shows while a side the style leaves open is only padding
 // (laysOutOneSide): the image shows once the view has its shape, as it would
 // without padding (that side is 0 until then).
+- (void) updateHidden {
+    self.hidden = [self laysOutOneSide];
+}
+
 - (void) setAutoSize: (NSInteger)autoSize {
     _autoSize = autoSize;
-    self.hidden = [self laysOutOneSide];
+    [self updateHidden];
 }
 
 - (void) setContentSize: (CGSize)contentSize {
     _contentSize = contentSize;
-    self.hidden = [self laysOutOneSide];
+    [self updateHidden];
 }
 
 - (void) setImageLaidOut: (BOOL)imageLaidOut {
     _imageLaidOut = imageLaidOut;
-    self.hidden = [self laysOutOneSide];
+    [self updateHidden];
 }
 
 // Whether the image is decoded for the one side laid out: the view gets the
@@ -1454,7 +1460,7 @@ NSString *FFFErrorMessage(NSError *error)
         // image's shape, which the view now has.
         CGSize decoded = self.decodedBox;
         CGSize full = [FFFDownsampledImage sourceSizeOfImage: image];
-        if ((decoded.width <= 1 || decoded.height <= 1) && full.width > 0 && full.height > 0) {
+        if (self.decodedForOneSide && full.width > 0 && full.height > 0) {
             decoded = decoded.height <= 1
                 ? CGSizeMake(decoded.width, decoded.width * full.height / full.width)
                 : CGSizeMake(decoded.height * full.width / full.height, decoded.height);
@@ -1490,6 +1496,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     [self updateHashImage];
     self.decodedBox = CGSizeZero;
+    self.decodedForOneSide = NO;
     self.decodedUncapped = NO;
     self.redrawnSVGScale = 0;
     // The previous load, if it's still running, is for a source the view no
@@ -1559,6 +1566,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGSize box = [self decodeBox];
     self.decodedBox = box;
     self.decodedCover = [self decodeCovers];
+    self.decodedForOneSide = [self downsamples] && [self decodesForOneSide];
     self.decodedMaxScale = CGSizeEqualToSize(box, CGSizeZero) ? 0 : [self decodeMaxScale];
     self.decodedUncapped = CGSizeEqualToSize(box, CGSizeZero) && _objectFit == FFFObjectFitNone;
     return [self contextForSource: _source box: box cover: self.decodedCover];

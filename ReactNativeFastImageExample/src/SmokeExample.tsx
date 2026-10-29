@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { PixelRatio, Platform, View } from 'react-native'
+import { PixelRatio, Platform, View, type ViewStyle } from 'react-native'
 import FastImage, {
     FastImageBackground,
     FastImageRef,
@@ -803,12 +803,15 @@ function AutoSizeCase({
     id,
     source,
     style,
+    container,
     expected,
     description,
 }: {
     id: string
     source: React.ComponentProps<typeof FastImage>['source']
     style: React.ComponentProps<typeof FastImage>['style']
+    // The row's own style (e.g. a width the image fits in).
+    container?: ViewStyle
     expected: { width: number; height: number }
     description: Description
 }) {
@@ -821,7 +824,12 @@ function AutoSizeCase({
         Math.abs(layout.height - expected.height) < 0.5
     return (
         <View style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            <View
+                style={[
+                    { flexDirection: 'row', alignItems: 'flex-start' },
+                    container,
+                ]}
+            >
                 <FastImage
                     style={style}
                     objectFit="fill"
@@ -1339,6 +1347,49 @@ function AutoSizePaddingTallCase() {
     )
 }
 
+// A view with both sides set and objectFit contain whose height grows from
+// about 0 (as in an animation) once its image has loaded: the image is
+// decoded again for the new size. iOS took a decode for a box 1 pixel high
+// for one decoded for one side (an open one), and kept a square image's
+// copy contained in it, a pixel.
+function AutoSizeGrowCase() {
+    const [grown, setGrown] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1018-1024x1024.jpg?auto-size-grow=${RUN}`,
+                        ),
+                    }}
+                    style={{
+                        width: 120,
+                        height: grown ? 120 : 1 / PixelRatio.get(),
+                    }}
+                    objectFit="contain"
+                    onLoad={() =>
+                        setTimeout(() => {
+                            setGrown(true)
+                            setTimeout(() => setStatus('OK'), 1500)
+                        }, 300)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-grow"
+                status={status}
+                description={{
+                    checks: 'An image with both sides set and objectFit contain, whose height grows from about 0 once it has loaded, is decoded again for its new size, not left as the copy decoded for the first one.',
+                    steps: 'Loads a 1024x1024 photo with style { width: 120, height: 1 / PixelRatio.get() } (a box 1 pixel high) and objectFit contain, and 300 ms after onLoad makes the height 120. Passes 1.5 s later; the screenshot shows whether it was decoded again.',
+                    shows: 'The photo at 120x120, sharp. A flat color (one pixel stretched) means it kept the copy decoded for the first size.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A source change in a view with neither side set, at its first image's size
 // (a 120x120 square): recorded right of its middle, outside the square, as
 // the view goes to the next image's 2:1 shape, the image is magenta there (its
@@ -1585,6 +1636,45 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                       <AutoSizePaddingCoverCase key="auto-size-padding-cover" />,
                       <AutoSizePaddingTallCase key="auto-size-padding-tall" />,
                   ]),
+        ],
+    },
+    {
+        name: 'auto-size-edges',
+        description: {
+            checks: "#436, continued: the style's aspectRatio with neither side set, and a height that grows from about 0.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-aspect-ratio"
+                id="auto-size-aspect-ratio"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ aspectRatio: 1 }}
+                container={{ width: 120 }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "The style's aspectRatio wins over the image's, also with neither side set: the image's width (at most the space there is), and the height from the style's ratio.",
+                    steps: 'Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.',
+                    shows: 'The photo stretched to a 120x120 square on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-aspect-ratio-column"
+                id="auto-size-aspect-ratio-column"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ aspectRatio: 1 }}
+                container={{
+                    width: 120,
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
+                    steps: 'Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.',
+                    shows: 'The photo stretched to a 120x120 square on the left.',
+                }}
+            />,
+            <AutoSizeGrowCase key="auto-size-grow" />,
         ],
     },
     {
