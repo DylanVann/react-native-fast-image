@@ -5,10 +5,9 @@
         "request /fail-once/picsum/1025-200x200.jpg?smoke-reload-placeholder=RUN": 2,
         "request /picsum/1025-200x200.jpg?smoke-default=RUN": 1,
         "request /sized-300.png?smoke-sizes-change=RUN": 1,
-        "request /sized-900.png?smoke=RUN": 1
+        "request /sized-900.png?smoke-sizes-change=RUN": 1
     },
     "expo-image": {
-        "request /picsum/1020-120x120.jpg?expo-image=RUN": 1,
-        "request /sized-900.png?smoke-sizes-change=RUN": 1
+        "request /picsum/1020-120x120.jpg?expo-image=RUN": 1
     }
 }

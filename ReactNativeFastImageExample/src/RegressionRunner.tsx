@@ -42,16 +42,20 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //
 // Messages to the script (JSON, one per WebSocket message):
 //   { type: 'hello', platform, version, arch, groups: [names], window:
-//     { width, height }, scale, launch }           on connecting (window in
+//     { width, height }, scale, launch, at }       on connecting (window in
 //                                                 dp; scale = pixels per dp;
 //                                                 launch: the same until the
-//                                                 app or its JS starts again)
+//                                                 app or its JS starts again;
+//                                                 at: the app's clock)
 //   { type: 'group', index, name, wide, countWork, cases: [ids],
 //     description, descriptions: { id: description } }
 //                                                 once a group is on screen
 //                                                 (wide: compared whole;
 //                                                 countWork: false, its work
 //                                                 isn't compared)
+//   { type: 'mount', index, at }                  as a group starts to mount,
+//                                                 before its cases do (at:
+//                                                 the app's clock)
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
 //   { type: 'masks', group, id, masks, cases, content, visible, safeArea }
 //                                                 the reply to 'measure'
@@ -325,6 +329,7 @@ export default function RegressionRunner({
                         window: Dimensions.get('window'),
                         scale: PixelRatio.get(),
                         launch: LAUNCH,
+                        at: Date.now(),
                     }),
                 )
                 for (const text of queue.current.splice(0)) ws?.send(text)
@@ -471,9 +476,12 @@ function Group({
     frames: Frames
 }) {
     // Before its cases mount: the work Fast Image logs after this line in
-    // the app's log (FastImageWork, in debug builds) is this group's (see
-    // scripts/verify.mts).
-    useState(() => console.log(`FastImageWork group ${group.name}`))
+    // the app's log (FastImageWork, in debug builds) is this group's, and so
+    // are the requests after the mount message (see scripts/verify.mts).
+    useState(() => {
+        console.log(`FastImageWork group ${group.name}`)
+        send({ type: 'mount', index, at: Date.now() })
+    })
     const statuses = useRef(new Map<string, string>())
     const descriptions = useRef(new Map<string, Description>())
     const describe = useCallback((id: string, description: Description) => {

@@ -2304,7 +2304,7 @@ async function runRegression(
     const failures: string[] = []
     // When each group was shown (for reportWork), and the groups whose work
     // isn't compared (countWork: false).
-    const groupStarts: { group: string; at: number }[] = []
+    const groupStarts: { group: string; at: number; appAt?: number }[] = []
     // When the app started again while showing a group (see reportWork).
     const restarts = new Map<string, number>()
     const uncountedWork = new Set<string>()
@@ -2989,9 +2989,14 @@ async function runRegression(
     // The group on screen. If the app starts again (maestro-runner's iOS
     // driver relaunches it for the touch group), show that group again.
     let showing: number | undefined
-    // When the app said each group was on screen (by index), and its launch
-    // (see 'hello'): a reconnect of the same launch isn't a restart.
-    const shownAt = new Map<number, number>()
+    // When the app started to mount each group (by index), by its clock, and
+    // its clock less this machine's, at most: the smallest gap between an app
+    // message's time and when it came (it comes through the image server's
+    // relay, after the group's first image requests; the emulator's clock is
+    // about 100 ms off). And its launch (see 'hello'): a reconnect of the
+    // same launch isn't a restart.
+    const mountedAt = new Map<number, number>()
+    let clockOffset = Infinity
     let launch: unknown
     ws.onmessage = (event) => {
         const message = JSON.parse(String(event.data)) as RunnerMessage
@@ -3002,8 +3007,10 @@ async function runRegression(
             // Look again once the grace period is over.
             if (!appConnected) setTimeout(notify, RECONNECT_GRACE_MS + 100)
         } else messages.push(message)
-        if (message.type === 'group' && typeof message.index === 'number') {
-            shownAt.set(message.index, Date.now())
+        if (typeof message.at === 'number') {
+            clockOffset = Math.min(clockOffset, Date.now() - message.at)
+            if (message.type === 'mount' && typeof message.index === 'number')
+                mountedAt.set(message.index, message.at)
         }
         if (message.type === 'hello') {
             const relaunched = launch !== undefined && message.launch !== launch
@@ -3282,9 +3289,10 @@ async function runRegression(
             () => messages.find((m) => m.type === 'group' && m.index === index),
             GROUP_TIMEOUT,
         )
-        // From when the app showed it (requests before are the previous
-        // group's, which was on screen until then).
-        groupStarts.push({ group, at: shownAt.get(index) ?? groupStart })
+        // From when the app started to mount it (requests before are the
+        // previous group's, which was on screen until just before), by this
+        // machine's clock once the run is over (see clockOffset).
+        groupStarts.push({ group, at: groupStart, appAt: mountedAt.get(index) })
         if (!shown) {
             failGroup(
                 `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
@@ -3456,7 +3464,13 @@ async function runRegression(
         app,
         platform,
         dir,
-        groupStarts,
+        groupStarts.map(({ group, at, appAt }) => ({
+            group,
+            at:
+                appAt !== undefined && Number.isFinite(clockOffset)
+                    ? appAt + clockOffset
+                    : at,
+        })),
         restarts,
         startedAt,
         endedAt,
