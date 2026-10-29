@@ -2166,8 +2166,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mLoadingScale = mSource != null && mSource.packagerAsset ? Math.max(mSource.scale, 0.01) : 1;
         // The picked one of several sources' scale (their sizes are in pixels
         // times it): an open side follows the image's pixels over it, as on
-        // iOS and the web.
-        mLoadingLayoutScale = mSource != null && severalSources() != null ? Math.max(mSource.scale, 0.01) : 1;
+        // iOS and the web. (A bundled one's is mLoadingScale already.)
+        mLoadingLayoutScale = mSource != null && !mSource.packagerAsset && severalSources() != null
+                ? Math.max(mSource.scale, 0.01) : 1;
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
         // A source without a uri (empty, missing or null), or one that can't be

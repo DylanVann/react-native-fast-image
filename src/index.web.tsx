@@ -348,17 +348,19 @@ function FastImageBase({
                     alt={label ?? ''}
                     onLoad={(image) => {
                         const { width, height } = loadedSize(image, sized)
-                        const scale = loadedScale(
-                            image,
-                            { width },
-                            source,
-                            sized,
-                        )
+                        const scale = loadedScale(image, source, sized)
                         setResult({ key, ok: true })
-                        setImageSize({
-                            width: width / scale,
-                            height: height / scale,
-                        })
+                        // The same object for the same size (a reload, or
+                        // another candidate of the same size): no render.
+                        setImageSize((previous) =>
+                            previous?.width === width / scale &&
+                            previous.height === height / scale
+                                ? previous
+                                : {
+                                      width: width / scale,
+                                      height: height / scale,
+                                  },
+                        )
                         onLoad?.({ nativeEvent: { width, height } })
                         onLoadEnd?.({ ok: true, width, height })
                     }}
@@ -570,10 +572,10 @@ type LoadedImage = {
 }
 
 // The size of the image that loaded, in pixels, as on native. With a srcset,
-// the picked candidate's size as its source gives it (its natural size is
-// divided by the density the browser picked, the candidate's width over
-// `sizes`, which is 0 for an image with no width yet), its height from the
-// file's shape if the source has none.
+// the picked candidate's width as its source gives it, and the height from
+// the file's shape (its natural size is divided by the density the browser
+// picked, the candidate's width over `sizes`), or the source's height when
+// the browser has no natural size (an image with no width yet).
 function loadedSize(
     image: LoadedImage,
     sized: ReturnType<typeof sizedSources> | undefined,
@@ -585,14 +587,11 @@ function loadedSize(
     return {
         width: picked.width,
         height:
-            picked.height > 0
-                ? picked.height
-                : image.naturalWidth > 0
-                  ? Math.round(
-                        (image.naturalHeight * picked.width) /
-                            image.naturalWidth,
-                    )
-                  : 0,
+            image.naturalWidth > 0
+                ? Math.round(
+                      (image.naturalHeight * picked.width) / image.naturalWidth,
+                  )
+                : picked.height,
     }
 }
 
@@ -610,13 +609,12 @@ function pickedSource(
         : undefined
 }
 
-// The loaded image's pixels per point, which a side the style leaves open
+// The loaded image's pixels per point, which a side the style sets to `auto`
 // follows its size in points by, as on iOS and Android: a require()d image's
-// file's scale, or a source's pixels over its width (see `source`), otherwise
-// 1.
+// file's scale, or the picked one of several sources' scale, otherwise 1 (a
+// single source's own size, with both its width and height, is ownSize's).
 function loadedScale(
     image: LoadedImage,
-    size: { width: number },
     source: unknown,
     sized: ReturnType<typeof sizedSources> | undefined,
 ) {
@@ -626,8 +624,7 @@ function loadedScale(
         const asset: PackagerAsset | undefined = getAssetByID(single)
         return asset ? assetScale(asset) : 1
     }
-    const width = (single as Source | undefined)?.width
-    return width && width > 0 ? size.width / width : 1
+    return 1
 }
 
 const fill = {
