@@ -173,6 +173,9 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
 // with another one, which drops anything kept on the image itself.
 @interface FFFSourceSize : NSObject
 @property (atomic, assign) CGSize size;
+// The file's own scale the size is divided by (a bundled @3x image's 3, or
+// SDWebImage's from an @2x url), 1 for others.
+@property (atomic, assign) CGFloat scale;
 // The image is an SVG drawn into a bitmap for the box (see FFFDrawnSVG): it
 // has no full size to decode at, so it's always smaller than one.
 @property (atomic, assign) BOOL drawnForBox;
@@ -369,6 +372,11 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
     return sourceSize ? sourceSize.size : CGSizeZero;
 }
 
++ (CGFloat) sourceScaleOfImage: (UIImage*)image {
+    FFFSourceSize* sourceSize = [self sourceSizeObjectOfImage: image];
+    return sourceSize && sourceSize.scale > 0 ? sourceSize.scale : 1;
+}
+
 + (void) forgetUnusableImageForURL: (NSURL*)url context: (SDWebImageContext*)context {
     SDWebImageManager* manager = [SDWebImageManager sharedManager];
     if (!url || ![manager.imageCache isKindOfClass: [SDImageCache class]] || ![manager respondsToSelector: @selector(cacheKeyForURL:context:)]) {
@@ -524,6 +532,7 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
             sourceSize.size = pixelSize.width > 0 && pixelSize.height > 0
                 ? CGSizeMake(pixelSize.width / imageScale, pixelSize.height / imageScale)
                 : self.size;
+            sourceSize.scale = pixelSize.width > 0 && pixelSize.height > 0 ? imageScale : self.scale;
         }
     }
     return self;

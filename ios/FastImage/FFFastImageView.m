@@ -943,8 +943,11 @@ NSString *FFFErrorMessage(NSError *error)
     };
     if (self.onImageSize) {
         // Of several sources, the picked one's pixels over its scale (their
-        // sizes are in pixels times it), as on Android and the web.
-        CGFloat scale = [self picksSource] && _source.scale > 0 ? _source.scale : 1;
+        // sizes are in pixels times it), as on Android and the web: unless
+        // the size is in points already, from an @2x or @3x file (a bundled
+        // one's scale is the file's).
+        BOOL inPixels = [FFFDownsampledImage sourceScaleOfImage: image] <= 1;
+        CGFloat scale = [self picksSource] && inPixels && _source.scale > 0 ? _source.scale : 1;
         self.onImageSize(CGSizeMake(size.width / scale, size.height / scale));
     }
     if (self.onFastImageLoad) {
