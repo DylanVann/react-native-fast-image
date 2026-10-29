@@ -63,13 +63,14 @@ object AnimationClock {
     // Moves the animators on by `ms` and runs one frame of them, once that
     // much real time has passed since the pause too (the clock never gets
     // ahead of real time, so the animators don't go back when it resumes).
-    fun step(ms: Long, then: () -> Unit) {
-        if (!paused) return then()
+    // `then` gets what the frame threw, if anything.
+    fun step(ms: Long, then: (Throwable?) -> Unit) {
+        if (!paused) return then(null)
         time += ms
         Handler(Looper.getMainLooper()).postDelayed(
             {
-                runFrame()
-                then()
+                val error = runCatching { runFrame() }.exceptionOrNull()
+                then(error)
             },
             maxOf(0L, time - SystemClock.uptimeMillis()),
         )
@@ -87,14 +88,16 @@ object AnimationClock {
 
     fun resume() {
         if (!paused) return
+        // The commits ask the clock for its time: before going back to the
+        // Choreographer's, which only answers during a frame.
+        val committed = commits.toList()
+        commits.clear()
+        for (commit in committed) runCatching { commit.run() }
         paused = false
         setProvider(null)
         val due = frames.toList()
         frames.clear()
         for (frame in due) Choreographer.getInstance().postFrameCallback(frame)
-        val committed = commits.toList()
-        commits.clear()
-        for (commit in committed) commit.run()
     }
 }
 
@@ -126,7 +129,10 @@ class AnimationClockModule(context: ReactApplicationContext) : ReactContextBaseJ
     @ReactMethod
     fun step(ms: Double, promise: Promise) {
         onMain(promise) { done ->
-            AnimationClock.step(ms.toLong()) { afterFrames(2, done) }
+            AnimationClock.step(ms.toLong()) { error ->
+                if (error != null) promise.reject("E_ANIMATION_CLOCK", error)
+                else afterFrames(2, done)
+            }
         }
     }
 

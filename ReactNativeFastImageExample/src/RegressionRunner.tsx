@@ -97,29 +97,36 @@ const clock = NativeModules.AnimationClock as
 const STEPS = 4
 const MORE_STEPS = 2
 
+// How long the app waits for a screenshot: longer than the script's own
+// limits (10 s), so a late one can't answer the next step's request, and a
+// reply lost when the app reconnects still doesn't leave the animations paused
+// (the check says what it got).
+const FRAME_TIMEOUT_MS = 15_000
+
 // The stepped sample running (they take turns: the clock pauses every
 // animation in the app), and the one before it.
 let steppedTurn = Promise.resolve()
 
 // A stepped sample (see SampleRequest): once the samples before it are done,
 // pauses the animations, has the script screenshot the area, makes the change
-// and waits for it, then steps through steppedMs (in STEPS steps, and
-// MORE_STEPS more) with a screenshot after each step. False if the animations
-// couldn't be paused.
+// and waits for it (durationMs at most, as a recording), then steps through
+// steppedMs (in STEPS steps, and MORE_STEPS more) with a screenshot after each
+// step. 'recorded' if the animations couldn't be paused (it's recorded
+// instead), 'gone' if its group was (the runner showed the next one).
 function stepSample(
     group: number,
     request: SampleRequest,
     change: SampleChange,
     send: (message: Message) => void,
     frames: Frames,
+    gone: () => boolean,
 ) {
     const turn = steppedTurn.then(async () => {
-        if (!clock) return false
-        // At most a few seconds each: a reply lost when the app reconnects
-        // mustn't leave the animations paused (the check says what it got).
+        if (!clock) return 'recorded' as const
+        if (gone()) return 'gone' as const
         const shot = () =>
             new Promise<void>((resolve) => {
-                const timer = setTimeout(resolve, 5000)
+                const timer = setTimeout(resolve, FRAME_TIMEOUT_MS)
                 frames.set(`${group}/${request.name}`, () => {
                     clearTimeout(timer)
                     resolve()
@@ -134,20 +141,28 @@ function stepSample(
         try {
             await clock.pause()
         } catch {
-            return false
+            return 'recorded' as const
         }
         try {
             await shot()
-            await new Promise<void>((resolve) => change(resolve, true))
+            await new Promise<void>((resolve) => {
+                const timer = setTimeout(resolve, request.durationMs)
+                change(() => {
+                    clearTimeout(timer)
+                    resolve()
+                }, true)
+            })
             const step = (request.steppedMs ?? 0) / STEPS
-            for (let i = 0; i <= STEPS + MORE_STEPS; i++) {
+            for (let i = 0; i <= STEPS + MORE_STEPS && !gone(); i++) {
                 await clock.step(i === 0 ? 0 : step)
                 await shot()
             }
+        } catch {
+            // A step that failed: the check says what the screenshots got.
         } finally {
-            await clock.resume()
+            await clock.resume().catch(() => {})
         }
-        return true
+        return gone() ? ('gone' as const) : ('stepped' as const)
     })
     steppedTurn = turn.then(
         () => {},
@@ -473,19 +488,34 @@ function Group({
             new Promise<SampleResult>((resolve) => {
                 samples.set(`${index}/${request.name}`, { change, resolve })
                 if (request.steppedMs !== undefined && clock) {
-                    // A video sample where the clock can't pause (hidden
-                    // APIs not allowed).
-                    stepSample(index, request, change, send, frames).then(
-                        (stepped) =>
-                            send({
-                                type: stepped ? 'stepped' : 'sample',
-                                group: index,
-                                ...request,
-                            }),
-                    )
+                    // Stepped, or recorded where the clock can't pause
+                    // (hidden APIs not allowed).
+                    stepSample(
+                        index,
+                        request,
+                        change,
+                        send,
+                        frames,
+                        () => unmounted.current,
+                    ).then((result) => {
+                        if (result === 'gone') return
+                        send({
+                            type: result === 'stepped' ? 'stepped' : 'sample',
+                            group: index,
+                            ...request,
+                        })
+                    })
                 } else send({ type: 'sample', group: index, ...request })
             }),
         [index, send, samples, frames],
+    )
+    // Its stepped samples stop when it goes (see stepSample).
+    const unmounted = useRef(false)
+    useEffect(
+        () => () => {
+            unmounted.current = true
+        },
+        [],
     )
     // After the cases' effects, which report their first status.
     useEffect(() => {

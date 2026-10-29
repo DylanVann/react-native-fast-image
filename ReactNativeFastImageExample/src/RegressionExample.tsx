@@ -11709,11 +11709,11 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade',
         description: {
             checks: 'transition fades an image in when it loads: downloads and blurred images fade, images from the memory cache show at once unless skipOnCacheHit is none.',
-            steps: 'Video samples: the screen is recorded while each case makes its change, and the color in the middle of its black 48 × 48 view must go through the listed colors in order. The runner turns fades off by default; these cases pass transition { duration: 1000 } (1 s), with the other settings each names.',
+            steps: "Video samples: each case makes its change with the app's animations paused, then they're stepped through the fade with a screenshot at 0, 25, 50, 75 and 100% (where the app can't pause them, the screen is recorded). The color in the middle of its black 48 × 48 view must go through the listed colors in order. The runner turns fades off by default; these cases pass transition { duration: 1000 } (1 s), with the other settings each names.",
         },
         cases: [
             <FadeCase
@@ -11765,7 +11765,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade-web',
         description: {
             checks: "cache: 'web' images shown again: they show at once without transition and with it, and fade in with skipOnCacheHit none (Android faded them in each time, from its HTTP cache).",
@@ -11810,7 +11810,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade-default',
         description: {
             checks: 'The built-in default transition: downloads fade in on Android (300 ms) and show at once on iOS.',
@@ -11840,7 +11840,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade-source',
         description: {
             checks: 'transition by where the image comes from: a new source from the memory cache shows at once, local files and bundled images fade in.',
@@ -11883,7 +11883,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade-between',
         description: {
             checks: "transition's betweenImages: without it a new source replaces the image showing at once, with it the new image cross-dissolves from the old one.",
@@ -12045,7 +12045,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // Recorded (video samples).
+        // Video samples, stepped where the app can pause its animations.
         name: 'fade-drawables',
         description: {
             checks: 'transition with other kinds of drawables: an animated WebP fading in and, on Android, vector and animated WebP defaultSource drawables fading out around or under the image.',

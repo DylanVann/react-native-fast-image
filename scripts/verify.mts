@@ -815,6 +815,10 @@ const RECONNECT_GRACE_MS = 10_000
 // 16 s (shared-downloads, on CI too). A group that isn't OK by then fails, and
 // isn't run again: a flaky case shows as a failure to track and fix.
 const GROUP_TIMEOUT = 20_000
+// The most a stepped sample adds to its group's time limit (see
+// steppedTimes): its wait for the change (5 s) and its screenshots, with room
+// to spare.
+const STEPPED_MAX_MS = 30_000
 
 type RunnerMessage = { type: string } & Record<string, unknown>
 
@@ -1732,9 +1736,7 @@ function emulatorRecordScreen(device: string, file: string) {
     if (!emulatorGrpc) return undefined
     // ffmpeg starts before the first frame comes, so it's timed when it came
     // (as the first one ffmpeg reads): it needs the size up front.
-    const size = /(\d+)x(\d+)\s*$/.exec(
-        capture(ADB, ['-s', device, 'shell', 'wm', 'size']) ?? '',
-    )
+    const size = emulatorScreenSize(device)
     if (!size) return undefined
     const video = streamRecording(file, [
         '-f',
@@ -1742,7 +1744,7 @@ function emulatorRecordScreen(device: string, file: string) {
         '-pix_fmt',
         'rgb24',
         '-s',
-        `${size[1]}x${size[2]}`,
+        `${size.width}x${size.height}`,
     ])
     const session = http2.connect(`http://127.0.0.1:${EMULATOR_GRPC_PORT}`, {
         settings: { initialWindowSize: 2 ** 31 - 1 },
@@ -1883,18 +1885,7 @@ function frameColors(
     const [width, height] = (size ?? '').split(',').map(Number)
     if (!width || !height)
         throw new Error("ffprobe couldn't read the recording")
-    if (!windowWidthDp) throw new Error("the app didn't send its window size")
-    const px = width / windowWidthDp
-    const w = Math.max(2, Math.round((area.width / 2) * px))
-    const h = Math.max(2, Math.round((area.height / 2) * px))
-    const x = Math.min(
-        width - w,
-        Math.max(0, Math.round((area.x + area.width / 4) * px)),
-    )
-    const y = Math.min(
-        height - h,
-        Math.max(0, Math.round((area.y + area.height / 4) * px)),
-    )
+    const { x, y, w, h } = sampleCrop(area, width, height, windowWidthDp)
     const result = spawnSync(
         'ffmpeg',
         [
@@ -1947,8 +1938,42 @@ function frameColors(
     }))
 }
 
-// The average color of the middle half of `area` (dp) in a raw RGB frame,
-// as frameColors.
+// The pixels whose color a sample takes: the middle half of `area` (dp), in a
+// frame `width` × `height` pixels, at least 2 × 2.
+function sampleCrop(
+    area: PixelRect,
+    width: number,
+    height: number,
+    windowWidthDp: number,
+) {
+    if (!windowWidthDp) throw new Error("the app didn't send its window size")
+    const px = width / windowWidthDp
+    const w = Math.max(2, Math.round((area.width / 2) * px))
+    const h = Math.max(2, Math.round((area.height / 2) * px))
+    const x = Math.min(
+        width - w,
+        Math.max(0, Math.round((area.x + area.width / 4) * px)),
+    )
+    const y = Math.min(
+        height - h,
+        Math.max(0, Math.round((area.y + area.height / 4) * px)),
+    )
+    return { x, y, w, h }
+}
+
+// The emulator's screen size in pixels (the last of `wm size`'s sizes: an
+// override's, if there's one), as its gRPC API sends its frames.
+function emulatorScreenSize(device: string) {
+    const size = /(\d+)x(\d+)\s*$/.exec(
+        capture(ADB, ['-s', device, 'shell', 'wm', 'size']) ?? '',
+    )
+    return size
+        ? { width: Number(size[1]), height: Number(size[2]) }
+        : undefined
+}
+
+// The average color of a sample's pixels (sampleCrop) in a raw RGB frame, as
+// frameColors.
 function areaColor(
     pixels: Buffer,
     width: number,
@@ -1956,18 +1981,12 @@ function areaColor(
     area: PixelRect,
     windowWidthDp: number,
 ): Rgb {
-    if (!windowWidthDp) throw new Error("the app didn't send its window size")
-    const px = width / windowWidthDp
-    const w = Math.max(2, Math.round((area.width / 2) * px))
-    const h = Math.max(2, Math.round((area.height / 2) * px))
-    const x0 = Math.min(
-        width - w,
-        Math.max(0, Math.round((area.x + area.width / 4) * px)),
-    )
-    const y0 = Math.min(
-        height - h,
-        Math.max(0, Math.round((area.y + area.height / 4) * px)),
-    )
+    const {
+        x: x0,
+        y: y0,
+        w,
+        h,
+    } = sampleCrop(area, width, height, windowWidthDp)
     const sum = [0, 0, 0]
     for (let y = y0; y < y0 + h; y++)
         for (let x = x0; x < x0 + w; x++)
@@ -2053,13 +2072,8 @@ let emulatorSession: http2.ClientHttp2Session | undefined
 let emulatorSize: { width: number; height: number } | undefined
 function emulatorScreenshot(device: string) {
     if (!emulatorGrpc) return Promise.resolve(undefined)
-    if (!emulatorSize) {
-        const size = /(\d+)x(\d+)\s*$/.exec(
-            capture(ADB, ['-s', device, 'shell', 'wm', 'size']) ?? '',
-        )
-        if (!size) return Promise.resolve(undefined)
-        emulatorSize = { width: Number(size[1]), height: Number(size[2]) }
-    }
+    emulatorSize ??= emulatorScreenSize(device)
+    if (!emulatorSize) return Promise.resolve(undefined)
     const { width, height } = emulatorSize
     if (
         !emulatorSession ||
@@ -2801,12 +2815,18 @@ async function runRegression(
     // When stepped samples ran (start and end, ms; end undefined while one
     // does): a group's time limit leaves them out, since a group's stepped
     // samples take turns.
+    // Each counts for STEPPED_MAX_MS at most: a sample whose 'stepped' never
+    // comes (the app went away) doesn't keep its group going.
     const steppedTimes: { start: number; end?: number }[] = []
     const steppedSince = (since: number) =>
         steppedTimes.reduce(
             (total, { start, end }) =>
                 total +
-                Math.max(0, (end ?? Date.now()) - Math.max(start, since)),
+                Math.max(
+                    0,
+                    Math.min(end ?? Date.now(), start + STEPPED_MAX_MS) -
+                        Math.max(start, since),
+                ),
             0,
         )
     const takeFrame = async (message: RunnerMessage) => {
@@ -2821,11 +2841,11 @@ async function runRegression(
         }
         const area = message.area as PixelRect
         const base = `${String(index + 1).padStart(2, '0')}-${groups[index]}-${name}`
-        const shot =
-            platform === 'android'
-                ? await emulatorScreenshot(device)
-                : undefined
         try {
+            const shot =
+                platform === 'android'
+                    ? await emulatorScreenshot(device)
+                    : undefined
             if (shot) {
                 const size = `${shot.width}x${shot.height}`
                 if (!sample.video || sample.size !== size) {
@@ -2852,10 +2872,12 @@ async function runRegression(
                     `${base}-step-${String(sample.colors.length).padStart(2, '0')}.png`,
                 )
                 // The companion's (about 80 ms), or simctl's or adb's.
-                const png =
-                    platform === 'ios' ? await idbScreenshot() : undefined
+                let png = platform === 'ios' ? await idbScreenshot() : undefined
                 if (png) fs.writeFileSync(file, png)
-                else screenshot(platform, device, file)
+                else {
+                    screenshot(platform, device, file)
+                    if (fs.existsSync(file)) png = fs.readFileSync(file)
+                }
                 const width = png?.readUInt32BE(16) ?? 0
                 const decoded =
                     png &&
