@@ -1743,6 +1743,7 @@ NSString *FFFErrorMessage(NSError *error)
     // nil in app extensions, which don't get these notifications.
     UIApplication* application = RCTSharedApplication();
     if (!application || application.applicationState == UIApplicationStateActive) {
+        FFFWork(@"load", source.url, @"after-background");
         [self downloadImage: source options: options context: context events: YES];
         return;
     }
@@ -1754,6 +1755,7 @@ NSString *FFFErrorMessage(NSError *error)
                                                                         usingBlock: ^(NSNotification* notification) {
         [weakSelf stopWaitingForActive];
         if (weakSelf.source == source) {
+            FFFWork(@"load", source.url, @"after-background");
             [weakSelf downloadImage: source options: options context: context events: YES];
         }
     }];

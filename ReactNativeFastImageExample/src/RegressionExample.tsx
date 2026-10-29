@@ -5262,23 +5262,24 @@ function CacheOnlyMissCase({
 const EXAMPLE_MAX_DISK_SIZE = 300 * 1024 * 1024
 
 // FastImage.configureCache: the limit in the app's native config is in effect
-// from the start, with the disk cache's size. iOS: a runtime change applies at
-// once: downloads an image (getCachePath), sets maxDiskSize to 1 byte, which
-// removes every image from the disk cache, then the image isn't cached
-// anymore. Resetting it (null) goes back to the native config's limit. On
-// Android a runtime change applies from the next launch, so the limit in
-// effect stays the same. Changes are saved, so it always resets. Only groups
-// after this one see the emptied cache.
+// from the start, with the disk cache's size (after downloading an image,
+// getCachePath: the runner empties the caches before each group). iOS: a
+// runtime change applies at once: sets maxDiskSize to 1 byte, which removes
+// every image from the disk cache, then the image isn't cached anymore.
+// Resetting it (null) goes back to the native config's limit. On Android a
+// runtime change applies from the next launch, so the limit in effect stays
+// the same. Changes are saved, so it always resets.
 function ConfigureCacheCase() {
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         const uri = imageUrl(`picsum/1022-120x120.jpg?configure-cache=${RUN}`)
         const run = async () => {
+            const before = await FastImage.getCachePath({ uri })
+            if (!before.ok) return setStatus(`not cached: ${before.error}`)
             const state = await FastImage.configureCache()
             if (state.maxDiskSize !== EXAMPLE_MAX_DISK_SIZE) {
                 return setStatus(`maxDiskSize is ${state.maxDiskSize}`)
             }
-            // Images earlier groups loaded.
             if (!state.diskSize)
                 return setStatus(`diskSize is ${state.diskSize}`)
             if (Platform.OS !== 'ios') {
@@ -5295,8 +5296,6 @@ function ConfigureCacheCase() {
                         : `in effect: ${changed.maxDiskSize}, ${reset.maxDiskSize}`,
                 )
             }
-            const before = await FastImage.getCachePath({ uri })
-            if (!before.ok) return setStatus(`not cached: ${before.error}`)
             const trimmed = await FastImage.configureCache({ maxDiskSize: 1 })
             const after = await FastImage.getCachePath({
                 uri,

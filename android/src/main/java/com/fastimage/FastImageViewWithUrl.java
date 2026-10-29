@@ -795,7 +795,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             try {
                 int[] box = FastImageSourceSize.box(width, height);
                 from = Bitmap.createBitmap(box[0], box[1], Bitmap.Config.ARGB_8888);
-                FastImageWork.record("snapshot", mModel, box[0] + "x" + box[1]);
+                if (FastImageWork.enabled()) FastImageWork.record("snapshot", mModel, box[0] + "x" + box[1]);
                 Canvas canvas = new Canvas(from);
                 canvas.scale((float) box[0] / width, (float) box[1] / height);
                 onDraw(canvas);

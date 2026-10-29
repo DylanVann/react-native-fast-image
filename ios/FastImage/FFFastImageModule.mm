@@ -2,6 +2,7 @@
 #import "RCTConvert+FFFastImage.h"
 #import "FFFastImageView.h"
 #import "FFFDownsampledImage.h"
+#import "FFFWork.h"
 #import <React/RCTUtils.h>
 
 #import <SDWebImage/SDImageCache.h>
@@ -378,6 +379,7 @@ static NSDictionary *FFFFile(NSString *path)
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
+            FFFWork(@"load", source.url, @"preload");
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
                 // The image's own size, also when it was decoded smaller.
                 CGSize size = [FFFDownsampledImage sourceSizeOfImage:image];
@@ -451,6 +453,7 @@ static NSDictionary *FFFFile(NSString *path)
         context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
         context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
         context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+        FFFWork(@"load", source.url, @"cache-path");
         FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
             if (!image) {
                 resolve(FFFFailure([source errorMessage:error]));

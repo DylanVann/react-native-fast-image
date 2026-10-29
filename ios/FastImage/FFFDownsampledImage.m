@@ -448,8 +448,8 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
         NSNumber* preserveAspectRatio = options[SDImageCoderDecodePreserveAspectRatio];
         BOOL cover = preserveAspectRatio != nil && !preserveAspectRatio.boolValue;
         CGFloat maxScale = [options[FFFDecodeMaxScale] doubleValue];
-        FFFWork(@"svg", options[FFFDecodeWorkURL], [NSString stringWithFormat: @"%gx%g for %gx%g", image.size.width, image.size.height, boxValue.CGSizeValue.width, boxValue.CGSizeValue.height]);
         if (boxValue && image) {
+            FFFWork(@"svg", options[FFFDecodeWorkURL], [NSString stringWithFormat: @"%gx%g for %gx%g", image.size.width, image.size.height, boxValue.CGSizeValue.width, boxValue.CGSizeValue.height]);
             UIImage* drawn = FFFDrawnSVG(image, boxValue.CGSizeValue, cover, maxScale);
             if (drawn) {
                 image = drawn;
@@ -464,6 +464,7 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
             if (vectorBox) {
                 scale = MAX(scale, FFFBoxScale(image.size, vectorBox.CGSizeValue, [options[FFFDecodeVectorCover] boolValue]));
             }
+            FFFWork(@"svg", options[FFFDecodeWorkURL], [NSString stringWithFormat: @"%gx%g at scale %g", image.size.width, image.size.height, scale]);
             UIImage* drawn = FFFDrawnSVGAtScale(image, scale);
             if (drawn) {
                 image = drawn;

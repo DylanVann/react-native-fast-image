@@ -76,7 +76,9 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // { type: 'recording', group, name } says a sample's recording has started,
 // { type: 'framed', group, name } that a stepped sample's screenshot is
 // taken, and { type: 'sampled', group, name, ok, seen, detail } gives its
-// result.
+// result; { type: 'end' } says the run is over (the work in the app's log
+// after it isn't counted, and the script waits for the line to reach the
+// log).
 
 type Message = { type: string; [key: string]: unknown }
 
@@ -236,11 +238,12 @@ export default function RegressionRunner({
     useState(() => LogBox.ignoreAllLogs())
     const [index, setIndex] = useState(0)
     // The group to show next ('next': the one after), while the one on screen
-    // is unmounted and the memory cache cleared: each group starts with an
-    // empty memory cache, so the work it makes Fast Image do (see
-    // scripts/verify.mts) doesn't depend on the groups before it. Cleared
-    // once the unmount is on screen, when the views have let go of their
-    // images (Android's memory cache keeps the images views hold).
+    // is unmounted and the caches cleared: each group starts with empty
+    // caches, so the work it makes Fast Image do (see scripts/verify.mts)
+    // doesn't depend on the groups before it, which differ between a full
+    // run, a CI shard and a run of some groups. Cleared once the unmount is
+    // on screen, when the views have let go of their images (Android's
+    // memory cache keeps the images views hold).
     const [next, setNext] = useState<number | 'next' | undefined>(undefined)
     useEffect(() => {
         if (next === undefined) return
@@ -251,7 +254,12 @@ export default function RegressionRunner({
             setNext(undefined)
         }
         afterLayout()
-            .then(() => FastImage.clearMemoryCache())
+            .then(() =>
+                Promise.all([
+                    FastImage.clearMemoryCache(),
+                    FastImage.clearDiskCache(),
+                ]),
+            )
             .then(show, show)
         return () => {
             cancelled = true
@@ -332,6 +340,8 @@ export default function RegressionRunner({
                     samples.delete(`${message.group}/${message.name}`)
                     sample?.resolve(message as unknown as SampleResult)
                 } else if (message.type === 'next') setNext('next')
+                else if (message.type === 'end')
+                    console.log('FastImageWork end')
                 else if (message.type === 'measure') {
                     afterLayout()
                         .then(() =>

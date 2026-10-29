@@ -2305,6 +2305,8 @@ async function runRegression(
     // When each group was shown (for reportWork), and the groups whose work
     // isn't compared (countWork: false).
     const groupStarts: { group: string; at: number }[] = []
+    // When the app started again while showing a group (see reportWork).
+    const restarts = new Map<string, number>()
     const uncountedWork = new Set<string>()
     let uncomparedWork: string | undefined
     // Each group's failures, by index.
@@ -2997,6 +2999,7 @@ async function runRegression(
             if (!appConnected) setTimeout(notify, RECONNECT_GRACE_MS + 100)
         } else messages.push(message)
         if (message.type === 'hello' && showing !== undefined) {
+            restarts.set(groups[showing], Date.now())
             send({ type: 'show', index: showing })
         }
         if (message.type === 'sample' && groups.length > 0) startSample(message)
@@ -3107,21 +3110,23 @@ async function runRegression(
             }
         }
         // Without React Native's development banner ("Downloading 100%"),
-        // which the first group's screenshot caught at the top. A default
-        // rather than a launch argument, so it also applies when
+        // which the first group's screenshot caught at the top, and with the
+        // work Fast Image does in the app's log (see reportWork). Defaults
+        // rather than launch arguments, so they also apply when
         // maestro-runner relaunches the app (the touch group); removed after
         // the app's run (flowsIos).
-        capture('xcrun', [
-            'simctl',
-            'spawn',
-            device,
-            'defaults',
-            'write',
-            appId,
-            'FastImageHideDevLoadingView',
-            '-bool',
-            'YES',
-        ])
+        for (const key of IOS_RUN_DEFAULTS)
+            capture('xcrun', [
+                'simctl',
+                'spawn',
+                device,
+                'defaults',
+                'write',
+                appId,
+                key,
+                '-bool',
+                'YES',
+            ])
         // A newly installed app's first launch can take minutes on a freshly
         // booted simulator (a CI machine's); a launch that's cut short still
         // happens later, after the wait for the app has started.
@@ -3146,6 +3151,17 @@ async function runRegression(
             device,
             'shell',
             `run-as ${appId} sh -c 'rm -rf cache/* cache/.[!.]*'`,
+        ])
+        // The work Fast Image does, in the app's log (see reportWork); read
+        // as the app starts, and back to the default after the app's run
+        // (flowsAndroid).
+        capture(ADB, [
+            '-s',
+            device,
+            'shell',
+            'setprop',
+            'log.tag.FastImageWork',
+            'DEBUG',
         ])
         capture(
             ADB,
@@ -3378,16 +3394,21 @@ async function runRegression(
     for (const [i, index] of indices.entries()) {
         ;({ connected } = await runGroup(index, `${i + 1}/${indices.length}`))
         if (!connected) break
-        // The next group (shown if it isn't the one after this).
+        // The next group (shown if it isn't the one after this), or past the
+        // last one; a shard's last group stays on screen.
         const next = indices[i + 1]
-        send(
-            next === undefined || next === index + 1
-                ? { type: 'next' }
-                : { type: 'show', index: next },
-        )
+        if (next !== undefined || index === groups.length - 1)
+            send(
+                next === undefined || next === index + 1
+                    ? { type: 'next' }
+                    : { type: 'show', index: next },
+            )
     }
     if (indices.at(-1) === groups.length - 1 && connected)
         await waitFor(() => messages.find((m) => m.type === 'done'), 5000)
+    // The work after this isn't counted (see reportWork).
+    const endedAt = Date.now()
+    send({ type: 'end' })
     ws.close()
     await Promise.all(shots)
     failures.push(...[...groupFailures.values()].flat())
@@ -3418,7 +3439,15 @@ async function runRegression(
     // The work each group made Fast Image do, and (not from a --ref run,
     // whose library may not log it, or a release build, which doesn't) its
     // check against the reference.
-    const work = await reportWork(app, platform, dir, groupStarts, startedAt)
+    const work = await reportWork(
+        app,
+        platform,
+        dir,
+        groupStarts,
+        restarts,
+        startedAt,
+        endedAt,
+    )
     let workSeeded: string[] = []
     if (!REF && !RELEASE) {
         const checked = checkWork(
@@ -3504,13 +3533,20 @@ async function runRegression(
 // kind, image and detail (e.g. a decode's sizes, a reload's reason), which
 // doesn't depend on the order the threads did it in. Run ids in urls (10 or
 // more digits) are RUN, and longer hex (hashes) HASH. In regression/work.json, and returned (every group
-// shown, with no work too).
+// shown, with no work too). Up to the run's end (endedAt, the app's "end"
+// line). If the app started again while it showed a group (restarts: when,
+// by group; maestro-runner's iOS driver relaunches it for the touch group),
+// only that group's work after it counts: how far it got before is down to
+// timing, and so is how much of the app's first group (which the app shows
+// as it starts, before it's sent back to the group) runs before.
 async function reportWork(
     app: App,
     platform: Platform,
     dir: string,
     starts: { group: string; at: number }[],
+    restarts: Map<string, number>,
     since: number,
+    endedAt: number,
 ) {
     const work: Record<string, Record<string, number>> = {}
     const add = (group: string | undefined, line: string) => {
@@ -3519,9 +3555,13 @@ async function reportWork(
         if (group === undefined || /[?&]uncounted\b/.test(line)) return
         const counts = (work[group] ??= {})
         // Run ids (and Math.random's) in urls, cache files' names (hashes of
-        // urls with run ids, in hex), and the app's container on a
-        // simulator, which each install changes.
+        // urls with run ids, in hex), and the app's containers on a
+        // simulator, which each install (and machine) changes.
         const key = line
+            .replace(
+                /\/Users\/[^/]+\/Library\/Developer\/CoreSimulator\/Devices\/[^/]+\/data\/Containers\/(Bundle|Data)\/Application\/[^/]+/g,
+                (_, container: string) => container.toUpperCase(),
+            )
             .replace(
                 /[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/gi,
                 'UUID',
@@ -3541,38 +3581,64 @@ async function reportWork(
             ? `slow:${match[2]}`
             : undefined
     }
-    // Which groups loaded each of the server's paths (iOS and Android).
+    // Which groups loaded each of the server's paths (iOS and Android), and
+    // the paths loaded while the app showed its first group again as it
+    // started again.
     const loadedBy = new Map<string, Set<string>>()
+    const loadedAgain = new Set<string>()
     if (platform === 'ios' || platform === 'android') {
-        // The log stream's last lines.
-        await sleep(1000)
         const log = path.join(OUT, `${app}-${platform}`, 'app.log')
+        const read = () =>
+            fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''
+        // The log stream's last lines, up to the app's end line.
+        const waitStart = Date.now()
+        while (
+            !/FastImageWork:? end\s*$/m.test(read()) &&
+            Date.now() - waitStart < 10_000
+        )
+            await sleep(100)
         let group: string | undefined
+        let again = false
+        let restarted = false
         const shownBefore = new Set<string>()
-        for (const line of (fs.existsSync(log)
-            ? fs.readFileSync(log, 'utf8')
-            : ''
-        ).split('\n')) {
+        for (const line of read().split('\n')) {
             const entry = line.match(/FastImageWork:? (.*)$/)?.[1]?.trim()
             if (!entry) continue
+            if (entry === 'end') break
             if (entry.startsWith('group ')) {
                 const next = entry.slice(6)
-                // Not a group shown before: the app started again (the
-                // touch group) and showed its first group before this one.
+                again = false
+                restarted = false
                 if (!shownBefore.has(next)) group = next
+                else if (restarts.has(next)) {
+                    // Shown again after the app started again: from here.
+                    group = next
+                    restarted = true
+                    delete work[next]
+                } else {
+                    // The app's first group, as the app started again.
+                    group = undefined
+                    again = true
+                }
                 shownBefore.add(next)
                 continue
             }
-            add(group, entry)
             const [kind, url] = entry.split(' ')
+            // The app's first group's work, finished after the group it
+            // started again in was shown again.
+            if (restarted && loadedAgain.has(serverPath(url) ?? '')) continue
+            add(group, entry)
             const key =
                 (kind === 'load' || kind === 'reload') && serverPath(url)
+            if (again && key) loadedAgain.add(key)
             if (group !== undefined && key) {
                 const groups = loadedBy.get(key) ?? new Set()
                 loadedBy.set(key, groups.add(group))
             }
         }
     }
+    // Since the first group the app started again in was shown.
+    const restartedSince = starts.find(({ group }) => restarts.has(group))?.at
     const agentPlatform = (agent: string): Platform =>
         /okhttp|Dalvik|Android/i.test(agent)
             ? 'android'
@@ -3594,6 +3660,14 @@ async function reportWork(
             // and so never asked for, depends on how soon a thread was free.
             if (request.path.startsWith('slow:')) continue
             if (agentPlatform(request.agent) !== platform) continue
+            if (request.at > endedAt) continue
+            // The app's first group's, as it started again.
+            if (
+                restartedSince !== undefined &&
+                request.at >= restartedSince &&
+                loadedAgain.has(request.path)
+            )
+                continue
             // The one group whose images loaded that url, or the last group
             // shown by then (the first one's start: the app shows it as it
             // launches).
@@ -3603,6 +3677,10 @@ async function reportWork(
                     ? [...groups][0]
                     : (starts.findLast((start) => start.at <= request.at)
                           ?.group ?? starts[0]?.group)
+            // Before the app started again while it showed that group.
+            const restart =
+                group === undefined ? undefined : restarts.get(group)
+            if (restart !== undefined && request.at < restart) continue
             add(group, `request ${request.path}`)
         }
     } catch {
@@ -4455,7 +4533,9 @@ function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
                 '-v',
                 'threadtime',
                 ...(uid ? [`--uid=${uid}`] : []),
-                // Info and above (the codecs' debug lines are most of it).
+                // Info and above (the codecs' debug lines are most of it), and
+                // Fast Image's work lines (see reportWork).
+                'FastImageWork:D',
                 '*:I',
             ],
         ]
@@ -4466,6 +4546,9 @@ function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
     return () => stop(pgid)
 }
 
+// The iOS app's settings for a regression run (see runRegression).
+const IOS_RUN_DEFAULTS = ['FastImageHideDevLoadingView', 'FastImageWork']
+
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     const stopAppLog = recordAppLog(app, 'ios', iosUdid)
@@ -4475,16 +4558,18 @@ async function flowsIos(app: App) {
     if (options.background && app !== 'expo' && app !== 'tv')
         await runFlows(app, 'ios', iosUdid, iosBundleId(app))
     stopAppLog()
-    // The banner again when the app is used by hand (see runRegression).
-    capture('xcrun', [
-        'simctl',
-        'spawn',
-        iosUdid,
-        'defaults',
-        'delete',
-        iosBundleId(app),
-        'FastImageHideDevLoadingView',
-    ])
+    // The banner again, and no work lines, when the app is used by hand (see
+    // runRegression).
+    for (const key of IOS_RUN_DEFAULTS)
+        capture('xcrun', [
+            'simctl',
+            'spawn',
+            iosUdid,
+            'defaults',
+            'delete',
+            iosBundleId(app),
+            key,
+        ])
     // Stopped, as on Android: its runner would otherwise connect to a later
     // run's relay (e.g. the tvOS example's, on another simulator).
     capture('xcrun', ['simctl', 'terminate', iosUdid, iosBundleId(app)])
@@ -4880,6 +4965,15 @@ async function flowsAndroid(app: App) {
     // The example's animated images keep the emulator busy while the app stays
     // in the foreground, which slows everything after it. Stop it.
     capture(ADB, ['-s', androidSerial, 'shell', 'am', 'force-stop', pkg])
+    // No work lines when the app is used by hand (see runRegression).
+    capture(ADB, [
+        '-s',
+        androidSerial,
+        'shell',
+        'setprop',
+        'log.tag.FastImageWork',
+        'INFO',
+    ])
 }
 
 // --- Run -----------------------------------------------------------------
