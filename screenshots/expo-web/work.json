@@ -15,6 +15,7 @@
     },
     "auto-size-declared": {
         "request /picsum/1018-600x300.jpg?auto-size-declared=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-source-width": 1,
         "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
     },
     "auto-size-changes": {
