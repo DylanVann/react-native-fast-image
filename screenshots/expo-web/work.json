@@ -10,6 +10,13 @@
         "request /text-page.png?auto-size-open=RUN": 1
     },
     "auto-size-styles": {},
+    "auto-size-edges": {
+        "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1
+    },
+    "auto-size-declared": {
+        "request /picsum/1018-600x300.jpg?auto-size-declared=RUN": 1,
+        "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
+    },
     "auto-size-changes": {
         "request /does-not-exist.jpg?auto-size-failed=RUN": 1,
         "request /picsum/1018-256x256.jpg?auto-size-sources-small=RUN": 1,
