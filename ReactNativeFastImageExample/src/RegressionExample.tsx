@@ -75,6 +75,9 @@ const LOGO = imageUrl('logo.png')
 // sizes, and on Android a view whose download starts just after the others'
 // shared download has ended downloads it again (seen once on CI's emulator).
 const LAYOUT_LOGO = imageUrl('logo.png?uncounted')
+// The large image in the object-fit group's cases, uncounted for the same
+// reason: nine of its views load it at once, at different sizes.
+const OBJECT_FIT_LARGE = imageUrl('center-large.png?uncounted')
 const MISSING = imageUrl('does-not-exist.png')
 const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
@@ -3235,7 +3238,7 @@ function ObjectFitCase() {
                         key={fit}
                         style={[objectFitStyles.image, i > 0 && styles.gap]}
                         objectFit={fit}
-                        source={{ uri: imageUrl('center-large.png') }}
+                        source={{ uri: OBJECT_FIT_LARGE }}
                         onLoad={onLoad}
                     />
                 ))}
@@ -3296,7 +3299,7 @@ function ObjectFitSizeCase() {
                         objectFitStyles.visible,
                     ]}
                     objectFit="none"
-                    source={{ uri: imageUrl('center-large.png') }}
+                    source={{ uri: OBJECT_FIT_LARGE }}
                     onLoad={onLoad}
                 />
             </View>
@@ -3700,7 +3703,7 @@ function ObjectFitBlurCase() {
 // ignored: cover.
 function ObjectFitStyleCase() {
     const [status, onLoad] = useLoadedThenOk(3)
-    const source = { uri: imageUrl('center-large.png') }
+    const source = { uri: OBJECT_FIT_LARGE }
     return (
         <View style={objectFitStyles.stacked}>
             <View style={objectFitStyles.images}>
