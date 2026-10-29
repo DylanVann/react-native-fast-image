@@ -32,9 +32,9 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
 import {
-    declaredSizeStyle,
     fromStyleKeys,
     openSides,
+    ownSize,
     resolveObjectFit,
 } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
@@ -197,26 +197,24 @@ function FastImageBase({
         height: number
     }>()
     if (!src && imageSize) setImageSize(undefined)
-    // A single source's own size (a require()d image's, or a source's width
-    // and height) sets the open sides at once (see declaredSizeStyle).
+    // A single source's own size (see ownSize) instead, from the start.
     const single = several ? undefined : [source].flat()[0]
-    const declared = declaredSizeStyle(
-        typeof single === 'number' ? getAssetByID(single) : single,
-        openSides(style),
-    )
-    const open = declared ? { width: false, height: false } : openSides(style)
+    const shownSize =
+        ownSize(typeof single === 'number' ? getAssetByID(single) : single) ??
+        imageSize
+    const open = openSides(style)
     const sizeStyle =
-        imageSize &&
-        imageSize.width > 0 &&
-        imageSize.height > 0 &&
+        shownSize &&
+        shownSize.width > 0 &&
+        shownSize.height > 0 &&
         (open.width || open.height)
-            ? { aspectRatio: imageSize.width / imageSize.height }
+            ? { aspectRatio: shownSize.width / shownSize.height }
             : undefined
     const spacer =
         sizeStyle && open.width && open.height ? (
             <View
                 style={{
-                    width: Math.max(0, imageSize!.width - paddingX(style)),
+                    width: Math.max(0, shownSize!.width - paddingX(style)),
                     maxWidth: '100%',
                 }}
                 pointerEvents="none"
@@ -259,9 +257,7 @@ function FastImageBase({
                           spacer && styles.fits,
                           style,
                       ]
-                    : declared
-                      ? [styles.container, declared, style]
-                      : [styles.container, style]
+                    : [styles.container, style]
             }
             onLayout={onLayout}
             pointerEvents={pointerEvents}
