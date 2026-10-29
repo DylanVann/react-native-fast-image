@@ -850,13 +850,24 @@ const IDB_COMPANION_PORT = 10882
 let idb: http2.ClientHttp2Session | undefined
 let idbCompanion: number | undefined
 
-async function startIdbCompanion(udid: string) {
+async function startIdbCompanion(app: App, udid: string) {
     const binary = env.VERIFY_IDB_COMPANION
-    if (!binary || idb || portInUse(IDB_COMPANION_PORT)) return
-    const log = path.join(OUT, 'idb-companion.log')
-    // The log goes on from the last app's companion: only what this one adds
-    // counts.
-    const from = fs.existsSync(log) ? fs.statSync(log).size : 0
+    if (!binary || idb) return
+    // The last app's companion lets go of the port once it has stopped.
+    for (let i = 0; i < 20 && portInUse(IDB_COMPANION_PORT); i++)
+        await sleep(500)
+    // Each app's companion logs to its own file, so the wait below only sees
+    // this one's port.
+    const log = path.join(OUT, `${app}-ios`, 'idb-companion.log')
+    fs.mkdirSync(path.dirname(log), { recursive: true })
+    const simctl = (reason: string) =>
+        console.log(
+            `    Note: ${reason}: ${app}'s iOS screenshots come from simctl (about 450 ms each instead of 80).`,
+        )
+    if (portInUse(IDB_COMPANION_PORT))
+        return simctl(
+            `port ${IDB_COMPANION_PORT} is in use, so idb's companion can't start`,
+        )
     idbCompanion = start(
         binary,
         ['--udid', udid, '--grpc-port', String(IDB_COMPANION_PORT)],
@@ -865,11 +876,23 @@ async function startIdbCompanion(udid: string) {
     if (idbCompanion !== undefined) groups.add(idbCompanion)
     // It prints its port once it listens.
     for (let i = 0; i < 60; i++) {
-        if (fs.readFileSync(log).subarray(from).includes('"grpc_port"')) break
+        if (fs.readFileSync(log, 'utf8').includes('"grpc_port"')) break
         await sleep(500)
     }
     const session = http2.connect(`http://127.0.0.1:${IDB_COMPANION_PORT}`)
-    session.on('error', () => (idb = undefined))
+    // Not a stopped app's session, closing late.
+    session.on('error', () => {
+        if (idb === session) idb = undefined
+    })
+    const connected = await new Promise<boolean>((resolve) => {
+        session.once('connect', () => resolve(true))
+        session.once('error', () => resolve(false))
+        setTimeout(() => resolve(false), 5000).unref()
+    })
+    if (!connected) {
+        session.destroy()
+        return simctl(`idb's companion didn't start (see ${rel(log)})`)
+    }
     idb = session
 }
 
@@ -4147,7 +4170,7 @@ function recordAppLog(app: App, platform: 'ios' | 'android', device: string) {
 async function flowsIos(app: App) {
     const startedAt = Date.now()
     const stopAppLog = recordAppLog(app, 'ios', iosUdid)
-    await startIdbCompanion(iosUdid)
+    await startIdbCompanion(app, iosUdid)
     await runRegression(app, 'ios', iosUdid, iosBundleId(app))
     stopIdbCompanion()
     if (options.background && app !== 'expo' && app !== 'tv')
