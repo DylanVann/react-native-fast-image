@@ -864,28 +864,31 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * and borders inset it, but padding doesn't), and `tintColor`, as with
      * React Native's `Image` (the `tintColor` prop wins).
      *
-     * A width or height the style leaves out (or sets to `auto`) follows the
-     * loaded image, as with an `<img>` on the web:
+     * A width or height set to `'auto'` follows the loaded image, as with an
+     * `<img>` on the web:
      *
-     * - Only a width (or one from the parent, e.g. stretched in a column): the
-     *   height from the image's aspect ratio.
-     * - Only a height: the width from it (in a row, or with `alignSelf` other
-     *   than `stretch`: in a column, the parent stretches the width by
-     *   default).
-     * - Neither: the image's own size (a 600 × 300 px image is 600 × 300
-     *   points, a bundled `@3x` one a third of that, one of several sources
-     *   its pixels over its `scale`), at most the space there is.
+     * - `height: 'auto'` with a width (or one from the parent, e.g. stretched
+     *   in a column): the height from the image's aspect ratio.
+     * - `width: 'auto'` with a height: the width from it (in a row, or with
+     *   `alignSelf` other than `stretch`: in a column, the parent stretches
+     *   the width by default).
+     * - Both `'auto'`: the image's own size (a 600 × 300 px image is 600 × 300
+     *   points, one of several sources its pixels over its `scale`), at most
+     *   the space there is.
      *
-     * A bundled image, or a source with a `width` and `height`, lays them out
-     * at once, from that size: the layout doesn't change when the image
-     * loads. Otherwise, until the image has loaded, and if it fails
-     * (`defaultSource` included), those sides are 0, so the layout changes
-     * when it loads. To keep its space, give the source its `width` and
-     * `height`, or set both sides, or a width and an `aspectRatio` you know
-     * beforehand (e.g. from your API, or `preload`'s result).
+     * Until the image has loaded, and if it fails (`defaultSource` included),
+     * those sides are 0, so the layout changes when it loads. A side the
+     * style leaves out stays 0, as with React Native's `Image`: sizing from
+     * the image is opt-in, since it moves the layout as images load.
+     *
+     * A bundled image, or a source with a `width` and `height` (its size in
+     * points), lays out a side the style leaves out (or sets to `'auto'`)
+     * from that size at once, as with React Native's `Image` but keeping its
+     * aspect ratio: the layout doesn't change when the image loads.
      *
      * ```jsx
-     * <FastImage source={{ uri }} style={{ width: '100%' }} />
+     * <FastImage source={{ uri }} style={{ width: '100%', height: 'auto' }} />
+     * <FastImage source={{ uri, width: 600, height: 400 }} style={{ width: '100%' }} />
      * ```
      *
      * @platform android

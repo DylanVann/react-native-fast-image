@@ -57,8 +57,9 @@ class JSI_EXPORT FastImageViewShadowNode final : public ConcreteViewShadowNode<
         const override;
 
   private:
-    // Whether this clone has another image size (the state's, or the props'
-    // own size) than the node it was cloned from
+    // Whether this clone measures differently from the node it was cloned
+    // from: another image size (the state's, or the props' own size), or
+    // other sides that follow it (autoSize)
     // (shouldNewRevisionDirtyMeasurement gets this node, not that one).
     bool imageSizeChanged_{false};
 };

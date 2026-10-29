@@ -33,7 +33,21 @@ Size FastImageViewShadowNode::measureContent(
     // shape would come out smaller (with neither side set, the height from
     // the image's shape, then the width from the style's ratio).
     const auto styleRatio = YGNodeStyleGetAspectRatio(&yogaNode_);
-    const auto ratio = std::isnan(styleRatio) || styleRatio <= 0 ? image.width / image.height : styleRatio;
+    const bool hasStyleRatio = !std::isnan(styleRatio) && styleRatio > 0;
+    const auto ratio = hasStyleRatio ? styleRatio : image.width / image.height;
+    // The sides that follow it: those the style sets to auto (the autoSize
+    // prop's bits; a side left out stays 0, as with React Native's Image), or
+    // with an own size, every side Yoga asks for. With the style's aspect
+    // ratio, the other side comes from the one that follows.
+    int sides = own ? 3 : props.autoSize;
+    if (hasStyleRatio && sides != 0) {
+        sides = 3;
+    }
+    const bool followsWidth = (sides & 1) != 0;
+    const bool followsHeight = (sides & 2) != 0;
+    if (!followsWidth && !followsHeight) {
+        return layoutConstraints.clamp({0, 0});
+    }
     // Yoga has resolved the padding by now (it measures with it).
     const Float paddingX =
         YGNodeLayoutGetPadding(&yogaNode_, YGEdgeLeft) + YGNodeLayoutGetPadding(&yogaNode_, YGEdgeRight);
@@ -49,9 +63,12 @@ Size FastImageViewShadowNode::measureContent(
     const auto &maximum = layoutConstraints.maximumSize;
     Size size;
     if (minimum.width == maximum.width) {
-        size = forWidth(maximum.width);
+        size = followsHeight ? forWidth(maximum.width) : Size{maximum.width, 0};
     } else if (minimum.height == maximum.height) {
-        size = forHeight(maximum.height);
+        size = followsWidth ? forHeight(maximum.height) : Size{0, maximum.height};
+    } else if (!followsWidth || !followsHeight) {
+        // The side that follows, from the other's 0.
+        size = {0, 0};
     } else {
         // The image's own width, and the height its shape (or the style's
         // ratio) gives, scaled down to fit the space there is.
@@ -81,8 +98,8 @@ FastImageViewShadowNode::FastImageViewShadowNode(
     if (fragment.props) {
         const auto &previous = source.getConcreteProps();
         const auto &props = getConcreteProps();
-        imageSizeChanged_ =
-            imageSizeChanged_ || props.ownWidth != previous.ownWidth || props.ownHeight != previous.ownHeight;
+        imageSizeChanged_ = imageSizeChanged_ || props.ownWidth != previous.ownWidth ||
+            props.ownHeight != previous.ownHeight || props.autoSize != previous.autoSize;
     }
 }
 

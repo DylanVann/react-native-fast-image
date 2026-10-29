@@ -87,10 +87,12 @@ export function resolveObjectFit(
     return fit && FITS[fit] === true ? fit : 'cover'
 }
 
-// The sides a style leaves open, which follow the loaded image: no width (or
-// height), or `auto`, unless an absolutely positioned view's insets on both
-// sides set it (e.g. StyleSheet.absoluteFill, as FastImageBackground's image
-// has), or the style's aspectRatio sets it from the other side.
+// The sides a style leaves open, which follow the loaded image: a width (or
+// height) of `auto` (opt-in: a side left out stays 0, as with React Native's
+// Image, unless leftOut is 'open', for a source's own size), unless an
+// absolutely positioned view's insets on both sides set it (e.g.
+// StyleSheet.absoluteFill, as FastImageBackground's image has), or the
+// style's aspectRatio sets it from the other side.
 const SIDE_KEYS = [
     'width',
     'height',
@@ -111,12 +113,17 @@ const SIDE_KEYS = [
     'bottom',
 ] as const
 
-export function openSides(style: unknown): { width: boolean; height: boolean } {
+export function openSides(
+    style: unknown,
+    leftOut: 'closed' | 'open' = 'closed',
+): { width: boolean; height: boolean } {
     const values = fromStyleKeys(style, SIDE_KEYS)
     const { width, height } = values
-    let openWidth = width == null || width === 'auto'
-    let openHeight = height == null || height === 'auto'
-    if (openWidth !== openHeight) {
+    const setWidth = width != null && width !== 'auto'
+    const setHeight = height != null && height !== 'auto'
+    let openWidth = leftOut === 'open' ? !setWidth : width === 'auto'
+    let openHeight = leftOut === 'open' ? !setHeight : height === 'auto'
+    if (setWidth !== setHeight) {
         const aspectRatio = values.aspectRatio
         if (aspectRatio != null && aspectRatio !== 'auto') {
             openWidth = openHeight = false

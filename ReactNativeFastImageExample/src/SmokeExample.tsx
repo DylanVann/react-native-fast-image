@@ -917,7 +917,7 @@ function AutoSizeDownsampleCase() {
                     source={{
                         uri: imageUrl(`text-page.png?auto-size-open=${RUN}`),
                     }}
-                    style={{ width: 128 }}
+                    style={{ width: 128, height: 'auto' }}
                     onLoad={() => setLoads((n) => n + 1)}
                 />
             </View>
@@ -981,7 +981,7 @@ function AutoSizeCoverCase() {
                         source={{
                             uri: imageUrl(`thirds.png?auto-size=${RUN}`),
                         }}
-                        style={{ width: 240 }}
+                        style={{ width: 240, height: 'auto' }}
                         onLoad={() => setTimeout(() => done.current(), 1500)}
                     />
                 ) : null}
@@ -991,7 +991,7 @@ function AutoSizeCoverCase() {
                 status={status}
                 description={{
                     checks: "An image with only a width and objectFit cover shows the whole image as it loads, not a crop of its middle for a size the view doesn't get.",
-                    steps: 'Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    steps: "Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240, height: 'auto' }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                     shows: 'The image at 240x120: magenta, cyan and magenta thirds.',
                 }}
             />
@@ -1023,7 +1023,7 @@ function AutoSizePlaceholderCase() {
     return (
         <View style={{ marginBottom: 12 }}>
             <FastImage
-                style={{ width: 240 }}
+                style={{ width: 240, height: 'auto' }}
                 source={source('open')}
                 placeholder={placeholder}
             />
@@ -1041,7 +1041,7 @@ function AutoSizePlaceholderCase() {
                 status={second ? 'OK' : 'waiting'}
                 description={{
                     checks: 'A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.',
-                    steps: 'Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.',
+                    steps: "Shows a photo the slow server sends over about 35 s, with style { width: 240, height: 'auto' } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
                     shows: 'The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high.',
                 }}
             />
@@ -1091,7 +1091,7 @@ function AutoSizeSourceChangeCase() {
             >
                 <FastImage
                     source={{ uri }}
-                    style={{ width: 240 }}
+                    style={{ width: 240, height: 'auto' }}
                     onLoad={() => {
                         loads.current++
                         if (loads.current === 1) setTimeout(record, 500)
@@ -1104,7 +1104,7 @@ function AutoSizeSourceChangeCase() {
                 status={status}
                 description={{
                     checks: "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
-                    steps: "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    steps: "Loads a 120x120 photo with style { width: 240, height: 'auto' } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                     shows: 'The 600x300 image at 240x120: a magenta band at the top over cyan.',
                 }}
             />
@@ -1164,7 +1164,7 @@ function AutoSizePaddingCoverCase() {
                                 `bands.png?auto-size-padding-cover=${RUN}`,
                             ),
                         }}
-                        style={{ width: 240, padding: 8 }}
+                        style={{ width: 240, height: 'auto', padding: 8 }}
                         onLoad={() => setTimeout(() => done.current(), 1500)}
                     />
                 ) : null}
@@ -1174,7 +1174,7 @@ function AutoSizePaddingCoverCase() {
                 status={status}
                 description={{
                     checks: "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
-                    steps: 'Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    steps: "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                     shows: 'The image at 240x120: a magenta band at the top over cyan.',
                 }}
             />
@@ -1205,7 +1205,7 @@ function AutoSizeSourcesCase() {
                         { uri: imageUrl(small), width: 256, height: 256 },
                         { uri: imageUrl(large), width: 1024, height: 1024 },
                     ]}
-                    style={{ width: 64 }}
+                    style={{ width: 64, height: 'auto' }}
                     onLoad={() =>
                         setTimeout(async () => {
                             const [smallCount, largeCount] = [
@@ -1226,7 +1226,7 @@ function AutoSizeSourcesCase() {
                 status={status}
                 description={{
                     checks: 'With several sizes of an image and only a width, the size for that width loads, and only that one.',
-                    steps: 'Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64 } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.',
+                    steps: "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64, height: 'auto' } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
                     shows: 'The photo at 64x64 on the left.',
                 }}
             />
@@ -1252,7 +1252,7 @@ function AutoSizeFailedCase() {
                                 : `picsum/1018-600x300.jpg?auto-size-failed=${RUN}`,
                         ),
                     }}
-                    style={{ width: 96 }}
+                    style={{ width: 96, height: 'auto' }}
                     onLoad={() => setTimeout(() => setFailing(true), 500)}
                     onError={() => setTimeout(() => setFailed(true), 1000)}
                     onLayout={(e) => setLayout(e.nativeEvent.layout)}
@@ -1269,7 +1269,7 @@ function AutoSizeFailedCase() {
                 }
                 description={{
                     checks: "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
-                    steps: 'Loads the 600x300 photo with style { width: 96 } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.',
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
                     shows: 'Nothing: the image is 0 high.',
                 }}
             />
@@ -1329,7 +1329,7 @@ function AutoSizePaddingTallCase() {
                                 `bands.png?auto-size-padding-tall=${RUN}`,
                             ),
                         }}
-                        style={{ width: 240, padding: 70 }}
+                        style={{ width: 240, height: 'auto', padding: 70 }}
                         onLoad={() => setTimeout(() => done.current(), 1500)}
                     />
                 ) : null}
@@ -1339,7 +1339,7 @@ function AutoSizePaddingTallCase() {
                 status={status}
                 description={{
                     checks: "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
-                    steps: 'Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.',
+                    steps: "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                     shows: 'The image at 240x140, cover: a magenta band at the top over cyan.',
                 }}
             />
@@ -1504,7 +1504,7 @@ function AutoSizeNaturalChangeCase() {
             >
                 <FastImage
                     source={{ uri }}
-                    style={{}}
+                    style={{ width: 'auto', height: 'auto' }}
                     onLoad={() => {
                         loads.current++
                         if (loads.current === 1) setTimeout(record, 500)
@@ -1517,7 +1517,7 @@ function AutoSizeNaturalChangeCase() {
                 status={status}
                 description={{
                     checks: "An image with neither side set and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
-                    steps: "Loads a 120x120 photo with no style in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                     shows: 'The thirds at 240x120: magenta, cyan and magenta.',
                 }}
             />
@@ -1537,11 +1537,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-width"
                 id="auto-size-width"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ width: 240 }}
+                style={{ width: 240, height: 'auto' }}
                 expected={{ width: 240, height: 120 }}
                 description={{
                     checks: 'An image with only a width (in a row) gets the height its aspect ratio gives.',
-                    steps: 'Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.',
+                    steps: "Loads a 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
                     shows: 'The photo at 240x120 on the left, not stretched.',
                 }}
             />,
@@ -1549,11 +1549,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-height"
                 id="auto-size-height"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ height: 64 }}
+                style={{ width: 'auto', height: 64 }}
                 expected={{ width: 128, height: 64 }}
                 description={{
                     checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
-                    steps: 'Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.',
+                    steps: "Loads the 600x300 photo with style { width: 'auto', height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
                     shows: 'The photo at 128x64 on the left.',
                 }}
             />,
@@ -1561,24 +1561,24 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-natural"
                 id="auto-size-natural"
                 source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
-                style={{}}
+                style={{ width: 'auto', height: 'auto' }}
                 expected={{ width: 120, height: 120 }}
                 description={{
                     checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
-                    steps: 'Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.',
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The 120x120 photo at 120x120 points on the left.',
                 }}
             />,
             <AutoSizeCase
-                key="auto-size-auto"
-                id="auto-size-auto"
+                key="auto-size-left-out"
+                id="auto-size-left-out"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ width: 240, height: 'auto' }}
-                expected={{ width: 240, height: 120 }}
+                style={{ width: 240 }}
+                expected={{ width: 240, height: 0 }}
                 description={{
-                    checks: "A height of 'auto' is open, as no height is.",
-                    steps: "Loads the 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
-                    shows: 'The photo at 240x120 on the left.',
+                    checks: "Opt-in: a side the style leaves out (rather than setting to 'auto') doesn't follow the image, and stays 0, as with React Native's Image.",
+                    steps: 'Loads the 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x0.',
+                    shows: 'Nothing: the view is 0 high.',
                 }}
             />,
             <AutoSizeCase
@@ -1605,11 +1605,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-svg"
                 id="auto-size-svg"
                 source={{ uri: imageUrl('svg-icon.svg?auto-size') }}
-                style={{}}
+                style={{ width: 'auto', height: 'auto' }}
                 expected={{ width: 24, height: 24 }}
                 description={{
                     checks: 'An SVG with no size is its own size: a 24x24 SVG is 24x24 points.',
-                    steps: 'Loads a 24x24 SVG of a black ring with no style in a row. Passes once it has loaded and its layout is 24x24.',
+                    steps: "Loads a 24x24 SVG of a black ring with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 24x24.",
                     shows: 'A 24x24 black ring on the left.',
                 }}
             />,
@@ -1625,18 +1625,18 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-styles',
         description: {
-            checks: '#436, continued: padding, borders, and a height a later style clears.',
+            checks: "#436, continued: padding, borders, and a later style's height: 'auto'.",
         },
         cases: [
             <AutoSizeCase
                 key="auto-size-padding"
                 id="auto-size-padding"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ width: 96, padding: 8 }}
+                style={{ width: 96, height: 'auto', padding: 8 }}
                 expected={{ width: 96, height: 48 }}
                 description={{
                     checks: "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
-                    steps: 'Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.',
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                     shows: 'The photo at 96x48 on the left.',
                 }}
             />,
@@ -1644,11 +1644,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-padding-natural"
                 id="auto-size-padding-natural"
                 source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
-                style={{ padding: 20 }}
+                style={{ width: 'auto', height: 'auto', padding: 20 }}
                 expected={{ width: 120, height: 120 }}
                 description={{
                     checks: "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
-                    steps: 'Loads a 120x120 photo with style { padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.',
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The 120x120 photo at 120x120 points on the left.',
                 }}
             />,
@@ -1661,11 +1661,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                           key="auto-size-border"
                           id="auto-size-border"
                           source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                          style={{ width: 240, borderWidth: 8 }}
+                          style={{ width: 240, height: 'auto', borderWidth: 8 }}
                           expected={{ width: 240, height: 128 }}
                           description={{
                               checks: "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
-                              steps: 'Loads the 600x300 photo with style { width: 240, borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).',
+                              steps: "Loads the 600x300 photo with style { width: 240, height: 'auto', borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).",
                               shows: 'The photo at 224x112 inside an 8-point black border, on the left.',
                           }}
                       />,
@@ -1680,12 +1680,12 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                           source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
                           style={[
                               { height: 200 },
-                              { width: 96, height: undefined },
+                              { width: 96, height: 'auto' },
                           ]}
                           expected={{ width: 96, height: 48 }}
                           description={{
-                              checks: 'A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.',
-                              steps: 'Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: undefined }] in a row. Passes once it has loaded and its layout is 96x48.',
+                              checks: "A height of 'auto' in a later style replaces an earlier style's height.",
+                              steps: "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: 'auto' }] in a row. Passes once it has loaded and its layout is 96x48.",
                               shows: 'The photo at 96x48 on the left.',
                           }}
                       />,
@@ -1709,12 +1709,12 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-aspect-ratio"
                 id="auto-size-aspect-ratio"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ aspectRatio: 1 }}
+                style={{ width: 'auto', aspectRatio: 1 }}
                 container={{ width: 120 }}
                 expected={{ width: 120, height: 120 }}
                 description={{
                     checks: "The style's aspectRatio wins over the image's, also with neither side set: the image's width (at most the space there is), and the height from the style's ratio.",
-                    steps: 'Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.',
+                    steps: "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The photo stretched to a 120x120 square on the left.',
                 }}
             />,
@@ -1722,7 +1722,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 key="auto-size-aspect-ratio-column"
                 id="auto-size-aspect-ratio-column"
                 source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
-                style={{ aspectRatio: 1 }}
+                style={{ width: 'auto', aspectRatio: 1 }}
                 container={{
                     width: 120,
                     flexDirection: 'column',
@@ -1731,7 +1731,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 expected={{ width: 120, height: 120 }}
                 description={{
                     checks: "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
-                    steps: 'Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.',
+                    steps: "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The photo stretched to a 120x120 square on the left.',
                 }}
             />,
@@ -1765,12 +1765,30 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                         scale: 2.5,
                     },
                 ]}
-                style={{}}
+                style={{ width: 'auto', height: 'auto' }}
                 expected={{ width: 80, height: 80 }}
                 description={{
-                    checks: "A single source's width and height are its size in points, as with React Native's Image: a 120x120 image given as 60x60 is 60x60.",
-                    steps: 'Loads a 120x120 photo as { uri, width: 60, height: 60 } with no style in a row. Passes once it has loaded and its layout is 60x60.',
-                    shows: 'The photo at 60x60 on the left.',
+                    checks: "Of several sources, the picked one's pixels over its scale are its size in points, as a bundled @2x or @3x image's are.",
+                    steps: "Shows two sources of a 200x200 photo, each { width: 80, height: 80, scale: 2.5 }, with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 80x80.",
+                    shows: 'The photo at 80x80 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-source-width"
+                id="auto-size-source-width"
+                source={{
+                    uri: imageUrl(
+                        'picsum/1020-120x120.jpg?auto-size-source-width',
+                    ),
+                    width: 64,
+                    height: 64,
+                }}
+                style={{}}
+                expected={{ width: 64, height: 64 }}
+                description={{
+                    checks: "A single source's width and height are its size in points, as with React Native's Image, also with no style: a 120x120 image given as 64x64 is 64x64.",
+                    steps: 'Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.',
+                    shows: 'The photo at 64x64 on the left.',
                 }}
             />,
             <AutoSizeDeclaredCase key="auto-size-declared" />,

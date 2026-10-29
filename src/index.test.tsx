@@ -115,7 +115,7 @@ describe('FastImage (iOS)', () => {
         expect(fromProp.props.tintColor).toBe('red')
     })
 
-    it('sends the sides the style leaves open as autoSize (1 the width, 2 the height)', () => {
+    it("sends the sides the style sets to 'auto' as autoSize (1 the width, 2 the height)", () => {
         const source = { uri: 'https://example.com/image.png' }
         const autoSize = (style: FastImageProps['style']) =>
             (
@@ -123,20 +123,34 @@ describe('FastImage (iOS)', () => {
                     .create(<FastImage source={source} style={style} />)
                     .toJSON() as any
             ).props.autoSize
-        expect(autoSize({})).toBe(3)
-        expect(autoSize({ width: 240 })).toBe(2)
+        expect(autoSize({ width: 'auto', height: 'auto' })).toBe(3)
         expect(autoSize({ width: 240, height: 'auto' })).toBe(2)
-        expect(autoSize({ height: 64 })).toBe(1)
+        expect(autoSize({ width: 'auto', height: 64 })).toBe(1)
+        // Opt-in: a side left out stays 0, as with React Native's Image.
+        expect(autoSize({})).toBe(0)
+        expect(autoSize({ width: 240 })).toBe(0)
         expect(autoSize({ width: 240, height: 120 })).toBe(0)
-        // A later style's undefined clears a side, as StyleSheet.flatten does.
+        // A later style's undefined clears an earlier side, as
+        // StyleSheet.flatten does.
         expect(
-            autoSize([{ height: 200 }, { width: 96, height: undefined }]),
+            autoSize([
+                { height: 200 },
+                { width: 96, height: undefined },
+                { height: 'auto' },
+            ]),
         ).toBe(2)
         // aspectRatio sets the other side.
-        expect(autoSize({ width: '100%', aspectRatio: 16 / 9 })).toBe(0)
-        expect(autoSize({ aspectRatio: 1 })).toBe(3)
+        expect(
+            autoSize({ width: '100%', height: 'auto', aspectRatio: 16 / 9 }),
+        ).toBe(0)
+        expect(autoSize({ width: 'auto', aspectRatio: 1 })).toBe(1)
         // An absolutely positioned view's insets set both.
-        expect(autoSize(StyleSheet.absoluteFill)).toBe(0)
+        expect(
+            autoSize([
+                StyleSheet.absoluteFill,
+                { width: 'auto', height: 'auto' },
+            ]),
+        ).toBe(0)
     })
 
     it("gives the shadow node a single source's own size, instead of the loaded image's", () => {
@@ -161,13 +175,14 @@ describe('FastImage (iOS)', () => {
         expect(own.props.autoSize).toBe(0)
         expect(StyleSheet.flatten(own.props.style).aspectRatio).toBeUndefined()
         // Without both sizes, or with several sources: from the loaded image.
-        const noHeight = render({ uri: sized.uri, width: 60 })
+        const both = { width: 'auto', height: 'auto' } as const
+        const noHeight = render({ uri: sized.uri, width: 60 }, both)
         expect(noHeight.props.ownWidth).toBe(0)
         expect(noHeight.props.autoSize).toBe(3)
-        const several = render([
-            sized,
-            { ...sized, uri: 'https://example.com/b.png' },
-        ])
+        const several = render(
+            [sized, { ...sized, uri: 'https://example.com/b.png' }],
+            both,
+        )
         expect(several.props.ownWidth).toBe(0)
         expect(several.props.autoSize).toBe(3)
     })
