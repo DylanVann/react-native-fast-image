@@ -212,6 +212,13 @@ Fast Image's maintainers found these while comparing Fast Image with Expo Image.
 - **How to reproduce:** Found by reading the code, not run in Expo Image. Fast Image's Android version had the same gap with Glide's data url loader, which only reads `;base64,` uris: the `data-uri-utf8` case never loaded before [#1397](https://github.com/DylanVann/react-native-fast-image/pull/1397).
 - **How Fast Image handles it:** a percent-encoded data uri is decoded and encoded again as base64 before Glide loads it ([#1397](https://github.com/DylanVann/react-native-fast-image/pull/1397)).
 
+## Web: an image of several sizes downloads another size as it's removed (Chrome)
+
+- **What happens:** in Chrome, an image with several sources and the default `responsivePolicy` (`static`, lazy by default) downloads the source for the window's width when it's unmounted, and when it or a parent is hidden with `display: none`. Chrome picks from the `srcset` again once the image isn't rendered and ignores `sizes="auto"`, where the HTML standard keeps the image's last width. A 64 px image in a 1400 px wide window downloads a 4000 px source as it goes, and nothing shows it.
+- **Where:** `packages/expo-image/src/web/useSourceSelection.ts` builds `sizes` as `auto, …, 100vw` for the `static` policy, and `src/web/ImageWrapper.tsx` passes it to the `<img>`; nothing changes it before the image unmounts. Checked at commit `5599fba0d` (2026-10-26).
+- **How to reproduce:** Found by reading the code, with Chrome's behavior checked on a plain page (Chrome 156): show sources 256 and 4000 px wide in a 64 pt view, let it load, unmount it, and watch the network panel.
+- **How Fast Image handles it:** as an image of several sizes unmounts, its `sizes="auto"` becomes its laid-out width in pixels, so removing it loads nothing ([#1400](https://github.com/DylanVann/react-native-fast-image/pull/1400)). An image hidden with `display: none` still loads it in both.
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.

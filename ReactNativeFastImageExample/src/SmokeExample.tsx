@@ -693,6 +693,68 @@ function SizesChangeCase() {
     )
 }
 
+// Web: several sizes, removed once the image has loaded (a 48 dp view: the
+// browser shows the 300 px file). Chrome loaded the 900 px one as it was
+// removed (the size for the window's width, with sizes="auto").
+const SIZES_UNMOUNT_PATH = (size: number) =>
+    `/sized-${size}.png?smoke-sizes-unmount=${RUN}`
+function SizesUnmountCase() {
+    const [removed, setRemoved] = useState(false)
+    const [status, setStatus] = useState('loading')
+    useEffect(() => {
+        if (!removed) return
+        const timer = setTimeout(async () => {
+            try {
+                const [small, large] = await Promise.all(
+                    [300, 900].map((size) =>
+                        fetch(
+                            imageUrl(
+                                `requests?path=${encodeURIComponent(SIZES_UNMOUNT_PATH(size))}`,
+                            ),
+                        )
+                            .then((response) => response.json())
+                            .then((json: { count: number }) => json.count),
+                    ),
+                )
+                setStatus(
+                    small === 1 && large === 0
+                        ? 'OK'
+                        : `requested the 300 px file ${small} times, the 900 px one ${large}`,
+                )
+            } catch (e) {
+                setStatus(`error: ${e}`)
+            }
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [removed])
+    return (
+        <View style={styles.row}>
+            {removed ? (
+                <View style={styles.image} />
+            ) : (
+                <FastImage
+                    style={styles.image}
+                    source={[300, 900].map((size) => ({
+                        uri: imageUrl(SIZES_UNMOUNT_PATH(size).slice(1)),
+                        width: size,
+                        height: size,
+                    }))}
+                    onLoad={() => setRemoved(true)}
+                />
+            )}
+            <CaseStatus
+                id="smoke-sizes-unmount"
+                status={status}
+                description={{
+                    checks: "On the web, removing an image of several sizes doesn't load another size (Chrome loaded the one for the window's width).",
+                    steps: 'Gives a 48 dp view two sizes of a square from the image server, 300 px (green) and 900 px (blue), so the browser shows the 300 px one, and removes it once it has loaded. Passes if, a second later, the server got one request for the 300 px file and none for the 900 px one.',
+                    shows: 'An empty square: the image is removed once it has loaded.',
+                }}
+            />
+        </View>
+    )
+}
+
 // Web: with a placeholder, the image isn't hidden while it loads (the browser
 // draws it over the placeholder as it arrives), and the placeholder goes once
 // it has loaded. The <img>s are in the view's element (the ref).
@@ -813,10 +875,11 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
               {
                   name: 'smoke-web',
                   description: {
-                      checks: "The web version's own behavior: onLoad when the sizes change, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri.",
+                      checks: "The web version's own behavior: onLoad when the sizes change, no other size loaded as an image is removed, a placeholder while loading, reload() of a failed url placeholder, and a blurDataUri.",
                   },
                   cases: [
                       <SizesChangeCase key="sizes-change" />,
+                      <SizesUnmountCase key="sizes-unmount" />,
                       <PlaceholderCase key="placeholder" />,
                       <ReloadPlaceholderCase key="reload-placeholder" />,
                       <BlurDataUriCase key="blur-data-uri" />,

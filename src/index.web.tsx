@@ -591,6 +591,22 @@ function Picture({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // As it unmounts, sizes="auto" becomes the width the image has (before
+    // it's removed): Chrome picks from the srcset again when an image with
+    // sizes="auto" stops being rendered, and loads the size for 100vw (the
+    // window's width), where the HTML standard keeps its last width. (One
+    // hidden with display: none, which can't be told from here, still does.)
+    useClientLayoutEffect(() => {
+        const target = image.current as unknown as {
+            sizes: string
+            clientWidth: number
+        } | null
+        return () => {
+            if (!target || !/^\s*auto\b/i.test(target.sizes)) return
+            if (target.clientWidth > 0) target.sizes = `${target.clientWidth}px`
+        }
+    }, [])
+
     return (
         <img
             ref={image}
