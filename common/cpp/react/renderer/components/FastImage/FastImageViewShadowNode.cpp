@@ -19,7 +19,12 @@ Size FastImageViewShadowNode::measureContent(
     const LayoutContext & /*layoutContext*/,
     const LayoutConstraints &layoutConstraints) const
 {
-    const auto &image = getStateData();
+    // A single source's own size (see the ownWidth prop), or the loaded
+    // image's, which the native views put in the state.
+    const auto &props = getConcreteProps();
+    const auto &state = getStateData();
+    const bool own = props.ownWidth > 0 && props.ownHeight > 0;
+    const Size image = own ? Size{props.ownWidth, props.ownHeight} : Size{state.width, state.height};
     if (image.width <= 0 || image.height <= 0) {
         return layoutConstraints.clamp({0, 0});
     }
@@ -67,10 +72,17 @@ FastImageViewShadowNode::FastImageViewShadowNode(
     : ConcreteViewShadowNode(sourceShadowNode, fragment)
 {
     YGNodeSetNodeType(&yogaNode_, YGNodeTypeDefault);
+    const auto &source = static_cast<const FastImageViewShadowNode &>(sourceShadowNode);
     if (fragment.state) {
-        const auto &previous = static_cast<const FastImageViewShadowNode &>(sourceShadowNode).getStateData();
+        const auto &previous = source.getStateData();
         const auto &image = getStateData();
         imageSizeChanged_ = image.width != previous.width || image.height != previous.height;
+    }
+    if (fragment.props) {
+        const auto &previous = source.getConcreteProps();
+        const auto &props = getConcreteProps();
+        imageSizeChanged_ =
+            imageSizeChanged_ || props.ownWidth != previous.ownWidth || props.ownHeight != previous.ownHeight;
     }
 }
 

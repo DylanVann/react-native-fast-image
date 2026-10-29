@@ -12,12 +12,7 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import {
-    declaredSizeStyle,
-    fromStyle,
-    openSides,
-    resolveObjectFit,
-} from './objectFit'
+import { fromStyle, openSides, ownSize, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
@@ -1129,11 +1124,11 @@ function FastImageBase({
             : Image.resolveAssetSource(withStringHeaders(single) as any)
     }, [source])
     // The shadow node lays out a side the style leaves open from the loaded
-    // image: the view only gives it the image's size then. A single source's
-    // own size (see declaredSizeStyle) sets those sides at once instead.
-    const declared = declaredSizeStyle(resolvedSource, openSides(style))
-    const sizedStyle = declared ? [declared, style] : style
-    const open = declared ? { width: false, height: false } : openSides(style)
+    // image: the view only gives it the image's size then (autoSize). A
+    // single source's own size (see ownSize) it has from the start instead,
+    // and the view doesn't give it the image's.
+    const own = ownSize(resolvedSource)
+    const open = own ? { width: false, height: false } : openSides(style)
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
@@ -1160,7 +1155,7 @@ function FastImageBase({
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
             // Image does.
-            style={[styles.image, sizedStyle]}
+            style={[styles.image, style]}
             // null (no key) as undefined, which the native prop takes.
             recyclingKey={props.recyclingKey ?? undefined}
             loopCount={loopCount(loop)}
@@ -1171,6 +1166,8 @@ function FastImageBase({
             source={resolvedSource}
             placeholder={resolvedPlaceholder}
             autoSize={(open.width ? 1 : 0) | (open.height ? 2 : 0)}
+            ownWidth={own?.width ?? 0}
+            ownHeight={own?.height ?? 0}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

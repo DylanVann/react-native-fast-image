@@ -79,6 +79,11 @@ export interface NativeProps extends ViewProps {
     // height. Only then do the native views give the shadow node the image's
     // size, which lays the screen out again.
     autoSize?: CodegenTypes.Int32
+    // A single source's own size in points (its width and height, or a
+    // bundled image's), which the shadow node lays the open sides out from
+    // instead of the loaded image's, from the start (0 without one).
+    ownWidth?: CodegenTypes.Float
+    ownHeight?: CodegenTypes.Float
     // The events JS has a handler for, as bits: 1 onFastImageLoadStart,
     // 2 onFastImageProgress, 4 onFastImageLoad, 8 onFastImageError, 16
     // onFastImageLoadEnd. The native views only send those (most images have

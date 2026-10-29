@@ -139,10 +139,10 @@ describe('FastImage (iOS)', () => {
         expect(autoSize(StyleSheet.absoluteFill)).toBe(0)
     })
 
-    it("lays out a single source's own size at once, keeping its aspect ratio", () => {
+    it("gives the shadow node a single source's own size, instead of the loaded image's", () => {
         const render = (
             source: FastImageProps['source'],
-            style: FastImageProps['style'],
+            style: FastImageProps['style'] = {},
         ) =>
             renderer
                 .create(<FastImage source={source} style={style} />)
@@ -152,31 +152,24 @@ describe('FastImage (iOS)', () => {
             width: 60,
             height: 30,
         }
-        // Neither side: its width (at most the space there is) and its shape.
-        const natural = render(sized, {})
-        expect(natural.props.autoSize).toBe(0)
-        expect(StyleSheet.flatten(natural.props.style)).toMatchObject({
-            width: 60,
-            maxWidth: '100%',
-            aspectRatio: 2,
-        })
-        // One side: the other from its aspect ratio, not its height.
-        const byWidth = render(sized, { width: 240 })
-        expect(byWidth.props.autoSize).toBe(0)
-        expect(StyleSheet.flatten(byWidth.props.style)).toMatchObject({
-            width: 240,
-            aspectRatio: 2,
-        })
-        expect(StyleSheet.flatten(byWidth.props.style).height).toBeUndefined()
-        // Both set: unchanged.
-        const both = render(sized, { width: 40, height: 40 })
-        expect(StyleSheet.flatten(both.props.style).aspectRatio).toBeUndefined()
+        // The shadow node lays the open sides out from it from the start, so
+        // the view doesn't send the image's size (autoSize 0), and the style
+        // stays as it is.
+        const own = render(sized, { width: 240 })
+        expect(own.props.ownWidth).toBe(60)
+        expect(own.props.ownHeight).toBe(30)
+        expect(own.props.autoSize).toBe(0)
+        expect(StyleSheet.flatten(own.props.style).aspectRatio).toBeUndefined()
         // Without both sizes, or with several sources: from the loaded image.
-        expect(render({ uri: sized.uri, width: 60 }, {}).props.autoSize).toBe(3)
-        expect(
-            render([sized, { ...sized, uri: 'https://example.com/b.png' }], {})
-                .props.autoSize,
-        ).toBe(3)
+        const noHeight = render({ uri: sized.uri, width: 60 })
+        expect(noHeight.props.ownWidth).toBe(0)
+        expect(noHeight.props.autoSize).toBe(3)
+        const several = render([
+            sized,
+            { ...sized, uri: 'https://example.com/b.png' },
+        ])
+        expect(several.props.ownWidth).toBe(0)
+        expect(several.props.autoSize).toBe(3)
     })
 
     it('uses the last tintColor in a style array', () => {
