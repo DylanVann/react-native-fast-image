@@ -73,10 +73,13 @@
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-source-width 120x120 for 168x168 at 120x120": 1,
         "decode http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a 200x200 for 2400x2400 at 200x200": 1,
         "decode http://10.0.2.2:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 600x300 for 336x168 at 336x168": 1,
+        "decode http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH 120x120 for 2400x2400 at 120x120": 1,
         "layout-state http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a 80.0x80.0 main": 1,
+        "layout-state http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH 40.0x40.0 main": 1,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-source-width source main": 1,
         "load http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a source main": 1,
         "load http://10.0.2.2:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 source main": 1,
+        "load http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH source main": 1,
         "request /picsum/1020-120x120.jpg?auto-size-source-width": 1,
         "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
     },
