@@ -5960,6 +5960,7 @@ function FadeCase({
                 : [BLACK, CYAN]
     const loaded = useRef(0)
     const done = useRef(() => {})
+    const steppedRef = useRef(false)
     const record = async () => {
         const measured = await measureView(view.current)
         if (!measured) return setStatus('not on screen')
@@ -5980,6 +5981,9 @@ function FadeCase({
                 area,
                 durationMs: 5000,
                 expect,
+                // Stepped where the app can: through the fade
+                // (the built-in default's is 300 ms).
+                steppedMs: defaultTransition ? 300 : FADE_MS,
                 // tall, edge, cyan-half and opacity: also what shows if
                 // defaultSource (or the image showing) doesn't fade out
                 // (magenta until the end, magenta with cyan over it).
@@ -6000,7 +6004,8 @@ function FadeCase({
                             ? [MAGENTA, MAGENTA_CYAN, CYAN]
                             : [BLACK, HALF_CYAN, CYAN],
             },
-            (sampleDone) => {
+            (sampleDone, stepped) => {
+                steppedRef.current = stepped
                 done.current = () => {
                     if (defaultTransition) {
                         FastImage.setDefaults({ transition: false })
@@ -6077,8 +6082,13 @@ function FadeCase({
                 change && !changed
                     ? onLoaderLoad
                     : // With some slack: the fade can start a little after
-                      // onLoad on a busy device.
-                      () => setTimeout(() => done.current(), FADE_MS + 500)
+                      // onLoad on a busy device. Stepped, it waits for the
+                      // steps.
+                      () =>
+                          setTimeout(
+                              () => done.current(),
+                              steppedRef.current ? 300 : FADE_MS + 500,
+                          )
             }
             transition={
                 defaultTransition

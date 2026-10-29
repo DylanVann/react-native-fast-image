@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import http2 from 'node:http2'
 import os from 'node:os'
 import path from 'node:path'
+import zlib from 'node:zlib'
 import { isDeepStrictEqual, parseArgs, promisify } from 'node:util'
 import { ODiffServer } from 'odiff-bin'
 import { type Browser, chromium, type Page } from 'playwright-core'
@@ -102,8 +103,10 @@ Environment:
                   first AVD named rnfi*, else the first AVD). Use a plain
                   AOSP image ("default", no Google apps) with 4 GB+ RAM; it's
                   started with -gpu host, no window and its gRPC API on port
-                  8554 (the video samples are recorded through it; an
-                  emulator started otherwise records with screenrecord).
+                  8554 (the video samples are recorded through it, and the
+                  stepped samples' screenshots taken; an emulator started
+                  otherwise records with screenrecord), with hidden APIs
+                  allowed (the stepped samples' animation clock).
   ANDROID_EMULATOR_GPU  The emulator's -gpu mode (default: host; e.g.
                   swiftshader_indirect without a GPU).
   VERIFY_IDB_COMPANION
@@ -1633,7 +1636,10 @@ async function compareScreenshot(
 // How many frames each color lasted doesn't matter. `palette` lists colors
 // that mustn't appear (so they're matched rather than left out). The result
 // goes back as { type: 'sampled', group, name, ok, seen, detail? }, which the
-// case shows as its status. The recording is kept in verify-output/.
+// case shows as its status. The recording is kept in verify-output/. A sample
+// with steppedMs is stepped instead where the app can pause its animations:
+// screenshots at set points of the change, checked the same way (see
+// takeFrame).
 type Rgb = [number, number, number]
 // ΔE (CIE76): a frame is a color if it's within this of it, and at most
 // SAMPLE_MAX_RATIO times as far from it as from the next nearest color.
@@ -1939,6 +1945,168 @@ function frameColors(
         time,
         color: [data[i * 3], data[i * 3 + 1], data[i * 3 + 2]],
     }))
+}
+
+// The average color of the middle half of `area` (dp) in a raw RGB frame,
+// as frameColors.
+function areaColor(
+    pixels: Buffer,
+    width: number,
+    height: number,
+    area: PixelRect,
+    windowWidthDp: number,
+): Rgb {
+    if (!windowWidthDp) throw new Error("the app didn't send its window size")
+    const px = width / windowWidthDp
+    const w = Math.max(2, Math.round((area.width / 2) * px))
+    const h = Math.max(2, Math.round((area.height / 2) * px))
+    const x0 = Math.min(
+        width - w,
+        Math.max(0, Math.round((area.x + area.width / 4) * px)),
+    )
+    const y0 = Math.min(
+        height - h,
+        Math.max(0, Math.round((area.y + area.height / 4) * px)),
+    )
+    const sum = [0, 0, 0]
+    for (let y = y0; y < y0 + h; y++)
+        for (let x = x0; x < x0 + w; x++)
+            for (let c = 0; c < 3; c++)
+                sum[c] += pixels[(y * width + x) * 3 + c]
+    return sum.map((v) => Math.round(v / (w * h))) as Rgb
+}
+
+// A PNG's pixels down to row `rows` (RGB), for areaColor: the companion's
+// screenshots (8-bit RGB or RGBA, not interlaced), without ffmpeg's 100 ms or
+// so. undefined for other PNGs.
+function pngRows(png: Buffer, rows: number) {
+    let width = 0
+    let height = 0
+    let channels = 0
+    const data: Buffer[] = []
+    for (let i = 8; i + 8 <= png.length;) {
+        const length = png.readUInt32BE(i)
+        const type = png.toString('latin1', i + 4, i + 8)
+        const body = png.subarray(i + 8, i + 8 + length)
+        if (type === 'IHDR') {
+            width = body.readUInt32BE(0)
+            height = body.readUInt32BE(4)
+            channels = body[9] === 2 ? 3 : body[9] === 6 ? 4 : 0
+            if (body[8] !== 8 || body[12] !== 0) return undefined
+        } else if (type === 'IDAT') data.push(body)
+        i += 12 + length
+    }
+    if (!channels) return undefined
+    rows = Math.min(rows, height)
+    const stride = width * channels
+    const raw = zlib.inflateSync(Buffer.concat(data), {
+        finishFlush: zlib.constants.Z_SYNC_FLUSH,
+    })
+    if (raw.length < rows * (stride + 1)) return undefined
+    const pixels = Buffer.alloc(width * rows * 3)
+    let previous = Buffer.alloc(stride)
+    for (let y = 0; y < rows; y++) {
+        const filter = raw[y * (stride + 1)]
+        const line = Buffer.from(
+            raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)),
+        )
+        for (let x = 0; x < stride; x++) {
+            const a = x >= channels ? line[x - channels] : 0
+            const b = previous[x]
+            const c = x >= channels ? previous[x - channels] : 0
+            const p = a + b - c
+            const pa = Math.abs(p - a)
+            const pb = Math.abs(p - b)
+            const pc = Math.abs(p - c)
+            line[x] +=
+                filter === 1
+                    ? a
+                    : filter === 2
+                      ? b
+                      : filter === 3
+                        ? (a + b) >> 1
+                        : filter === 4
+                          ? pa <= pb && pa <= pc
+                              ? a
+                              : pb <= pc
+                                ? b
+                                : c
+                          : 0
+        }
+        for (let x = 0; x < width; x++)
+            line.copy(
+                pixels,
+                (y * width + x) * 3,
+                x * channels,
+                x * channels + 3,
+            )
+        previous = line
+    }
+    return { pixels, width }
+}
+
+// A screenshot of the emulator from the emulator itself, over its gRPC API
+// (getScreenshot, RGB at the device's size), when the script started it: the
+// stepped samples' (see takeFrame), about 10 times quicker than adb's
+// screencap. undefined otherwise, or if it failed.
+let emulatorSession: http2.ClientHttp2Session | undefined
+let emulatorSize: { width: number; height: number } | undefined
+function emulatorScreenshot(device: string) {
+    if (!emulatorGrpc) return Promise.resolve(undefined)
+    if (!emulatorSize) {
+        const size = /(\d+)x(\d+)\s*$/.exec(
+            capture(ADB, ['-s', device, 'shell', 'wm', 'size']) ?? '',
+        )
+        if (!size) return Promise.resolve(undefined)
+        emulatorSize = { width: Number(size[1]), height: Number(size[2]) }
+    }
+    const { width, height } = emulatorSize
+    if (
+        !emulatorSession ||
+        emulatorSession.closed ||
+        emulatorSession.destroyed
+    ) {
+        const session = http2.connect(
+            `http://127.0.0.1:${EMULATOR_GRPC_PORT}`,
+            {
+                settings: { initialWindowSize: 2 ** 31 - 1 },
+            },
+        )
+        session.on('connect', () => session.setLocalWindowSize(2 ** 31 - 1))
+        session.on('error', () => {})
+        // Doesn't keep the script running.
+        session.unref()
+        emulatorSession = session
+    }
+    const session = emulatorSession
+    return new Promise<
+        { pixels: Buffer; width: number; height: number } | undefined
+    >((resolve) => {
+        let pixels: Buffer | undefined
+        const stream = session.request({
+            ':method': 'POST',
+            ':path':
+                '/android.emulation.control.EmulatorController/getScreenshot',
+            'content-type': 'application/grpc',
+            te: 'trailers',
+        })
+        const timer = setTimeout(() => stream.close(), 10_000)
+        // An ImageFormat: { format: RGB888 (2) }; the Image's pixels are
+        // its field 4.
+        stream.end(grpcFrame([0x08, 2]))
+        onGrpcMessages(stream, (message) => {
+            pixels ??= protobufField(message, 4)
+        })
+        stream.on('error', () => {})
+        stream.on('close', () => {
+            clearTimeout(timer)
+            resolve(
+                pixels?.length === width * height * 3
+                    ? { pixels, width, height }
+                    : undefined,
+            )
+        })
+    })
 }
 
 // The frames a sample saw: the last one before `start` (what the area showed
@@ -2615,6 +2783,130 @@ async function runRegression(
         stopped = finished.catch(() => {})
         shots.push(stopped)
     }
+    // Stepped samples (SampleRequest's steppedMs in the app): the app pauses
+    // its animations and steps them, and asks for a screenshot of the area
+    // before the change and after each step ({ type: 'frame', group, name,
+    // area }, answered with 'framed'). Then { type: 'stepped', … } checks the
+    // colors as a video sample's frames are, and answers with 'sampled'. The
+    // screenshots go into <group>-<name>-steps.mp4, a frame a step (from the
+    // emulator), or step PNGs (iOS, devices).
+    type Stepped = {
+        colors: Rgb[]
+        video?: ReturnType<typeof streamRecording>
+        size?: string
+        // When its first screenshot was asked for.
+        start: number
+    }
+    const stepped = new Map<string, Stepped>()
+    // When stepped samples ran (start and end, ms; end undefined while one
+    // does): a group's time limit leaves them out, since a group's stepped
+    // samples take turns.
+    const steppedTimes: { start: number; end?: number }[] = []
+    const steppedSince = (since: number) =>
+        steppedTimes.reduce(
+            (total, { start, end }) =>
+                total +
+                Math.max(0, (end ?? Date.now()) - Math.max(start, since)),
+            0,
+        )
+    const takeFrame = async (message: RunnerMessage) => {
+        const index = message.group as number
+        const name = String(message.name)
+        const key = `${index}/${name}`
+        let sample = stepped.get(key)
+        if (!sample) {
+            sample = { colors: [], start: Date.now() }
+            stepped.set(key, sample)
+            steppedTimes.push({ start: sample.start })
+        }
+        const area = message.area as PixelRect
+        const base = `${String(index + 1).padStart(2, '0')}-${groups[index]}-${name}`
+        const shot =
+            platform === 'android'
+                ? await emulatorScreenshot(device)
+                : undefined
+        try {
+            if (shot) {
+                const size = `${shot.width}x${shot.height}`
+                if (!sample.video || sample.size !== size) {
+                    await sample.video?.finish()
+                    sample.size = size
+                    sample.video = streamRecording(
+                        path.join(dir, `${base}-steps.mp4`),
+                        ['-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', size],
+                    )
+                }
+                sample.video.write(shot.pixels)
+                sample.colors.push(
+                    areaColor(
+                        shot.pixels,
+                        shot.width,
+                        shot.height,
+                        area,
+                        windowWidth,
+                    ),
+                )
+            } else {
+                const file = path.join(
+                    dir,
+                    `${base}-step-${String(sample.colors.length).padStart(2, '0')}.png`,
+                )
+                // The companion's (about 80 ms), or simctl's or adb's.
+                const png =
+                    platform === 'ios' ? await idbScreenshot() : undefined
+                if (png) fs.writeFileSync(file, png)
+                else screenshot(platform, device, file)
+                const width = png?.readUInt32BE(16) ?? 0
+                const decoded =
+                    png &&
+                    pngRows(
+                        png,
+                        Math.ceil(
+                            (area.y + area.height) * (width / windowWidth),
+                        ) + 1,
+                    )
+                if (decoded) {
+                    sample.colors.push(
+                        areaColor(
+                            decoded.pixels,
+                            decoded.width,
+                            decoded.pixels.length / 3 / decoded.width,
+                            area,
+                            windowWidth,
+                        ),
+                    )
+                } else {
+                    const [frame] = frameColors(file, area, windowWidth)
+                    if (frame) sample.colors.push(frame.color)
+                }
+            }
+        } catch {
+            // A step without a screenshot: the check says what it saw.
+        }
+        send({ type: 'framed', group: index, name })
+    }
+    const checkStepped = async (message: RunnerMessage) => {
+        const index = message.group as number
+        const name = String(message.name)
+        const sample = stepped.get(`${index}/${name}`) ?? {
+            colors: [],
+            start: Date.now(),
+        }
+        stepped.delete(`${index}/${name}`)
+        const time = steppedTimes.find((t) => t.start === sample.start)
+        if (time) time.end = Date.now()
+        await sample.video?.finish()
+        const expect = (message.expect as string[]) ?? []
+        const result = matchSample(
+            sample.colors,
+            expect,
+            (message.palette as string[]) ?? [],
+        )
+        logLine(
+            `stepped sample ${name}: ${result.ok ? 'OK' : 'failed'}, ${result.detail ?? `saw ${result.seen.join(' ') || 'nothing'}`} (${sample.colors.length} screenshots)`,
+        )
+        send({ type: 'sampled', group: index, name, ...result })
+    }
     const ws = new WebSocket(
         `ws://127.0.0.1:${IMAGE_SERVER_PORT}/regression?role=controller&platform=${TV && platform === 'ios' ? 'tvos' : platform}`,
     )
@@ -2635,6 +2927,9 @@ async function runRegression(
             send({ type: 'show', index: showing })
         }
         if (message.type === 'sample' && groups.length > 0) startSample(message)
+        if (message.type === 'frame' && groups.length > 0)
+            void takeFrame(message)
+        if (message.type === 'stepped') void checkStepped(message)
         if (message.type === 'sampleDone') {
             openSamples.get(`${message.group}/${message.name}`)?.done?.()
         }
@@ -2892,16 +3187,22 @@ async function runRegression(
         // The group's time limit counts from here (the taps can take a while
         // the first time maestro-runner builds WebDriverAgent).
         const waitStart = Date.now()
-        // true once every case is OK, false if the app went away.
-        const result = await waitFor(
-            () =>
-                cases.every((id) => statusOf(index, id) === 'OK')
-                    ? true
-                    : appGone()
-                      ? false
-                      : undefined,
-            GROUP_TIMEOUT - (Date.now() - waitStart),
-        )
+        // true once every case is OK, false if the app went away. The time
+        // its stepped samples take doesn't count (see steppedTimes).
+        const left = () =>
+            GROUP_TIMEOUT + steppedSince(waitStart) - (Date.now() - waitStart)
+        let result: boolean | undefined
+        do {
+            result = await waitFor(
+                () =>
+                    cases.every((id) => statusOf(index, id) === 'OK')
+                        ? true
+                        : appGone()
+                          ? false
+                          : undefined,
+                left(),
+            )
+        } while (result === undefined && left() > 0)
         statuses[group] = Object.fromEntries(
             cases.map((id) => [id, statusOf(index, id) ?? 'no status']),
         )
@@ -3992,6 +4293,20 @@ async function androidDevice() {
                 'broadcast',
                 '-a',
                 'android.intent.action.CLOSE_SYSTEM_DIALOGS',
+            ])
+        }
+        // Hidden APIs allowed, for the example's animation clock (stepped
+        // video samples; see AnimationClock.kt).
+        if (androidSerial.startsWith('emulator-')) {
+            capture(ADB, [
+                '-s',
+                androidSerial,
+                'shell',
+                'settings',
+                'put',
+                'global',
+                'hidden_api_policy',
+                '1',
             ])
         }
         // Portrait, as the references are: a phone turned on its side

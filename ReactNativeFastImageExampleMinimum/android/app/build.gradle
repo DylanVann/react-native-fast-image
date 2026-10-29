@@ -77,6 +77,11 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    // The regression runner's animation clock (shared by the example apps).
+    sourceSets {
+        main.java.srcDirs += "../../../ReactNativeFastImageExample/android/animation-clock"
+    }
+
     namespace "com.reactnativefastimageexampleminimum"
     defaultConfig {
         applicationId "com.reactnativefastimageexampleminimum"
