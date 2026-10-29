@@ -1,9 +1,12 @@
 package com.fastimage.example
 
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.Choreographer
+import android.view.FrameMetrics
+import android.view.Window
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.Promise
@@ -131,7 +134,7 @@ class AnimationClockModule(context: ReactApplicationContext) : ReactContextBaseJ
         onMain(promise) { done ->
             AnimationClock.step(ms.toLong()) { error ->
                 if (error != null) promise.reject("E_ANIMATION_CLOCK", error)
-                else afterFrames(2, done)
+                else afterRendered { afterFrames(2, done) }
             }
         }
     }
@@ -142,6 +145,36 @@ class AnimationClockModule(context: ReactApplicationContext) : ReactContextBaseJ
             AnimationClock.resume()
             done()
         }
+    }
+
+    // Once the window's next frame has been rendered (its FrameMetrics, which
+    // come once the render thread has drawn and swapped it): on an emulator
+    // without a GPU that can take longer than a few vsyncs, and a screenshot
+    // then showed the step before. The frame is asked for, in case the step
+    // changed nothing, and told apart from the ones before it by its vsync
+    // time. At once without FrameMetrics' vsync time (before API 26), and
+    // after a second at most.
+    private fun afterRendered(done: () -> Unit) {
+        val window: Window? = reactApplicationContext.currentActivity?.window
+        if (window == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return done()
+        val handler = Handler(Looper.getMainLooper())
+        var vsync = Long.MAX_VALUE
+        var finished = false
+        lateinit var onMetrics: Window.OnFrameMetricsAvailableListener
+        val finish = Runnable {
+            if (finished) return@Runnable
+            finished = true
+            window.removeOnFrameMetricsAvailableListener(onMetrics)
+            done()
+        }
+        onMetrics = Window.OnFrameMetricsAvailableListener { _, metrics, _ ->
+            if (metrics.getMetric(FrameMetrics.VSYNC_TIMESTAMP) >= vsync) handler.post(finish)
+        }
+        window.addOnFrameMetricsAvailableListener(onMetrics, handler)
+        window.decorView.invalidate()
+        // Runs in the frame that draws it, with that frame's vsync time.
+        Choreographer.getInstance().postFrameCallback { vsync = it }
+        handler.postDelayed(finish, 1000)
     }
 
     private fun afterFrames(count: Int, done: () -> Unit) {

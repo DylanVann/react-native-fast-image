@@ -2842,10 +2842,32 @@ async function runRegression(
         const area = message.area as PixelRect
         const base = `${String(index + 1).padStart(2, '0')}-${groups[index]}-${name}`
         try {
-            const shot =
+            const colorOf = (frame: {
+                pixels: Buffer
+                width: number
+                height: number
+            }) =>
+                areaColor(
+                    frame.pixels,
+                    frame.width,
+                    frame.height,
+                    area,
+                    windowWidth,
+                )
+            let shot =
                 platform === 'android'
                     ? await emulatorScreenshot(device)
                     : undefined
+            // Until two in a row agree on the area (about 11 ms each): the
+            // emulator's screen can still be catching up with the app's
+            // frame.
+            for (let i = 0; shot && i < 5; i++) {
+                const next = await emulatorScreenshot(device)
+                if (!next) break
+                const same = isDeepStrictEqual(colorOf(shot), colorOf(next))
+                shot = next
+                if (same) break
+            }
             if (shot) {
                 const size = `${shot.width}x${shot.height}`
                 if (!sample.video || sample.size !== size) {
@@ -2857,15 +2879,7 @@ async function runRegression(
                     )
                 }
                 sample.video.write(shot.pixels)
-                sample.colors.push(
-                    areaColor(
-                        shot.pixels,
-                        shot.width,
-                        shot.height,
-                        area,
-                        windowWidth,
-                    ),
-                )
+                sample.colors.push(colorOf(shot))
             } else {
                 const file = path.join(
                     dir,
