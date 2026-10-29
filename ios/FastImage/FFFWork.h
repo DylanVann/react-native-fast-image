@@ -5,6 +5,8 @@
 // the main thread), in debug builds with the FastImageWork user default on:
 // the example app's regression runner counts them per case
 // (scripts/verify.mts sets it). Nothing in a release build.
+NS_ASSUME_NONNULL_BEGIN
+
 #if DEBUG
 static inline BOOL FFFWorkEnabled(void)
 {
@@ -37,3 +39,5 @@ static inline void FFFWorkLog(NSString *kind, NSURL *_Nullable url, NSString *de
 #else
 #define FFFWork(kind, url, ...)
 #endif
+
+NS_ASSUME_NONNULL_END

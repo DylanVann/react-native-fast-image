@@ -491,7 +491,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             }
         };
         mUrlPlaceholderTarget = target;
-        FastImageWork.record("load", imageSource.getSourceForLoad(), "url-placeholder");
+        if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "url-placeholder");
         requestManager
                 .load(imageSource.getSourceForLoad())
                 .apply(FastImageViewConverter.getOptions(getContext(), imageSource, mPlaceholderSource)

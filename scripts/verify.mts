@@ -2989,6 +2989,10 @@ async function runRegression(
     // The group on screen. If the app starts again (maestro-runner's iOS
     // driver relaunches it for the touch group), show that group again.
     let showing: number | undefined
+    // When the app said each group was on screen (by index), and its launch
+    // (see 'hello'): a reconnect of the same launch isn't a restart.
+    const shownAt = new Map<number, number>()
+    let launch: unknown
     ws.onmessage = (event) => {
         const message = JSON.parse(String(event.data)) as RunnerMessage
         logLine(`<- ${JSON.stringify(message)}`)
@@ -2998,9 +3002,16 @@ async function runRegression(
             // Look again once the grace period is over.
             if (!appConnected) setTimeout(notify, RECONNECT_GRACE_MS + 100)
         } else messages.push(message)
-        if (message.type === 'hello' && showing !== undefined) {
-            restarts.set(groups[showing], Date.now())
-            send({ type: 'show', index: showing })
+        if (message.type === 'group' && typeof message.index === 'number') {
+            shownAt.set(message.index, Date.now())
+        }
+        if (message.type === 'hello') {
+            const relaunched = launch !== undefined && message.launch !== launch
+            launch = message.launch
+            if (relaunched && showing !== undefined) {
+                restarts.set(groups[showing], Date.now())
+                send({ type: 'show', index: showing })
+            }
         }
         if (message.type === 'sample' && groups.length > 0) startSample(message)
         if (message.type === 'frame' && groups.length > 0)
@@ -3265,13 +3276,15 @@ async function runRegression(
         const group = groups[index]
         showing = index
         const groupStart = Date.now()
-        groupStarts.push({ group, at: groupStart })
         const own = failuresOf(index)
         const failGroup = (failure: string) => own.push(failure)
         const shown = await waitFor(
             () => messages.find((m) => m.type === 'group' && m.index === index),
             GROUP_TIMEOUT,
         )
+        // From when the app showed it (requests before are the previous
+        // group's, which was on screen until then).
+        groupStarts.push({ group, at: shownAt.get(index) ?? groupStart })
         if (!shown) {
             failGroup(
                 `${group}: not shown (${socketError ?? (appConnected ? 'timed out' : 'the app went away')})`,
@@ -3447,6 +3460,7 @@ async function runRegression(
         restarts,
         startedAt,
         endedAt,
+        connected && appConnected && !RELEASE,
     )
     let workSeeded: string[] = []
     if (!REF && !RELEASE) {
@@ -3547,6 +3561,7 @@ async function reportWork(
     restarts: Map<string, number>,
     since: number,
     endedAt: number,
+    waitForEnd: boolean,
 ) {
     const work: Record<string, Record<string, number>> = {}
     const add = (group: string | undefined, line: string) => {
@@ -3590,9 +3605,11 @@ async function reportWork(
         const log = path.join(OUT, `${app}-${platform}`, 'app.log')
         const read = () =>
             fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''
-        // The log stream's last lines, up to the app's end line.
+        // The log stream's last lines, up to the app's end line (none from a
+        // release build, whose JS logs only errors, or an app that went away).
         const waitStart = Date.now()
         while (
+            waitForEnd &&
             !/FastImageWork:? end\s*$/m.test(read()) &&
             Date.now() - waitStart < 10_000
         )

@@ -42,8 +42,10 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //
 // Messages to the script (JSON, one per WebSocket message):
 //   { type: 'hello', platform, version, arch, groups: [names], window:
-//     { width, height }, scale }                   on connecting (window in
-//                                                 dp; scale = pixels per dp)
+//     { width, height }, scale, launch }           on connecting (window in
+//                                                 dp; scale = pixels per dp;
+//                                                 launch: the same until the
+//                                                 app or its JS starts again)
 //   { type: 'group', index, name, wide, countWork, cases: [ids],
 //     description, descriptions: { id: description } }
 //                                                 once a group is on screen
@@ -191,6 +193,9 @@ const afterLayout = () =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     )
 
+// This launch of the app (or of its JS): see 'hello'.
+const LAUNCH = `${Date.now()}-${Math.random()}`
+
 const isFabric = () =>
     (globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager !=
     null
@@ -245,6 +250,11 @@ export default function RegressionRunner({
     // on screen, when the views have let go of their images (Android's
     // memory cache keeps the images views hold).
     const [next, setNext] = useState<number | 'next' | undefined>(undefined)
+    // The group on screen, or -1 while the next one is on its way.
+    const shownIndex = useRef(index)
+    useEffect(() => {
+        shownIndex.current = next === undefined ? index : -1
+    }, [next, index])
     useEffect(() => {
         if (next === undefined) return
         let cancelled = false
@@ -314,6 +324,7 @@ export default function RegressionRunner({
                         groups: groups.map((group) => group.name),
                         window: Dimensions.get('window'),
                         scale: PixelRatio.get(),
+                        launch: LAUNCH,
                     }),
                 )
                 for (const text of queue.current.splice(0)) ws?.send(text)
@@ -368,7 +379,9 @@ export default function RegressionRunner({
                         })
                 } else if (
                     message.type === 'show' &&
-                    typeof message.index === 'number'
+                    typeof message.index === 'number' &&
+                    // Not the group on screen again.
+                    message.index !== shownIndex.current
                 )
                     setNext(message.index)
             }

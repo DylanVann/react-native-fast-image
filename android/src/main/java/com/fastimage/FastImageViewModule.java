@@ -155,7 +155,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                         continue;
                     }
                     final RequestOptions preloadOptions = preloadOptions(context, imageSource, source);
-                    FastImageWork.record("load", imageSource.getSourceForLoad(), "preload");
+                    if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "preload");
                     // A source's result, which frees its slot.
                     final ResultCallback done = new ResultCallback() {
                         @Override
@@ -473,7 +473,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     promise.resolve(failure("Not in the disk cache"));
                     return;
                 }
-                FastImageWork.record("load", imageSource.getSourceForLoad(), "cache-path");
+                if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "cache-path");
                 UiThreadUtil.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

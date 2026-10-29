@@ -323,6 +323,9 @@ static UIImage* FFFDrawnSVG(UIImage* image, CGSize box, BOOL cover, CGFloat maxS
 
 + (void) addWorkURL: (NSURL*)url toContext: (SDWebImageMutableContext*)context {
 #if DEBUG
+    if (!FFFWorkEnabled()) {
+        return;
+    }
     NSMutableDictionary* decodeOptions = [context[SDWebImageContextImageDecodeOptions] mutableCopy] ?: [NSMutableDictionary dictionary];
     decodeOptions[FFFDecodeWorkURL] = url;
     context[SDWebImageContextImageDecodeOptions] = decodeOptions;
