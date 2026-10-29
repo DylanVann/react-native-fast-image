@@ -179,6 +179,11 @@
                 "steps": "Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.",
                 "shows": "The photo at 64x64 on the left."
             },
+            "auto-size-sources-bundled": {
+                "checks": "Several bundled @3x sources with both sides 'auto' are their size in points, their pixels over their file's scale (once).",
+                "steps": "Shows [require('./images/center-dot.png'), require('./images/center-dot.png')], a 120x120 @3x file, with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 40x40.",
+                "shows": "A 40x40 blue square on the left."
+            },
             "auto-size-declared": {
                 "checks": "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
                 "steps": "Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad, was 128x64.",
