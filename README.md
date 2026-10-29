@@ -252,7 +252,7 @@ A tiny version of the image (e.g. 8 to 20 px) as a data uri, shown blurred while
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `number`
 
-With several sources (`source` as an array), the image's width at this uri, in pixels (times `scale`, if given).
+The image's width in points, as with React Native's `Image`: with `height`, a side the style leaves open takes it before the image loads (see [`style`](#style)). With several sources (`source` as an array), the width of the image at this uri, from which the view picks the one for its size.
 
 ---
 
@@ -260,7 +260,7 @@ With several sources (`source` as an array), the image's width at this uri, in p
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `number`
 
-With several sources (`source` as an array), the image's height at this uri, in pixels (times `scale`, if given).
+The image's height in points (see `width`).
 
 ---
 
@@ -268,7 +268,7 @@ With several sources (`source` as an array), the image's height at this uri, in 
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `number`
 
-With several sources, the scale `width` and `height` are multiplied by.
+With several sources, the image's pixels per point at this uri: its size in pixels is `width` and `height` times `scale`. 1 if not given.
 
 ---
 
@@ -550,9 +550,9 @@ A width or height the style leaves out (or sets to `auto`) follows the loaded im
 
 - Only a width (or one from the parent, e.g. stretched in a column): the height from the image's aspect ratio.
 - Only a height: the width from it (in a row, or with `alignSelf` other than `stretch`: in a column, the parent stretches the width by default).
-- Neither: the image's own size (a 600 × 300 px image is 600 × 300 points, a bundled `@3x` one a third of that), at most the space there is.
+- Neither: the image's own size (a 600 × 300 px image is 600 × 300 points, a bundled `@3x` one a third of that, one of several sources its pixels over its `scale`), at most the space there is.
 
-Until the image has loaded, and if it fails (`defaultSource` included), those sides are 0, so the layout changes when it loads. To keep its space, set both sides, or a width and an `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s result).
+A bundled image, or a source with a `width` and `height`, lays them out at once, from that size: the layout doesn't change when the image loads. Otherwise, until the image has loaded, and if it fails (`defaultSource` included), those sides are 0, so the layout changes when it loads. To keep its space, give the source its `width` and `height`, or set both sides, or a width and an `aspectRatio` you know beforehand (e.g. from your API, or `preload`'s result).
 
 ```jsx
 <FastImage source={{ uri }} style={{ width: '100%' }} />

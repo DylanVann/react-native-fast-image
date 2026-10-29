@@ -216,8 +216,11 @@ export type Source = {
      */
     blurDataUri?: string
     /**
-     * With several sources (`source` as an array), the image's width at this
-     * uri, in pixels (times `scale`, if given).
+     * The image's width in points, as with React Native's `Image`: with
+     * `height`, a side the style leaves open takes it before the image loads
+     * (see `style`). With several sources (`source` as an array), the width
+     * of the image at this uri, from which the view picks the one for its
+     * size.
      *
      * @platform android
      * @platform ios
@@ -226,8 +229,7 @@ export type Source = {
      */
     width?: number
     /**
-     * With several sources (`source` as an array), the image's height at this
-     * uri, in pixels (times `scale`, if given).
+     * The image's height in points (see `width`).
      *
      * @platform android
      * @platform ios
@@ -236,7 +238,8 @@ export type Source = {
      */
     height?: number
     /**
-     * With several sources, the scale `width` and `height` are multiplied by.
+     * With several sources, the image's pixels per point at this uri: its
+     * size in pixels is `width` and `height` times `scale`. 1 if not given.
      *
      * @platform android
      * @platform ios
@@ -875,12 +878,15 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   than `stretch`: in a column, the parent stretches the width by
      *   default).
      * - Neither: the image's own size (a 600 × 300 px image is 600 × 300
-     *   points, a bundled `@3x` one a third of that), at most the space there
-     *   is.
+     *   points, a bundled `@3x` one a third of that, one of several sources
+     *   its pixels over its `scale`), at most the space there is.
      *
-     * Until the image has loaded, and if it fails (`defaultSource` included),
-     * those sides are 0, so the layout changes when it loads. To keep its
-     * space, set both sides, or a width and an `aspectRatio` you know
+     * A bundled image, or a source with a `width` and `height`, lays them out
+     * at once, from that size: the layout doesn't change when the image
+     * loads. Otherwise, until the image has loaded, and if it fails
+     * (`defaultSource` included), those sides are 0, so the layout changes
+     * when it loads. To keep its space, give the source its `width` and
+     * `height`, or set both sides, or a width and an `aspectRatio` you know
      * beforehand (e.g. from your API, or `preload`'s result).
      *
      * ```jsx
