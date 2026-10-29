@@ -12,7 +12,12 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyle, openSides, resolveObjectFit } from './objectFit'
+import {
+    declaredSizeStyle,
+    fromStyle,
+    openSides,
+    resolveObjectFit,
+} from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
@@ -1093,9 +1098,6 @@ function FastImageBase({
         tintColor != null ? tintColor : fromStyle(style, 'tintColor')
     const fit = resolveObjectFit(objectFit, style)
     const position = objectPositionOrCentered(objectPosition)
-    // The shadow node lays out a side the style leaves open from the loaded
-    // image: the view only gives it the image's size then.
-    const open = openSides(style)
 
     // One source, or several in an array, picked from natively for the
     // view's size (one in an array is a plain source), with their thumbhashes
@@ -1120,6 +1122,12 @@ function FastImageBase({
               )
             : Image.resolveAssetSource(withStringHeaders(single) as any)
     }, [source])
+    // The shadow node lays out a side the style leaves open from the loaded
+    // image: the view only gives it the image's size then. A single source's
+    // own size (see declaredSizeStyle) sets those sides at once instead.
+    const declared = declaredSizeStyle(resolvedSource, openSides(style))
+    const sizedStyle = declared ? [declared, style] : style
+    const open = declared ? { width: false, height: false } : openSides(style)
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
@@ -1146,7 +1154,7 @@ function FastImageBase({
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
             // Image does.
-            style={[styles.image, style]}
+            style={[styles.image, sizedStyle]}
             // null (no key) as undefined, which the native prop takes.
             recyclingKey={props.recyclingKey ?? undefined}
             loopCount={loopCount(loop)}

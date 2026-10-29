@@ -36,6 +36,9 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // height × scale), to pick the one closest to the view's size; zero if
 // unknown.
 @property (nonatomic) CGSize pixelSize;
+// With several sources, the scale its width and height are multiplied by
+// (1 if not given): an open side follows the image's pixels over it.
+@property (nonatomic) CGFloat scale;
 // Whether the decoded image is kept in the memory cache (`memoryCache`,
 // default YES). Without it, it's only kept on disk: views don't leave it in
 // memory, and preload doesn't decode it.
