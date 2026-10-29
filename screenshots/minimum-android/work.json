@@ -8,7 +8,7 @@
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 630x2400 at 600x300": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
         "decode http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/center-dot@3x.png?platform=android&hash=HASH 120x120 for 105x105 at 105x105": 1,
-        "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 3,
+        "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 2,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
         "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 3,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
@@ -70,11 +70,14 @@
         "request /picsum/1018-600x300.jpg": 1
     },
     "auto-size-declared": {
+        "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-source-width 120x120 for 168x168 at 120x120": 1,
         "decode http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a 200x200 for 2400x2400 at 200x200": 1,
         "decode http://10.0.2.2:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 600x300 for 336x168 at 336x168": 1,
         "layout-state http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a 80.0x80.0 main": 1,
+        "load http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-source-width source main": 1,
         "load http://10.0.2.2:8090/picsum/1025-200x200.jpg?auto-size-scale=a source main": 1,
         "load http://10.0.2.2:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 source main": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-source-width": 1,
         "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
     },
     "auto-size-changes": {

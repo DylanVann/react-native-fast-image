@@ -6,10 +6,11 @@
     },
     "auto-size": {
         "decode http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/center-dot@3x.png?platform=ios&hash=HASH 120x120 for 120x120 at full": 1,
+        "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 1x192 at full": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 720x1 at full": 1,
         "decode http://localhost:8090/picsum/1020-120x120.jpg 120x120 for 0x0 at full": 1,
-        "layout-state http://localhost:8090/picsum/1018-600x300.jpg 600x300 main": 3,
+        "layout-state http://localhost:8090/picsum/1018-600x300.jpg 600x300 main": 2,
         "layout-state http://localhost:8090/picsum/1020-120x120.jpg 120x120 main": 1,
         "load http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/center-dot@3x.png?platform=ios&hash=HASH source main": 1,
         "load http://localhost:8090/picsum/1018-600x300.jpg source main": 3,
@@ -68,11 +69,14 @@
         "request /picsum/1018-600x300.jpg": 1
     },
     "auto-size-declared": {
+        "decode http://localhost:8090/picsum/1020-120x120.jpg?auto-size-source-width 120x120 for 192x192 at full": 1,
         "decode http://localhost:8090/picsum/1025-200x200.jpg?auto-size-scale=a 200x200 for 0x0 at full": 1,
         "decode http://localhost:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 600x300 for 384x192 at full": 1,
         "layout-state http://localhost:8090/picsum/1025-200x200.jpg?auto-size-scale=a 80x80 main": 1,
+        "load http://localhost:8090/picsum/1020-120x120.jpg?auto-size-source-width source main": 1,
         "load http://localhost:8090/picsum/1025-200x200.jpg?auto-size-scale=a source main": 1,
         "load http://localhost:8091/picsum/1018-600x300.jpg?auto-size-declared=RUN&delay=2000 source main": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-source-width": 1,
         "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
     },
     "auto-size-changes": {
