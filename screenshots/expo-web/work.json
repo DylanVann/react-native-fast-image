@@ -1,8 +1,7 @@
 {
     "auto-size": {
         "request /picsum/1018-600x300.jpg": 1,
-        "request /picsum/1020-120x120.jpg": 1,
-        "request /sized-900.png?smoke=RUN": 1
+        "request /picsum/1020-120x120.jpg": 1
     },
     "auto-size-more": {
         "request /svg-icon.svg?auto-size": 1,
@@ -20,6 +19,7 @@
     },
     "auto-size-changes": {
         "request /does-not-exist.jpg?auto-size-failed=RUN": 1,
+        "request /picsum/1018-1024x1024.jpg?auto-size-sources-large=RUN": 1,
         "request /picsum/1018-256x256.jpg?auto-size-sources-small=RUN": 1,
         "request /picsum/1018-600x300.jpg?auto-size-failed=RUN": 1,
         "request /thirds.png?auto-size-placeholder=RUN": 1
@@ -28,12 +28,11 @@
         "request /does-not-exist.jpg?smoke-blur=RUN": 1,
         "request /fail-once/picsum/1025-200x200.jpg?smoke-reload-image=RUN": 2,
         "request /fail-once/picsum/1025-200x200.jpg?smoke-reload-placeholder=RUN": 2,
-        "request /picsum/1018-1024x1024.jpg?auto-size-sources-large=RUN": 1,
         "request /picsum/1025-200x200.jpg?smoke-default=RUN": 1,
-        "request /sized-300.png?smoke-sizes-change=RUN": 1
+        "request /sized-300.png?smoke-sizes-change=RUN": 1,
+        "request /sized-900.png?smoke-sizes-change=RUN": 1
     },
     "expo-image": {
-        "request /picsum/1020-120x120.jpg?expo-image=RUN": 1,
-        "request /sized-900.png?smoke-sizes-change=RUN": 1
+        "request /picsum/1020-120x120.jpg?expo-image=RUN": 1
     }
 }
