@@ -18,23 +18,23 @@
         "cases": {
             "auto-size-width": {
                 "checks": "An image with only a width (in a row) gets the height its aspect ratio gives.",
-                "steps": "Loads a 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x120.",
+                "steps": "Loads a 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
                 "shows": "The photo at 240x120 on the left, not stretched."
             },
             "auto-size-height": {
                 "checks": "An image with only a height (in a row) gets the width its aspect ratio gives.",
-                "steps": "Loads the 600x300 photo with style { height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
+                "steps": "Loads the 600x300 photo with style { width: 'auto', height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
                 "shows": "The photo at 128x64 on the left."
             },
             "auto-size-natural": {
                 "checks": "An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.",
-                "steps": "Loads a 120x120 photo with no style in a row. Passes once it has loaded and its layout is 120x120.",
+                "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The 120x120 photo at 120x120 points on the left."
             },
-            "auto-size-auto": {
-                "checks": "A height of 'auto' is open, as no height is.",
-                "steps": "Loads the 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
-                "shows": "The photo at 240x120 on the left."
+            "auto-size-left-out": {
+                "checks": "Opt-in: a side the style leaves out (rather than setting to 'auto') doesn't follow the image, and stays 0, as with React Native's Image.",
+                "steps": "Loads the 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x0.",
+                "shows": "Nothing: the view is 0 high."
             },
             "auto-size-scale": {
                 "checks": "A bundled @3x image with no size is its size in points: its pixels over its file's scale.",
@@ -50,7 +50,7 @@
         "cases": {
             "auto-size-svg": {
                 "checks": "An SVG with no size is its own size: a 24x24 SVG is 24x24 points.",
-                "steps": "Loads a 24x24 SVG of a black ring with no style in a row. Passes once it has loaded and its layout is 24x24.",
+                "steps": "Loads a 24x24 SVG of a black ring with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 24x24.",
                 "shows": "A 24x24 black ring on the left."
             },
             "auto-size-background": {
@@ -65,44 +65,44 @@
             },
             "auto-size-cover": {
                 "checks": "An image with only a width and objectFit cover shows the whole image as it loads, not a crop of its middle for a size the view doesn't get.",
-                "steps": "Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                "steps": "Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240, height: 'auto' }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The image at 240x120: magenta, cyan and magenta thirds."
             }
         }
     },
     "auto-size-styles": {
         "description": {
-            "checks": "#436, continued: padding, borders, and a height a later style clears."
+            "checks": "#436, continued: padding, borders, and a later style's height: 'auto'."
         },
         "cases": {
             "auto-size-padding": {
                 "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
-                "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
             },
             "auto-size-padding-natural": {
                 "checks": "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
-                "steps": "Loads a 120x120 photo with style { padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
+                "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The 120x120 photo at 120x120 points on the left."
             },
             "auto-size-border": {
                 "checks": "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
-                "steps": "Loads the 600x300 photo with style { width: 240, borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).",
+                "steps": "Loads the 600x300 photo with style { width: 240, height: 'auto', borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).",
                 "shows": "The photo at 224x112 inside an 8-point black border, on the left."
             },
             "auto-size-cleared": {
-                "checks": "A height a later style clears (height: undefined, as StyleSheet.flatten takes it) is open.",
-                "steps": "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: undefined }] in a row. Passes once it has loaded and its layout is 96x48.",
+                "checks": "A height of 'auto' in a later style replaces an earlier style's height.",
+                "steps": "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: 'auto' }] in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
             },
             "auto-size-padding-cover": {
                 "checks": "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
-                "steps": "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                "steps": "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The image at 240x120: a magenta band at the top over cyan."
             },
             "auto-size-padding-tall": {
                 "checks": "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
-                "steps": "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                "steps": "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The image at 240x140, cover: a magenta band at the top over cyan."
             }
         }
@@ -114,12 +114,12 @@
         "cases": {
             "auto-size-aspect-ratio": {
                 "checks": "The style's aspectRatio wins over the image's, also with neither side set: the image's width (at most the space there is), and the height from the style's ratio.",
-                "steps": "Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.",
+                "steps": "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The photo stretched to a 120x120 square on the left."
             },
             "auto-size-aspect-ratio-column": {
                 "checks": "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
-                "steps": "Loads the 600x300 photo with style { aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
+                "steps": "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The photo stretched to a 120x120 square on the left."
             },
             "auto-size-grow": {
@@ -135,9 +135,14 @@
         },
         "cases": {
             "auto-size-sources-scale": {
-                "checks": "A single source's width and height are its size in points, as with React Native's Image: a 120x120 image given as 60x60 is 60x60.",
-                "steps": "Loads a 120x120 photo as { uri, width: 60, height: 60 } with no style in a row. Passes once it has loaded and its layout is 60x60.",
-                "shows": "The photo at 60x60 on the left."
+                "checks": "Of several sources, the picked one's pixels over its scale are its size in points, as a bundled @2x or @3x image's are.",
+                "steps": "Shows two sources of a 200x200 photo, each { width: 80, height: 80, scale: 2.5 }, with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 80x80.",
+                "shows": "The photo at 80x80 on the left."
+            },
+            "auto-size-source-width": {
+                "checks": "A single source's width and height are its size in points, as with React Native's Image, also with no style: a 120x120 image given as 64x64 is 64x64.",
+                "steps": "Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.",
+                "shows": "The photo at 64x64 on the left."
             },
             "auto-size-declared": {
                 "checks": "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
@@ -153,27 +158,27 @@
         "cases": {
             "auto-size-placeholder": {
                 "checks": "A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.",
-                "steps": "Shows a photo the slow server sends over about 35 s, with style { width: 240 } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
+                "steps": "Shows a photo the slow server sends over about 35 s, with style { width: 240, height: 'auto' } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
                 "shows": "The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high."
             },
             "auto-size-source-change": {
                 "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
-                "steps": "Loads a 120x120 photo with style { width: 240 } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                "steps": "Loads a 120x120 photo with style { width: 240, height: 'auto' } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The 600x300 image at 240x120: a magenta band at the top over cyan."
             },
             "auto-size-natural-change": {
                 "checks": "An image with neither side set and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
-                "steps": "Loads a 120x120 photo with no style in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
                 "shows": "The thirds at 240x120: magenta, cyan and magenta."
             },
             "auto-size-sources": {
                 "checks": "With several sizes of an image and only a width, the size for that width loads, and only that one.",
-                "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64 } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
+                "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64, height: 'auto' } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
                 "shows": "The photo at 64x64 on the left."
             },
             "auto-size-failed": {
                 "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
-                "steps": "Loads the 600x300 photo with style { width: 96 } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
+                "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
                 "shows": "Nothing: the image is 0 high."
             }
         }

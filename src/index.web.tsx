@@ -185,9 +185,9 @@ function FastImageBase({
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
     // The loaded image's size in points, kept until another image loads (none
     // after one failed, or without a source, as before one loads). A side
-    // the style leaves open follows it, as on iOS and Android: the view
+    // the style sets to `auto` follows it, as on iOS and Android: the view
     // gets the image's aspect ratio (unless the style has one), and with
-    // neither side set, the image's width (at most the space there is) from a
+    // both sides `auto`, the image's width (at most the space there is) from a
     // spacer, so a stretched view still fills its parent. The image fills the
     // padding box, so the spacer is that less the padding. (The aspect ratio
     // is the border box's: with borders, the image's box is a little off
@@ -199,10 +199,13 @@ function FastImageBase({
     if (!src && imageSize) setImageSize(undefined)
     // A single source's own size (see ownSize) instead, from the start.
     const single = several ? undefined : [source].flat()[0]
-    const shownSize =
-        ownSize(typeof single === 'number' ? getAssetByID(single) : single) ??
-        imageSize
-    const open = openSides(style)
+    const own = ownSize(
+        typeof single === 'number' ? getAssetByID(single) : single,
+    )
+    const shownSize = own ?? imageSize
+    // Only `auto` sides follow a loaded image; a known size, also the sides
+    // left out (as on iOS and Android).
+    const open = openSides(style, own ? 'open' : 'closed')
     const sizeStyle =
         shownSize &&
         shownSize.width > 0 &&
@@ -210,8 +213,15 @@ function FastImageBase({
         (open.width || open.height)
             ? { aspectRatio: shownSize.width / shownSize.height }
             : undefined
+    // Both sides follow it: both open, or one with the style's aspectRatio
+    // giving the other (as the shadow node does on iOS and Android).
+    const bothOpen =
+        open.width && open.height
+            ? true
+            : (open.width || open.height) &&
+              fromStyleKeys(style, ['aspectRatio']).aspectRatio != null
     const spacer =
-        sizeStyle && open.width && open.height ? (
+        sizeStyle && bothOpen ? (
             <View
                 style={{
                     width: Math.max(0, shownSize!.width - paddingX(style)),
