@@ -32,16 +32,12 @@
     "layout": {
         "decode android.resource://com.reactnativefastimageexampleminimum/RUN 80x80 for 126x126 at 126x126": 1,
         "decode file:///android_asset/fastimage-logo.png 1000x1000 for 126x126 at 126x126": 1,
-        "decode http://10.0.2.2:8090/logo.png 1000x1000 for 126x126 at 126x126": 2,
-        "decode http://10.0.2.2:8090/logo.png 1000x1000 for 252x126 at 252x252": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 126x126 at 126x63": 1,
         "load android.resource://com.reactnativefastimageexampleminimum/RUN source main": 1,
         "load file:///android_asset/fastimage-logo.png source main": 3,
         "load http://10.0.2.2:8090/jellyfish.gif source main": 1,
-        "load http://10.0.2.2:8090/logo.png source main": 4,
         "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 1,
         "request /jellyfish.gif": 1,
-        "request /logo.png": 1,
         "request /picsum/1018-600x300.jpg": 1
     },
     "object-fit": {

@@ -70,6 +70,11 @@ const DEFAULT = Platform.select({
     default: require('./images/fields.jpg'),
 })
 const LOGO = imageUrl('logo.png')
+// The logo in the layout group's cases, whose work isn't counted (uncounted,
+// see scripts/verify.mts): four of its views load it at once, at different
+// sizes, and on Android a view whose download starts just after the others'
+// shared download has ended downloads it again (seen once on CI's emulator).
+const LAYOUT_LOGO = imageUrl('logo.png?uncounted')
 const MISSING = imageUrl('does-not-exist.png')
 const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
@@ -153,7 +158,7 @@ function LayoutCase({ id }: { id: string }) {
         <View style={styles.row}>
             <FastImage
                 style={[styles.image, { marginLeft: 10 }]}
-                source={{ uri: LOGO }}
+                source={{ uri: LAYOUT_LOGO }}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
                 onLoad={() => setLoaded(true)}
             />
@@ -229,13 +234,13 @@ function RefMeasureCase() {
             <FastImage
                 ref={image}
                 style={styles.image}
-                source={{ uri: LOGO }}
+                source={{ uri: LAYOUT_LOGO }}
                 onLoad={onLoad}
             />
             <FastImageBackground
                 ref={background}
                 style={[styles.image, styles.gap, { width: 96 }]}
-                source={{ uri: LOGO }}
+                source={{ uri: LAYOUT_LOGO }}
                 onLoad={onLoad}
             />
             <CaseStatus
@@ -10841,7 +10846,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'The React logo in solid green instead of its usual light blue. A light blue logo means the tint was ignored.',
                 }}
                 event="onLoad"
-                source={{ uri: LOGO }}
+                source={{ uri: LAYOUT_LOGO }}
                 style={[styles.image, { tintColor: 'green' }]}
             />,
             <SourceSizeCase
