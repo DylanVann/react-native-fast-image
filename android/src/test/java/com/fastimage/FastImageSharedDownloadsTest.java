@@ -97,6 +97,21 @@ public class FastImageSharedDownloadsTest {
         assertEquals(1, server.count("/image"));
     }
 
+    // Glide looks in its disk cache before it downloads: a request that looked
+    // before the first request's image was stored there, and gets to
+    // downloading just after its download ended, reads its bytes rather than
+    // downloading the image again (views of one url at different sizes, which
+    // Glide loads apart, at once).
+    @Test
+    public void aRequestJustAfterTheDownloadEndedReadsItsBytes() throws Exception {
+        server.route("/image");
+        Load first = load(url("/image"));
+        byte[] bytes = first.bytes();
+        Load late = load(url("/image"));
+        assertArrayEquals(bytes, late.bytes());
+        assertEquals(1, server.count("/image"));
+    }
+
     @Test
     public void aRequestThatLeavesLeavesTheDownloadToTheOthers() throws Exception {
         TestServer.Route image = server.route("/image").holdAfter(100);

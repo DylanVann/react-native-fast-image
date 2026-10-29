@@ -31,6 +31,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ import okio.BufferedSource;
 // request that comes while many images download still gets to the queue below
 // at once, and other images aren't held up behind slow downloads. The download
 // is cancelled once every request for it has gone, and its bytes are dropped
-// once every request has read what it needed.
+// a moment after every request has read what it needed (LINGER_MS).
 //
 // At most MAX_RUNNING downloads run at once, as SDWebImage's downloader limits
 // them, and at most as many wait for their response from a host as the
@@ -96,6 +97,14 @@ final class FastImageSharedDownloads {
     private static final int MAX_RUNNING = 16;
     // How long a preload's finished file is used (see finished()).
     private static final long KEEP_MS = 60_000;
+    // How long an ended download's bytes stay for new requests once every
+    // request has read them. Glide looks in its disk cache before it
+    // downloads, and gets to downloading later (another of its threads):
+    // a request that looked before the first request's image was stored
+    // there, and gets to downloading just after the download ended, reads
+    // them rather than downloading the image again (views of one url at
+    // different sizes, which Glide loads apart, at once).
+    private static final long LINGER_MS = 1000;
     // Progress is sent when a download has read another 0.5% (and at its
     // start and end).
     private static final long PROGRESS_STEPS = 200;
@@ -146,8 +155,22 @@ final class FastImageSharedDownloads {
                 }
             });
 
+    // Drops the bytes of ended downloads that every request has read, once
+    // LINGER_MS has passed.
+    private static final ScheduledThreadPoolExecutor lingering = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactory() {
+                @Override
+                public Thread newThread(@NonNull Runnable runnable) {
+                    Thread thread = new Thread(runnable, "FastImageDownloadLinger");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
+
     static {
         reading.allowCoreThreadTimeOut(true);
+        lingering.setKeepAliveTime(30, TimeUnit.SECONDS);
+        lingering.allowCoreThreadTimeOut(true);
     }
 
     private static final class Finished {
@@ -574,6 +597,9 @@ final class FastImageSharedDownloads {
         // the streams open on its bytes.
         private final List<Waiter> waiting = new ArrayList<>();
         private int readers = 0;
+        // Guarded by this. Counts the times every reader had closed, so a drop
+        // scheduled then doesn't drop bytes a request has joined since.
+        private int idle = 0;
         // Guarded by this. Where the bytes are (null before the response is
         // read, and once dropped), and how many there are.
         @Nullable
@@ -802,13 +828,28 @@ final class FastImageSharedDownloads {
             if (cancel) cancel();
         }
 
-        // A stream on the bytes was closed: once every one has, the bytes go.
+        // A stream on the bytes was closed: once every one has, the bytes go
+        // LINGER_MS later, unless a request has joined by then.
         void readerClosed() {
-            Store dropped = null;
+            final int at;
+            synchronized (this) {
+                readers--;
+                if (readers > 0) return;
+                at = ++idle;
+            }
+            lingering.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    dropIfIdle(at);
+                }
+            }, LINGER_MS, TimeUnit.MILLISECONDS);
+        }
+
+        private void dropIfIdle(int at) {
+            Store dropped;
             synchronized (downloads) {
                 synchronized (this) {
-                    readers--;
-                    if (readers > 0) return;
+                    if (readers > 0 || idle != at) return;
                     unmap();
                     dropped = drop();
                 }
