@@ -1172,13 +1172,28 @@ function AutoSizeSourcesCase() {
     )
 }
 
-// An image with only a width and objectFit cover whose source changes from a
-// square image to a wide one: the new image is decoded for the view's width,
-// as on its first load, not to cover the square the previous image gave the
-// view (several times the pixels the view has once it takes the new shape).
-// The work counts show the box it's decoded for.
-function AutoSizeChangeDecodeCase() {
-    const [wide, setWide] = useState(false)
+// An image with only a width whose source changes to an image of another
+// shape (e.g. in a recycled list cell): the new image is decoded for the
+// view's width, as on its first load, not for the box the previous image
+// gave the view (to cover it: several times the pixels the view has once it
+// takes the new shape; to fit in it: fewer, and then again). The work counts
+// show the box it's decoded for.
+function AutoSizeChangeDecodeCase({
+    id,
+    objectFit,
+    first,
+    second,
+    expected,
+    description,
+}: {
+    id: string
+    objectFit: React.ComponentProps<typeof FastImage>['objectFit']
+    first: string
+    second: string
+    expected: { width: number; height: number }
+    description: Description
+}) {
+    const [changed, setChanged] = useState(false)
     const [loaded, setLoaded] = useState(false)
     const [layout, setLayout] = useState<{ width: number; height: number }>()
     return (
@@ -1187,35 +1202,99 @@ function AutoSizeChangeDecodeCase() {
                 <FastImage
                     source={{
                         uri: imageUrl(
-                            wide
-                                ? `wide-bands.png?auto-size-change-decode=${RUN}`
-                                : `picsum/1020-120x120.jpg?auto-size-change-decode=${RUN}`,
+                            `${changed ? second : first}?${id}=${RUN}`,
                         ),
                     }}
-                    style={{ width: 256, height: 'auto' }}
-                    objectFit="cover"
+                    style={{ width: expected.width, height: 'auto' }}
+                    objectFit={objectFit}
                     onLoad={() =>
-                        wide
+                        changed
                             ? setTimeout(() => setLoaded(true), 1000)
-                            : setTimeout(() => setWide(true), 300)
+                            : setTimeout(() => setChanged(true), 300)
                     }
                     onLayout={(e) => setLayout(e.nativeEvent.layout)}
                 />
             </View>
             <CaseStatus
-                id="auto-size-change-decode"
+                id={id}
                 status={
                     !loaded || !layout
                         ? 'waiting'
-                        : Math.abs(layout.width - 256) < 0.5 &&
-                            Math.abs(layout.height - 64) < 0.5
+                        : Math.abs(layout.width - expected.width) < 0.5 &&
+                            Math.abs(layout.height - expected.height) < 0.5
                           ? 'OK'
-                          : `${layout.width}x${layout.height}, expected 256x64`
+                          : `${layout.width}x${layout.height}, expected ${expected.width}x${expected.height}`
                 }
+                description={description}
+            />
+        </View>
+    )
+}
+
+// A single bundled image (no style needed: its own size lays it out) whose
+// source changes to a url with both sides 'auto': while the url loads, the
+// view keeps the bundled image's size in points, as it had, not its pixels.
+// The url comes from the slow server (about 2.8 s), and its layout is checked
+// 1 s after the change.
+function AutoSizeFromBundledCase() {
+    const [changed, setChanged] = useState(false)
+    const [during, setDuring] = useState<string>()
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState('')
+    const latest = useRef('')
+    useEffect(() => {
+        if (!changed) return
+        const timer = setTimeout(() => setDuring(latest.current), 1000)
+        return () => clearTimeout(timer)
+    }, [changed])
+    // The web can't send the slow server's header: there the url loads at
+    // once, so only its own size is checked.
+    const url =
+        Platform.OS === 'web'
+            ? {
+                  uri: imageUrl(
+                      `picsum/1020-120x120.jpg?auto-size-from-bundled=${RUN}`,
+                  ),
+              }
+            : {
+                  uri: slowImageUrl(
+                      `picsum/1020-120x120.jpg?auto-size-from-bundled=${RUN}&delay=400`,
+                  ),
+                  headers: SLOW_HEADERS,
+              }
+    const status = !loaded
+        ? 'waiting'
+        : Platform.OS !== 'web' && during !== '40x40'
+          ? `${during} while the url loaded, expected 40x40`
+          : layout !== '120x120'
+            ? `${layout} once it loaded, expected 120x120`
+            : 'OK'
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={changed ? url : require('./images/center-dot.png')}
+                    style={changed ? { width: 'auto', height: 'auto' } : {}}
+                    objectFit="fill"
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        latest.current = `${Math.round(width)}x${Math.round(height)}`
+                        setLayout(latest.current)
+                    }}
+                    onLoad={() =>
+                        changed
+                            ? setTimeout(() => setLoaded(true), 500)
+                            : setTimeout(() => setChanged(true), 300)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-from-bundled"
+                status={status}
                 description={{
-                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
-                    steps: "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
-                    shows: 'Eight magenta and cyan bands at 256x64.',
+                    checks: "A bundled image whose source changes to a url with both sides 'auto' keeps the bundled image's size in points while the url loads, not its pixels.",
+                    steps: "Shows require('./images/center-dot.png'), only a 120x120 @3x file (40x40), with no style in a row, then changes the source to a 120x120 photo (on iOS and Android from a download that takes about 2.8 s) with style { width: 'auto', height: 'auto' }. Passes when its layout 1 s after the change was 40x40 (not on the web, where the url loads at once), and 120x120 once the photo has loaded.",
+                    shows: 'The photo at 120x120 on the left.',
                 }}
             />
         </View>
@@ -1717,7 +1796,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-edges',
         description: {
-            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, and a contain image's height rounding off the decoded image's.",
+            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, a contain image's height rounding off the decoded image's, and an open side that rounds to a sliver inside the borders.",
         },
         cases: [
             <AutoSizeCase
@@ -1769,6 +1848,39 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
             />,
             <AutoSizeGrowCase key="auto-size-grow" />,
             <AutoSizeContainRoundingCase key="auto-size-contain-rounding" />,
+            // Not on the web (see auto-size-border).
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-border-sliver"
+                          id="auto-size-border-sliver"
+                          source={{
+                              uri: imageUrl(
+                                  `cyan-wide.png?auto-size-border-sliver=${RUN}`,
+                              ),
+                          }}
+                          style={{
+                              width: 128.9,
+                              height: 'auto',
+                              borderWidth: 0.45,
+                              borderColor: 'transparent',
+                          }}
+                          objectFit="contain"
+                          // The image's height can round either way by a pixel
+                          // (it's 64.9 points), which moves its edges: the
+                          // screenshot is of the row, which doesn't, in the
+                          // image's color (the case checks the layout and the
+                          // decodes, not how it looks).
+                          container={{ height: 72, backgroundColor: CYAN }}
+                          expected={{ width: 128.9, height: 64.9 }}
+                          description={{
+                              checks: 'An image with only a width and borders whose open height rounds to a sliver inside them (less than a pixel) is decoded for its width, as with no borders, not for that sliver and then again.',
+                              steps: "Loads a 600x300 cyan image with style { width: 128.9, height: 'auto', borderWidth: 0.45, borderColor: 'transparent' } and objectFit contain in a row: 0.9 points of borders, which the layout rounds to the pixel grid. Passes once it has loaded and its layout is 128.9x64.9 (128x64 inside the borders), within half a point; the work counts show the boxes it was decoded for.",
+                              shows: 'A cyan rectangle on the left, about 129x72 (the image in front of a cyan row).',
+                          }}
+                      />,
+                  ]),
         ],
     },
     {
@@ -1859,7 +1971,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-changes',
         description: {
-            checks: '#436, continued: a url placeholder, several sizes, a source change (and the box the new image is decoded for) and a failed one, of an image with only a width, and a source change of one with neither side set.',
+            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set.',
         },
         cases: [
             <AutoSizePlaceholderCase key="auto-size-placeholder" />,
@@ -1871,8 +1983,42 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                       <AutoSizeNaturalChangeCase key="auto-size-natural-change" />,
                   ]),
             <AutoSizeSourcesCase key="auto-size-sources" />,
-            <AutoSizeChangeDecodeCase key="auto-size-change-decode" />,
             <AutoSizeFailedCase key="auto-size-failed" />,
+        ],
+    },
+    {
+        name: 'auto-size-change-decode',
+        description: {
+            checks: "#436, continued: the box a new source of an image with only a width is decoded for, with cover and contain, and a bundled image changed to a url with both sides 'auto'.",
+        },
+        cases: [
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode"
+                id="auto-size-change-decode"
+                objectFit="cover"
+                first="picsum/1020-120x120.jpg"
+                second="wide-bands.png"
+                expected={{ width: 256, height: 64 }}
+                description={{
+                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
+                    steps: "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
+                    shows: 'Eight magenta and cyan bands at 256x64.',
+                }}
+            />,
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode-contain"
+                id="auto-size-change-decode-contain"
+                objectFit="contain"
+                first="wide-bands.png"
+                second="picsum/1018-1024x1024.jpg"
+                expected={{ width: 128, height: 128 }}
+                description={{
+                    checks: "An image with only a width and objectFit contain whose source changes to an image of another shape decodes the new image for the view's width, not to fit in the box the previous image gave the view (and then again).",
+                    steps: "Loads a 3200x800 image of magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit contain in a row (128x32), and 300 ms after onLoad changes the source to a 1024x1024 photo. Passes when, 1 s after its onLoad, the layout is 128x128; the work counts show the boxes it was decoded for.",
+                    shows: 'The photo at 128x128 on the left.',
+                }}
+            />,
+            <AutoSizeFromBundledCase key="auto-size-from-bundled" />,
         ],
     },
 ]

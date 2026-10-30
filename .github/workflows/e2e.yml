@@ -15,7 +15,7 @@ permissions:
 env:
   # The minimum example's groups (React Native 0.83, Fast Image's minimum): a
   # smoke test of each area, which the main example's runs cover in full.
-  SMOKE_GROUPS: start,load-end,events,errors,layout,auto-size,auto-size-more,auto-size-styles,auto-size-edges,auto-size-declared,auto-size-changes,object-fit,downsampling,loading,preload,cache-only,cache-path,write-to-cache,fade,thumbhash,tint,formats,svg,photo-library,configure-cache,non-object-sources
+  SMOKE_GROUPS: start,load-end,events,errors,layout,auto-size,auto-size-more,auto-size-styles,auto-size-edges,auto-size-declared,auto-size-changes,auto-size-change-decode,object-fit,downsampling,loading,preload,cache-only,cache-path,write-to-cache,fade,thumbhash,tint,formats,svg,photo-library,configure-cache,non-object-sources
   # Whether this run can save caches and group times to R2 (see "Restore the
   # simulator").
   R2_WRITE: ${{ secrets.R2_ACCESS_KEY_ID != '' }}

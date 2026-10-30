@@ -959,9 +959,12 @@ NSString *FFFErrorMessage(NSError *error)
     };
     // The image's pixels, as on Android and the web (an @2x in a url doesn't
     // halve it), over the picked source's scale with several sources (their
-    // sizes are in pixels times it; a bundled one's is its file's). A single
-    // bundled image is laid out from its own size (ownWidth and ownHeight).
-    CGFloat scale = imageScale / ([self picksSource] && _source.scale > 0 ? _source.scale : 1);
+    // sizes are in pixels times it) and a bundled one's (its file's): its size
+    // in points, which a single bundled image is laid out from anyway
+    // (ownWidth and ownHeight), and keeps if its source changes to a url with
+    // an open side, until that loads.
+    CGFloat sourceScale = ([self picksSource] || _source.packagerAsset) && _source.scale > 0 ? _source.scale : 1;
+    CGFloat scale = imageScale / sourceScale;
     [self sendImageSize: CGSizeMake(size.width * scale, size.height * scale)];
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
@@ -1369,10 +1372,12 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the layout has a width (side 1) or a height (2) that isn't the
 // image's: an open side has the previous image's while a new source loads,
-// which the new image doesn't get.
+// which the new image doesn't get. The view's size is rounded to the pixel
+// grid and its borders aren't, so an open side that's only borders can be a
+// sliver inside them: less than a pixel counts as 0, as on Android.
 - (BOOL) laysOutSide: (NSInteger)side {
     CGFloat length = side == 1 ? self.bounds.size.width : self.bounds.size.height;
-    return length > 0 && !((self.autoSize & side) != 0 && [self laysOutPreviousImage]);
+    return length * [self screenScale] >= 1 && !((self.autoSize & side) != 0 && [self laysOutPreviousImage]);
 }
 
 // Whether the layout has an image's size.

@@ -39,6 +39,8 @@ typedef NS_ENUM(NSInteger, FFFCacheControl) {
 // With several sources, the scale its width and height are multiplied by
 // (1 if not given): an open side follows the image's pixels over it.
 @property (nonatomic) CGFloat scale;
+// Whether it's a bundled image (require()), whose scale is its file's.
+@property (nonatomic) BOOL packagerAsset;
 // Whether the decoded image is kept in the memory cache (`memoryCache`,
 // default YES). Without it, it's only kept on disk: views don't leave it in
 // memory, and preload doesn't decode it.
