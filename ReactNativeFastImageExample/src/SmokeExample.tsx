@@ -803,11 +803,13 @@ function BlurDataUriCase() {
 // #436: a side the style leaves open follows the loaded image (its aspect
 // ratio, or with neither side set its own size), as an <img>'s does. Passes
 // once the image has loaded and the view's layout is `expected` (within half
-// a point). objectFit="fill" stretches the image if the box is wrong.
+// a point). objectFit="fill" (the default here) stretches the image if the
+// box is wrong.
 function AutoSizeCase({
     id,
     source,
     style,
+    objectFit = 'fill',
     container,
     expected,
     description,
@@ -815,6 +817,7 @@ function AutoSizeCase({
     id: string
     source: React.ComponentProps<typeof FastImage>['source']
     style: React.ComponentProps<typeof FastImage>['style']
+    objectFit?: React.ComponentProps<typeof FastImage>['objectFit']
     // The row's own style (e.g. a width the image fits in).
     container?: ViewStyle
     expected: { width: number; height: number }
@@ -837,7 +840,7 @@ function AutoSizeCase({
             >
                 <FastImage
                     style={style}
-                    objectFit="fill"
+                    objectFit={objectFit}
                     source={source}
                     onLayout={(e) => {
                         const { width, height } = e.nativeEvent.layout
@@ -1479,6 +1482,27 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <AutoSizeBackgroundCase key="auto-size-background" />,
+            // Clipped by a 128-point-high column with overflow scroll: Yoga caps
+            // a child's open height at its parent's unless the parent scrolls,
+            // as browsers do.
+            <AutoSizeCase
+                key="auto-size-tall"
+                id="auto-size-tall"
+                source={{ uri: imageUrl('tall-bands.png') }}
+                style={{ width: 128, height: 'auto' }}
+                objectFit="cover"
+                container={{
+                    height: 128,
+                    flexDirection: 'column',
+                    overflow: 'scroll',
+                }}
+                expected={{ width: 128, height: 1024 }}
+                description={{
+                    checks: "An image with only a width that's taller than the screen at that width is decoded once, for the view's size, not first for a box the screen's height.",
+                    steps: "Loads a 200x1600 image of 16 magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit cover in a column 128 points high with overflow scroll, which clips it. Passes once it has loaded and its layout is 128x1024; the work counts show its decodes.",
+                    shows: 'The top of the image, 128x128: a magenta band over a cyan one.',
+                }}
+            />,
             <AutoSizeDownsampleCase key="auto-size-downsample" />,
             // Not on the web, where the browser crops it as it draws it (and
             // the runner doesn't record the screen).
@@ -1676,6 +1700,20 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                     checks: "A single source's width and height are its size in points, as with React Native's Image, also with no style: a 120x120 image given as 64x64 is 64x64.",
                     steps: 'Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.',
                     shows: 'The photo at 64x64 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-url-scale"
+                id="auto-size-url-scale"
+                source={{
+                    uri: imageUrl('picsum/1020-120x120.jpg?name=photo@2x.jpg'),
+                }}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "A url with @2x in it is its size in pixels, as other urls are: only a bundled file's or a source's scale divides it.",
+                    steps: "Loads a 120x120 photo from a url ending in ?name=photo@2x.jpg with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The photo at 120x120 on the left.',
                 }}
             />,
             <AutoSizeCase
