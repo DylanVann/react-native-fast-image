@@ -3,19 +3,12 @@
 import { StyleSheet } from 'react-native'
 import type { ImageStyle, ObjectFit } from './index'
 
-// Finds a key (e.g. tintColor, objectFit) in a style prop, where the last
-// style that has it wins, as with StyleSheet.flatten, but without flattening
-// (which allocates a merged object for an array style on every render). As
-// there, a later style's `undefined` clears it (e.g. `height: undefined`).
-export function fromStyle<K extends keyof ImageStyle>(
-    style: unknown,
-    key: K,
-): ImageStyle[K] {
-    return fromStyleKeys(style, [key])[key] as ImageStyle[K]
-}
-
-// fromStyle for several keys, in one walk of the style (each registered style
-// flattened once): each key's value, or undefined.
+// Finds keys (e.g. tintColor, objectFit) in a style prop, in one walk of it
+// (each registered style flattened once), where the last style that has a key
+// wins, as with StyleSheet.flatten, but without flattening (which allocates a
+// merged object for an array style on every render). As there, a later
+// style's `undefined` clears it (e.g. `height: undefined`). Each key's value,
+// or undefined.
 export function fromStyleKeys<K extends keyof ImageStyle>(
     style: unknown,
     keys: readonly K[],
@@ -58,13 +51,13 @@ const FITS: Record<ObjectFit, true> = {
     'scale-down': true,
 }
 
-// The objectFit prop, then style's, then cover (null, or a value that isn't
-// one of objectFit's, counts as not set).
+// The objectFit prop, then style's (from readStyle), then cover (null, or a
+// value that isn't one of objectFit's, counts as not set).
 export function resolveObjectFit(
     objectFit: ObjectFit | null | undefined,
-    style: unknown,
+    values: StyleValues,
 ): ObjectFit {
-    const fit = objectFit != null ? objectFit : fromStyle(style, 'objectFit')
+    const fit = objectFit != null ? objectFit : values.objectFit
     return fit && FITS[fit] === true ? fit : 'cover'
 }
 
@@ -96,17 +89,18 @@ const SIDE_KEYS = [
 ] as const
 
 // The style's values FastImage reads (tintColor, objectFit and the sides'), in
-// one walk of the style: resolveObjectFit and openSides take it in place of
+// one walk of the style: resolveObjectFit and openSides take them in place of
 // the style.
 export function readStyle(style: unknown) {
     return fromStyleKeys(style, ['tintColor', 'objectFit', ...SIDE_KEYS])
 }
 
+type StyleValues = ReturnType<typeof readStyle>
+
 export function openSides(
-    style: unknown,
+    values: StyleValues,
     leftOut: 'closed' | 'open' = 'closed',
 ): { width: boolean; height: boolean; aspectRatio: boolean } {
-    const values = fromStyleKeys(style, SIDE_KEYS)
     const { width, height } = values
     const setWidth = width != null && width !== 'auto'
     const setHeight = height != null && height !== 'auto'
