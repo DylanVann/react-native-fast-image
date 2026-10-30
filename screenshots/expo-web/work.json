@@ -13,7 +13,6 @@
     "auto-size-edges": {
         "request /odd-height.png?auto-size-contain-rounding=RUN": 1,
         "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1,
-        "request /picsum/1018-600x300.jpg": 1,
         "request /picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto": 1
     },
     "auto-size-declared": {
