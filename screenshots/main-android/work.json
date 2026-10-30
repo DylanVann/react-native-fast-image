@@ -56,12 +56,16 @@
     "layout": {
         "decode android.resource://com.reactnativefastimageexample/RUN 80x80 for 126x126 at 126x126": 1,
         "decode file:///android_asset/fastimage-logo.png 1000x1000 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/logo.png 1000x1000 for 126x126 at 126x126": 2,
+        "decode http://10.0.2.2:8090/logo.png 1000x1000 for 252x126 at 252x252": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 126x126 at 126x63": 1,
         "load android.resource://com.reactnativefastimageexample/RUN source main": 1,
         "load file:///android_asset/fastimage-logo.png source main": 3,
         "load http://10.0.2.2:8090/jellyfish.gif source main": 1,
+        "load http://10.0.2.2:8090/logo.png source main": 4,
         "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 1,
         "request /jellyfish.gif": 1,
+        "request /logo.png": 1,
         "request /picsum/1018-600x300.jpg": 1
     },
     "view-style": {
@@ -165,6 +169,9 @@
     },
     "object-fit": {
         "blur - 120x120 to 120x120 box 29": 1,
+        "decode http://10.0.2.2:8090/center-large.png 600x300 for 126x126 at 126x63": 3,
+        "decode http://10.0.2.2:8090/center-large.png 600x300 for 126x126 at 252x126": 1,
+        "decode http://10.0.2.2:8090/center-large.png 600x300 for 126x126 at 600x300": 1,
         "decode http://10.0.2.2:8090/center-medium.png 40x40 for 126x126 at 40x40": 2,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 378x378 at 120x120": 2,
         "decode http://10.0.2.2:8090/text-page.png 1600x1000 for 126x126 at 126x79": 1,
@@ -173,6 +180,7 @@
         "decode http://10.0.2.2:8091/text-page.png?case=object-fit-from-cover-scale-down 1600x1000 for 231x231 at 370x231": 1,
         "decode http://10.0.2.2:8091/text-page.png?case=object-fit-from-cover-twice 1600x1000 for 231x231 at 370x231": 1,
         "decode http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH 120x120 for 126x126 at 120x120": 1,
+        "load http://10.0.2.2:8090/center-large.png source main": 9,
         "load http://10.0.2.2:8090/center-medium.png source main": 2,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 2,
         "load http://10.0.2.2:8090/svg-stripes.svg?case=object-fit-svg source main": 3,
@@ -187,6 +195,7 @@
         "reload http://10.0.2.2:8091/text-page.png?case=object-fit-from-cover-none rendering main": 1,
         "reload http://10.0.2.2:8091/text-page.png?case=object-fit-from-cover-scale-down rendering main": 1,
         "reload http://10.0.2.2:8091/text-page.png?case=object-fit-from-cover-twice rendering main": 2,
+        "request /center-large.png": 1,
         "request /center-medium.png": 1,
         "request /picsum/1020-120x120.jpg": 1,
         "request /svg-stripes.svg?case=object-fit-svg": 1,

@@ -70,14 +70,6 @@ const DEFAULT = Platform.select({
     default: require('./images/fields.jpg'),
 })
 const LOGO = imageUrl('logo.png')
-// The logo in the layout group's cases, whose work isn't counted (uncounted,
-// see scripts/verify.mts): four of its views load it at once, at different
-// sizes, and on Android a view whose download starts just after the others'
-// shared download has ended downloads it again (seen once on CI's emulator).
-const LAYOUT_LOGO = imageUrl('logo.png?uncounted')
-// The large image in the object-fit group's cases, uncounted for the same
-// reason: nine of its views load it at once, at different sizes.
-const OBJECT_FIT_LARGE = imageUrl('center-large.png?uncounted')
 const MISSING = imageUrl('does-not-exist.png')
 const PRELOAD = imageUrl('picsum/1025-200x200.jpg')
 
@@ -161,7 +153,7 @@ function LayoutCase({ id }: { id: string }) {
         <View style={styles.row}>
             <FastImage
                 style={[styles.image, { marginLeft: 10 }]}
-                source={{ uri: LAYOUT_LOGO }}
+                source={{ uri: LOGO }}
                 onLayout={(e) => setX(e.nativeEvent.layout.x)}
                 onLoad={() => setLoaded(true)}
             />
@@ -237,13 +229,13 @@ function RefMeasureCase() {
             <FastImage
                 ref={image}
                 style={styles.image}
-                source={{ uri: LAYOUT_LOGO }}
+                source={{ uri: LOGO }}
                 onLoad={onLoad}
             />
             <FastImageBackground
                 ref={background}
                 style={[styles.image, styles.gap, { width: 96 }]}
-                source={{ uri: LAYOUT_LOGO }}
+                source={{ uri: LOGO }}
                 onLoad={onLoad}
             />
             <CaseStatus
@@ -3238,7 +3230,7 @@ function ObjectFitCase() {
                         key={fit}
                         style={[objectFitStyles.image, i > 0 && styles.gap]}
                         objectFit={fit}
-                        source={{ uri: OBJECT_FIT_LARGE }}
+                        source={{ uri: imageUrl('center-large.png') }}
                         onLoad={onLoad}
                     />
                 ))}
@@ -3299,7 +3291,7 @@ function ObjectFitSizeCase() {
                         objectFitStyles.visible,
                     ]}
                     objectFit="none"
-                    source={{ uri: OBJECT_FIT_LARGE }}
+                    source={{ uri: imageUrl('center-large.png') }}
                     onLoad={onLoad}
                 />
             </View>
@@ -3703,7 +3695,7 @@ function ObjectFitBlurCase() {
 // ignored: cover.
 function ObjectFitStyleCase() {
     const [status, onLoad] = useLoadedThenOk(3)
-    const source = { uri: OBJECT_FIT_LARGE }
+    const source = { uri: imageUrl('center-large.png') }
     return (
         <View style={objectFitStyles.stacked}>
             <View style={objectFitStyles.images}>
@@ -10849,7 +10841,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                     shows: 'The React logo in solid green instead of its usual light blue. A light blue logo means the tint was ignored.',
                 }}
                 event="onLoad"
-                source={{ uri: LAYOUT_LOGO }}
+                source={{ uri: LOGO }}
                 style={[styles.image, { tintColor: 'green' }]}
             />,
             <SourceSizeCase
