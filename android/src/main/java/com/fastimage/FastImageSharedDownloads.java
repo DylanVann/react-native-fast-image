@@ -270,12 +270,13 @@ final class FastImageSharedDownloads {
 
     // The disk cache was cleared: requests download again, rather than read
     // the bytes of a download that has ended (those still being read are
-    // dropped once they have been).
+    // dropped once they have been), or that ends after (see beforeClear).
     static void dropEnded() {
         List<Store> dropped = new ArrayList<>();
         synchronized (downloads) {
             for (Download download : new ArrayList<>(downloads.values())) {
                 synchronized (download) {
+                    download.beforeClear = true;
                     if (!download.ended) continue;
                     download.unmap();
                     if (download.readers == 0) dropped.add(download.drop());
@@ -625,6 +626,12 @@ final class FastImageSharedDownloads {
         // the streams open on its bytes.
         private final List<Waiter> waiting = new ArrayList<>();
         private int readers = 0;
+        // A `web` image's (see readsEnded).
+        private final boolean web;
+        // Guarded by this. It was running or ended when the disk cache was
+        // cleared (dropEnded): its bytes are from before the clear, so they
+        // don't linger, and once it ends no new request joins it.
+        private boolean beforeClear = false;
         // Guarded by this. Counts the times every reader had closed, so a drop
         // scheduled then doesn't drop bytes a request has joined since.
         private int idle = 0;
@@ -647,6 +654,7 @@ final class FastImageSharedDownloads {
         // With downloads locked.
         private Download(String key, GlideUrl url, OkHttpClient client, Request request, Priority priority) {
             this.key = key;
+            this.web = url instanceof FastImageWebGlideUrl;
             this.url = url;
             this.client = client;
             this.request = request;
@@ -669,12 +677,18 @@ final class FastImageSharedDownloads {
             // can have room).
             boolean queueChanged = false;
             InputStream ready = null;
+            Store replaced = null;
             synchronized (downloads) {
                 // Cancelled before it got here.
                 if (fetcher.cancelled) return;
                 download = downloads.get(fetcher.key);
-                // See readsEnded.
+                // See readsEnded. The ended download this one replaces in the
+                // map can't be joined any more: its bytes go now if no request
+                // reads them.
                 if (download != null && !fetcher.readsEnded && download.hasEnded()) {
+                    synchronized (download) {
+                        if (download.readers == 0) replaced = download.drop();
+                    }
                     download = null;
                 }
                 if (download == null) {
@@ -708,6 +722,7 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
+            release(replaced);
             if (ready != null) fetcher.deliver(ready, callback);
             if (queueChanged) startQueued();
         }
@@ -866,10 +881,11 @@ final class FastImageSharedDownloads {
                     if (readers > 0) return;
                     // Now: no request can join it any more (a clear unmapped
                     // it, or a newer download took its key), none reads the
-                    // bytes of an ended `web` download, or they're in memory
+                    // bytes of an ended `web` download, they're from before a
+                    // clear (beforeClear), or they're in memory
                     // with more than half the budget taken (so other
                     // downloads' bytes still fit in memory).
-                    if (downloads.get(key) != this || key.startsWith("web ")
+                    if (downloads.get(key) != this || web || beforeClear
                             || (reserved > 0 && held > MEMORY_BUDGET / 2)) {
                         unmap();
                         dropped = drop();
@@ -1145,6 +1161,8 @@ final class FastImageSharedDownloads {
                     size = read;
                     ended = true;
                     silent = true;
+                    // From before a clear: no new request joins it.
+                    if (beforeClear) unmap();
                     waiters = takeWaiting();
                     readers += waiters.size();
                     for (int i = 0; i < waiters.size(); i++) streams.add(stream());

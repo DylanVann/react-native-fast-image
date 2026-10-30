@@ -119,7 +119,10 @@ public class FastImageSharedDownloadsTest {
         server.route("/image");
         Load first = load(url("/image"));
         byte[] bytes = first.bytes();
-        Thread.sleep(1500);
+        for (long end = System.currentTimeMillis() + 10_000;
+                FastImageSharedDownloads.busy() != null && System.currentTimeMillis() < end; ) {
+            Thread.sleep(20);
+        }
         Load later = load(url("/image"));
         assertArrayEquals(bytes, later.bytes());
         assertEquals(2, server.count("/image"));
