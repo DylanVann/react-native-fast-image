@@ -126,8 +126,8 @@ public class FastImageSharedDownloadsTest {
     }
 
     // The bytes stand for the disk cache for that moment: clearing it
-    // (clearDiskCache) drops them, and a source with diskCache false doesn't
-    // read them.
+    // (clearDiskCache) drops them, and a source with diskCache false (or a
+    // `web` one) doesn't read them.
     @Test
     public void aRequestAfterTheDiskCacheWasClearedDownloadsItAgain() throws Exception {
         server.route("/image");
@@ -533,7 +533,7 @@ public class FastImageSharedDownloadsTest {
     }
 
     private Load load(GlideUrl url, Priority priority) {
-        Load load = new Load(FastImageSharedDownloads.loadData(url, client).fetcher);
+        Load load = new Load(FastImageSharedDownloads.loadData(url, client, true).fetcher);
         loads.add(load);
         load.fetcher.loadData(priority, load);
         return load;

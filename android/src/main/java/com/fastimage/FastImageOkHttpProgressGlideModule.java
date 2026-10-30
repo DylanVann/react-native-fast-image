@@ -196,7 +196,7 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
                             : model.url instanceof FastImageWebGlideUrl ? webClient
                             : client;
                     return FastImageSharedDownloads.loadData(model.url, urlClient,
-                            !FastImageGlide.isNoStore(options));
+                            !FastImageGlide.isNoStore(options) && !(model.url instanceof FastImageWebGlideUrl));
                 }
 
                 @Override

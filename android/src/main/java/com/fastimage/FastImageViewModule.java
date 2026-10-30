@@ -691,14 +691,16 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
         cachePathExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                // The bytes of ended downloads, which stand for the disk cache
+                // for a moment (see FastImageSharedDownloads.LINGER_MS): before
+                // the clear, so none is stored again while it runs, and after.
+                FastImageSharedDownloads.dropEnded();
                 try {
                     FastImageGlide.getRegistered(context).clearDiskCache();
                 } catch (RuntimeException e) {
                     promise.resolve(failure(e));
                     return;
                 }
-                // And the bytes of ended downloads, which stand for it for a
-                // moment (see FastImageSharedDownloads.LINGER_MS).
                 FastImageSharedDownloads.dropEnded();
                 // And the HTTP cache of `cache: 'web'` images, which Glide
                 // doesn't cache (set up when FastImage's components are

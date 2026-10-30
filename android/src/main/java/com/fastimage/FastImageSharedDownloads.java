@@ -172,6 +172,11 @@ final class FastImageSharedDownloads {
 
     static {
         reading.allowCoreThreadTimeOut(true);
+        // Its thread goes when it has had nothing to do for a while. Safe for a
+        // scheduled executor as its keep-alive is longer than the delays (a
+        // thread waiting for a drop due in under LINGER_MS doesn't time out).
+        lingering.setKeepAliveTime(10, TimeUnit.SECONDS);
+        lingering.allowCoreThreadTimeOut(true);
     }
 
     private static final class Finished {
@@ -256,14 +261,11 @@ final class FastImageSharedDownloads {
 
     // A remote image's load data (FastImageOkHttpProgressGlideModule): its
     // download with the client, shared with the other requests for its key.
-    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client) {
-        return loadData(url, client, true);
-    }
-
-    // onDisk false: a source with diskCache false, which only joins a download
-    // in progress (see LINGER_MS).
-    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client, boolean onDisk) {
-        return new ModelLoader.LoadData<>(url, new Fetcher(url, client, onDisk));
+    // readsEnded false: a `web` image (it follows its HTTP cache) or one with
+    // diskCache false (it downloads again), which only joins a download in
+    // progress, not the bytes of one that has ended (see LINGER_MS).
+    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client, boolean readsEnded) {
+        return new ModelLoader.LoadData<>(url, new Fetcher(url, client, readsEnded));
     }
 
     // The disk cache was cleared: requests download again, rather than read
@@ -359,7 +361,7 @@ final class FastImageSharedDownloads {
     private static final class Fetcher implements DataFetcher<InputStream> {
         final GlideUrl url;
         final OkHttpClient client;
-        final boolean onDisk;
+        final boolean readsEnded;
         // Set when it loads (Glide also makes fetchers it doesn't use, e.g.
         // for an image in its disk cache).
         String key;
@@ -373,10 +375,10 @@ final class FastImageSharedDownloads {
         private volatile InputStream stream;
         private volatile boolean fromFile;
 
-        Fetcher(GlideUrl url, OkHttpClient client, boolean onDisk) {
+        Fetcher(GlideUrl url, OkHttpClient client, boolean readsEnded) {
             this.url = url;
             this.client = client;
-            this.onDisk = onDisk;
+            this.readsEnded = readsEnded;
         }
 
         @Override
@@ -671,11 +673,8 @@ final class FastImageSharedDownloads {
                 // Cancelled before it got here.
                 if (fetcher.cancelled) return;
                 download = downloads.get(fetcher.key);
-                // A `web` image follows its HTTP cache, and one off disk
-                // downloads again (see LINGER_MS): they only join a download
-                // in progress, not the bytes of one that has ended.
-                if (download != null && (fetcher.url instanceof FastImageWebGlideUrl || !fetcher.onDisk)
-                        && download.hasEnded()) {
+                // See readsEnded.
+                if (download != null && !fetcher.readsEnded && download.hasEnded()) {
                     download = null;
                 }
                 if (download == null) {
@@ -865,9 +864,13 @@ final class FastImageSharedDownloads {
                 synchronized (this) {
                     readers--;
                     if (readers > 0) return;
-                    // In memory, with more than half the budget taken: now, so
-                    // other downloads' bytes still fit in memory.
-                    if (reserved > 0 && held > MEMORY_BUDGET / 2) {
+                    // Now: no request can join it any more (a clear unmapped
+                    // it, or a newer download took its key), none reads the
+                    // bytes of an ended `web` download, or they're in memory
+                    // with more than half the budget taken (so other
+                    // downloads' bytes still fit in memory).
+                    if (downloads.get(key) != this || key.startsWith("web ")
+                            || (reserved > 0 && held > MEMORY_BUDGET / 2)) {
                         unmap();
                         dropped = drop();
                     }
@@ -1007,13 +1010,16 @@ final class FastImageSharedDownloads {
         private Store newStore(long length) throws IOException {
             if (length >= 0 && length <= MEMORY_MAX) {
                 boolean fits;
+                List<Store> freed;
                 synchronized (downloads) {
+                    freed = freeMemory(length);
                     fits = held + length <= MEMORY_BUDGET;
                     if (fits) {
                         held += length;
                         reserved = length;
                     }
                 }
+                for (Store store : freed) release(store);
                 if (fits) {
                     try {
                         MemoryStore created = new MemoryStore((int) length);
@@ -1040,13 +1046,37 @@ final class FastImageSharedDownloads {
         // GrowingStore), given back when they're dropped; without room, the
         // download fails with why its file couldn't be used.
         private void reserve(long more, IOException cause) throws IOException {
+            List<Store> freed;
+            boolean fits;
             synchronized (downloads) {
-                if (held + more > MEMORY_BUDGET) {
-                    throw new IOException("No memory left for downloads, and the temporary file couldn't be written", cause);
+                freed = freeMemory(more);
+                fits = held + more <= MEMORY_BUDGET;
+                if (fits) {
+                    held += more;
+                    reserved += more;
                 }
-                held += more;
-                reserved += more;
             }
+            for (Store store : freed) release(store);
+            if (!fits) {
+                throw new IOException("No memory left for downloads, and the temporary file couldn't be written", cause);
+            }
+        }
+
+        // With downloads locked: without room for `needed` more, drops the
+        // bytes in memory of ended downloads no request reads (lingering, see
+        // LINGER_MS) until there is. Returns them, to release outside the locks.
+        private static List<Store> freeMemory(long needed) {
+            List<Store> freed = new ArrayList<>();
+            if (held + needed <= MEMORY_BUDGET) return freed;
+            for (Download download : new ArrayList<>(downloads.values())) {
+                synchronized (download) {
+                    if (!download.ended || download.readers > 0 || download.reserved == 0) continue;
+                    download.unmap();
+                    freed.add(download.drop());
+                }
+                if (held + needed <= MEMORY_BUDGET) break;
+            }
+            return freed;
         }
 
         // Its temporary file couldn't be made, or written (`failed`): the
