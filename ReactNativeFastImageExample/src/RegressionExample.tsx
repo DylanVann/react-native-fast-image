@@ -4709,10 +4709,10 @@ function CacheKeyCase({
 // load failed; iOS kept it in `web` images' HTTP cache. With `web`, iOS still
 // stored the page (it has an inline <svg>, and SDWebImage took it for an SVG
 // image) until the failed load removed it, so a preload right after could get
-// it from there: it happened once in tens of urls, so with many.
-// Not on iOS without `web` for now: a preload right after the failure can join
-// the failed download while SDWebImage is still decoding it, and fail without
-// a request.
+// it from there: it happened once in tens of urls, so with many. A preload
+// right after the failure could also join the failed download on iOS while
+// SDWebImage was still finishing it, and fail without a request (once in tens
+// of urls on CI).
 const RETRY_TRIES = 40
 function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
     const pathFor = (attempt: number) =>
@@ -4774,7 +4774,7 @@ function PreloadRetryCase({ id, web }: { id: string; web?: boolean }) {
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
                         : {
-                              checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache). Android only for now: on iOS a preload right after the failure can join the failed download while SDWebImage is still decoding it (preload-retry-web checks the iOS fix with cache: 'web' urls).",
+                              checks: "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache; iOS could also give a preload right after the failure the failed download's error, without a request, while SDWebImage was still finishing it).",
                               steps: "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
                               shows: 'A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown.',
                           }
@@ -11324,14 +11324,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadLimitCase key="preload-limit" />,
             <PreloadDiskCase key="preload-disk" />,
             <PreloadCacheOnlyCase key="preload-cache-only" />,
-            ...(Platform.OS === 'ios'
-                ? []
-                : [
-                      <PreloadRetryCase
-                          key="preload-retry"
-                          id="preload-retry"
-                      />,
-                  ]),
+            <PreloadRetryCase key="preload-retry" id="preload-retry" />,
             <PreloadUnknownValuesCase key="preload-unknown-values" />,
         ],
     },

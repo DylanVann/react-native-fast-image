@@ -350,6 +350,11 @@
                 "steps": "Preloads the logo from a url new each launch with cache: 'cacheOnly'. Passes when the result is not ok and the server got no request for it.",
                 "shows": "An empty gray square: the case only preloads."
             },
+            "preload-retry": {
+                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache; iOS could also give a preload right after the failure the failed download's error, without a request, while SDWebImage was still finishing it).",
+                "steps": "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
+                "shows": "A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown."
+            },
             "preload-unknown-values": {
                 "checks": "FastImage.preload loads sources with a cache or priority value Fast Image doesn't know, with the default (Android threw for them).",
                 "steps": "Preloads the photo three times (three urls) with cache: 'reload', priority: 'urgent', and cache: 1 with priority: true. Passes when all three resolve ok with 200x200.",
