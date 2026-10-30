@@ -6,6 +6,7 @@
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDImageCoderHelper.h>
+#import <SDWebImage/SDWebImageDownloader.h>
 #import <SDWebImage/SDWebImageManager.h>
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDWebImagePrefetcher.h>
@@ -203,9 +204,57 @@ static void FFFStartPendingPreloads(void)
     }
 }
 
+// Calls done once `download` has finished, looking every 5 ms for a second at
+// most. On the main queue.
+static void FFFWhenFinished(NSOperation *download, NSUInteger tries, dispatch_block_t done)
+{
+    BOOL finished;
+    @synchronized (download) {
+        finished = download.isFinished;
+    }
+    if (finished || tries == 0) {
+        done();
+        return;
+    }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+        FFFWhenFinished(download, tries - 1, done);
+    });
+}
+
+// Calls done once the download behind a load that failed has finished. Until
+// then, SDWebImage gives a new request for the url to that download: it
+// decodes the failed response again for it and fails it without a request,
+// so a preload retried as soon as the last one failed (#394's captive portal
+// page) failed again. The download finishes on SDWebImage's decoding queue
+// just after the error comes. Its operation isn't public: it's the download
+// token's `downloadOperation` (since SDWebImage 5.0). Without it (a load that
+// didn't download, or another SDWebImage), done comes at once.
+static void FFFAfterDownloadFinished(SDWebImageCombinedOperation *operation, dispatch_block_t done)
+{
+    NSOperation *download = nil;
+    id<SDWebImageOperation> loader = operation.loaderOperation;
+    if ([loader isKindOfClass:[SDWebImageDownloadToken class]] &&
+        [loader respondsToSelector:NSSelectorFromString(@"downloadOperation")]) {
+        @try {
+            id value = [(NSObject *)loader valueForKey:@"downloadOperation"];
+            if ([value isKindOfClass:[NSOperation class]]) {
+                download = value;
+            }
+        } @catch (__unused NSException *exception) {
+        }
+    }
+    if (!download) {
+        done();
+        return;
+    }
+    FFFWhenFinished(download, 200, done);
+}
+
 // Loads the source in the preloads' queue, then calls completed once with its
-// image or error. Only on the main queue (SDWebImageManager calls its
-// completion blocks there); call FFFStartPendingPreloads after adding loads.
+// image or error (an error once its download has finished, see
+// FFFAfterDownloadFinished). Only on the main queue (SDWebImageManager calls
+// its completion blocks there); call FFFStartPendingPreloads after adding
+// loads.
 static void FFFQueueLoad(FFFastImageSource *source,
                          SDWebImageOptions options,
                          SDWebImageContext *context,
@@ -218,21 +267,31 @@ static void FFFQueueLoad(FFFastImageSource *source,
         // Once per slot: SDWebImage calls this once with finished set (a
         // progressive load calls it more, without).
         __block BOOL done = NO;
-        [[SDWebImageManager sharedManager] loadImageWithURL:source.url
-                                                    options:options
-                                                    context:context
-                                                   progress:nil
-                                                  completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+        // nil when it completes before returning (e.g. from the memory cache).
+        __block SDWebImageCombinedOperation *operation = nil;
+        operation = [[SDWebImageManager sharedManager] loadImageWithURL:source.url
+                                                                options:options
+                                                                context:context
+                                                               progress:nil
+                                                              completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
             if (!finished || done) {
                 return;
             }
             done = YES;
+            // Not kept: the operation keeps this block until it's done.
+            SDWebImageCombinedOperation *loaded = operation;
+            operation = nil;
+            dispatch_block_t finish = ^{
+                FFFPreloadsInFlight--;
+                completed(image, error);
+                FFFStartPendingPreloads();
+            };
             if (error) {
                 [source forgetResponseAfterError:error];
+                FFFAfterDownloadFinished(loaded, finish);
+            } else {
+                finish();
             }
-            FFFPreloadsInFlight--;
-            completed(image, error);
-            FFFStartPendingPreloads();
         }];
     } copy]];
 }

@@ -351,7 +351,7 @@
                 "shows": "An empty gray square: the case only preloads."
             },
             "preload-retry": {
-                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache). Android only for now: on iOS a preload right after the failure can join the failed download while SDWebImage is still decoding it (preload-retry-web checks the iOS fix with cache: 'web' urls).",
+                "checks": "A url whose first response was an HTML page (status 200) is downloaded again by the next preload (#394: iOS failed it without a request until the app was relaunched, since views retried failed urls but preloads didn't; Android kept the page in Glide's disk cache; iOS could also give a preload right after the failure the failed download's error, without a request, while SDWebImage was still finishing it).",
                 "steps": "For 40 urls, each new, that the server first answers with a captive portal's HTML page and then with the photo: preloads it (it fails), preloads it again, and checks the second succeeded from a second request. Then shows the first url in a view; passes on its onLoad.",
                 "shows": "A photo of a pug in a blanket. An empty gray square means a preload failed before the view was shown."
             },
