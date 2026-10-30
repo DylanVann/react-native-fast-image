@@ -480,6 +480,7 @@
         "decode http://localhost:8090/picsum/1016-2048x2048.jpg?order=RUN-5 2048x2048 for 64x64 at 64": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg 600x300 for 96x48 at 96": 1,
+        "decode http://localhost:8090/quadrants.png?downsample-hidden=RUN 20x20 for 96x96 at full": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 192x192 at 308": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 96x96 at 154": 1,
         "decode http://localhost:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN 1600x1000 for 0x0 at full": 1,
@@ -493,6 +494,7 @@
         "load http://localhost:8090/picsum/1016-2048x2048.jpg?order=RUN-4 source main": 1,
         "load http://localhost:8090/picsum/1016-2048x2048.jpg?order=RUN-5 source main": 1,
         "load http://localhost:8090/picsum/1018-600x300.jpg source main": 1,
+        "load http://localhost:8090/quadrants.png?downsample-hidden=RUN source main": 1,
         "load http://localhost:8090/text-page.png source main": 1,
         "load http://localhost:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN preload main": 1,
         "load http://localhost:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN source main": 1,
@@ -507,6 +509,7 @@
         "request /picsum/1016-2048x2048.jpg?order=RUN-4": 1,
         "request /picsum/1016-2048x2048.jpg?order=RUN-5": 1,
         "request /picsum/1018-600x300.jpg": 1,
+        "request /quadrants.png?downsample-hidden=RUN": 1,
         "request /text-page.png": 1
     },
     "downsample-zoom": {

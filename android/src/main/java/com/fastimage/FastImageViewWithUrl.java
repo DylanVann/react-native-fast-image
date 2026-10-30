@@ -1120,6 +1120,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         @Override
         public void onSizeReady(int width, int height) {
+            // A view laid out without a size, for a request made before that
+            // layout (e.g. a view mounted under a display: none parent): the
+            // load starts again, made for it, instead of loading the image
+            // for Glide's square the screen's length.
+            if (laidOutWithoutSize() && !mLoadingForNoSize) {
+                restartForNoSize();
+                return;
+            }
             // Only a width or a height laid out so far, or neither, with
             // borders (laysOutOneSide, laysOutNoSide): the image is loaded for
             // the sides laid out. With neither, each is the screen's length,
@@ -1133,7 +1141,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // will follow the new image, so it's loaded for the one the style
             // sets, as on its first load, not for the previous image's box.
             int previous = laysOutPreviousImage() && followsImage() ? mAutoSize : 0;
-            if (laysOutOneSide() || laysOutNoSide() || previous == AUTO_WIDTH || previous == AUTO_HEIGHT) {
+            if (laysOutOneSide() || laysOutNoSide() || laidOutWithoutSize() || previous == AUTO_WIDTH
+                    || previous == AUTO_HEIGHT) {
                 DisplayMetrics metrics = getResources().getDisplayMetrics();
                 int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
                 boolean byWidth = layoutContentWidth() > 0 && width > 0 && previous != AUTO_WIDTH;
@@ -1509,6 +1518,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return mAutoSize != 0 && !imageLaidOut() && layoutContentWidth() <= 0 && layoutContentHeight() <= 0;
     }
 
+    // Whether a view whose size doesn't follow the image (no autoSize) has
+    // been laid out with nothing inside its borders on a side: e.g. under a
+    // display: none parent, which lays it out at 0x0, or sized from onLoad.
+    // Glide loads the image for a square the screen's length then (its size
+    // for a view that has none), scaling a small one up to it. It's loaded no
+    // larger than its own size instead, as iOS decodes it at full size (see
+    // renderingOptions), and for the view's size once it has one.
+    private boolean laidOutWithoutSize() {
+        return mAutoSize == 0 && isLaidOut() && (contentWidth() <= 0 || contentHeight() <= 0);
+    }
+
     // Whether the layout has a loaded image's size.
     private boolean imageLaidOut() {
         return mLaidOutWidth > 0 && mLaidOutHeight > 0;
@@ -1712,6 +1732,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // pixelated, and the blur. A blurred animated image shows its first frame,
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
+        mLoadingForNoSize = laidOutWithoutSize();
         FastImageBlur blur = mBlurRadius > 0
                 ? new FastImageBlur(mBlurRadius, mFitScaleType, loadingDensity())
                 : null;
@@ -1737,12 +1758,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                     && (!imageLaidOut() && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0)
                             || followsImage());
             // Before the view has any size (neither side laid out, e.g. no
-            // width or height: both follow the image), Glide asks for the
-            // screen's length both ways, and would scale the image up to it.
-            // It's loaded no larger than its own size instead (an SVG at its
-            // own size in dp), which a view at that size doesn't load again
-            // (see isResized).
-            boolean unsized = laysOutNoSide() && mFitScaleType != ScaleType.CENTER;
+            // width or height: both follow the image), or laid out without one
+            // (laidOutWithoutSize), Glide asks for the screen's length both
+            // ways, and would scale the image up to it. It's loaded no larger
+            // than its own size instead (an SVG at its own size in dp), which
+            // a view at that size, or larger, doesn't load again (see
+            // isResized).
+            boolean unsized = (laysOutNoSide() || laidOutWithoutSize()) && mFitScaleType != ScaleType.CENTER;
             ScaleType fit = unsized ? ScaleType.CENTER_INSIDE : uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             mLoadingUnsized = unsized;
@@ -1818,6 +1840,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mShownBitmapWidth = 0;
     private int mShownBitmapHeight = 0;
     private boolean mResizeReloadPosted = false;
+    // Whether the loading request was made for a view laid out without a
+    // size (see laidOutWithoutSize), and whether a restart for one is posted.
+    private boolean mLoadingForNoSize = false;
+    private boolean mNoSizeRestartPosted = false;
 
     @Nullable
     private String mRecyclingKey;
@@ -1892,6 +1918,26 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mUrlPlaceholderWaitsForSize = false;
             scheduleUrlPlaceholderLoad();
         }
+    }
+
+    // Starts the loading image's load again, made for a view laid out without
+    // a size, as the same load (no onLoadStart, see reblur): its request was
+    // made before that layout, and waits for a size it won't get.
+    private void restartForNoSize() {
+        if (mNoSizeRestartPosted) return;
+        mNoSizeRestartPosted = true;
+        final int load = mLoadCount;
+        // Not from within Glide's callback.
+        post(new Runnable() {
+            @Override
+            public void run() {
+                mNoSizeRestartPosted = false;
+                if (load != mLoadCount || mManager == null) return;
+                mRestarting = true;
+                mNeedsReload = true;
+                onAfterUpdate(mManager, requestManager);
+            }
+        });
     }
 
     private void reloadIfResized() {

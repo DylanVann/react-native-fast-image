@@ -7765,6 +7765,50 @@ function DownsampleNoSizeCase() {
     )
 }
 
+// An image in a view under a display: none parent, which lays it out at
+// 0x0, shown 1.5 s after it mounts (#1405): on Android it loads while hidden,
+// decoded no larger than its own size (a 20x20 image), not scaled up to a
+// square the screen's length (Glide's size for a view that has none), and
+// isn't decoded again once shown, larger than that (the view scales it up as
+// it draws it). iOS loads it once it's shown. The work counts show the box
+// it's decoded for.
+function DownsampleHiddenCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || !loaded) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(`quadrants.png?downsample-hidden=${RUN}`),
+                    }}
+                    style={{ width: 48, height: 48 }}
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id="downsample-hidden"
+                status={status}
+                description={{
+                    checks: "An image under a display: none parent (laid out at 0x0) is decoded no larger than its own size while hidden, not scaled up to a square the screen's length, and isn't decoded again once shown.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show the boxes it was decoded for.',
+                    shows: 'Red, green, blue and yellow quadrants in a 48x48 square.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A downsampled view of an image that's still being preloaded (from the slow
 // server, about a second here; the view loads 300 ms after the preload): on
 // iOS it shares the preload's download (one request; it downloaded it again),
@@ -11205,12 +11249,13 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'downsampling-reload',
         description: {
-            checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in.',
+            checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, one under a display: none parent, a GIF, a preload in flight, and the order images start in.',
         },
         cases: [
             <DownsampleDetailCase key="downsample-detail" />,
             <DownsampleGrowCase key="downsample-grow" />,
             <DownsampleNoSizeCase key="downsample-no-size" />,
+            <DownsampleHiddenCase key="downsample-hidden" />,
             <DownsampleGifCase key="downsample-gif" />,
             <DownsamplePreloadingCase key="downsample-preloading" />,
             <DownsampleOrderCase key="downsample-order" />,

@@ -870,7 +870,7 @@
     },
     "downsampling-reload": {
         "description": {
-            "checks": "downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in."
+            "checks": "downsample decoding an image again or sharing its download: larger and growing views, a view without a size, one under a display: none parent, a GIF, a preload in flight, and the order images start in."
         },
         "cases": {
             "downsample-detail": {
@@ -887,6 +887,11 @@
                 "checks": "downsample: an image in a view with no size until it loads (sized from onLoad) still loads.",
                 "steps": "Loads a 600x300 photo with downsample and no style, inside a 48-point gray square; onLoad sizes it 48 wide and 24 tall. Passes once it has been laid out with a width.",
                 "shows": "A photo of green hills across the top half of the gray square, gray below. An empty gray square is a failure."
+            },
+            "downsample-hidden": {
+                "checks": "An image under a display: none parent (laid out at 0x0) is decoded no larger than its own size while hidden, not scaled up to a square the screen's length, and isn't decoded again once shown.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show the boxes it was decoded for.",
+                "shows": "Red, green, blue and yellow quadrants in a 48x48 square."
             },
             "downsample-gif": {
                 "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
