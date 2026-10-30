@@ -95,6 +95,13 @@ const SIDE_KEYS = [
     'bottom',
 ] as const
 
+// The style's values FastImage reads (tintColor, objectFit and the sides'), in
+// one walk of the style: resolveObjectFit and openSides take it in place of
+// the style.
+export function readStyle(style: unknown) {
+    return fromStyleKeys(style, ['tintColor', 'objectFit', ...SIDE_KEYS])
+}
+
 export function openSides(
     style: unknown,
     leftOut: 'closed' | 'open' = 'closed',

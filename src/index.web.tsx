@@ -31,7 +31,13 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { NO_PADDING, openSides, ownSize, resolveObjectFit } from './objectFit'
+import {
+    NO_PADDING,
+    openSides,
+    ownSize,
+    readStyle,
+    resolveObjectFit,
+} from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -199,7 +205,8 @@ function FastImageBase({
     const shownSize = own ?? imageSize
     // Only `auto` sides follow a loaded image; a known size, also the sides
     // left out (as on iOS and Android).
-    const open = openSides(style, own ? 'open' : 'closed')
+    const styleValues = readStyle(style)
+    const open = openSides(styleValues, own ? 'open' : 'closed')
     const sizeStyle =
         shownSize &&
         shownSize.width > 0 &&
@@ -229,7 +236,7 @@ function FastImageBase({
     const tintId = `fast-image-tint-${svgId}`
     const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
-    const fit = resolveObjectFit(objectFit, style)
+    const fit = resolveObjectFit(objectFit, styleValues)
     const position = cssPosition(objectPositionOrCentered(objectPosition))
     const filter =
         [
