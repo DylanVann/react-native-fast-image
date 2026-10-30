@@ -880,7 +880,8 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *   the width by default).
      * - Both `'auto'`: the image's own size (a 600 × 300 px image is 600 × 300
      *   points, one of several sources its pixels over its `scale`), at most
-     *   the space there is.
+     *   the space there is. In a column, the parent stretches the width by
+     *   default, and the height follows it.
      *
      * Until the image has loaded, and if it fails (`defaultSource` included),
      * those sides are 0, so the layout changes when it loads. A side the
