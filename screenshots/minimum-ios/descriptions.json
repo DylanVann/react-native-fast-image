@@ -58,6 +58,11 @@
                 "steps": "Shows the 600x300 photo in a 160x160 FastImageBackground. Passes once it has loaded and the image is 160x160.",
                 "shows": "The photo covering a 160x160 square (its middle)."
             },
+            "auto-size-tall": {
+                "checks": "An image with only a width that's taller than the screen at that width is decoded once, for the view's size, not first for a box the screen's height.",
+                "steps": "Loads a 200x1600 image of 16 magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit cover in a column 128 points high with overflow scroll, which clips it. Passes once it has loaded and its layout is 128x1024; the work counts show its decodes.",
+                "shows": "The top of the image, 128x128: a magenta band over a cyan one."
+            },
             "auto-size-downsample": {
                 "checks": "An image with only a width is decoded for its size, as one with both sides set is: they look the same.",
                 "steps": "Loads a 1600x1000 page of text at 128x80, and again (another url) with only a width of 128, which follows the image to 128x80. Passes once both have loaded.",
@@ -143,6 +148,11 @@
                 "checks": "A single source's width and height are its size in points, as with React Native's Image, also with no style: a 120x120 image given as 64x64 is 64x64.",
                 "steps": "Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.",
                 "shows": "The photo at 64x64 on the left."
+            },
+            "auto-size-url-scale": {
+                "checks": "A url with @2x in it is its size in pixels, as other urls are: only a bundled file's or a source's scale divides it.",
+                "steps": "Loads a 120x120 photo from a url ending in ?name=photo@2x.jpg with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
+                "shows": "The photo at 120x120 on the left."
             },
             "auto-size-sources-bundled": {
                 "checks": "Several bundled @3x sources with both sides 'auto' are their size in points, their pixels over their file's scale (once).",

@@ -934,21 +934,25 @@ NSString *FFFErrorMessage(NSError *error)
     // A photo library image's own size (it's decoded at about the view's
     // size), looked up when it loaded.
     CGSize size = [_source isPhotoLibrary] ? [_source photoPixelSize] : [FFFDownsampledImage sourceSizeOfImage: image];
+    // The scale that size is in points at: an @2x or @3x file's, which
+    // SDWebImage reads from the url.
+    CGFloat imageScale = [_source isPhotoLibrary] ? 1 : [FFFDownsampledImage sourceScaleOfImage: image];
     if (CGSizeEqualToSize(size, CGSizeZero)) {
         size = image.size;
+        imageScale = image.scale;
     }
     self.onLoadEvent = @{
             @"width": [NSNumber numberWithDouble: size.width],
             @"height": [NSNumber numberWithDouble: size.height]
     };
     if (self.onImageSize) {
-        // Of several sources, the picked one's pixels over its scale (their
-        // sizes are in pixels times it), as on Android and the web: unless
-        // the size is in points already, from an @2x or @3x file (a bundled
-        // one's scale is the file's).
-        BOOL inPixels = [FFFDownsampledImage sourceScaleOfImage: image] <= 1;
-        CGFloat scale = [self picksSource] && inPixels && _source.scale > 0 ? _source.scale : 1;
-        self.onImageSize(CGSizeMake(size.width / scale, size.height / scale));
+        // The image's pixels, as on Android and the web (an @2x in a url
+        // doesn't halve it), over the picked source's scale with several
+        // sources (their sizes are in pixels times it; a bundled one's is
+        // its file's). A single bundled image is laid out from its own size
+        // (ownWidth and ownHeight).
+        CGFloat scale = imageScale / ([self picksSource] && _source.scale > 0 ? _source.scale : 1);
+        self.onImageSize(CGSizeMake(size.width * scale, size.height * scale));
     }
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);

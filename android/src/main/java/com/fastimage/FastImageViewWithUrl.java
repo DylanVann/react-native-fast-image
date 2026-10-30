@@ -1122,13 +1122,19 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         public void onSizeReady(int width, int height) {
             // Only a width or a height laid out so far, or neither, with
             // borders (laysOutOneSide, laysOutNoSide): the image is loaded for
-            // the sides laid out, as Glide does for a side that's 0 (it asks
-            // for the screen's length).
+            // the sides laid out. With neither, each is the screen's length,
+            // as Glide asks for a side that's 0. With one, the other is as
+            // long as the box allows (FastImageSourceSize.MAX_PIXELS), so an
+            // image taller than the screen at the view's width (or wider at
+            // its height) is decoded for the size the view gets, not
+            // narrower and then again.
             if (laysOutOneSide() || laysOutNoSide()) {
                 DisplayMetrics metrics = getResources().getDisplayMetrics();
                 int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
-                if (layoutContentWidth() <= 0) width = screen;
-                if (layoutContentHeight() <= 0) height = screen;
+                boolean byWidth = layoutContentWidth() > 0 && width > 0;
+                boolean byHeight = layoutContentHeight() > 0 && height > 0;
+                if (!byWidth) width = byHeight ? (int) (FastImageSourceSize.MAX_PIXELS / height) : screen;
+                if (!byHeight) height = byWidth ? (int) (FastImageSourceSize.MAX_PIXELS / width) : screen;
             }
             int[] box = FastImageSourceSize.box(width, height);
             cb.onSizeReady(box[0], box[1]);
