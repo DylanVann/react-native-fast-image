@@ -987,7 +987,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGFloat width = self.bounds.size.width * scale;
     CGFloat height = self.bounds.size.height * scale;
     BOOL oneSide = [self laysOutOneSide];
-    BOOL byWidth = self.contentSize.width > 0;
+    BOOL byWidth = self.bounds.size.width > 0;
     FFFastImageSource* best = nil;
     CGFloat bestFit = CGFLOAT_MAX;
     for (FFFastImageSource* source in _sources) {
@@ -1323,12 +1323,12 @@ NSString *FFFErrorMessage(NSError *error)
         return CGSizeZero;
     }
     if ([self decodesForOneSide]) {
-        // The side's pixels (the image fills the padding too), and a box 1
-        // pixel across the other way, which the image covers (see
-        // decodeCovers): the side's pixels decide the size.
+        // The side's pixels, and a box 1 pixel across the other way, which
+        // the image covers (see decodeCovers): the side's pixels decide the
+        // size.
         CGFloat scale = [self screenScale];
         CGSize size = self.bounds.size;
-        return self.contentSize.width > 0
+        return size.width > 0
             ? CGSizeMake(MAX(ceil(size.width * scale), 1), 1)
             : CGSizeMake(1, MAX(ceil(size.height * scale), 1));
     }
@@ -1336,15 +1336,14 @@ NSString *FFFErrorMessage(NSError *error)
 }
 
 // Whether the layout has only a width or a height so far (inside the
-// padding, which is all an open side has before an image loads), the other
-// being one the style leaves open (autoSize), and doesn't have an image's
-// size yet: that side follows the image (see FastImageViewShadowNode), whose
-// shape isn't known yet. (Padding can leave it 0 inside after that too.)
+// borders), the other being one the style leaves open (autoSize), and doesn't
+// have an image's size yet: that side follows the image (see
+// FastImageViewShadowNode), whose shape isn't known yet.
 - (BOOL) laysOutOneSide {
     if (self.imageLaidOut) {
         return NO;
     }
-    CGSize size = self.contentSize;
+    CGSize size = self.bounds.size;
     if (size.width > 0 && size.height <= 0) {
         return (self.autoSize & 2) != 0;
     }
@@ -1352,28 +1351,6 @@ NSString *FFFErrorMessage(NSError *error)
         return (self.autoSize & 1) != 0;
     }
     return NO;
-}
-
-// Nothing shows while a side the style leaves open is only padding
-// (laysOutOneSide): the image shows once the view has its shape, as it would
-// without padding (that side is 0 until then).
-- (void) updateHidden {
-    self.hidden = [self laysOutOneSide];
-}
-
-- (void) setAutoSize: (NSInteger)autoSize {
-    _autoSize = autoSize;
-    [self updateHidden];
-}
-
-- (void) setContentSize: (CGSize)contentSize {
-    _contentSize = contentSize;
-    [self updateHidden];
-}
-
-- (void) setImageLaidOut: (BOOL)imageLaidOut {
-    _imageLaidOut = imageLaidOut;
-    [self updateHidden];
 }
 
 // Whether the image is decoded for the one side laid out: the view gets the

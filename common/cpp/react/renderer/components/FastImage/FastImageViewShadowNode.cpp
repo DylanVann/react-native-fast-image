@@ -1,6 +1,5 @@
 #include "FastImageViewShadowNode.h"
 
-#include <algorithm>
 #include <cmath>
 
 #include <react/renderer/core/LayoutConstraints.h>
@@ -12,9 +11,9 @@ const char FastImageViewComponentName[] = "FastImageView";
 
 // Yoga only asks for a side the style leaves open: a set width (or one from
 // the parent, e.g. stretched) comes as minimum = maximum, an open one as 0 to
-// the space there is (or infinity). Its sizes are the content box's, inside
-// the padding, but the image fills the padding box (padding doesn't inset
-// it), so that's what has the image's shape.
+// the space there is (or infinity). Its sizes are the box inside the borders,
+// which the image fills (padding is always 0, see NO_PADDING in
+// src/objectFit.ts).
 Size FastImageViewShadowNode::measureContent(
     const LayoutContext & /*layoutContext*/,
     const LayoutConstraints &layoutConstraints) const
@@ -48,17 +47,8 @@ Size FastImageViewShadowNode::measureContent(
     if (!followsWidth && !followsHeight) {
         return layoutConstraints.clamp({0, 0});
     }
-    // Yoga has resolved the padding by now (it measures with it).
-    const Float paddingX =
-        YGNodeLayoutGetPadding(&yogaNode_, YGEdgeLeft) + YGNodeLayoutGetPadding(&yogaNode_, YGEdgeRight);
-    const Float paddingY =
-        YGNodeLayoutGetPadding(&yogaNode_, YGEdgeTop) + YGNodeLayoutGetPadding(&yogaNode_, YGEdgeBottom);
-    const auto forWidth = [&](Float width) -> Size {
-        return {width, std::max<Float>(0, (width + paddingX) / ratio - paddingY)};
-    };
-    const auto forHeight = [&](Float height) -> Size {
-        return {std::max<Float>(0, (height + paddingY) * ratio - paddingX), height};
-    };
+    const auto forWidth = [&](Float width) -> Size { return {width, width / ratio}; };
+    const auto forHeight = [&](Float height) -> Size { return {height * ratio, height}; };
     const auto &minimum = layoutConstraints.minimumSize;
     const auto &maximum = layoutConstraints.maximumSize;
     Size size;
@@ -72,7 +62,7 @@ Size FastImageViewShadowNode::measureContent(
     } else {
         // The image's own width, and the height its shape (or the style's
         // ratio) gives, scaled down to fit the space there is.
-        size = forWidth(std::max<Float>(0, image.width - paddingX));
+        size = forWidth(image.width);
         if (size.width > maximum.width) {
             size = forWidth(maximum.width);
         }

@@ -97,18 +97,23 @@
     },
     "auto-size-styles": {
         "description": {
-            "checks": "#436, continued: padding, borders, and a later style's height: 'auto'."
+            "checks": "#436, continued: padding (ignored), borders, and a later style's height: 'auto'."
         },
         "cases": {
             "auto-size-padding": {
-                "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                "checks": "Padding is ignored: an image with only a width has the image's aspect ratio, as without it.",
                 "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
             },
             "auto-size-padding-natural": {
-                "checks": "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
+                "checks": "Padding is ignored: with neither side set, the view is the image's own size, as without it.",
                 "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The 120x120 photo at 120x120 points on the left."
+            },
+            "auto-size-padding-left-out": {
+                "checks": "Padding is ignored: a side the style leaves out stays 0, not the padding's 16 points.",
+                "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x0.",
+                "shows": "Nothing: the view is 0 high."
             }
         }
     },
