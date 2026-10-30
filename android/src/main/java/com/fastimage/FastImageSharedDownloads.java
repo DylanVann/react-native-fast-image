@@ -31,6 +31,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ import okio.BufferedSource;
 // request that comes while many images download still gets to the queue below
 // at once, and other images aren't held up behind slow downloads. The download
 // is cancelled once every request for it has gone, and its bytes are dropped
-// once every request has read what it needed.
+// a moment after every request has read what it needed (LINGER_MS).
 //
 // At most MAX_RUNNING downloads run at once, as SDWebImage's downloader limits
 // them, and at most as many wait for their response from a host as the
@@ -82,8 +83,9 @@ import okio.BufferedSource;
 final class FastImageSharedDownloads {
     // The longest response kept in memory, and the most bytes held in memory
     // for downloads at once: encoded images (not decoded bitmaps, which
-    // Glide's memory cache holds), each only until every request has read it.
-    // Others are kept in a temporary file.
+    // Glide's memory cache holds), each until every request has read it (and
+    // LINGER_MS more while under half the budget). Others are kept in a
+    // temporary file.
     private static final long MEMORY_MAX = 1024 * 1024;
     private static final long MEMORY_BUDGET = Runtime.getRuntime().maxMemory() / 16;
     // The longest response kept in memory, still within MEMORY_BUDGET, when
@@ -96,12 +98,22 @@ final class FastImageSharedDownloads {
     private static final int MAX_RUNNING = 16;
     // How long a preload's finished file is used (see finished()).
     private static final long KEEP_MS = 60_000;
+    // How long an ended download's bytes stay for new requests once every
+    // request has read them. Glide looks in its disk cache before it
+    // downloads, and gets to downloading later (another of its threads):
+    // a request that looked before the first request's image was stored
+    // there, and gets to downloading just after the download ended, reads
+    // them rather than downloading the image again (views of one url at
+    // different sizes, which Glide loads apart, at once). They stand for the
+    // disk cache, so clearDiskCache drops them (dropEnded), and a request
+    // that keeps its image off disk (diskCache false) doesn't read them.
+    private static final long LINGER_MS = 1000;
     // Progress is sent when a download has read another 0.5% (and at its
     // start and end).
     private static final long PROGRESS_STEPS = 200;
 
     // The download new requests for a key join: in progress, or ended and
-    // still being read. Guards the downloads' sharing, queue and progress
+    // still being read (or read less than LINGER_MS ago). Guards the downloads' sharing, queue and progress
     // (taken before a download's own lock, and FastImageViewManager's progress
     // lock).
     private static final Map<String, Download> downloads = new HashMap<>();
@@ -146,8 +158,25 @@ final class FastImageSharedDownloads {
                 }
             });
 
+    // Drops the bytes of ended downloads that every request has read, once
+    // LINGER_MS has passed.
+    private static final ScheduledThreadPoolExecutor lingering = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactory() {
+                @Override
+                public Thread newThread(@NonNull Runnable runnable) {
+                    Thread thread = new Thread(runnable, "FastImageDownloadLinger");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
+
     static {
         reading.allowCoreThreadTimeOut(true);
+        // Its thread goes when it has had nothing to do for a while. Safe for a
+        // scheduled executor as its keep-alive is longer than the delays (a
+        // thread waiting for a drop due in under LINGER_MS doesn't time out).
+        lingering.setKeepAliveTime(10, TimeUnit.SECONDS);
+        lingering.allowCoreThreadTimeOut(true);
     }
 
     private static final class Finished {
@@ -232,8 +261,29 @@ final class FastImageSharedDownloads {
 
     // A remote image's load data (FastImageOkHttpProgressGlideModule): its
     // download with the client, shared with the other requests for its key.
-    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client) {
-        return new ModelLoader.LoadData<>(url, new Fetcher(url, client));
+    // readsEnded false: a `web` image (it follows its HTTP cache) or one with
+    // diskCache false (it downloads again), which only joins a download in
+    // progress, not the bytes of one that has ended (see LINGER_MS).
+    static ModelLoader.LoadData<InputStream> loadData(GlideUrl url, OkHttpClient client, boolean readsEnded) {
+        return new ModelLoader.LoadData<>(url, new Fetcher(url, client, readsEnded));
+    }
+
+    // The disk cache was cleared: requests download again, rather than read
+    // the bytes of a download that has ended (those still being read are
+    // dropped once they have been), or that ends after (see beforeClear).
+    static void dropEnded() {
+        List<Store> dropped = new ArrayList<>();
+        synchronized (downloads) {
+            for (Download download : new ArrayList<>(downloads.values())) {
+                synchronized (download) {
+                    download.beforeClear = true;
+                    if (!download.ended) continue;
+                    download.unmap();
+                    if (download.readers == 0) dropped.add(download.drop());
+                }
+            }
+        }
+        for (Store store : dropped) Download.release(store);
     }
 
     // As Glide's OkHttp fetcher requests it. A url or header OkHttp can't
@@ -312,6 +362,7 @@ final class FastImageSharedDownloads {
     private static final class Fetcher implements DataFetcher<InputStream> {
         final GlideUrl url;
         final OkHttpClient client;
+        final boolean readsEnded;
         // Set when it loads (Glide also makes fetchers it doesn't use, e.g.
         // for an image in its disk cache).
         String key;
@@ -325,9 +376,10 @@ final class FastImageSharedDownloads {
         private volatile InputStream stream;
         private volatile boolean fromFile;
 
-        Fetcher(GlideUrl url, OkHttpClient client) {
+        Fetcher(GlideUrl url, OkHttpClient client, boolean readsEnded) {
             this.url = url;
             this.client = client;
+            this.readsEnded = readsEnded;
         }
 
         @Override
@@ -574,6 +626,15 @@ final class FastImageSharedDownloads {
         // the streams open on its bytes.
         private final List<Waiter> waiting = new ArrayList<>();
         private int readers = 0;
+        // A `web` image's (see readsEnded).
+        private final boolean web;
+        // Guarded by this. It was running or ended when the disk cache was
+        // cleared (dropEnded): its bytes are from before the clear, so they
+        // don't linger, and once it ends no new request joins it.
+        private boolean beforeClear = false;
+        // Guarded by this. Counts the times every reader had closed, so a drop
+        // scheduled then doesn't drop bytes a request has joined since.
+        private int idle = 0;
         // Guarded by this. Where the bytes are (null before the response is
         // read, and once dropped), and how many there are.
         @Nullable
@@ -593,6 +654,7 @@ final class FastImageSharedDownloads {
         // With downloads locked.
         private Download(String key, GlideUrl url, OkHttpClient client, Request request, Priority priority) {
             this.key = key;
+            this.web = url instanceof FastImageWebGlideUrl;
             this.url = url;
             this.client = client;
             this.request = request;
@@ -615,13 +677,18 @@ final class FastImageSharedDownloads {
             // can have room).
             boolean queueChanged = false;
             InputStream ready = null;
+            Store replaced = null;
             synchronized (downloads) {
                 // Cancelled before it got here.
                 if (fetcher.cancelled) return;
                 download = downloads.get(fetcher.key);
-                // A `web` image follows its HTTP cache: it only joins a
-                // download in progress, not the bytes of one that has ended.
-                if (download != null && fetcher.url instanceof FastImageWebGlideUrl && download.hasEnded()) {
+                // See readsEnded. The ended download this one replaces in the
+                // map can't be joined any more: its bytes go now if no request
+                // reads them.
+                if (download != null && !fetcher.readsEnded && download.hasEnded()) {
+                    synchronized (download) {
+                        if (download.readers == 0) replaced = download.drop();
+                    }
                     download = null;
                 }
                 if (download == null) {
@@ -655,6 +722,7 @@ final class FastImageSharedDownloads {
                     }
                 }
             }
+            release(replaced);
             if (ready != null) fetcher.deliver(ready, callback);
             if (queueChanged) startQueued();
         }
@@ -802,13 +870,46 @@ final class FastImageSharedDownloads {
             if (cancel) cancel();
         }
 
-        // A stream on the bytes was closed: once every one has, the bytes go.
+        // A stream on the bytes was closed: once every one has, the bytes go
+        // LINGER_MS later, unless a request has joined by then.
         void readerClosed() {
+            final int at;
             Store dropped = null;
             synchronized (downloads) {
                 synchronized (this) {
                     readers--;
                     if (readers > 0) return;
+                    // Now: no request can join it any more (a clear unmapped
+                    // it, or a newer download took its key), none reads the
+                    // bytes of an ended `web` download, they're from before a
+                    // clear (beforeClear), or they're in memory
+                    // with more than half the budget taken (so other
+                    // downloads' bytes still fit in memory).
+                    if (downloads.get(key) != this || web || beforeClear
+                            || (reserved > 0 && held > MEMORY_BUDGET / 2)) {
+                        unmap();
+                        dropped = drop();
+                    }
+                    at = ++idle;
+                }
+            }
+            if (dropped != null) {
+                release(dropped);
+                return;
+            }
+            lingering.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    dropIfIdle(at);
+                }
+            }, LINGER_MS, TimeUnit.MILLISECONDS);
+        }
+
+        private void dropIfIdle(int at) {
+            Store dropped;
+            synchronized (downloads) {
+                synchronized (this) {
+                    if (readers > 0 || idle != at) return;
                     unmap();
                     dropped = drop();
                 }
@@ -925,13 +1026,16 @@ final class FastImageSharedDownloads {
         private Store newStore(long length) throws IOException {
             if (length >= 0 && length <= MEMORY_MAX) {
                 boolean fits;
+                List<Store> freed;
                 synchronized (downloads) {
+                    freed = freeMemory(length);
                     fits = held + length <= MEMORY_BUDGET;
                     if (fits) {
                         held += length;
                         reserved = length;
                     }
                 }
+                for (Store store : freed) release(store);
                 if (fits) {
                     try {
                         MemoryStore created = new MemoryStore((int) length);
@@ -958,13 +1062,37 @@ final class FastImageSharedDownloads {
         // GrowingStore), given back when they're dropped; without room, the
         // download fails with why its file couldn't be used.
         private void reserve(long more, IOException cause) throws IOException {
+            List<Store> freed;
+            boolean fits;
             synchronized (downloads) {
-                if (held + more > MEMORY_BUDGET) {
-                    throw new IOException("No memory left for downloads, and the temporary file couldn't be written", cause);
+                freed = freeMemory(more);
+                fits = held + more <= MEMORY_BUDGET;
+                if (fits) {
+                    held += more;
+                    reserved += more;
                 }
-                held += more;
-                reserved += more;
             }
+            for (Store store : freed) release(store);
+            if (!fits) {
+                throw new IOException("No memory left for downloads, and the temporary file couldn't be written", cause);
+            }
+        }
+
+        // With downloads locked: without room for `needed` more, drops the
+        // bytes in memory of ended downloads no request reads (lingering, see
+        // LINGER_MS) until there is. Returns them, to release outside the locks.
+        private static List<Store> freeMemory(long needed) {
+            List<Store> freed = new ArrayList<>();
+            if (held + needed <= MEMORY_BUDGET) return freed;
+            for (Download download : new ArrayList<>(downloads.values())) {
+                synchronized (download) {
+                    if (!download.ended || download.readers > 0 || download.reserved == 0) continue;
+                    download.unmap();
+                    freed.add(download.drop());
+                }
+                if (held + needed <= MEMORY_BUDGET) break;
+            }
+            return freed;
         }
 
         // Its temporary file couldn't be made, or written (`failed`): the
@@ -1033,6 +1161,8 @@ final class FastImageSharedDownloads {
                     size = read;
                     ended = true;
                     silent = true;
+                    // From before a clear: no new request joins it.
+                    if (beforeClear) unmap();
                     waiters = takeWaiting();
                     readers += waiters.size();
                     for (int i = 0; i < waiters.size(); i++) streams.add(stream());
