@@ -92,8 +92,10 @@ const SIDE_KEYS = [
 // one walk of the style: resolveObjectFit and openSides take them in place of
 // the style.
 export function readStyle(style: unknown) {
-    return fromStyleKeys(style, ['tintColor', 'objectFit', ...SIDE_KEYS])
+    return fromStyleKeys(style, STYLE_KEYS)
 }
+
+const STYLE_KEYS = ['tintColor', 'objectFit', ...SIDE_KEYS] as const
 
 type StyleValues = ReturnType<typeof readStyle>
 
