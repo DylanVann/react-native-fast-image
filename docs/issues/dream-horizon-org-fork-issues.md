@@ -330,6 +330,13 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **How to reproduce:** Found by reading the code. Preload a url that fails, turn the network off and on, and count the requests the server gets. Fast Image's unit test `failedPreloadDownloadIsntStartedAgainWhenTheNetworkComesBack` saw the second request before its fix.
 - **How Fast Image handles it:** a preload's failed load is cleared once its result is in, so Glide doesn't start it again, and each source reports once ([#1356](https://github.com/DylanVann/react-native-fast-image/pull/1356)).
 
+## iOS preload of a url that failed before fails without a request until the app is relaunched
+
+- **What happens:** on iOS, after a load of a url fails in certain ways (data that isn't an image, such as a captive portal's page sent with status 200, an invalid url, or a network error other than the connectivity ones), every later `FastImage.preload()` of it fails without a request until the app is relaunched. Views retry it.
+- **Where:** `ios/FastImage/FFFastImageViewModule.mm`, `preload:` calls `[[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls]` with the prefetcher's default options (`SDWebImageLowPriority`, no `SDWebImageRetryFailed`), so `SDWebImageManager` fails urls in its `failedURLs` ("Image url is blacklisted"). `FFFastImageView.mm` loads views with `SDWebImageRetryFailed`.
+- **How to reproduce:** Found by reading the code; Fast Image's `preload-retry` case failed the same way before [#1177](https://github.com/DylanVann/react-native-fast-image/pull/1177). Preload a url whose first response is HTML with status 200 and later ones the image, then preload it again.
+- **How Fast Image handles it:** preloads pass `SDWebImageRetryFailed`, as views do ([#1177](https://github.com/DylanVann/react-native-fast-image/pull/1177)), and a failed preload resolves once SDWebImage has finished its download, so a preload right after it downloads again instead of getting its error ([#1404](https://github.com/DylanVann/react-native-fast-image/pull/1404)).
+
 ## Other issues
 
 These were found while comparing the two libraries, but Fast Image has no counterpart for them, so there's no fix to point to.
