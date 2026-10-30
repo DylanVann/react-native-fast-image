@@ -59,6 +59,7 @@
     },
     "auto-size-edges": {
         "decode http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-grow=RUN 1024x1024 for 315x1 at 1x1": 1,
+        "decode http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-grow=RUN 1024x1024 for 315x315 at 315x315": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 2400x2400 at 600x300": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 315x315 at 315x158": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 2,
