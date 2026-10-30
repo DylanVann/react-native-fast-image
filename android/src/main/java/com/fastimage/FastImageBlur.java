@@ -59,6 +59,10 @@ final class FastImageBlur extends BitmapTransformation {
         int blurredHeight = Math.max(1, Math.round(height * scale));
         int boxSize = boxSize(radius * scale / shownScale, Math.max(blurredWidth, blurredHeight));
         if (boxSize <= 1 && scale == 1) return toTransform;
+        if (FastImageWork.enabled()) {
+            FastImageWork.record("blur", null, width + "x" + height + " to " + blurredWidth + "x" + blurredHeight
+                    + " box " + boxSize);
+        }
 
         Bitmap result = pool.get(blurredWidth, blurredHeight, Bitmap.Config.ARGB_8888);
         result.setDensity(toTransform.getDensity());

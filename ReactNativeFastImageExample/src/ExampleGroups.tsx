@@ -82,6 +82,9 @@ export const EXAMPLE_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'fastimage-grid',
+        // Its list mounts 200 images: how many have downloaded when the next
+        // group replaces it depends on timing.
+        countWork: false,
         description: {
             checks: "A grid of many remote images loading at the same time, like a gallery screen (the example screen's FastImage grid).",
             steps: "Fetches the image server's list of photos and shows them in a 4-column list with 6 rows, each a 100×100 photo in a square cell. Passes once all 24 have sent onLoad.",

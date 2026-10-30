@@ -78,6 +78,14 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             // loops every GIF forever by default (#651).
             view.applyLoopCount((GifDrawable) resource);
         }
+        // Glide's GIF decoder doesn't ask the downsample strategy, which logs
+        // other images' decodes (FastImageSourceSize.Capture): a GIF that
+        // didn't come from the memory cache was decoded, on Glide's threads
+        // (debug builds: FastImageWork).
+        if (resource instanceof GifDrawable && dataSource != DataSource.MEMORY_CACHE && FastImageWork.enabled()) {
+            FastImageWork.record("decode", model, "gif at " + resource.getIntrinsicWidth() + "x"
+                    + resource.getIntrinsicHeight(), false);
+        }
         if (!events) return false;
         boolean local = !(model instanceof FastImageUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,

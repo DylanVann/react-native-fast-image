@@ -36,6 +36,11 @@
 //
 // GET /requests?path=<path and query> returns how many times it was requested,
 // so a test can check what was loaded from the network: `{ "count": 1 }`.
+// GET /request-log?since=<ms> returns every image request (both servers)
+// since that time (Date.now() on this machine), in order, with its
+// User-Agent (which platform asked): `[{ "at": 1700000000000, "path":
+// "/picsum/…", "agent": "okhttp/4.12.0" }]`, for scripts/verify.mts to count
+// each group's.
 // GET /requests?group=<group> returns how many requests the slow server got
 // with that `group` query parameter, the most of them in flight at the same
 // time, and the order each arrived in among all the slow server's requests:
@@ -77,6 +82,7 @@ const IMAGES = path.join(import.meta.dir, 'images')
 const PORT = Number(process.env.PORT ?? 8090)
 const SLOW_PORT = PORT + 1
 const requests = new Map<string, number>()
+const requestLog: { at: number; path: string; agent: string }[] = []
 // Per `group` query parameter on the slow server: requests, requests in
 // flight now, and the most in flight at the same time.
 const groups = new Map<
@@ -147,6 +153,12 @@ const server = Bun.serve({
             release(url.searchParams.get('hold') ?? '')
             return Response.json({ released: true })
         }
+        if (url.pathname === '/request-log') {
+            const since = Number(url.searchParams.get('since') ?? 0)
+            return Response.json(
+                requestLog.filter((entry) => entry.at >= since),
+            )
+        }
         if (url.pathname === '/requests') {
             const group = url.searchParams.get('group')
             if (group !== null) {
@@ -178,6 +190,11 @@ const server = Bun.serve({
         }
         const key = url.pathname + url.search
         requests.set(key, (requests.get(key) ?? 0) + 1)
+        requestLog.push({
+            at: Date.now(),
+            path: key,
+            agent: request.headers.get('user-agent') ?? '',
+        })
 
         let { pathname } = url
         let cacheControl: string | undefined
@@ -340,6 +357,11 @@ http.createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost')
     const key = `slow:${url.pathname}${url.search}`
     requests.set(key, (requests.get(key) ?? 0) + 1)
+    requestLog.push({
+        at: Date.now(),
+        path: key,
+        agent: request.headers['user-agent'] ?? '',
+    })
     slowRequests++
     const group = url.searchParams.get('group')
     if (group !== null) {

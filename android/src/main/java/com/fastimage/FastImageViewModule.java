@@ -44,6 +44,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
 
     FastImageViewModule(ReactApplicationContext reactContext) {
         super(reactContext);
+        FastImageWork.init(reactContext);
     }
 
     // At most this many preloaded sources load at a time, across all preload
@@ -154,6 +155,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                         continue;
                     }
                     final RequestOptions preloadOptions = preloadOptions(context, imageSource, source);
+                    if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "preload");
                     // A source's result, which frees its slot.
                     final ResultCallback done = new ResultCallback() {
                         @Override
@@ -471,6 +473,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                     promise.resolve(failure("Not in the disk cache"));
                     return;
                 }
+                if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "cache-path");
                 UiThreadUtil.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

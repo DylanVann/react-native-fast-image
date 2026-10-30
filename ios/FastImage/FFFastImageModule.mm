@@ -2,6 +2,7 @@
 #import "RCTConvert+FFFastImage.h"
 #import "FFFastImageView.h"
 #import "FFFDownsampledImage.h"
+#import "FFFWork.h"
 #import <React/RCTUtils.h>
 
 #import <SDWebImage/SDImageCache.h>
@@ -145,6 +146,7 @@ static SDWebImageMutableContext *FFFPreloadContext(FFFastImageSource *source)
     context[SDWebImageContextImageLoader] = source.imageLoader;
     context[SDWebImageContextCacheKeyFilter] = source.cacheKeyFilter;
     [FFFDownsampledImage addFullSizeToContext:context uncapped:NO screenScale:RCTScreenScale() vectorBox:CGSizeZero cover:NO];
+    [FFFDownsampledImage addWorkURL:source.url toContext:context];
     return context;
 }
 
@@ -373,9 +375,11 @@ static NSDictionary *FFFFile(NSString *path)
                 // a smaller copy at once.
                 // An SVG isn't drawn either (screen scale zero).
                 [FFFDownsampledImage addFullSizeToContext:context uncapped:YES screenScale:0 vectorBox:CGSizeZero cover:NO];
+                [FFFDownsampledImage addWorkURL:source.url toContext:context];
                 context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
                 context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
             }
+            FFFWork(@"load", source.url, @"preload");
             FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
                 // The image's own size, also when it was decoded smaller.
                 CGSize size = [FFFDownsampledImage sourceSizeOfImage:image];
@@ -445,9 +449,11 @@ static NSDictionary *FFFFile(NSString *path)
         SDWebImageMutableContext *context = FFFPreloadContext(source);
         // An SVG isn't drawn either (screen scale zero).
         [FFFDownsampledImage addFullSizeToContext:context uncapped:NO screenScale:0 vectorBox:CGSizeZero cover:NO];
+        [FFFDownsampledImage addWorkURL:source.url toContext:context];
         context[SDWebImageContextImageForceDecodePolicy] = @(SDImageForceDecodePolicyNever);
         context[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
         context[SDWebImageContextStoreCacheType] = @(SDImageCacheTypeDisk);
+        FFFWork(@"load", source.url, @"cache-path");
         FFFQueueLoad(source, options, [context copy], ^(UIImage *image, NSError *error) {
             if (!image) {
                 resolve(FFFFailure([source errorMessage:error]));

@@ -42,11 +42,20 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //
 // Messages to the script (JSON, one per WebSocket message):
 //   { type: 'hello', platform, version, arch, groups: [names], window:
-//     { width, height }, scale }                   on connecting (window in
-//                                                 dp; scale = pixels per dp)
-//   { type: 'group', index, name, wide, cases: [ids], description,
-//     descriptions: { id: description } }         once a group is on screen
-//                                                 (wide: compared whole)
+//     { width, height }, scale, launch, at }       on connecting (window in
+//                                                 dp; scale = pixels per dp;
+//                                                 launch: the same until the
+//                                                 app or its JS starts again;
+//                                                 at: the app's clock)
+//   { type: 'group', index, name, wide, countWork, cases: [ids],
+//     description, descriptions: { id: description } }
+//                                                 once a group is on screen
+//                                                 (wide: compared whole;
+//                                                 countWork: false, its work
+//                                                 isn't compared)
+//   { type: 'mount', index, at }                  as a group starts to mount,
+//                                                 before its cases do (at:
+//                                                 the app's clock)
 //   { type: 'status', group, id, status }         a case's status ('OK' passed)
 //   { type: 'masks', group, id, masks, cases, content, visible, safeArea }
 //                                                 the reply to 'measure'
@@ -73,7 +82,9 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // { type: 'recording', group, name } says a sample's recording has started,
 // { type: 'framed', group, name } that a stepped sample's screenshot is
 // taken, and { type: 'sampled', group, name, ok, seen, detail } gives its
-// result.
+// result; { type: 'end' } says the run is over (the work in the app's log
+// after it isn't counted, and the script waits for the line to reach the
+// log).
 
 type Message = { type: string; [key: string]: unknown }
 
@@ -186,6 +197,9 @@ const afterLayout = () =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     )
 
+// This launch of the app (or of its JS): see 'hello'.
+const LAUNCH = `${Date.now()}-${Math.random()}`
+
 const isFabric = () =>
     (globalThis as { nativeFabricUIManager?: unknown }).nativeFabricUIManager !=
     null
@@ -232,6 +246,39 @@ export default function RegressionRunner({
     // errors still show, and fail their group.
     useState(() => LogBox.ignoreAllLogs())
     const [index, setIndex] = useState(0)
+    // The group to show next ('next': the one after), while the one on screen
+    // is unmounted and the caches cleared: each group starts with empty
+    // caches, so the work it makes Fast Image do (see scripts/verify.mts)
+    // doesn't depend on the groups before it, which differ between a full
+    // run, a CI shard and a run of some groups. Cleared once the unmount is
+    // on screen, when the views have let go of their images (Android's
+    // memory cache keeps the images views hold).
+    const [next, setNext] = useState<number | 'next' | undefined>(undefined)
+    // The group on screen, or -1 while the next one is on its way.
+    const shownIndex = useRef(index)
+    useEffect(() => {
+        shownIndex.current = next === undefined ? index : -1
+    }, [next, index])
+    useEffect(() => {
+        if (next === undefined) return
+        let cancelled = false
+        const show = () => {
+            if (cancelled) return
+            setIndex(next === 'next' ? index + 1 : next)
+            setNext(undefined)
+        }
+        afterLayout()
+            .then(() =>
+                Promise.all([
+                    FastImage.clearMemoryCache(),
+                    FastImage.clearDiskCache(),
+                ]),
+            )
+            .then(show, show)
+        return () => {
+            cancelled = true
+        }
+    }, [next, index])
     const [connected, setConnected] = useState(false)
     const socket = useRef<WebSocket | undefined>(undefined)
     // The whole screen (see 'measure').
@@ -281,6 +328,8 @@ export default function RegressionRunner({
                         groups: groups.map((group) => group.name),
                         window: Dimensions.get('window'),
                         scale: PixelRatio.get(),
+                        launch: LAUNCH,
+                        at: Date.now(),
                     }),
                 )
                 for (const text of queue.current.splice(0)) ws?.send(text)
@@ -306,7 +355,9 @@ export default function RegressionRunner({
                 } else if (message.type === 'sampled') {
                     samples.delete(`${message.group}/${message.name}`)
                     sample?.resolve(message as unknown as SampleResult)
-                } else if (message.type === 'next') setIndex((i) => i + 1)
+                } else if (message.type === 'next') setNext('next')
+                else if (message.type === 'end')
+                    console.log('FastImageWork end')
                 else if (message.type === 'measure') {
                     afterLayout()
                         .then(() =>
@@ -333,9 +384,11 @@ export default function RegressionRunner({
                         })
                 } else if (
                     message.type === 'show' &&
-                    typeof message.index === 'number'
+                    typeof message.index === 'number' &&
+                    // Not the group on screen again.
+                    message.index !== shownIndex.current
                 )
-                    setIndex(message.index)
+                    setNext(message.index)
             }
             ws.onclose = () => {
                 setConnected(false)
@@ -366,7 +419,7 @@ export default function RegressionRunner({
                         regression runner: {connected ? 'done' : 'connecting'}
                     </Text>
                 ) : null}
-                {done ? null : (
+                {done || next !== undefined ? null : (
                     <Group
                         key={index}
                         index={index}
@@ -422,6 +475,13 @@ function Group({
     >
     frames: Frames
 }) {
+    // Before its cases mount: the work Fast Image logs after this line in
+    // the app's log (FastImageWork, in debug builds) is this group's, and so
+    // are the requests after the mount message (see scripts/verify.mts).
+    useState(() => {
+        console.log(`FastImageWork group ${group.name}`)
+        send({ type: 'mount', index, at: Date.now() })
+    })
     const statuses = useRef(new Map<string, string>())
     const descriptions = useRef(new Map<string, Description>())
     const describe = useCallback((id: string, description: Description) => {
@@ -524,6 +584,7 @@ function Group({
             index,
             name: group.name,
             wide: group.wide === true,
+            countWork: group.countWork !== false,
             cases: [...statuses.current.keys()],
             description: group.description,
             descriptions: Object.fromEntries(descriptions.current),

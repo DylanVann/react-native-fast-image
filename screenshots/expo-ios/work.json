@@ -1,0 +1,50 @@
+{
+    "smoke": {
+        "decode http://localhost:8081/assets/?unstable_path=.%2F..%2FReactNativeFastImageExample%2Fsrc%2Fimages/logo.png?platform=ios&hash=HASH 1000x1000 for 144x144 at 144": 1,
+        "decode http://localhost:8090/fail-once/picsum/1025-200x200.jpg?smoke-reload=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1021-120x120.jpg?smoke=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?smoke=RUN 120x120 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?smoke=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/sized-300.png?smoke=RUN 300x300 for 288x288 at full": 1,
+        "load http://localhost:8081/assets/?unstable_path=.%2F..%2FReactNativeFastImageExample%2Fsrc%2Fimages/logo.png?platform=ios&hash=HASH source main": 1,
+        "load http://localhost:8090/does-not-exist.png?smoke=RUN preload main": 1,
+        "load http://localhost:8090/does-not-exist.png?smoke=RUN source main": 1,
+        "load http://localhost:8090/fail-once/picsum/1025-200x200.jpg?smoke-reload=RUN source main": 2,
+        "load http://localhost:8090/picsum/1021-120x120.jpg?smoke=RUN preload main": 1,
+        "load http://localhost:8090/picsum/1022-120x120.jpg?smoke=RUN source main": 1,
+        "load http://localhost:8090/picsum/1025-200x200.jpg?smoke=RUN source main": 1,
+        "load http://localhost:8090/sized-300.png?smoke=RUN source main": 1,
+        "request /does-not-exist.png?smoke=RUN": 1,
+        "request /fail-once/picsum/1025-200x200.jpg?smoke-reload=RUN": 2,
+        "request /picsum/1021-120x120.jpg?smoke=RUN": 1,
+        "request /picsum/1022-120x120.jpg?smoke=RUN": 1,
+        "request /picsum/1025-200x200.jpg?smoke=RUN": 1,
+        "request /sized-300.png?smoke=RUN": 1
+    },
+    "smoke-glide": {
+        "blur - 80x80 radius 6.66667": 1,
+        "decode http://localhost:8090/formats/animated.png?smoke-apng-blur=RUN 80x80 for 144x144 at full": 1,
+        "decode http://localhost:8090/formats/animated.png?smoke-apng=RUN 80x80 for 144x144 at full": 1,
+        "decode http://localhost:8090/max-age/picsum/1025-200x200.jpg?smoke-web=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1022-120x120.jpg?smoke-write-file=RUN 120x120 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?smoke-progress=RUN 200x200 for 144x144 at full": 1,
+        "decode http://localhost:8090/picsum/1025-200x200.jpg?smoke-write=RUN 120x120 for 144x144 at full": 1,
+        "load http://localhost:8090/formats/animated.png?smoke-apng-blur=RUN source main": 1,
+        "load http://localhost:8090/formats/animated.png?smoke-apng=RUN source main": 1,
+        "load http://localhost:8090/max-age/picsum/1025-200x200.jpg?smoke-web=RUN source main": 2,
+        "load http://localhost:8090/picsum/1022-120x120.jpg?smoke-write-file=RUN cache-path main": 1,
+        "load http://localhost:8090/picsum/1025-200x200.jpg?smoke-progress=RUN source main": 1,
+        "load http://localhost:8090/picsum/1025-200x200.jpg?smoke-write=RUN source main": 1,
+        "load http://localhost:8090/svg-icon.svg?smoke=RUN source main": 1,
+        "request /formats/animated.png?smoke-apng-blur=RUN": 1,
+        "request /formats/animated.png?smoke-apng=RUN": 1,
+        "request /max-age/picsum/1025-200x200.jpg?smoke-web=RUN": 1,
+        "request /picsum/1022-120x120.jpg?smoke-write-file=RUN": 1,
+        "request /picsum/1025-200x200.jpg?smoke-progress=RUN": 1,
+        "request /svg-icon.svg?smoke=RUN": 1,
+        "svg http://localhost:8090/svg-icon.svg?smoke=RUN 24x24 for 144x144": 1
+    },
+    "expo-image": {
+        "request /picsum/1020-120x120.jpg?expo-image=RUN": 1
+    }
+}

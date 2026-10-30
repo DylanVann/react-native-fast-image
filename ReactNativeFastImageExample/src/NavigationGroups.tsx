@@ -1,5 +1,5 @@
 import React, { useContext, useRef, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { ScreenStack, ScreenStackItem } from 'react-native-screens'
 import FastImage from 'react-native-fast-image'
 import { CaseStatus, caseStyles } from './CaseStatus'
@@ -108,8 +108,11 @@ function PopCase({
 
 export const NAVIGATION_GROUPS: RegressionGroup[] = [
     {
-        // Recorded (a video sample).
+        // Recorded (a video sample). On iOS, whether the stack has laid its
+        // screen out when the image starts loading (the decode's box)
+        // depends on timing.
         name: 'navigation-pop',
+        countWork: Platform.OS !== 'ios',
         description: {
             checks: 'An image in a screen that a native stack pops stays until the screen is gone.',
             steps: 'A video sample: the screen is recorded while the case pops the screen, and the color in the middle of the view must go through the listed colors in order.',

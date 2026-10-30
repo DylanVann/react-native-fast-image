@@ -76,6 +76,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     public FastImageViewWithUrl(Context context, @Nullable RequestManager requestManager) {
         super(context);
         this.requestManager = requestManager;
+        FastImageWork.init(context);
         // Borders inset the image: its padding is their widths (see
         // updateBorderPadding). An image larger than that (objectFit none) is
         // cropped to it, also when the view doesn't clip its content
@@ -490,6 +491,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             }
         };
         mUrlPlaceholderTarget = target;
+        if (FastImageWork.enabled()) FastImageWork.record("load", imageSource.getSourceForLoad(), "url-placeholder");
         requestManager
                 .load(imageSource.getSourceForLoad())
                 .apply(FastImageViewConverter.getOptions(getContext(), imageSource, mPlaceholderSource)
@@ -793,6 +795,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             try {
                 int[] box = FastImageSourceSize.box(width, height);
                 from = Bitmap.createBitmap(box[0], box[1], Bitmap.Config.ARGB_8888);
+                if (FastImageWork.enabled()) FastImageWork.record("snapshot", mModel, box[0] + "x" + box[1]);
                 Canvas canvas = new Canvas(from);
                 canvas.scale((float) box[0] / width, (float) box[1] / height);
                 onDraw(canvas);
@@ -1691,7 +1694,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 .error(current.clone())
                 .listener(new FastImageRequestListener(null, true, false));
         if (meanwhile == null) builder = builder.thumbnail(current);
-        into(shown, builder, meanwhile, true);
+        into(shown, builder, meanwhile, true, "size");
     }
 
     // blurRadius or objectFit changed, and nothing else that needs a reload:
@@ -1719,7 +1722,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                     .error(current.clone())
                     .listener(new FastImageRequestListener(null, true, false));
             if (meanwhile == null) builder = builder.thumbnail(current);
-            into(request, builder, meanwhile, true);
+            into(request, builder, meanwhile, true, "rendering");
         } else if (mLoadingRequest != null && !mLoadEnded) {
             mRestarting = true;
             mNeedsReload = true;
@@ -1762,8 +1765,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // not null) until it loads, and recording the size Glide loads it at. The size callback is added first, so it has the size by
     // the time the image loads, even from the memory cache. Quiet: the image
     // that's showing, loaded again (no events).
+    // why: what it's for, logged in debug builds (FastImageWork).
     private void into(RequestBuilder<Drawable> request, RequestBuilder<Drawable> builder, @Nullable Drawable meanwhile,
-            boolean quiet) {
+            boolean quiet, String why) {
+        FastImageWork.record(quiet ? "reload" : "load", mModel, why);
         final int load = mLoadCount;
         mLoadingRequest = request;
         mLoadingQuietly = quiet;
@@ -1985,7 +1990,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (imageSource != null)
                 builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
 
-            into(request, builder, meanwhile, false);
+            into(request, builder, meanwhile, false, switching ? "source-for-size" : "source");
         }
     }
 

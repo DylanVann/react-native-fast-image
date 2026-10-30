@@ -79,4 +79,8 @@ FOUNDATION_EXTERN CGFloat FFFBoxScale(CGSize size, CGSize box, BOOL cover);
 //   SDWebImage's memory cache key is the same for both.
 + (void) forgetUnusableImageForURL: (NSURL*)url context: (SDWebImageContext*)context;
 
+// In debug builds, the url its decodes are logged with (see FFFWork). Not in
+// the memory cache's key.
++ (void) addWorkURL: (NSURL*)url toContext: (SDWebImageMutableContext*)context;
+
 @end

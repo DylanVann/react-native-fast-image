@@ -1,4 +1,5 @@
 #import "FFFastImageView.h"
+#import "FFFWork.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
 #import <React/RCTUtils.h>
@@ -769,6 +770,7 @@ static void FFFShareAnimationBudget(void) {
     self.blurredForSize = self.bounds.size;
     __weak typeof(self) weakSelf = self;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        FFFWork(@"blur", nil, [NSString stringWithFormat: @"%gx%g radius %g", image.size.width * image.scale, image.size.height * image.scale, radius]);
         UIImage* blurred = FFFBlurredImage(image, scale, radius, downscale);
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakSelf showBlurredImage: blurred count: count];
@@ -1159,6 +1161,7 @@ NSString *FFFErrorMessage(NSError *error)
     // with objectFit none.
     SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO maxScale: 0 vectorBox: [self viewBox]];
     __weak typeof(self) weakSelf = self;
+    FFFWork(@"load", source.url, @"url-placeholder");
     self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
         if (!finished || weakSelf.urlPlaceholderLoad != load) {
             return;
@@ -1267,6 +1270,7 @@ NSString *FFFErrorMessage(NSError *error)
     if (self.showsLoadedImage) {
         options |= SDWebImageDelayPlaceholder;
     }
+    FFFWork(@"reload", _source.url, @"dynamic-range");
     [self downloadImage: _source options: options context: [self loadContext] events: !self.hasCompleted];
 }
 
@@ -1352,6 +1356,7 @@ NSString *FFFErrorMessage(NSError *error)
             self.redrawnSVGScale = needed;
             SDWebImageMutableContext* fromDisk = [[self loadContext] mutableCopy];
             fromDisk[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+            FFFWork(@"reload", _source.url, @"svg-scale");
             [self downloadImage: _source options: [self loadOptions] | SDWebImageDelayPlaceholder context: fromDisk events: NO];
         }
         return;
@@ -1385,6 +1390,7 @@ NSString *FFFErrorMessage(NSError *error)
     // Without events once it has loaded: it's the same image. If it's still
     // loading, it restarts for the new size, and sends its events as usual.
     BOOL events = !self.hasCompleted;
+    FFFWork(@"reload", _source.url, @"size");
     [self downloadImage: _source options: options context: [self loadContext] events: events];
 }
 
@@ -1430,6 +1436,7 @@ NSString *FFFErrorMessage(NSError *error)
         [self stopWaitingForActive];
 
         [self startUrlPlaceholderLoad];
+        FFFWork(@"load", _source.url, self.loadsSwitchedSource ? @"source-for-size" : @"source");
         [self downloadImage: _source options: options context: [self loadContext] events: YES];
     } else {
         if ([self shownPlaceholder]) {
@@ -1510,6 +1517,7 @@ NSString *FFFErrorMessage(NSError *error)
         [FFFDownsampledImage addFullSizeToContext: context uncapped: _objectFit == FFFObjectFitNone screenScale: [self screenScale] vectorBox: vectorBox cover: cover];
         [self applyCacheOptions: context source: source fullSize: YES];
         [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
+        [FFFDownsampledImage addWorkURL: source.url toContext: context];
         return context;
     }
     [FFFDownsampledImage addToContext: context box: box cover: cover maxScale: maxScale];
@@ -1522,6 +1530,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     [self applyCacheOptions: context source: source fullSize: NO];
     [FFFDownsampledImage forgetUnusableImageForURL: source.url context: context];
+    [FFFDownsampledImage addWorkURL: source.url toContext: context];
     return context;
 }
 
@@ -1724,6 +1733,7 @@ NSString *FFFErrorMessage(NSError *error)
     }
     SDWebImageMutableContext* fromDisk = [context mutableCopy];
     fromDisk[SDWebImageContextQueryCacheType] = @(SDImageCacheTypeDisk);
+    FFFWork(@"reload", _source.url, @"uncapped");
     [self downloadImage: _source options: [self loadOptions] | SDWebImageDelayPlaceholder context: fromDisk events: NO];
 }
 
@@ -1733,6 +1743,7 @@ NSString *FFFErrorMessage(NSError *error)
     // nil in app extensions, which don't get these notifications.
     UIApplication* application = RCTSharedApplication();
     if (!application || application.applicationState == UIApplicationStateActive) {
+        FFFWork(@"load", source.url, @"after-background");
         [self downloadImage: source options: options context: context events: YES];
         return;
     }
@@ -1744,6 +1755,7 @@ NSString *FFFErrorMessage(NSError *error)
                                                                         usingBlock: ^(NSNotification* notification) {
         [weakSelf stopWaitingForActive];
         if (weakSelf.source == source) {
+            FFFWork(@"load", source.url, @"after-background");
             [weakSelf downloadImage: source options: options context: context events: YES];
         }
     }];

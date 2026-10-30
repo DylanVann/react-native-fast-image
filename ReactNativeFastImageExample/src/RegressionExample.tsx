@@ -783,12 +783,20 @@ const HEADERS_PRIVATE = imageUrl(
 const HEADERS_PRELOAD_PRIVATE = imageUrl(
     `private/picsum/1021-120x120.jpg?invalid-headers-preload=${RUN}`,
 )
+// The logo preloaded twice, each with a url of its own: with one url, whether
+// iOS decodes it once or twice depends on whether the second preload joins
+// the first's download (see scripts/verify.mts's work counts).
+const HEADERS_PRELOAD_NULL = imageUrl('logo.png?preload-headers-null')
+const HEADERS_PRELOAD_ARRAY = imageUrl('logo.png?preload-headers-array')
 function PreloadInvalidHeadersCase() {
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         FastImage.preload([
-            { uri: LOGO, headers: null as unknown as {} },
-            { uri: LOGO, headers: ['x-token'] as unknown as {} },
+            { uri: HEADERS_PRELOAD_NULL, headers: null as unknown as {} },
+            {
+                uri: HEADERS_PRELOAD_ARRAY,
+                headers: ['x-token'] as unknown as {},
+            },
             { uri: HEADERS_PRELOAD_PRIVATE, headers: INVALID_HEADERS },
         ])
             .then((results) => {
@@ -5254,23 +5262,24 @@ function CacheOnlyMissCase({
 const EXAMPLE_MAX_DISK_SIZE = 300 * 1024 * 1024
 
 // FastImage.configureCache: the limit in the app's native config is in effect
-// from the start, with the disk cache's size. iOS: a runtime change applies at
-// once: downloads an image (getCachePath), sets maxDiskSize to 1 byte, which
-// removes every image from the disk cache, then the image isn't cached
-// anymore. Resetting it (null) goes back to the native config's limit. On
-// Android a runtime change applies from the next launch, so the limit in
-// effect stays the same. Changes are saved, so it always resets. Only groups
-// after this one see the emptied cache.
+// from the start, with the disk cache's size (after downloading an image,
+// getCachePath: the runner empties the caches before each group). iOS: a
+// runtime change applies at once: sets maxDiskSize to 1 byte, which removes
+// every image from the disk cache, then the image isn't cached anymore.
+// Resetting it (null) goes back to the native config's limit. On Android a
+// runtime change applies from the next launch, so the limit in effect stays
+// the same. Changes are saved, so it always resets.
 function ConfigureCacheCase() {
     const [status, setStatus] = useState('waiting')
     useEffect(() => {
         const uri = imageUrl(`picsum/1022-120x120.jpg?configure-cache=${RUN}`)
         const run = async () => {
+            const before = await FastImage.getCachePath({ uri })
+            if (!before.ok) return setStatus(`not cached: ${before.error}`)
             const state = await FastImage.configureCache()
             if (state.maxDiskSize !== EXAMPLE_MAX_DISK_SIZE) {
                 return setStatus(`maxDiskSize is ${state.maxDiskSize}`)
             }
-            // Images earlier groups loaded.
             if (!state.diskSize)
                 return setStatus(`diskSize is ${state.diskSize}`)
             if (Platform.OS !== 'ios') {
@@ -5287,8 +5296,6 @@ function ConfigureCacheCase() {
                         : `in effect: ${changed.maxDiskSize}, ${reset.maxDiskSize}`,
                 )
             }
-            const before = await FastImage.getCachePath({ uri })
-            if (!before.ok) return setStatus(`not cached: ${before.error}`)
             const trimmed = await FastImage.configureCache({ maxDiskSize: 1 })
             const after = await FastImage.getCachePath({
                 uri,
@@ -8268,11 +8275,13 @@ function DownsampleFromDiskCase() {
 // under the url's key, where SDImageCache found it (it looks in memory again
 // before it decodes), so the right view showed that, gray and at less than
 // half its size. A url of its own each run, preloaded to disk only
-// (memoryCache: false).
+// (memoryCache: false). Its work isn't counted (uncounted, see
+// scripts/verify.mts): whether iOS decodes the right view's image at full
+// size at once or loads it again after depends on timing.
 function DownsampleOverLimitSharedCase() {
     const [uri] = useState(() =>
         imageUrl(
-            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}`,
+            `block-stripes-80mp.png?case=downsample-over-limit-shared-${RUN}&uncounted`,
         ),
     )
     const [preloaded, setPreloaded] = useState<PreloadResult>()
@@ -10982,6 +10991,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         name: 'blur-events',
+        // How many of the quick steps' blurs Android runs before the next
+        // one replaces them depends on timing.
+        countWork: false,
         description: {
             checks: 'blurRadius changed in quick steps after the image has loaded: no load events fire again, and the image ends up with the last radius.',
         },
@@ -11215,8 +11227,10 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         cases: [<ProgressDataUriCase key="progress-data-uri" />],
     },
     {
-        // Loads many images and churns views, so on its own.
+        // Loads many images and churns views, so on its own. How many views
+        // mount while the downloads last depends on timing.
         name: 'progress-shared-url',
+        countWork: false,
         description: {
             checks: 'onProgress for many images on one url while others on it mount and unmount.',
         },
