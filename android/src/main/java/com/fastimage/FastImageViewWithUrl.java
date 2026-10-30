@@ -1902,9 +1902,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         // of, now that its layout has arrived.
                         || mShownUncropped && shownImageLaidOut() && !followsImage())
                 && (width != mShownBitmapWidth || height != mShownBitmapHeight)
-                // A fitted cover image in a view that has its shape: a pixel
-                // of rounding between the two is the same image.
-                && !(mShownUncropped && followsImage() && Math.abs(width - mShownBitmapWidth) <= 1
+                // A fitted image (contain, or a fitted cover image) in a view
+                // that has its shape: a pixel of rounding between the two is
+                // the same image.
+                && !((mShownUncropped || mFitScaleType == ScaleType.FIT_CENTER) && followsImage()
+                        && Math.abs(width - mShownBitmapWidth) <= 1
                         && Math.abs(height - mShownBitmapHeight) <= 1)
                 // Loaded before the view had a size, no larger than the
                 // image's own size: a view at that size (in dp) gets nothing

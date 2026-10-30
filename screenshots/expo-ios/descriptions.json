@@ -144,7 +144,7 @@
     },
     "auto-size-edges": {
         "description": {
-            "checks": "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', and a height that grows from about 0."
+            "checks": "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, and a contain image's height rounding off the decoded image's."
         },
         "cases": {
             "auto-size-aspect-ratio": {
@@ -166,6 +166,11 @@
                 "checks": "An image with both sides set and objectFit contain, whose height grows from about 0 once it has loaded, is decoded again for its new size, not left as the copy decoded for the first one.",
                 "steps": "Loads a 1024x1024 photo with style { width: 120, height: 1 / PixelRatio.get() } (a box 1 pixel high) and objectFit contain, and 300 ms after onLoad makes the height 120. Passes 1.5 s later; the screenshot shows whether it was decoded again.",
                 "shows": "The photo at 120x120, sharp. A flat color (one pixel stretched) means it kept the copy decoded for the first size."
+            },
+            "auto-size-contain-rounding": {
+                "checks": "Images with only a width and objectFit contain whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.",
+                "steps": "Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit contain, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.",
+                "shows": "Four 64-point-wide images side by side, each magenta over cyan."
             }
         }
     },
@@ -203,7 +208,7 @@
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change (and the box the new image is decoded for) and a failed one, of an image with only a width, and a source change of one with neither side set."
         },
         "cases": {
             "auto-size-placeholder": {
@@ -225,6 +230,11 @@
                 "checks": "With several sizes of an image and only a width, the size for that width loads, and only that one.",
                 "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64, height: 'auto' } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
                 "shows": "The photo at 64x64 on the left."
+            },
+            "auto-size-change-decode": {
+                "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
+                "steps": "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
+                "shows": "Eight magenta and cyan bands at 256x64."
             },
             "auto-size-failed": {
                 "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",

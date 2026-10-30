@@ -11,6 +11,7 @@
     },
     "auto-size-styles": {},
     "auto-size-edges": {
+        "request /odd-height.png?auto-size-contain-rounding=RUN": 1,
         "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1,
         "request /picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto": 1
     },
@@ -25,7 +26,9 @@
         "request /picsum/1018-1024x1024.jpg?auto-size-sources-large=RUN": 1,
         "request /picsum/1018-256x256.jpg?auto-size-sources-small=RUN": 1,
         "request /picsum/1018-600x300.jpg?auto-size-failed=RUN": 1,
-        "request /thirds.png?auto-size-placeholder=RUN": 1
+        "request /picsum/1020-120x120.jpg?auto-size-change-decode=RUN": 1,
+        "request /thirds.png?auto-size-placeholder=RUN": 1,
+        "request /wide-bands.png?auto-size-change-decode=RUN": 1
     },
     "smoke-web": {
         "request /does-not-exist.jpg?smoke-blur=RUN": 1,
