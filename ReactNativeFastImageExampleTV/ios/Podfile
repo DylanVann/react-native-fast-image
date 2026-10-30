@@ -19,6 +19,8 @@ target 'ReactNativeFastImageExampleTV' do
 
   # Lists the photo library for the regression cases (example only).
   pod 'ExamplePhotos', :path => '../../ReactNativeFastImageExample/ios/ExamplePhotos'
+  # Steps the animations for the regression runner (example only).
+  pod 'ExampleAnimationClock', :path => '../../ReactNativeFastImageExample/ios/ExampleAnimationClock'
 
   use_react_native!(
     :path => config[:reactNativePath],

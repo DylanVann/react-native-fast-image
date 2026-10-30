@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
     Dimensions,
     LogBox,
+    NativeModules,
     PixelRatio,
     Platform,
     StatusBar,
@@ -53,6 +54,10 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 //                                                 record a video sample (see
 //                                                 scripts/verify.mts)
 //   { type: 'sampleDone', group, name }           its change has finished
+//   { type: 'frame', group, name, area }          a stepped sample's
+//                                                 screenshot (see stepSample)
+//   { type: 'stepped', group, name, expect, palette }
+//                                                 its screenshots are all taken
 //   { type: 'done' }                               past the last group
 // masks: the areas (dp, from the window's top left) to leave out of the
 // screenshot comparison, measured just before (see Masked). content: the
@@ -66,9 +71,105 @@ import { regressionCheckUrl, regressionSocketUrl } from './imageServer'
 // index } a given one; { type: 'measure', group, id } asks for the group's
 // masks as they are now, before the script takes its screenshot;
 // { type: 'recording', group, name } says a sample's recording has started,
-// and { type: 'sampled', group, name, ok, seen, detail } gives its result.
+// { type: 'framed', group, name } that a stepped sample's screenshot is
+// taken, and { type: 'sampled', group, name, ok, seen, detail } gives its
+// result.
 
 type Message = { type: string; [key: string]: unknown }
+
+// Stepped samples' screenshots being taken, by `${group}/${name}`.
+type Frames = Map<string, () => void>
+
+// The example apps' animation clock (see AnimationClock.kt on Android,
+// ExampleAnimationClock.m on iOS).
+const clock = NativeModules.AnimationClock as
+    | {
+          pause: () => Promise<void>
+          step: (ms: number) => Promise<void>
+          resume: () => Promise<void>
+      }
+    | undefined
+// How many steps a stepped sample's steppedMs takes (screenshots at 0, 25,
+// 50, 75 and 100%: one mid-fade frame is enough, and the clock only moves in
+// steps, so a fade is always sampled at those points), and how many more come
+// after it (for a fade that started a little after the case said it was
+// done).
+const STEPS = 4
+const MORE_STEPS = 2
+
+// How long the app waits for a screenshot: longer than the script's own
+// limits (10 s), so a late one can't answer the next step's request, and a
+// reply lost when the app reconnects still doesn't leave the animations paused
+// (the check says what it got).
+const FRAME_TIMEOUT_MS = 15_000
+
+// The stepped sample running (they take turns: the clock pauses every
+// animation in the app), and the one before it.
+let steppedTurn = Promise.resolve()
+
+// A stepped sample (see SampleRequest): once the samples before it are done,
+// pauses the animations, has the script screenshot the area, makes the change
+// and waits for it (durationMs at most, as a recording), then steps through
+// steppedMs (in STEPS steps, and MORE_STEPS more) with a screenshot after each
+// step. 'recorded' if the animations couldn't be paused (it's recorded
+// instead), 'gone' if its group was (the runner showed the next one).
+function stepSample(
+    group: number,
+    request: SampleRequest,
+    change: SampleChange,
+    send: (message: Message) => void,
+    frames: Frames,
+    gone: () => boolean,
+) {
+    const turn = steppedTurn.then(async () => {
+        if (!clock) return 'recorded' as const
+        if (gone()) return 'gone' as const
+        const shot = () =>
+            new Promise<void>((resolve) => {
+                const timer = setTimeout(resolve, FRAME_TIMEOUT_MS)
+                frames.set(`${group}/${request.name}`, () => {
+                    clearTimeout(timer)
+                    resolve()
+                })
+                send({
+                    type: 'frame',
+                    group,
+                    name: request.name,
+                    area: request.area,
+                })
+            })
+        try {
+            await clock.pause()
+        } catch {
+            return 'recorded' as const
+        }
+        try {
+            await shot()
+            await new Promise<void>((resolve) => {
+                const timer = setTimeout(resolve, request.durationMs)
+                change(() => {
+                    clearTimeout(timer)
+                    resolve()
+                }, true)
+            })
+            const step = (request.steppedMs ?? 0) / STEPS
+            for (let i = 0; i <= STEPS + MORE_STEPS && !gone(); i++) {
+                await clock.step(i === 0 ? 0 : step)
+                await shot()
+            }
+        } catch {
+            // A step that failed: the check says what the screenshots got.
+        } finally {
+            await clock.resume().catch(() => {})
+        }
+        return gone() ? ('gone' as const) : ('stepped' as const)
+    })
+    steppedTurn = turn.then(
+        () => {},
+        () => {},
+    )
+    return turn
+}
 
 // The reply to 'measure' (see above).
 type Measured = {
@@ -153,6 +254,8 @@ export default function RegressionRunner({
                 }
             >(),
     )
+    // Stepped samples waiting for their screenshots (see stepSample).
+    const [frames] = useState<Frames>(() => new Map())
     // Sent once the socket is open, after hello.
     const queue = useRef<string[]>([])
     const send = useCallback((message: Message) => {
@@ -187,13 +290,19 @@ export default function RegressionRunner({
                 const message = JSON.parse(String(event.data)) as Message
                 const sample = samples.get(`${message.group}/${message.name}`)
                 if (message.type === 'recording') {
-                    sample?.change(() =>
-                        send({
-                            type: 'sampleDone',
-                            group: message.group,
-                            name: message.name,
-                        }),
+                    sample?.change(
+                        () =>
+                            send({
+                                type: 'sampleDone',
+                                group: message.group,
+                                name: message.name,
+                            }),
+                        false,
                     )
+                } else if (message.type === 'framed') {
+                    const key = `${message.group}/${message.name}`
+                    frames.get(key)?.()
+                    frames.delete(key)
                 } else if (message.type === 'sampled') {
                     samples.delete(`${message.group}/${message.name}`)
                     sample?.resolve(message as unknown as SampleResult)
@@ -241,7 +350,7 @@ export default function RegressionRunner({
             clearTimeout(retry)
             ws?.close()
         }
-    }, [groups, send, samples])
+    }, [groups, send, samples, frames])
     const done = index >= groups.length
     useEffect(() => {
         if (done) send({ type: 'done' })
@@ -265,6 +374,7 @@ export default function RegressionRunner({
                         send={send}
                         setMeasureMasks={setMeasureMasks}
                         samples={samples}
+                        frames={frames}
                     />
                 )}
             </Screen>
@@ -300,6 +410,7 @@ function Group({
     send,
     setMeasureMasks,
     samples,
+    frames,
 }: {
     index: number
     group: RegressionGroup
@@ -309,6 +420,7 @@ function Group({
         string,
         { change: SampleChange; resolve: (result: SampleResult) => void }
     >
+    frames: Frames
 }) {
     const statuses = useRef(new Map<string, string>())
     const descriptions = useRef(new Map<string, Description>())
@@ -375,9 +487,35 @@ function Group({
         (request: SampleRequest, change: SampleChange) =>
             new Promise<SampleResult>((resolve) => {
                 samples.set(`${index}/${request.name}`, { change, resolve })
-                send({ type: 'sample', group: index, ...request })
+                if (request.steppedMs !== undefined && clock) {
+                    // Stepped, or recorded where the clock can't pause
+                    // (hidden APIs not allowed).
+                    stepSample(
+                        index,
+                        request,
+                        change,
+                        send,
+                        frames,
+                        () => unmounted.current,
+                    ).then((result) => {
+                        if (result === 'gone') return
+                        send({
+                            type: result === 'stepped' ? 'stepped' : 'sample',
+                            group: index,
+                            ...request,
+                        })
+                    })
+                } else send({ type: 'sample', group: index, ...request })
             }),
-        [index, send, samples],
+        [index, send, samples, frames],
+    )
+    // Its stepped samples stop when it goes (see stepSample).
+    const unmounted = useRef(false)
+    useEffect(
+        () => () => {
+            unmounted.current = true
+        },
+        [],
     )
     // After the cases' effects, which report their first status.
     useEffect(() => {

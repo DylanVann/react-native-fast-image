@@ -101,6 +101,12 @@ export type SampleRequest = {
     durationMs: number
     expect: string[]
     palette?: string[]
+    // Where the app can pause its animations (see AnimationClock.kt and
+    // ExampleAnimationClock.m), the sample is stepped instead of recorded:
+    // the animations are paused, the case makes its change, and once it's
+    // done they're stepped through this long (ms, and a little more), with a
+    // screenshot after each step. A group's stepped samples take turns.
+    steppedMs?: number
 }
 export type SampleResult = { ok: boolean; seen: string[]; detail?: string }
 
@@ -108,11 +114,13 @@ export type SampleResult = { ok: boolean; seen: string[]; detail?: string }
 // change to check then; call `done` once it has finished, e.g. an image has
 // loaded and faded in), and resolves with the result. Outside the runner
 // nothing is recorded: it makes the change and passes.
-export type SampleChange = (done: () => void) => void
+// stepped: the sample is stepped (see SampleRequest), so the animations wait
+// for the steps: `done` can come as soon as they've started.
+export type SampleChange = (done: () => void, stepped: boolean) => void
 export const SampleContext = createContext<
     (request: SampleRequest, change: SampleChange) => Promise<SampleResult>
 >(async (_request, change) => {
-    change(() => {})
+    change(() => {}, false)
     return { ok: true, seen: [], detail: 'not recorded (outside the runner)' }
 })
 
