@@ -1167,6 +1167,56 @@ function AutoSizeSourcesCase() {
     )
 }
 
+// An image with only a width and objectFit cover whose source changes from a
+// square image to a wide one: the new image is decoded for the view's width,
+// as on its first load, not to cover the square the previous image gave the
+// view (several times the pixels the view has once it takes the new shape).
+// The work counts show the box it's decoded for.
+function AutoSizeChangeDecodeCase() {
+    const [wide, setWide] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            wide
+                                ? `wide-bands.png?auto-size-change-decode=${RUN}`
+                                : `picsum/1020-120x120.jpg?auto-size-change-decode=${RUN}`,
+                        ),
+                    }}
+                    style={{ width: 256, height: 'auto' }}
+                    objectFit="cover"
+                    onLoad={() =>
+                        wide
+                            ? setTimeout(() => setLoaded(true), 1000)
+                            : setTimeout(() => setWide(true), 300)
+                    }
+                    onLayout={(e) => setLayout(e.nativeEvent.layout)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-change-decode"
+                status={
+                    !loaded || !layout
+                        ? 'waiting'
+                        : Math.abs(layout.width - 256) < 0.5 &&
+                            Math.abs(layout.height - 64) < 0.5
+                          ? 'OK'
+                          : `${layout.width}x${layout.height}, expected 256x64`
+                }
+                description={{
+                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
+                    steps: "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
+                    shows: 'Eight magenta and cyan bands at 256x64.',
+                }}
+            />
+        </View>
+    )
+}
+
 // An image with only a width whose source changes to one that fails: the
 // open side goes back to 0, as for an image that never loaded, rather than
 // keeping the previous image's shape.
@@ -1265,6 +1315,77 @@ function AutoSizeDeclaredCase() {
                     checks: "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
                     steps: 'Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad, was 128x64.',
                     shows: 'The photo at 128x64 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Four images with only a width and objectFit contain, each a quarter pixel
+// lower than the one before. A 336x201 image 64 points wide is 100.5 pixels
+// high on Android (2.625 pixels a point): the layout rounds that up or down
+// with the view's position, so in some of them it differs from the decoded
+// bitmap's height by a pixel, which is the same image. The work counts show
+// whether it's decoded again for them.
+function AutoSizeContainRoundingCase() {
+    const [loaded, setLoaded] = useState<Set<number>>(new Set())
+    const [layouts, setLayouts] = useState<
+        Record<number, { width: number; height: number }>
+    >({})
+    const height = (64 * 201) / 336
+    const shown = Object.values(layouts)
+    const wrong = shown.find(
+        (layout) =>
+            Math.abs(layout.width - 64) >= 0.5 ||
+            Math.abs(layout.height - height) >= 0.5,
+    )
+    const status =
+        loaded.size < 4 || shown.length < 4
+            ? 'waiting'
+            : wrong
+              ? `${wrong.width}x${wrong.height}, expected 64x${height.toFixed(2)}`
+              : 'OK'
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                }}
+            >
+                {[0, 1, 2, 3].map((i) => (
+                    <FastImage
+                        key={i}
+                        source={{
+                            uri: imageUrl(
+                                `odd-height.png?auto-size-contain-rounding=${RUN}`,
+                            ),
+                        }}
+                        style={{
+                            width: 64,
+                            height: 'auto',
+                            marginTop: i / 4 / PixelRatio.get(),
+                        }}
+                        objectFit="contain"
+                        onLoad={() => setLoaded((done) => new Set(done).add(i))}
+                        onLayout={(e) => {
+                            const { width, height } = e.nativeEvent.layout
+                            setLayouts((all) => ({
+                                ...all,
+                                [i]: { width, height },
+                            }))
+                        }}
+                    />
+                ))}
+            </View>
+            <CaseStatus
+                id="auto-size-contain-rounding"
+                status={status}
+                description={{
+                    checks: "Images with only a width and objectFit contain whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.",
+                    steps: "Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit contain, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.",
+                    shows: 'Four 64-point-wide images side by side, each magenta over cyan.',
                 }}
             />
         </View>
@@ -1591,7 +1712,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-edges',
         description: {
-            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', and a height that grows from about 0.",
+            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, and a contain image's height rounding off the decoded image's.",
         },
         cases: [
             <AutoSizeCase
@@ -1642,6 +1763,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <AutoSizeGrowCase key="auto-size-grow" />,
+            <AutoSizeContainRoundingCase key="auto-size-contain-rounding" />,
         ],
     },
     {
@@ -1732,7 +1854,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-changes',
         description: {
-            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set.',
+            checks: '#436, continued: a url placeholder, several sizes, a source change (and the box the new image is decoded for) and a failed one, of an image with only a width, and a source change of one with neither side set.',
         },
         cases: [
             <AutoSizePlaceholderCase key="auto-size-placeholder" />,
@@ -1744,6 +1866,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                       <AutoSizeNaturalChangeCase key="auto-size-natural-change" />,
                   ]),
             <AutoSizeSourcesCase key="auto-size-sources" />,
+            <AutoSizeChangeDecodeCase key="auto-size-change-decode" />,
             <AutoSizeFailedCase key="auto-size-failed" />,
         ],
     },

@@ -58,6 +58,10 @@
 @property(nonatomic, assign) BOOL decodedCover;
 // Whether it was decoded for the one side laid out (decodesForOneSide).
 @property(nonatomic, assign) BOOL decodedForOneSide;
+// The size the view last sent for the layout (onImageSize), and whose image
+// it was (nil for none).
+@property(nonatomic, assign) CGSize sentImageSize;
+@property(nonatomic, strong, nullable) NSURL* sizedURL;
 // The most pixels per point an SVG was drawn at for it (decodeMaxScale).
 @property(nonatomic, assign) CGFloat decodedMaxScale;
 // Whether it's decoded at full size however large (objectFit none).
@@ -920,12 +924,20 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) sendOnError: (nullable NSString*)message {
     self.hasErrored = YES;
     // The layout's open sides go back to 0, as before an image loaded.
-    if (self.onImageSize) {
-        self.onImageSize(CGSizeZero);
-    }
+    [self sendImageSize: CGSizeZero];
     self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
     if (self.onFastImageError) {
         self.onFastImageError(self.onErrorEvent);
+    }
+}
+
+// Sends the loaded image's size for the layout (zero: none), and notes whose
+// it is (see laysOutPreviousImage).
+- (void) sendImageSize: (CGSize)size {
+    self.sentImageSize = size;
+    self.sizedURL = size.width > 0 && size.height > 0 ? _source.url : nil;
+    if (self.onImageSize) {
+        self.onImageSize(size);
     }
 }
 
@@ -945,15 +957,12 @@ NSString *FFFErrorMessage(NSError *error)
             @"width": [NSNumber numberWithDouble: size.width],
             @"height": [NSNumber numberWithDouble: size.height]
     };
-    if (self.onImageSize) {
-        // The image's pixels, as on Android and the web (an @2x in a url
-        // doesn't halve it), over the picked source's scale with several
-        // sources (their sizes are in pixels times it; a bundled one's is
-        // its file's). A single bundled image is laid out from its own size
-        // (ownWidth and ownHeight).
-        CGFloat scale = imageScale / ([self picksSource] && _source.scale > 0 ? _source.scale : 1);
-        self.onImageSize(CGSizeMake(size.width * scale, size.height * scale));
-    }
+    // The image's pixels, as on Android and the web (an @2x in a url doesn't
+    // halve it), over the picked source's scale with several sources (their
+    // sizes are in pixels times it; a bundled one's is its file's). A single
+    // bundled image is laid out from its own size (ownWidth and ownHeight).
+    CGFloat scale = imageScale / ([self picksSource] && _source.scale > 0 ? _source.scale : 1);
+    [self sendImageSize: CGSizeMake(size.width * scale, size.height * scale)];
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
     }
@@ -991,7 +1000,7 @@ NSString *FFFErrorMessage(NSError *error)
     CGFloat width = self.bounds.size.width * scale;
     CGFloat height = self.bounds.size.height * scale;
     BOOL oneSide = [self laysOutOneSide];
-    BOOL byWidth = self.bounds.size.width > 0;
+    BOOL byWidth = [self laysOutSide: 1];
     FFFastImageSource* best = nil;
     CGFloat bestFit = CGFLOAT_MAX;
     for (FFFastImageSource* source in _sources) {
@@ -1332,7 +1341,7 @@ NSString *FFFErrorMessage(NSError *error)
         // size.
         CGFloat scale = [self screenScale];
         CGSize size = self.bounds.size;
-        return size.width > 0
+        return [self laysOutSide: 1]
             ? CGSizeMake(MAX(ceil(size.width * scale), 1), 1)
             : CGSizeMake(1, MAX(ceil(size.height * scale), 1));
     }
@@ -1341,20 +1350,52 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the layout has only a width or a height so far (inside the
 // borders), the other being one the style leaves open (autoSize), and doesn't
-// have an image's size yet: that side follows the image (see
+// have this image's size yet: that side follows the image (see
 // FastImageViewShadowNode), whose shape isn't known yet.
 - (BOOL) laysOutOneSide {
-    if (self.imageLaidOut) {
+    if ([self imageLaidOut] && ![self laysOutPreviousImage]) {
         return NO;
     }
-    CGSize size = self.bounds.size;
-    if (size.width > 0 && size.height <= 0) {
+    BOOL width = [self laysOutSide: 1];
+    BOOL height = [self laysOutSide: 2];
+    if (width && !height) {
         return (self.autoSize & 2) != 0;
     }
-    if (size.height > 0 && size.width <= 0) {
+    if (height && !width) {
         return (self.autoSize & 1) != 0;
     }
     return NO;
+}
+
+// Whether the layout has a width (side 1) or a height (2) that isn't the
+// image's: an open side has the previous image's while a new source loads,
+// which the new image doesn't get.
+- (BOOL) laysOutSide: (NSInteger)side {
+    CGFloat length = side == 1 ? self.bounds.size.width : self.bounds.size.height;
+    return length > 0 && !((self.autoSize & side) != 0 && [self laysOutPreviousImage]);
+}
+
+// Whether the layout has an image's size.
+- (BOOL) imageLaidOut {
+    return self.laidOutImageSize.width > 0 && self.laidOutImageSize.height > 0;
+}
+
+// Whether the layout has the size of an image other than the source's: the
+// previous source's while this one loads (none of the sources has it), or
+// until the state has the size just sent for it.
+- (BOOL) laysOutPreviousImage {
+    if (![self imageLaidOut]) {
+        return NO;
+    }
+    if (!CGSizeEqualToSize(self.laidOutImageSize, self.sentImageSize)) {
+        return YES;
+    }
+    for (FFFastImageSource* source in _sources) {
+        if ([source.url isEqual: self.sizedURL]) {
+            return NO;
+        }
+    }
+    return YES;
 }
 
 // Whether the image is decoded for the one side laid out: the view gets the
@@ -1522,9 +1563,7 @@ NSString *FFFErrorMessage(NSError *error)
             self.showsLoadedImage = NO;
         }
         // The layout's open sides go back to 0, as before an image loaded.
-        if (self.onImageSize) {
-            self.onImageSize(CGSizeZero);
-        }
+        [self sendImageSize: CGSizeZero];
         // No image: only placeholders show.
         [self startUrlPlaceholderLoad];
     }

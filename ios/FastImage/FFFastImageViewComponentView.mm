@@ -242,7 +242,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
 {
     _state = std::static_pointer_cast<const FastImageViewShadowNode::ConcreteState>(state);
-    _imageView.imageLaidOut = _state && _state->getData().width > 0 && _state->getData().height > 0;
+    _imageView.laidOutImageSize = _state ? CGSizeMake(_state->getData().width, _state->getData().height) : CGSizeZero;
     [self updateImageSizeState];
 }
 
