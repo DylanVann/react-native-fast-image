@@ -4,13 +4,13 @@
         "request /max-age/picsum/1025-200x200.jpg?start-web=RUN": 1
     },
     "auto-size": {
-        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 630x26630 at 600x300": 2,
+        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 630x26630 at 600x300": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 99864x168 at 336x168": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
         "decode http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH 120x120 for 105x105 at 105x105": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 2,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
-        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 4,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 3,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
         "load http://localhost:8081/assets/src/images/center-dot@3x.png?platform=android&hash=HASH source main": 1,
         "request /picsum/1018-600x300.jpg": 1,
@@ -41,12 +41,12 @@
         "svg http://10.0.2.2:8090/svg-icon.svg?auto-size 24x24 for 2400x2400 at 24x24": 1
     },
     "auto-size-styles": {
-        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 252x66576 at 252x126": 2,
+        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 252x66576 at 252x126": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 588x28532 at 588x294": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 3,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
-        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 5,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 4,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
         "request /picsum/1018-600x300.jpg": 1,
         "request /picsum/1020-120x120.jpg": 1
@@ -468,6 +468,8 @@
         "request /text-page.png?case=downsample-preload": 1
     },
     "downsampling-reload": {
+        "blur - 126x126 to 126x126 box 11": 2,
+        "blur - 20x20 to 20x20 box 5": 1,
         "decode http://10.0.2.2:8090/jellyfish.gif gif at 84x84": 1,
         "decode http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?downsample=RUN-RUN 2048x2048 for 126x126 at 126x126": 1,
         "decode http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?downsample=RUN-RUN 2048x2048 for 252x252 at 252x252": 1,
@@ -478,7 +480,11 @@
         "decode http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?order=RUN-4 2048x2048 for 84x84 at 84x84": 1,
         "decode http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?order=RUN-5 2048x2048 for 84x84 at 84x84": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 126x133152 at 126x63": 1,
+        "decode http://10.0.2.2:8090/quadrants.png?downsample-hidden-blur=RUN 20x20 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/quadrants.png?downsample-hidden-blur=RUN 20x20 for 2400x2400 at 20x20": 1,
+        "decode http://10.0.2.2:8090/quadrants.png?downsample-hidden-pixelated=RUN 20x20 for 2400x2400 at 20x20": 1,
         "decode http://10.0.2.2:8090/quadrants.png?downsample-hidden=RUN 20x20 for 2400x2400 at 20x20": 1,
+        "decode http://10.0.2.2:8090/quadrants.png?downsample-shown-blur=RUN 20x20 for 126x126 at 126x126": 1,
         "decode http://10.0.2.2:8090/text-page.png 1600x1000 for 126x126 at 202x126": 1,
         "decode http://10.0.2.2:8090/text-page.png 1600x1000 for 252x252 at 403x252": 1,
         "decode http://10.0.2.2:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN 1600x1000 for 105x252 at 403x252": 1,
@@ -491,10 +497,14 @@
         "load http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?order=RUN-4 source main": 1,
         "load http://10.0.2.2:8090/picsum/1016-2048x2048.jpg?order=RUN-5 source main": 1,
         "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 2,
+        "load http://10.0.2.2:8090/quadrants.png?downsample-hidden-blur=RUN source main": 2,
+        "load http://10.0.2.2:8090/quadrants.png?downsample-hidden-pixelated=RUN source main": 1,
         "load http://10.0.2.2:8090/quadrants.png?downsample-hidden=RUN source main": 2,
+        "load http://10.0.2.2:8090/quadrants.png?downsample-shown-blur=RUN source main": 1,
         "load http://10.0.2.2:8090/text-page.png source main": 1,
         "load http://10.0.2.2:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN preload main": 1,
         "load http://10.0.2.2:8091/text-page.png?delay=120&group=downsample-preloading-RUN-RUN source main": 1,
+        "reload http://10.0.2.2:8090/quadrants.png?downsample-hidden-blur=RUN size main": 1,
         "reload http://10.0.2.2:8090/text-page.png size main": 1,
         "request /jellyfish.gif": 1,
         "request /picsum/1016-2048x2048.jpg?downsample=RUN-RUN": 1,
@@ -505,7 +515,10 @@
         "request /picsum/1016-2048x2048.jpg?order=RUN-4": 1,
         "request /picsum/1016-2048x2048.jpg?order=RUN-5": 1,
         "request /picsum/1018-600x300.jpg": 1,
+        "request /quadrants.png?downsample-hidden-blur=RUN": 1,
+        "request /quadrants.png?downsample-hidden-pixelated=RUN": 1,
         "request /quadrants.png?downsample-hidden=RUN": 1,
+        "request /quadrants.png?downsample-shown-blur=RUN": 1,
         "request /text-page.png": 1
     },
     "downsample-zoom": {

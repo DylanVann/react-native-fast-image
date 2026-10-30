@@ -893,6 +893,16 @@
                 "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show the boxes it was decoded for.",
                 "shows": "Red, green, blue and yellow quadrants in a 48x48 square."
             },
+            "downsample-hidden-blur": {
+                "checks": "A blurred image under a display: none parent is blurred for the size it's shown at once shown, as one that was always shown is, not more.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with blurRadius 4 into two 48x48 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.",
+                "shows": "Two equally blurred squares of red, green, blue and yellow. A blurrier left one is a failure."
+            },
+            "downsample-hidden-pixelated": {
+                "checks": "A pixelated image under a display: none parent loads once: it's decoded at its own size whatever the view's size.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with imageRendering=\"pixelated\" into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show its loads.",
+                "shows": "Sharp red, green, blue and yellow quadrants in a 48x48 square."
+            },
             "downsample-gif": {
                 "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
                 "steps": "Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.",

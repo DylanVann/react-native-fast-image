@@ -22,13 +22,13 @@
         "request /sized-300.png?smoke=RUN": 1
     },
     "auto-size": {
-        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 630x26630 at 600x300": 2,
+        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 630x26630 at 600x300": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 99864x168 at 336x168": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
         "decode http://localhost:8081/assets/?unstable_path=.%2F..%2FReactNativeFastImageExample%2Fsrc%2Fimages/center-dot@3x.png?platform=android&hash=HASH 120x120 for 105x105 at 105x105": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 2,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
-        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 4,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 3,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
         "load http://localhost:8081/assets/?unstable_path=.%2F..%2FReactNativeFastImageExample%2Fsrc%2Fimages/center-dot@3x.png?platform=android&hash=HASH source main": 1,
         "request /picsum/1018-600x300.jpg": 1,
@@ -59,12 +59,12 @@
         "svg http://10.0.2.2:8090/svg-icon.svg?auto-size 24x24 for 2400x2400 at 24x24": 1
     },
     "auto-size-styles": {
-        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 252x66576 at 252x126": 2,
+        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 252x66576 at 252x126": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 588x28532 at 588x294": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 3,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
-        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 5,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 4,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
         "request /picsum/1018-600x300.jpg": 1,
         "request /picsum/1020-120x120.jpg": 1
