@@ -903,6 +903,11 @@
                 "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with imageRendering=\"pixelated\" into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show its loads.",
                 "shows": "Sharp red, green, blue and yellow quadrants in a 48x48 square."
             },
+            "downsample-blur-grow": {
+                "checks": "A blurred image with objectFit scale-down in a view that grows, larger than the image, isn't decoded again for each size: it's shown at its own size.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit=\"scale-down\" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48. Passes once it has; the work counts show its reloads.",
+                "shows": "Blurred red, green, blue and yellow quadrants at their own size (20x20), centered in a 48x48 view."
+            },
             "downsample-gif": {
                 "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
                 "steps": "Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.",

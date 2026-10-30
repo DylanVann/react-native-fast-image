@@ -7897,6 +7897,41 @@ function DownsampleHiddenPixelatedCase() {
     )
 }
 
+// A blurred image with objectFit scale-down in a view that grows in three
+// steps: it's shown at its own size in all of them, so it isn't decoded again
+// for each. The work counts show its reloads.
+function DownsampleBlurGrowCase() {
+    const [step, setStep] = useState(0)
+    const [loaded, setLoaded] = useState(false)
+    useEffect(() => {
+        if (!loaded || step >= 3) return
+        const timer = setTimeout(() => setStep((n) => n + 1), 300)
+        return () => clearTimeout(timer)
+    }, [loaded, step])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <FastImage
+                source={{
+                    uri: imageUrl(`quadrants.png?downsample-blur-grow=${RUN}`),
+                }}
+                style={{ width: 24 + step * 8, height: 24 + step * 8 }}
+                objectFit="scale-down"
+                blurRadius={2}
+                onLoad={() => setLoaded(true)}
+            />
+            <CaseStatus
+                id="downsample-blur-grow"
+                status={step >= 3 ? 'OK' : 'waiting'}
+                description={{
+                    checks: "A blurred image with objectFit scale-down in a view that grows, larger than the image, isn't decoded again for each size: it's shown at its own size.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit="scale-down" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48. Passes once it has; the work counts show its reloads.',
+                    shows: 'Blurred red, green, blue and yellow quadrants at their own size (20x20), centered in a 48x48 view.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A downsampled view of an image that's still being preloaded (from the slow
 // server, about a second here; the view loads 300 ms after the preload): on
 // iOS it shares the preload's download (one request; it downloaded it again),
@@ -11346,6 +11381,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleHiddenCase key="downsample-hidden" />,
             <DownsampleHiddenBlurCase key="downsample-hidden-blur" />,
             <DownsampleHiddenPixelatedCase key="downsample-hidden-pixelated" />,
+            <DownsampleBlurGrowCase key="downsample-blur-grow" />,
             <DownsampleGifCase key="downsample-gif" />,
             <DownsamplePreloadingCase key="downsample-preloading" />,
             <DownsampleOrderCase key="downsample-order" />,
