@@ -13,10 +13,10 @@ import {
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
 import {
-    fromStyle,
     NO_PADDING,
     openSides,
     ownSize,
+    readStyle,
     resolveObjectFit,
 } from './objectFit'
 import { withStringHeaders } from './headers'
@@ -1103,11 +1103,12 @@ function FastImageBase({
     if (__DEV__) {
         warnIfChildren(children)
     }
+    const styleValues = readStyle(style)
     // tintColor can also be set in style, as with React Native's Image. The
     // prop wins.
     const resolvedTintColor =
-        tintColor != null ? tintColor : fromStyle(style, 'tintColor')
-    const fit = resolveObjectFit(objectFit, style)
+        tintColor != null ? tintColor : styleValues.tintColor
+    const fit = resolveObjectFit(objectFit, styleValues)
     const position = objectPositionOrCentered(objectPosition)
 
     // One source, or several in an array, picked from natively for the
@@ -1138,7 +1139,7 @@ function FastImageBase({
     // single source's own size (see ownSize) it has from the start instead,
     // and the view doesn't give it the image's.
     const own = ownSize(resolvedSource)
-    const open = own ? { width: false, height: false } : openSides(style)
+    const open = own ? { width: false, height: false } : openSides(styleValues)
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
