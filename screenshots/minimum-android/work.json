@@ -32,6 +32,7 @@
     "layout": {
         "decode android.resource://com.reactnativefastimageexampleminimum/RUN 80x80 for 126x126 at 126x126": 1,
         "decode file:///android_asset/fastimage-logo.png 1000x1000 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/jellyfish.gif gif at 126x70": 1,
         "decode http://10.0.2.2:8090/logo.png 1000x1000 for 126x126 at 126x126": 2,
         "decode http://10.0.2.2:8090/logo.png 1000x1000 for 252x126 at 252x252": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 126x126 at 126x63": 1,
@@ -342,6 +343,8 @@
         "request /picsum/1022-120x120.jpg?thumbhash-recycled=RUN": 1
     },
     "tint": {
+        "decode http://10.0.2.2:8090/blink-once.gif?tint-gif-clear=RUN gif at 126x126": 1,
+        "decode http://10.0.2.2:8090/blink-once.gif?tint-gif=RUN gif at 126x126": 1,
         "decode http://10.0.2.2:8090/magenta.png?tint-change=RUN 300x300 for 126x126 at 126x126": 1,
         "load http://10.0.2.2:8090/blink-once.gif?tint-gif-clear=RUN source main": 1,
         "load http://10.0.2.2:8090/blink-once.gif?tint-gif=RUN source main": 1,
@@ -353,6 +356,7 @@
     "formats": {
         "decode http://10.0.2.2:8090/formats/quadrants.avif 80x80 for 126x126 at 126x126": 1,
         "decode http://10.0.2.2:8090/formats/quadrants.bmp 80x80 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/formats/quadrants.gif gif at 126x126": 1,
         "decode http://10.0.2.2:8090/formats/quadrants.heic 80x80 for 126x126 at 126x126": 1,
         "decode http://10.0.2.2:8090/formats/quadrants.ico 80x80 for 126x126 at 126x126": 1,
         "decode http://10.0.2.2:8090/formats/quadrants.jpg 80x80 for 126x126 at 126x126": 1,

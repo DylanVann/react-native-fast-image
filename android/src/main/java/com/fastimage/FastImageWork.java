@@ -37,8 +37,12 @@ final class FastImageWork {
     // was (e.g. a decode's sizes, or why a load started), and "main" if it
     // ran on the main thread.
     static void record(String kind, @Nullable Object image, String detail) {
+        record(kind, image, detail, Looper.myLooper() == Looper.getMainLooper());
+    }
+
+    // Work done elsewhere than where it's logged: `main` says where.
+    static void record(String kind, @Nullable Object image, String detail, boolean main) {
         if (!enabled) return;
-        boolean main = Looper.myLooper() == Looper.getMainLooper();
         String name = image != null ? String.valueOf(image) : "-";
         // A data uri as its length: it can be the whole image.
         if (name.startsWith("data:")) name = "data:(" + name.length() + ")";

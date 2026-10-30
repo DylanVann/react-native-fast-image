@@ -55,7 +55,13 @@ final class FastImageSourceSize {
         // drawn at the view's size it's already sharp.
         private final DownsampleStrategy vectorStrategy;
         private final String key;
-        private boolean recorded;
+        // The Capture whose decode on this thread has had its sample size's
+        // rounding: Glide's Downsampler asks for the scale factor with the
+        // image's size, then for the rounding, then for the scale factor again
+        // with the sampled size, which is that call. Per decode, not per
+        // Capture: requests made from a clone of another's options (a reload
+        // at a new size, a thumbnail) share its Capture, and decode too.
+        private static final ThreadLocal<Capture> ROUNDED = new ThreadLocal<>();
 
         Capture(DownsampleStrategy strategy, String key) {
             this(strategy, strategy, key);
@@ -67,11 +73,13 @@ final class FastImageSourceSize {
             this.key = key;
         }
 
-        // Whether this is the decode's first call (called again with the
-        // sampled size; the first call has the image's), recording its size.
+        // Whether this is a decode's first call (it has the image's size; see
+        // ROUNDED), recording its size.
         private boolean record(int sourceWidth, int sourceHeight) {
-            if (recorded) return false;
-            recorded = true;
+            if (ROUNDED.get() == this) {
+                ROUNDED.remove();
+                return false;
+            }
             SIZES.put(key, new int[]{sourceWidth, sourceHeight});
             return true;
         }
@@ -103,6 +111,7 @@ final class FastImageSourceSize {
 
         @Override
         public SampleSizeRounding getSampleSizeRounding(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
+            ROUNDED.set(this);
             return strategy.getSampleSizeRounding(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
         }
 
