@@ -204,23 +204,6 @@ static void FFFStartPendingPreloads(void)
     }
 }
 
-// Calls done once `download` has finished, looking every 5 ms for a second at
-// most. On the main queue.
-static void FFFWhenFinished(NSOperation *download, NSUInteger tries, dispatch_block_t done)
-{
-    BOOL finished;
-    @synchronized (download) {
-        finished = download.isFinished;
-    }
-    if (finished || tries == 0) {
-        done();
-        return;
-    }
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
-        FFFWhenFinished(download, tries - 1, done);
-    });
-}
-
 // Calls done once the download behind a load that failed has finished. Until
 // then, SDWebImage gives a new request for the url to that download: it
 // decodes the failed response again for it and fails it without a request,
@@ -228,26 +211,44 @@ static void FFFWhenFinished(NSOperation *download, NSUInteger tries, dispatch_bl
 // page) failed again. The download finishes on SDWebImage's decoding queue
 // just after the error comes. Its operation isn't public: it's the download
 // token's `downloadOperation` (since SDWebImage 5.0). Without it (a load that
-// didn't download, or another SDWebImage), done comes at once.
+// didn't download, or another SDWebImage), done comes at once. On the main
+// queue.
 static void FFFAfterDownloadFinished(SDWebImageCombinedOperation *operation, dispatch_block_t done)
 {
     NSOperation *download = nil;
+    // Whether a download token's operation could be read (nil once it's gone:
+    // the token keeps it weakly).
+    BOOL readable = YES;
     id<SDWebImageOperation> loader = operation.loaderOperation;
-    if ([loader isKindOfClass:[SDWebImageDownloadToken class]] &&
-        [loader respondsToSelector:NSSelectorFromString(@"downloadOperation")]) {
-        @try {
-            id value = [(NSObject *)loader valueForKey:@"downloadOperation"];
-            if ([value isKindOfClass:[NSOperation class]]) {
-                download = value;
+    if ([loader isKindOfClass:[SDWebImageDownloadToken class]]) {
+        readable = NO;
+        if ([loader respondsToSelector:NSSelectorFromString(@"downloadOperation")]) {
+            @try {
+                id value = [(NSObject *)loader valueForKey:@"downloadOperation"];
+                readable = !value || [value isKindOfClass:[NSOperation class]];
+                if (readable) {
+                    download = value;
+                }
+            } @catch (__unused NSException *exception) {
             }
-        } @catch (__unused NSException *exception) {
         }
     }
+#if DEBUG
+    static BOOL warned = NO;
+    if (!readable && !warned) {
+        warned = YES;
+        NSLog(@"[FastImage] Can't read SDWebImage's download operation (the download token's downloadOperation): a preload retried right after a failed one may fail without a request.");
+    }
+#endif
     if (!download) {
         done();
         return;
     }
-    FFFWhenFinished(download, 200, done);
+    // Runs once the download has finished (a dependency on another queue's
+    // operation), on the main queue.
+    NSBlockOperation *after = [NSBlockOperation blockOperationWithBlock:done];
+    [after addDependency:download];
+    [NSOperationQueue.mainQueue addOperation:after];
 }
 
 // Loads the source in the preloads' queue, then calls completed once with its
@@ -281,17 +282,17 @@ static void FFFQueueLoad(FFFastImageSource *source,
             // Not kept: the operation keeps this block until it's done.
             SDWebImageCombinedOperation *loaded = operation;
             operation = nil;
-            dispatch_block_t finish = ^{
-                FFFPreloadsInFlight--;
-                completed(image, error);
-                FFFStartPendingPreloads();
-            };
+            // Its slot is free now: only a failure's result waits.
+            FFFPreloadsInFlight--;
             if (error) {
                 [source forgetResponseAfterError:error];
-                FFFAfterDownloadFinished(loaded, finish);
+                FFFAfterDownloadFinished(loaded, ^{
+                    completed(image, error);
+                });
             } else {
-                finish();
+                completed(image, error);
             }
+            FFFStartPendingPreloads();
         }];
     } copy]];
 }
