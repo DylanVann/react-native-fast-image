@@ -1,3 +1,10 @@
+## [10.9.12](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.11...v10.9.12) (2026-10-30)
+
+
+### Bug Fixes
+
+* **ios:** a preload retried right after a failed one downloads the image again ([#1404](https://github.com/DylanVann/react-native-fast-image/issues/1404)) ([cdc30ba](https://github.com/DylanVann/react-native-fast-image/commit/cdc30bac5504379e46d5ae2de3e4f457016f6784))
+
 ## [10.9.11](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.10...v10.9.11) (2026-10-28)
 
 
