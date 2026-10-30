@@ -7809,6 +7809,94 @@ function DownsampleHiddenCase() {
     )
 }
 
+// A blurred image under a display: none parent, shown 1.5 s after it mounts,
+// next to the same image always shown: once shown, it's blurred for the
+// size it's shown at, as the right one is, not for its own size while hidden
+// (which the view then scales up, blurring it more).
+function DownsampleHiddenBlurCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    const image = (name: string) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: 48, height: 48, marginRight: 8 }}
+            blurRadius={4}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                {image('downsample-hidden-blur')}
+            </View>
+            {image('downsample-shown-blur')}
+            <CaseStatus
+                id="downsample-hidden-blur"
+                status={status}
+                description={{
+                    checks: "A blurred image under a display: none parent is blurred for the size it's shown at once shown, as one that was always shown is, not more.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with blurRadius 4 into two 48x48 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.',
+                    shows: 'Two equally blurred squares of red, green, blue and yellow. A blurrier left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A pixelated image under a display: none parent, shown 1.5 s after it mounts:
+// pixelated images are decoded at their own size whatever the view's size, so
+// its load isn't started again for a view without one. The work counts show
+// its loads.
+function DownsampleHiddenPixelatedCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || !loaded) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            `quadrants.png?downsample-hidden-pixelated=${RUN}`,
+                        ),
+                    }}
+                    style={{ width: 48, height: 48 }}
+                    imageRendering="pixelated"
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id="downsample-hidden-pixelated"
+                status={status}
+                description={{
+                    checks: "A pixelated image under a display: none parent loads once: it's decoded at its own size whatever the view's size.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with imageRendering="pixelated" into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show its loads.',
+                    shows: 'Sharp red, green, blue and yellow quadrants in a 48x48 square.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A downsampled view of an image that's still being preloaded (from the slow
 // server, about a second here; the view loads 300 ms after the preload): on
 // iOS it shares the preload's download (one request; it downloaded it again),
@@ -11256,6 +11344,8 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleGrowCase key="downsample-grow" />,
             <DownsampleNoSizeCase key="downsample-no-size" />,
             <DownsampleHiddenCase key="downsample-hidden" />,
+            <DownsampleHiddenBlurCase key="downsample-hidden-blur" />,
+            <DownsampleHiddenPixelatedCase key="downsample-hidden-pixelated" />,
             <DownsampleGifCase key="downsample-gif" />,
             <DownsamplePreloadingCase key="downsample-preloading" />,
             <DownsampleOrderCase key="downsample-order" />,

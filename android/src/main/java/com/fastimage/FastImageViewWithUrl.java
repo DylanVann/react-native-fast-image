@@ -290,6 +290,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (!same) {
             mHasSource = true;
             mNeedsReload = true;
+            // A new load, with its onLoadStart, even if the previous one was
+            // to start again (see reblur, restartForNoSize).
+            mRestarting = false;
             mSourceIndex = -1;
             if (severalSources() == null) mSource = sources != null && sources.length == 1 ? sources[0] : null;
         }
@@ -412,7 +415,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         post(new Runnable() {
             @Override
             public void run() {
-                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
+                loadAfterLayout();
             }
         });
         return true;
@@ -1121,10 +1124,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         @Override
         public void onSizeReady(int width, int height) {
             // A view laid out without a size, for a request made before that
-            // layout (e.g. a view mounted under a display: none parent): the
+            // layout (e.g. a view mounted under a display: none parent) whose
+            // fit scales the image up (cover or contain, downsampled): the
             // load starts again, made for it, instead of loading the image
-            // for Glide's square the screen's length.
-            if (laidOutWithoutSize() && !mLoadingForNoSize) {
+            // for Glide's square the screen's length. Others (fill,
+            // scale-down, none, pixelated, downsample false) never scale it
+            // up, so they load as they are.
+            if (laidOutWithoutSize() && !mLoadingForNoSize && !mLoadingScalesDown) {
                 restartForNoSize();
                 return;
             }
@@ -1841,9 +1847,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mShownBitmapHeight = 0;
     private boolean mResizeReloadPosted = false;
     // Whether the loading request was made for a view laid out without a
-    // size (see laidOutWithoutSize), and whether a restart for one is posted.
+    // size (see laidOutWithoutSize), and the load a restart for one is
+    // posted for (-1: none).
     private boolean mLoadingForNoSize = false;
-    private boolean mNoSizeRestartPosted = false;
+    private int mNoSizeRestartFor = -1;
 
     @Nullable
     private String mRecyclingKey;
@@ -1861,6 +1868,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mShownRequest = null;
             endFade();
             mNeedsReload = true;
+            mRestarting = false;
         }
     }
 
@@ -1922,22 +1930,29 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Starts the loading image's load again, made for a view laid out without
     // a size, as the same load (no onLoadStart, see reblur): its request was
-    // made before that layout, and waits for a size it won't get.
+    // made before that layout, and waits for a size it won't get. Once per
+    // load (its request and the size recorded in into() both ask).
     private void restartForNoSize() {
-        if (mNoSizeRestartPosted) return;
-        mNoSizeRestartPosted = true;
         final int load = mLoadCount;
+        if (mNoSizeRestartFor == load) return;
+        mNoSizeRestartFor = load;
         // Not from within Glide's callback.
         post(new Runnable() {
             @Override
             public void run() {
-                mNoSizeRestartPosted = false;
+                if (mNoSizeRestartFor == load) mNoSizeRestartFor = -1;
                 if (load != mLoadCount || mManager == null) return;
                 mRestarting = true;
                 mNeedsReload = true;
-                onAfterUpdate(mManager, requestManager);
+                loadAfterLayout();
             }
         });
+    }
+
+    // Loads what's needed (mNeedsReload) after layout, unless something loaded
+    // it meanwhile.
+    private void loadAfterLayout() {
+        if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
     }
 
     private void reloadIfResized() {
