@@ -10,7 +10,8 @@
     },
     "auto-size-styles": {},
     "auto-size-edges": {
-        "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1
+        "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1,
+        "request /picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto": 1
     },
     "auto-size-declared": {
         "request /picsum/1018-600x300.jpg?auto-size-declared=RUN": 1,

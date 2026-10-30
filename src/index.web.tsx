@@ -216,10 +216,8 @@ function FastImageBase({
     // Both sides follow it: both open, or one with the style's aspectRatio
     // giving the other (as the shadow node does on iOS and Android).
     const bothOpen =
-        open.width && open.height
-            ? true
-            : (open.width || open.height) &&
-              fromStyleKeys(style, ['aspectRatio']).aspectRatio != null
+        (open.width && open.height) ||
+        ((open.width || open.height) && open.aspectRatio)
     const spacer =
         sizeStyle && bothOpen ? (
             <View
@@ -263,9 +261,11 @@ function FastImageBase({
                 sizeStyle
                     ? [
                           styles.container,
-                          sizeStyle,
                           spacer && styles.fits,
                           style,
+                          // After the style, whose `aspectRatio: 'auto'`
+                          // would clear it.
+                          !open.aspectRatio && sizeStyle,
                       ]
                     : [styles.container, style]
             }

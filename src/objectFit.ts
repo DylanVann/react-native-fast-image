@@ -11,11 +11,8 @@ export function fromStyle<K extends keyof ImageStyle>(
     style: unknown,
     key: K,
 ): ImageStyle[K] {
-    const found = findInStyle(style, key)
-    return found === NOT_FOUND ? undefined : (found as ImageStyle[K])
+    return fromStyleKeys(style, [key])[key] as ImageStyle[K]
 }
-
-const NOT_FOUND = {}
 
 // fromStyle for several keys, in one walk of the style (each registered style
 // flattened once): each key's value, or undefined.
@@ -41,6 +38,7 @@ function collectFromStyle(
         return
     }
     if (typeof style === 'number') {
+        // A registered style from StyleSheet.create on older React Native.
         style = StyleSheet.flatten(style as any)
     }
     if (!style || typeof style !== 'object') return
@@ -50,23 +48,6 @@ function collectFromStyle(
             missing.delete(key)
         }
     }
-}
-
-function findInStyle(style: unknown, key: string): unknown {
-    if (Array.isArray(style)) {
-        for (let i = style.length - 1; i >= 0; i--) {
-            const found = findInStyle(style[i], key)
-            if (found !== NOT_FOUND) return found
-        }
-        return NOT_FOUND
-    }
-    if (typeof style === 'number') {
-        // A registered style from StyleSheet.create on older React Native.
-        style = StyleSheet.flatten(style as any)
-    }
-    return style && typeof style === 'object' && key in style
-        ? (style as Record<string, unknown>)[key]
-        : NOT_FOUND
 }
 
 const FITS: Record<ObjectFit, true> = {
@@ -92,7 +73,8 @@ export function resolveObjectFit(
 // Image, unless leftOut is 'open', for a source's own size), unless an
 // absolutely positioned view's insets on both sides set it (e.g.
 // StyleSheet.absoluteFill, as FastImageBackground's image has), or the
-// style's aspectRatio sets it from the other side.
+// style's aspectRatio sets it from the other side. Also whether the style has
+// an aspectRatio (not `auto`).
 const SIDE_KEYS = [
     'width',
     'height',
@@ -116,18 +98,17 @@ const SIDE_KEYS = [
 export function openSides(
     style: unknown,
     leftOut: 'closed' | 'open' = 'closed',
-): { width: boolean; height: boolean } {
+): { width: boolean; height: boolean; aspectRatio: boolean } {
     const values = fromStyleKeys(style, SIDE_KEYS)
     const { width, height } = values
     const setWidth = width != null && width !== 'auto'
     const setHeight = height != null && height !== 'auto'
     let openWidth = leftOut === 'open' ? !setWidth : width === 'auto'
     let openHeight = leftOut === 'open' ? !setHeight : height === 'auto'
-    if (setWidth !== setHeight) {
-        const aspectRatio = values.aspectRatio
-        if (aspectRatio != null && aspectRatio !== 'auto') {
-            openWidth = openHeight = false
-        }
+    const aspectRatio =
+        values.aspectRatio != null && values.aspectRatio !== 'auto'
+    if (setWidth !== setHeight && aspectRatio) {
+        openWidth = openHeight = false
     }
     if ((openWidth || openHeight) && values.position === 'absolute') {
         const set = (key: (typeof SIDE_KEYS)[number]) => values[key] != null
@@ -147,7 +128,7 @@ export function openSides(
                 (set('bottom') || set('insetBlockEnd'))
             )
     }
-    return { width: openWidth, height: openHeight }
+    return { width: openWidth, height: openHeight, aspectRatio }
 }
 
 // A single source's own size in points (a require()d image's, or a source's
