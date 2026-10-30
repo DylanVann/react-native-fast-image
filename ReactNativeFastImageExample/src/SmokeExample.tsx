@@ -1707,7 +1707,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-edges',
         description: {
-            checks: "#436, continued: the style's aspectRatio with neither side set, and a height that grows from about 0.",
+            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', and a height that grows from about 0.",
         },
         cases: [
             <AutoSizeCase
@@ -1738,6 +1738,23 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                     checks: "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
                     steps: "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The photo stretched to a 120x120 square on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-aspect-ratio-auto"
+                id="auto-size-aspect-ratio-auto"
+                source={{
+                    uri: imageUrl(
+                        'picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto',
+                    ),
+                }}
+                style={{ width: 'auto', height: 64, aspectRatio: 'auto' }}
+                container={{ width: 240 }}
+                expected={{ width: 128, height: 64 }}
+                description={{
+                    checks: "A style aspectRatio of 'auto' is no ratio: the open width follows the image's shape from the set height.",
+                    steps: "Loads the 600x300 photo with style { width: 'auto', height: 64, aspectRatio: 'auto' } in a 240-point-wide row. Passes once it has loaded and its layout is 128x64.",
+                    shows: 'The photo at 128x64 on the left.',
                 }}
             />,
             <AutoSizeGrowCase key="auto-size-grow" />,

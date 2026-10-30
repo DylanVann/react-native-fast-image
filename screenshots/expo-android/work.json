@@ -80,13 +80,17 @@
         "decode http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-grow=RUN 1024x1024 for 315x315 at 315x315": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 2400x2400 at 600x300": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 315x315 at 315x158": 1,
+        "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto 600x300 for 2400x168 at 336x168": 1,
         "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 2,
+        "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto 600.0x300.0 main": 1,
         "load http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-grow=RUN source main": 1,
         "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 2,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto source main": 1,
         "reload http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-grow=RUN size main": 1,
         "reload http://10.0.2.2:8090/picsum/1018-600x300.jpg size main": 2,
         "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1,
-        "request /picsum/1018-600x300.jpg": 1
+        "request /picsum/1018-600x300.jpg": 1,
+        "request /picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto": 1
     },
     "auto-size-declared": {
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-source-width 120x120 for 168x168 at 120x120": 1,
