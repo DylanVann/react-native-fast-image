@@ -215,32 +215,31 @@ static void FFFStartPendingPreloads(void)
 // queue.
 static void FFFAfterDownloadFinished(SDWebImageCombinedOperation *operation, dispatch_block_t done)
 {
-    NSOperation *download = nil;
-    // Whether a download token's operation could be read (nil once it's gone:
-    // the token keeps it weakly).
-    BOOL readable = YES;
     id<SDWebImageOperation> loader = operation.loaderOperation;
+    id value = nil;
+    // A download token without a readable operation (not nil: the token
+    // keeps it weakly, so it's nil once it's gone).
+    BOOL unreadable = NO;
     if ([loader isKindOfClass:[SDWebImageDownloadToken class]]) {
-        readable = NO;
-        if ([loader respondsToSelector:NSSelectorFromString(@"downloadOperation")]) {
-            @try {
-                id value = [(NSObject *)loader valueForKey:@"downloadOperation"];
-                readable = !value || [value isKindOfClass:[NSOperation class]];
-                if (readable) {
-                    download = value;
-                }
-            } @catch (__unused NSException *exception) {
-            }
+        unreadable = ![loader respondsToSelector:NSSelectorFromString(@"downloadOperation")];
+        @try {
+            value = unreadable ? nil : [(NSObject *)loader valueForKey:@"downloadOperation"];
+        } @catch (__unused NSException *exception) {
+            unreadable = YES;
         }
+        unreadable = unreadable || (value && ![value isKindOfClass:[NSOperation class]]);
     }
 #if DEBUG
     static BOOL warned = NO;
-    if (!readable && !warned) {
+    if (unreadable && !warned) {
         warned = YES;
         NSLog(@"[FastImage] Can't read SDWebImage's download operation (the download token's downloadOperation): a preload retried right after a failed one may fail without a request.");
     }
 #endif
-    if (!download) {
+    NSOperation *download = [value isKindOfClass:[NSOperation class]] ? value : nil;
+    // Not a cancelled one, which isn't given new requests (and a queued one
+    // only finishes once its queue starts it).
+    if (!download || download.isFinished || download.isCancelled) {
         done();
         return;
     }
