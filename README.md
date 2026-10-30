@@ -550,7 +550,7 @@ A width or height set to `'auto'` follows the loaded image, as with an `<img>` o
 
 - `height: 'auto'` with a width (or one from the parent, e.g. stretched in a column): the height from the image's aspect ratio.
 - `width: 'auto'` with a height: the width from it (in a row, or with `alignSelf` other than `stretch`: in a column, the parent stretches the width by default).
-- Both `'auto'`: the image's own size (a 600 × 300 px image is 600 × 300 points, one of several sources its pixels over its `scale`), at most the space there is.
+- Both `'auto'`: the image's own size (a 600 × 300 px image is 600 × 300 points, one of several sources its pixels over its `scale`), at most the space there is. In a column, the parent stretches the width by default, and the height follows it.
 
 Until the image has loaded, and if it fails (`defaultSource` included), those sides are 0, so the layout changes when it loads. A side the style leaves out stays 0, as with React Native's `Image`: sizing from the image is opt-in, since it moves the layout as images load.
 
