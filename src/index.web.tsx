@@ -31,12 +31,7 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import {
-    fromStyleKeys,
-    openSides,
-    ownSize,
-    resolveObjectFit,
-} from './objectFit'
+import { NO_PADDING, openSides, ownSize, resolveObjectFit } from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -188,10 +183,9 @@ function FastImageBase({
     // the style sets to `auto` follows it, as on iOS and Android: the view
     // gets the image's aspect ratio (unless the style has one), and with
     // both sides `auto`, the image's width (at most the space there is) from a
-    // spacer, so a stretched view still fills its parent. The image fills the
-    // padding box, so the spacer is that less the padding. (The aspect ratio
+    // spacer, so a stretched view still fills its parent. (The aspect ratio
     // is the border box's: with borders, the image's box is a little off
-    // its shape, where iOS and Android give the padding box its shape.)
+    // its shape, where iOS and Android give the box inside them its shape.)
     const [imageSize, setImageSize] = useState<{
         width: number
         height: number
@@ -222,7 +216,7 @@ function FastImageBase({
         sizeStyle && bothOpen ? (
             <View
                 style={{
-                    width: Math.max(0, shownSize!.width - paddingX(style)),
+                    width: shownSize!.width,
                     maxWidth: '100%',
                 }}
                 pointerEvents="none"
@@ -263,11 +257,12 @@ function FastImageBase({
                           styles.container,
                           spacer && styles.fits,
                           style,
+                          NO_PADDING,
                           // After the style, whose `aspectRatio: 'auto'`
                           // would clear it.
                           !open.aspectRatio && sizeStyle,
                       ]
-                    : [styles.container, style]
+                    : [styles.container, style, NO_PADDING]
             }
             onLayout={onLayout}
             pointerEvents={pointerEvents}
@@ -497,33 +492,6 @@ function sizedSource(source: SizedSource | number): SizedSource | undefined {
               scale: assetScale(asset),
           }
         : undefined
-}
-
-const PADDING_X_KEYS = [
-    'paddingLeft',
-    'paddingRight',
-    'paddingStart',
-    'paddingEnd',
-    'paddingHorizontal',
-    'padding',
-] as const
-
-// The style's left and right padding in points, where it's a number (a
-// percentage counts as 0): the padding of a view with neither side set, which
-// the image's width includes.
-function paddingX(style: unknown): number {
-    const values = fromStyleKeys(style, PADDING_X_KEYS)
-    const side = (...keys: (typeof PADDING_X_KEYS)[number][]) => {
-        for (const key of keys) {
-            const value = values[key]
-            if (value != null) return typeof value === 'number' ? value : 0
-        }
-        return 0
-    }
-    return (
-        side('paddingLeft', 'paddingStart', 'paddingHorizontal', 'padding') +
-        side('paddingRight', 'paddingEnd', 'paddingHorizontal', 'padding')
-    )
 }
 
 // Several sizes of an image, as a srcset (each size's width, times its

@@ -1117,76 +1117,6 @@ function AutoSizeSourceChangeCase() {
     )
 }
 
-// An image with only a width and padding: before it loads, the view is only
-// its padding high, which it isn't laid out for. Recorded near its top, the
-// image is magenta there (its top fifth), never cyan, as it would be cropped
-// to the padding's strip (its middle).
-function AutoSizePaddingCoverCase() {
-    const sample = useContext(SampleContext)
-    const box = useRef<React.ComponentRef<typeof View>>(null)
-    const [shown, setShown] = useState(false)
-    const done = useRef(() => {})
-    const [status, setStatus] = useState('waiting')
-    useEffect(() => {
-        const expect = [MAGENTA]
-        const start = setTimeout(async () => {
-            const area = await measureView(box.current)
-            if (!area) return setStatus('not on screen')
-            setStatus('recording')
-            const result = await sample(
-                {
-                    name: 'auto-size-padding-cover',
-                    area: {
-                        x: area.x + 110,
-                        y: area.y + 5,
-                        width: 20,
-                        height: 10,
-                    },
-                    durationMs: 4000,
-                    expect,
-                    palette: [CYAN],
-                },
-                (sampleDone) => {
-                    done.current = sampleDone
-                    setShown(true)
-                },
-            )
-            setStatus(sampleStatus(result, expect))
-        }, 300)
-        return () => clearTimeout(start)
-    }, [sample])
-    return (
-        <View style={{ marginBottom: 12 }}>
-            <View
-                ref={box}
-                collapsable={false}
-                style={{ width: 240, height: 128 }}
-            >
-                {shown ? (
-                    <FastImage
-                        source={{
-                            uri: imageUrl(
-                                `bands.png?auto-size-padding-cover=${RUN}`,
-                            ),
-                        }}
-                        style={{ width: 240, height: 'auto', padding: 8 }}
-                        onLoad={() => setTimeout(() => done.current(), 1500)}
-                    />
-                ) : null}
-            </View>
-            <CaseStatus
-                id="auto-size-padding-cover"
-                status={status}
-                description={{
-                    checks: "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
-                    steps: "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
-                    shows: 'The image at 240x120: a magenta band at the top over cyan.',
-                }}
-            />
-        </View>
-    )
-}
-
 // Several sizes of an image, with only a width: the one for that width loads,
 // not the largest (as for a view with no size) and then the one for the size
 // it gets.
@@ -1276,76 +1206,6 @@ function AutoSizeFailedCase() {
                     checks: "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
                     steps: "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
                     shows: 'Nothing: the image is 0 high.',
-                }}
-            />
-        </View>
-    )
-}
-
-// An image with only a width and more padding than its shape gives the view:
-// inside the padding, the view stays 0 high once the image has loaded too.
-// Recorded near its top, the image shows there (magenta, its top fifth), as
-// cover in the padding box, rather than nothing.
-function AutoSizePaddingTallCase() {
-    const sample = useContext(SampleContext)
-    const box = useRef<React.ComponentRef<typeof View>>(null)
-    const [shown, setShown] = useState(false)
-    const done = useRef(() => {})
-    const [status, setStatus] = useState('waiting')
-    useEffect(() => {
-        const expect = [MAGENTA]
-        const start = setTimeout(async () => {
-            const area = await measureView(box.current)
-            if (!area) return setStatus('not on screen')
-            setStatus('recording')
-            const result = await sample(
-                {
-                    name: 'auto-size-padding-tall',
-                    area: {
-                        x: area.x + 110,
-                        y: area.y + 5,
-                        width: 20,
-                        height: 10,
-                    },
-                    durationMs: 4000,
-                    expect,
-                    palette: [CYAN],
-                },
-                (sampleDone) => {
-                    done.current = sampleDone
-                    setShown(true)
-                },
-            )
-            setStatus(sampleStatus(result, expect))
-        }, 300)
-        return () => clearTimeout(start)
-    }, [sample])
-    return (
-        <View style={{ marginBottom: 12 }}>
-            <View
-                ref={box}
-                collapsable={false}
-                style={{ width: 240, height: 144 }}
-            >
-                {shown ? (
-                    <FastImage
-                        source={{
-                            uri: imageUrl(
-                                `bands.png?auto-size-padding-tall=${RUN}`,
-                            ),
-                        }}
-                        style={{ width: 240, height: 'auto', padding: 70 }}
-                        onLoad={() => setTimeout(() => done.current(), 1500)}
-                    />
-                ) : null}
-            </View>
-            <CaseStatus
-                id="auto-size-padding-tall"
-                status={status}
-                description={{
-                    checks: "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
-                    steps: "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
-                    shows: 'The image at 240x140, cover: a magenta band at the top over cyan.',
                 }}
             />
         </View>
@@ -1630,7 +1490,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
     {
         name: 'auto-size-styles',
         description: {
-            checks: "#436, continued: padding, borders, and a later style's height: 'auto'.",
+            checks: "#436, continued: padding (ignored), borders, and a later style's height: 'auto'.",
         },
         cases: [
             <AutoSizeCase
@@ -1640,7 +1500,7 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 style={{ width: 96, height: 'auto', padding: 8 }}
                 expected={{ width: 96, height: 48 }}
                 description={{
-                    checks: "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                    checks: "Padding is ignored: an image with only a width has the image's aspect ratio, as without it.",
                     steps: "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                     shows: 'The photo at 96x48 on the left.',
                 }}
@@ -1652,9 +1512,21 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 style={{ width: 'auto', height: 'auto', padding: 20 }}
                 expected={{ width: 120, height: 120 }}
                 description={{
-                    checks: "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
+                    checks: "Padding is ignored: with neither side set, the view is the image's own size, as without it.",
                     steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
                     shows: 'The 120x120 photo at 120x120 points on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-padding-left-out"
+                id="auto-size-padding-left-out"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 96, padding: 8 }}
+                expected={{ width: 96, height: 0 }}
+                description={{
+                    checks: "Padding is ignored: a side the style leaves out stays 0, not the padding's 16 points.",
+                    steps: 'Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x0.',
+                    shows: 'Nothing: the view is 0 high.',
                 }}
             />,
             // The web's aspect ratio is the border box's: there, the image's
@@ -1694,13 +1566,6 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                               shows: 'The photo at 96x48 on the left.',
                           }}
                       />,
-                  ]),
-            // Not on the web (see auto-size-cover).
-            ...(Platform.OS === 'web'
-                ? []
-                : [
-                      <AutoSizePaddingCoverCase key="auto-size-padding-cover" />,
-                      <AutoSizePaddingTallCase key="auto-size-padding-tall" />,
                   ]),
         ],
     },

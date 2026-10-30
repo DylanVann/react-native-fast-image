@@ -12,7 +12,13 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyle, openSides, ownSize, resolveObjectFit } from './objectFit'
+import {
+    fromStyle,
+    NO_PADDING,
+    openSides,
+    ownSize,
+    resolveObjectFit,
+} from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
@@ -861,7 +867,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * The image's style: View's style props (`borderRadius` clips the image,
-     * and borders inset it, but padding doesn't), and `tintColor`, as with
+     * and borders inset it; padding is ignored), and `tintColor`, as with
      * React Native's `Image` (the `tintColor` prop wins).
      *
      * A width or height set to `'auto'` follows the loaded image, as with an
@@ -1158,7 +1164,7 @@ function FastImageBase({
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
             // Image does.
-            style={[styles.image, style]}
+            style={[styles.image, style, NO_PADDING]}
             // null (no key) as undefined, which the native prop takes.
             recyclingKey={props.recyclingKey ?? undefined}
             loopCount={loopCount(loop)}

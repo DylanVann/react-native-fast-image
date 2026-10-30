@@ -107,18 +107,23 @@
     },
     "auto-size-styles": {
         "description": {
-            "checks": "#436, continued: padding, borders, and a later style's height: 'auto'."
+            "checks": "#436, continued: padding (ignored), borders, and a later style's height: 'auto'."
         },
         "cases": {
             "auto-size-padding": {
-                "checks": "With padding, the image (which fills the view, padding included) has its aspect ratio: the padding isn't added to it.",
+                "checks": "Padding is ignored: an image with only a width has the image's aspect ratio, as without it.",
                 "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
             },
             "auto-size-padding-natural": {
-                "checks": "With padding and neither side set, the view is the image's own size: the image fills it, padding included.",
+                "checks": "Padding is ignored: with neither side set, the view is the image's own size, as without it.",
                 "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
                 "shows": "The 120x120 photo at 120x120 points on the left."
+            },
+            "auto-size-padding-left-out": {
+                "checks": "Padding is ignored: a side the style leaves out stays 0, not the padding's 16 points.",
+                "steps": "Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x0.",
+                "shows": "Nothing: the view is 0 high."
             },
             "auto-size-border": {
                 "checks": "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
@@ -129,16 +134,6 @@
                 "checks": "A height of 'auto' in a later style replaces an earlier style's height.",
                 "steps": "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: 'auto' }] in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
-            },
-            "auto-size-padding-cover": {
-                "checks": "An image with only a width, padding and objectFit cover shows the whole image as it loads, not a crop of it for the padding's strip.",
-                "steps": "Records the point 10 points below the top of a 240x128 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 8 }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
-                "shows": "The image at 240x120: a magenta band at the top over cyan."
-            },
-            "auto-size-padding-tall": {
-                "checks": "An image with only a width and padding taller than the image's shape gives it shows once it has loaded, though the view is 0 high inside its padding.",
-                "steps": "Records the point 10 points below the top of a 240x144 box, then loads a 600x300 image whose top fifth is magenta and the rest cyan into it with style { width: 240, height: 'auto', padding: 70 } (240x140), until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
-                "shows": "The image at 240x140, cover: a magenta band at the top over cyan."
             }
         }
     },

@@ -26,6 +26,7 @@ import FastImage, {
 } from './index'
 import { commands } from '../test/react-native'
 import { ARIA_KEYS, resolveAriaProps } from './ariaProps'
+import { NO_PADDING } from './objectFit'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -233,7 +234,7 @@ describe('FastImage (iOS)', () => {
                     pointerEvents="box-none"
                     onLayout={onLayout}
                     accessibilityLabel="a cat"
-                    style={[style.image, { borderRadius: 4 }]}
+                    style={[style.image, { borderRadius: 4, padding: 8 }]}
                 />,
             )
             .toJSON()
@@ -243,12 +244,14 @@ describe('FastImage (iOS)', () => {
         expect(tree.props.pointerEvents).toBe('box-none')
         expect(tree.props.onLayout).toBe(onLayout)
         expect(tree.props.accessibilityLabel).toBe('a cat')
-        // Clips the image by default, as React Native's Image does.
+        // Clips the image by default, as React Native's Image does, and
+        // ignores padding.
         expect(StyleSheet.flatten(tree.props.style)).toEqual({
             overflow: 'hidden',
             width: 44,
             height: 44,
             borderRadius: 4,
+            ...NO_PADDING,
         })
     })
 

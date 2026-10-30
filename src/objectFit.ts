@@ -131,6 +131,26 @@ export function openSides(
     return { width: openWidth, height: openHeight, aspectRatio }
 }
 
+// Padding doesn't inset the image (it fills the view inside its borders), so
+// it isn't laid out either: after the style, every padding is 0.
+export const NO_PADDING = {
+    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingStart: 0,
+    paddingEnd: 0,
+    paddingBlock: 0,
+    paddingBlockStart: 0,
+    paddingBlockEnd: 0,
+    paddingInline: 0,
+    paddingInlineStart: 0,
+    paddingInlineEnd: 0,
+} as const
+
 // A single source's own size in points (a require()d image's, or a source's
 // width and height, as with React Native's Image), which the sides a style
 // leaves open follow from the start instead of the loaded image's: they

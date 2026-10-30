@@ -544,7 +544,7 @@ Called when the image finishes loading, whether it was successful or an error, w
 
 **Platforms:** Android, iOS, tvOS, Web · **Type:** `StyleProp<ImageStyle>`
 
-The image's style: View's style props (`borderRadius` clips the image, and borders inset it, but padding doesn't), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
+The image's style: View's style props (`borderRadius` clips the image, and borders inset it; padding is ignored), and `tintColor`, as with React Native's `Image` (the `tintColor` prop wins).
 
 A width or height set to `'auto'` follows the loaded image, as with an `<img>` on the web:
 
