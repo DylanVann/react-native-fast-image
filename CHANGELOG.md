@@ -1,3 +1,10 @@
+## [10.9.13](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.12...v10.9.13) (2026-10-30)
+
+
+### Bug Fixes
+
+* **android:** views of one url at different sizes download it once, also when one gets to downloading just after the download ended ([#1403](https://github.com/DylanVann/react-native-fast-image/issues/1403)) ([6a57686](https://github.com/DylanVann/react-native-fast-image/commit/6a5768698bd22787037cea5544d9f36dde02678b))
+
 ## [10.9.12](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.11...v10.9.12) (2026-10-30)
 
 
