@@ -290,9 +290,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (!same) {
             mHasSource = true;
             mNeedsReload = true;
-            // A new load, with its onLoadStart, even if the previous one was
-            // to start again (see reblur, restartForNoSize).
-            mRestarting = false;
             mSourceIndex = -1;
             if (severalSources() == null) mSource = sources != null && sources.length == 1 ? sources[0] : null;
         }
@@ -415,7 +412,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         post(new Runnable() {
             @Override
             public void run() {
-                loadAfterLayout();
+                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
             }
         });
         return true;
@@ -1123,17 +1120,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         @Override
         public void onSizeReady(int width, int height) {
-            // A view laid out without a size, for a request made before that
-            // layout (e.g. a view mounted under a display: none parent) whose
-            // fit scales the image up (cover or contain, downsampled): the
-            // load starts again, made for it, instead of loading the image
-            // for Glide's square the screen's length. Others (fill,
-            // scale-down, none, pixelated, downsample false) never scale it
-            // up, so they load as they are.
-            if (laidOutWithoutSize() && !mLoadingForNoSize && !mLoadingScalesDown) {
-                restartForNoSize();
-                return;
-            }
             // Only a width or a height laid out so far, or neither, with
             // borders (laysOutOneSide, laysOutNoSide): the image is loaded for
             // the sides laid out. With neither, each is the screen's length,
@@ -1738,7 +1724,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // pixelated, and the blur. A blurred animated image shows its first frame,
     // as on iOS.
     private RequestOptions renderingOptions(Object model) {
-        mLoadingForNoSize = laidOutWithoutSize();
         FastImageBlur blur = mBlurRadius > 0
                 ? new FastImageBlur(mBlurRadius, mFitScaleType, loadingDensity())
                 : null;
@@ -1765,12 +1750,15 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                             || followsImage());
             // Before the view has any size (neither side laid out, e.g. no
             // width or height: both follow the image), or laid out without one
-            // (laidOutWithoutSize), Glide asks for the screen's length both
+            // (laidOutWithoutSize; with cover or contain, downsampled, the
+            // fits that scale it up), Glide asks for the screen's length both
             // ways, and would scale the image up to it. It's loaded no larger
             // than its own size instead (an SVG at its own size in dp), which
             // a view at that size, or larger, doesn't load again (see
             // isResized).
-            boolean unsized = (laysOutNoSide() || laidOutWithoutSize()) && mFitScaleType != ScaleType.CENTER;
+            boolean scalesUp = mDownsample
+                    && (mFitScaleType == ScaleType.CENTER_CROP || mFitScaleType == ScaleType.FIT_CENTER);
+            boolean unsized = (laysOutNoSide() || laidOutWithoutSize() && scalesUp) && mFitScaleType != ScaleType.CENTER;
             ScaleType fit = unsized ? ScaleType.CENTER_INSIDE : uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
             mLoadingUncropped = uncropped;
             mLoadingUnsized = unsized;
@@ -1846,11 +1834,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mShownBitmapWidth = 0;
     private int mShownBitmapHeight = 0;
     private boolean mResizeReloadPosted = false;
-    // Whether the loading request was made for a view laid out without a
-    // size (see laidOutWithoutSize), and the load a restart for one is
-    // posted for (-1: none).
-    private boolean mLoadingForNoSize = false;
-    private int mNoSizeRestartFor = -1;
 
     @Nullable
     private String mRecyclingKey;
@@ -1868,7 +1851,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mShownRequest = null;
             endFade();
             mNeedsReload = true;
-            mRestarting = false;
         }
     }
 
@@ -1926,33 +1908,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             mUrlPlaceholderWaitsForSize = false;
             scheduleUrlPlaceholderLoad();
         }
-    }
-
-    // Starts the loading image's load again, made for a view laid out without
-    // a size, as the same load (no onLoadStart, see reblur): its request was
-    // made before that layout, and waits for a size it won't get. Once per
-    // load (its request and the size recorded in into() both ask).
-    private void restartForNoSize() {
-        final int load = mLoadCount;
-        if (mNoSizeRestartFor == load) return;
-        mNoSizeRestartFor = load;
-        // Not from within Glide's callback.
-        post(new Runnable() {
-            @Override
-            public void run() {
-                if (mNoSizeRestartFor == load) mNoSizeRestartFor = -1;
-                if (load != mLoadCount || mManager == null) return;
-                mRestarting = true;
-                mNeedsReload = true;
-                loadAfterLayout();
-            }
-        });
-    }
-
-    // Loads what's needed (mNeedsReload) after layout, unless something loaded
-    // it meanwhile.
-    private void loadAfterLayout() {
-        if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
     }
 
     private void reloadIfResized() {
@@ -2319,39 +2274,69 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                                     .fallback(mShownPlaceholder)); // null will not be treated as error
             mBaseRequest = model == null ? null : base;
             mModel = model;
-            // What into() would apply for the scale type, with the size
-            // capture, for imageRendering, and the blur.
-            RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
-            RequestBuilder<Drawable> request = builder.clone();
-
-            // Only the placeholder prop: it replaces the image.
-            if (model == null) {
-                meanwhile = null;
-                mShownRequest = null;
-            }
-            boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
-            // After the clone: loading the image that's showing again (at a
-            // new size, or with another blur) doesn't fade it in again. Over a
-            // loaded image (a new source) only with betweenImages: otherwise it
-            // replaces it at once, as Glide, Coil and Fresco fade an image in
-            // from nothing and never between images.
-            boolean replacing = shownRequest != null && model != null;
-            if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
-                builder = builder.transition(DrawableTransitionOptions.with(
-                        new FadeFactory(
-                                mTransitionDuration,
-                                mTransitionSkipOnCacheHit,
-                                imageSource != null && imageSource.isWebCache())));
-            }
-            if (thumbnail) {
-                builder = builder.thumbnail(fromCache(shownRequest));
-            }
-
-            if (imageSource != null)
-                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
-
-            into(request, builder, meanwhile, false, switching ? "source-for-size" : "source");
+            // Made once the view's size is known, so its options are for that
+            // size (renderingOptions, e.g. for a view laid out without one):
+            // Glide's size for the view, which it has at once for a view that
+            // has one (or is laid out without one), and otherwise after
+            // layout, as Glide would ask for it.
+            final Drawable shownCopy = meanwhile;
+            final boolean switchingSource = switching;
+            final int load = mLoadCount;
+            final OwnGifTarget sizeTarget = new OwnGifTarget(null);
+            mSizeTarget = sizeTarget;
+            sizeTarget.getSize(new SizeReadyCallback() {
+                @Override
+                public void onSizeReady(int width, int height) {
+                    if (mSizeTarget == sizeTarget) mSizeTarget = null;
+                    if (load != mLoadCount || mDropped) return;
+                    startLoad(base, model, imageSource, shownRequest, shownCopy, switchingSource);
+                }
+            });
         }
+    }
+
+    // The target a load waits on for the view's size (see onAfterUpdate):
+    // Glide's layout listener only holds it weakly.
+    @Nullable
+    private OwnGifTarget mSizeTarget;
+
+    // Starts the load onAfterUpdate made the base request for, once the view's
+    // size is known.
+    private void startLoad(RequestBuilder<Drawable> base, @Nullable Object model,
+            @Nullable FastImageSource imageSource, @Nullable RequestBuilder<Drawable> shownRequest,
+            @Nullable Drawable meanwhile, boolean switching) {
+        // What into() would apply for the scale type, with the size capture,
+        // for imageRendering, and the blur.
+        RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
+        RequestBuilder<Drawable> request = builder.clone();
+
+        // Only the placeholder prop: it replaces the image.
+        if (model == null) {
+            meanwhile = null;
+            mShownRequest = null;
+        }
+        boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
+        // After the clone: loading the image that's showing again (at a new
+        // size, or with another blur) doesn't fade it in again. Over a loaded
+        // image (a new source) only with betweenImages: otherwise it replaces
+        // it at once, as Glide, Coil and Fresco fade an image in from nothing
+        // and never between images.
+        boolean replacing = shownRequest != null && model != null;
+        if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
+            builder = builder.transition(DrawableTransitionOptions.with(
+                    new FadeFactory(
+                            mTransitionDuration,
+                            mTransitionSkipOnCacheHit,
+                            imageSource != null && imageSource.isWebCache())));
+        }
+        if (thumbnail) {
+            builder = builder.thumbnail(fromCache(shownRequest));
+        }
+
+        if (imageSource != null)
+            builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
+
+        into(request, builder, meanwhile, false, switching ? "source-for-size" : "source");
     }
 
     public void clearView(@Nullable RequestManager requestManager) {
