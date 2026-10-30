@@ -1128,11 +1128,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // image taller than the screen at the view's width (or wider at
             // its height) is decoded for the size the view gets, not
             // narrower and then again.
-            if (laysOutOneSide() || laysOutNoSide()) {
+            // The same while the view has the previous image's shape (e.g. a
+            // recycled list cell; see laysOutPreviousImage): the open side
+            // will follow the new image, so it's loaded for the one the style
+            // sets, as on its first load, not for the previous image's box.
+            int previous = laysOutPreviousImage() && followsImage() ? mAutoSize : 0;
+            if (laysOutOneSide() || laysOutNoSide() || previous == AUTO_WIDTH || previous == AUTO_HEIGHT) {
                 DisplayMetrics metrics = getResources().getDisplayMetrics();
                 int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
-                boolean byWidth = layoutContentWidth() > 0 && width > 0;
-                boolean byHeight = layoutContentHeight() > 0 && height > 0;
+                boolean byWidth = layoutContentWidth() > 0 && width > 0 && previous != AUTO_WIDTH;
+                boolean byHeight = layoutContentHeight() > 0 && height > 0 && previous != AUTO_HEIGHT;
                 if (!byWidth) width = byHeight ? (int) (FastImageSourceSize.MAX_PIXELS / height) : screen;
                 if (!byHeight) height = byWidth ? (int) (FastImageSourceSize.MAX_PIXELS / width) : screen;
             }
@@ -1452,6 +1457,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mImageScale = mLoadingScale;
         updateImageMatrix();
         if (size != null) {
+            mSizedModel = mModel;
             double scale = mImageScale * mLoadingLayoutScale;
             setLayoutSize((float) (size[0] / scale), (float) (size[1] / scale));
         }
@@ -1478,6 +1484,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // view sets it.
     private float mLaidOutWidth = 0;
     private float mLaidOutHeight = 0;
+    // The model whose image's size the view last set for the layout.
+    @Nullable
+    private Object mSizedModel;
 
     void setStateWrapper(@Nullable StateWrapper stateWrapper) {
         mStateWrapper = stateWrapper;
@@ -1488,8 +1497,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (laysOutOneSide() != wasHidden) invalidate();
         updateSizeState();
         // The layout for the shown image: a fitted cover image is cropped if
-        // the view didn't take its shape (see isResized).
-        if (mShownUncropped) reloadIfResized();
+        // the view didn't take its shape, and one that waited for it is
+        // loaded for the view's size if that didn't change (see isResized).
+        reloadIfResized();
     }
 
     // Whether the style leaves a side open and the layout has neither side
@@ -1502,6 +1512,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Whether the layout has a loaded image's size.
     private boolean imageLaidOut() {
         return mLaidOutWidth > 0 && mLaidOutHeight > 0;
+    }
+
+    // Whether the style leaves a side open and the layout has the size of an
+    // image other than the loading one: the previous source's while a new one
+    // loads (e.g. in a recycled list cell), or until the state has the size
+    // just set for it.
+    private boolean laysOutPreviousImage() {
+        return mAutoSize != 0 && imageLaidOut() && (!shownImageLaidOut() || !Objects.equals(mSizedModel, mModel));
     }
 
     // Whether the layout has the shown image's size.
@@ -1917,8 +1935,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 && !(mShownScalesDown && mShownBitmapWidth == mImageWidth && mShownBitmapHeight == mImageHeight
                         && width >= mShownBitmapWidth && height >= mShownBitmapHeight)
                 // Not while the view is only its borders on a side that follows
-                // the image: it gets its shape from the image.
-                && !laysOutOneSide() && !laysOutNoSide();
+                // the image, or has another image's size there: it gets its
+                // shape from the image.
+                && !laysOutOneSide() && !laysOutNoSide() && !laysOutPreviousImage();
     }
 
     // Whether a box is the image's own size in dp, within a pixel.

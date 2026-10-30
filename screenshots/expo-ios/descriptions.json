@@ -144,7 +144,7 @@
     },
     "auto-size-edges": {
         "description": {
-            "checks": "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, and a contain image's height rounding off the decoded image's."
+            "checks": "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, a contain image's height rounding off the decoded image's, and an open side that rounds to a sliver inside the borders."
         },
         "cases": {
             "auto-size-aspect-ratio": {
@@ -171,6 +171,11 @@
                 "checks": "Images with only a width and objectFit contain whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.",
                 "steps": "Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit contain, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.",
                 "shows": "Four 64-point-wide images side by side, each magenta over cyan."
+            },
+            "auto-size-border-sliver": {
+                "checks": "An image with only a width and borders whose open height rounds to a sliver inside them (less than a pixel) is decoded for its width, as with no borders, not for that sliver and then again.",
+                "steps": "Loads a 600x300 cyan image with style { width: 128.9, height: 'auto', borderWidth: 0.45, borderColor: 'transparent' } and objectFit contain in a row: 0.9 points of borders, which the layout rounds to the pixel grid. Passes once it has loaded and its layout is 128.9x64.9 (128x64 inside the borders), within half a point; the work counts show the boxes it was decoded for.",
+                "shows": "A cyan rectangle on the left, about 129x72 (the image in front of a cyan row)."
             }
         }
     },
@@ -208,7 +213,7 @@
     },
     "auto-size-changes": {
         "description": {
-            "checks": "#436, continued: a url placeholder, several sizes, a source change (and the box the new image is decoded for) and a failed one, of an image with only a width, and a source change of one with neither side set."
+            "checks": "#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set."
         },
         "cases": {
             "auto-size-placeholder": {
@@ -231,15 +236,32 @@
                 "steps": "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64, height: 'auto' } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
                 "shows": "The photo at 64x64 on the left."
             },
+            "auto-size-failed": {
+                "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
+                "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
+                "shows": "Nothing: the image is 0 high."
+            }
+        }
+    },
+    "auto-size-change-decode": {
+        "description": {
+            "checks": "#436, continued: the box a new source of an image with only a width is decoded for, with cover and contain, and a bundled image changed to a url with both sides 'auto'."
+        },
+        "cases": {
             "auto-size-change-decode": {
                 "checks": "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
                 "steps": "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
                 "shows": "Eight magenta and cyan bands at 256x64."
             },
-            "auto-size-failed": {
-                "checks": "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
-                "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
-                "shows": "Nothing: the image is 0 high."
+            "auto-size-change-decode-contain": {
+                "checks": "An image with only a width and objectFit contain whose source changes to an image of another shape decodes the new image for the view's width, not to fit in the box the previous image gave the view (and then again).",
+                "steps": "Loads a 3200x800 image of magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit contain in a row (128x32), and 300 ms after onLoad changes the source to a 1024x1024 photo. Passes when, 1 s after its onLoad, the layout is 128x128; the work counts show the boxes it was decoded for.",
+                "shows": "The photo at 128x128 on the left."
+            },
+            "auto-size-from-bundled": {
+                "checks": "A bundled image whose source changes to a url with both sides 'auto' keeps the bundled image's size in points while the url loads, not its pixels.",
+                "steps": "Shows require('./images/center-dot.png'), only a 120x120 @3x file (40x40), with no style in a row, then changes the source to a 120x120 photo (on iOS and Android from a download that takes about 2.8 s) with style { width: 'auto', height: 'auto' }. Passes when its layout 1 s after the change was 40x40 (not on the web, where the url loads at once), and 120x120 once the photo has loaded.",
+                "shows": "The photo at 120x120 on the left."
             }
         }
     },
