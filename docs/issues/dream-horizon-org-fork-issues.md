@@ -231,7 +231,7 @@ Fast Image's maintainers found these while comparing Fast Image with the dream-h
 - **What happens:** on Android, an image whose view is laid out with no size on a side, such as one under a `display: 'none'` parent (laid out at 0 × 0) or one sized from `onLoad`, is decoded for the screen's longest side on each side the view doesn't have (a square with neither), scaled up to it: a 16 × 16 icon becomes a 2400 × 2400 bitmap (about 22 MB) on a 1080 × 2400 phone, and a 600 × 300 photo in a view 48 points wide and 0 high a 4800 × 2400 one.
 - **Where:** `android/src/main/java/com/dylanvann/fastimage/FastImageViewWithUrl.java` loads into the view with Glide's own target (`builder.into(this)`), whose size for a laid-out view with no size is the screen's longest side both ways, and the scale type's transformation (fit or crop) scales the image to that box.
 - **How to reproduce:** Found by reading the code. Fast Image before the fix below, which loaded through the same size logic, decoded the 20 × 20 image in its `downsample-hidden` case at 2400 × 2400, and the 600 × 300 photo in its `downsample-no-size` case at 4800 × 2400.
-- **How Fast Image handles it:** an image in a view laid out without a size is decoded no larger than its own size, and again for the view's size once it has a smaller one ([#1406](https://github.com/DylanVann/react-native-fast-image/pull/1406)).
+- **How Fast Image handles it:** an image in a view laid out without a size is decoded no larger than its own size, and again for the view's size once it has a smaller one ([#1409](https://github.com/DylanVann/react-native-fast-image/pull/1409)).
 
 ## Android preload fails for local files, and asset uris don't load
 
