@@ -149,6 +149,26 @@
         "request /thirds.png?auto-size-natural-change=RUN": 1,
         "request /thirds.png?auto-size-placeholder=RUN": 1
     },
+    "auto-size-decodes": {
+        "decode http://10.0.2.2:8090/odd-height.png?auto-size-fill-rounding=RUN 336x201 for 168x99864 at 168x101": 1,
+        "decode http://10.0.2.2:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048x2048 for 2400x2400 at 2048x2048": 1,
+        "decode http://10.0.2.2:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048x2048 for 630x630 at 630x630": 1,
+        "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN 120x120 for 630x168 at 630x630": 1,
+        "decode http://10.0.2.2:8090/text-page.png?auto-size-stretched-change=RUN 1600x1000 for 630x168 at 630x394": 1,
+        "layout-state http://10.0.2.2:8090/odd-height.png?auto-size-fill-rounding=RUN 336.0x201.0 main": 4,
+        "layout-state http://10.0.2.2:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048.0x2048.0 main": 1,
+        "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN 120.0x120.0 main": 1,
+        "layout-state http://10.0.2.2:8090/text-page.png?auto-size-stretched-change=RUN 1600.0x1000.0 main": 1,
+        "load http://10.0.2.2:8090/odd-height.png?auto-size-fill-rounding=RUN source main": 4,
+        "load http://10.0.2.2:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN source main": 1,
+        "load http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN source main": 1,
+        "load http://10.0.2.2:8090/text-page.png?auto-size-stretched-change=RUN source main": 1,
+        "reload http://10.0.2.2:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN size main": 1,
+        "request /odd-height.png?auto-size-fill-rounding=RUN": 1,
+        "request /picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-stretched-change=RUN": 1,
+        "request /text-page.png?auto-size-stretched-change=RUN": 1
+    },
     "auto-size-change-decode": {
         "decode http://10.0.2.2:8090/picsum/1018-1024x1024.jpg?auto-size-change-decode-contain=RUN 1024x1024 for 336x49932 at 336x336": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg?auto-size-change-decode=RUN 120x120 for 672x24966 at 672x672": 1,

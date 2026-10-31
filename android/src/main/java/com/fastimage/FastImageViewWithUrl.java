@@ -1920,10 +1920,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         // of, now that its layout has arrived.
                         || mShownUncropped && shownImageLaidOut() && !followsImage())
                 && (width != mShownBitmapWidth || height != mShownBitmapHeight)
-                // A fitted image (contain, or a fitted cover image) in a view
+                // A fitted image (any fit but a cropped cover one) in a view
                 // that has its shape: a pixel of rounding between the two is
                 // the same image.
-                && !((mShownUncropped || mFitScaleType == ScaleType.FIT_CENTER) && followsImage()
+                && !((mShownUncropped || mFitScaleType != ScaleType.CENTER_CROP) && followsImage()
                         && Math.abs(width - mShownBitmapWidth) <= 1
                         && Math.abs(height - mShownBitmapHeight) <= 1)
                 // Loaded before the view had a size, no larger than the
@@ -1931,13 +1931,22 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 // more from loading it again.
                 && !(mShownUnsized && atImageSize(width, height))
                 // The whole image, with a fit that doesn't scale it up: a
-                // larger view gets the same again.
-                && !(mShownScalesDown && mShownBitmapWidth == mImageWidth && mShownBitmapHeight == mImageHeight
-                        && width >= mShownBitmapWidth && height >= mShownBitmapHeight)
+                // larger view gets the same again. Not a blurred one the view
+                // scales (any fit but scale-down and none): its blur is for
+                // the size it was shown at, and would be stretched with it.
+                && !(mShownScalesDown && !blurScales() && mShownBitmapWidth == mImageWidth
+                        && mShownBitmapHeight == mImageHeight && width >= mShownBitmapWidth
+                        && height >= mShownBitmapHeight)
                 // Not while the view is only its borders on a side that follows
                 // the image, or has another image's size there: it gets its
                 // shape from the image.
                 && !laysOutOneSide() && !laysOutNoSide() && !laysOutPreviousImage();
+    }
+
+    // Whether the image is blurred and the view scales it to its size (any fit
+    // but scale-down and none, which show it at its own size).
+    private boolean blurScales() {
+        return mBlurRadius > 0 && mFitScaleType != ScaleType.CENTER_INSIDE && mFitScaleType != ScaleType.CENTER;
     }
 
     // Whether a box is the image's own size in dp, within a pixel.

@@ -7487,6 +7487,44 @@ const BLUR_TWICE_SOURCE = {
     cache: 'web' as const,
 }
 
+// A blurred image with objectFit fill in a view that grows in three steps,
+// next to the same image always at the last size: each size gets the blur for
+// it (the view stretches the image, and would stretch a blur made for a
+// smaller one too), so both look the same.
+function BlurFillGrowCase() {
+    const [step, setStep] = useState(0)
+    const [loaded, setLoaded] = useState(0)
+    useEffect(() => {
+        if (loaded < 2 || step >= 3) return
+        const timer = setTimeout(() => setStep((n) => n + 1), 300)
+        return () => clearTimeout(timer)
+    }, [loaded, step])
+    const image = (name: string, size: number) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: size, height: size, marginRight: 8 }}
+            objectFit="fill"
+            blurRadius={2}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12, height: 48 }}>
+            {image('blur-fill-grow', 24 + step * 8)}
+            {image('blur-fill-fixed', 48)}
+            <CaseStatus
+                id="blur-fill-grow"
+                status={step >= 3 ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'A blurred image with objectFit fill in a view that grows is blurred for each size, so it looks like one shown at the last size from the start.',
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit="fill" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48, next to the same image (another url) in a 48x48 view. Passes once it has grown; the work counts show its reloads.',
+                    shows: 'Two equally blurred 48x48 squares of red, green, blue and yellow. A blurrier left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // defaultSource isn't blurred, as with React Native's Image.
 function BlurDefaultSourceCase() {
     const [failed, setFailed] = useState(false)
@@ -10975,13 +11013,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'blur',
         description: {
-            checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource.",
+            checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, not on defaultSource, and in a view that grows.",
         },
         cases: [
             <BlurCase key="blur" />,
             <BlurKindsCase key="blur-kinds" />,
             <BlurChangeCase key="blur-change" />,
             <BlurDefaultSourceCase key="blur-default-source" />,
+            <BlurFillGrowCase key="blur-fill-grow" />,
         ],
     },
     {

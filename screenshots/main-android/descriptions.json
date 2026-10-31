@@ -208,6 +208,28 @@
             }
         }
     },
+    "auto-size-decodes": {
+        "description": {
+            "checks": "#436, continued: the size an image is decoded for when an 'auto' side is stretched, both sides are 'auto' with a large image, and a fill image's height rounds off the decoded one's."
+        },
+        "cases": {
+            "auto-size-stretched-change": {
+                "checks": "An image whose 'auto' width a column stretches, whose source changes, is decoded to cover the view, not only for its height: the width doesn't follow the image there.",
+                "steps": "Loads a 120x120 photo with style { width: 'auto', height: 64 } in a 240-point-wide column (stretched to 240x64), and 300 ms after onLoad changes the source to a 1600x1000 page of text. Passes 1 s after its onLoad; the work counts show the box it was decoded for.",
+                "shows": "A sharp 240x64 strip from the middle of the text page. Blurry text is a failure."
+            },
+            "auto-size-natural-large": {
+                "checks": "A large image with both sides 'auto' in less space than its size is decoded for the size it gets, not kept at its full size.",
+                "steps": "Loads a 2048x2048 photo with style { width: 'auto', height: 'auto' } in a 240-point-wide row. Passes once it has loaded and its layout is 240x240; the work counts show the sizes it was decoded at.",
+                "shows": "The photo at 240x240 on the left."
+            },
+            "auto-size-fill-rounding": {
+                "checks": "Images with only a width and objectFit fill whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.",
+                "steps": "Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit fill, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.",
+                "shows": "Four 64-point-wide images side by side, each magenta over cyan."
+            }
+        }
+    },
     "auto-size-change-decode": {
         "description": {
             "checks": "#436, continued: the box a new source of an image with only a width is decoded for, with cover and contain, and a bundled image changed to a url with both sides 'auto'."
@@ -622,7 +644,7 @@
     },
     "blur": {
         "description": {
-            "checks": "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource."
+            "checks": "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, not on defaultSource, and in a view that grows."
         },
         "cases": {
             "blur": {
@@ -644,6 +666,11 @@
                 "checks": "blurRadius doesn't blur defaultSource, as with React Native's Image.",
                 "steps": "Loads a url the image server answers with a 404, with a bundled defaultSource and blurRadius={6}. Passes on onError.",
                 "shows": "The defaultSource, sharp: on iOS an aerial photo of fields, on Android a gray square with a short black line near the bottom."
+            },
+            "blur-fill-grow": {
+                "checks": "A blurred image with objectFit fill in a view that grows is blurred for each size, so it looks like one shown at the last size from the start.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit=\"fill\" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48, next to the same image (another url) in a 48x48 view. Passes once it has grown; the work counts show its reloads.",
+                "shows": "Two equally blurred 48x48 squares of red, green, blue and yellow. A blurrier left one is a failure."
             }
         }
     },
