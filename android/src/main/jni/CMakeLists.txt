@@ -1,5 +1,6 @@
-# Codegen's library for the specs (src/specs), with FastImageView's shadow node
-# (common/cpp), which the spec leaves to the library (interfaceOnly). Set as
+# Codegen's library for the specs (src/specs), with FastImageView's and
+# FastImageAutoView's shadow nodes (common/cpp), which the spec leaves to the
+# library (interfaceOnly). Set as
 # the library's cmakeListsPath (react-native.config.js), in place of the
 # CMakeLists.txt Codegen writes, which builds the same library from its files
 # only.
@@ -21,7 +22,7 @@ add_library(
 )
 
 # This folder first: its RNFastImageSpec.h, which the app's autolinking
-# includes, adds the shadow node's component descriptor to Codegen's.
+# includes, adds the shadow nodes' component descriptors to Codegen's.
 target_include_directories(
   react_codegen_RNFastImageSpec
   PUBLIC
@@ -38,6 +39,6 @@ target_link_libraries(
   reactnative
 )
 
-# PUBLIC: RN_SERIALIZABLE_STATE changes FastImageViewState, which the app's
+# PUBLIC: RN_SERIALIZABLE_STATE changes FastImageAutoViewState, which the app's
 # autolinking code sees too.
 target_compile_reactnative_options(react_codegen_RNFastImageSpec PUBLIC)

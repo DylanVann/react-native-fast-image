@@ -2,13 +2,16 @@
 
 #include <react/renderer/core/ConcreteComponentDescriptor.h>
 
+#include "FastImageAutoViewShadowNode.h"
 #include "FastImageViewShadowNode.h"
 
 namespace facebook::react {
 
-class FastImageViewComponentDescriptor final : public ConcreteComponentDescriptor<FastImageViewShadowNode> {
+// FastImageView's and FastImageAutoView's descriptors.
+template <typename ShadowNodeT>
+class FastImageComponentDescriptor final : public ConcreteComponentDescriptor<ShadowNodeT> {
   public:
-    using ConcreteComponentDescriptor::ConcreteComponentDescriptor;
+    using ConcreteComponentDescriptor<ShadowNodeT>::ConcreteComponentDescriptor;
 
     // Padding doesn't inset the image (it fills the view inside its
     // borders), so it isn't laid out either: the style's padding is cleared
@@ -18,7 +21,7 @@ class FastImageViewComponentDescriptor final : public ConcreteComponentDescripto
     Props::Shared cloneProps(const PropsParserContext &context, const Props::Shared &props, RawProps rawProps)
         const override
     {
-        auto cloned = ConcreteComponentDescriptor::cloneProps(context, props, std::move(rawProps));
+        auto cloned = ConcreteComponentDescriptor<ShadowNodeT>::cloneProps(context, props, std::move(rawProps));
         const auto &style = static_cast<const FastImageViewProps &>(*cloned).yogaStyle;
         bool padded = false;
         for (auto edge : kEdges) {
@@ -46,5 +49,8 @@ class FastImageViewComponentDescriptor final : public ConcreteComponentDescripto
         yoga::Edge::All,
     };
 };
+
+using FastImageViewComponentDescriptor = FastImageComponentDescriptor<FastImageViewShadowNode>;
+using FastImageAutoViewComponentDescriptor = FastImageComponentDescriptor<FastImageAutoViewShadowNode>;
 
 } // namespace facebook::react

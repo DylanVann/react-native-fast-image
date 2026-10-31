@@ -45,6 +45,13 @@ export function requireNativeComponent(name: string) {
 // react-native): the same host element.
 export const codegenNativeComponent = requireNativeComponent
 
+// A component with a view config written by hand (FastImageAutoView): the
+// same host element. (Without React Native's Babel plugin, the spec has no
+// view config to share, so it isn't used here.)
+export const NativeComponentRegistry = {
+    get: (name: string) => hostComponent(name),
+}
+
 // Codegen commands (codegenNativeCommands): each one sent is recorded in
 // `commands`, with its view.
 export const commands: { name: string; view: unknown }[] = []

@@ -1369,7 +1369,7 @@ NSString *FFFErrorMessage(NSError *error)
 // Whether the layout has only a width or a height so far (inside the
 // borders), the other being one the style leaves open (autoSize), and doesn't
 // have this image's size yet: that side follows the image (see
-// FastImageViewShadowNode), whose shape isn't known yet.
+// FastImageAutoViewShadowNode), whose shape isn't known yet.
 - (BOOL) laysOutOneSide {
     if ([self imageLaidOut] && ![self laysOutPreviousImage]) {
         return NO;

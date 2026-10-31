@@ -171,8 +171,8 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 @implementation FFFastImageViewComponentView {
     FFFastImageView *_imageView;
     // The shadow node's state: the loaded image's size, which its layout
-    // follows (see FastImageViewShadowNode).
-    FastImageViewShadowNode::ConcreteState::Shared _state;
+    // follows (see FastImageAutoViewShadowNode; FastImageView's has none).
+    FastImageAutoViewShadowNode::ConcreteState::Shared _state;
     // The loaded image's size in points (zero until one loads, and after one
     // failed or without a source), and whether the layout follows it (the
     // autoSize prop).
@@ -241,7 +241,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 
 - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
 {
-    _state = std::static_pointer_cast<const FastImageViewShadowNode::ConcreteState>(state);
+    _state = std::static_pointer_cast<const FastImageAutoViewShadowNode::ConcreteState>(state);
     _imageView.laidOutImageSize = _state ? CGSizeMake(_state->getData().width, _state->getData().height) : CGSizeZero;
     [self updateImageSizeState];
 }
@@ -265,7 +265,7 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
         return;
     }
     FFFWork(@"layout-state", _imageView.sources.firstObject.url, [NSString stringWithFormat:@"%gx%g", _imageSize.width, _imageSize.height]);
-    _state->updateState(FastImageViewState{_imageSize.width, _imageSize.height});
+    _state->updateState(FastImageAutoViewState{_imageSize.width, _imageSize.height});
 }
 
 // The image view's event as it built it (not the generated event structs,
@@ -458,3 +458,11 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 
 @end
 
+@implementation FFFastImageAutoViewComponentView
+
++ (ComponentDescriptorProvider)componentDescriptorProvider
+{
+    return concreteComponentDescriptorProvider<FastImageAutoViewComponentDescriptor>();
+}
+
+@end

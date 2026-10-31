@@ -1496,12 +1496,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mReadingImageSize = true;
     }
 
-    // The shadow node's state (see FastImageViewShadowNode): the loaded
-    // image's size in dp, which the view's layout follows where its style
-    // leaves it open (the autoSize prop), or 0 after an image failed or
-    // without a source, as before one loads. Only set then: a state update
-    // lays out the whole screen again. The last size set, so the same one
-    // isn't set again.
+    // The shadow node's state (see FastImageAutoViewShadowNode; none for a
+    // FastImageView): the loaded image's size in dp, which the view's layout
+    // follows where its style leaves it open (the autoSize prop), or 0 after
+    // an image failed or without a source, as before one loads. Only set
+    // then: a state update lays out the whole screen again. The last size
+    // set, so the same one isn't set again.
     @Nullable
     private StateWrapper mStateWrapper;
     // The autoSize prop's bits: the sides the style leaves open.

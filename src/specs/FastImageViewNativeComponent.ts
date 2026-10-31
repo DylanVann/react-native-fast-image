@@ -75,9 +75,9 @@ export interface NativeProps extends ViewProps {
     dynamicRangeLimit?: string
     blurRadius?: CodegenTypes.Float
     // The sides the style leaves open, which then follow the loaded image
-    // (see common/cpp's FastImageViewShadowNode), as bits: 1 the width, 2 the
-    // height. Only then do the native views give the shadow node the image's
-    // size, which lays the screen out again.
+    // (see common/cpp's FastImageAutoViewShadowNode), as bits: 1 the width, 2
+    // the height. Only then do the native views give the shadow node the
+    // image's size, which lays the screen out again.
     autoSize?: CodegenTypes.Int32
     // A single source's own size in points (its width and height, or a
     // bundled image's), which the shadow node lays the open sides out from
@@ -108,7 +108,8 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
     supportedCommands: ['reload'],
 })
 
-// interfaceOnly: the shadow node is the library's own (common/cpp), which
+// interfaceOnly: the shadow nodes are the library's own (common/cpp):
+// FastImageView's, and FastImageAutoView's (../FastImageAutoView.ts), which
 // measures the view from the loaded image's size.
 export default codegenNativeComponent<NativeProps>('FastImageView', {
     interfaceOnly: true,

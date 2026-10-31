@@ -17,6 +17,7 @@ import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
+import FastImageAutoView from './FastImageAutoView'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
 import {
@@ -1133,6 +1134,11 @@ function FastImageBase({
     // and the view doesn't give it the image's.
     const own = ownSize(resolvedSource)
     const open = own ? { width: false, height: false } : openSides(styleValues)
+    // Only then is it a FastImageAutoView, whose shadow node measures it
+    // (other images' shadow nodes have no state, see FastImageAutoView.ts).
+    // A style that changes between the two mounts a new native view.
+    const NativeView =
+        own || open.width || open.height ? FastImageAutoView : FastImageView
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
@@ -1154,7 +1160,7 @@ function FastImageBase({
     )
 
     return (
-        <FastImageView
+        <NativeView
             {...resolveAriaProps(props)}
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's

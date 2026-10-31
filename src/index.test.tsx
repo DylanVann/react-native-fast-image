@@ -154,6 +154,29 @@ describe('FastImage (iOS)', () => {
         ).toBeUndefined()
     })
 
+    it("renders FastImageAutoView only for an image that follows its image's size", () => {
+        const type = (
+            source: FastImageProps['source'],
+            style: FastImageProps['style'],
+        ) =>
+            (
+                renderer
+                    .create(<FastImage source={source} style={style} />)
+                    .toJSON() as any
+            ).type
+        const uri = 'https://example.com/image.png'
+        // A set size (or flex): FastImageView, whose shadow node has no state.
+        expect(type({ uri }, { width: 240, height: 120 })).toBe('FastImageView')
+        expect(type({ uri }, { flex: 1 })).toBe('FastImageView')
+        // A side left to the image, or a source's own size: FastImageAutoView.
+        expect(type({ uri }, { width: 240, height: 'auto' })).toBe(
+            'FastImageAutoView',
+        )
+        expect(type({ uri, width: 60, height: 30 }, { width: 240 })).toBe(
+            'FastImageAutoView',
+        )
+    })
+
     it("gives the shadow node a single source's own size, instead of the loaded image's", () => {
         const render = (
             source: FastImageProps['source'],
@@ -1155,7 +1178,11 @@ describe('several sources', () => {
     const nativeView = (element: React.ReactElement) =>
         renderer
             .create(element)
-            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .root.findAll((node) =>
+                ['FastImageView', 'FastImageAutoView'].includes(
+                    node.type as any,
+                ),
+            )[0]
     const small = {
         uri: 'https://example.com/a-100.jpg',
         width: 100,

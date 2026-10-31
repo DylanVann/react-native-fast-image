@@ -401,7 +401,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         view.setAutoSize(autoSize);
     }
 
-    // Only the shadow node uses them (common/cpp's FastImageViewShadowNode).
+    // Only the shadow node uses them (common/cpp's FastImageAutoViewShadowNode).
     @Override
     public void setOwnWidth(FastImageViewWithUrl view, float ownWidth) {
     }
