@@ -33,9 +33,10 @@ jobs:
   # can be merged). And chooses the iOS jobs: the main example's groups in 2 shards
   # (--shard), each a job that builds the app and runs half of them (by their
   # times in recent runs); the minimum example's smoke groups (SMOKE_GROUPS) in
-  # one; and, when a pull request changes the iOS code, the tvOS example, its
-  # references, or how the cases run (and in a run by hand), the tvOS example's
-  # groups in 2 shards. (At most 5 macOS jobs run at once.)
+  # one; and, when a pull request changes the library's iOS or JS code, the
+  # regression cases (the tvOS example runs the main example's), the tvOS
+  # example, its references, or how the cases run (and in a run by hand), the
+  # tvOS example's groups in 2 shards. (At most 5 macOS jobs run at once.)
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -71,7 +72,7 @@ jobs:
         run: |
           jobs='{"app":"main","shard":1},{"app":"main","shard":2},{"app":"minimum","shard":1}'
           if [ -z "$PR" ] || gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' |
-            grep -qE '^(ios/|ReactNativeFastImageExampleTV/|screenshots/tv-ios/|RNFastImage\.podspec$|scripts/verify\.mts$|\.github/workflows/e2e\.yml$)'; then
+            grep -qE '^(ios/|src/|ReactNativeFastImageExample/src/|ReactNativeFastImageExampleTV/|screenshots/tv-ios/|RNFastImage\.podspec$|package\.json$|scripts/verify\.mts$|\.github/workflows/e2e\.yml$)'; then
             jobs="$jobs"',{"app":"tv","shard":1},{"app":"tv","shard":2}'
           fi
           echo "ios={\"include\":[$jobs]}" >> "$GITHUB_OUTPUT"
