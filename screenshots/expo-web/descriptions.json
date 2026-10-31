@@ -110,6 +110,11 @@
                 "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
                 "shows": "The photo at 96x48 on the left."
             },
+            "auto-size-padding-logical": {
+                "checks": "Padding is ignored, also paddingBlock and paddingInline (React Native keeps them apart from padding).",
+                "steps": "Loads the 600x300 photo with style { width: 96, height: 'auto', paddingBlock: 8, paddingInline: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                "shows": "The photo at 96x48 on the left."
+            },
             "auto-size-padding-natural": {
                 "checks": "Padding is ignored: with neither side set, the view is the image's own size, as without it.",
                 "steps": "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",

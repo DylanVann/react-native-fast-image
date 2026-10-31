@@ -44,9 +44,9 @@
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 252x66576 at 252x126": 1,
         "decode http://10.0.2.2:8090/picsum/1018-600x300.jpg 600x300 for 588x28532 at 588x294": 1,
         "decode http://10.0.2.2:8090/picsum/1020-120x120.jpg 120x120 for 2400x2400 at 120x120": 1,
-        "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 3,
+        "layout-state http://10.0.2.2:8090/picsum/1018-600x300.jpg 600.0x300.0 main": 4,
         "layout-state http://10.0.2.2:8090/picsum/1020-120x120.jpg 120.0x120.0 main": 1,
-        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 4,
+        "load http://10.0.2.2:8090/picsum/1018-600x300.jpg source main": 5,
         "load http://10.0.2.2:8090/picsum/1020-120x120.jpg source main": 1,
         "request /picsum/1018-600x300.jpg": 1,
         "request /picsum/1020-120x120.jpg": 1
