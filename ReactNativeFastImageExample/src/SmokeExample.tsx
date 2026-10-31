@@ -1782,6 +1782,23 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <AutoSizeCase
+                key="auto-size-padding-logical"
+                id="auto-size-padding-logical"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{
+                    width: 96,
+                    height: 'auto',
+                    paddingBlock: 8,
+                    paddingInline: 8,
+                }}
+                expected={{ width: 96, height: 48 }}
+                description={{
+                    checks: 'Padding is ignored, also paddingBlock and paddingInline (React Native keeps them apart from padding).',
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto', paddingBlock: 8, paddingInline: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                    shows: 'The photo at 96x48 on the left.',
+                }}
+            />,
+            <AutoSizeCase
                 key="auto-size-padding-natural"
                 id="auto-size-padding-natural"
                 source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
