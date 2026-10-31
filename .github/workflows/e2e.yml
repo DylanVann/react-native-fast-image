@@ -33,7 +33,8 @@ jobs:
   # can be merged). And chooses the iOS jobs: the main example's groups in 2 shards
   # (--shard), each a job that builds the app and runs half of them (by their
   # times in recent runs); the minimum example's smoke groups (SMOKE_GROUPS) in
-  # one; and, when a pull request changes the library's iOS or JS code, the
+  # one, followed by the Expo example's smoke cases on the web and iOS; and,
+  # when a pull request changes the library's iOS or JS code, the
   # regression cases (the tvOS example runs the main example's), the tvOS
   # example, its references, or how the cases run (and in a run by hand), the
   # tvOS example's groups in 2 shards. (At most 5 macOS jobs run at once.)
@@ -110,6 +111,7 @@ jobs:
             !/screenshots/*
             /screenshots/${{ matrix.app }}-ios/
             /screenshots/expo-web/
+            /screenshots/expo-ios/
             !/docs/
             !/website/
             !/benchmark/
@@ -238,14 +240,15 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: ${{ env.APP_DIR }}
       # Xcode's compilation cache (verify.mts), so builds reuse what earlier
-      # runs compiled.
+      # runs compiled. The minimum example's job also builds the Expo example
+      # (see "Run the Expo example on iOS"), so its key has that lockfile too.
       - name: "Restore Xcode's compilation cache"
         id: build
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
-          key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), matrix.app == 'minimum' && 'ReactNativeFastImageExampleExpo/bun.lock' || format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: ios-build-${{ matrix.app }}-
       # maestro-runner's WebDriverAgent build (for the touch group), kept in
       # its package.
@@ -257,14 +260,15 @@ jobs:
           path: node_modules/@devicelab/maestro-runner-darwin-arm64/cache
           key: ios-wda-${{ hashFiles('bun.lock') }}
       # Metro's transform cache (in TMPDIR), so the first bundle doesn't
-      # transform everything again.
+      # transform everything again (the Expo example's too, in the minimum
+      # example's job).
       - name: "Restore Metro's cache"
         id: metro
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ${{ runner.temp }}/tmp/metro-cache
-          key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR)) }}
+          key: metro-ios-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), matrix.app == 'minimum' && 'ReactNativeFastImageExampleExpo/bun.lock' || format('{0}/bun.lock', env.APP_DIR)) }}
           restore-keys: metro-ios-${{ matrix.app }}-
       # The groups' times in recent runs, so --shard splits them into halves
       # that take about as long (scripts/group-times.ts).
@@ -325,6 +329,15 @@ jobs:
         id: verifyweb
         if: ${{ !cancelled() && matrix.app == 'minimum' }}
         run: node scripts/verify.mts --app expo --web --no-js
+        env:
+          TMPDIR: ${{ runner.temp }}/tmp
+      # The Expo example on iOS (verify.mts --app expo --ios), after its web
+      # version: its native project from `expo prebuild` with Fast Image's
+      # config plugin, pod install, the build, and its smoke cases. A macOS
+      # job of its own would wait when the tvOS jobs run.
+      - name: 'Run the Expo example on iOS'
+        if: ${{ !cancelled() && matrix.app == 'minimum' }}
+        run: node scripts/verify.mts --app expo --ios --no-js
         env:
           TMPDIR: ${{ runner.temp }}/tmp
       - name: "Save the Expo example's dependencies and Playwright's Chromium"
@@ -485,13 +498,16 @@ jobs:
       # the minimum example's smoke groups (SMOKE_GROUPS) in one; and the main
       # example's smoke groups from the package as published (its files),
       # in a Release build (minified with R8, with the package's ProGuard
-      # rules). (At most 5 macOS jobs run at once.)
+      # rules); and the Expo example's smoke cases (its native project from
+      # `expo prebuild`, with Fast Image's config plugin). These run on Linux,
+      # so they don't count towards the 5 macOS jobs that run at once.
       matrix:
         include:
           - { app: main, shard: 1 }
           - { app: main, shard: 2 }
           - { app: minimum, shard: 1 }
           - { app: main, release: true }
+          - { app: expo, shard: 1 }
     name: android (${{ matrix.app }}, ${{ matrix.release && 'release' || matrix.shard }})
     env:
       JOB: ${{ matrix.app }}-${{ matrix.release && 'release' || matrix.shard }}
@@ -503,7 +519,7 @@ jobs:
       ANDROID_EMULATOR_GPU: swiftshader_indirect
       VERIFY_SPARSE_RECORDINGS: 1
       ANDROID_IMAGE: system-images;android-36;default;x86_64
-      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || 'ReactNativeFastImageExampleMinimum' }}
+      APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || matrix.app == 'expo' && 'ReactNativeFastImageExampleExpo' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -631,8 +647,18 @@ jobs:
       - name: Build the app and run its cases
         run: |
           mkdir -p "$TMPDIR"
-          node scripts/verify.mts --app ${{ matrix.app }} --android --no-js ${{ matrix.release && format('--release --package --groups {0}', env.SMOKE_GROUPS) || matrix.app == 'minimum' && format('--groups {0}', env.SMOKE_GROUPS) || format('--shard {0}/2', matrix.shard) }}
+          case "$APP-$RELEASE" in
+            main-true) args="--release --package --groups $SMOKE_GROUPS" ;;
+            minimum-*) args="--groups $SMOKE_GROUPS" ;;
+            # Its own smoke cases (SmokeExample.tsx).
+            expo-*) args= ;;
+            *) args="--shard $SHARD/2" ;;
+          esac
+          node scripts/verify.mts --app "$APP" --android --no-js $args
         env:
+          APP: ${{ matrix.app }}
+          SHARD: ${{ matrix.shard }}
+          RELEASE: ${{ matrix.release }}
           TMPDIR: ${{ runner.temp }}/tmp
           VERIFY_GROUP_TIMES: ${{ runner.temp }}/group-times.json
       # This job's group times, for later runs' shards (not the Release
