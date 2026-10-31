@@ -30,8 +30,25 @@ jobs:
       - run: bun run typecheck
       - run: bun run build:package
       - run: bun run test
+      # The example apps, as verify.mts's JS checks do (e2e.yml runs it with
+      # --no-js): their screens and the shared regression cases, and the
+      # library's source, which they type-check against their own React
+      # Native.
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: ReactNativeFastImageExample
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: ReactNativeFastImageExampleMinimum
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: ReactNativeFastImageExampleTV
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: ReactNativeFastImageExampleExpo
+      # The scripts and the image server, with the main example's TypeScript.
+      - run: ReactNativeFastImageExample/node_modules/.bin/tsc -p scripts
+      - run: ReactNativeFastImageExample/node_modules/.bin/tsc -p ReactNativeFastImageExampleServer
       # The README's props section is generated from the doc comments in src/.
-      - run: bun install --frozen-lockfile && bun run check
+      # Then the website as Cloudflare builds it from main, and its scripts'
+      # types (after the build, which generates Astro's).
+      - run: bun install --frozen-lockfile && bun run check && bun run build && node_modules/.bin/tsc --noEmit -p .
         working-directory: website
   release:
     if: github.repository == 'DylanVann/react-native-fast-image' && github.event_name == 'push' && github.ref == 'refs/heads/main'

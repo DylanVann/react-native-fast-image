@@ -1,6 +1,7 @@
 {
     // Type-checks the scripts with the main example's TypeScript and
-    // Node types (the repo root's are too old). Node runs the file directly.
+    // Node and Bun types (the repo root's are too old). Node runs verify.mts
+    // and regression-viewer.mts directly, Bun group-times.ts.
     "compilerOptions": {
         "target": "ES2024",
         "module": "ESNext",
@@ -11,7 +12,7 @@
         "erasableSyntaxOnly": true,
         "allowImportingTsExtensions": true,
         "typeRoots": ["../ReactNativeFastImageExample/node_modules/@types"],
-        "types": ["node"]
+        "types": ["node", "bun"]
     },
-    "files": ["verify.mts"]
+    "files": ["verify.mts", "regression-viewer.mts", "group-times.ts"]
 }
