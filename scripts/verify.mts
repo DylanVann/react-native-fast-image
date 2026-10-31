@@ -81,8 +81,9 @@ Options:
                       Replace the reference screenshots in screenshots/ with
                       this run's (and the groups' descriptions and work
                       counts); a missing reference is always seeded from
-                      the run, except with --ref. Look at them, then commit
-                      them with the change.
+                      the run, except with --ref (on CI, where it isn't
+                      committed, it also fails the run). Look at them, then
+                      commit them with the change.
   --record            Record the screen while the flows run. Each flow's
                       recording is saved in its report, and a copy sized for
                       a GitHub comment (needs ffmpeg) is written to
@@ -1427,8 +1428,8 @@ function pngSize(file: string) {
 // ignored), leaving out the areas the app masks (animated images, timings).
 // Up to SCREENSHOT_MAX_DIFF percent of the pixels may differ (of the case's
 // area, which catches smaller changes than the whole screen would). A missing
-// reference is seeded from the run (look at it before committing it);
-// --update-screenshots replaces them all. On a mismatch the diff is written
+// reference is seeded from the run (look at it before committing it), and
+// on CI fails it; --update-screenshots replaces them all. On a mismatch the diff is written
 // next to the screenshot in verify-output/.
 const SCREENSHOTS = path.join(ROOT, 'screenshots')
 // A phone's (ANDROID_SERIAL) are its own, screenshots/<app>-android-<model>,
@@ -3493,6 +3494,21 @@ async function runRegression(
         failures.push(...checked.failures)
         workSeeded = checked.seeded
     }
+    // On CI a missing reference fails the run: seeded there, it isn't
+    // committed, so every run would seed it again and pass without comparing
+    // the group with anything. The run's output has them, to look at and
+    // commit (regression-viewer.mts --pr; the work in the run's work.json).
+    if (env.CI && !UPDATE_SCREENSHOTS) {
+        const missing = [
+            ...seeded.map((name) => `${name}'s screenshot`),
+            ...descriptionsSeeded.map((group) => `${group}'s descriptions`),
+            ...workSeeded.map((group) => `${group}'s work`),
+        ]
+        if (missing.length > 0)
+            failures.push(
+                `no reference for ${missing.join(', ')} in ${rel(referenceDir(app, platform))}: commit them from this run's output`,
+            )
+    }
     const total = ((Date.now() - startedAt) / 1000).toFixed(1)
     fs.writeFileSync(
         path.join(dir, 'results.json'),
@@ -3550,6 +3566,12 @@ async function runRegression(
             `${indices.length} groups${SHARD ? ` (shard ${SHARD.index}/${SHARD.count})` : ''} in ${total}s${seededNote}`,
         )
     }
+    // Samples that passed unchecked, as a warning on the GitHub Actions run
+    // (and its pull request), which the job's log alone doesn't show.
+    if (env.GITHUB_ACTIONS && unchecked.length > 0)
+        console.log(
+            `::warning title=Samples not checked in ${name}::Their recordings couldn't show the change: ${unchecked.join(', ')}`,
+        )
 }
 
 // The work each group made Fast Image do: its image requests (the image
