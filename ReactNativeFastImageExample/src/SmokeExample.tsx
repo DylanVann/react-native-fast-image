@@ -1226,6 +1226,44 @@ function AutoSizeChangeDecodeCase({
     )
 }
 
+// An image with style { width: 'auto', height: 64 } in a column, whose width
+// the column stretches (240): its source changes from a square photo to a
+// 1600x1000 page of text, which is decoded to cover the stretched view, not
+// only for its height (the width doesn't follow the image there), and is
+// sharp. The work counts show the box it's decoded for.
+function AutoSizeStretchedChangeCase() {
+    const [changed, setChanged] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={{ marginBottom: 12, width: 240 }}>
+            <FastImage
+                source={{
+                    uri: imageUrl(
+                        changed
+                            ? `text-page.png?auto-size-stretched-change=${RUN}`
+                            : `picsum/1020-120x120.jpg?auto-size-stretched-change=${RUN}`,
+                    ),
+                }}
+                style={{ width: 'auto', height: 64 }}
+                onLoad={() =>
+                    changed
+                        ? setTimeout(() => setLoaded(true), 1000)
+                        : setTimeout(() => setChanged(true), 300)
+                }
+            />
+            <CaseStatus
+                id="auto-size-stretched-change"
+                status={loaded ? 'OK' : 'waiting'}
+                description={{
+                    checks: "An image whose 'auto' width a column stretches, whose source changes, is decoded to cover the view, not only for its height: the width doesn't follow the image there.",
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 64 } in a 240-point-wide column (stretched to 240x64), and 300 ms after onLoad changes the source to a 1600x1000 page of text. Passes 1 s after its onLoad; the work counts show the box it was decoded for.",
+                    shows: 'A sharp 240x64 strip from the middle of the text page. Blurry text is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A single bundled image (no style needed: its own size lays it out) whose
 // source changes to a url with both sides 'auto': while the url loads, the
 // view keeps the bundled image's size in points, as it had, not its pixels.
@@ -1400,13 +1438,19 @@ function AutoSizeDeclaredCase() {
     )
 }
 
-// Four images with only a width and objectFit contain, each a quarter pixel
-// lower than the one before. A 336x201 image 64 points wide is 100.5 pixels
-// high on Android (2.625 pixels a point): the layout rounds that up or down
-// with the view's position, so in some of them it differs from the decoded
-// bitmap's height by a pixel, which is the same image. The work counts show
-// whether it's decoded again for them.
-function AutoSizeContainRoundingCase() {
+// Four images with only a width and objectFit contain (or fill), each a
+// quarter pixel lower than the one before. A 336x201 image 64 points wide is
+// 100.5 pixels high on Android (2.625 pixels a point): the layout rounds that
+// up or down with the view's position, so in some of them it differs from the
+// decoded bitmap's height by a pixel, which is the same image. The work counts
+// show whether it's decoded again for them.
+function AutoSizeRoundingCase({
+    id,
+    objectFit,
+}: {
+    id: string
+    objectFit: 'contain' | 'fill'
+}) {
     const [loaded, setLoaded] = useState<Set<number>>(new Set())
     const [layouts, setLayouts] = useState<
         Record<number, { width: number; height: number }>
@@ -1437,16 +1481,14 @@ function AutoSizeContainRoundingCase() {
                     <FastImage
                         key={i}
                         source={{
-                            uri: imageUrl(
-                                `odd-height.png?auto-size-contain-rounding=${RUN}`,
-                            ),
+                            uri: imageUrl(`odd-height.png?${id}=${RUN}`),
                         }}
                         style={{
                             width: 64,
                             height: 'auto',
                             marginTop: i / 4 / PixelRatio.get(),
                         }}
-                        objectFit="contain"
+                        objectFit={objectFit}
                         onLoad={() => setLoaded((done) => new Set(done).add(i))}
                         onLayout={(e) => {
                             const { width, height } = e.nativeEvent.layout
@@ -1459,11 +1501,11 @@ function AutoSizeContainRoundingCase() {
                 ))}
             </View>
             <CaseStatus
-                id="auto-size-contain-rounding"
+                id={id}
                 status={status}
                 description={{
-                    checks: "Images with only a width and objectFit contain whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.",
-                    steps: "Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit contain, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.",
+                    checks: `Images with only a width and objectFit ${objectFit} whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.`,
+                    steps: `Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit ${objectFit}, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.`,
                     shows: 'Four 64-point-wide images side by side, each magenta over cyan.',
                 }}
             />
@@ -1842,7 +1884,11 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                 }}
             />,
             <AutoSizeGrowCase key="auto-size-grow" />,
-            <AutoSizeContainRoundingCase key="auto-size-contain-rounding" />,
+            <AutoSizeRoundingCase
+                key="auto-size-contain-rounding"
+                id="auto-size-contain-rounding"
+                objectFit="contain"
+            />,
             // Not on the web (see auto-size-border).
             ...(Platform.OS === 'web'
                 ? []
@@ -1979,6 +2025,37 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                   ]),
             <AutoSizeSourcesCase key="auto-size-sources" />,
             <AutoSizeFailedCase key="auto-size-failed" />,
+        ],
+    },
+    {
+        name: 'auto-size-decodes',
+        description: {
+            checks: "#436, continued: the size an image is decoded for when an 'auto' side is stretched, both sides are 'auto' with a large image, and a fill image's height rounds off the decoded one's.",
+        },
+        cases: [
+            <AutoSizeStretchedChangeCase key="auto-size-stretched-change" />,
+            <AutoSizeCase
+                key="auto-size-natural-large"
+                id="auto-size-natural-large"
+                source={{
+                    uri: imageUrl(
+                        `picsum/1015-2048x2048.jpg?auto-size-natural-large=${RUN}`,
+                    ),
+                }}
+                style={{ width: 'auto', height: 'auto' }}
+                container={{ width: 240 }}
+                expected={{ width: 240, height: 240 }}
+                description={{
+                    checks: "A large image with both sides 'auto' in less space than its size is decoded for the size it gets, not kept at its full size.",
+                    steps: "Loads a 2048x2048 photo with style { width: 'auto', height: 'auto' } in a 240-point-wide row. Passes once it has loaded and its layout is 240x240; the work counts show the sizes it was decoded at.",
+                    shows: 'The photo at 240x240 on the left.',
+                }}
+            />,
+            <AutoSizeRoundingCase
+                key="auto-size-fill-rounding"
+                id="auto-size-fill-rounding"
+                objectFit="fill"
+            />,
         ],
     },
     {
