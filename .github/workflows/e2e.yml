@@ -331,15 +331,39 @@ jobs:
         run: node scripts/verify.mts --app expo --web --no-js
         env:
           TMPDIR: ${{ runner.temp }}/tmp
+      # React Native's and CocoaPods' downloads for the Expo example's pod
+      # install (its prebuilt React Native, Debug and Release): most of its
+      # time without them.
+      - name: "Restore the Expo example's React Native and CocoaPods downloads"
+        id: expodownloads
+        if: ${{ !cancelled() && matrix.app == 'minimum' }}
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            ~/Library/Caches/ReactNative
+            ~/Library/Caches/CocoaPods
+          key: ios-downloads-expo-${{ hashFiles('ReactNativeFastImageExampleExpo/bun.lock') }}
+          restore-keys: ios-downloads-expo-
       # The Expo example on iOS (verify.mts --app expo --ios), after its web
       # version: its native project from `expo prebuild` with Fast Image's
       # config plugin, pod install, the build, and its smoke cases. A macOS
       # job of its own would wait when the tvOS jobs run.
       - name: 'Run the Expo example on iOS'
+        id: verifyexpo
         if: ${{ !cancelled() && matrix.app == 'minimum' }}
         run: node scripts/verify.mts --app expo --ios --no-js
         env:
           TMPDIR: ${{ runner.temp }}/tmp
+      - name: "Save the Expo example's React Native and CocoaPods downloads"
+        if: always() && env.R2_WRITE == 'true' && matrix.app == 'minimum' && steps.verifyexpo.outcome == 'success' && steps.expodownloads.outputs.cache-hit != 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: |
+            ~/Library/Caches/ReactNative
+            ~/Library/Caches/CocoaPods
+          key: ${{ steps.expodownloads.outputs.cache-primary-key }}
       - name: "Save the Expo example's dependencies and Playwright's Chromium"
         if: always() && env.R2_WRITE == 'true' && matrix.app == 'minimum' && steps.verifyweb.outcome == 'success' && steps.web.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
