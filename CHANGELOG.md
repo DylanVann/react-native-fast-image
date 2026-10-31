@@ -1,3 +1,10 @@
+# [10.10.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.13...v10.10.0) (2026-10-31)
+
+
+### Features
+
+* auto size images from the image's size with width or height 'auto' ([#1409](https://github.com/DylanVann/react-native-fast-image/issues/1409)) ([ccdf24e](https://github.com/DylanVann/react-native-fast-image/commit/ccdf24e2ea870d6302bfafd7931e2a70aee03878)), closes [#436](https://github.com/DylanVann/react-native-fast-image/issues/436) [#1405](https://github.com/DylanVann/react-native-fast-image/issues/1405)
+
 ## [10.9.13](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.12...v10.9.13) (2026-10-30)
 
 
