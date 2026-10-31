@@ -12,13 +12,7 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import {
-    NO_PADDING,
-    openSides,
-    ownSize,
-    readStyle,
-    resolveObjectFit,
-} from './objectFit'
+import { openSides, ownSize, readStyle, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
@@ -1164,8 +1158,9 @@ function FastImageBase({
             {...resolveAriaProps(props)}
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
-            // Image does.
-            style={[styles.image, style, NO_PADDING]}
+            // Image does. (The shadow node clears the style's padding, see
+            // FastImageViewComponentDescriptor.)
+            style={[styles.image, style]}
             // null (no key) as undefined, which the native prop takes.
             recyclingKey={props.recyclingKey ?? undefined}
             loopCount={loopCount(loop)}
@@ -1175,9 +1170,10 @@ function FastImageBase({
             )}
             source={resolvedSource}
             placeholder={resolvedPlaceholder}
-            autoSize={(open.width ? 1 : 0) | (open.height ? 2 : 0)}
-            ownWidth={own?.width ?? 0}
-            ownHeight={own?.height ?? 0}
+            // Left out when 0 (their native default), as for most images.
+            autoSize={(open.width ? 1 : 0) | (open.height ? 2 : 0) || undefined}
+            ownWidth={own?.width}
+            ownHeight={own?.height}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

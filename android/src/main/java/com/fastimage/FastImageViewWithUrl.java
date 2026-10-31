@@ -335,7 +335,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // The box inside the borders, where a side the style leaves open
     // (autoSize) is 0 until an image has loaded (the layout has no padding,
-    // see NO_PADDING in src/objectFit.ts). The view's size and its borders
+    // see FastImageViewComponentDescriptor). The view's size and its borders
     // are floored to whole pixels apart, so a side that's only borders can be
     // a pixel inside them: less than 2 counts as 0.
     private int layoutContentWidth() {

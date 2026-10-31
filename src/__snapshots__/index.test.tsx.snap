@@ -2,7 +2,6 @@
 
 exports[`FastImage (iOS) renders 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -10,8 +9,6 @@ exports[`FastImage (iOS) renders 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   placeholder={null}
   ref={[Function anonymous]}
   source={
@@ -32,23 +29,6 @@ exports[`FastImage (iOS) renders 1`] = `
         "height": 44,
         "width": 44,
       },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
-      },
     ]
   }
   transitionBetweenImages={false}
@@ -59,7 +39,6 @@ exports[`FastImage (iOS) renders 1`] = `
 
 exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -67,8 +46,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   placeholder={null}
   ref={[Function anonymous]}
   source={
@@ -85,23 +62,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
         "height": 44,
         "width": 44,
       },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
-      },
     ]
   }
   transitionBetweenImages={false}
@@ -112,7 +72,6 @@ exports[`FastImage (iOS) renders a normal Image when not passed a uri 1`] = `
 
 exports[`FastImage (iOS) renders defaultSource 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -120,8 +79,6 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   placeholder={
     {
       "testUri": "ReactNativeFastImageExample/src/images/jellyfish.gif",
@@ -138,23 +95,6 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
         "height": 44,
         "width": 44,
       },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
-      },
     ]
   }
   transitionBetweenImages={false}
@@ -165,7 +105,6 @@ exports[`FastImage (iOS) renders defaultSource 1`] = `
 
 exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -173,8 +112,6 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   ref={[Function anonymous]}
   source={null}
   style={
@@ -186,23 +123,6 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
         "height": 44,
         "width": 44,
       },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
-      },
     ]
   }
   transitionBetweenImages={false}
@@ -213,7 +133,6 @@ exports[`FastImage (Android) renders a normal defaultSource 1`] = `
 
 exports[`FastImage (Android) renders a normal defaultSource when fails to load source 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -221,8 +140,6 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   ref={[Function anonymous]}
   source={
     {
@@ -238,23 +155,6 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
         "height": 44,
         "width": 44,
       },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
-      },
     ]
   }
   transitionBetweenImages={false}
@@ -265,7 +165,6 @@ exports[`FastImage (Android) renders a normal defaultSource when fails to load s
 
 exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
 "<FastImageView
-  autoSize={0}
   handledEvents={0}
   loopCount={-1}
   objectFit="cover"
@@ -273,8 +172,6 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
   objectPositionXOffset={0}
   objectPositionY={0.5}
   objectPositionYOffset={0}
-  ownHeight={0}
-  ownWidth={0}
   placeholder={null}
   ref={[Function anonymous]}
   source={null}
@@ -286,23 +183,6 @@ exports[`FastImage (Android) renders a non-existing defaultSource 1`] = `
       {
         "height": 44,
         "width": 44,
-      },
-      {
-        "padding": 0,
-        "paddingBlock": 0,
-        "paddingBlockEnd": 0,
-        "paddingBlockStart": 0,
-        "paddingBottom": 0,
-        "paddingEnd": 0,
-        "paddingHorizontal": 0,
-        "paddingInline": 0,
-        "paddingInlineEnd": 0,
-        "paddingInlineStart": 0,
-        "paddingLeft": 0,
-        "paddingRight": 0,
-        "paddingStart": 0,
-        "paddingTop": 0,
-        "paddingVertical": 0,
       },
     ]
   }

@@ -12,8 +12,8 @@ const char FastImageViewComponentName[] = "FastImageView";
 // Yoga only asks for a side the style leaves open: a set width (or one from
 // the parent, e.g. stretched) comes as minimum = maximum, an open one as 0 to
 // the space there is (or infinity). Its sizes are the box inside the borders,
-// which the image fills (padding is always 0, see NO_PADDING in
-// src/objectFit.ts).
+// which the image fills (padding is always 0, see
+// FastImageViewComponentDescriptor).
 Size FastImageViewShadowNode::measureContent(
     const LayoutContext & /*layoutContext*/,
     const LayoutConstraints &layoutConstraints) const

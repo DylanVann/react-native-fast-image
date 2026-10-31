@@ -26,7 +26,6 @@ import FastImage, {
 } from './index'
 import { commands } from '../test/react-native'
 import { ARIA_KEYS, resolveAriaProps } from './ariaProps'
-import { NO_PADDING } from './objectFit'
 
 const style = StyleSheet.create({ image: { width: 44, height: 44 } })
 
@@ -127,10 +126,11 @@ describe('FastImage (iOS)', () => {
         expect(autoSize({ width: 'auto', height: 'auto' })).toBe(3)
         expect(autoSize({ width: 240, height: 'auto' })).toBe(2)
         expect(autoSize({ width: 'auto', height: 64 })).toBe(1)
-        // Opt-in: a side left out stays 0, as with React Native's Image.
-        expect(autoSize({})).toBe(0)
-        expect(autoSize({ width: 240 })).toBe(0)
-        expect(autoSize({ width: 240, height: 120 })).toBe(0)
+        // Opt-in: a side left out stays 0, as with React Native's Image. (0
+        // is left out, the native default.)
+        expect(autoSize({})).toBeUndefined()
+        expect(autoSize({ width: 240 })).toBeUndefined()
+        expect(autoSize({ width: 240, height: 120 })).toBeUndefined()
         // A later style's undefined clears an earlier side, as
         // StyleSheet.flatten does.
         expect(
@@ -143,7 +143,7 @@ describe('FastImage (iOS)', () => {
         // aspectRatio sets the other side.
         expect(
             autoSize({ width: '100%', height: 'auto', aspectRatio: 16 / 9 }),
-        ).toBe(0)
+        ).toBeUndefined()
         expect(autoSize({ width: 'auto', aspectRatio: 1 })).toBe(1)
         // An absolutely positioned view's insets set both.
         expect(
@@ -151,7 +151,7 @@ describe('FastImage (iOS)', () => {
                 StyleSheet.absoluteFill,
                 { width: 'auto', height: 'auto' },
             ]),
-        ).toBe(0)
+        ).toBeUndefined()
     })
 
     it("gives the shadow node a single source's own size, instead of the loaded image's", () => {
@@ -168,23 +168,24 @@ describe('FastImage (iOS)', () => {
             height: 30,
         }
         // The shadow node lays the open sides out from it from the start, so
-        // the view doesn't send the image's size (autoSize 0), and the style
+        // the view doesn't send the image's size (no autoSize), and the style
         // stays as it is.
         const own = render(sized, { width: 240 })
         expect(own.props.ownWidth).toBe(60)
         expect(own.props.ownHeight).toBe(30)
-        expect(own.props.autoSize).toBe(0)
+        expect(own.props.autoSize).toBeUndefined()
         expect(StyleSheet.flatten(own.props.style).aspectRatio).toBeUndefined()
-        // Without both sizes, or with several sources: from the loaded image.
+        // Without both sizes, or with several sources: from the loaded image
+        // (no own size).
         const both = { width: 'auto', height: 'auto' } as const
         const noHeight = render({ uri: sized.uri, width: 60 }, both)
-        expect(noHeight.props.ownWidth).toBe(0)
+        expect(noHeight.props.ownWidth).toBeUndefined()
         expect(noHeight.props.autoSize).toBe(3)
         const several = render(
             [sized, { ...sized, uri: 'https://example.com/b.png' }],
             both,
         )
-        expect(several.props.ownWidth).toBe(0)
+        expect(several.props.ownWidth).toBeUndefined()
         expect(several.props.autoSize).toBe(3)
     })
 
@@ -244,14 +245,14 @@ describe('FastImage (iOS)', () => {
         expect(tree.props.pointerEvents).toBe('box-none')
         expect(tree.props.onLayout).toBe(onLayout)
         expect(tree.props.accessibilityLabel).toBe('a cat')
-        // Clips the image by default, as React Native's Image does, and
-        // ignores padding.
+        // Clips the image by default, as React Native's Image does. Padding
+        // passes through: the shadow node ignores it.
         expect(StyleSheet.flatten(tree.props.style)).toEqual({
             overflow: 'hidden',
+            padding: 8,
             width: 44,
             height: 44,
             borderRadius: 4,
-            ...NO_PADDING,
         })
     })
 

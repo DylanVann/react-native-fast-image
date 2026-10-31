@@ -135,7 +135,9 @@ export function openSides(
 }
 
 // Padding doesn't inset the image (it fills the view inside its borders), so
-// it isn't laid out either: after the style, every padding is 0.
+// it isn't laid out either: after the style, every padding is 0. (On the web;
+// the native views' shadow node clears it, see
+// FastImageViewComponentDescriptor.)
 export const NO_PADDING = {
     padding: 0,
     paddingHorizontal: 0,
