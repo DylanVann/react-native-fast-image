@@ -45,6 +45,7 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.target.CustomViewTarget;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
@@ -1401,6 +1402,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // (downsample false).
     private boolean shownCropped(Drawable drawable) {
         return mLayoutScaleType == ScaleType.CENTER_CROP && !mLayoutPixelated && mLayoutDownsampled
+                && !mShownUnsized && !mShownUncropped
                 && drawable != mShownPlaceholder
                 && (drawable instanceof BitmapDrawable || drawable instanceof GifDrawable);
     }
@@ -1945,7 +1947,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 // Loaded before the view had a size, no larger than the
                 // image's own size: a view at that size (in dp) gets nothing
                 // more from loading it again.
-                && !(mShownUnsized && atImageSize(width, height))
+                && !(mShownUnsized && mShownBitmapWidth == mImageWidth && mShownBitmapHeight == mImageHeight
+                        && atImageSize(width, height))
                 // The whole image, with a fit that doesn't scale it up: a
                 // larger view gets the same again. Not a blurred one the view
                 // scales (any fit but scale-down and none): its blur is for
@@ -2279,26 +2282,48 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             // Glide's size for the view, which it has at once for a view that
             // has one (or is laid out without one), and otherwise after
             // layout, as Glide would ask for it.
-            final Drawable shownCopy = meanwhile;
-            final boolean switchingSource = switching;
+            // Meanwhile it's no load, quiet or ended (see reblur).
+            mLoadingQuietly = false;
+            mLoadEnded = false;
             final int load = mLoadCount;
-            final OwnGifTarget sizeTarget = new OwnGifTarget(null);
-            mSizeTarget = sizeTarget;
-            sizeTarget.getSize(new SizeReadyCallback() {
+            if (mSizeWait != null) mSizeWait.onLoadCleared(null);
+            final SizeWait sizeWait = new SizeWait();
+            mSizeWait = sizeWait;
+            sizeWait.getSize(new SizeReadyCallback() {
                 @Override
                 public void onSizeReady(int width, int height) {
-                    if (mSizeTarget == sizeTarget) mSizeTarget = null;
+                    if (mSizeWait == sizeWait) mSizeWait = null;
                     if (load != mLoadCount || mDropped) return;
-                    startLoad(base, model, imageSource, shownRequest, shownCopy, switchingSource);
+                    startLoad(base, model, imageSource, shownRequest, meanwhile, switching);
                 }
             });
         }
     }
 
-    // The target a load waits on for the view's size (see onAfterUpdate):
-    // Glide's layout listener only holds it weakly.
+    // The target a load waits on for the view's size (see onAfterUpdate),
+    // held by the view since Glide's layout listener only holds it weakly.
     @Nullable
-    private OwnGifTarget mSizeTarget;
+    private SizeWait mSizeWait;
+
+    // Glide's size for the view, as a request's target gets it, without
+    // loading anything. onLoadCleared stops waiting.
+    private final class SizeWait extends CustomViewTarget<FastImageViewWithUrl, Object> {
+        SizeWait() {
+            super(FastImageViewWithUrl.this);
+        }
+
+        @Override
+        public void onResourceReady(@NonNull Object resource, @Nullable Transition<? super Object> transition) {
+        }
+
+        @Override
+        public void onLoadFailed(@Nullable Drawable errorDrawable) {
+        }
+
+        @Override
+        protected void onResourceCleared(@Nullable Drawable placeholder) {
+        }
+    }
 
     // Starts the load onAfterUpdate made the base request for, once the view's
     // size is known.

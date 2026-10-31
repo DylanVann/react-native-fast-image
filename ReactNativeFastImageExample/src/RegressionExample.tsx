@@ -7897,6 +7897,99 @@ function DownsampleHiddenPixelatedCase() {
     )
 }
 
+// A view with a width (48, stretched) but no height until its image loads,
+// then sized to the image's own size (200x200) from onLoad: loaded while it
+// had no height, the image was decoded for its width (no larger than its own
+// size), so it's decoded again for its own size, sharp, not kept at the
+// width's size and scaled up.
+function DownsampleNaturalSizeCase() {
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    const [laidOut, setLaidOut] = useState(false)
+    return (
+        <View
+            style={{
+                flexDirection: 'row',
+                width: 200,
+                height: 200,
+                marginBottom: 12,
+            }}
+        >
+            <View style={{ width: 48 }}>
+                <FastImage
+                    style={size}
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1025-200x200.jpg?downsample-natural-size=${RUN}`,
+                        ),
+                    }}
+                    onLayout={(e) => {
+                        if (Math.abs(e.nativeEvent.layout.height - 200) < 0.5)
+                            setLaidOut(true)
+                    }}
+                    onLoad={(e) =>
+                        setSize({
+                            width: e.nativeEvent.width,
+                            height: e.nativeEvent.height,
+                        })
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="downsample-natural-size"
+                status={laidOut ? 'OK' : 'waiting'}
+                description={{
+                    checks: "An image in a view with a width but no height until it loads, then sized to the image's own size from onLoad, is decoded again for that size, not kept at the size it was decoded at for the width.",
+                    steps: "Loads a 200x200 photo with no style in a 48-point-wide View (its width stretched, 0 high); onLoad sizes it to the image's width and height (200x200). Passes once it has been laid out 200 high; the work counts show the sizes it was decoded at.",
+                    shows: 'A sharp 200x200 photo of a pug. A blurry one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A cover image with objectPosition { bottom: 4 } under a display: none
+// parent, shown 1.5 s after it mounts, next to the same image always shown:
+// once shown it's drawn 4 points above the bottom, as the other one is.
+function DownsampleHiddenPositionCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    const image = (name: string) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: 48, height: 24, marginRight: 8 }}
+            objectPosition={{ bottom: 4 }}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                {image('downsample-hidden-position')}
+            </View>
+            {image('downsample-shown-position')}
+            <CaseStatus
+                id="downsample-hidden-position"
+                status={status}
+                description={{
+                    checks: 'A cover image with objectPosition under a display: none parent is drawn at its position once shown, as one that was always shown is.',
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectPosition { bottom: 4 } (cover) into two 48x24 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.',
+                    shows: 'Two identical 48x24 strips: the bottom of the red and green quadrants over the top of the blue and yellow ones, the line between them 4 points above the middle. A left one with the line in the middle is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A blurred image with objectFit scale-down in a view that grows in three
 // steps: it's shown at its own size in all of them, so it isn't decoded again
 // for each. The work counts show its reloads.
@@ -11372,19 +11465,29 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'downsampling-reload',
         description: {
-            checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, one under a display: none parent, a GIF, a preload in flight, and the order images start in.',
+            checks: 'downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in.',
         },
         cases: [
             <DownsampleDetailCase key="downsample-detail" />,
             <DownsampleGrowCase key="downsample-grow" />,
             <DownsampleNoSizeCase key="downsample-no-size" />,
+            <DownsampleGifCase key="downsample-gif" />,
+            <DownsamplePreloadingCase key="downsample-preloading" />,
+            <DownsampleOrderCase key="downsample-order" />,
+        ],
+    },
+    {
+        name: 'downsample-hidden',
+        description: {
+            checks: "#1405: images in views laid out without a size (under a display: none parent, plain, blurred, pixelated and with objectPosition, or sized from onLoad to the image's own size) are decoded no larger than their own size and again for the size they get, and a blurred scale-down image in a growing view isn't decoded again.",
+        },
+        cases: [
             <DownsampleHiddenCase key="downsample-hidden" />,
             <DownsampleHiddenBlurCase key="downsample-hidden-blur" />,
             <DownsampleHiddenPixelatedCase key="downsample-hidden-pixelated" />,
             <DownsampleBlurGrowCase key="downsample-blur-grow" />,
-            <DownsampleGifCase key="downsample-gif" />,
-            <DownsamplePreloadingCase key="downsample-preloading" />,
-            <DownsampleOrderCase key="downsample-order" />,
+            <DownsampleNaturalSizeCase key="downsample-natural-size" />,
+            <DownsampleHiddenPositionCase key="downsample-hidden-position" />,
         ],
     },
     {

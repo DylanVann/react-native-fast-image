@@ -870,7 +870,7 @@
     },
     "downsampling-reload": {
         "description": {
-            "checks": "downsample decoding an image again or sharing its download: larger and growing views, a view without a size, one under a display: none parent, a GIF, a preload in flight, and the order images start in."
+            "checks": "downsample decoding an image again or sharing its download: larger and growing views, a view without a size, a GIF, a preload in flight, and the order images start in."
         },
         "cases": {
             "downsample-detail": {
@@ -888,6 +888,28 @@
                 "steps": "Loads a 600x300 photo with downsample and no style, inside a 48-point gray square; onLoad sizes it 48 wide and 24 tall. Passes once it has been laid out with a width.",
                 "shows": "A photo of green hills across the top half of the gray square, gray below. An empty gray square is a failure."
             },
+            "downsample-gif": {
+                "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
+                "steps": "Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.",
+                "shows": "The jellyfish cropped to the small square; animated, so it isn't compared."
+            },
+            "downsample-preloading": {
+                "checks": "downsample: a view of an image that's still being preloaded shares the preload's download, decodes it to cover the view (cropped, not stretched), and onLoad reports its full size (iOS downloaded it again).",
+                "steps": "Preloads a 1600x1000 page of text from the slow server (about a second); once the server has the request, a 40x96 view with downsample loads the same source. Passes when onLoad reports 1600x1000 and the server got one request.",
+                "shows": "A tall crop of the middle of the page, the text at its usual shape. Squashed text (the page stretched to the tall view) is a failure."
+            },
+            "downsample-order": {
+                "checks": "downsample: images mounted together start loading in the order of their views, left to right (iOS started them as UIKit laid the views out, last first).",
+                "steps": "Mounts six 32-point cells, each with an image filling it, of a 2048x2048 photo at six new urls, with downsample. Passes once all six have started and loaded, and, on iOS with the New Architecture, their onLoadStart events came left to right (Android loads in another order, so the order is only checked on iOS).",
+                "shows": "Six small copies of a photo of orange rocks under a cloudy sky, in a row."
+            }
+        }
+    },
+    "downsample-hidden": {
+        "description": {
+            "checks": "#1405: images in views laid out without a size (under a display: none parent, plain, blurred, pixelated and with objectPosition, or sized from onLoad to the image's own size) are decoded no larger than their own size and again for the size they get, and a blurred scale-down image in a growing view isn't decoded again."
+        },
+        "cases": {
             "downsample-hidden": {
                 "checks": "An image under a display: none parent (laid out at 0x0) is decoded no larger than its own size while hidden, not scaled up to a square the screen's length, and isn't decoded again once shown.",
                 "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show the boxes it was decoded for.",
@@ -908,20 +930,15 @@
                 "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit=\"scale-down\" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48. Passes once it has; the work counts show its reloads.",
                 "shows": "Blurred red, green, blue and yellow quadrants at their own size (20x20), centered in a 48x48 view."
             },
-            "downsample-gif": {
-                "checks": "downsample: an animated GIF loads and plays, and onLoad reports its own size.",
-                "steps": "Loads a 500x281 GIF of a jellyfish into a 32-point view with downsample. Passes when onLoad reports 500x281.",
-                "shows": "The jellyfish cropped to the small square; animated, so it isn't compared."
+            "downsample-natural-size": {
+                "checks": "An image in a view with a width but no height until it loads, then sized to the image's own size from onLoad, is decoded again for that size, not kept at the size it was decoded at for the width.",
+                "steps": "Loads a 200x200 photo with no style in a 48-point-wide View (its width stretched, 0 high); onLoad sizes it to the image's width and height (200x200). Passes once it has been laid out 200 high; the work counts show the sizes it was decoded at.",
+                "shows": "A sharp 200x200 photo of a pug. A blurry one is a failure."
             },
-            "downsample-preloading": {
-                "checks": "downsample: a view of an image that's still being preloaded shares the preload's download, decodes it to cover the view (cropped, not stretched), and onLoad reports its full size (iOS downloaded it again).",
-                "steps": "Preloads a 1600x1000 page of text from the slow server (about a second); once the server has the request, a 40x96 view with downsample loads the same source. Passes when onLoad reports 1600x1000 and the server got one request.",
-                "shows": "A tall crop of the middle of the page, the text at its usual shape. Squashed text (the page stretched to the tall view) is a failure."
-            },
-            "downsample-order": {
-                "checks": "downsample: images mounted together start loading in the order of their views, left to right (iOS started them as UIKit laid the views out, last first).",
-                "steps": "Mounts six 32-point cells, each with an image filling it, of a 2048x2048 photo at six new urls, with downsample. Passes once all six have started and loaded, and, on iOS with the New Architecture, their onLoadStart events came left to right (Android loads in another order, so the order is only checked on iOS).",
-                "shows": "Six small copies of a photo of orange rocks under a cloudy sky, in a row."
+            "downsample-hidden-position": {
+                "checks": "A cover image with objectPosition under a display: none parent is drawn at its position once shown, as one that was always shown is.",
+                "steps": "Loads a 20x20 image of red, green, blue and yellow quadrants with objectPosition { bottom: 4 } (cover) into two 48x24 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.",
+                "shows": "Two identical 48x24 strips: the bottom of the red and green quadrants over the top of the blue and yellow ones, the line between them 4 points above the middle. A left one with the line in the middle is a failure."
             }
         }
     },
