@@ -1397,11 +1397,13 @@ function AutoSizeDeclaredCase() {
     const [layouts, setLayouts] = useState<string[]>([])
     const [loaded, setLoaded] = useState<number>()
     const before = loaded === undefined ? layouts : layouts.slice(0, loaded)
+    // On the web the image loads at once, and onLayout (a ResizeObserver,
+    // after paint) can come after onLoad: there only the layouts are checked.
+    const laidOutBefore = before.length > 0 || Platform.OS === 'web'
     const status =
         loaded === undefined
             ? 'waiting'
-            : before.length > 0 &&
-                layouts.every((layout) => layout === '128x64')
+            : laidOutBefore && layouts.every((layout) => layout === '128x64')
               ? 'OK'
               : `layouts ${layouts.join(', ') || 'none'} (${before.length} before onLoad), expected 128x64`
     return (
@@ -1443,7 +1445,7 @@ function AutoSizeDeclaredCase() {
                 status={status}
                 description={{
                     checks: "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
-                    steps: 'Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad, was 128x64.',
+                    steps: 'Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad (not on the web, where onLayout can come after it), was 128x64.',
                     shows: 'The photo at 128x64 on the left.',
                 }}
             />

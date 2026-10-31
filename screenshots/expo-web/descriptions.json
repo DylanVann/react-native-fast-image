@@ -181,7 +181,7 @@
             },
             "auto-size-declared": {
                 "checks": "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
-                "steps": "Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad, was 128x64.",
+                "steps": "Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad (not on the web, where onLayout can come after it), was 128x64.",
                 "shows": "The photo at 128x64 on the left."
             }
         }
