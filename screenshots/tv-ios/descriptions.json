@@ -671,6 +671,33 @@
             }
         }
     },
+    "large-view": {
+        "description": {
+            "checks": "An image in a view far larger than the screen shows: a still image, one cross-dissolving to a new source, a GIF and a placeholder url."
+        },
+        "cases": {
+            "large-view": {
+                "checks": "An image in a view far larger than the screen shows (on Android its bitmap was the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "Loads a 20x20 image of four colored squares into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
+            },
+            "large-view-fade": {
+                "checks": "transition's betweenImages in a view far larger than the screen (on Android the fade copied what the view showed into a bitmap the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "The large-view case, with transition { duration: 300, betweenImages: true }: once the image loads, its source changes to the same image at another url, which cross-dissolves from it. Passes once both have loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
+            },
+            "large-view-gif": {
+                "checks": "A GIF in a view far larger than the screen shows (on Android each frame was cropped to the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "Loads an 80x80 GIF that plays once, magenta then cyan, into a 2400x2400 view with cover, drawn 20 times smaller with a transform. Passes once it has loaded (and a moment more).",
+                "shows": "A 120x120 cyan square. The app closing is a failure."
+            },
+            "large-view-placeholder": {
+                "checks": "A placeholder url in a view far larger than the screen shows while the image loads (on Android it was loaded at the view's size, about 160 MB, and the app crashed drawing it).",
+                "steps": "The large-view case, with the image from the slow server (about 4 s) and a placeholder url of the logo, which shows meanwhile. Passes once the image has loaded (and a moment more).",
+                "shows": "A 120x120 square of four colors: red, green, blue and yellow quadrants. The app closing is a failure."
+            }
+        }
+    },
     "downsample-from-disk": {
         "description": {
             "checks": "downsample={false} decodes at full size an image that's on disk but not in memory while a downsampled view of it loads."

@@ -77,7 +77,7 @@ const platformList = (platforms: Platforms) =>
 
 // By where they're declared: line, then column (an object type's fields can
 // share a line).
-const bySource = (a: J.Reflection, b: J.Reflection) =>
+const bySource = (a: J.DeclarationReflection, b: J.DeclarationReflection) =>
     (a.sources?.[0]?.line ?? 0) - (b.sources?.[0]?.line ?? 0) ||
     (a.sources?.[0]?.character ?? 0) - (b.sources?.[0]?.character ?? 0)
 
