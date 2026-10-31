@@ -2259,6 +2259,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (several || mAutoSize != 0) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
+                // A load still waiting for the size (a previous source's) isn't
+                // wanted.
+                cancelSizeWait();
                 mWaitsForSize = true;
                 post(new Runnable() {
                     @Override

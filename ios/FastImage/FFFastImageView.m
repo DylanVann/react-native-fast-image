@@ -74,9 +74,10 @@
 @property(nonatomic, assign) CGFloat redrawnSVGScale;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
-// The load of the shown image again (a quiet one, e.g. for the view's size,
-// see reloadIfResized) that's on its way, or 0: its image is blurred when it
-// arrives (see blurAgainIfResized).
+// The quiet load of the shown image again (e.g. for the view's size, see
+// reloadIfResized) that's on its way, or 0: its image is blurred when it
+// arrives (see blurAgainIfResized). Only quiet ones: while a new source loads,
+// the shown image is blurred for the new size meanwhile.
 @property(nonatomic, assign) NSUInteger sizeReload;
 // The frame the view was laid out at (the box the image fits in), and how far
 // objectPosition moves the view from it (see updatePosition).
@@ -1799,10 +1800,10 @@ NSString *FFFErrorMessage(NSError *error)
                                completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
             if (weakSelf.sizeReload == load) {
                 weakSelf.sizeReload = 0;
-                // It brought no image (it failed, or isn't cached): the shown
-                // one is blurred for the view's size now (see
-                // blurAgainIfResized).
-                if (!image) {
+                // It brought no image (it failed, or isn't cached), and no
+                // other load replaced it: the shown one is blurred for the
+                // view's size now (see blurAgainIfResized).
+                if (!image && weakSelf.loadCount == load) {
                     [weakSelf blurAgainIfResized];
                 }
             }
