@@ -146,6 +146,26 @@
         "request /thirds.png?auto-size-natural-change=RUN": 1,
         "request /thirds.png?auto-size-placeholder=RUN": 1
     },
+    "auto-size-decodes": {
+        "decode http://localhost:8090/odd-height.png?auto-size-fill-rounding=RUN 336x201 for 192x1 at full": 1,
+        "decode http://localhost:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048x2048 for 0x0 at full": 1,
+        "decode http://localhost:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048x2048 for 720x720 at 720": 1,
+        "decode http://localhost:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN 120x120 for 720x192 at full": 1,
+        "decode http://localhost:8090/text-page.png?auto-size-stretched-change=RUN 1600x1000 for 720x192 at 720": 1,
+        "layout-state http://localhost:8090/odd-height.png?auto-size-fill-rounding=RUN 336x201 main": 4,
+        "layout-state http://localhost:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN 2048x2048 main": 1,
+        "layout-state http://localhost:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN 120x120 main": 1,
+        "layout-state http://localhost:8090/text-page.png?auto-size-stretched-change=RUN 1600x1000 main": 1,
+        "load http://localhost:8090/odd-height.png?auto-size-fill-rounding=RUN source main": 4,
+        "load http://localhost:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN source main": 1,
+        "load http://localhost:8090/picsum/1020-120x120.jpg?auto-size-stretched-change=RUN source main": 1,
+        "load http://localhost:8090/text-page.png?auto-size-stretched-change=RUN source main": 1,
+        "reload http://localhost:8090/picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN size main": 1,
+        "request /odd-height.png?auto-size-fill-rounding=RUN": 1,
+        "request /picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-stretched-change=RUN": 1,
+        "request /text-page.png?auto-size-stretched-change=RUN": 1
+    },
     "auto-size-change-decode": {
         "decode http://localhost:8081/assets/?unstable_path=.%2F..%2FReactNativeFastImageExample%2Fsrc%2Fimages/center-dot@3x.png?platform=ios&hash=HASH 120x120 for 120x120 at full": 1,
         "decode http://localhost:8090/picsum/1018-1024x1024.jpg?auto-size-change-decode-contain=RUN 1024x1024 for 384x1 at 384": 1,
