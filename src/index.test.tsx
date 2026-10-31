@@ -115,6 +115,103 @@ describe('FastImage (iOS)', () => {
         expect(fromProp.props.tintColor).toBe('red')
     })
 
+    it("sends the sides the style sets to 'auto' as autoSize (1 the width, 2 the height)", () => {
+        const source = { uri: 'https://example.com/image.png' }
+        const autoSize = (style: FastImageProps['style']) =>
+            (
+                renderer
+                    .create(<FastImage source={source} style={style} />)
+                    .toJSON() as any
+            ).props.autoSize
+        expect(autoSize({ width: 'auto', height: 'auto' })).toBe(3)
+        expect(autoSize({ width: 240, height: 'auto' })).toBe(2)
+        expect(autoSize({ width: 'auto', height: 64 })).toBe(1)
+        // Opt-in: a side left out stays 0, as with React Native's Image. (0
+        // is left out, the native default.)
+        expect(autoSize({})).toBeUndefined()
+        expect(autoSize({ width: 240 })).toBeUndefined()
+        expect(autoSize({ width: 240, height: 120 })).toBeUndefined()
+        // A later style's undefined clears an earlier side, as
+        // StyleSheet.flatten does.
+        expect(
+            autoSize([
+                { height: 200 },
+                { width: 96, height: undefined },
+                { height: 'auto' },
+            ]),
+        ).toBe(2)
+        // aspectRatio sets the other side.
+        expect(
+            autoSize({ width: '100%', height: 'auto', aspectRatio: 16 / 9 }),
+        ).toBeUndefined()
+        expect(autoSize({ width: 'auto', aspectRatio: 1 })).toBe(1)
+        // An absolutely positioned view's insets set both.
+        expect(
+            autoSize([
+                StyleSheet.absoluteFill,
+                { width: 'auto', height: 'auto' },
+            ]),
+        ).toBeUndefined()
+    })
+
+    it("renders FastImageAutoView only for an image that follows its image's size", () => {
+        const type = (
+            source: FastImageProps['source'],
+            style: FastImageProps['style'],
+        ) =>
+            (
+                renderer
+                    .create(<FastImage source={source} style={style} />)
+                    .toJSON() as any
+            ).type
+        const uri = 'https://example.com/image.png'
+        // A set size (or flex): FastImageView, whose shadow node has no state.
+        expect(type({ uri }, { width: 240, height: 120 })).toBe('FastImageView')
+        expect(type({ uri }, { flex: 1 })).toBe('FastImageView')
+        // A side left to the image, or a source's own size: FastImageAutoView.
+        expect(type({ uri }, { width: 240, height: 'auto' })).toBe(
+            'FastImageAutoView',
+        )
+        expect(type({ uri, width: 60, height: 30 }, { width: 240 })).toBe(
+            'FastImageAutoView',
+        )
+    })
+
+    it("gives the shadow node a single source's own size, instead of the loaded image's", () => {
+        const render = (
+            source: FastImageProps['source'],
+            style: FastImageProps['style'] = {},
+        ) =>
+            renderer
+                .create(<FastImage source={source} style={style} />)
+                .toJSON() as any
+        const sized = {
+            uri: 'https://example.com/image.png',
+            width: 60,
+            height: 30,
+        }
+        // The shadow node lays the open sides out from it from the start, so
+        // the view doesn't send the image's size (no autoSize), and the style
+        // stays as it is.
+        const own = render(sized, { width: 240 })
+        expect(own.props.ownWidth).toBe(60)
+        expect(own.props.ownHeight).toBe(30)
+        expect(own.props.autoSize).toBeUndefined()
+        expect(StyleSheet.flatten(own.props.style).aspectRatio).toBeUndefined()
+        // Without both sizes, or with several sources: from the loaded image
+        // (no own size).
+        const both = { width: 'auto', height: 'auto' } as const
+        const noHeight = render({ uri: sized.uri, width: 60 }, both)
+        expect(noHeight.props.ownWidth).toBeUndefined()
+        expect(noHeight.props.autoSize).toBe(3)
+        const several = render(
+            [sized, { ...sized, uri: 'https://example.com/b.png' }],
+            both,
+        )
+        expect(several.props.ownWidth).toBeUndefined()
+        expect(several.props.autoSize).toBe(3)
+    })
+
     it('uses the last tintColor in a style array', () => {
         const tree: any = renderer
             .create(
@@ -161,7 +258,7 @@ describe('FastImage (iOS)', () => {
                     pointerEvents="box-none"
                     onLayout={onLayout}
                     accessibilityLabel="a cat"
-                    style={[style.image, { borderRadius: 4 }]}
+                    style={[style.image, { borderRadius: 4, padding: 8 }]}
                 />,
             )
             .toJSON()
@@ -171,9 +268,11 @@ describe('FastImage (iOS)', () => {
         expect(tree.props.pointerEvents).toBe('box-none')
         expect(tree.props.onLayout).toBe(onLayout)
         expect(tree.props.accessibilityLabel).toBe('a cat')
-        // Clips the image by default, as React Native's Image does.
+        // Clips the image by default, as React Native's Image does. Padding
+        // passes through: the shadow node ignores it.
         expect(StyleSheet.flatten(tree.props.style)).toEqual({
             overflow: 'hidden',
+            padding: 8,
             width: 44,
             height: 44,
             borderRadius: 4,
@@ -1079,7 +1178,11 @@ describe('several sources', () => {
     const nativeView = (element: React.ReactElement) =>
         renderer
             .create(element)
-            .root.findAll((node) => node.type === ('FastImageView' as any))[0]
+            .root.findAll((node) =>
+                ['FastImageView', 'FastImageAutoView'].includes(
+                    node.type as any,
+                ),
+            )[0]
     const small = {
         uri: 'https://example.com/a-100.jpg',
         width: 100,

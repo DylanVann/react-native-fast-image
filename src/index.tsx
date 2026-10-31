@@ -12,11 +12,12 @@ import {
     ViewProps,
 } from 'react-native'
 import { cacheControl, priority, resizeMode } from './constants'
-import { fromStyle, resolveObjectFit } from './objectFit'
+import { openSides, ownSize, readStyle, resolveObjectFit } from './objectFit'
 import { withStringHeaders } from './headers'
 import { resolveAriaProps } from './ariaProps'
 import { splitBackgroundProps } from './backgroundProps'
 import { objectPositionOrCentered, type ObjectPosition } from './objectPosition'
+import FastImageAutoView from './FastImageAutoView'
 import FastImageView, { Commands } from './specs/FastImageViewNativeComponent'
 import NativeFastImageModule from './specs/NativeFastImageModule'
 import {
@@ -211,8 +212,11 @@ export type Source = {
      */
     blurDataUri?: string
     /**
-     * With several sources (`source` as an array), the image's width at this
-     * uri, in pixels (times `scale`, if given).
+     * The image's width in points: with
+     * `height`, it lays out a side the style leaves out (or sets to `'auto'`)
+     * before the image loads (see `style`). With several sources (`source` as an array), the width
+     * of the image at this uri, from which the view picks the one for its
+     * size.
      *
      * @platform android
      * @platform ios
@@ -221,8 +225,7 @@ export type Source = {
      */
     width?: number
     /**
-     * With several sources (`source` as an array), the image's height at this
-     * uri, in pixels (times `scale`, if given).
+     * The image's height in points (see `width`).
      *
      * @platform android
      * @platform ios
@@ -231,7 +234,8 @@ export type Source = {
      */
     height?: number
     /**
-     * With several sources, the scale `width` and `height` are multiplied by.
+     * With several sources, the image's pixels per point at this uri: its
+     * size in pixels is `width` and `height` times `scale`. 1 if not given.
      *
      * @platform android
      * @platform ios
@@ -843,7 +847,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      * <FastImage
      *     source={{ uri }}
      *     onLoadEnd={(result) => {
-     *         if (result.ok) setAspectRatio(result.width / result.height)
+     *         if (result.ok) setLoaded(true)
      *         else setFailed(result.error)
      *     }}
      * />
@@ -858,8 +862,35 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * The image's style: View's style props (`borderRadius` clips the image,
-     * and borders inset it, but padding doesn't), and `tintColor`, as with
-     * React Native's `Image` (the `tintColor` prop wins).
+     * and borders inset it; padding is ignored), and `tintColor` (the
+     * `tintColor` prop wins).
+     *
+     * A width or height set to `'auto'` follows the loaded image:
+     *
+     * - `height: 'auto'` with a width (or one from the parent, e.g. stretched
+     *   in a column): the height from the image's aspect ratio.
+     * - `width: 'auto'` with a height: the width from it (in a row, or with
+     *   `alignSelf` other than `stretch`: in a column, the parent stretches
+     *   the width by default).
+     * - Both `'auto'`: the image's own size (a 600 × 300 px image is 600 × 300
+     *   points, one of several sources its pixels over its `scale`), at most
+     *   the space there is. In a column, the parent stretches the width by
+     *   default, and the height follows it.
+     *
+     * Until the image has loaded, and if it fails (`defaultSource` included),
+     * those sides are 0, so the layout changes when it loads. A side the
+     * style leaves out stays 0: sizing from the image is opt-in, since it
+     * moves the layout as images load.
+     *
+     * A bundled image, or a source with a `width` and `height` (its size in
+     * points), lays out a side the style leaves out (or sets to `'auto'`)
+     * from that size at once, keeping its aspect ratio: the layout doesn't
+     * change when the image loads.
+     *
+     * ```jsx
+     * <FastImage source={{ uri }} style={{ width: '100%', height: 'auto' }} />
+     * <FastImage source={{ uri, width: 600, height: 400 }} style={{ width: '100%' }} />
+     * ```
      *
      * @platform android
      * @platform ios
@@ -1066,11 +1097,12 @@ function FastImageBase({
     if (__DEV__) {
         warnIfChildren(children)
     }
+    const styleValues = readStyle(style)
     // tintColor can also be set in style, as with React Native's Image. The
     // prop wins.
     const resolvedTintColor =
-        tintColor != null ? tintColor : fromStyle(style, 'tintColor')
-    const fit = resolveObjectFit(objectFit, style)
+        tintColor != null ? tintColor : styleValues.tintColor
+    const fit = resolveObjectFit(objectFit, styleValues)
     const position = objectPositionOrCentered(objectPosition)
 
     // One source, or several in an array, picked from natively for the
@@ -1096,6 +1128,17 @@ function FastImageBase({
               )
             : Image.resolveAssetSource(withStringHeaders(single) as any)
     }, [source])
+    // The shadow node lays out a side the style leaves open from the loaded
+    // image: the view only gives it the image's size then (autoSize). A
+    // single source's own size (see ownSize) it has from the start instead,
+    // and the view doesn't give it the image's.
+    const own = ownSize(resolvedSource)
+    const open = own ? { width: false, height: false } : openSides(styleValues)
+    // Only then is it a FastImageAutoView, whose shadow node measures it
+    // (other images' shadow nodes have no state, see FastImageAutoView.ts).
+    // A style that changes between the two mounts a new native view.
+    const NativeView =
+        own || open.width || open.height ? FastImageAutoView : FastImageView
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
@@ -1117,11 +1160,12 @@ function FastImageBase({
     )
 
     return (
-        <FastImageView
+        <NativeView
             {...resolveAriaProps(props)}
             ref={ref}
             // Clips the image to borderRadius by default, as React Native's
-            // Image does.
+            // Image does. (The shadow node clears the style's padding, see
+            // FastImageViewComponentDescriptor.)
             style={[styles.image, style]}
             // null (no key) as undefined, which the native prop takes.
             recyclingKey={props.recyclingKey ?? undefined}
@@ -1132,6 +1176,10 @@ function FastImageBase({
             )}
             source={resolvedSource}
             placeholder={resolvedPlaceholder}
+            // Left out when 0 (their native default), as for most images.
+            autoSize={(open.width ? 1 : 0) | (open.height ? 2 : 0) || undefined}
+            ownWidth={own?.width}
+            ownHeight={own?.height}
             onFastImageLoadStart={onLoadStart}
             onFastImageProgress={onProgress}
             // The native views only send the events with a handler (and only

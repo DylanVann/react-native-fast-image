@@ -31,7 +31,13 @@ import { Image, PixelRatio, StyleSheet, View } from 'react-native'
 // @ts-expect-error react-native-web has no type declarations.
 import { getAssetByID } from 'react-native-web/dist/modules/AssetRegistry'
 import { cacheControl, priority, resizeMode } from './constants'
-import { resolveObjectFit } from './objectFit'
+import {
+    NO_PADDING,
+    openSides,
+    ownSize,
+    readStyle,
+    resolveObjectFit,
+} from './objectFit'
 import { cssPosition, objectPositionOrCentered } from './objectPosition'
 import {
     dataUri,
@@ -178,6 +184,51 @@ function FastImageBase({
         )
     // Whether the image for `key` loaded, or failed.
     const [result, setResult] = useState<{ key: string; ok: boolean }>()
+    // The loaded image's size in points, kept until another image loads (none
+    // after one failed, or without a source, as before one loads). A side
+    // the style sets to `auto` follows it, as on iOS and Android: the view
+    // gets the image's aspect ratio (unless the style has one), and with
+    // both sides `auto`, the image's width (at most the space there is) from a
+    // spacer, so a stretched view still fills its parent. (The aspect ratio
+    // is the border box's: with borders, the image's box is a little off
+    // its shape, where iOS and Android give the box inside them its shape.)
+    const [imageSize, setImageSize] = useState<{
+        width: number
+        height: number
+    }>()
+    if (!src && imageSize) setImageSize(undefined)
+    // A single source's own size (see ownSize) instead, from the start.
+    const single = several ? undefined : [source].flat()[0]
+    const own = ownSize(
+        typeof single === 'number' ? getAssetByID(single) : single,
+    )
+    const shownSize = own ?? imageSize
+    // Only `auto` sides follow a loaded image; a known size, also the sides
+    // left out (as on iOS and Android).
+    const styleValues = readStyle(style)
+    const open = openSides(styleValues, own ? 'open' : 'closed')
+    const sizeStyle =
+        shownSize &&
+        shownSize.width > 0 &&
+        shownSize.height > 0 &&
+        (open.width || open.height)
+            ? { aspectRatio: shownSize.width / shownSize.height }
+            : undefined
+    // Both sides follow it: both open, or one with the style's aspectRatio
+    // giving the other (as the shadow node does on iOS and Android).
+    const bothOpen =
+        (open.width && open.height) ||
+        ((open.width || open.height) && open.aspectRatio)
+    const spacer =
+        sizeStyle && bothOpen ? (
+            <View
+                style={{
+                    width: shownSize!.width,
+                    maxWidth: '100%',
+                }}
+                pointerEvents="none"
+            />
+        ) : null
     const ok = result && result.key === key ? result.ok : undefined
     // The same on the server and in the browser. React's ids have characters
     // an SVG id can't (:r0: in React 18, «r0» in React 19).
@@ -185,7 +236,7 @@ function FastImageBase({
     const tintId = `fast-image-tint-${svgId}`
     const blurId = `fast-image-blur-${svgId}`
     // objectFit (the prop, then style's).
-    const fit = resolveObjectFit(objectFit, style)
+    const fit = resolveObjectFit(objectFit, styleValues)
     const position = cssPosition(objectPositionOrCentered(objectPosition))
     const filter =
         [
@@ -207,11 +258,24 @@ function FastImageBase({
         <View
             {...viewProps}
             {...({ 'aria-label': label } as {})}
-            style={[styles.container, style]}
+            style={
+                sizeStyle
+                    ? [
+                          styles.container,
+                          spacer && styles.fits,
+                          style,
+                          NO_PADDING,
+                          // After the style, whose `aspectRatio: 'auto'`
+                          // would clear it.
+                          !open.aspectRatio && sizeStyle,
+                      ]
+                    : [styles.container, style, NO_PADDING]
+            }
             onLayout={onLayout}
             pointerEvents={pointerEvents}
             ref={ref}
         >
+            {spacer}
             {defaultUri && showDefault ? (
                 <Picture
                     key={`default ${defaultUri}`}
@@ -286,13 +350,26 @@ function FastImageBase({
                     alt={label ?? ''}
                     onLoad={(image) => {
                         const { width, height } = loadedSize(image, sized)
+                        const scale = loadedScale(image, source, sized)
                         setResult({ key, ok: true })
+                        // The same object for the same size (a reload, or
+                        // another candidate of the same size): no render.
+                        setImageSize((previous) =>
+                            previous?.width === width / scale &&
+                            previous.height === height / scale
+                                ? previous
+                                : {
+                                      width: width / scale,
+                                      height: height / scale,
+                                  },
+                        )
                         onLoad?.({ nativeEvent: { width, height } })
                         onLoadEnd?.({ ok: true, width, height })
                     }}
                     onError={(uri) => {
                         const error = `Failed to load resource ${uri}`
                         setResult({ key, ok: false })
+                        setImageSize(undefined)
                         onError?.({ nativeEvent: { error } })
                         onLoadEnd?.({ ok: false, error })
                     }}
@@ -429,8 +506,8 @@ function sizedSource(source: SizedSource | number): SizedSource | undefined {
 // device pixels, usually the smallest at least as wide, as expo-image does.
 // sizes="auto" (the default sizes) has the browser use the width the image
 // is laid out at; it only applies to lazy images, and otherwise, or in
-// browsers without it, the next value, 100vw (the viewport's width). src is the largest, for browsers without
-// srcset.
+// browsers without it, the next value, 100vw (the viewport's width). src is
+// the largest, for browsers without srcset.
 function sizedSources(entries: (SizedSource | number)[]) {
     const sources = entries.map(sizedSource)
     const widths = sources
@@ -440,6 +517,8 @@ function sizedSources(entries: (SizedSource | number)[]) {
         .map((source) => ({
             uri: source.uri as string,
             width: Math.round((source.width ?? 0) * (source.scale ?? 1)),
+            height: Math.round((source.height ?? 0) * (source.scale ?? 1)),
+            scale: source.scale ?? 1,
         }))
     const largest = widths.reduce<(typeof widths)[number] | undefined>(
         (best, source) => (!best || source.width > best.width ? source : best),
@@ -468,27 +547,59 @@ type LoadedImage = {
 }
 
 // The size of the image that loaded, in pixels, as on native. With a srcset,
-// the natural size is divided by the density the browser picked (the
-// candidate's width over `sizes`): it's the picked candidate's size instead.
+// the picked candidate's width as its source gives it, and the height from
+// the file's shape (its natural size is divided by the density the browser
+// picked, the candidate's width over `sizes`), or the source's height when
+// the browser has no natural size (an image with no width yet).
 function loadedSize(
     image: LoadedImage,
     sized: ReturnType<typeof sizedSources> | undefined,
 ) {
-    const picked = sized?.srcSet
+    const picked = pickedSource(image, sized)
+    if (!picked) {
+        return { width: image.naturalWidth, height: image.naturalHeight }
+    }
+    return {
+        width: picked.width,
+        height:
+            image.naturalWidth > 0
+                ? Math.round(
+                      (image.naturalHeight * picked.width) / image.naturalWidth,
+                  )
+                : picked.height,
+    }
+}
+
+// Of several sizes, the one the browser loaded.
+function pickedSource(
+    image: LoadedImage,
+    sized: ReturnType<typeof sizedSources> | undefined,
+) {
+    return sized?.srcSet
         ? sized.widths.find(
               (source) =>
                   new URL(source.uri, image.currentSrc).href ===
                   image.currentSrc,
           )
         : undefined
-    return {
-        width: picked?.width ?? image.naturalWidth,
-        height: picked
-            ? Math.round(
-                  (image.naturalHeight * picked.width) / image.naturalWidth,
-              )
-            : image.naturalHeight,
+}
+
+// The loaded image's pixels per point, which a side the style sets to `auto`
+// follows its size in points by, as on iOS and Android: a require()d image's
+// file's scale, or the picked one of several sources' scale, otherwise 1 (a
+// single source's own size, with both its width and height, is ownSize's).
+function loadedScale(
+    image: LoadedImage,
+    source: unknown,
+    sized: ReturnType<typeof sizedSources> | undefined,
+) {
+    if (sized) return pickedSource(image, sized)?.scale ?? 1
+    const single = Array.isArray(source) ? source[0] : source
+    if (typeof single === 'number') {
+        const asset: PackagerAsset | undefined = getAssetByID(single)
+        return asset ? assetScale(asset) : 1
     }
+    return 1
 }
 
 const fill = {
@@ -750,6 +861,11 @@ FastImage.getCachePath = () => Promise.resolve(notSupported)
 const styles = StyleSheet.create({
     container: {
         overflow: 'hidden',
+    },
+    // With neither side set: at most the space there is (the spacer's
+    // maxWidth is relative to the view, whose width the spacer sets).
+    fits: {
+        maxWidth: '100%',
     },
 })
 

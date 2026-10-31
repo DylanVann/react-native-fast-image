@@ -10,11 +10,13 @@ import com.facebook.react.module.model.ReactModuleInfo;
 import com.facebook.react.module.model.ReactModuleInfoProvider;
 import com.facebook.react.uimanager.ViewManager;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-// The FastImageView component and the FastImageModule TurboModule.
+// The FastImageView and FastImageAutoView components and the FastImageModule
+// TurboModule.
 public class FastImageViewPackage extends BaseReactPackage {
     @Nullable
     @Override
@@ -46,6 +48,6 @@ public class FastImageViewPackage extends BaseReactPackage {
     @Override
     public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
         FastImageCacheLimits.loadInBackground(reactContext);
-        return Collections.<ViewManager>singletonList(new FastImageViewManager());
+        return Arrays.<ViewManager>asList(new FastImageViewManager(), new FastImageAutoViewManager());
     }
 }

@@ -55,7 +55,16 @@
 // The size (in pixels) the image showing or loading was decoded for, and
 // whether it covers it; zero for a full-size image.
 @property(nonatomic, assign) CGSize decodedBox;
+// Whether the image was decoded at full size because the view had no size to
+// decode it for (see reloadIfResized).
+@property(nonatomic, assign) BOOL decodedWithoutSize;
 @property(nonatomic, assign) BOOL decodedCover;
+// Whether it was decoded for the one side laid out (decodesForOneSide).
+@property(nonatomic, assign) BOOL decodedForOneSide;
+// The size the view last sent for the layout (onImageSize), and whose image
+// it was (nil for none).
+@property(nonatomic, assign) CGSize sentImageSize;
+@property(nonatomic, strong, nullable) NSURL* sizedURL;
 // The most pixels per point an SVG was drawn at for it (decodeMaxScale).
 @property(nonatomic, assign) CGFloat decodedMaxScale;
 // Whether it's decoded at full size however large (objectFit none).
@@ -65,6 +74,11 @@
 @property(nonatomic, assign) CGFloat redrawnSVGScale;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
+// The quiet load of the shown image again (e.g. for the view's size, see
+// reloadIfResized) that's on its way, or 0: its image is blurred when it
+// arrives (see blurAgainIfResized). Only quiet ones: while a new source loads,
+// the shown image is blurred for the new size meanwhile.
+@property(nonatomic, assign) NSUInteger sizeReload;
 // The frame the view was laid out at (the box the image fits in), and how far
 // objectPosition moves the view from it (see updatePosition).
 @property(nonatomic, assign) CGRect box;
@@ -596,7 +610,6 @@ static void FFFShareAnimationBudget(void) {
 - (void) layoutSubviews {
     [super layoutSubviews];
     [self updateContentMode];
-    [self blurAgainIfResized];
     if (self.waitsForSize) {
         // An image in the memory cache shows in this frame. Others start
         // loading from didSetProps's block, after layout, in the order the
@@ -609,6 +622,9 @@ static void FFFShareAnimationBudget(void) {
     } else if (![self switchSourceIfResized]) {
         [self reloadIfResized];
     }
+    // After deciding whether the image is loaded again for the new size (it's
+    // blurred for it then).
+    [self blurAgainIfResized];
 }
 
 - (void) setImageColor: (UIColor*)imageColor {
@@ -824,6 +840,11 @@ static void FFFShareAnimationBudget(void) {
     if (![self blurs: self.originalImage] || ![self hasSize]) {
         return;
     }
+    // The image is on its way again (e.g. for the view's size), and blurred
+    // for it when it arrives: the view keeps what it shows until then.
+    if (self.sizeReload != 0 && self.sizeReload == self.loadCount) {
+        return;
+    }
     CGSize view = self.bounds.size;
     CGSize blurred = self.blurredForSize;
     if (blurred.width > 0 && blurred.height > 0 &&
@@ -917,9 +938,21 @@ NSString *FFFErrorMessage(NSError *error)
 
 - (void) sendOnError: (nullable NSString*)message {
     self.hasErrored = YES;
+    // The layout's open sides go back to 0, as before an image loaded.
+    [self sendImageSize: CGSizeZero];
     self.onErrorEvent = @{ @"error": message ?: @"Failed to load the image" };
     if (self.onFastImageError) {
         self.onFastImageError(self.onErrorEvent);
+    }
+}
+
+// Sends the loaded image's size for the layout (zero: none), and notes whose
+// it is (see laysOutPreviousImage).
+- (void) sendImageSize: (CGSize)size {
+    self.sentImageSize = size;
+    self.sizedURL = size.width > 0 && size.height > 0 ? _source.url : nil;
+    if (self.onImageSize) {
+        self.onImageSize(size);
     }
 }
 
@@ -928,13 +961,26 @@ NSString *FFFErrorMessage(NSError *error)
     // A photo library image's own size (it's decoded at about the view's
     // size), looked up when it loaded.
     CGSize size = [_source isPhotoLibrary] ? [_source photoPixelSize] : [FFFDownsampledImage sourceSizeOfImage: image];
+    // The scale that size is in points at: an @2x or @3x file's, which
+    // SDWebImage reads from the url.
+    CGFloat imageScale = [_source isPhotoLibrary] ? 1 : [FFFDownsampledImage sourceScaleOfImage: image];
     if (CGSizeEqualToSize(size, CGSizeZero)) {
         size = image.size;
+        imageScale = image.scale;
     }
     self.onLoadEvent = @{
             @"width": [NSNumber numberWithDouble: size.width],
             @"height": [NSNumber numberWithDouble: size.height]
     };
+    // The image's pixels, as on Android and the web (an @2x in a url doesn't
+    // halve it), over the picked source's scale with several sources (their
+    // sizes are in pixels times it) and a bundled one's (its file's): its size
+    // in points, which a single bundled image is laid out from anyway
+    // (ownWidth and ownHeight), and keeps if its source changes to a url with
+    // an open side, until that loads.
+    CGFloat sourceScale = ([self picksSource] || _source.packagerAsset) && _source.scale > 0 ? _source.scale : 1;
+    CGFloat scale = imageScale / sourceScale;
+    [self sendImageSize: CGSizeMake(size.width * scale, size.height * scale)];
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
     }
@@ -965,14 +1011,24 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Of several sources, the one whose size in pixels is closest to the view's
 // (by pixel count), or the largest while the view has no size (e.g. one sized
-// from onLoad).
+// from onLoad). With only a width or a height laid out (laysOutOneSide), the
+// size the view gets at each source's shape.
 - (FFFastImageSource*) sourceForSize {
     CGFloat scale = [self screenScale];
-    CGFloat viewPixels = self.bounds.size.width * self.bounds.size.height * scale * scale;
+    CGFloat width = self.bounds.size.width * scale;
+    CGFloat height = self.bounds.size.height * scale;
+    BOOL oneSide = [self laysOutOneSide];
+    BOOL byWidth = [self laysOutSide: 1];
     FFFastImageSource* best = nil;
     CGFloat bestFit = CGFLOAT_MAX;
     for (FFFastImageSource* source in _sources) {
-        CGFloat fit = viewPixels > 0 ? ABS(1 - source.pixelCount / viewPixels) : -source.pixelCount;
+        CGSize size = source.pixelSize;
+        CGFloat pixels = size.width * size.height;
+        CGFloat viewPixels = width * height;
+        if (oneSide && size.width > 0 && size.height > 0) {
+            viewPixels = byWidth ? width * width * size.height / size.width : height * height * size.width / size.height;
+        }
+        CGFloat fit = viewPixels > 0 ? ABS(1 - pixels / viewPixels) : -pixels;
         if (!best || fit < bestFit) {
             best = source;
             bestFit = fit;
@@ -1158,8 +1214,9 @@ NSString *FFFErrorMessage(NSError *error)
     SDWebImageOptions options = [source cacheOptions] | SDWebImageHighPriority | SDWebImageRetryFailed | SDWebImageHandleCookies;
     // Shown as with contain whatever objectFit is (contentModeForImageSize):
     // an SVG is drawn for the view if that's larger than its own size, also
-    // with objectFit none.
-    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: NO maxScale: 0 vectorBox: [self viewBox]];
+    // with objectFit none. With only one side laid out, decoded for that side
+    // (decodeBox's other side is 1 pixel), as the image is.
+    SDWebImageContext* context = [self contextForSource: source box: [self decodeBox] cover: [self decodesForOneSide] maxScale: 0 vectorBox: [self viewBox]];
     __weak typeof(self) weakSelf = self;
     FFFWork(@"load", source.url, @"url-placeholder");
     self.urlPlaceholderOperation = [[SDWebImageManager sharedManager] loadImageWithURL: source.url options: options context: context progress: nil completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
@@ -1293,7 +1350,105 @@ NSString *FFFErrorMessage(NSError *error)
 
 // The size in pixels to decode the image for, or zero for full size.
 - (CGSize) decodeBox {
-    return [self downsamples] ? [self viewBox] : CGSizeZero;
+    if (![self downsamples]) {
+        return CGSizeZero;
+    }
+    if ([self decodesForOneSide]) {
+        // The side's pixels, and a box 1 pixel across the other way, which
+        // the image covers (see decodeCovers): the side's pixels decide the
+        // size.
+        CGFloat scale = [self screenScale];
+        CGSize size = self.bounds.size;
+        return [self laysOutSide: 1]
+            ? CGSizeMake(MAX(ceil(size.width * scale), 1), 1)
+            : CGSizeMake(1, MAX(ceil(size.height * scale), 1));
+    }
+    return [self viewBox];
+}
+
+// Whether the layout has only a width or a height so far (inside the
+// borders), the other being one the style leaves open (autoSize), and doesn't
+// have this image's size yet: that side follows the image (see
+// FastImageAutoViewShadowNode), whose shape isn't known yet.
+- (BOOL) laysOutOneSide {
+    if ([self imageLaidOut] && ![self laysOutPreviousImage]) {
+        return NO;
+    }
+    BOOL width = [self laysOutSide: 1];
+    BOOL height = [self laysOutSide: 2];
+    if (width && !height) {
+        return (self.autoSize & 2) != 0;
+    }
+    if (height && !width) {
+        return (self.autoSize & 1) != 0;
+    }
+    return NO;
+}
+
+// Whether the layout has a width (side 1) or a height (2) that isn't the
+// image's: an open side has the previous image's while a new source loads,
+// which the new image doesn't get. The view's size is rounded to the pixel
+// grid and its borders aren't, so an open side that's only borders can be a
+// sliver inside them: less than a pixel counts as 0, as on Android.
+- (BOOL) laysOutSide: (NSInteger)side {
+    CGFloat length = side == 1 ? self.bounds.size.width : self.bounds.size.height;
+    return length * [self screenScale] >= 1
+        && !((self.autoSize & side) != 0 && [self laysOutPreviousImage] && [self followsLaidOutImage]);
+}
+
+// Whether the view has the laid out image's shape (within a pixel) on the
+// sides that follow it: an open side the parent stretches (or flex sets)
+// doesn't follow the image, so the next image doesn't change it.
+- (BOOL) followsLaidOutImage {
+    CGSize image = self.laidOutImageSize;
+    CGSize size = self.bounds.size;
+    // The layout rounds each side to the pixel grid (with the view's position,
+    // so by up to a pixel), and the other side's rounding is multiplied by
+    // the image's ratio: a tall image's height can be a few pixels off its
+    // width times the ratio.
+    CGFloat pixel = 1 / [self screenScale];
+    CGFloat tall = image.height / image.width;
+    // (At most 9 pixels: a view clamped that close to a very tall image's
+    // shape, e.g. by maxHeight, still counts as following it.)
+    BOOL byWidth = size.width > 0 && fabs(size.height - size.width * tall) <= pixel * (1 + MIN(tall, 8));
+    BOOL byHeight = size.height > 0 && fabs(size.width - size.height / tall) <= pixel * (1 + MIN(1 / tall, 8));
+    if (self.autoSize == 2) {
+        return byWidth;
+    }
+    if (self.autoSize == 1) {
+        return byHeight;
+    }
+    return byWidth || byHeight;
+}
+
+// Whether the layout has an image's size.
+- (BOOL) imageLaidOut {
+    return self.laidOutImageSize.width > 0 && self.laidOutImageSize.height > 0;
+}
+
+// Whether the layout has the size of an image other than the source's: the
+// previous source's while this one loads (none of the sources has it), or
+// until the state has the size just sent for it.
+- (BOOL) laysOutPreviousImage {
+    if (![self imageLaidOut]) {
+        return NO;
+    }
+    if (!CGSizeEqualToSize(self.laidOutImageSize, self.sentImageSize)) {
+        return YES;
+    }
+    for (FFFastImageSource* source in _sources) {
+        if ([source.url isEqual: self.sizedURL]) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+// Whether the image is decoded for the one side laid out: the view gets the
+// image's shape. (Not for scale-down, which shows it no larger than its own
+// size, or a photo library image, which Photos makes for the size asked for.)
+- (BOOL) decodesForOneSide {
+    return [self laysOutOneSide] && _objectFit != FFFObjectFitScaleDown && ![_source isPhotoLibrary];
 }
 
 // The screen's pixels per point (the main screen's before the view is in a
@@ -1330,7 +1485,7 @@ NSString *FFFErrorMessage(NSError *error)
 
 // Whether the image has to cover the box, rather than fit in it.
 - (BOOL) decodeCovers {
-    return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill;
+    return _objectFit == FFFObjectFitCover || _objectFit == FFFObjectFitFill || [self decodesForOneSide];
 }
 
 // The view grew (by more than a fifth, as React Native's Image reloads), or
@@ -1361,26 +1516,46 @@ NSString *FFFErrorMessage(NSError *error)
         }
         return;
     }
-    if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
-        return;
-    }
-    // Already at full size (it's no larger than the view it was decoded for,
-    // or decoded at 16 megapixels).
-    if (self.hasCompleted && !capped && [FFFDownsampledImage isFullSizeImage: image]) {
-        return;
-    }
-    CGSize box = [self decodeBox];
-    BOOL cover = [self decodeCovers];
-    if ([self downsamples]) {
-        if (![self hasSize]) {
+    // Decoded at full size while the view had no size to decode it for (e.g.
+    // both sides 'auto' before layout, or sized from onLoad): decoded again
+    // for the view once it has a size it needs at most half the image for
+    // each way, as Android does (a smaller difference isn't worth another
+    // decode, and a larger view gets the same again).
+    CGSize pixels = CGSizeMake(image.size.width * image.scale, image.size.height * image.scale);
+    CGSize viewBox = [self decodeBox];
+    BOOL sizedSinceFullSize = self.decodedWithoutSize && self.hasCompleted && [self hasSize]
+        && pixels.width * pixels.height >= viewBox.width * viewBox.height * 4;
+    if (!sizedSinceFullSize) {
+        if (CGSizeEqualToSize(self.decodedBox, CGSizeZero) && !capped) {
             return;
         }
-        BOOL grew = box.width > self.decodedBox.width * 1.2 || box.height > self.decodedBox.height * 1.2;
-        // Or an SVG drawn for the box is no longer, or now, drawn at most
-        // at its own size (other images are decoded the same either way).
-        BOOL maxScaleChanged = [self decodeMaxScale] != self.decodedMaxScale && [FFFDownsampledImage isDrawnForBox: image];
-        if (!grew && (self.decodedCover || !cover) && !maxScaleChanged) {
+        // Already at full size (it's no larger than the view it was decoded for,
+        // or decoded at 16 megapixels).
+        if (self.hasCompleted && !capped && [FFFDownsampledImage isFullSizeImage: image]) {
             return;
+        }
+        CGSize box = [self decodeBox];
+        BOOL cover = [self decodeCovers];
+        if ([self downsamples]) {
+            if (![self hasSize]) {
+                return;
+            }
+            // Decoded for one side (see decodeBox): for the box it gives at the
+            // image's shape, which the view now has.
+            CGSize decoded = self.decodedBox;
+            CGSize full = [FFFDownsampledImage sourceSizeOfImage: image];
+            if (self.decodedForOneSide && full.width > 0 && full.height > 0) {
+                decoded = decoded.height <= 1
+                    ? CGSizeMake(decoded.width, decoded.width * full.height / full.width)
+                    : CGSizeMake(decoded.height * full.width / full.height, decoded.height);
+            }
+            BOOL grew = box.width > decoded.width * 1.2 || box.height > decoded.height * 1.2;
+            // Or an SVG drawn for the box is no longer, or now, drawn at most
+            // at its own size (other images are decoded the same either way).
+            BOOL maxScaleChanged = [self decodeMaxScale] != self.decodedMaxScale && [FFFDownsampledImage isDrawnForBox: image];
+            if (!grew && (self.decodedCover || !cover) && !maxScaleChanged) {
+                return;
+            }
         }
     }
     SDWebImageOptions options = [self loadOptions];
@@ -1406,6 +1581,8 @@ NSString *FFFErrorMessage(NSError *error)
     }
     [self updateHashImage];
     self.decodedBox = CGSizeZero;
+    self.decodedWithoutSize = NO;
+    self.decodedForOneSide = NO;
     self.decodedUncapped = NO;
     self.redrawnSVGScale = 0;
     // The previous load, if it's still running, is for a source the view no
@@ -1443,6 +1620,8 @@ NSString *FFFErrorMessage(NSError *error)
             [self setImage: [self shownPlaceholder]];
             self.showsLoadedImage = NO;
         }
+        // The layout's open sides go back to 0, as before an image loaded.
+        [self sendImageSize: CGSizeZero];
         // No image: only placeholders show.
         [self startUrlPlaceholderLoad];
     }
@@ -1470,7 +1649,9 @@ NSString *FFFErrorMessage(NSError *error)
 - (SDWebImageContext*) loadContext {
     CGSize box = [self decodeBox];
     self.decodedBox = box;
+    self.decodedWithoutSize = [self downsamples] && CGSizeEqualToSize(box, CGSizeZero);
     self.decodedCover = [self decodeCovers];
+    self.decodedForOneSide = [self downsamples] && [self decodesForOneSide];
     self.decodedMaxScale = CGSizeEqualToSize(box, CGSizeZero) ? 0 : [self decodeMaxScale];
     self.decodedUncapped = CGSizeEqualToSize(box, CGSizeZero) && _objectFit == FFFObjectFitNone;
     return [self contextForSource: _source box: box cover: self.decodedCover];
@@ -1566,6 +1747,8 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context events: (BOOL)events {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     NSUInteger load = ++self.loadCount;
+    // Before it starts: one from the memory cache completes within this call.
+    self.sizeReload = events ? 0 : load;
     // Most images have no onProgress, so only ask SDWebImage for progress when
     // there's a handler as the load starts. A handler added while loading is
     // used from the next load.
@@ -1615,6 +1798,15 @@ NSString *FFFErrorMessage(NSError *error)
                            setImageBlock: setImage
                                 progress: nil
                                completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+            if (weakSelf.sizeReload == load) {
+                weakSelf.sizeReload = 0;
+                // It brought no image (it failed, or isn't cached), and no
+                // other load replaced it: the shown one is blurred for the
+                // view's size now (see blurAgainIfResized).
+                if (!image && weakSelf.loadCount == load) {
+                    [weakSelf blurAgainIfResized];
+                }
+            }
             if (error) {
                 [source forgetResponseAfterError: error];
             }
@@ -1622,6 +1814,7 @@ NSString *FFFErrorMessage(NSError *error)
                 // Keeps the image it has, without trying again on every
                 // layout (e.g. while offline).
                 weakSelf.decodedBox = CGSizeZero;
+                weakSelf.decodedWithoutSize = NO;
             }
             if (image && weakSelf.loadCount == load) {
                 [weakSelf reloadIfSmallerCopy: image context: context];
@@ -1774,6 +1967,7 @@ NSString *FFFErrorMessage(NSError *error)
     self.onFastImageLoad = nil;
     self.onFastImageError = nil;
     self.onFastImageLoadEnd = nil;
+    self.onImageSize = nil;
     // As a new load does (see reloadImage): a completion still on its way is
     // ignored, and a load waiting for the view's size doesn't start.
     self.loadCount++;

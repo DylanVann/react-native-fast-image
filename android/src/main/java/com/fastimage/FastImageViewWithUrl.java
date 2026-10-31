@@ -21,6 +21,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewParent;
 import android.view.accessibility.AccessibilityEvent;
@@ -44,15 +45,18 @@ import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.target.CustomViewTarget;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
 import com.bumptech.glide.request.transition.TransitionFactory;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.i18nmanager.I18nUtil;
 import com.facebook.react.touch.ReactHitSlopView;
+import com.facebook.react.uimanager.StateWrapper;
 import com.facebook.react.uimanager.BackgroundStyleApplicator;
 import com.facebook.react.uimanager.PixelUtil;
 import com.facebook.react.uimanager.PointerEvents;
@@ -329,20 +333,57 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return getHeight() - getPaddingTop() - getPaddingBottom();
     }
 
+    // The box inside the borders, where a side the style leaves open
+    // (autoSize) is 0 until an image has loaded (the layout has no padding,
+    // see FastImageViewComponentDescriptor). The view's size and its borders
+    // are floored to whole pixels apart, so a side that's only borders can be
+    // a pixel inside them: less than 2 counts as 0.
+    private int layoutContentWidth() {
+        int width = contentWidth();
+        return width < 2 ? 0 : width;
+    }
+
+    private int layoutContentHeight() {
+        int height = contentHeight();
+        return height < 2 ? 0 : height;
+    }
+
+    // Whether the layout has only a width or a height so far, the other being
+    // one the style leaves open (autoSize), and doesn't have an image's size
+    // yet: that side follows the image, whose shape isn't known yet.
+    private boolean laysOutOneSide() {
+        if (imageLaidOut()) return false;
+        int width = layoutContentWidth();
+        int height = layoutContentHeight();
+        if (width > 0 && height <= 0) return (mAutoSize & AUTO_HEIGHT) != 0;
+        if (height > 0 && width <= 0) return (mAutoSize & AUTO_WIDTH) != 0;
+        return false;
+    }
+
     // Of several sources, the index of the one whose size in pixels (width ×
     // height × scale²) is closest to the box the image is drawn in (by pixel
     // count), or of the largest while it has no size (e.g. a view sized from
-    // onLoad).
+    // onLoad). With only a width or a height laid out (laysOutOneSide), the
+    // box the view gets at each source's shape.
     private int sourceIndexForSize() {
         FastImageSourceProps[] sources = severalSources();
         if (sources == null) return -1;
-        double viewPixels = (double) Math.max(0, contentWidth()) * Math.max(0, contentHeight());
+        double width = Math.max(0, contentWidth());
+        double height = Math.max(0, contentHeight());
+        boolean oneSide = laysOutOneSide();
+        boolean byWidth = layoutContentWidth() > 0;
         int best = -1;
         double bestFit = Double.MAX_VALUE;
         for (int i = 0; i < sources.length; i++) {
             FastImageSourceProps source = sources[i];
             if (source == null) continue;
             double pixels = source.width * source.height * source.scale * source.scale;
+            double viewPixels = width * height;
+            if (oneSide && source.width > 0 && source.height > 0) {
+                viewPixels = byWidth
+                        ? width * width * source.height / source.width
+                        : height * height * source.width / source.height;
+            }
             double fit = viewPixels > 0 ? Math.abs(1 - pixels / viewPixels) : -pixels;
             if (best < 0 || fit < bestFit) {
                 best = i;
@@ -647,6 +688,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     void drop() {
         mDropped = true;
+        cancelSizeWait();
+        // Its shadow node is gone: a load that still finishes doesn't set
+        // its state.
+        mStateWrapper = null;
         // A dropped view can still be drawn: react-native-screens keeps a
         // popped screen's views on screen for its exit animation
         // (startViewTransition), and React Native drops them as it starts.
@@ -882,6 +927,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // Nothing while a side the style leaves open is only borders (a pixel
+        // inside them can be left): the image shows once the view has its
+        // shape.
+        if (laysOutOneSide()) return;
         // Clipped as React Native's Image (and the View it used to be in): to
         // the padding box, with the border radius, unless overflow is visible.
         int saved = canvas.save();
@@ -1064,7 +1113,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Passes on a size capped by FastImageSourceSize.box. Equal to another
     // for the same callback, so the target can remove it.
-    private static final class CappedSize implements SizeReadyCallback {
+    private final class CappedSize implements SizeReadyCallback {
         private final SizeReadyCallback cb;
 
         CappedSize(SizeReadyCallback cb) {
@@ -1073,6 +1122,28 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
         @Override
         public void onSizeReady(int width, int height) {
+            // Only a width or a height laid out so far, or neither, with
+            // borders (laysOutOneSide, laysOutNoSide): the image is loaded for
+            // the sides laid out. With neither, each is the screen's length,
+            // as Glide asks for a side that's 0. With one, the other is as
+            // long as the box allows (FastImageSourceSize.MAX_PIXELS), so an
+            // image taller than the screen at the view's width (or wider at
+            // its height) is decoded for the size the view gets, not
+            // narrower and then again.
+            // The same while the view has the previous image's shape (e.g. a
+            // recycled list cell; see laysOutPreviousImage): the open side
+            // will follow the new image, so it's loaded for the one the style
+            // sets, as on its first load, not for the previous image's box.
+            int previous = laysOutPreviousImage() && followsImage() ? mAutoSize : 0;
+            if (laysOutOneSide() || laysOutNoSide() || laidOutWithoutSize() || previous == AUTO_WIDTH
+                    || previous == AUTO_HEIGHT) {
+                DisplayMetrics metrics = getResources().getDisplayMetrics();
+                int screen = Math.max(metrics.widthPixels, metrics.heightPixels);
+                boolean byWidth = layoutContentWidth() > 0 && width > 0 && previous != AUTO_WIDTH;
+                boolean byHeight = layoutContentHeight() > 0 && height > 0 && previous != AUTO_HEIGHT;
+                if (!byWidth) width = byHeight ? (int) (FastImageSourceSize.MAX_PIXELS / height) : screen;
+                if (!byHeight) height = byWidth ? (int) (FastImageSourceSize.MAX_PIXELS / width) : screen;
+            }
             int[] box = FastImageSourceSize.box(width, height);
             cb.onSizeReady(box[0], box[1]);
         }
@@ -1332,6 +1403,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // (downsample false).
     private boolean shownCropped(Drawable drawable) {
         return mLayoutScaleType == ScaleType.CENTER_CROP && !mLayoutPixelated && mLayoutDownsampled
+                && !mShownUnsized && !mShownUncropped
                 && drawable != mShownPlaceholder
                 && (drawable instanceof BitmapDrawable || drawable instanceof GifDrawable);
     }
@@ -1373,19 +1445,185 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // iOS), for scale-down and none. 0 until it's known.
     private int mImageWidth = 0;
     private int mImageHeight = 0;
+    // Whether that's the image's own size (not the decoded image's), and
+    // whether a local image's is being read.
+    private boolean mImageSizeOwn = false;
+    private boolean mReadingImageSize = false;
     private double mImageScale = 1;
     // The loading source's scale.
     private double mLoadingScale = 1;
+    // And with several sources, the picked one's (see onImageSize).
+    private double mLoadingLayoutScale = 1;
     @Nullable
     private Matrix mImageMatrix;
 
     // The loading image's own size, from FastImageRequestListener as it's
     // ready (null until a local image's has been read).
-    void onImageSize(@Nullable int[] size) {
+    // own: whether it's the image's own size, rather than the decoded
+    // image's (which a decode for another box doesn't give: see
+    // givesShownBitmap).
+    void onImageSize(@Nullable int[] size, boolean own) {
+        mReadingImageSize = false;
+        mImageSizeOwn = size != null && own;
         mImageWidth = size != null ? size[0] : 0;
         mImageHeight = size != null ? size[1] : 0;
         mImageScale = mLoadingScale;
         updateImageMatrix();
+        if (size != null) {
+            mSizedModel = mModel;
+            double scale = mImageScale * mLoadingLayoutScale;
+            setLayoutSize((float) (size[0] / scale), (float) (size[1] / scale));
+        }
+        // Whether the image loaded at a size the view doesn't have now, with
+        // the size isResized compares with (also once a local image's is read),
+        // and a blur or objectFit change that waited for it.
+        if (size == null) return;
+        reloadIfResized();
+        if ((mBlurChanged || mFitChanged || mCropChanged) && mManager != null) onAfterUpdate(mManager, requestManager);
+    }
+
+    // The loaded image's own size won't be known (not read for a local
+    // image): whether it loaded at a size the view doesn't have now, without
+    // it.
+    void onImageSizeUnknown() {
+        reloadIfResized();
+    }
+
+    // A local image's own size is being read (FastImageRequestListener): no
+    // load of the shown image again until then (for a new size, blur or
+    // objectFit), which would drop the read, and onLoad with it.
+    void onImageSizeReading() {
+        mReadingImageSize = true;
+    }
+
+    // The shadow node's state (see FastImageAutoViewShadowNode; none for a
+    // FastImageView): the loaded image's size in dp, which the view's layout
+    // follows where its style leaves it open (the autoSize prop), or 0 after
+    // an image failed or without a source, as before one loads. Only set
+    // then: a state update lays out the whole screen again. The last size
+    // set, so the same one isn't set again.
+    @Nullable
+    private StateWrapper mStateWrapper;
+    // The autoSize prop's bits: the sides the style leaves open.
+    static final int AUTO_WIDTH = 1;
+    static final int AUTO_HEIGHT = 2;
+    private int mAutoSize = 0;
+    private float mLayoutWidth = 0;
+    private float mLayoutHeight = 0;
+    private float mStateWidth = 0;
+    private float mStateHeight = 0;
+
+    // The image size the layout has (the state's), which it gets after the
+    // view sets it.
+    private float mLaidOutWidth = 0;
+    private float mLaidOutHeight = 0;
+    // The model whose image's size the view last set for the layout.
+    @Nullable
+    private Object mSizedModel;
+
+    void setStateWrapper(@Nullable StateWrapper stateWrapper) {
+        mStateWrapper = stateWrapper;
+        ReadableMap data = stateWrapper != null ? stateWrapper.getStateData() : null;
+        boolean wasHidden = laysOutOneSide();
+        mLaidOutWidth = data != null && data.hasKey("width") ? (float) data.getDouble("width") : 0;
+        mLaidOutHeight = data != null && data.hasKey("height") ? (float) data.getDouble("height") : 0;
+        if (laysOutOneSide() != wasHidden) invalidate();
+        updateSizeState();
+        // The layout for the shown image: a fitted cover image is cropped if
+        // the view didn't take its shape, and one that waited for it is
+        // loaded for the view's size if that didn't change (see isResized).
+        reloadIfResized();
+    }
+
+    // Whether the style leaves a side open and the layout has neither side
+    // yet (inside the borders), nor an image's size (e.g. no width or height:
+    // both follow the image).
+    private boolean laysOutNoSide() {
+        return mAutoSize != 0 && !imageLaidOut() && layoutContentWidth() <= 0 && layoutContentHeight() <= 0;
+    }
+
+    // Whether a view whose size doesn't follow the image (no autoSize) has
+    // been laid out with nothing inside its borders on a side: e.g. under a
+    // display: none parent, which lays it out at 0x0, or sized from onLoad.
+    // Glide loads the image for a square the screen's length then (its size
+    // for a view that has none), scaling a small one up to it. It's loaded no
+    // larger than its own size instead, as iOS decodes it at full size (see
+    // renderingOptions), and for the view's size once it has one.
+    private boolean laidOutWithoutSize() {
+        return mAutoSize == 0 && isLaidOut() && (contentWidth() <= 0 || contentHeight() <= 0);
+    }
+
+    // Whether the layout has a loaded image's size.
+    private boolean imageLaidOut() {
+        return mLaidOutWidth > 0 && mLaidOutHeight > 0;
+    }
+
+    // Whether the style leaves a side open and the layout has the size of an
+    // image other than the loading one: the previous source's while a new one
+    // loads (e.g. in a recycled list cell), or until the state has the size
+    // just set for it.
+    private boolean laysOutPreviousImage() {
+        return mAutoSize != 0 && imageLaidOut() && (!shownImageLaidOut() || !Objects.equals(mSizedModel, mModel));
+    }
+
+    // Whether the layout has the shown image's size.
+    private boolean shownImageLaidOut() {
+        return imageLaidOut() && Math.abs(mLaidOutWidth - mLayoutWidth) < 0.01f
+                && Math.abs(mLaidOutHeight - mLayoutHeight) < 0.01f;
+    }
+
+    boolean getAutoSize() {
+        return mAutoSize != 0;
+    }
+
+    void setAutoSize(int autoSize) {
+        boolean wasHidden = laysOutOneSide();
+        mAutoSize = autoSize;
+        if (laysOutOneSide() != wasHidden) invalidate();
+        updateSizeState();
+    }
+
+    // Whether the style leaves a side open and the view has the shown image's
+    // shape (within a pixel), so it follows the image: the next image (e.g. in
+    // a recycled list cell) will change the view's shape. With both open, the
+    // view may only have that shape by chance (e.g. flex: 1, sized by its
+    // parent): then the next image is cropped once its layout arrives (see
+    // isResized).
+    private boolean followsImage() {
+        if (mAutoSize == 0 || mLayoutWidth <= 0 || mLayoutHeight <= 0) return false;
+        float width = contentWidth();
+        float height = contentHeight();
+        // The layout rounds each side to the pixel grid (with the view's
+        // position, so by up to a pixel), and the other side's rounding is
+        // multiplied by the image's ratio: a tall image's height can be a few
+        // pixels off its width times the ratio.
+        float tall = mLayoutHeight / mLayoutWidth;
+        // (At most 9 pixels: a view clamped that close to a very tall image's
+        // shape, e.g. by maxHeight, still counts as following it.)
+        boolean byWidth = width > 0 && Math.abs(height - width * tall) <= 1 + Math.min(tall, 8);
+        boolean byHeight = height > 0 && Math.abs(width - height / tall) <= 1 + Math.min(1 / tall, 8);
+        if (mAutoSize == AUTO_HEIGHT) return byWidth;
+        if (mAutoSize == AUTO_WIDTH) return byHeight;
+        return byWidth || byHeight;
+    }
+
+    private void setLayoutSize(float width, float height) {
+        mLayoutWidth = width;
+        mLayoutHeight = height;
+        updateSizeState();
+    }
+
+    private void updateSizeState() {
+        if (mAutoSize == 0 || mStateWrapper == null) return;
+        if (mLayoutWidth == mStateWidth && mLayoutHeight == mStateHeight) return;
+        mStateWidth = mLayoutWidth;
+        mStateHeight = mLayoutHeight;
+        WritableMap state = new WritableNativeMap();
+        state.putDouble("width", mLayoutWidth);
+        state.putDouble("height", mLayoutHeight);
+        // A layout of the whole screen (debug builds: FastImageWork).
+        if (FastImageWork.enabled()) FastImageWork.record("layout-state", mModel, mLayoutWidth + "x" + mLayoutHeight);
+        mStateWrapper.updateState(state);
     }
 
     // Pixels on screen per pixel of the loaded image at its own size: an image
@@ -1532,21 +1770,47 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mPixelated) {
             // Decoded as it is, then scaled by the view without filtering (see
             // OwnGifTarget).
+            mLoadingUncropped = false;
+            mLoadingUnsized = false;
             options = new RequestOptions()
                     .downsample(new FastImageSourceSize.Capture(DownsampleStrategy.NONE, String.valueOf(model)))
                     .dontTransform();
             if (blur != null) options = options.optionalTransform(blur);
         } else {
-            options = FastImageSourceSize.scaleTypeOptions(mFitScaleType,
-                    FastImageSourceSize.capture(mFitScaleType, model, mDownsample), positionedCrop(), blur,
-                    mDownsample);
-            boolean ownSize = mFitScaleType == ScaleType.CENTER_INSIDE || mFitScaleType == ScaleType.CENTER;
+            // Cover, before an open side is laid out (it follows the image,
+            // see setAutoSize; it can have borders meanwhile), or while the
+            // view has the previous image's shape on it (followsImage): Glide
+            // would crop the image to a size the view won't have. It's fitted
+            // instead, which looks the same once the view has the image's
+            // shape (see reloadForSize).
+            boolean uncropped = mAutoSize != 0 && mFitScaleType == ScaleType.CENTER_CROP
+                    && (!imageLaidOut() && (layoutContentWidth() <= 0 || layoutContentHeight() <= 0)
+                            || followsImage());
+            // Before the view has any size (neither side laid out, e.g. no
+            // width or height: both follow the image), or laid out without one
+            // (laidOutWithoutSize; with cover or contain, downsampled, the
+            // fits that scale it up), Glide asks for the screen's length both
+            // ways, and would scale the image up to it. It's loaded no larger
+            // than its own size instead (an SVG at its own size in dp), which
+            // a view at that size, or larger, doesn't load again (see
+            // isResized).
+            boolean scalesUp = mDownsample
+                    && (mFitScaleType == ScaleType.CENTER_CROP || mFitScaleType == ScaleType.FIT_CENTER);
+            boolean unsized = (laysOutNoSide() || laidOutWithoutSize() && scalesUp) && mFitScaleType != ScaleType.CENTER;
+            ScaleType fit = unsized ? ScaleType.CENTER_INSIDE : uncropped ? ScaleType.FIT_CENTER : mFitScaleType;
+            mLoadingUncropped = uncropped;
+            mLoadingUnsized = unsized;
+            if ((uncropped || unsized) && blur != null) blur = new FastImageBlur(mBlurRadius, fit, loadingDensity());
+            options = FastImageSourceSize.scaleTypeOptions(fit,
+                    FastImageSourceSize.capture(fit, model, mDownsample),
+                    uncropped || unsized ? null : positionedCrop(), blur, mDownsample);
+            boolean ownSize = fit == ScaleType.CENTER_INSIDE || fit == ScaleType.CENTER;
             // scale-down and none show it at its own size in dp: an SVG is
             // drawn at that size, so it's sharp (not with a blur, which hides
             // the difference).
             if (ownSize && blur == null) {
                 options = options.set(FastImageSvg.DENSITY, loadingDensity())
-                        .set(FastImageSvg.FITS, mFitScaleType == ScaleType.CENTER_INSIDE);
+                        .set(FastImageSvg.FITS, fit == ScaleType.CENTER_INSIDE);
             }
         }
         return blur != null ? options.dontAnimate() : options;
@@ -1587,6 +1851,22 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mShownHeight = 0;
     private int mLoadingWidth = 0;
     private int mLoadingHeight = 0;
+    // Whether the shown and the loading image are cover ones fitted instead
+    // of cropped (see renderingOptions).
+    private boolean mShownUncropped = false;
+    private boolean mLoadingUncropped = false;
+    // Whether the shown and the loading image were loaded before the view
+    // had any size, no larger than their own size (see renderingOptions).
+    private boolean mShownUnsized = false;
+    private boolean mLoadingUnsized = false;
+    // Whether the shown image was drawn as a vector (an SVG), for the box or
+    // at its own size in dp (see givesShownBitmap).
+    private boolean mShownVector = false;
+    // The shown image's size as decoded (a bitmap's, or an animation's): a
+    // view that size doesn't load it again (e.g. one fitted to the view's
+    // width, once the view has the image's shape).
+    private int mShownBitmapWidth = 0;
+    private int mShownBitmapHeight = 0;
     private boolean mResizeReloadPosted = false;
 
     @Nullable
@@ -1609,7 +1889,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     // The loading image loaded (FastImageRequestListener).
-    void onImageLoaded() {
+    void onImageLoaded(Drawable resource) {
         mLoadEnded = true;
         // The image came first: its placeholder isn't needed (not from
         // within Glide's callback).
@@ -1628,7 +1908,18 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mShownRequest = mLoadingRequest;
         mShownWidth = mLoadingWidth;
         mShownHeight = mLoadingHeight;
-        reloadIfResized();
+        mShownUncropped = mLoadingUncropped;
+        mShownUnsized = mLoadingUnsized;
+        mShownVector = FastImageSourceSize.isVector(mModel);
+        // A bitmap's size, or an animation's (a GIF or animated WebP, decoded
+        // at that size).
+        Bitmap bitmap = resource instanceof BitmapDrawable ? ((BitmapDrawable) resource).getBitmap() : null;
+        mShownBitmapWidth = bitmap != null ? bitmap.getWidth() : resource.getIntrinsicWidth();
+        mShownBitmapHeight = bitmap != null ? bitmap.getHeight() : resource.getIntrinsicHeight();
+        // The same image loaded again has the same own size. Another one's
+        // comes after this (FastImageRequestListener calls onImageSize, which
+        // checks then), and isResized compares with it.
+        if (mLoadingQuietly) reloadIfResized();
     }
 
     // Glide crops or scales the image to the view's size when it loads, so if
@@ -1669,7 +1960,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         });
     }
 
-    // Whether the image loaded, at a size the view doesn't have now.
+    // Whether the image loaded, at a size the view doesn't have now: loading
+    // it for the view's box would give another bitmap.
     private boolean isResized() {
         int[] box = FastImageSourceSize.box(contentWidth(), contentHeight());
         int width = box[0];
@@ -1677,7 +1969,121 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         return requestManager != null && !mDropped && !mNeedsReload
                 && mShownRequest != null && mShownRequest == mLoadingRequest
                 && mShownWidth > 0 && mShownHeight > 0 && width > 0 && height > 0
-                && (width != mShownWidth || height != mShownHeight);
+                // Not while the view is only its borders on a side that follows
+                // the image, or has another image's size there: it gets its
+                // shape from the image.
+                && !laysOutOneSide() && !laysOutNoSide() && !laysOutPreviousImage()
+                && !mReadingImageSize
+                && !givesShownBitmap(width, height);
+    }
+
+    // Whether loading the shown image for a box (in pixels) would give the
+    // bitmap the view shows, so there's nothing to load again.
+    private boolean givesShownBitmap(int width, int height) {
+        boolean sameBox = width == mShownWidth && height == mShownHeight;
+        // A cover image fitted while the view had the previous image's shape
+        // or no size (see renderingOptions), in a view that didn't take its
+        // shape: it's cropped now that its layout has arrived.
+        if (mShownUncropped && shownImageLaidOut() && !followsImage()) return false;
+        // Whether the image's own size is known (not only the decoded image's).
+        boolean known = mImageSizeOwn && mImageWidth > 0 && mImageHeight > 0;
+        // A blurred image: its blur is for how much the view scales the bitmap
+        // in the box it was loaded for (see FastImageBlur), so only that box
+        // gives it, unless that's the same for both.
+        if (mBlurRadius > 0 && !(mFitScaleType == ScaleType.CENTER || known && blurredForBoth(width, height))) {
+            return sameBox;
+        }
+        if (sameBox) return true;
+        boolean fitted = mDownsample && !mPixelated;
+        // Cropped to the box (cover, downsampled, also once one loaded before
+        // the view had a size is loaded for it): the box's size, within a pixel
+        // (e.g. one decoded for the view's width before it had a height, at
+        // the shape it then gets). A box at least the whole image's size, which
+        // the view scales, also gives the same (see below).
+        if (fitted && mFitScaleType == ScaleType.CENTER_CROP && !mShownUncropped
+                && Math.abs(width - mShownBitmapWidth) <= 1 && Math.abs(height - mShownBitmapHeight) <= 1) {
+            return true;
+        }
+        // Without the image's own size, only those are known to give the same
+        // bitmap.
+        if (!known) return false;
+        boolean whole = shownWholeImage();
+        // The whole image (at its own size, or at most
+        // FastImageSourceSize.MAX_PIXELS), with a fit or decode that doesn't
+        // scale it up (none, fill, scale-down, pixelated, a bitmap's full-size
+        // decode, or one loaded before the view had a size), in a view at
+        // least that large, which scales it as it draws it: a decode for the
+        // box gives the same. (Not a GIF sampled for a smaller box, nor an SVG
+        // with downsample false, drawn for the box.)
+        boolean ownSizeAtMost = !fitted && !mShownVector || mShownUnsized && !mShownVector
+                || mFitScaleType == ScaleType.CENTER
+                || mFitScaleType == ScaleType.FIT_XY || mFitScaleType == ScaleType.CENTER_INSIDE;
+        if (whole && ownSizeAtMost && width >= mShownBitmapWidth && height >= mShownBitmapHeight) return true;
+        // The whole image, loaded before the view had a size, in a view at its
+        // own size in dp (smaller than its pixels for a bundled image of a
+        // higher scale than the screen's): it gets nothing more.
+        if (mShownUnsized && whole && atImageSize(width, height, false)) return true;
+        // Otherwise only a downsampled fitted decode can give the same bitmap
+        // for another box: not one at its own size (none), one the box doesn't
+        // scale (pixelated, full size), or one cropped to it (cover, above).
+        if (!fitted || mFitScaleType == ScaleType.CENTER
+                || mFitScaleType == ScaleType.CENTER_CROP && !mShownUncropped) {
+            return false;
+        }
+        // Fitted (contain, fill, scale-down, or a fitted cover image): the
+        // image scaled to fit the box, as a decode for it would be, no larger
+        // than its own size for fill and scale-down (an SVG's in dp for
+        // scale-down without blur, where its renderer draws it at that size).
+        // Within a pixel of the shown one: the layout and the decode round a
+        // side differently, by more than a pixel for a tall or wide image (e.g.
+        // 63.5 pixels wide, so 508 high, and a 1:8 image decoded 63 wide, 504
+        // high).
+        float scale = Math.min(width / (float) mImageWidth, height / (float) mImageHeight);
+        if (mFitScaleType == ScaleType.FIT_XY || mFitScaleType == ScaleType.CENTER_INSIDE) {
+            boolean inDp = mShownVector && mBlurRadius <= 0 && mFitScaleType == ScaleType.CENTER_INSIDE;
+            scale = Math.min(scale, inDp ? imageDensity() : 1);
+        }
+        return Math.abs(Math.round(mImageWidth * scale) - mShownBitmapWidth) <= 1
+                && Math.abs(Math.round(mImageHeight * scale) - mShownBitmapHeight) <= 1;
+    }
+
+    // Whether a blurred image's blur is the same for the box it was loaded
+    // for and this one (see FastImageBlur's scale; objectFit none's always
+    // is): a fitted one (contain, or a fitted cover image,
+    // downsampled), shown a pixel per pixel in both once fitted; scale-down in
+    // boxes at least its own size in dp, shown at that size in both; and one
+    // loaded before the view had a size (blurred for its own size) in a box
+    // that size (e.g. both sides 'auto').
+    private boolean blurredForBoth(int width, int height) {
+        if (mShownUnsized) return shownWholeImage() && atImageSize(width, height, false);
+        if ((mShownUncropped || mFitScaleType == ScaleType.FIT_CENTER) && mDownsample && !mPixelated) return true;
+        return mFitScaleType == ScaleType.CENTER_INSIDE && atImageSize(mShownWidth, mShownHeight, true)
+                && atImageSize(width, height, true);
+    }
+
+    // Whether the view shows the whole image: at its own size (an SVG's in
+    // dp, as its renderer draws it at its own size), or at most
+    // FastImageSourceSize.MAX_PIXELS (not one decoded for a smaller box, nor
+    // a GIF sampled for one).
+    private boolean shownWholeImage() {
+        if (mImageWidth <= 0 || mImageHeight <= 0) return false;
+        float scale = mShownVector ? imageDensity() : 1;
+        float width = mImageWidth * scale;
+        float height = mImageHeight * scale;
+        float cap = FastImageSourceSize.capScale(width * height);
+        return Math.abs(mShownBitmapWidth - Math.round(width * cap)) <= 1
+                && Math.abs(mShownBitmapHeight - Math.round(height * cap)) <= 1;
+    }
+
+    // Whether a box is the image's own size in dp, within a pixel (or, with
+    // atLeast, at least that size).
+    private boolean atImageSize(int width, int height, boolean atLeast) {
+        float density = imageDensity();
+        float imageWidth = mImageWidth * density;
+        float imageHeight = mImageHeight * density;
+        if (mImageWidth <= 0 || mImageHeight <= 0) return false;
+        if (atLeast) return width >= imageWidth - 1 && height >= imageHeight - 1;
+        return Math.abs(width - imageWidth) <= 1 && Math.abs(height - imageHeight) <= 1;
     }
 
     // The same image at the view's new size. Meanwhile, and if that fails, the
@@ -1690,11 +2096,20 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         Drawable meanwhile = shownCopy(shown);
         mLoadCount++;
         clearView(requestManager);
-        RequestBuilder<Drawable> builder = shown.clone()
+        // A cover image fitted before the view had its size is cropped now,
+        // and one loaded before it had any size is loaded for it.
+        RequestBuilder<Drawable> request = shown;
+        if ((mShownUncropped || mShownUnsized) && mBaseRequest != null) {
+            request = mBaseRequest.clone().apply(renderingOptions(mModel));
+        } else {
+            mLoadingUncropped = mShownUncropped;
+            mLoadingUnsized = mShownUnsized;
+        }
+        RequestBuilder<Drawable> builder = request.clone()
                 .error(current.clone())
                 .listener(new FastImageRequestListener(null, true, false));
         if (meanwhile == null) builder = builder.thumbnail(current);
-        into(shown, builder, meanwhile, true, "size");
+        into(request, builder, meanwhile, true, "size");
     }
 
     // blurRadius or objectFit changed, and nothing else that needs a reload:
@@ -1799,6 +2214,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // does.
     void onImageFailed(boolean hadThumbnail) {
         mLoadEnded = true;
+        setLayoutSize(0, 0);
         endProgress();
         applyObjectFit();
         mShownRequest = null;
@@ -1824,7 +2240,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             @Nullable RequestManager requestManager) {
         if (mDropped) return;
         mManager = manager;
-        if ((mBlurChanged || mFitChanged || mCropChanged) && !mNeedsReload) {
+        if ((mBlurChanged || mFitChanged || mCropChanged) && !mNeedsReload && !mReadingImageSize) {
             mBlurChanged = false;
             mFitChanged = false;
             mCropChanged = false;
@@ -1835,10 +2251,17 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // Several sources: one is picked for the view's size, so a view that
         // hasn't been laid out yet loads after layout (props and layout are
         // applied in the same batch). A view that still has no size then
-        // (e.g. one sized from onLoad) loads the largest source.
-        if (severalSources() != null) {
+        // (e.g. one sized from onLoad) loads the largest source. Also with
+        // autoSize, whose image is loaded for the sides laid out (see
+        // renderingOptions): a view that gets both from its layout (e.g. flex)
+        // loads as usual.
+        boolean several = severalSources() != null;
+        if (several || mAutoSize != 0) {
             if (mWaitsForSize) return;
             if ((getWidth() <= 0 || getHeight() <= 0) && !mWaitedForSize) {
+                // A load still waiting for the size (a previous source's) isn't
+                // wanted.
+                cancelSizeWait();
                 mWaitsForSize = true;
                 post(new Runnable() {
                     @Override
@@ -1852,7 +2275,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 return;
             }
             mWaitedForSize = false;
-            pickSource();
+            if (several) pickSource();
         }
         updatePlaceholder();
         // Only reload for changes that affect the request (source,
@@ -1866,6 +2289,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         boolean restarting = mRestarting;
         mRestarting = false;
         mLoadCount++;
+        cancelSizeWait();
+        mReadingImageSize = false;
         // A fade in progress carries on, as on iOS: into the next image if it
         // shows at once, and a next image that fades starts from it. The
         // image on screen stays the shown one while the next loads (as its
@@ -1875,6 +2300,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mBaseRequest = null;
         mModel = null;
 
+        if (mSource == null) setLayoutSize(0, 0);
         // Nothing to show.
         if (mSource == null && mShownPlaceholder == null) {
             mShownRequest = null;
@@ -1890,6 +2316,11 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         }
 
         mLoadingScale = mSource != null && mSource.packagerAsset ? Math.max(mSource.scale, 0.01) : 1;
+        // The picked one of several sources' scale (their sizes are in pixels
+        // times it): an open side follows the image's pixels over it, as on
+        // iOS and the web. (A bundled one's is mLoadingScale already.)
+        mLoadingLayoutScale = mSource != null && !mSource.packagerAsset && severalSources() != null
+                ? Math.max(mSource.scale, 0.01) : 1;
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
         // A source without a uri (empty, missing or null), or one that can't be
@@ -1903,6 +2334,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
             FastImageEvents.sendLoadEnd(this, error);
 
+            setLayoutSize(0, 0);
             mShownRequest = null;
             // Cancel existing requests.
             clearView(requestManager);
@@ -1959,39 +2391,103 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                                     .fallback(mShownPlaceholder)); // null will not be treated as error
             mBaseRequest = model == null ? null : base;
             mModel = model;
-            // What into() would apply for the scale type, with the size
-            // capture, for imageRendering, and the blur.
-            RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
-            RequestBuilder<Drawable> request = builder.clone();
-
-            // Only the placeholder prop: it replaces the image.
-            if (model == null) {
-                meanwhile = null;
-                mShownRequest = null;
+            // Made once the view's size is known, so its options are for that
+            // size (renderingOptions, e.g. for a view laid out without one):
+            // Glide's size for the view, which it has at once for a view that
+            // has one (or is laid out without one), and otherwise after
+            // layout, as Glide would ask for it.
+            // Meanwhile it's no load, quiet or ended (see reblur).
+            mLoadingQuietly = false;
+            mLoadEnded = false;
+            // A view that has a size has it now (as Glide would).
+            if (contentWidth() > 0 && contentHeight() > 0) {
+                startLoad(base, model, imageSource, shownRequest, meanwhile, switching);
+                return;
             }
-            boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
-            // After the clone: loading the image that's showing again (at a
-            // new size, or with another blur) doesn't fade it in again. Over a
-            // loaded image (a new source) only with betweenImages: otherwise it
-            // replaces it at once, as Glide, Coil and Fresco fade an image in
-            // from nothing and never between images.
-            boolean replacing = shownRequest != null && model != null;
-            if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
-                builder = builder.transition(DrawableTransitionOptions.with(
-                        new FadeFactory(
-                                mTransitionDuration,
-                                mTransitionSkipOnCacheHit,
-                                imageSource != null && imageSource.isWebCache())));
-            }
-            if (thumbnail) {
-                builder = builder.thumbnail(fromCache(shownRequest));
-            }
-
-            if (imageSource != null)
-                builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
-
-            into(request, builder, meanwhile, false, switching ? "source-for-size" : "source");
+            final int load = mLoadCount;
+            final SizeWait sizeWait = new SizeWait();
+            mSizeWait = sizeWait;
+            sizeWait.getSize(new SizeReadyCallback() {
+                @Override
+                public void onSizeReady(int width, int height) {
+                    if (mSizeWait == sizeWait) mSizeWait = null;
+                    if (load != mLoadCount || mDropped) return;
+                    startLoad(base, model, imageSource, shownRequest, meanwhile, switching);
+                }
+            });
         }
+    }
+
+    // The target a load waits on for the view's size (see onAfterUpdate),
+    // held by the view since Glide's layout listener only holds it weakly.
+    @Nullable
+    private SizeWait mSizeWait;
+
+    // Stops waiting for the view's size for a load that's no longer wanted
+    // (and lets go of what it was to start with, e.g. a copy of the image).
+    private void cancelSizeWait() {
+        if (mSizeWait == null) return;
+        mSizeWait.onLoadCleared(null);
+        mSizeWait = null;
+    }
+
+    // Glide's size for the view, as a request's target gets it, without
+    // loading anything. onLoadCleared stops waiting.
+    private final class SizeWait extends CustomViewTarget<FastImageViewWithUrl, Object> {
+        SizeWait() {
+            super(FastImageViewWithUrl.this);
+        }
+
+        @Override
+        public void onResourceReady(@NonNull Object resource, @Nullable Transition<? super Object> transition) {
+        }
+
+        @Override
+        public void onLoadFailed(@Nullable Drawable errorDrawable) {
+        }
+
+        @Override
+        protected void onResourceCleared(@Nullable Drawable placeholder) {
+        }
+    }
+
+    // Starts the load onAfterUpdate made the base request for, once the view's
+    // size is known.
+    private void startLoad(RequestBuilder<Drawable> base, @Nullable Object model,
+            @Nullable FastImageSource imageSource, @Nullable RequestBuilder<Drawable> shownRequest,
+            @Nullable Drawable meanwhile, boolean switching) {
+        // What into() would apply for the scale type, with the size capture,
+        // for imageRendering, and the blur.
+        RequestBuilder<Drawable> builder = base.clone().apply(renderingOptions(model));
+        RequestBuilder<Drawable> request = builder.clone();
+
+        // Only the placeholder prop: it replaces the image.
+        if (model == null) {
+            meanwhile = null;
+            mShownRequest = null;
+        }
+        boolean thumbnail = shownRequest != null && model != null && meanwhile == null;
+        // After the clone: loading the image that's showing again (at a new
+        // size, or with another blur) doesn't fade it in again. Over a loaded
+        // image (a new source) only with betweenImages: otherwise it replaces
+        // it at once, as Glide, Coil and Fresco fade an image in from nothing
+        // and never between images.
+        boolean replacing = shownRequest != null && model != null;
+        if (mTransitionDuration > 0 && !switching && (!replacing || mTransitionBetweenImages)) {
+            builder = builder.transition(DrawableTransitionOptions.with(
+                    new FadeFactory(
+                            mTransitionDuration,
+                            mTransitionSkipOnCacheHit,
+                            imageSource != null && imageSource.isWebCache())));
+        }
+        if (thumbnail) {
+            builder = builder.thumbnail(fromCache(shownRequest));
+        }
+
+        if (imageSource != null)
+            builder.listener(new FastImageRequestListener(imageSource, thumbnail, true));
+
+        into(request, builder, meanwhile, false, switching ? "source-for-size" : "source");
     }
 
     public void clearView(@Nullable RequestManager requestManager) {

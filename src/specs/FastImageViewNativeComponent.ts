@@ -74,6 +74,16 @@ export interface NativeProps extends ViewProps {
     // (Android ignores it).
     dynamicRangeLimit?: string
     blurRadius?: CodegenTypes.Float
+    // The sides the style leaves open, which then follow the loaded image
+    // (see common/cpp's FastImageAutoViewShadowNode), as bits: 1 the width, 2
+    // the height. Only then do the native views give the shadow node the
+    // image's size, which lays the screen out again.
+    autoSize?: CodegenTypes.Int32
+    // A single source's own size in points (its width and height, or a
+    // bundled image's), which the shadow node lays the open sides out from
+    // instead of the loaded image's, from the start (0 without one).
+    ownWidth?: CodegenTypes.Float
+    ownHeight?: CodegenTypes.Float
     // The events JS has a handler for, as bits: 1 onFastImageLoadStart,
     // 2 onFastImageProgress, 4 onFastImageLoad, 8 onFastImageError, 16
     // onFastImageLoadEnd. The native views only send those (most images have
@@ -98,6 +108,9 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
     supportedCommands: ['reload'],
 })
 
-export default codegenNativeComponent<NativeProps>(
-    'FastImageView',
-) as HostComponent<NativeProps>
+// interfaceOnly: the shadow nodes are the library's own (common/cpp):
+// FastImageView's, and FastImageAutoView's (../FastImageAutoView.ts), which
+// measures the view from the loaded image's size.
+export default codegenNativeComponent<NativeProps>('FastImageView', {
+    interfaceOnly: true,
+}) as HostComponent<NativeProps>

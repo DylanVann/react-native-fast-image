@@ -49,6 +49,8 @@ FOUNDATION_EXTERN CGFloat FFFBoxScale(CGSize size, CGSize box, BOOL cover);
 // The size of the full image (in points, like UIImage's size) that an image
 // loaded this way was decoded from, for onLoad, or zero for other images.
 + (CGSize) sourceSizeOfImage: (UIImage*)image;
+// The file's own scale that size is divided by (an @2x or @3x file's), or 1.
++ (CGFloat) sourceScaleOfImage: (UIImage*)image;
 
 // Whether an image loaded this way is an SVG drawn into a bitmap for the box.
 + (BOOL) isDrawnForBox: (UIImage*)image;

@@ -1,4 +1,48 @@
 {
+    "auto-size": {
+        "request /picsum/1018-600x300.jpg": 1,
+        "request /picsum/1020-120x120.jpg": 1
+    },
+    "auto-size-more": {
+        "request /svg-icon.svg?auto-size": 1,
+        "request /tall-bands.png": 1,
+        "request /text-page.png?auto-size-fixed=RUN": 1,
+        "request /text-page.png?auto-size-open=RUN": 1
+    },
+    "auto-size-styles": {},
+    "auto-size-edges": {
+        "request /odd-height.png?auto-size-contain-rounding=RUN": 1,
+        "request /picsum/1018-1024x1024.jpg?auto-size-grow=RUN": 1,
+        "request /picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto": 1
+    },
+    "auto-size-declared": {
+        "request /picsum/1018-600x300.jpg?auto-size-declared=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-source-width": 1,
+        "request /picsum/1020-120x120.jpg?name=photo@2x.jpg": 1,
+        "request /picsum/1025-200x200.jpg?auto-size-scale=a": 1
+    },
+    "auto-size-changes": {
+        "request /does-not-exist.jpg?auto-size-failed=RUN": 1,
+        "request /picsum/1018-1024x1024.jpg?auto-size-sources-large=RUN": 1,
+        "request /picsum/1018-256x256.jpg?auto-size-sources-small=RUN": 1,
+        "request /picsum/1018-600x300.jpg?auto-size-failed=RUN": 1,
+        "request /thirds.png?auto-size-placeholder=RUN": 1
+    },
+    "auto-size-decodes": {
+        "request /odd-height.png?auto-size-fill-rounding=RUN": 1,
+        "request /picsum/1015-2048x2048.jpg?auto-size-natural-large=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-stretched-change=RUN": 1,
+        "request /text-page.png?auto-size-stretched-change=RUN": 1
+    },
+    "auto-size-change-decode": {
+        "request /picsum/1018-1024x1024.jpg?auto-size-change-decode-contain=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-change-decode-tall=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-change-decode=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-from-bundled=RUN": 1,
+        "request /tall-bands.png?auto-size-change-decode-tall=RUN": 1,
+        "request /wide-bands.png?auto-size-change-decode-contain=RUN": 1,
+        "request /wide-bands.png?auto-size-change-decode=RUN": 1
+    },
     "smoke-web": {
         "request /does-not-exist.jpg?smoke-blur=RUN": 1,
         "request /fail-once/picsum/1025-200x200.jpg?smoke-reload-image=RUN": 2,

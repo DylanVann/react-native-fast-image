@@ -1,12 +1,18 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { PixelRatio, Platform, View } from 'react-native'
-import FastImage, { FastImageRef, LoadResult } from 'react-native-fast-image'
+import { PixelRatio, Platform, View, type ViewStyle } from 'react-native'
+import FastImage, {
+    FastImageBackground,
+    FastImageRef,
+    LoadResult,
+} from 'react-native-fast-image'
 import { CaseStatus, caseStyles as styles } from './CaseStatus'
-import { imageUrl } from './imageServer'
+import { imageUrl, slowImageUrl } from './imageServer'
 import {
     Masked,
     measureView,
     SampleContext,
+    sampleStatus,
+    type Description,
     type RegressionGroup,
 } from './RunnerContext'
 
@@ -794,6 +800,1347 @@ function BlurDataUriCase() {
     )
 }
 
+// #436: a side the style leaves open follows the loaded image (its aspect
+// ratio, or with neither side set its own size), as an <img>'s does. Passes
+// once the image has loaded and the view's layout is `expected` (within half
+// a point). objectFit="fill" (the default here) stretches the image if the
+// box is wrong.
+function AutoSizeCase({
+    id,
+    source,
+    style,
+    objectFit = 'fill',
+    container,
+    expected,
+    description,
+}: {
+    id: string
+    source: React.ComponentProps<typeof FastImage>['source']
+    style: React.ComponentProps<typeof FastImage>['style']
+    objectFit?: React.ComponentProps<typeof FastImage>['objectFit']
+    // The row's own style (e.g. a width the image fits in).
+    container?: ViewStyle
+    expected: { width: number; height: number }
+    description: Description
+}) {
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    const ok =
+        loaded &&
+        layout !== undefined &&
+        Math.abs(layout.width - expected.width) < 0.5 &&
+        Math.abs(layout.height - expected.height) < 0.5
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                style={[
+                    { flexDirection: 'row', alignItems: 'flex-start' },
+                    container,
+                ]}
+            >
+                <FastImage
+                    style={style}
+                    objectFit={objectFit}
+                    source={source}
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        setLayout({ width, height })
+                    }}
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id={id}
+                status={
+                    ok
+                        ? 'OK'
+                        : !loaded || !layout
+                          ? 'waiting'
+                          : `${layout.width}x${layout.height}, expected ${expected.width}x${expected.height}`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
+// A size a FastImageBackground sets (absoluteFill's insets) isn't open: its
+// image fills it after loading, whatever the image's shape.
+function AutoSizeBackgroundCase() {
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    const ok =
+        loaded &&
+        layout !== undefined &&
+        Math.abs(layout.width - 160) < 0.5 &&
+        Math.abs(layout.height - 160) < 0.5
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <FastImageBackground
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 160, height: 160 }}
+                imageProps={{
+                    onLayout: (e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        setLayout({ width, height })
+                    },
+                    onLoad: () => setLoaded(true),
+                }}
+            />
+            <CaseStatus
+                id="auto-size-background"
+                status={
+                    ok
+                        ? 'OK'
+                        : !loaded || !layout
+                          ? 'waiting'
+                          : `${layout.width}x${layout.height}, expected 160x160`
+                }
+                description={{
+                    checks: "A FastImageBackground's image fills it: its insets (absoluteFill) set its size, which doesn't follow the image.",
+                    steps: 'Shows the 600x300 photo in a 160x160 FastImageBackground. Passes once it has loaded and the image is 160x160.',
+                    shows: 'The photo covering a 160x160 square (its middle).',
+                }}
+            />
+        </View>
+    )
+}
+
+// The same text page at a fixed size, and with only a width, which follows
+// the image to the same size: it's decoded for the view's size either way
+// (on iOS, not at full size, which Core Animation would scale down).
+function AutoSizeDownsampleCase() {
+    const [loads, setLoads] = useState(0)
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(`text-page.png?auto-size-fixed=${RUN}`),
+                    }}
+                    style={{ width: 128, height: 80, marginRight: 8 }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                />
+                <FastImage
+                    source={{
+                        uri: imageUrl(`text-page.png?auto-size-open=${RUN}`),
+                    }}
+                    style={{ width: 128, height: 'auto' }}
+                    onLoad={() => setLoads((n) => n + 1)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-downsample"
+                status={loads >= 2 ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'An image with only a width is decoded for its size, as one with both sides set is: they look the same.',
+                    steps: 'Loads a 1600x1000 page of text at 128x80, and again (another url) with only a width of 128, which follows the image to 128x80. Passes once both have loaded.',
+                    shows: 'The same text page twice, at 128x80, with the same sharpness. A blurrier or more aliased right one means it was decoded at another size.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Cover (the default) with only a width: recorded at the view's left
+// quarter, as it loads, the image is magenta there (its left third), never
+// cyan (its middle), as it would be cropped to a size the view doesn't get.
+// (The page's background before it shows matches neither.)
+const MAGENTA = '#ff00ff'
+const CYAN = '#00ffff'
+function AutoSizeCoverCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [shown, setShown] = useState(false)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const expect = [MAGENTA]
+        const start = setTimeout(async () => {
+            const area = await measureView(box.current)
+            if (!area) return setStatus('not on screen')
+            setStatus('recording')
+            const result = await sample(
+                {
+                    name: 'auto-size-cover',
+                    area: { ...area, width: area.width / 4 },
+                    durationMs: 4000,
+                    expect,
+                    palette: [CYAN],
+                },
+                (sampleDone) => {
+                    done.current = sampleDone
+                    setShown(true)
+                },
+            )
+            setStatus(sampleStatus(result, expect))
+        }, 300)
+        return () => clearTimeout(start)
+    }, [sample])
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 120 }}
+            >
+                {shown ? (
+                    <FastImage
+                        source={{
+                            uri: imageUrl(`thirds.png?auto-size=${RUN}`),
+                        }}
+                        style={{ width: 240, height: 'auto' }}
+                        onLoad={() => setTimeout(() => done.current(), 1500)}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id="auto-size-cover"
+                status={status}
+                description={{
+                    checks: "An image with only a width and objectFit cover shows the whole image as it loads, not a crop of its middle for a size the view doesn't get.",
+                    steps: "Records the left quarter of a 240x120 box, then loads a 600x300 image of magenta, cyan and magenta thirds into it with style { width: 240, height: 'auto' }, until 1.5 s after onLoad. Passes when the recording sees magenta, and never cyan.",
+                    shows: 'The image at 240x120: magenta, cyan and magenta thirds.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A url placeholder, shown in a view with only a width (0 high until the image
+// loads) and then, the same url, in one at a fixed size, which shows the copy
+// the first decoded: decoded for the first view's width, not squeezed into a
+// box 1 pixel high (iOS decodes for the side that's set). The images load from
+// the slow server, so the placeholders stay.
+const SLOW_HEADERS = { 'x-token': 'fast-image' }
+function AutoSizePlaceholderCase() {
+    const [second, setSecond] = useState(false)
+    useEffect(() => {
+        const timer = setTimeout(() => setSecond(true), 2500)
+        return () => clearTimeout(timer)
+    }, [])
+    const placeholder = {
+        uri: imageUrl(`thirds.png?auto-size-placeholder=${RUN}`),
+    }
+    const source = (name: string) => ({
+        uri: slowImageUrl(
+            `picsum/1018-600x300.jpg?auto-size-placeholder-${name}=${RUN}&delay=5000`,
+        ),
+        headers: SLOW_HEADERS,
+    })
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <FastImage
+                style={{ width: 240, height: 'auto' }}
+                source={source('open')}
+                placeholder={placeholder}
+            />
+            {second ? (
+                <FastImage
+                    style={{ width: 128, height: 64 }}
+                    source={source('fixed')}
+                    placeholder={placeholder}
+                />
+            ) : (
+                <View style={{ width: 128, height: 64 }} />
+            )}
+            <CaseStatus
+                id="auto-size-placeholder"
+                status={second ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'A url placeholder of an image with only a width is decoded for that width, so another view showing the same placeholder shows it whole.',
+                    steps: "Shows a photo the slow server sends over about 35 s, with style { width: 240, height: 'auto' } and a placeholder url of a 600x300 image of magenta, cyan and magenta thirds. 2.5 s later, a 128x64 view with another slow photo and the same placeholder mounts. Passes then.",
+                    shows: 'The thirds at 128x64: magenta, cyan and magenta. A single smeared color means the placeholder was decoded 1 pixel high.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A source change in a view with only a width (e.g. a recycled list cell):
+// recorded near its top, as the view goes from a square photo's shape to a
+// 2:1 image's, the image is magenta there (its top fifth), never cyan, as it
+// would be cropped to the square the view had (then zoomed in).
+function AutoSizeSourceChangeCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [uri, setUri] = useState(
+        imageUrl(`picsum/1020-120x120.jpg?auto-size-change=${RUN}`),
+    )
+    const loads = useRef(0)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    const record = async () => {
+        const area = await measureView(box.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const expect = [MAGENTA]
+        const result = await sample(
+            {
+                name: 'auto-size-source-change',
+                area: { x: area.x + 110, y: area.y + 3, width: 20, height: 10 },
+                durationMs: 4000,
+                expect,
+                palette: [CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setUri(imageUrl(`bands.png?auto-size-change=${RUN}`))
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{ width: 240, height: 240 }}
+            >
+                <FastImage
+                    source={{ uri }}
+                    style={{ width: 240, height: 'auto' }}
+                    onLoad={() => {
+                        loads.current++
+                        if (loads.current === 1) setTimeout(record, 500)
+                        else setTimeout(() => done.current(), 1500)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-source-change"
+                status={status}
+                description={{
+                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                    steps: "Loads a 120x120 photo with style { width: 240, height: 'auto' } (240x240), then records the point 8 points below the view's top while the source changes to a 600x300 image whose top fifth is magenta and the rest cyan, until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    shows: 'The 600x300 image at 240x120: a magenta band at the top over cyan.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Several sizes of an image, with only a width: the one for that width loads,
+// not the largest (as for a view with no size) and then the one for the size
+// it gets.
+function AutoSizeSourcesCase() {
+    const [status, setStatus] = useState('waiting')
+    const small = `picsum/1018-256x256.jpg?auto-size-sources-small=${RUN}`
+    const large = `picsum/1018-1024x1024.jpg?auto-size-sources-large=${RUN}`
+    const count = async (path: string) =>
+        (
+            await (
+                await fetch(
+                    imageUrl(`requests?path=${encodeURIComponent('/' + path)}`),
+                )
+            ).json()
+        ).count
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={[
+                        { uri: imageUrl(small), width: 256, height: 256 },
+                        { uri: imageUrl(large), width: 1024, height: 1024 },
+                    ]}
+                    style={{ width: 64, height: 'auto' }}
+                    onLoad={() =>
+                        setTimeout(async () => {
+                            const [smallCount, largeCount] = [
+                                await count(small),
+                                await count(large),
+                            ]
+                            setStatus(
+                                smallCount === 1 && largeCount === 0
+                                    ? 'OK'
+                                    : `the 256 px one loaded ${smallCount} times, the 1024 px one ${largeCount}`,
+                            )
+                        }, 2000)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-sources"
+                status={status}
+                description={{
+                    checks: 'With several sizes of an image and only a width, the size for that width loads, and only that one.',
+                    steps: "Loads a 256x256 and a 1024x1024 size of a photo as source, with style { width: 64, height: 'auto' } in a row. Passes when, 2 s after onLoad, the server got one request for the 256 px one and none for the 1024 px one.",
+                    shows: 'The photo at 64x64 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
+// An image with only a width whose source changes to an image of another
+// shape (e.g. in a recycled list cell): the new image is decoded for the
+// view's width, as on its first load, not for the box the previous image
+// gave the view (to cover it: several times the pixels the view has once it
+// takes the new shape; to fit in it: fewer, and then again). The work counts
+// show the box it's decoded for.
+function AutoSizeChangeDecodeCase({
+    id,
+    objectFit,
+    first,
+    second,
+    expected,
+    marginLeft = 0,
+    description,
+}: {
+    id: string
+    objectFit: React.ComponentProps<typeof FastImage>['objectFit']
+    first: string
+    second: string
+    expected: { width: number; height: number }
+    // Off the pixel grid, so the layout rounds the view's size with its
+    // position.
+    marginLeft?: number
+    description: Description
+}) {
+    const [changed, setChanged] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            `${changed ? second : first}?${id}=${RUN}`,
+                        ),
+                    }}
+                    style={{
+                        width: expected.width,
+                        height: 'auto',
+                        marginLeft,
+                    }}
+                    objectFit={objectFit}
+                    onLoad={() =>
+                        changed
+                            ? setTimeout(() => setLoaded(true), 1000)
+                            : setTimeout(() => setChanged(true), 300)
+                    }
+                    onLayout={(e) => setLayout(e.nativeEvent.layout)}
+                />
+            </View>
+            <CaseStatus
+                id={id}
+                status={
+                    !loaded || !layout
+                        ? 'waiting'
+                        : Math.abs(layout.width - expected.width) < 0.5 &&
+                            Math.abs(layout.height - expected.height) < 0.5
+                          ? 'OK'
+                          : `${layout.width}x${layout.height}, expected ${expected.width}x${expected.height}`
+                }
+                description={description}
+            />
+        </View>
+    )
+}
+
+// An image with style { width: 'auto', height: 64 } in a column, whose width
+// the column stretches (240): its source changes from a square photo to a
+// 1600x1000 page of text, which is decoded to cover the stretched view, not
+// only for its height (the width doesn't follow the image there), and is
+// sharp. The work counts show the box it's decoded for.
+function AutoSizeStretchedChangeCase() {
+    const [changed, setChanged] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    return (
+        <View style={{ marginBottom: 12, width: 240 }}>
+            <FastImage
+                source={{
+                    uri: imageUrl(
+                        changed
+                            ? `text-page.png?auto-size-stretched-change=${RUN}`
+                            : `picsum/1020-120x120.jpg?auto-size-stretched-change=${RUN}`,
+                    ),
+                }}
+                style={{ width: 'auto', height: 64 }}
+                onLoad={() =>
+                    changed
+                        ? setTimeout(() => setLoaded(true), 1000)
+                        : setTimeout(() => setChanged(true), 300)
+                }
+            />
+            <CaseStatus
+                id="auto-size-stretched-change"
+                status={loaded ? 'OK' : 'waiting'}
+                description={{
+                    checks: "An image whose 'auto' width a column stretches, whose source changes, is decoded to cover the view, not only for its height: the width doesn't follow the image there.",
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 64 } in a 240-point-wide column (stretched to 240x64), and 300 ms after onLoad changes the source to a 1600x1000 page of text. Passes 1 s after its onLoad; the work counts show the box it was decoded for.",
+                    shows: 'A sharp 240x64 strip from the middle of the text page. Blurry text is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A single bundled image (no style needed: its own size lays it out) whose
+// source changes to a url with both sides 'auto': while the url loads, the
+// view keeps the bundled image's size in points, as it had, not its pixels.
+// The url comes from the slow server (about 2.8 s), and its layout is checked
+// 1 s after the change.
+function AutoSizeFromBundledCase() {
+    const [changed, setChanged] = useState(false)
+    const [during, setDuring] = useState<string>()
+    const [loaded, setLoaded] = useState(false)
+    const [layout, setLayout] = useState('')
+    const latest = useRef('')
+    useEffect(() => {
+        if (!changed) return
+        const timer = setTimeout(() => setDuring(latest.current), 1000)
+        return () => clearTimeout(timer)
+    }, [changed])
+    // The web can't send the slow server's header: there the url loads at
+    // once, so only its own size is checked.
+    const url =
+        Platform.OS === 'web'
+            ? {
+                  uri: imageUrl(
+                      `picsum/1020-120x120.jpg?auto-size-from-bundled=${RUN}`,
+                  ),
+              }
+            : {
+                  uri: slowImageUrl(
+                      `picsum/1020-120x120.jpg?auto-size-from-bundled=${RUN}&delay=400`,
+                  ),
+                  headers: SLOW_HEADERS,
+              }
+    const status = !loaded
+        ? 'waiting'
+        : Platform.OS !== 'web' && during !== '40x40'
+          ? `${during} while the url loaded, expected 40x40`
+          : layout !== '120x120'
+            ? `${layout} once it loaded, expected 120x120`
+            : 'OK'
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={changed ? url : require('./images/center-dot.png')}
+                    style={changed ? { width: 'auto', height: 'auto' } : {}}
+                    objectFit="fill"
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        latest.current = `${Math.round(width)}x${Math.round(height)}`
+                        setLayout(latest.current)
+                    }}
+                    onLoad={() =>
+                        changed
+                            ? setTimeout(() => setLoaded(true), 500)
+                            : setTimeout(() => setChanged(true), 300)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-from-bundled"
+                status={status}
+                description={{
+                    checks: "A bundled image whose source changes to a url with both sides 'auto' keeps the bundled image's size in points while the url loads, not its pixels.",
+                    steps: "Shows require('./images/center-dot.png'), only a 120x120 @3x file (40x40), with no style in a row, then changes the source to a 120x120 photo (on iOS and Android from a download that takes about 2.8 s) with style { width: 'auto', height: 'auto' }. Passes when its layout 1 s after the change was 40x40 (not on the web, where the url loads at once), and 120x120 once the photo has loaded.",
+                    shows: 'The photo at 120x120 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
+// An image with only a width whose source changes to one that fails: the
+// open side goes back to 0, as for an image that never loaded, rather than
+// keeping the previous image's shape.
+function AutoSizeFailedCase() {
+    const [failing, setFailing] = useState(false)
+    const [failed, setFailed] = useState(false)
+    const [layout, setLayout] = useState<{ width: number; height: number }>()
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            failing
+                                ? `does-not-exist.jpg?auto-size-failed=${RUN}`
+                                : `picsum/1018-600x300.jpg?auto-size-failed=${RUN}`,
+                        ),
+                    }}
+                    style={{ width: 96, height: 'auto' }}
+                    onLoad={() => setTimeout(() => setFailing(true), 500)}
+                    onError={() => setTimeout(() => setFailed(true), 1000)}
+                    onLayout={(e) => setLayout(e.nativeEvent.layout)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-failed"
+                status={
+                    !failed
+                        ? 'waiting'
+                        : layout?.width === 96 && layout.height === 0
+                          ? 'OK'
+                          : `${layout?.width}x${layout?.height} after onError`
+                }
+                description={{
+                    checks: "An image with only a width whose source changes to one that fails is 0 high again, as before an image loaded, not the previous image's height.",
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto' } in a row (96x48), then changes the source to a url that 404s. Passes when, 1 s after onError, its layout is 96x0.",
+                    shows: 'Nothing: the image is 0 high.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A single source's width and height (128x64) with no style, from a download
+// that takes 2 s: the view is 128x64 before the image loads, so the layout
+// doesn't change when it does.
+function AutoSizeDeclaredCase() {
+    const [layouts, setLayouts] = useState<string[]>([])
+    const [loaded, setLoaded] = useState<number>()
+    const before = loaded === undefined ? layouts : layouts.slice(0, loaded)
+    // On the web the image loads at once, and onLayout (a ResizeObserver,
+    // after paint) can come after onLoad: there only the layouts are checked.
+    const laidOutBefore = before.length > 0 || Platform.OS === 'web'
+    const status =
+        loaded === undefined
+            ? 'waiting'
+            : laidOutBefore && layouts.every((layout) => layout === '128x64')
+              ? 'OK'
+              : `layouts ${layouts.join(', ') || 'none'} (${before.length} before onLoad), expected 128x64`
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={
+                        // The web can't send the slow server's header (and
+                        // lays the view out long before the image arrives).
+                        Platform.OS === 'web'
+                            ? {
+                                  uri: imageUrl(
+                                      `picsum/1018-600x300.jpg?auto-size-declared=${RUN}`,
+                                  ),
+                                  width: 128,
+                                  height: 64,
+                              }
+                            : {
+                                  uri: slowImageUrl(
+                                      `picsum/1018-600x300.jpg?auto-size-declared=${RUN}&delay=2000`,
+                                  ),
+                                  headers: SLOW_HEADERS,
+                                  width: 128,
+                                  height: 64,
+                              }
+                    }
+                    style={{}}
+                    objectFit="fill"
+                    onLayout={(e) => {
+                        const { width, height } = e.nativeEvent.layout
+                        const layout = `${Math.round(width)}x${Math.round(height)}`
+                        setLayouts((all) => [...all, layout])
+                    }}
+                    onLoad={() => setLoaded(layouts.length)}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-declared"
+                status={status}
+                description={{
+                    checks: "A single source's width and height lay the view out before the image loads, so its layout doesn't change when it does.",
+                    steps: 'Loads the 600x300 photo (on iOS and Android from a download that takes 2 s) as { uri, width: 128, height: 64 } with no style in a row. Passes once it has loaded if every layout, at least one of them before onLoad (not on the web, where onLayout can come after it), was 128x64.',
+                    shows: 'The photo at 128x64 on the left.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Four images with only a width and objectFit contain (or fill), each a
+// quarter pixel lower than the one before. A 336x201 image 64 points wide is
+// 100.5 pixels high on Android (2.625 pixels a point): the layout rounds that
+// up or down with the view's position, so in some of them it differs from the
+// decoded bitmap's height by a pixel, which is the same image. The work counts
+// show whether it's decoded again for them.
+function AutoSizeRoundingCase({
+    id,
+    objectFit,
+}: {
+    id: string
+    objectFit: 'contain' | 'fill'
+}) {
+    const [loaded, setLoaded] = useState<Set<number>>(new Set())
+    const [layouts, setLayouts] = useState<
+        Record<number, { width: number; height: number }>
+    >({})
+    const height = (64 * 201) / 336
+    const shown = Object.values(layouts)
+    const wrong = shown.find(
+        (layout) =>
+            Math.abs(layout.width - 64) >= 0.5 ||
+            Math.abs(layout.height - height) >= 0.5,
+    )
+    const status =
+        loaded.size < 4 || shown.length < 4
+            ? 'waiting'
+            : wrong
+              ? `${wrong.width}x${wrong.height}, expected 64x${height.toFixed(2)}`
+              : 'OK'
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                }}
+            >
+                {[0, 1, 2, 3].map((i) => (
+                    <FastImage
+                        key={i}
+                        source={{
+                            uri: imageUrl(`odd-height.png?${id}=${RUN}`),
+                        }}
+                        style={{
+                            width: 64,
+                            height: 'auto',
+                            marginTop: i / 4 / PixelRatio.get(),
+                        }}
+                        objectFit={objectFit}
+                        onLoad={() => setLoaded((done) => new Set(done).add(i))}
+                        onLayout={(e) => {
+                            const { width, height } = e.nativeEvent.layout
+                            setLayouts((all) => ({
+                                ...all,
+                                [i]: { width, height },
+                            }))
+                        }}
+                    />
+                ))}
+            </View>
+            <CaseStatus
+                id={id}
+                status={status}
+                description={{
+                    checks: `Images with only a width and objectFit ${objectFit} whose height rounds to the pixel grid differently from the decoded image's aren't decoded again for that pixel.`,
+                    steps: `Loads a 336x201 image of a magenta half over a cyan half in four views with style { width: 64, height: 'auto' } and objectFit ${objectFit}, each a quarter pixel lower (100.5 pixels high on Android, so the layout rounds some up and some down). Passes once all have loaded and are 64 points wide and their image's height; the work counts show whether it was decoded again.`,
+                    shows: 'Four 64-point-wide images side by side, each magenta over cyan.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A view with both sides set and objectFit contain whose height grows from
+// about 0 (as in an animation) once its image has loaded: the image is
+// decoded again for the new size. iOS took a decode for a box 1 pixel high
+// for one decoded for one side (an open one), and kept a square image's
+// copy contained in it, a pixel.
+function AutoSizeGrowCase() {
+    const [grown, setGrown] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1018-1024x1024.jpg?auto-size-grow=${RUN}`,
+                        ),
+                    }}
+                    style={{
+                        width: 120,
+                        height: grown ? 120 : 1 / PixelRatio.get(),
+                    }}
+                    objectFit="contain"
+                    onLoad={() =>
+                        setTimeout(() => {
+                            setGrown(true)
+                            setTimeout(() => setStatus('OK'), 1500)
+                        }, 300)
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-grow"
+                status={status}
+                description={{
+                    checks: 'An image with both sides set and objectFit contain, whose height grows from about 0 once it has loaded, is decoded again for its new size, not left as the copy decoded for the first one.',
+                    steps: 'Loads a 1024x1024 photo with style { width: 120, height: 1 / PixelRatio.get() } (a box 1 pixel high) and objectFit contain, and 300 ms after onLoad makes the height 120. Passes 1.5 s later; the screenshot shows whether it was decoded again.',
+                    shows: 'The photo at 120x120, sharp. A flat color (one pixel stretched) means it kept the copy decoded for the first size.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A source change in a view with neither side set, at its first image's size
+// (a 120x120 square): recorded right of its middle, outside the square, as
+// the view goes to the next image's 2:1 shape, the image is magenta there (its
+// right third), never cyan, as it would be cropped to the square the view had
+// (then stretched to the new shape).
+function AutoSizeNaturalChangeCase() {
+    const sample = useContext(SampleContext)
+    const box = useRef<React.ComponentRef<typeof View>>(null)
+    const [uri, setUri] = useState(
+        imageUrl(`picsum/1020-120x120.jpg?auto-size-natural-change=${RUN}`),
+    )
+    const loads = useRef(0)
+    const done = useRef(() => {})
+    const [status, setStatus] = useState('waiting')
+    const record = async () => {
+        const area = await measureView(box.current)
+        if (!area) return setStatus('not on screen')
+        setStatus('recording')
+        const expect = [MAGENTA]
+        const result = await sample(
+            {
+                name: 'auto-size-natural-change',
+                area: {
+                    x: area.x + 170,
+                    y: area.y + 45,
+                    width: 12,
+                    height: 10,
+                },
+                durationMs: 4000,
+                expect,
+                palette: [CYAN],
+            },
+            (sampleDone) => {
+                done.current = sampleDone
+                setUri(imageUrl(`thirds.png?auto-size-natural-change=${RUN}`))
+            },
+        )
+        setStatus(sampleStatus(result, expect))
+    }
+    return (
+        <View style={{ marginBottom: 12 }}>
+            <View
+                ref={box}
+                collapsable={false}
+                style={{
+                    width: 240,
+                    height: 128,
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                }}
+            >
+                <FastImage
+                    source={{ uri }}
+                    style={{ width: 'auto', height: 'auto' }}
+                    onLoad={() => {
+                        loads.current++
+                        if (loads.current === 1) setTimeout(record, 500)
+                        else setTimeout(() => done.current(), 1500)
+                    }}
+                />
+            </View>
+            <CaseStatus
+                id="auto-size-natural-change"
+                status={status}
+                description={{
+                    checks: "An image with neither side set and objectFit cover whose source changes to an image of another shape shows the whole new image, not a crop of it for the previous image's shape.",
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a 240-wide row (120x120), then records a point right of the view's middle, outside the first photo, while the source changes to a 600x300 image of magenta, cyan and magenta thirds (240x120, the row's width), until 1.5 s after its onLoad. Passes when the recording sees magenta, and never cyan.",
+                    shows: 'The thirds at 240x120: magenta, cyan and magenta.',
+                }}
+            />
+        </View>
+    )
+}
+
+// Shared with the main, minimum and tvOS apps' regression groups.
+export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
+    {
+        name: 'auto-size',
+        description: {
+            checks: "#436: a FastImage's open sides follow the loaded image, as an <img>'s do: the other side from its aspect ratio, or its own size with neither set.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-width"
+                id="auto-size-width"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 240, height: 'auto' }}
+                expected={{ width: 240, height: 120 }}
+                description={{
+                    checks: 'An image with only a width (in a row) gets the height its aspect ratio gives.',
+                    steps: "Loads a 600x300 photo with style { width: 240, height: 'auto' } in a row. Passes once it has loaded and its layout is 240x120.",
+                    shows: 'The photo at 240x120 on the left, not stretched.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-height"
+                id="auto-size-height"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 'auto', height: 64 }}
+                expected={{ width: 128, height: 64 }}
+                description={{
+                    checks: 'An image with only a height (in a row) gets the width its aspect ratio gives.',
+                    steps: "Loads the 600x300 photo with style { width: 'auto', height: 64 } in a row. Passes once it has loaded and its layout is 128x64.",
+                    shows: 'The photo at 128x64 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-natural"
+                id="auto-size-natural"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: 'An image with no size (in a row) is its own size: a 120x120 image is 120x120 points.',
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The 120x120 photo at 120x120 points on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-left-out"
+                id="auto-size-left-out"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 240 }}
+                expected={{ width: 240, height: 0 }}
+                description={{
+                    checks: "Opt-in: a side the style leaves out (rather than setting to 'auto') doesn't follow the image, and stays 0, as with React Native's Image.",
+                    steps: 'Loads the 600x300 photo with style { width: 240 } in a row. Passes once it has loaded and its layout is 240x0.',
+                    shows: 'Nothing: the view is 0 high.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-scale"
+                id="auto-size-scale"
+                source={require('./images/center-dot.png')}
+                style={{}}
+                expected={{ width: 40, height: 40 }}
+                description={{
+                    checks: "A bundled @3x image with no size is its size in points: its pixels over its file's scale.",
+                    steps: "Shows require('./images/center-dot.png'), only a 120x120 @3x file, with no style in a row. Passes once it has loaded and its layout is 40x40.",
+                    shows: 'A 40x40 blue square on the left.',
+                }}
+            />,
+        ],
+    },
+    {
+        name: 'auto-size-more',
+        description: {
+            checks: "#436, continued: an SVG's own size, a FastImageBackground's image, and how an image with only a width is decoded and shown as it loads.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-svg"
+                id="auto-size-svg"
+                source={{ uri: imageUrl('svg-icon.svg?auto-size') }}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 24, height: 24 }}
+                description={{
+                    checks: 'An SVG with no size is its own size: a 24x24 SVG is 24x24 points.',
+                    steps: "Loads a 24x24 SVG of a black ring with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 24x24.",
+                    shows: 'A 24x24 black ring on the left.',
+                }}
+            />,
+            <AutoSizeBackgroundCase key="auto-size-background" />,
+            // Clipped by a 128-point-high column with overflow scroll: Yoga caps
+            // a child's open height at its parent's unless the parent scrolls,
+            // as browsers do.
+            <AutoSizeCase
+                key="auto-size-tall"
+                id="auto-size-tall"
+                source={{ uri: imageUrl('tall-bands.png') }}
+                style={{ width: 128, height: 'auto' }}
+                objectFit="cover"
+                container={{
+                    height: 128,
+                    flexDirection: 'column',
+                    overflow: 'scroll',
+                }}
+                expected={{ width: 128, height: 1024 }}
+                description={{
+                    checks: "An image with only a width that's taller than the screen at that width is decoded once, for the view's size, not first for a box the screen's height.",
+                    steps: "Loads a 200x1600 image of 16 magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit cover in a column 128 points high with overflow scroll, which clips it. Passes once it has loaded and its layout is 128x1024; the work counts show its decodes.",
+                    shows: 'The top of the image, 128x128: a magenta band over a cyan one.',
+                }}
+            />,
+            <AutoSizeDownsampleCase key="auto-size-downsample" />,
+            // Not on the web, where the browser crops it as it draws it (and
+            // the runner doesn't record the screen).
+            ...(Platform.OS === 'web'
+                ? []
+                : [<AutoSizeCoverCase key="auto-size-cover" />]),
+        ],
+    },
+    {
+        name: 'auto-size-styles',
+        description: {
+            checks: "#436, continued: padding (ignored), borders, and a later style's height: 'auto'.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-padding"
+                id="auto-size-padding"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 96, height: 'auto', padding: 8 }}
+                expected={{ width: 96, height: 48 }}
+                description={{
+                    checks: "Padding is ignored: an image with only a width has the image's aspect ratio, as without it.",
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto', padding: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                    shows: 'The photo at 96x48 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-padding-logical"
+                id="auto-size-padding-logical"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{
+                    width: 96,
+                    height: 'auto',
+                    paddingBlock: 8,
+                    paddingInline: 8,
+                }}
+                expected={{ width: 96, height: 48 }}
+                description={{
+                    checks: 'Padding is ignored, also paddingBlock and paddingInline (React Native keeps them apart from padding).',
+                    steps: "Loads the 600x300 photo with style { width: 96, height: 'auto', paddingBlock: 8, paddingInline: 8 } in a row. Passes once it has loaded and its layout is 96x48.",
+                    shows: 'The photo at 96x48 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-padding-natural"
+                id="auto-size-padding-natural"
+                source={{ uri: imageUrl('picsum/1020-120x120.jpg') }}
+                style={{ width: 'auto', height: 'auto', padding: 20 }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "Padding is ignored: with neither side set, the view is the image's own size, as without it.",
+                    steps: "Loads a 120x120 photo with style { width: 'auto', height: 'auto', padding: 20 } in a row. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The 120x120 photo at 120x120 points on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-padding-left-out"
+                id="auto-size-padding-left-out"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 96, padding: 8 }}
+                expected={{ width: 96, height: 0 }}
+                description={{
+                    checks: "Padding is ignored: a side the style leaves out stays 0, not the padding's 16 points.",
+                    steps: 'Loads the 600x300 photo with style { width: 96, padding: 8 } in a row. Passes once it has loaded and its layout is 96x0.',
+                    shows: 'Nothing: the view is 0 high.',
+                }}
+            />,
+            // The web's aspect ratio is the border box's: there, the image's
+            // box is a little off its shape.
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-border"
+                          id="auto-size-border"
+                          source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                          style={{ width: 240, height: 'auto', borderWidth: 8 }}
+                          expected={{ width: 240, height: 128 }}
+                          description={{
+                              checks: "With borders, the image (inside them) has its aspect ratio: the borders aren't part of it.",
+                              steps: "Loads the 600x300 photo with style { width: 240, height: 'auto', borderWidth: 8 } in a row. Passes once it has loaded and its layout is 240x128 (the image 224x112).",
+                              shows: 'The photo at 224x112 inside an 8-point black border, on the left.',
+                          }}
+                      />,
+                  ]),
+            // React Native Web keeps the earlier height.
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-cleared"
+                          id="auto-size-cleared"
+                          source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                          style={[
+                              { height: 200 },
+                              { width: 96, height: 'auto' },
+                          ]}
+                          expected={{ width: 96, height: 48 }}
+                          description={{
+                              checks: "A height of 'auto' in a later style replaces an earlier style's height.",
+                              steps: "Loads the 600x300 photo with style [{ height: 200 }, { width: 96, height: 'auto' }] in a row. Passes once it has loaded and its layout is 96x48.",
+                              shows: 'The photo at 96x48 on the left.',
+                          }}
+                      />,
+                  ]),
+        ],
+    },
+    {
+        name: 'auto-size-edges',
+        description: {
+            checks: "#436, continued: the style's aspectRatio with neither side set, an aspectRatio of 'auto', a height that grows from about 0, a contain image's height rounding off the decoded image's, and an open side that rounds to a sliver inside the borders.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-aspect-ratio"
+                id="auto-size-aspect-ratio"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 'auto', aspectRatio: 1 }}
+                container={{ width: 120 }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "The style's aspectRatio wins over the image's, also with neither side set: the image's width (at most the space there is), and the height from the style's ratio.",
+                    steps: "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide row. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The photo stretched to a 120x120 square on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-aspect-ratio-column"
+                id="auto-size-aspect-ratio-column"
+                source={{ uri: imageUrl('picsum/1018-600x300.jpg') }}
+                style={{ width: 'auto', aspectRatio: 1 }}
+                container={{
+                    width: 120,
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "As auto-size-aspect-ratio, in a column with alignItems center, where the width isn't stretched.",
+                    steps: "Loads the 600x300 photo with style { width: 'auto', aspectRatio: 1 } in a 120-point-wide column with alignItems center. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The photo stretched to a 120x120 square on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-aspect-ratio-auto"
+                id="auto-size-aspect-ratio-auto"
+                source={{
+                    uri: imageUrl(
+                        'picsum/1018-600x300.jpg?auto-size-aspect-ratio-auto',
+                    ),
+                }}
+                style={{ width: 'auto', height: 64, aspectRatio: 'auto' }}
+                container={{ width: 240 }}
+                expected={{ width: 128, height: 64 }}
+                description={{
+                    checks: "A style aspectRatio of 'auto' is no ratio: the open width follows the image's shape from the set height.",
+                    steps: "Loads the 600x300 photo with style { width: 'auto', height: 64, aspectRatio: 'auto' } in a 240-point-wide row. Passes once it has loaded and its layout is 128x64.",
+                    shows: 'The photo at 128x64 on the left.',
+                }}
+            />,
+            <AutoSizeGrowCase key="auto-size-grow" />,
+            <AutoSizeRoundingCase
+                key="auto-size-contain-rounding"
+                id="auto-size-contain-rounding"
+                objectFit="contain"
+            />,
+            // Not on the web (see auto-size-border).
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeCase
+                          key="auto-size-border-sliver"
+                          id="auto-size-border-sliver"
+                          source={{
+                              uri: imageUrl(
+                                  `cyan-wide.png?auto-size-border-sliver=${RUN}`,
+                              ),
+                          }}
+                          style={{
+                              width: 128.9,
+                              height: 'auto',
+                              borderWidth: 0.45,
+                              borderColor: 'transparent',
+                          }}
+                          objectFit="contain"
+                          // The image's height can round either way by a pixel
+                          // (it's 64.9 points), which moves its edges: the
+                          // screenshot is of the row, which doesn't, in the
+                          // image's color (the case checks the layout and the
+                          // decodes, not how it looks).
+                          container={{ height: 72, backgroundColor: CYAN }}
+                          expected={{ width: 128.9, height: 64.9 }}
+                          description={{
+                              checks: 'An image with only a width and borders whose open height rounds to a sliver inside them (less than a pixel) is decoded for its width, as with no borders, not for that sliver and then again.',
+                              steps: "Loads a 600x300 cyan image with style { width: 128.9, height: 'auto', borderWidth: 0.45, borderColor: 'transparent' } and objectFit contain in a row: 0.9 points of borders, which the layout rounds to the pixel grid. Passes once it has loaded and its layout is 128.9x64.9 (128x64 inside the borders), within half a point; the work counts show the boxes it was decoded for.",
+                              shows: 'A cyan rectangle on the left, about 129x72 (the image in front of a cyan row).',
+                          }}
+                      />,
+                  ]),
+        ],
+    },
+    {
+        name: 'auto-size-declared',
+        description: {
+            checks: "#436, continued: a source's own size: several sources' scale, and a single source's width and height, laid out before the image loads.",
+        },
+        cases: [
+            <AutoSizeCase
+                key="auto-size-sources-scale"
+                id="auto-size-sources-scale"
+                source={[
+                    {
+                        uri: imageUrl(
+                            'picsum/1025-200x200.jpg?auto-size-scale=a',
+                        ),
+                        width: 80,
+                        height: 80,
+                        scale: 2.5,
+                    },
+                    {
+                        uri: imageUrl(
+                            'picsum/1025-200x200.jpg?auto-size-scale=b',
+                        ),
+                        width: 80,
+                        height: 80,
+                        scale: 2.5,
+                    },
+                ]}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 80, height: 80 }}
+                description={{
+                    checks: "Of several sources, the picked one's pixels over its scale are its size in points, as a bundled @2x or @3x image's are.",
+                    steps: "Shows two sources of a 200x200 photo, each { width: 80, height: 80, scale: 2.5 }, with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 80x80.",
+                    shows: 'The photo at 80x80 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-source-width"
+                id="auto-size-source-width"
+                source={{
+                    uri: imageUrl(
+                        'picsum/1020-120x120.jpg?auto-size-source-width',
+                    ),
+                    width: 64,
+                    height: 64,
+                }}
+                style={{}}
+                expected={{ width: 64, height: 64 }}
+                description={{
+                    checks: "A single source's width and height are its size in points, as with React Native's Image, also with no style: a 120x120 image given as 64x64 is 64x64.",
+                    steps: 'Loads a 120x120 photo as { uri, width: 64, height: 64 } with no style in a row. Passes once it has loaded and its layout is 64x64.',
+                    shows: 'The photo at 64x64 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-url-scale"
+                id="auto-size-url-scale"
+                source={{
+                    uri: imageUrl('picsum/1020-120x120.jpg?name=photo@2x.jpg'),
+                }}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 120, height: 120 }}
+                description={{
+                    checks: "A url with @2x in it is its size in pixels, as other urls are: only a bundled file's or a source's scale divides it.",
+                    steps: "Loads a 120x120 photo from a url ending in ?name=photo@2x.jpg with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 120x120.",
+                    shows: 'The photo at 120x120 on the left.',
+                }}
+            />,
+            <AutoSizeCase
+                key="auto-size-sources-bundled"
+                id="auto-size-sources-bundled"
+                source={[
+                    require('./images/center-dot.png'),
+                    require('./images/center-dot.png'),
+                ]}
+                style={{ width: 'auto', height: 'auto' }}
+                expected={{ width: 40, height: 40 }}
+                description={{
+                    checks: "Several bundled @3x sources with both sides 'auto' are their size in points, their pixels over their file's scale (once).",
+                    steps: "Shows [require('./images/center-dot.png'), require('./images/center-dot.png')], a 120x120 @3x file, with style { width: 'auto', height: 'auto' } in a row. Passes once it has loaded and its layout is 40x40.",
+                    shows: 'A 40x40 blue square on the left.',
+                }}
+            />,
+            <AutoSizeDeclaredCase key="auto-size-declared" />,
+        ],
+    },
+    {
+        name: 'auto-size-changes',
+        description: {
+            checks: '#436, continued: a url placeholder, several sizes, a source change and a failed one, of an image with only a width, and a source change of one with neither side set.',
+        },
+        cases: [
+            <AutoSizePlaceholderCase key="auto-size-placeholder" />,
+            // Not on the web (see auto-size-cover).
+            ...(Platform.OS === 'web'
+                ? []
+                : [
+                      <AutoSizeSourceChangeCase key="auto-size-source-change" />,
+                      <AutoSizeNaturalChangeCase key="auto-size-natural-change" />,
+                  ]),
+            <AutoSizeSourcesCase key="auto-size-sources" />,
+            <AutoSizeFailedCase key="auto-size-failed" />,
+        ],
+    },
+    {
+        name: 'auto-size-decodes',
+        description: {
+            checks: "#436, continued: the size an image is decoded for when an 'auto' side is stretched, both sides are 'auto' with a large image, and a fill image's height rounds off the decoded one's.",
+        },
+        cases: [
+            <AutoSizeStretchedChangeCase key="auto-size-stretched-change" />,
+            <AutoSizeCase
+                key="auto-size-natural-large"
+                id="auto-size-natural-large"
+                source={{
+                    uri: imageUrl(
+                        `picsum/1015-2048x2048.jpg?auto-size-natural-large=${RUN}`,
+                    ),
+                }}
+                style={{ width: 'auto', height: 'auto' }}
+                container={{ width: 240 }}
+                expected={{ width: 240, height: 240 }}
+                description={{
+                    checks: "A large image with both sides 'auto' in less space than its size is decoded for the size it gets, not kept at its full size.",
+                    steps: "Loads a 2048x2048 photo with style { width: 'auto', height: 'auto' } in a 240-point-wide row. Passes once it has loaded and its layout is 240x240; the work counts show the sizes it was decoded at.",
+                    shows: 'The photo at 240x240 on the left.',
+                }}
+            />,
+            <AutoSizeRoundingCase
+                key="auto-size-fill-rounding"
+                id="auto-size-fill-rounding"
+                objectFit="fill"
+            />,
+        ],
+    },
+    {
+        name: 'auto-size-change-decode',
+        description: {
+            checks: "#436, continued: the box a new source of an image with only a width is decoded for, with cover and contain, and a bundled image changed to a url with both sides 'auto'.",
+        },
+        cases: [
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode"
+                id="auto-size-change-decode"
+                objectFit="cover"
+                first="picsum/1020-120x120.jpg"
+                second="wide-bands.png"
+                expected={{ width: 256, height: 64 }}
+                description={{
+                    checks: "An image with only a width and objectFit cover whose source changes to an image of another shape decodes the new image for the view's width, not to cover the box the previous image gave the view.",
+                    steps: "Loads a 120x120 photo with style { width: 256, height: 'auto' } and objectFit cover in a row (256x256), and 300 ms after onLoad changes the source to a 3200x800 image of magenta and cyan bands. Passes when, 1 s after its onLoad, the layout is 256x64; the work counts show the box it was decoded for.",
+                    shows: 'Eight magenta and cyan bands at 256x64.',
+                }}
+            />,
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode-contain"
+                id="auto-size-change-decode-contain"
+                objectFit="contain"
+                first="wide-bands.png"
+                second="picsum/1018-1024x1024.jpg"
+                expected={{ width: 128, height: 128 }}
+                description={{
+                    checks: "An image with only a width and objectFit contain whose source changes to an image of another shape decodes the new image for the view's width, not to fit in the box the previous image gave the view (and then again).",
+                    steps: "Loads a 3200x800 image of magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit contain in a row (128x32), and 300 ms after onLoad changes the source to a 1024x1024 photo. Passes when, 1 s after its onLoad, the layout is 128x128; the work counts show the boxes it was decoded for.",
+                    shows: 'The photo at 128x128 on the left.',
+                }}
+            />,
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode-tall"
+                id="auto-size-change-decode-tall"
+                objectFit="cover"
+                first="tall-bands.png"
+                second="picsum/1020-120x120.jpg"
+                expected={{ width: 24.2, height: 24.2 }}
+                marginLeft={0.3}
+                description={{
+                    checks: "An image with only a width, off the pixel grid, whose tall image (1:8) the layout rounds a few pixels off its shape, still counts as having that image's shape: a new source is decoded for the width, not cropped to the tall box.",
+                    steps: "Loads a 200x1600 image of bands with style { width: 24.2, height: 'auto', marginLeft: 0.3 } and objectFit cover in a row (24.2x193.6), and 300 ms after onLoad changes the source to a 120x120 photo. Passes when, 1 s after its onLoad, the layout is 24.2x24.2; the work counts show the box it was decoded for.",
+                    shows: 'The photo at about 24x24 on the left.',
+                }}
+            />,
+            <AutoSizeFromBundledCase key="auto-size-from-bundled" />,
+        ],
+    },
+]
+
 export const SMOKE_GROUPS: RegressionGroup[] = [
     {
         name: 'smoke',
@@ -816,6 +2163,7 @@ export const SMOKE_GROUPS: RegressionGroup[] = [
                 : [<CacheLimitsCase key="cache-limits" />]),
         ],
     },
+    ...AUTO_SIZE_GROUPS,
     ...(Platform.OS === 'web'
         ? [
               {

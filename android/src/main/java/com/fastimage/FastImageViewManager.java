@@ -34,6 +34,8 @@ import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.uimanager.Spacing;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
+import com.facebook.react.uimanager.ReactStylesDiffMap;
+import com.facebook.react.uimanager.StateWrapper;
 import com.facebook.react.uimanager.ViewManagerDelegate;
 import com.facebook.react.uimanager.ViewProps;
 import com.facebook.react.uimanager.style.BackgroundImageLayer;
@@ -395,6 +397,20 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     @Override
+    public void setAutoSize(FastImageViewWithUrl view, int autoSize) {
+        view.setAutoSize(autoSize);
+    }
+
+    // Only the shadow node uses them (common/cpp's FastImageAutoViewShadowNode).
+    @Override
+    public void setOwnWidth(FastImageViewWithUrl view, float ownWidth) {
+    }
+
+    @Override
+    public void setOwnHeight(FastImageViewWithUrl view, float ownHeight) {
+    }
+
+    @Override
     public void setTransitionDuration(FastImageViewWithUrl view, double transitionDuration) {
         view.setTransitionDuration((int) transitionDuration);
     }
@@ -463,6 +479,15 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void reload(FastImageViewWithUrl view) {
         view.reload();
+    }
+
+    // The shadow node's state, which the view sets the loaded image's size in
+    // (see setLayoutSize).
+    @Nullable
+    @Override
+    public Object updateState(@NonNull FastImageViewWithUrl view, ReactStylesDiffMap props, StateWrapper stateWrapper) {
+        view.setStateWrapper(stateWrapper);
+        return null;
     }
 
     @Override

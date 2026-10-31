@@ -41,6 +41,7 @@ import {
     DescriptionText,
     DetailsContext,
 } from './CaseStatus'
+import { AUTO_SIZE_GROUPS } from './SmokeExample'
 import { useStatusBarHeight } from './StatusBarUnderlay'
 import { imageUrl, slowImageUrl } from './imageServer'
 import {
@@ -7486,6 +7487,44 @@ const BLUR_TWICE_SOURCE = {
     cache: 'web' as const,
 }
 
+// A blurred image with objectFit fill in a view that grows in three steps,
+// next to the same image always at the last size: each size gets the blur for
+// it (the view stretches the image, and would stretch a blur made for a
+// smaller one too), so both look the same.
+function BlurFillGrowCase() {
+    const [step, setStep] = useState(0)
+    const [loaded, setLoaded] = useState(0)
+    useEffect(() => {
+        if (loaded < 2 || step >= 3) return
+        const timer = setTimeout(() => setStep((n) => n + 1), 300)
+        return () => clearTimeout(timer)
+    }, [loaded, step])
+    const image = (name: string, size: number) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: size, height: size, marginRight: 8 }}
+            objectFit="fill"
+            blurRadius={2}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12, height: 48 }}>
+            {image('blur-fill-grow', 24 + step * 8)}
+            {image('blur-fill-fixed', 48)}
+            <CaseStatus
+                id="blur-fill-grow"
+                status={step >= 3 ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'A blurred image with objectFit fill in a view that grows is blurred for each size, so it looks like one shown at the last size from the start.',
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit="fill" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48, next to the same image (another url) in a 48x48 view. Passes once it has grown; the work counts show its reloads.',
+                    shows: 'Two equally blurred 48x48 squares of red, green, blue and yellow. A blurrier left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // defaultSource isn't blurred, as with React Native's Image.
 function BlurDefaultSourceCase() {
     const [failed, setFailed] = useState(false)
@@ -7687,7 +7726,7 @@ function DownsampleGrowCase() {
 }
 
 // A view without a size until its image loads (sized from onLoad): it still
-// loads, at full size.
+// loads (on iOS, decoded at full size, as there's no size to decode for).
 function DownsampleNoSizeCase() {
     const [size, setSize] = useState<{ width: number; height: number }>()
     // Passes once the view has been laid out at that size (the screenshot
@@ -7720,6 +7759,327 @@ function DownsampleNoSizeCase() {
                     checks: 'downsample: an image in a view with no size until it loads (sized from onLoad) still loads.',
                     steps: 'Loads a 600x300 photo with downsample and no style, inside a 48-point gray square; onLoad sizes it 48 wide and 24 tall. Passes once it has been laid out with a width.',
                     shows: 'A photo of green hills across the top half of the gray square, gray below. An empty gray square is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// An image in a view under a display: none parent, which lays it out at
+// 0x0, shown 1.5 s after it mounts (#1405): on Android it loads while hidden,
+// decoded no larger than its own size (a 20x20 image), not scaled up to a
+// square the screen's length (Glide's size for a view that has none), and
+// isn't decoded again once shown, larger than that (the view scales it up as
+// it draws it). iOS loads it once it's shown. The work counts show the box
+// it's decoded for.
+function DownsampleHiddenCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || !loaded) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(`quadrants.png?downsample-hidden=${RUN}`),
+                    }}
+                    style={{ width: 48, height: 48 }}
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id="downsample-hidden"
+                status={status}
+                description={{
+                    checks: "An image under a display: none parent (laid out at 0x0) is decoded no larger than its own size while hidden, not scaled up to a square the screen's length, and isn't decoded again once shown.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show the boxes it was decoded for.',
+                    shows: 'Red, green, blue and yellow quadrants in a 48x48 square.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A blurred image under a display: none parent, shown 1.5 s after it mounts,
+// next to the same image always shown: once shown, it's blurred for the
+// size it's shown at, as the right one is, not for its own size while hidden
+// (which the view then scales up, blurring it more).
+function DownsampleHiddenBlurCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    const image = (name: string) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: 48, height: 48, marginRight: 8 }}
+            blurRadius={4}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                {image('downsample-hidden-blur')}
+            </View>
+            {image('downsample-shown-blur')}
+            <CaseStatus
+                id="downsample-hidden-blur"
+                status={status}
+                description={{
+                    checks: "A blurred image under a display: none parent is blurred for the size it's shown at once shown, as one that was always shown is, not more.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with blurRadius 4 into two 48x48 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.',
+                    shows: 'Two equally blurred squares of red, green, blue and yellow. A blurrier left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A pixelated image under a display: none parent, shown 1.5 s after it mounts:
+// pixelated images are decoded at their own size whatever the view's size, so
+// its load isn't started again for a view without one. The work counts show
+// its loads.
+function DownsampleHiddenPixelatedCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || !loaded) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                <FastImage
+                    source={{
+                        uri: imageUrl(
+                            `quadrants.png?downsample-hidden-pixelated=${RUN}`,
+                        ),
+                    }}
+                    style={{ width: 48, height: 48 }}
+                    imageRendering="pixelated"
+                    onLoad={() => setLoaded(true)}
+                />
+            </View>
+            <CaseStatus
+                id="downsample-hidden-pixelated"
+                status={status}
+                description={{
+                    checks: "A pixelated image under a display: none parent loads once: it's decoded at its own size whatever the view's size.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with imageRendering="pixelated" into a 48x48 view inside a View with display: none, and shows that View 1.5 s later. Passes 1 s after it has been shown and has loaded; the work counts show its loads.',
+                    shows: 'Sharp red, green, blue and yellow quadrants in a 48x48 square.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A view with a width (48, stretched) but no height until its image loads,
+// then sized to the image's own size (200x200) from onLoad: loaded while it
+// had no height, the image was decoded for its width (no larger than its own
+// size), so it's decoded again for its own size, sharp, not kept at the
+// width's size and scaled up.
+function DownsampleNaturalSizeCase() {
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    const [laidOut, setLaidOut] = useState(false)
+    return (
+        <View
+            style={{
+                flexDirection: 'row',
+                width: 200,
+                height: 200,
+                marginBottom: 12,
+            }}
+        >
+            <View style={{ width: 48 }}>
+                <FastImage
+                    style={size}
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1025-200x200.jpg?downsample-natural-size=${RUN}`,
+                        ),
+                    }}
+                    onLayout={(e) => {
+                        if (Math.abs(e.nativeEvent.layout.height - 200) < 0.5)
+                            setLaidOut(true)
+                    }}
+                    onLoad={(e) =>
+                        setSize({
+                            width: e.nativeEvent.width,
+                            height: e.nativeEvent.height,
+                        })
+                    }
+                />
+            </View>
+            <CaseStatus
+                id="downsample-natural-size"
+                status={laidOut ? 'OK' : 'waiting'}
+                description={{
+                    checks: "An image in a view with a width but no height until it loads, then sized to the image's own size from onLoad, is decoded again for that size, not kept at the size it was decoded at for the width.",
+                    steps: "Loads a 200x200 photo with no style in a 48-point-wide View (its width stretched, 0 high); onLoad sizes it to the image's width and height (200x200). Passes once it has been laid out 200 high; the work counts show the sizes it was decoded at.",
+                    shows: 'A sharp 200x200 photo of a pug. A blurry one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A blurred fill image in a view with a width but no height until it loads,
+// sized 48x24 from onLoad, next to the same image blurred at 48x24 from the
+// start: its blur, made before the view had a size, is made again for it, so
+// both look the same.
+function DownsampleBlurNoSizeCase() {
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        if (!size || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [size, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12, height: 24 }}>
+            <View style={{ width: 48, marginRight: 8 }}>
+                <FastImage
+                    style={size}
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1018-600x300.jpg?downsample-blur-no-size=${RUN}`,
+                        ),
+                    }}
+                    objectFit="fill"
+                    blurRadius={2}
+                    onLoad={() => {
+                        // After the decode for no size has shown (on iOS,
+                        // where it's blurred again once the view has a size,
+                        // whether that came first or not).
+                        setTimeout(
+                            () => setSize({ width: 48, height: 24 }),
+                            500,
+                        )
+                        setLoaded((n) => n + 1)
+                    }}
+                />
+            </View>
+            <FastImage
+                style={{ width: 48, height: 24 }}
+                source={{
+                    uri: imageUrl(
+                        `picsum/1018-600x300.jpg?downsample-blur-sized=${RUN}`,
+                    ),
+                }}
+                objectFit="fill"
+                blurRadius={2}
+                onLoad={() => setLoaded((n) => n + 1)}
+            />
+            <CaseStatus
+                id="downsample-blur-no-size"
+                status={status}
+                description={{
+                    checks: 'A blurred fill image in a view with no height until it loads, sized from onLoad, is blurred for the size it gets, as one with that size from the start is.',
+                    steps: 'Loads a 600x300 photo with objectFit="fill" and blurRadius 2 with no style in a 48-point-wide View (0 high); 500 ms after onLoad, the view is sized 48x24. Next to it, the same photo (another url) at 48x24 from the start. Passes 1 s after both have loaded.',
+                    shows: 'Two equally blurred 48x24 photos of green hills. A sharper left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A cover image with objectPosition { bottom: 4 } under a display: none
+// parent, shown 1.5 s after it mounts, next to the same image always shown:
+// once shown it's drawn 4 points above the bottom, as the other one is.
+function DownsampleHiddenPositionCase() {
+    const [shown, setShown] = useState(false)
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        const timer = setTimeout(() => setShown(true), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+    useEffect(() => {
+        if (!shown || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [shown, loaded])
+    const image = (name: string) => (
+        <FastImage
+            source={{ uri: imageUrl(`quadrants.png?${name}=${RUN}`) }}
+            style={{ width: 48, height: 24, marginRight: 8 }}
+            objectPosition={{ bottom: 4 }}
+            onLoad={() => setLoaded((n) => n + 1)}
+        />
+    )
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ display: shown ? 'flex' : 'none' }}>
+                {image('downsample-hidden-position')}
+            </View>
+            {image('downsample-shown-position')}
+            <CaseStatus
+                id="downsample-hidden-position"
+                status={status}
+                description={{
+                    checks: 'A cover image with objectPosition under a display: none parent is drawn at its position once shown, as one that was always shown is.',
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectPosition { bottom: 4 } (cover) into two 48x24 views: the left inside a View with display: none, shown 1.5 s later, the right always shown (another url). Passes 1 s after both have loaded and the left is shown.',
+                    shows: 'Two identical 48x24 strips: the bottom of the red and green quadrants over the top of the blue and yellow ones, the line between them 4 points above the middle. A left one with the line in the middle is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
+// A blurred image with objectFit scale-down in a view that grows in three
+// steps: it's shown at its own size in all of them, so it isn't decoded again
+// for each. The work counts show its reloads.
+function DownsampleBlurGrowCase() {
+    const [step, setStep] = useState(0)
+    const [loaded, setLoaded] = useState(false)
+    useEffect(() => {
+        if (!loaded || step >= 3) return
+        const timer = setTimeout(() => setStep((n) => n + 1), 300)
+        return () => clearTimeout(timer)
+    }, [loaded, step])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <FastImage
+                source={{
+                    uri: imageUrl(`quadrants.png?downsample-blur-grow=${RUN}`),
+                }}
+                style={{ width: 24 + step * 8, height: 24 + step * 8 }}
+                objectFit="scale-down"
+                blurRadius={2}
+                onLoad={() => setLoaded(true)}
+            />
+            <CaseStatus
+                id="downsample-blur-grow"
+                status={step >= 3 ? 'OK' : 'waiting'}
+                description={{
+                    checks: "A blurred image with objectFit scale-down in a view that grows, larger than the image, isn't decoded again for each size: it's shown at its own size.",
+                    steps: 'Loads a 20x20 image of red, green, blue and yellow quadrants with objectFit="scale-down" and blurRadius 2 into a 24x24 view, which then grows by 8 points every 300 ms to 48x48. Passes once it has; the work counts show its reloads.',
+                    shows: 'Blurred red, green, blue and yellow quadrants at their own size (20x20), centered in a 48x48 view.',
                 }}
             />
         </View>
@@ -10454,6 +10814,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         },
         cases: [<WebCachePathAtStartCase key="cache-path-web-at-start" />],
     },
+    ...AUTO_SIZE_GROUPS,
     {
         name: 'load-end',
         description: {
@@ -10973,13 +11334,14 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     {
         name: 'blur',
         description: {
-            checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, and not on defaultSource.",
+            checks: "blurRadius: how much it blurs (in points, whatever the file's size), on other kinds of image, changed after load, not on defaultSource, and in a view that grows.",
         },
         cases: [
             <BlurCase key="blur" />,
             <BlurKindsCase key="blur-kinds" />,
             <BlurChangeCase key="blur-change" />,
             <BlurDefaultSourceCase key="blur-default-source" />,
+            <BlurFillGrowCase key="blur-fill-grow" />,
         ],
     },
     {
@@ -11173,6 +11535,21 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleGifCase key="downsample-gif" />,
             <DownsamplePreloadingCase key="downsample-preloading" />,
             <DownsampleOrderCase key="downsample-order" />,
+        ],
+    },
+    {
+        name: 'downsample-hidden',
+        description: {
+            checks: "#1405: images in views laid out without a size (under a display: none parent, plain, blurred, pixelated and with objectPosition, or sized from onLoad to the image's own size) are decoded no larger than their own size and again for the size they get, and a blurred scale-down image in a growing view isn't decoded again.",
+        },
+        cases: [
+            <DownsampleHiddenCase key="downsample-hidden" />,
+            <DownsampleHiddenBlurCase key="downsample-hidden-blur" />,
+            <DownsampleHiddenPixelatedCase key="downsample-hidden-pixelated" />,
+            <DownsampleBlurGrowCase key="downsample-blur-grow" />,
+            <DownsampleNaturalSizeCase key="downsample-natural-size" />,
+            <DownsampleHiddenPositionCase key="downsample-hidden-position" />,
+            <DownsampleBlurNoSizeCase key="downsample-blur-no-size" />,
         ],
     },
     {

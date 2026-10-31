@@ -2,11 +2,12 @@
 
 #import <React/RCTConversions.h>
 #import <React/RCTConvert.h>
-#import <react/renderer/components/RNFastImageSpec/ComponentDescriptors.h>
+#import <react/renderer/components/FastImage/FastImageViewComponentDescriptor.h>
 #import <react/renderer/components/RNFastImageSpec/EventEmitters.h>
 #import <react/renderer/components/RNFastImageSpec/Props.h>
 #import <react/renderer/components/RNFastImageSpec/RCTComponentViewHelpers.h>
 
+#import "FFFWork.h"
 #import "FFFastImageView.h"
 #import "FFFThumbHash.h"
 #import "RCTConvert+FFFastImage.h"
@@ -169,6 +170,14 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 
 @implementation FFFastImageViewComponentView {
     FFFastImageView *_imageView;
+    // The shadow node's state: the loaded image's size, which its layout
+    // follows (see FastImageAutoViewShadowNode; FastImageView's has none).
+    FastImageAutoViewShadowNode::ConcreteState::Shared _state;
+    // The loaded image's size in points (zero until one loads, and after one
+    // failed or without a source), and whether the layout follows it (the
+    // autoSize prop).
+    CGSize _imageSize;
+    BOOL _autoSize;
     // The props aren't on the image view yet (a new one): set them all,
     // rather than the ones that changed.
     BOOL _setsAllProps;
@@ -211,6 +220,9 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     _imageView.onFastImageLoadEnd = ^(NSDictionary *event) {
         [weakSelf sendEvent:FFFEventLoadEnd type:"fastImageLoadEnd" payload:event];
     };
+    _imageView.onImageSize = ^(CGSize size) {
+        [weakSelf setImageSize:size];
+    };
     _setsAllProps = YES;
     self.contentView = _imageView;
     _imageView.frame = RCTCGRectFromRect(_layoutMetrics.getPaddingFrame());
@@ -225,6 +237,35 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 {
     [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:oldLayoutMetrics];
     _imageView.frame = RCTCGRectFromRect(layoutMetrics.getPaddingFrame());
+}
+
+- (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
+{
+    _state = std::static_pointer_cast<const FastImageAutoViewShadowNode::ConcreteState>(state);
+    _imageView.laidOutImageSize = _state ? CGSizeMake(_state->getData().width, _state->getData().height) : CGSizeZero;
+    [self updateImageSizeState];
+}
+
+- (void)setImageSize:(CGSize)size
+{
+    _imageSize = size;
+    [self updateImageSizeState];
+}
+
+// Lays the view out again for a loaded image of another size (zero after one
+// failed or without a source), if its layout follows it: a state update lays
+// out the whole screen again.
+- (void)updateImageSizeState
+{
+    if (!_autoSize || !_state) {
+        return;
+    }
+    const auto &data = _state->getData();
+    if (data.width == _imageSize.width && data.height == _imageSize.height) {
+        return;
+    }
+    FFFWork(@"layout-state", _imageView.sources.firstObject.url, [NSString stringWithFormat:@"%gx%g", _imageSize.width, _imageSize.height]);
+    _state->updateState(FastImageAutoViewState{_imageSize.width, _imageSize.height});
 }
 
 // The image view's event as it built it (not the generated event structs,
@@ -262,6 +303,8 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     [_imageView stop];
     _imageView = nil;
     self.contentView = nil;
+    _state.reset();
+    _imageSize = CGSizeZero;
     // A fade from the old image view (see FFFastImageView's fadeIn:).
     [self.layer removeAnimationForKey: kCATransition];
 }
@@ -276,6 +319,12 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
     BOOL all = _setsAllProps;
     _setsAllProps = NO;
     FFFastImageView *view = _imageView;
+
+    if (_autoSize != (newViewProps.autoSize != 0)) {
+        _autoSize = newViewProps.autoSize != 0;
+        [self updateImageSizeState];
+    }
+    view.autoSize = newViewProps.autoSize;
 
     if (all || oldViewProps.source != newViewProps.source) {
         // One source, or several (an array). Only a change besides their
@@ -409,3 +458,11 @@ typedef NS_OPTIONS(int32_t, FFFEvent) {
 
 @end
 
+@implementation FFFastImageAutoViewComponentView
+
++ (ComponentDescriptorProvider)componentDescriptorProvider
+{
+    return concreteComponentDescriptorProvider<FastImageAutoViewComponentDescriptor>();
+}
+
+@end

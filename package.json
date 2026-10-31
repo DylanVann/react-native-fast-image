@@ -28,6 +28,7 @@
         "android/build.gradle",
         "android/consumer-rules.pro",
         "android/src/main",
+        "common/cpp",
         "ios/FastImage",
         "app.plugin.js",
         "src",
@@ -35,6 +36,7 @@
         "!src/**/*.test.ts",
         "!src/__snapshots__",
         "dist",
+        "react-native.config.js",
         "RNFastImage.podspec",
         "thumbhash"
     ],
@@ -86,7 +88,8 @@
         },
         "ios": {
             "componentProvider": {
-                "FastImageView": "FFFastImageViewComponentView"
+                "FastImageView": "FFFastImageViewComponentView",
+                "FastImageAutoView": "FFFastImageAutoViewComponentView"
             },
             "modulesProvider": {
                 "FastImageModule": "FFFastImageModule"

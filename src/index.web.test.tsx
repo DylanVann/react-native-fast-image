@@ -6,6 +6,7 @@ import renderer, { act } from 'react-test-renderer'
 // @ts-expect-error react-native-web has no type declarations.
 import { registerAsset } from 'react-native-web/dist/modules/AssetRegistry'
 import FastImage, { FastImageBackground, type FastImageRef } from './index.web'
+import { NO_PADDING } from './objectFit'
 // Imported: the web version shows thumbhashes only with it.
 import { thumbHashToBlurDataUri } from './thumbhash'
 
@@ -66,6 +67,7 @@ describe('FastImage (web)', () => {
         expect(view.props.style).toEqual([
             { overflow: 'hidden' },
             { width: 40, height: 30 },
+            NO_PADDING,
         ])
         for (const name of [
             'transition',

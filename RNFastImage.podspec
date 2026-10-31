@@ -14,7 +14,10 @@ Pod::Spec.new do |s|
   s.framework     = 'UIKit'
   s.requires_arc  = true
   s.source        = { :git => "https://github.com/DylanVann/react-native-fast-image.git", :tag => "v#{s.version}" }
-  s.source_files  = "ios/**/*.{h,m,mm}"
+  # common/cpp: FastImageView's and FastImageAutoView's shadow nodes (the spec is
+  # interfaceOnly).
+  s.source_files  = "ios/**/*.{h,m,mm}", "common/cpp/**/*.{h,cpp}"
+  s.pod_target_xcconfig = { "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/common/cpp\"" }
 
   # React Native's dependencies for a New Architecture component and
   # TurboModule (React-Core, Codegen's output for src/specs, ...).
