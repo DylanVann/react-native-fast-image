@@ -522,7 +522,6 @@
         "blur - 144x72 radius 6": 2,
         "blur - 20x20 radius 1.66667": 2,
         "blur - 20x20 radius 2": 3,
-        "blur - 600x300 radius 6": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg?downsample-blur-no-size=RUN 600x300 for 0x0 at full": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg?downsample-blur-no-size=RUN 600x300 for 144x72 at 144": 1,
         "decode http://localhost:8090/picsum/1018-600x300.jpg?downsample-blur-sized=RUN 600x300 for 144x72 at 144": 1,

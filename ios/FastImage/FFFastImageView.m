@@ -74,6 +74,10 @@
 @property(nonatomic, assign) CGFloat redrawnSVGScale;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
+// The load of the shown image again for the view's size (a quiet one, see
+// reloadIfResized) that's on its way, or 0: its image is blurred when it
+// arrives (see blurAgainIfResized).
+@property(nonatomic, assign) NSUInteger sizeReload;
 // The frame the view was laid out at (the box the image fits in), and how far
 // objectPosition moves the view from it (see updatePosition).
 @property(nonatomic, assign) CGRect box;
@@ -605,7 +609,6 @@ static void FFFShareAnimationBudget(void) {
 - (void) layoutSubviews {
     [super layoutSubviews];
     [self updateContentMode];
-    [self blurAgainIfResized];
     if (self.waitsForSize) {
         // An image in the memory cache shows in this frame. Others start
         // loading from didSetProps's block, after layout, in the order the
@@ -618,6 +621,9 @@ static void FFFShareAnimationBudget(void) {
     } else if (![self switchSourceIfResized]) {
         [self reloadIfResized];
     }
+    // After deciding whether the image is loaded again for the new size (it's
+    // blurred for it then).
+    [self blurAgainIfResized];
 }
 
 - (void) setImageColor: (UIColor*)imageColor {
@@ -831,6 +837,11 @@ static void FFFShareAnimationBudget(void) {
 // again for the new size.
 - (void) blurAgainIfResized {
     if (![self blurs: self.originalImage] || ![self hasSize]) {
+        return;
+    }
+    // The image is on its way again for the view's size, and blurred for it
+    // when it arrives: the view keeps what it shows until then.
+    if (self.sizeReload != 0 && self.sizeReload == self.loadCount) {
         return;
     }
     CGSize view = self.bounds.size;
@@ -1555,6 +1566,7 @@ NSString *FFFErrorMessage(NSError *error)
     BOOL events = !self.hasCompleted;
     FFFWork(@"reload", _source.url, @"size");
     [self downloadImage: _source options: options context: [self loadContext] events: events];
+    self.sizeReload = events ? 0 : self.loadCount;
 }
 
 - (void) reloadImage {
@@ -1784,6 +1796,9 @@ NSString *FFFErrorMessage(NSError *error)
                            setImageBlock: setImage
                                 progress: nil
                                completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
+            if (weakSelf.sizeReload == load) {
+                weakSelf.sizeReload = 0;
+            }
             if (error) {
                 [source forgetResponseAfterError: error];
             }
