@@ -240,15 +240,17 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: ${{ env.APP_DIR }}
       # Xcode's compilation cache (verify.mts), so builds reuse what earlier
-      # runs compiled. The minimum example's job also builds the Expo example
-      # (see "Run the Expo example on iOS"), so its key has that lockfile too.
+      # runs compiled: the app's newest (each save has its run's key). It's
+      # saved again when the build missed it often (see "Check what the run
+      # made"): a cache saved once went stale as the build's flags and
+      # dependencies changed, and missed every compile.
       - name: "Restore Xcode's compilation cache"
         id: build
         uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
           path: ~/Library/Caches/react-native-fast-image
-          key: ios-build-${{ matrix.app }}-${{ hashFiles(format('{0}/bun.lock', env.APP_DIR), matrix.app == 'minimum' && 'ReactNativeFastImageExampleExpo/bun.lock' || format('{0}/bun.lock', env.APP_DIR)) }}
+          key: ios-build-${{ matrix.app }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ios-build-${{ matrix.app }}-
       # maestro-runner's WebDriverAgent build (for the touch group), kept in
       # its package.
@@ -410,6 +412,12 @@ jobs:
         run: |
           test -f "$APP_DIR/ios/Pods/Manifest.lock" && echo deps=true >> "$GITHUB_OUTPUT" || true
           test -d ~/Library/Caches/react-native-fast-image && echo build=true >> "$GITHUB_OUTPUT" || true
+          # The compilation cache's misses in this job's builds: a pull
+          # request's own changes miss a few dozen (Fast Image has 10 source
+          # files), a stale cache hundreds.
+          misses=$(cat verify-output/*/ios-build-*.log 2>/dev/null | grep -c '^Cache miss' || true)
+          echo "Xcode's compilation cache: $misses misses"
+          [ "$misses" -gt 100 ] && echo stale=true >> "$GITHUB_OUTPUT" || true
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
       - name: "Save the app's dependencies and Pods"
         if: always() && env.R2_WRITE == 'true' && steps.made.outputs.deps == 'true' && steps.deps.outputs.cache-hit != 'true'
@@ -432,8 +440,9 @@ jobs:
             ~/Library/Caches/ReactNative
             ~/Library/Caches/CocoaPods
           key: ${{ steps.downloads.outputs.cache-primary-key }}
+      # From one of the app's jobs: both build the same.
       - name: "Save Xcode's compilation cache"
-        if: always() && env.R2_WRITE == 'true' && steps.made.outputs.build == 'true' && steps.build.outputs.cache-hit != 'true'
+        if: always() && env.R2_WRITE == 'true' && matrix.shard == 1 && steps.made.outputs.build == 'true' && steps.made.outputs.stale == 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
         env: *r2
         with:
