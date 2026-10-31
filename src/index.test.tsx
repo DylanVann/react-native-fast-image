@@ -175,6 +175,17 @@ describe('FastImage (iOS)', () => {
         expect(type({ uri, width: 60, height: 30 }, { width: 240 })).toBe(
             'FastImageAutoView',
         )
+        // A source's own size with both sides set, or a side the style's
+        // aspectRatio sets: nothing to measure.
+        expect(
+            type({ uri, width: 60, height: 30 }, { width: 240, height: 120 }),
+        ).toBe('FastImageView')
+        expect(
+            type(
+                { uri, width: 60, height: 30 },
+                { width: 240, aspectRatio: 2 },
+            ),
+        ).toBe('FastImageView')
     })
 
     it("gives the shadow node a single source's own size, instead of the loaded image's", () => {

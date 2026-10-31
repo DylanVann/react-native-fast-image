@@ -1135,10 +1135,13 @@ function FastImageBase({
     const own = ownSize(resolvedSource)
     const open = own ? { width: false, height: false } : openSides(styleValues)
     // Only then is it a FastImageAutoView, whose shadow node measures it
-    // (other images' shadow nodes have no state, see FastImageAutoView.ts).
-    // A style that changes between the two mounts a new native view.
+    // (other images' shadow nodes have no state, see FastImageAutoView.ts):
+    // with a single source's own size, any side the style doesn't set
+    // follows it, also one left out. A style that changes between the two
+    // mounts a new native view.
+    const measured = own ? openSides(styleValues, 'open') : open
     const NativeView =
-        own || open.width || open.height ? FastImageAutoView : FastImageView
+        measured.width || measured.height ? FastImageAutoView : FastImageView
     // `placeholder` as the native view takes it: a thumbhash or blurDataUri
     // as it is (for the sources without their own), a url as a source loaded
     // apart from the image, or an image shown at once. defaultSource only
