@@ -521,6 +521,14 @@ jobs:
       ANDROID_IMAGE: system-images;android-36;default;x86_64
       APP_DIR: ${{ matrix.app == 'main' && 'ReactNativeFastImageExample' || matrix.app == 'expo' && 'ReactNativeFastImageExampleExpo' || 'ReactNativeFastImageExampleMinimum' }}
     steps:
+      # The emulator's data partition needs 7.4 GB, and with the caches
+      # restored some runners had only 4.2 GB left: toolchains the runner image
+      # has that these jobs don't use.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/.ghcup /opt/ghc /usr/share/swift /usr/local/share/boost /usr/local/share/powershell "$AGENT_TOOLSDIRECTORY/CodeQL"
+          df -h /
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # Without the other apps' and platforms' reference screenshots (most of
