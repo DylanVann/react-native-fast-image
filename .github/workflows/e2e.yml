@@ -705,12 +705,15 @@ jobs:
         run: |
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
           test -d ~/.gradle/caches/modules-2 && echo gradle=true >> "$GITHUB_OUTPUT" || true
-          # ccache's misses in this job's build: a pull request's own changes
-          # miss a few (the library's generated C++), a stale or missing
-          # cache every one of the app's files.
+          # ccache's hits and misses in this job's build: a pull request's own
+          # changes miss a few of the app's files (the library's generated
+          # C++), a stale or missing cache every one (16 in the minimum and
+          # Expo examples, 59 in the main). Saved when most missed.
           ccache --show-stats || true
-          misses=$(ccache --print-stats 2> /dev/null | awk -F '\t' '$1 == "cache_miss" { print $2 }')
-          [ "${misses:-0}" -gt 20 ] && echo ccache=true >> "$GITHUB_OUTPUT" || true
+          ccache --print-stats 2> /dev/null | awk -F '\t' '
+            $1 == "cache_miss" { misses = $2 }
+            $1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" { hits += $2 }
+            END { exit !(misses > hits) }' && echo ccache=true >> "$GITHUB_OUTPUT" || true
           test -d /usr/local/lib/android/sdk/ndk/27.1.12297006 && test -d /usr/local/lib/android/sdk/cmake/3.22.1 && echo ndk=true >> "$GITHUB_OUTPUT" || true
       # Not the Release build's (the debug jobs' key, and its bundle is
       # transformed for Release).
