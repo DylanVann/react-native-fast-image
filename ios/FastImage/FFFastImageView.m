@@ -74,8 +74,8 @@
 @property(nonatomic, assign) CGFloat redrawnSVGScale;
 // Counts loads, so a quiet reload's completion can tell if it's still current.
 @property(nonatomic, assign) NSUInteger loadCount;
-// The load of the shown image again for the view's size (a quiet one, see
-// reloadIfResized) that's on its way, or 0: its image is blurred when it
+// The load of the shown image again (a quiet one, e.g. for the view's size,
+// see reloadIfResized) that's on its way, or 0: its image is blurred when it
 // arrives (see blurAgainIfResized).
 @property(nonatomic, assign) NSUInteger sizeReload;
 // The frame the view was laid out at (the box the image fits in), and how far
@@ -839,8 +839,8 @@ static void FFFShareAnimationBudget(void) {
     if (![self blurs: self.originalImage] || ![self hasSize]) {
         return;
     }
-    // The image is on its way again for the view's size, and blurred for it
-    // when it arrives: the view keeps what it shows until then.
+    // The image is on its way again (e.g. for the view's size), and blurred
+    // for it when it arrives: the view keeps what it shows until then.
     if (self.sizeReload != 0 && self.sizeReload == self.loadCount) {
         return;
     }
@@ -1566,7 +1566,6 @@ NSString *FFFErrorMessage(NSError *error)
     BOOL events = !self.hasCompleted;
     FFFWork(@"reload", _source.url, @"size");
     [self downloadImage: _source options: options context: [self loadContext] events: events];
-    self.sizeReload = events ? 0 : self.loadCount;
 }
 
 - (void) reloadImage {
@@ -1747,6 +1746,8 @@ NSString *FFFErrorMessage(NSError *error)
 - (void) downloadImage: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context events: (BOOL)events {
     __weak typeof(self) weakSelf = self; // Always use a weak reference to self in blocks
     NSUInteger load = ++self.loadCount;
+    // Before it starts: one from the memory cache completes within this call.
+    self.sizeReload = events ? 0 : load;
     // Most images have no onProgress, so only ask SDWebImage for progress when
     // there's a handler as the load starts. A handler added while loading is
     // used from the next load.
@@ -1798,6 +1799,12 @@ NSString *FFFErrorMessage(NSError *error)
                                completed: ^(UIImage* _Nullable image, NSData* _Nullable data, NSError* _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL* _Nullable imageURL) {
             if (weakSelf.sizeReload == load) {
                 weakSelf.sizeReload = 0;
+                // It brought no image (it failed, or isn't cached): the shown
+                // one is blurred for the view's size now (see
+                // blurAgainIfResized).
+                if (!image) {
+                    [weakSelf blurAgainIfResized];
+                }
             }
             if (error) {
                 [source forgetResponseAfterError: error];
