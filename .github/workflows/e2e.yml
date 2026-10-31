@@ -615,6 +615,18 @@ jobs:
             /usr/local/lib/android/sdk/ndk/27.1.12297006
             /usr/local/lib/android/sdk/cmake/3.22.1
           key: android-ndk-27.1.12297006-cmake-3.22.1
+      # ccache's cache for the app's C++ (install-tools.sh): Gradle's build
+      # cache doesn't keep C++, about half of the build's task time. The app's
+      # newest, for its Debug or Release build (each save has its run's key),
+      # saved again when the build missed it often (see "Check what the run
+      # made").
+      - name: "Restore ccache's cache"
+        uses: runs-on/cache/restore@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: ~/.cache/ccache
+          key: android-ccache-${{ matrix.app }}-${{ matrix.release && 'release' || 'debug' }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: android-ccache-${{ matrix.app }}-${{ matrix.release && 'release' || 'debug' }}-
       # The emulator needs KVM.
       - name: Let the emulator use KVM
         run: |
@@ -664,6 +676,8 @@ jobs:
       - name: Build the app and run its cases
         run: |
           mkdir -p "$TMPDIR"
+          # This job's ccache counts (see "Check what the run made").
+          ccache --zero-stats > /dev/null
           case "$APP-$RELEASE" in
             main-true) args="--release --package --groups $SMOKE_GROUPS" ;;
             minimum-*) args="--groups $SMOKE_GROUPS" ;;
@@ -691,6 +705,12 @@ jobs:
         run: |
           test -d "$RUNNER_TEMP/tmp/metro-cache" && echo metro=true >> "$GITHUB_OUTPUT" || true
           test -d ~/.gradle/caches/modules-2 && echo gradle=true >> "$GITHUB_OUTPUT" || true
+          # ccache's misses in this job's build: a pull request's own changes
+          # miss a few (the library's generated C++), a stale or missing
+          # cache every one of the app's files.
+          ccache --show-stats || true
+          misses=$(ccache --print-stats 2> /dev/null | awk -F '\t' '$1 == "cache_miss" { print $2 }')
+          [ "${misses:-0}" -gt 20 ] && echo ccache=true >> "$GITHUB_OUTPUT" || true
           test -d /usr/local/lib/android/sdk/ndk/27.1.12297006 && test -d /usr/local/lib/android/sdk/cmake/3.22.1 && echo ndk=true >> "$GITHUB_OUTPUT" || true
       # Not the Release build's (the debug jobs' key, and its bundle is
       # transformed for Release).
@@ -711,6 +731,14 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ steps.gradle.outputs.cache-primary-key }}
+      # From one of the app's jobs: both build the same.
+      - name: "Save ccache's cache"
+        if: always() && env.R2_WRITE == 'true' && (matrix.shard == 1 || matrix.release) && steps.made.outputs.ccache == 'true'
+        uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7
+        env: *r2
+        with:
+          path: ~/.cache/ccache
+          key: android-ccache-${{ matrix.app }}-${{ matrix.release && 'release' || 'debug' }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Save the NDK and CMake
         if: always() && env.R2_WRITE == 'true' && matrix.app == 'main' && matrix.shard == 1 && steps.made.outputs.ndk == 'true' && steps.ndk.outputs.cache-hit != 'true'
         uses: runs-on/cache/save@88d90644011a3a9957fd141a106f5a94f9794203 # v5.0.7

@@ -6,7 +6,9 @@
 #   - ffmpeg and ffprobe, for the video samples: static builds (Homebrew took
 #     about 20 s, apt about 14 s);
 #   - macOS: XCLogParser (where xcodebuild's time went) and simslim (slimming
-#     the simulator for later runs).
+#     the simulator for later runs);
+#   - Linux: ccache, which React Native's CMake compiles the Android apps' C++
+#     through when it's on the PATH (static build).
 # The jobs keep them in R2, keyed by this file and .node-version, so they're
 # only downloaded when one changes. Each download has a time limit and is
 # tried again: a stalled one (ffmpeg's host) hung jobs for 30 minutes.
@@ -34,11 +36,16 @@ EOF
 else
     node=node-$node_version-linux-x64
     ffmpeg=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2
+    ccache=ccache-4.14.1-linux-x86_64-musl-static
     get -o ffmpeg.zip "$ffmpeg/ffmpeg.zip" -o ffprobe.zip "$ffmpeg/ffprobe.zip"
+    get -o ccache.tar.gz "https://github.com/ccache/ccache/releases/download/v4.14.1/$ccache.tar.gz"
     shasum -a 256 -c <<'EOF'
 fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f  ffmpeg.zip
 3f428c49070be3d24ec338602b76d412e401ffcb8a5641ef0e729181a232fc32  ffprobe.zip
+8f684cf82a7acd2f1daddbefcda505c499afe8245cfbfe78f751ce389cd6df52  ccache.tar.gz
 EOF
+    tar -xzf ccache.tar.gz -C bin --strip-components 1 "$ccache/ccache"
+    rm ccache.tar.gz
 fi
 unzip -q ffmpeg.zip -d bin && unzip -q ffprobe.zip -d bin && rm ffmpeg.zip ffprobe.zip
 
