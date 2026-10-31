@@ -7947,6 +7947,67 @@ function DownsampleNaturalSizeCase() {
     )
 }
 
+// A blurred fill image in a view with a width but no height until it loads,
+// sized 48x24 from onLoad, next to the same image blurred at 48x24 from the
+// start: its blur, made before the view had a size, is made again for it, so
+// both look the same.
+function DownsampleBlurNoSizeCase() {
+    const [size, setSize] = useState<{ width: number; height: number }>()
+    const [loaded, setLoaded] = useState(0)
+    const [status, setStatus] = useState('waiting')
+    useEffect(() => {
+        if (!size || loaded < 2) return
+        const timer = setTimeout(() => setStatus('OK'), 1000)
+        return () => clearTimeout(timer)
+    }, [size, loaded])
+    return (
+        <View style={{ flexDirection: 'row', marginBottom: 12, height: 24 }}>
+            <View style={{ width: 48, marginRight: 8 }}>
+                <FastImage
+                    style={size}
+                    source={{
+                        uri: imageUrl(
+                            `picsum/1018-600x300.jpg?downsample-blur-no-size=${RUN}`,
+                        ),
+                    }}
+                    objectFit="fill"
+                    blurRadius={2}
+                    onLoad={() => {
+                        // After the decode for no size has shown (on iOS,
+                        // where it's blurred again once the view has a size,
+                        // whether that came first or not).
+                        setTimeout(
+                            () => setSize({ width: 48, height: 24 }),
+                            500,
+                        )
+                        setLoaded((n) => n + 1)
+                    }}
+                />
+            </View>
+            <FastImage
+                style={{ width: 48, height: 24 }}
+                source={{
+                    uri: imageUrl(
+                        `picsum/1018-600x300.jpg?downsample-blur-sized=${RUN}`,
+                    ),
+                }}
+                objectFit="fill"
+                blurRadius={2}
+                onLoad={() => setLoaded((n) => n + 1)}
+            />
+            <CaseStatus
+                id="downsample-blur-no-size"
+                status={status}
+                description={{
+                    checks: 'A blurred fill image in a view with no height until it loads, sized from onLoad, is blurred for the size it gets, as one with that size from the start is.',
+                    steps: 'Loads a 600x300 photo with objectFit="fill" and blurRadius 2 with no style in a 48-point-wide View (0 high); 500 ms after onLoad, the view is sized 48x24. Next to it, the same photo (another url) at 48x24 from the start. Passes 1 s after both have loaded.',
+                    shows: 'Two equally blurred 48x24 photos of green hills. A sharper left one is a failure.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A cover image with objectPosition { bottom: 4 } under a display: none
 // parent, shown 1.5 s after it mounts, next to the same image always shown:
 // once shown it's drawn 4 points above the bottom, as the other one is.
@@ -11488,6 +11549,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <DownsampleBlurGrowCase key="downsample-blur-grow" />,
             <DownsampleNaturalSizeCase key="downsample-natural-size" />,
             <DownsampleHiddenPositionCase key="downsample-hidden-position" />,
+            <DownsampleBlurNoSizeCase key="downsample-blur-no-size" />,
         ],
     },
     {

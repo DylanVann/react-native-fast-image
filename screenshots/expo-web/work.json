@@ -36,8 +36,10 @@
     },
     "auto-size-change-decode": {
         "request /picsum/1018-1024x1024.jpg?auto-size-change-decode-contain=RUN": 1,
+        "request /picsum/1020-120x120.jpg?auto-size-change-decode-tall=RUN": 1,
         "request /picsum/1020-120x120.jpg?auto-size-change-decode=RUN": 1,
         "request /picsum/1020-120x120.jpg?auto-size-from-bundled=RUN": 1,
+        "request /tall-bands.png?auto-size-change-decode-tall=RUN": 1,
         "request /wide-bands.png?auto-size-change-decode-contain=RUN": 1,
         "request /wide-bands.png?auto-size-change-decode=RUN": 1
     },

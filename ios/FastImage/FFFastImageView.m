@@ -1390,9 +1390,16 @@ NSString *FFFErrorMessage(NSError *error)
 - (BOOL) followsLaidOutImage {
     CGSize image = self.laidOutImageSize;
     CGSize size = self.bounds.size;
+    // The layout rounds each side to the pixel grid (with the view's position,
+    // so by up to a pixel), and the other side's rounding is multiplied by
+    // the image's ratio: a tall image's height can be a few pixels off its
+    // width times the ratio.
     CGFloat pixel = 1 / [self screenScale];
-    BOOL byWidth = fabs(size.height - size.width * image.height / image.width) <= pixel;
-    BOOL byHeight = fabs(size.width - size.height * image.width / image.height) <= pixel;
+    CGFloat tall = image.height / image.width;
+    // (At most 9 pixels: a view clamped that close to a very tall image's
+    // shape, e.g. by maxHeight, still counts as following it.)
+    BOOL byWidth = size.width > 0 && fabs(size.height - size.width * tall) <= pixel * (1 + MIN(tall, 8));
+    BOOL byHeight = size.height > 0 && fabs(size.width - size.height / tall) <= pixel * (1 + MIN(1 / tall, 8));
     if (self.autoSize == 2) {
         return byWidth;
     }

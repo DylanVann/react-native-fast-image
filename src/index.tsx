@@ -217,7 +217,7 @@ export type Source = {
      */
     blurDataUri?: string
     /**
-     * The image's width in points, as with React Native's `Image`: with
+     * The image's width in points: with
      * `height`, it lays out a side the style leaves out (or sets to `'auto'`)
      * before the image loads (see `style`). With several sources (`source` as an array), the width
      * of the image at this uri, from which the view picks the one for its
@@ -867,11 +867,10 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     /**
      * The image's style: View's style props (`borderRadius` clips the image,
-     * and borders inset it; padding is ignored), and `tintColor`, as with
-     * React Native's `Image` (the `tintColor` prop wins).
+     * and borders inset it; padding is ignored), and `tintColor` (the
+     * `tintColor` prop wins).
      *
-     * A width or height set to `'auto'` follows the loaded image, as with an
-     * `<img>` on the web:
+     * A width or height set to `'auto'` follows the loaded image:
      *
      * - `height: 'auto'` with a width (or one from the parent, e.g. stretched
      *   in a column): the height from the image's aspect ratio.
@@ -885,13 +884,13 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
      *
      * Until the image has loaded, and if it fails (`defaultSource` included),
      * those sides are 0, so the layout changes when it loads. A side the
-     * style leaves out stays 0, as with React Native's `Image`: sizing from
-     * the image is opt-in, since it moves the layout as images load.
+     * style leaves out stays 0: sizing from the image is opt-in, since it
+     * moves the layout as images load.
      *
      * A bundled image, or a source with a `width` and `height` (its size in
      * points), lays out a side the style leaves out (or sets to `'auto'`)
-     * from that size at once, as with React Native's `Image` but keeping its
-     * aspect ratio: the layout doesn't change when the image loads.
+     * from that size at once, keeping its aspect ratio: the layout doesn't
+     * change when the image loads.
      *
      * ```jsx
      * <FastImage source={{ uri }} style={{ width: '100%', height: 'auto' }} />

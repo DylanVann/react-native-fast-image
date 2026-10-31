@@ -1184,6 +1184,7 @@ function AutoSizeChangeDecodeCase({
     first,
     second,
     expected,
+    marginLeft = 0,
     description,
 }: {
     id: string
@@ -1191,6 +1192,9 @@ function AutoSizeChangeDecodeCase({
     first: string
     second: string
     expected: { width: number; height: number }
+    // Off the pixel grid, so the layout rounds the view's size with its
+    // position.
+    marginLeft?: number
     description: Description
 }) {
     const [changed, setChanged] = useState(false)
@@ -1205,7 +1209,11 @@ function AutoSizeChangeDecodeCase({
                             `${changed ? second : first}?${id}=${RUN}`,
                         ),
                     }}
-                    style={{ width: expected.width, height: 'auto' }}
+                    style={{
+                        width: expected.width,
+                        height: 'auto',
+                        marginLeft,
+                    }}
                     objectFit={objectFit}
                     onLoad={() =>
                         changed
@@ -2093,6 +2101,20 @@ export const AUTO_SIZE_GROUPS: RegressionGroup[] = [
                     checks: "An image with only a width and objectFit contain whose source changes to an image of another shape decodes the new image for the view's width, not to fit in the box the previous image gave the view (and then again).",
                     steps: "Loads a 3200x800 image of magenta and cyan bands with style { width: 128, height: 'auto' } and objectFit contain in a row (128x32), and 300 ms after onLoad changes the source to a 1024x1024 photo. Passes when, 1 s after its onLoad, the layout is 128x128; the work counts show the boxes it was decoded for.",
                     shows: 'The photo at 128x128 on the left.',
+                }}
+            />,
+            <AutoSizeChangeDecodeCase
+                key="auto-size-change-decode-tall"
+                id="auto-size-change-decode-tall"
+                objectFit="cover"
+                first="tall-bands.png"
+                second="picsum/1020-120x120.jpg"
+                expected={{ width: 24.2, height: 24.2 }}
+                marginLeft={0.3}
+                description={{
+                    checks: "An image with only a width, off the pixel grid, whose tall image (1:8) the layout rounds a few pixels off its shape, still counts as having that image's shape: a new source is decoded for the width, not cropped to the tall box.",
+                    steps: "Loads a 200x1600 image of bands with style { width: 24.2, height: 'auto', marginLeft: 0.3 } and objectFit cover in a row (24.2x193.6), and 300 ms after onLoad changes the source to a 120x120 photo. Passes when, 1 s after its onLoad, the layout is 24.2x24.2; the work counts show the box it was decoded for.",
+                    shows: 'The photo at about 24x24 on the left.',
                 }}
             />,
             <AutoSizeFromBundledCase key="auto-size-from-bundled" />,

@@ -36,7 +36,17 @@ import java.util.concurrent.Executors;
 final class FastImageSourceSize {
     // Sizes of recently decoded images, for loads from the memory cache, which
     // don't decode.
+    // (A third value, 1, marks an image drawn as a vector, an SVG: drawn for
+    // the box, or at its own size in dp, where a bitmap is decoded at its
+    // pixels.)
     private static final LruCache<String, int[]> SIZES = new LruCache<>(500);
+
+    // Whether the image a model loads was drawn as a vector (an SVG), as far
+    // as its last decode said.
+    static boolean isVector(Object model) {
+        int[] size = SIZES.get(String.valueOf(model));
+        return size != null && size.length > 2 && size[2] == 1;
+    }
     private static final Executor EXECUTOR = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -75,25 +85,25 @@ final class FastImageSourceSize {
 
         // Whether this is a decode's first call (it has the image's size; see
         // ROUNDED), recording its size.
-        private boolean record(int sourceWidth, int sourceHeight) {
+        private boolean record(int sourceWidth, int sourceHeight, boolean vector) {
             if (ROUNDED.get() == this) {
                 ROUNDED.remove();
                 return false;
             }
-            SIZES.put(key, new int[]{sourceWidth, sourceHeight});
+            SIZES.put(key, vector ? new int[]{sourceWidth, sourceHeight, 1} : new int[]{sourceWidth, sourceHeight});
             return true;
         }
 
         @Override
         public float getScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
-            boolean first = record(sourceWidth, sourceHeight);
+            boolean first = record(sourceWidth, sourceHeight, false);
             float scale = strategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
             if (first) recordWork("decode", sourceWidth, sourceHeight, requestedWidth, requestedHeight, scale);
             return scale;
         }
 
         float getVectorScaleFactor(int sourceWidth, int sourceHeight, int requestedWidth, int requestedHeight) {
-            boolean first = record(sourceWidth, sourceHeight);
+            boolean first = record(sourceWidth, sourceHeight, true);
             float scale = vectorStrategy.getScaleFactor(sourceWidth, sourceHeight, requestedWidth, requestedHeight);
             if (first) recordWork("svg", sourceWidth, sourceHeight, requestedWidth, requestedHeight, scale);
             return scale;
@@ -275,7 +285,23 @@ final class FastImageSourceSize {
     }
 
     interface Callback {
-        void onSize(int[] size);
+        // read: whether it's the image's own size, read from it (or else the
+        // decoded image's).
+        void onSize(int[] size, boolean read);
+    }
+
+    // Whether get gives a loaded image's own size (a GIF's from its header, or
+    // the size its decode recorded or a read found), rather than the decoded
+    // image's.
+    static boolean knows(Drawable resource, Object model) {
+        if (resource instanceof GifDrawable) return gifSize((GifDrawable) resource) != null;
+        return SIZES.get(String.valueOf(model)) != null;
+    }
+
+    // An image loaded from Glide's resource disk cache, already resized for a
+    // view: the size its decode recorded is that size, not its own (see get).
+    static void forgetResized(Object model) {
+        SIZES.remove(String.valueOf(model));
     }
 
     // Reads a local image's size from its header, off the main thread.
@@ -285,7 +311,8 @@ final class FastImageSourceSize {
             @Override
             public void run() {
                 int[] size = readBounds(appContext, source);
-                if (size != null) {
+                final boolean read = size != null;
+                if (read) {
                     SIZES.put(String.valueOf(model), size);
                 } else {
                     size = new int[]{resource.getIntrinsicWidth(), resource.getIntrinsicHeight()};
@@ -294,7 +321,7 @@ final class FastImageSourceSize {
                 MAIN.post(new Runnable() {
                     @Override
                     public void run() {
-                        callback.onSize(result);
+                        callback.onSize(result, read);
                     }
                 });
             }

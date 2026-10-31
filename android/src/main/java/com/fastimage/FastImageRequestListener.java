@@ -86,19 +86,28 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
             FastImageWork.record("decode", model, "gif at " + resource.getIntrinsicWidth() + "x"
                     + resource.getIntrinsicHeight(), false);
         }
-        if (!events) return false;
+        if (!events) {
+            // The same image loaded again (for a new size, or blur): from the
+            // resource disk cache, its decode recorded the resized size.
+            if (dataSource == DataSource.RESOURCE_DISK_CACHE) FastImageSourceSize.forgetResized(model);
+            return false;
+        }
         boolean local = !(model instanceof FastImageUrl);
         int[] size = FastImageSourceSize.get(resource, model, local,
                 dataSource == DataSource.RESOURCE_DISK_CACHE);
-        // Before the view shows it (the target does once this returns).
-        view.onImageSize(size);
+        // Before the view shows it (the target does once this returns). Its own
+        // size, or (a remote image's whose size was forgotten) the decoded one.
+        view.onImageSize(size, size != null && FastImageSourceSize.knows(resource, model));
         // Only onLoad and onLoadEnd, and a layout that follows the image
         // (autoSize), need a local image's size read from it: without them,
         // don't (scale-down and none lay it out from the decoded image
         // meanwhile). (After get, which also forgets a size that mustn't be
         // reused.)
         boolean handlesLoad = view.handles(FastImageEvents.LOAD | FastImageEvents.LOAD_END);
-        if (!handlesLoad && !view.getAutoSize()) return false;
+        if (!handlesLoad && !view.getAutoSize()) {
+            if (size == null) view.onImageSizeUnknown();
+            return false;
+        }
         if (size != null) {
             if (handlesLoad) sendLoad(view, size);
             return false;
@@ -106,11 +115,12 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         // A local image whose size isn't known: read it from the image first,
         // unless the view starts another load meanwhile.
         final Request request = target.getRequest();
+        view.onImageSizeReading();
         FastImageSourceSize.readLocal(view.getContext(), source, resource, model, new FastImageSourceSize.Callback() {
             @Override
-            public void onSize(int[] size) {
+            public void onSize(int[] size, boolean read) {
                 if (target.getRequest() != request) return;
-                view.onImageSize(size);
+                view.onImageSize(size, read);
                 if (view.handles(FastImageEvents.LOAD | FastImageEvents.LOAD_END)) sendLoad(view, size);
             }
         });
