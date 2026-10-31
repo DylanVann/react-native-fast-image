@@ -21,6 +21,11 @@ import {
 const RUN = Date.now()
 const IMAGE = { uri: imageUrl(`picsum/1025-200x200.jpg?smoke=${RUN}`) }
 const MISSING = { uri: imageUrl(`does-not-exist.png?smoke=${RUN}`) }
+// The preload case's own missing url: a failure isn't cached, so a load of the
+// same url that starts after the other's 404 would request it again.
+const MISSING_PRELOAD = {
+    uri: imageUrl(`does-not-exist.png?smoke-preload=${RUN}`),
+}
 
 const describe = (result: LoadResult) => JSON.stringify(result)
 
@@ -231,7 +236,7 @@ function PreloadCase() {
     useEffect(() => {
         FastImage.preload([
             { uri: imageUrl(`picsum/1021-120x120.jpg?smoke=${RUN}`) },
-            MISSING,
+            MISSING_PRELOAD,
         ]).then(([loaded, missing]) =>
             setStatus(
                 loaded?.ok &&
