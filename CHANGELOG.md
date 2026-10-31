@@ -5,6 +5,20 @@
 
 * auto size images from the image's size with width or height 'auto' ([#1409](https://github.com/DylanVann/react-native-fast-image/issues/1409)) ([ccdf24e](https://github.com/DylanVann/react-native-fast-image/commit/ccdf24e2ea870d6302bfafd7931e2a70aee03878)), closes [#436](https://github.com/DylanVann/react-native-fast-image/issues/436) [#1405](https://github.com/DylanVann/react-native-fast-image/issues/1405)
 
+A side set to `'auto'` follows the image's aspect ratio once it loads:
+
+```tsx
+<FastImage source={{ uri }} style={{ width: '100%', height: 'auto' }} />
+```
+
+With both sides `'auto'`, the image is its own size, at most the space there is. A bundled image, or a source with a `width` and `height`, is sized from that size from the start, where it used to be 0 on a side the style left out:
+
+```tsx
+<FastImage source={require('./icon.png')} />
+```
+
+Padding is no longer laid out (it never inset the image). On Android, an image in a view without a size (e.g. under `display: 'none'`) is decoded no larger than its own size, instead of at the screen's size.
+
 ## [10.9.13](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.12...v10.9.13) (2026-10-30)
 
 
