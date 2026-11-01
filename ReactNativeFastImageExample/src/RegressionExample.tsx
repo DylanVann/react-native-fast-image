@@ -6796,6 +6796,47 @@ function GifPausedCase({
     )
 }
 
+// A GIF paused and resumed in its second of two plays (loop={2}) only plays
+// that one to its end: 1.5 s red, then 0.1 s blue, where it stops. Paused until
+// after the blue frame was due, Android shows it as soon as it's resumed and
+// iOS 0.7 s later. Counting its plays again, or not counting that frame, it's
+// in another play at the screenshot, red.
+function GifResumeCountCase() {
+    const [paused, setPaused] = useState(false)
+    const [ok, setOk] = useState(false)
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                paused={paused}
+                loop={2}
+                source={{ uri: imageUrl('slow-once.gif?count') }}
+                onLoad={() => {
+                    clearTimeout(timer.current)
+                    timer.current = setTimeout(() => {
+                        setPaused(true)
+                        timer.current = setTimeout(() => {
+                            setPaused(false)
+                            timer.current = setTimeout(() => setOk(true), 1000)
+                        }, 1200)
+                    }, 2400)
+                }}
+            />
+            <CaseStatus
+                id="gif-resume-count"
+                status={ok ? 'OK' : 'waiting'}
+                description={{
+                    checks: 'A GIF paused and resumed during its plays keeps counting them: with loop={2}, resumed in its second play, it stops at the end of that one.',
+                    steps: 'Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. 2.4 s after onLoad (in its second play) sets paused, and 1.2 s later, after its blue frame was due, unpauses it. Passes 1 s after that.',
+                    shows: "A blue square: the last frame, where the second play stopped. Red means it's playing again.",
+                }}
+            />
+        </View>
+    )
+}
+
 // A GIF that plays once (1.5 s red, then 0.1 s blue), paused after it
 // finished, then resumed: it plays again from the start, on both platforms
 // (iOS's player does; Android matches it), so it's red at the screenshot. One
@@ -11318,6 +11359,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <GifPausedCase key="gif-resume" resume />,
             <GifResumeFinishedCase key="gif-resume-finished" />,
         ],
+    },
+    {
+        // Its own: gif-resume-finished, which is red for 1.6 s, is on its last
+        // frame by the time this one is done.
+        name: 'gif-resume-count',
+        description: {
+            checks: 'A GIF keeps counting its plays when it is resumed. On its own so that CI can run it in the Android release build, where a rule for R8 keeps the count.',
+        },
+        cases: [<GifResumeCountCase key="gif-resume-count" />],
     },
     {
         name: 'image-rendering',

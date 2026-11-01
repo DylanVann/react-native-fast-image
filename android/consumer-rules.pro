@@ -34,6 +34,14 @@
   public *;
 }
 
+# The plays a GIF has done and its limit, which FastImageGif reads by reflection
+# to keep counting them when it's resumed. When updating Glide, check that it
+# still has these fields (the release build runs gif-resume-count for them).
+-keepclassmembers class com.bumptech.glide.load.resource.gif.GifDrawable {
+  int loopCount;
+  int maxLoopCount;
+}
+
 # AndroidSVG, which FastImage includes, but an app with its other package
 # (com.caverock:androidsvg) leaves out (docs/troubleshooting.md), and may not
 # have at all: then SVG images fail with a message (FastImageSvg) instead of
