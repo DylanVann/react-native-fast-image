@@ -11442,106 +11442,6 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // scripts/verify.mts sends the app away and brings it back while this
-        // group and the next are shown, once their cases are ready.
-        name: 'app-return',
-        description: {
-            checks: 'Animated images that finished playing stay finished when the app comes back from the background.',
-        },
-        cases: [
-            <AppReturnCase
-                key="app-return-gif"
-                id="app-return-gif"
-                name="GIF"
-                uri="slow-once.gif?app-return"
-            />,
-            <AppReturnCase
-                key="app-return-apng"
-                id="app-return-apng"
-                name="APNG"
-                uri="slow-once.png?app-return"
-            />,
-            <AppReturnCase
-                key="app-return-webp"
-                id="app-return-webp"
-                name="animated WebP"
-                uri="slow-once.webp?app-return"
-            />,
-            <AppReturnCase
-                key="app-return-avif"
-                id="app-return-avif"
-                name="animated AVIF"
-                uri="slow-once.avif?app-return"
-            />,
-        ],
-    },
-    {
-        // Not with the group above: these pass later, and its replays would
-        // have ended by the screenshot.
-        name: 'app-return-playing',
-        description: {
-            checks: 'Animated images still playing when the app goes to the background play on when it comes back, and paused ones stay paused.',
-        },
-        cases: [
-            <AppReturnCase
-                key="app-return-playing-gif"
-                id="app-return-playing-gif"
-                name="GIF"
-                uri="slow-once.gif?app-return-playing"
-                playing
-            />,
-            <AppReturnCase
-                key="app-return-playing-apng"
-                id="app-return-playing-apng"
-                name="APNG"
-                uri="slow-once.png?app-return-playing"
-                playing
-            />,
-            <AppReturnCase
-                key="app-return-playing-webp"
-                id="app-return-playing-webp"
-                name="animated WebP"
-                uri="slow-once.webp?app-return-playing"
-                playing
-            />,
-            <AppReturnCase
-                key="app-return-playing-avif"
-                id="app-return-playing-avif"
-                name="animated AVIF"
-                uri="slow-once.avif?app-return-playing"
-                playing
-            />,
-            <AppReturnCase
-                key="app-return-paused-gif"
-                id="app-return-paused-gif"
-                name="GIF"
-                uri="slow-once.gif?app-return-paused"
-                paused
-            />,
-            <AppReturnCase
-                key="app-return-paused-apng"
-                id="app-return-paused-apng"
-                name="APNG"
-                uri="slow-once.png?app-return-paused"
-                paused
-            />,
-            <AppReturnCase
-                key="app-return-paused-webp"
-                id="app-return-paused-webp"
-                name="animated WebP"
-                uri="slow-once.webp?app-return-paused"
-                paused
-            />,
-            <AppReturnCase
-                key="app-return-paused-avif"
-                id="app-return-paused-avif"
-                name="animated AVIF"
-                uri="slow-once.avif?app-return-paused"
-                paused
-            />,
-        ],
-    },
-    {
         // Its own: gif-resume-finished, which is red for 1.6 s, is on its last
         // frame by the time this one is done.
         name: 'gif-resume-count',
@@ -13633,6 +13533,109 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             <PreloadNonObjectCase key="preload-non-object" />,
             <CachePathNonObjectCase key="cache-path-non-object" />,
             <CachePathNonObjectCase key="write-to-cache-non-object" write />,
+        ],
+    },
+    {
+        // scripts/verify.mts sends the app away and brings it back while this
+        // group and the next are shown, once their cases are ready. Near the
+        // end: on the Android emulator, once the app has had a memory trim
+        // (am send-trim-memory does it too), image-rendering's pixelated images
+        // are drawn smoothly, with the view's drawable and bitmap unchanged.
+        name: 'app-return',
+        description: {
+            checks: 'Animated images that finished playing stay finished when the app comes back from the background.',
+        },
+        cases: [
+            <AppReturnCase
+                key="app-return-gif"
+                id="app-return-gif"
+                name="GIF"
+                uri="slow-once.gif?app-return"
+            />,
+            <AppReturnCase
+                key="app-return-apng"
+                id="app-return-apng"
+                name="APNG"
+                uri="slow-once.png?app-return"
+            />,
+            <AppReturnCase
+                key="app-return-webp"
+                id="app-return-webp"
+                name="animated WebP"
+                uri="slow-once.webp?app-return"
+            />,
+            <AppReturnCase
+                key="app-return-avif"
+                id="app-return-avif"
+                name="animated AVIF"
+                uri="slow-once.avif?app-return"
+            />,
+        ],
+    },
+    {
+        // Not with the group above: these pass later, and its replays would
+        // have ended by the screenshot.
+        name: 'app-return-playing',
+        description: {
+            checks: 'Animated images still playing when the app goes to the background play on when it comes back, and paused ones stay paused.',
+        },
+        cases: [
+            <AppReturnCase
+                key="app-return-playing-gif"
+                id="app-return-playing-gif"
+                name="GIF"
+                uri="slow-once.gif?app-return-playing"
+                playing
+            />,
+            <AppReturnCase
+                key="app-return-playing-apng"
+                id="app-return-playing-apng"
+                name="APNG"
+                uri="slow-once.png?app-return-playing"
+                playing
+            />,
+            <AppReturnCase
+                key="app-return-playing-webp"
+                id="app-return-playing-webp"
+                name="animated WebP"
+                uri="slow-once.webp?app-return-playing"
+                playing
+            />,
+            <AppReturnCase
+                key="app-return-playing-avif"
+                id="app-return-playing-avif"
+                name="animated AVIF"
+                uri="slow-once.avif?app-return-playing"
+                playing
+            />,
+            <AppReturnCase
+                key="app-return-paused-gif"
+                id="app-return-paused-gif"
+                name="GIF"
+                uri="slow-once.gif?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-apng"
+                id="app-return-paused-apng"
+                name="APNG"
+                uri="slow-once.png?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-webp"
+                id="app-return-paused-webp"
+                name="animated WebP"
+                uri="slow-once.webp?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-avif"
+                id="app-return-paused-avif"
+                name="animated AVIF"
+                uri="slow-once.avif?app-return-paused"
+                paused
+            />,
         ],
     },
     {
