@@ -193,6 +193,7 @@ final class FastImageApng {
         private volatile boolean paused = false;
         // Once a frame has been rendered (on the decoder's thread).
         private volatile boolean rendered = false;
+        private boolean playingWhenHidden = true;
 
         ApngDrawable(Loader loader, int plays) {
             super(loader);
@@ -223,6 +224,15 @@ final class FastImageApng {
             } else {
                 resume();
             }
+        }
+
+        // It starts itself when it's shown, which would play one that finished
+        // its plays again: only one that was playing when it was hidden.
+        @Override
+        public boolean setVisible(boolean visible, boolean restart) {
+            if (!visible) playingWhenHidden = isRunning();
+            setAutoPlay(!paused && (!visible || playingWhenHidden));
+            return super.setVisible(visible, restart);
         }
 
         // From its first frame. The target starts it right after

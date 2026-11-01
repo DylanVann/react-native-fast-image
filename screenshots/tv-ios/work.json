@@ -310,6 +310,34 @@
         "request /loop-once-2.gif": 1,
         "request /slow-once.gif": 1
     },
+    "app-return": {
+        "decode http://localhost:8090/slow-once.avif?app-return 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.gif?app-return 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.png?app-return 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.webp?app-return 8x8 for 96x96 at full": 1,
+        "load http://localhost:8090/slow-once.avif?app-return source main": 1,
+        "load http://localhost:8090/slow-once.gif?app-return source main": 1,
+        "load http://localhost:8090/slow-once.png?app-return source main": 1,
+        "load http://localhost:8090/slow-once.webp?app-return source main": 1,
+        "request /slow-once.avif?app-return": 1,
+        "request /slow-once.gif?app-return": 1,
+        "request /slow-once.png?app-return": 1,
+        "request /slow-once.webp?app-return": 1
+    },
+    "app-return-playing": {
+        "decode http://localhost:8090/slow-once.avif?app-return-playing 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.gif?app-return-playing 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.png?app-return-playing 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8090/slow-once.webp?app-return-playing 8x8 for 96x96 at full": 1,
+        "load http://localhost:8090/slow-once.avif?app-return-playing source main": 1,
+        "load http://localhost:8090/slow-once.gif?app-return-playing source main": 1,
+        "load http://localhost:8090/slow-once.png?app-return-playing source main": 1,
+        "load http://localhost:8090/slow-once.webp?app-return-playing source main": 1,
+        "request /slow-once.avif?app-return-playing": 1,
+        "request /slow-once.gif?app-return-playing": 1,
+        "request /slow-once.png?app-return-playing": 1,
+        "request /slow-once.webp?app-return-playing": 1
+    },
     "gif-resume-count": {
         "decode http://localhost:8090/slow-once.gif?count 8x8 for 96x96 at full": 1,
         "load http://localhost:8090/slow-once.gif?count source main": 1,

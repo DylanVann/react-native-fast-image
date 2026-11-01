@@ -309,6 +309,32 @@
         "request /loop-once-2.gif": 1,
         "request /slow-once.gif": 1
     },
+    "app-return": {
+        "decode http://10.0.2.2:8090/slow-once.avif?app-return 8x8 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/slow-once.gif?app-return gif at 126x126": 1,
+        "decode http://10.0.2.2:8090/slow-once.webp?app-return 8x8 for 126x126 at 126x126": 1,
+        "load http://10.0.2.2:8090/slow-once.avif?app-return source main": 1,
+        "load http://10.0.2.2:8090/slow-once.gif?app-return source main": 1,
+        "load http://10.0.2.2:8090/slow-once.png?app-return source main": 1,
+        "load http://10.0.2.2:8090/slow-once.webp?app-return source main": 1,
+        "request /slow-once.avif?app-return": 1,
+        "request /slow-once.gif?app-return": 1,
+        "request /slow-once.png?app-return": 1,
+        "request /slow-once.webp?app-return": 1
+    },
+    "app-return-playing": {
+        "decode http://10.0.2.2:8090/slow-once.avif?app-return-playing 8x8 for 126x126 at 126x126": 1,
+        "decode http://10.0.2.2:8090/slow-once.gif?app-return-playing gif at 126x126": 1,
+        "decode http://10.0.2.2:8090/slow-once.webp?app-return-playing 8x8 for 126x126 at 126x126": 1,
+        "load http://10.0.2.2:8090/slow-once.avif?app-return-playing source main": 1,
+        "load http://10.0.2.2:8090/slow-once.gif?app-return-playing source main": 1,
+        "load http://10.0.2.2:8090/slow-once.png?app-return-playing source main": 1,
+        "load http://10.0.2.2:8090/slow-once.webp?app-return-playing source main": 1,
+        "request /slow-once.avif?app-return-playing": 1,
+        "request /slow-once.gif?app-return-playing": 1,
+        "request /slow-once.png?app-return-playing": 1,
+        "request /slow-once.webp?app-return-playing": 1
+    },
     "gif-resume-count": {
         "decode http://10.0.2.2:8090/slow-once.gif?count gif at 126x126": 1,
         "load http://10.0.2.2:8090/slow-once.gif?count source main": 1,

@@ -1256,17 +1256,16 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             if (mPaused) animated.stop();
         }
 
-        // The target starts animations again when the Activity does: not a
-        // paused one, and the view's own GIF continues its loop count (start()
-        // would count again).
+        // The target stops animations when the Activity stops and starts them
+        // when it starts, from the start of their plays (even finished ones),
+        // and a paused one too. They don't need it: they stop while they're
+        // not shown, and carry on when they are.
         @Override
         public void onStart() {
-            if (mPaused) return;
-            if (mOwnGif != null && getDrawable() == mOwnGif) {
-                FastImageGif.resume(mOwnGif);
-            } else {
-                super.onStart();
-            }
+        }
+
+        @Override
+        public void onStop() {
         }
 
         @Override
