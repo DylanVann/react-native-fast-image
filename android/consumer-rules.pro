@@ -34,8 +34,9 @@
   public *;
 }
 
-# The plays a GIF has left, which FastImageGif reads and sets by reflection to
-# keep counting them when it's resumed.
+# The plays a GIF has done and its limit, which FastImageGif reads by reflection
+# to keep counting them when it's resumed. When updating Glide, check that it
+# still has these fields (the release build runs gif-resume-count for them).
 -keepclassmembers class com.bumptech.glide.load.resource.gif.GifDrawable {
   int loopCount;
   int maxLoopCount;

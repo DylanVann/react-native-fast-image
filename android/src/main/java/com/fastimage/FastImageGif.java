@@ -86,7 +86,12 @@ final class FastImageGif {
             int played = LOOP_COUNT.getInt(gif);
             int max = MAX_LOOP_COUNT.getInt(gif);
             gif.start();
-            if (max == GifDrawable.LOOP_FOREVER || played < max) LOOP_COUNT.setInt(gif, played);
+            if (max != GifDrawable.LOOP_FOREVER && played >= max) return;
+            // start() shows a frame that became ready while it was stopped
+            // right away: if it's the last frame, it counted a play.
+            int count = played + LOOP_COUNT.getInt(gif);
+            LOOP_COUNT.setInt(gif, count);
+            if (max != GifDrawable.LOOP_FOREVER && count >= max) gif.stop();
         } catch (IllegalAccessException e) {
             gif.start();
         }

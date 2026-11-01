@@ -632,7 +632,7 @@
         "cases": {
             "gif-resume-count": {
                 "checks": "A GIF paused and resumed during its plays keeps counting them: with loop={2}, resumed in its second play, it stops at the end of that one.",
-                "steps": "Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. 2 s after onLoad (in its second play) sets paused, and 0.2 s later unpauses it. Passes 1.8 s after that.",
+                "steps": "Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. 2.4 s after onLoad (in its second play) sets paused, and 1.2 s later, after its blue frame was due, unpauses it. Passes 1 s after that.",
                 "shows": "A blue square: the last frame, where the second play stopped. Red means it's playing again."
             }
         }

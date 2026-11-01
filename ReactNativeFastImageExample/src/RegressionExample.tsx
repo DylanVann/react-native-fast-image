@@ -6797,8 +6797,10 @@ function GifPausedCase({
 }
 
 // A GIF paused and resumed in its second of two plays (loop={2}) only plays
-// that one to its end: 1.5 s red, then 0.1 s blue, where it stops. Counting its
-// plays again, it's in another play at the screenshot, red.
+// that one to its end: 1.5 s red, then 0.1 s blue, where it stops. Paused until
+// after the blue frame was due, Android shows it as soon as it's resumed and
+// iOS 0.7 s later. Counting its plays again, or not counting that frame, it's
+// in another play at the screenshot, red.
 function GifResumeCountCase() {
     const [paused, setPaused] = useState(false)
     const [ok, setOk] = useState(false)
@@ -6817,9 +6819,9 @@ function GifResumeCountCase() {
                         setPaused(true)
                         timer.current = setTimeout(() => {
                             setPaused(false)
-                            timer.current = setTimeout(() => setOk(true), 1800)
-                        }, 200)
-                    }, 2000)
+                            timer.current = setTimeout(() => setOk(true), 1000)
+                        }, 1200)
+                    }, 2400)
                 }}
             />
             <CaseStatus
@@ -6827,7 +6829,7 @@ function GifResumeCountCase() {
                 status={ok ? 'OK' : 'waiting'}
                 description={{
                     checks: 'A GIF paused and resumed during its plays keeps counting them: with loop={2}, resumed in its second play, it stops at the end of that one.',
-                    steps: 'Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. 2 s after onLoad (in its second play) sets paused, and 0.2 s later unpauses it. Passes 1.8 s after that.',
+                    steps: 'Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. 2.4 s after onLoad (in its second play) sets paused, and 1.2 s later, after its blue frame was due, unpauses it. Passes 1 s after that.',
                     shows: "A blue square: the last frame, where the second play stopped. Red means it's playing again.",
                 }}
             />
