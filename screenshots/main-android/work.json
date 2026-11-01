@@ -309,6 +309,11 @@
         "request /loop-once-2.gif": 1,
         "request /slow-once.gif": 1
     },
+    "gif-resume-count": {
+        "decode http://10.0.2.2:8090/slow-once.gif?count gif at 126x126": 1,
+        "load http://10.0.2.2:8090/slow-once.gif?count source main": 1,
+        "request /slow-once.gif?count": 1
+    },
     "image-rendering": {
         "decode http://10.0.2.2:8090/sprite-12.png 12x12 for 12x12 at 12x12": 1,
         "decode http://10.0.2.2:8090/sprite-12.png 12x12 for 168x168 at 12x12": 2,
