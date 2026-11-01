@@ -1,3 +1,10 @@
+## [10.10.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.0...v10.10.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **android:** keep counting a GIF's plays when it's resumed ([#1414](https://github.com/DylanVann/react-native-fast-image/issues/1414)) ([bfd2573](https://github.com/DylanVann/react-native-fast-image/commit/bfd2573d36de244d90a6d191e49f0e0bbdd78cae))
+
 # [10.10.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.9.13...v10.10.0) (2026-10-31)
 
 
