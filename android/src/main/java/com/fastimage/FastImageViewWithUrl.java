@@ -1259,7 +1259,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // The target stops animations when the Activity stops and starts them
         // when it starts, from the start of their plays (even finished ones),
         // and a paused one too. They don't need it: they stop while they're
-        // not shown, and carry on when they are.
+        // not shown, and carry on when they are (an APNG from the start of
+        // its play).
         @Override
         public void onStart() {
         }

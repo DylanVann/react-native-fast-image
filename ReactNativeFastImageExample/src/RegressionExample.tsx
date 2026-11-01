@@ -6823,8 +6823,7 @@ function AppReturnCase({
         const subscription = AppState.addEventListener('change', (state) => {
             if (state === 'background') wentAway.current = true
             if (state === 'active' && wentAway.current) {
-                // Long enough for two plays: an animated WebP or AVIF plays
-                // its count again from the start.
+                // Long enough for any format to reach the end of its plays.
                 timer.current = setTimeout(
                     () => setOk(true),
                     playing || paused ? 3200 + GIF_MARGIN : 500,

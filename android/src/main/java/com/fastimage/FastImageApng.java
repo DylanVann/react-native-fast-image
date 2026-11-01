@@ -230,7 +230,7 @@ final class FastImageApng {
         // its plays again: only one that was playing when it was hidden.
         @Override
         public boolean setVisible(boolean visible, boolean restart) {
-            if (!visible) playingWhenHidden = isRunning();
+            if (!visible && isVisible()) playingWhenHidden = isRunning();
             setAutoPlay(!paused && (!visible || playingWhenHidden));
             return super.setVisible(visible, restart);
         }
