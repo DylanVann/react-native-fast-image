@@ -6799,17 +6799,20 @@ function GifPausedCase({
 // An animated image the app leaves and comes back to (scripts/verify.mts sends
 // it away once the status says it's ready): 1.5 s red, then 0.1 s blue. One that
 // played to its end stays there, blue; playing again it's red. One still playing
-// plays on, so it reaches blue; stopped by leaving, it stays red.
+// plays on, so it reaches blue; stopped by leaving, it stays red. A paused one
+// stays on its first frame, red; started by coming back, it reaches blue.
 function AppReturnCase({
     id,
     uri,
     name,
     playing,
+    paused,
 }: {
     id: string
     uri: string
     name: string
     playing?: boolean
+    paused?: boolean
 }) {
     const [ready, setReady] = useState(false)
     const [ok, setOk] = useState(false)
@@ -6824,24 +6827,27 @@ function AppReturnCase({
                 // its count again from the start.
                 timer.current = setTimeout(
                     () => setOk(true),
-                    playing ? 3200 + GIF_MARGIN : 500,
+                    playing || paused ? 3200 + GIF_MARGIN : 500,
                 )
             }
         })
         return () => subscription.remove()
-    }, [playing])
+    }, [playing, paused])
     return (
         <View style={styles.row}>
             <FastImage
                 style={styles.image}
                 loop={playing ? 2 : 1}
+                paused={paused}
                 source={{ uri: imageUrl(uri) }}
                 onLoad={() => {
                     // In its second play, or after its plays: up to 3.1 s, as
                     // Android shows an APNG's first frame for twice its delay.
                     timer.current = setTimeout(
                         () => setReady(true),
-                        playing ? 1600 + GIF_MARGIN : 3100 + GIF_MARGIN,
+                        playing || paused
+                            ? 1600 + GIF_MARGIN
+                            : 3100 + GIF_MARGIN,
                     )
                 }}
             />
@@ -6849,17 +6855,23 @@ function AppReturnCase({
                 id={id}
                 status={ok ? 'OK' : ready ? 'ready' : 'waiting'}
                 description={
-                    playing
+                    paused
                         ? {
-                              checks: `A ${name} still playing when the app goes to the background plays on when it comes back.`,
-                              steps: `Loads a ${name} (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.`,
-                              shows: 'A blue square: the last frame, where its plays end. Red means it stopped when the app left.',
+                              checks: `A paused ${name} stays paused when the app comes back from the background.`,
+                              steps: `Loads a ${name} (1.5 s red, then 0.1 s blue) with paused and loop={1}. scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.`,
+                              shows: 'A red square: the first frame. Blue means it played when the app came back.',
                           }
-                        : {
-                              checks: `A ${name} that played to its end stays on its last frame when the app comes back from the background.`,
-                              steps: `Loads a ${name} (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.`,
-                              shows: "A blue square: the last frame. Red means it's playing again.",
-                          }
+                        : playing
+                          ? {
+                                checks: `A ${name} still playing when the app goes to the background plays on when it comes back.`,
+                                steps: `Loads a ${name} (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.`,
+                                shows: 'A blue square: the last frame, where its plays end. Red means it stopped when the app left.',
+                            }
+                          : {
+                                checks: `A ${name} that played to its end stays on its last frame when the app comes back from the background.`,
+                                steps: `Loads a ${name} (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.`,
+                                shows: "A blue square: the last frame. Red means it's playing again.",
+                            }
                 }
             />
         </View>
@@ -11469,7 +11481,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         // have ended by the screenshot.
         name: 'app-return-playing',
         description: {
-            checks: 'Animated images still playing when the app goes to the background play on when it comes back.',
+            checks: 'Animated images still playing when the app goes to the background play on when it comes back, and paused ones stay paused.',
         },
         cases: [
             <AppReturnCase
@@ -11499,6 +11511,34 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 name="animated AVIF"
                 uri="slow-once.avif?app-return-playing"
                 playing
+            />,
+            <AppReturnCase
+                key="app-return-paused-gif"
+                id="app-return-paused-gif"
+                name="GIF"
+                uri="slow-once.gif?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-apng"
+                id="app-return-paused-apng"
+                name="APNG"
+                uri="slow-once.png?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-webp"
+                id="app-return-paused-webp"
+                name="animated WebP"
+                uri="slow-once.webp?app-return-paused"
+                paused
+            />,
+            <AppReturnCase
+                key="app-return-paused-avif"
+                id="app-return-paused-avif"
+                name="animated AVIF"
+                uri="slow-once.avif?app-return-paused"
+                paused
             />,
         ],
     },
