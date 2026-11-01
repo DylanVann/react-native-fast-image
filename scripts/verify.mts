@@ -3367,11 +3367,16 @@ async function runRegression(
                     'shell',
                     'am',
                     'start',
+                    // Until its window is back: it can take over a second on
+                    // CI, when a screenshot is blank.
+                    '-W',
                     '-a',
                     'android.intent.action.VIEW',
                     '-d',
                     `${appId}://`,
                 ])
+                // And it fades in.
+                await new Promise((resolve) => setTimeout(resolve, 800))
             } else {
                 capture('xcrun', ['simctl', 'launch', device, appId])
             }
