@@ -316,16 +316,22 @@
         "request /slow-once.gif?count": 1
     },
     "image-rendering": {
+        "decode http://localhost:8090/slow-once.png?after-apng 8x8 for 192x192 at full": 1,
         "decode http://localhost:8090/sprite-12.png 12x12 for 0x0 at full": 1,
         "decode http://localhost:8090/sprite-12.png 12x12 for 12x12 at full": 1,
+        "decode http://localhost:8090/sprite-12.png?after-apng 12x12 for 0x0 at full": 1,
         "decode http://localhost:8090/stripes.png 1024x1024 for 0x0 at full": 1,
         "decode http://localhost:8090/stripes.png 1024x1024 for 1025x1025 at full": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 0x0 at full": 1,
         "decode http://localhost:8090/text-page.png 1600x1000 for 120x288 at 461": 1,
+        "load http://localhost:8090/slow-once.png?after-apng source main": 1,
         "load http://localhost:8090/sprite-12.png source main": 4,
+        "load http://localhost:8090/sprite-12.png?after-apng source main": 1,
         "load http://localhost:8090/stripes.png source main": 4,
         "load http://localhost:8090/text-page.png source main": 5,
+        "request /slow-once.png?after-apng": 1,
         "request /sprite-12.png": 1,
+        "request /sprite-12.png?after-apng": 1,
         "request /stripes.png": 1,
         "request /text-page.png": 1
     },

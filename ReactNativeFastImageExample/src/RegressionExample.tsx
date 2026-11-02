@@ -7228,6 +7228,50 @@ function ImageRenderingCase({
     )
 }
 
+// A pixelated image drawn after an APNG, which has its first frame drawn by the
+// time the image mounts.
+function ImageRenderingAfterApngCase() {
+    const [apngDrawn, setApngDrawn] = useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => () => clearTimeout(timer.current), [])
+    return (
+        <View style={renderingStyles.case}>
+            <View style={renderingStyles.modes}>
+                <FastImage
+                    style={renderingStyles.afterApng}
+                    source={{ uri: imageUrl('slow-once.png?after-apng') }}
+                    paused
+                    onLoad={() => {
+                        timer.current = setTimeout(
+                            () => setApngDrawn(true),
+                            500,
+                        )
+                    }}
+                />
+                {apngDrawn ? (
+                    <FastImage
+                        style={[renderingStyles.afterApng, styles.gap]}
+                        source={{ uri: imageUrl('sprite-12.png?after-apng') }}
+                        imageRendering="pixelated"
+                        downsample={false}
+                        onLoad={() => setLoaded(true)}
+                    />
+                ) : null}
+            </View>
+            <CaseStatus
+                id="image-rendering-after-apng"
+                status={loaded ? 'OK' : 'loading'}
+                description={{
+                    checks: "imageRendering pixelated on an image drawn after an APNG: its pixels stay sharp (on Android, APNG4Android's drawable set a draw filter on the canvas and left it there, which filtered what was drawn after it).",
+                    steps: 'Shows a paused APNG, then 500 ms after it has loaded adds 12 px pixel art at 64 points with imageRendering="pixelated". Passes when both have loaded; the screenshot does the checking.',
+                    shows: 'A red square, then a large sprite with sharp square pixels.',
+                }}
+            />
+        </View>
+    )
+}
+
 // imageRendering changed after the image has loaded: from pixelated, which
 // iOS leaves where the content mode puts it (on a half pixel here: a page
 // decoded at the view's size with cover, an odd number of pixels cropped
@@ -7267,6 +7311,7 @@ function ImageRenderingChangeCase() {
 
 const renderingStyles = StyleSheet.create({
     case: { marginBottom: 16 },
+    afterApng: { width: 64, height: 64 },
     original: {
         width: 200,
         height: 24,
@@ -11460,6 +11505,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 <ImageRenderingCase key={c.id} {...c} />
             )),
             <ImageRenderingChangeCase key="image-rendering-change" />,
+            <ImageRenderingAfterApngCase key="image-rendering-after-apng" />,
         ],
     },
     {
@@ -13537,9 +13583,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         // scripts/verify.mts sends the app away and brings it back while this
-        // group and the next are shown, once their cases are ready. After
-        // image-rendering: on Android, once an APNG has been drawn, its pixelated
-        // images are smooth (APNG4Android leaves its draw filter on the canvas).
+        // group and the next are shown, once their cases are ready.
         name: 'app-return',
         description: {
             checks: 'Animated images that finished playing stay finished when the app comes back from the background.',
