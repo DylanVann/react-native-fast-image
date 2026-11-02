@@ -10,4 +10,8 @@ interface FastImageAnimatable {
 
     // Stays on the frame it's showing; false continues from there.
     void setPaused(boolean paused);
+
+    // Paused as it's first shown: once resumed, its first frame shows for its
+    // delay.
+    void pauseFromStart();
 }

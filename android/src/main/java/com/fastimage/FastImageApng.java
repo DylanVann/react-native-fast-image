@@ -193,8 +193,10 @@ final class FastImageApng {
         // How many times the file says it plays (0: forever).
         private final int plays;
         private volatile boolean paused = false;
-        // How many frames have been rendered (on the decoder's thread).
-        private volatile int rendered = 0;
+        // Once a frame has been rendered (on the decoder's thread).
+        private volatile boolean rendered = false;
+        // Paused as it was shown (pauseFromStart), and not resumed yet.
+        private boolean pausedFromStart = false;
         private boolean playingWhenHidden = true;
 
         ApngDrawable(Loader loader, int plays) {
@@ -214,7 +216,6 @@ final class FastImageApng {
 
         @Override
         public void setPaused(boolean paused) {
-            boolean wasPaused = this.paused;
             this.paused = paused;
             // It starts and stops itself as it's shown and hidden, but not
             // while paused.
@@ -223,13 +224,20 @@ final class FastImageApng {
                 // Before the first frame, onStart pauses once it's rendered:
                 // the decoder's start clears a pause, then skips rendering if
                 // one came in meanwhile, which left the view blank.
-                if (rendered > 0) pause();
+                if (rendered) pause();
             } else {
-                // Still on its first frame, it shows for its delay from now:
-                // resuming goes on to the next frame.
-                if (wasPaused && rendered == 1) getFrameSeqDecoder().reset();
+                // Resuming goes on to the next frame, which would leave out
+                // the first one's delay.
+                if (pausedFromStart) getFrameSeqDecoder().reset();
+                pausedFromStart = false;
                 resume();
             }
+        }
+
+        @Override
+        public void pauseFromStart() {
+            setPaused(true);
+            pausedFromStart = true;
         }
 
         // It sets a draw filter on the canvas and leaves it there, which would
@@ -250,12 +258,11 @@ final class FastImageApng {
             return super.setVisible(visible, restart);
         }
 
-        // From its first frame. The target starts it right after
-        // setVisible(true) has (auto play): APNG4Android's start() stops and
-        // starts a running decoder, and a stop made while the decoder is
-        // still starting can win over that start, leaving it stopped on its
-        // first frame. A running one carries on: resetting it would show its
-        // first frame for its delay twice.
+        // The target starts it right after setVisible(true) has (auto play). A
+        // running one carries on: APNG4Android's start() stops and starts a
+        // running decoder, and a stop made while the decoder is still starting
+        // can win over that start, leaving it stopped on its first frame. Going
+        // back to that frame instead would show it for its delay twice.
         @Override
         public void start() {
             if (isRunning()) return;
@@ -265,7 +272,7 @@ final class FastImageApng {
         @Override
         public void onRender(ByteBuffer byteBuffer) {
             super.onRender(byteBuffer);
-            rendered++;
+            rendered = true;
         }
 
         // On its decoder thread, once starting has drawn the first frame:

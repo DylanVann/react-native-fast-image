@@ -7254,7 +7254,7 @@ function BundledAnimatedCase({
 }
 
 // An APNG paused as it loads shows its first frame for its delay once it's
-// resumed: still red half a second later.
+// resumed: still red just after.
 function ApngResumeFirstFrameCase() {
     const [paused, setPaused] = useState(true)
     const [ok, setOk] = useState(false)
@@ -7269,7 +7269,7 @@ function ApngResumeFirstFrameCase() {
                 onLoad={() => {
                     timer.current = setTimeout(() => {
                         setPaused(false)
-                        timer.current = setTimeout(() => setOk(true), 500)
+                        timer.current = setTimeout(() => setOk(true), 200)
                     }, 1000)
                 }}
             />
@@ -7278,7 +7278,7 @@ function ApngResumeFirstFrameCase() {
                 status={ok ? 'OK' : 'waiting'}
                 description={{
                     checks: 'An APNG paused as it loads, once resumed, shows its first frame for its delay rather than going straight to the next frame.',
-                    steps: 'Loads an APNG (1.5 s red, then 0.1 s blue) with paused, and sets paused to false 1 s after it has loaded. Passes 0.5 s later; the screenshot does the checking.',
+                    steps: 'Loads an APNG (1.5 s red, then 0.1 s blue) with paused, and sets paused to false 1 s after it has loaded. Passes 0.2 s later; the screenshot does the checking.',
                     shows: 'A red square: the first frame. Blue means it skipped the first frame.',
                 }}
             />
@@ -13440,7 +13440,7 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
         ],
     },
     {
-        // On its own too: the blue frame comes 1 s after it passes.
+        // On its own too: the blue frame comes 1.3 s after it passes.
         name: 'apng-resume-first-frame',
         description: {
             checks: 'An APNG paused as it loads shows its first frame for its delay once resumed.',

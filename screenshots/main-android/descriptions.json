@@ -2283,7 +2283,7 @@
         "cases": {
             "apng-resume-first-frame": {
                 "checks": "An APNG paused as it loads, once resumed, shows its first frame for its delay rather than going straight to the next frame.",
-                "steps": "Loads an APNG (1.5 s red, then 0.1 s blue) with paused, and sets paused to false 1 s after it has loaded. Passes 0.5 s later; the screenshot does the checking.",
+                "steps": "Loads an APNG (1.5 s red, then 0.1 s blue) with paused, and sets paused to false 1 s after it has loaded. Passes 0.2 s later; the screenshot does the checking.",
                 "shows": "A red square: the first frame. Blue means it skipped the first frame."
             }
         }
