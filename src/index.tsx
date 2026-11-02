@@ -1,3 +1,5 @@
+'use client'
+
 import React, { forwardRef, memo, useMemo } from 'react'
 import {
     ColorValue,

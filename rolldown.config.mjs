@@ -11,6 +11,10 @@ const flowTypes = {
     },
 }
 
+// So that a React Server Component can render FastImage. Rolldown drops the
+// directive in src.
+const USE_CLIENT = "'use client';"
+
 const shared = {
     // Dependencies (react, react-native) come from the app.
     external: (id) => !id.startsWith('.') && !path.isAbsolute(id),
@@ -43,16 +47,20 @@ export default defineConfig([
         ...shared,
         input: 'src/index.tsx',
         output: [
-            { file: 'dist/index.cjs.js', format: 'cjs' },
-            { file: 'dist/index.js', format: 'esm' },
+            { file: 'dist/index.cjs.js', format: 'cjs', banner: USE_CLIENT },
+            { file: 'dist/index.js', format: 'esm', banner: USE_CLIENT },
         ],
     },
     {
         ...shared,
         input: 'src/index.web.tsx',
         output: [
-            { file: 'dist/index.cjs.web.js', format: 'cjs' },
-            { file: 'dist/index.web.js', format: 'esm' },
+            {
+                file: 'dist/index.cjs.web.js',
+                format: 'cjs',
+                banner: USE_CLIENT,
+            },
+            { file: 'dist/index.web.js', format: 'esm', banner: USE_CLIENT },
         ],
     },
     // react-native-fast-image/thumbhash (thumbhash/package.json), for any
