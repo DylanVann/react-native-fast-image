@@ -1,3 +1,5 @@
+'use client'
+
 // FastImage on the web (react-native-web): a View with an <img> in it, with
 // FastImage's props and events. Bundlers that resolve `.web` files, or the
 // package's `browser` field, pick this file instead of index.tsx, which uses
