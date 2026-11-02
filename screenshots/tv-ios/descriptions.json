@@ -644,17 +644,17 @@
         "cases": {
             "bundled-animated-gif": {
                 "checks": "A GIF bundled with the app animates (run with --release, as a debug build loads it from Metro).",
-                "steps": "Loads a require()d GIF that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "steps": "Loads a require()d GIF that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.",
                 "shows": "A blue square: the last frame. Red means it only showed its first frame."
             },
             "bundled-animated-webp": {
                 "checks": "A animated WebP bundled with the app animates (run with --release, as a debug build loads it from Metro).",
-                "steps": "Loads a require()d animated WebP that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "steps": "Loads a require()d animated WebP that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.",
                 "shows": "A blue square: the last frame. Red means it only showed its first frame."
             },
             "bundled-animated-apng": {
                 "checks": "A APNG bundled with the app animates (run with --release, as a debug build loads it from Metro).",
-                "steps": "Loads a require()d APNG that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "steps": "Loads a require()d APNG that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.",
                 "shows": "A blue square: the last frame. Red means it only showed its first frame."
             }
         }
@@ -2243,6 +2243,30 @@
                 "checks": "blurRadius on an APNG: it shows its first frame, blurred and still, as a blurred GIF does.",
                 "steps": "Loads the APNG (red, then blue, 400 ms each, looping) with blurRadius 6. On onLoad it records the view for two plays. Passes when the recording sees only red.",
                 "shows": "A red square (the first frame; blurring a flat color leaves it the same): masked, so not compared."
+            }
+        }
+    },
+    "apng-resume-first-frame": {
+        "description": {
+            "checks": "An APNG paused as it loads shows its first frame for its delay once resumed."
+        },
+        "cases": {
+            "apng-resume-first-frame": {
+                "checks": "An APNG paused as it loads, once resumed, shows its first frame for its delay rather than going straight to the next frame.",
+                "steps": "Loads an APNG (1.5 s red, then 0.1 s blue) with paused, and sets paused to false 1 s after it has loaded. Passes 0.2 s later; the screenshot does the checking.",
+                "shows": "A red square: the first frame. Blue means it skipped the first frame."
+            }
+        }
+    },
+    "apng-first-frame": {
+        "description": {
+            "checks": "An APNG's first frame shows for its delay."
+        },
+        "cases": {
+            "apng-first-frame": {
+                "checks": "An APNG's first frame shows for its delay (Android showed it for twice that: starting the drawable, which had already started itself, drew the first frame again).",
+                "steps": "Loads an APNG that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.",
+                "shows": "A blue square: the last frame. Red means the first frame lasted too long."
             }
         }
     },

@@ -1220,7 +1220,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 animatable.setLoopCount(mLoopCount, false);
                 // The target starts it; paused, it stays on its first frame.
                 super.onResourceReady(resource, transition);
-                if (mPaused) animatable.setPaused(true);
+                if (mPaused) animatable.pauseFromStart();
                 return;
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && resource instanceof AnimatedImageDrawable) {
