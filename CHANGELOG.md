@@ -1,3 +1,10 @@
+# [10.11.0](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.3...v10.11.0) (2026-11-02)
+
+
+### Features
+
+* FastImage can be rendered from a React Server Component ([#1419](https://github.com/DylanVann/react-native-fast-image/issues/1419)) ([399f899](https://github.com/DylanVann/react-native-fast-image/commit/399f8995faf06f5a1339bee99e784bb4723aee0e))
+
 ## [10.10.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.2...v10.10.3) (2026-11-02)
 
 
