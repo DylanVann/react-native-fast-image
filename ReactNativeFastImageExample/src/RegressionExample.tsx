@@ -3063,8 +3063,8 @@ function BackgroundCase({ id, slow }: { id: string; slow?: boolean }) {
     )
 }
 
-// The background cases load only once started, so the rest of the tab's
-// cases aren't loading while the app goes to the background.
+// The background cases load only once started, so they aren't loading before
+// the flow is ready for them.
 function BackgroundCases() {
     const [started, setStarted] = useState(false)
     if (started) {
@@ -13698,6 +13698,9 @@ export default function RegressionExample() {
     const statusBarHeight = useStatusBarHeight()
     // Each description's steps and what it shows, not only what it checks.
     const [details, setDetails] = useState(false)
+    // Not until asked for: every case at once makes the tab too slow for the
+    // Maestro flows, which only need the background cases.
+    const [allCases, setAllCases] = useState(false)
     return (
         <DetailsContext.Provider value={details}>
             <ScrollView
@@ -13711,16 +13714,22 @@ export default function RegressionExample() {
                 </View>
                 <BackgroundCases />
                 <ClearWithoutActivityCase />
-                {REGRESSION_GROUPS.map((group) => (
-                    <React.Fragment key={group.name}>
-                        <DescriptionText
-                            title={group.name}
-                            description={group.description}
-                            style={styles.group}
-                        />
-                        {group.cases}
-                    </React.Fragment>
-                ))}
+                <View style={styles.details}>
+                    <Text>All cases</Text>
+                    <Switch value={allCases} onValueChange={setAllCases} />
+                </View>
+                {allCases
+                    ? REGRESSION_GROUPS.map((group) => (
+                          <React.Fragment key={group.name}>
+                              <DescriptionText
+                                  title={group.name}
+                                  description={group.description}
+                                  style={styles.group}
+                              />
+                              {group.cases}
+                          </React.Fragment>
+                      ))
+                    : null}
             </ScrollView>
         </DetailsContext.Provider>
     )
