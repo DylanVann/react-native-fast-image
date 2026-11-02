@@ -8833,6 +8833,7 @@ function DownsampleOverLimitSharedCase() {
         ),
     )
     const [preloaded, setPreloaded] = useState<PreloadResult>()
+    const [firstStarted, setFirstStarted] = useState(false)
     const [second, setSecond] = useState(false)
     // On iOS the right view loads again after its onLoad, without events.
     const [status, onLoad] = useLoadedThenOk(2, 3000)
@@ -8841,11 +8842,13 @@ function DownsampleOverLimitSharedCase() {
             setPreloaded(r),
         )
     }, [uri])
+    // From when the left view starts loading: changed in the same commit, as
+    // a busy main thread could make them, both show one full-size decode.
     useEffect(() => {
-        if (!preloaded?.ok) return
+        if (!firstStarted) return
         const timer = setTimeout(() => setSecond(true), 100)
         return () => clearTimeout(timer)
-    }, [preloaded])
+    }, [firstStarted])
     return (
         <View style={styles.row}>
             <View style={downsampleStyles.overLimit}>
@@ -8854,6 +8857,7 @@ function DownsampleOverLimitSharedCase() {
                     source={preloaded?.ok ? { uri } : undefined}
                     objectFit="fill"
                     downsample={false}
+                    onLoadStart={() => setFirstStarted(true)}
                     onLoad={onLoad}
                 />
             </View>
