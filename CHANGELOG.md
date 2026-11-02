@@ -1,3 +1,10 @@
+## [10.10.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.1...v10.10.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **android:** a finished animated image doesn't play again when the app comes back ([#1415](https://github.com/DylanVann/react-native-fast-image/issues/1415)) ([2659984](https://github.com/DylanVann/react-native-fast-image/commit/2659984c3bf1fb9658656a92b5a2fc0c74faedd3))
+
 ## [10.10.1](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.0...v10.10.1) (2026-11-01)
 
 
