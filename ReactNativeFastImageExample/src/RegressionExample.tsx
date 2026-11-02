@@ -13537,10 +13537,9 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
     },
     {
         // scripts/verify.mts sends the app away and brings it back while this
-        // group and the next are shown, once their cases are ready. Near the
-        // end: on the Android emulator, once the app has had a memory trim
-        // (am send-trim-memory does it too), image-rendering's pixelated images
-        // are drawn smoothly, with the view's drawable and bitmap unchanged.
+        // group and the next are shown, once their cases are ready. After
+        // image-rendering: on Android, once an APNG has been drawn, its pixelated
+        // images are smooth (APNG4Android leaves its draw filter on the canvas).
         name: 'app-return',
         description: {
             checks: 'Animated images that finished playing stay finished when the app comes back from the background.',
