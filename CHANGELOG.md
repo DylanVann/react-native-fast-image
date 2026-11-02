@@ -1,3 +1,10 @@
+## [10.10.3](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.2...v10.10.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **android:** a pixelated image stays sharp after an APNG has been drawn ([#1416](https://github.com/DylanVann/react-native-fast-image/issues/1416)) ([4596653](https://github.com/DylanVann/react-native-fast-image/commit/4596653717966d0c767a423e1ba91a20f7a297cb))
+
 ## [10.10.2](https://github.com/DylanVann/react-native-fast-image/compare/v10.10.1...v10.10.2) (2026-11-02)
 
 
