@@ -193,8 +193,8 @@ final class FastImageApng {
         // How many times the file says it plays (0: forever).
         private final int plays;
         private volatile boolean paused = false;
-        // Once a frame has been rendered (on the decoder's thread).
-        private volatile boolean rendered = false;
+        // How many frames have been rendered (on the decoder's thread).
+        private volatile int rendered = 0;
         private boolean playingWhenHidden = true;
 
         ApngDrawable(Loader loader, int plays) {
@@ -214,6 +214,7 @@ final class FastImageApng {
 
         @Override
         public void setPaused(boolean paused) {
+            boolean wasPaused = this.paused;
             this.paused = paused;
             // It starts and stops itself as it's shown and hidden, but not
             // while paused.
@@ -222,8 +223,11 @@ final class FastImageApng {
                 // Before the first frame, onStart pauses once it's rendered:
                 // the decoder's start clears a pause, then skips rendering if
                 // one came in meanwhile, which left the view blank.
-                if (rendered) pause();
+                if (rendered > 0) pause();
             } else {
+                // Still on its first frame, it shows for its delay from now:
+                // resuming goes on to the next frame.
+                if (wasPaused && rendered == 1) getFrameSeqDecoder().reset();
                 resume();
             }
         }
@@ -250,21 +254,18 @@ final class FastImageApng {
         // setVisible(true) has (auto play): APNG4Android's start() stops and
         // starts a running decoder, and a stop made while the decoder is
         // still starting can win over that start, leaving it stopped on its
-        // first frame. A running one is reset to its first frame instead,
-        // unless it's still there: that would show it for its delay again.
+        // first frame. A running one carries on: resetting it would show its
+        // first frame for its delay twice.
         @Override
         public void start() {
-            if (isRunning()) {
-                if (getFrameSeqDecoder().getFrameIndex() > 0) getFrameSeqDecoder().reset();
-                return;
-            }
+            if (isRunning()) return;
             super.start();
         }
 
         @Override
         public void onRender(ByteBuffer byteBuffer) {
             super.onRender(byteBuffer);
-            rendered = true;
+            rendered++;
         }
 
         // On its decoder thread, once starting has drawn the first frame:
