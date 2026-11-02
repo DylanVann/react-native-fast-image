@@ -3332,6 +3332,60 @@ async function runRegression(
                 `touch flow: ${tapped.ok ? 'OK' : `failed${tapped.timedOut ? ' (timed out)' : ''}, see touch.log`}`,
             )
         }
+        // Cases about the app coming back: send it away once they're ready,
+        // and bring it back. Not with Maestro, which takes seconds to finish:
+        // the replay these look for would be over by the screenshot.
+        if (group.startsWith('app-return')) {
+            const ready = await waitFor(
+                () =>
+                    cases.every((id) => statusOf(index, id) === 'ready')
+                        ? true
+                        : appGone()
+                          ? false
+                          : undefined,
+                GROUP_TIMEOUT,
+            )
+            if (ready) {
+                if (platform === 'android') {
+                    capture(ADB, [
+                        '-s',
+                        device,
+                        'shell',
+                        'input',
+                        'keyevent',
+                        'HOME',
+                    ])
+                } else {
+                    capture('xcrun', [
+                        'simctl',
+                        'launch',
+                        device,
+                        TV ? 'com.apple.TVSettings' : 'com.apple.Preferences',
+                    ])
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+                if (platform === 'android') {
+                    capture(ADB, [
+                        '-s',
+                        device,
+                        'shell',
+                        'am',
+                        'start',
+                        // Until its window is back: it can take over a second on
+                        // CI, when a screenshot is blank.
+                        '-W',
+                        '-a',
+                        'android.intent.action.VIEW',
+                        '-d',
+                        `${appId}://`,
+                    ])
+                    // And it fades in.
+                    await new Promise((resolve) => setTimeout(resolve, 800))
+                } else {
+                    capture('xcrun', ['simctl', 'launch', device, appId])
+                }
+            }
+        }
         // The group's time limit counts from here (the taps can take a while
         // the first time maestro-runner builds WebDriverAgent).
         const waitStart = Date.now()

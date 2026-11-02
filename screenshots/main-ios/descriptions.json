@@ -2387,6 +2387,80 @@
             }
         }
     },
+    "app-return": {
+        "description": {
+            "checks": "Animated images that finished playing stay finished when the app comes back from the background."
+        },
+        "cases": {
+            "app-return-gif": {
+                "checks": "A GIF that played to its end stays on its last frame when the app comes back from the background.",
+                "steps": "Loads a GIF (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.",
+                "shows": "A blue square: the last frame. Red means it's playing again."
+            },
+            "app-return-apng": {
+                "checks": "A APNG that played to its end stays on its last frame when the app comes back from the background.",
+                "steps": "Loads a APNG (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.",
+                "shows": "A blue square: the last frame. Red means it's playing again."
+            },
+            "app-return-webp": {
+                "checks": "A animated WebP that played to its end stays on its last frame when the app comes back from the background.",
+                "steps": "Loads a animated WebP (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.",
+                "shows": "A blue square: the last frame. Red means it's playing again."
+            },
+            "app-return-avif": {
+                "checks": "A animated AVIF that played to its end stays on its last frame when the app comes back from the background.",
+                "steps": "Loads a animated AVIF (1.5 s red, then 0.1 s blue) with loop={1}. Once it has finished, scripts/verify.mts sends the app to the background and brings it back. Passes 0.5 s after that.",
+                "shows": "A blue square: the last frame. Red means it's playing again."
+            }
+        }
+    },
+    "app-return-playing": {
+        "description": {
+            "checks": "Animated images still playing when the app goes to the background play on when it comes back, and paused ones stay paused."
+        },
+        "cases": {
+            "app-return-playing-gif": {
+                "checks": "A GIF still playing when the app goes to the background plays on when it comes back.",
+                "steps": "Loads a GIF (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A blue square: the last frame, where its plays end. Red means it stopped when the app left."
+            },
+            "app-return-playing-apng": {
+                "checks": "A APNG still playing when the app goes to the background plays on when it comes back.",
+                "steps": "Loads a APNG (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A blue square: the last frame, where its plays end. Red means it stopped when the app left."
+            },
+            "app-return-playing-webp": {
+                "checks": "A animated WebP still playing when the app goes to the background plays on when it comes back.",
+                "steps": "Loads a animated WebP (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A blue square: the last frame, where its plays end. Red means it stopped when the app left."
+            },
+            "app-return-playing-avif": {
+                "checks": "A animated AVIF still playing when the app goes to the background plays on when it comes back.",
+                "steps": "Loads a animated AVIF (1.5 s red, then 0.1 s blue) with loop={2}. In its second play, scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A blue square: the last frame, where its plays end. Red means it stopped when the app left."
+            },
+            "app-return-paused-gif": {
+                "checks": "A paused GIF stays paused when the app comes back from the background.",
+                "steps": "Loads a GIF (1.5 s red, then 0.1 s blue) with paused and loop={1}. scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A red square: the first frame. Blue means it played when the app came back."
+            },
+            "app-return-paused-apng": {
+                "checks": "A paused APNG stays paused when the app comes back from the background.",
+                "steps": "Loads a APNG (1.5 s red, then 0.1 s blue) with paused and loop={1}. scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A red square: the first frame. Blue means it played when the app came back."
+            },
+            "app-return-paused-webp": {
+                "checks": "A paused animated WebP stays paused when the app comes back from the background.",
+                "steps": "Loads a animated WebP (1.5 s red, then 0.1 s blue) with paused and loop={1}. scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A red square: the first frame. Blue means it played when the app came back."
+            },
+            "app-return-paused-avif": {
+                "checks": "A paused animated AVIF stays paused when the app comes back from the background.",
+                "steps": "Loads a animated AVIF (1.5 s red, then 0.1 s blue) with paused and loop={1}. scripts/verify.mts sends the app to the background and brings it back. Passes 3.8 s after that.",
+                "shows": "A red square: the first frame. Blue means it played when the app came back."
+            }
+        }
+    },
     "touch": {
         "description": {
             "checks": "Touches, accessibility labels and keyboard focus on FastImage, with real input: the touch flow (maestro/touch.yaml) taps each case while the group is shown.",
