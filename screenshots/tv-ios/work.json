@@ -315,6 +315,14 @@
         "load http://localhost:8090/slow-once.gif?count source main": 1,
         "request /slow-once.gif?count": 1
     },
+    "bundled-animated": {
+        "decode http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-apng.png?platform=ios&hash=HASH 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-gif.gif?platform=ios&hash=HASH 8x8 for 96x96 at full": 1,
+        "decode http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-webp.webp?platform=ios&hash=HASH 8x8 for 96x96 at full": 1,
+        "load http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-apng.png?platform=ios&hash=HASH source main": 1,
+        "load http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-gif.gif?platform=ios&hash=HASH source main": 1,
+        "load http://localhost:8081/assets/../ReactNativeFastImageExample/src/images/slow-once-webp.webp?platform=ios&hash=HASH source main": 1
+    },
     "image-rendering": {
         "decode http://localhost:8090/slow-once.png?after-apng 8x8 for 128x128 at full": 1,
         "decode http://localhost:8090/sprite-12.png 12x12 for 0x0 at full": 1,

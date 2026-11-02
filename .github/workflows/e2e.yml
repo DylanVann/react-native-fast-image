@@ -680,7 +680,8 @@ jobs:
           ccache --zero-stats > /dev/null
           case "$APP-$RELEASE" in
             # gif-resume-count for the plays FastImageGif reads by reflection (a rule for R8).
-            main-true) args="--release --package --groups $SMOKE_GROUPS,gif-resume-count" ;;
+            # bundled-animated for images that come from the app in release builds.
+            main-true) args="--release --package --groups $SMOKE_GROUPS,gif-resume-count,bundled-animated" ;;
             minimum-*) args="--groups $SMOKE_GROUPS" ;;
             # Its own smoke cases (SmokeExample.tsx).
             expo-*) args= ;;

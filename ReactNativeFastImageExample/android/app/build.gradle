@@ -103,6 +103,8 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            // Compressing a PNG drops an APNG's animation.
+            crunchPngs false
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
