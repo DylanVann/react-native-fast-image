@@ -60,4 +60,6 @@ APNG (animated PNG) images animate on Android with [APNG4Android](https://github
 
 APNGs work like other animated images: `loop`, `paused` (which continues from the frame it paused on), and a still first frame with `blurRadius`. Each frame is decoded as it plays, at about the size it's shown at, off the main thread.
 
+One bundled with your app (`require()`) needs [PNG compression turned off](android-build-settings.md#apngs-bundled-with-your-app) to animate in release builds.
+
 [^android-avif]: Android 14 is the first version that requires an AVIF decoder; many devices on Android 12 and 13 have one too.
