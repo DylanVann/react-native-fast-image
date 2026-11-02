@@ -6840,13 +6840,10 @@ function AppReturnCase({
                 paused={paused}
                 source={{ uri: imageUrl(uri) }}
                 onLoad={() => {
-                    // In its second play, or after its plays: up to 3.1 s, as
-                    // Android shows an APNG's first frame for twice its delay.
+                    // In its second play, or after its plays.
                     timer.current = setTimeout(
                         () => setReady(true),
-                        playing || paused
-                            ? 1600 + GIF_MARGIN
-                            : 3100 + GIF_MARGIN,
+                        1600 + GIF_MARGIN,
                     )
                 }}
             />
@@ -7239,7 +7236,7 @@ function BundledAnimatedCase({
     name: string
     source: number
 }) {
-    const [status, onLoad] = useLoadedThenOk(1, 3100 + GIF_MARGIN)
+    const [status, onLoad] = useLoadedThenOk(1, 1600 + GIF_MARGIN)
     return (
         <View style={styles.row}>
             <FastImage style={styles.image} source={source} onLoad={onLoad} />
@@ -7248,8 +7245,32 @@ function BundledAnimatedCase({
                 status={status}
                 description={{
                     checks: `A ${name} bundled with the app animates (run with --release, as a debug build loads it from Metro).`,
-                    steps: `Loads a require()d ${name} that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.`,
+                    steps: `Loads a require()d ${name} that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.`,
                     shows: 'A blue square: the last frame. Red means it only showed its first frame.',
+                }}
+            />
+        </View>
+    )
+}
+
+// An APNG's first frame lasts its delay, not twice that: it has played by the
+// time the case passes.
+function ApngFirstFrameCase() {
+    const [status, onLoad] = useLoadedThenOk(1, 1600 + GIF_MARGIN)
+    return (
+        <View style={styles.row}>
+            <FastImage
+                style={styles.image}
+                source={{ uri: imageUrl('slow-once.png?first-frame') }}
+                onLoad={onLoad}
+            />
+            <CaseStatus
+                id="apng-first-frame"
+                status={status}
+                description={{
+                    checks: "An APNG's first frame shows for its delay (Android showed it for twice that: starting the drawable, which had already started itself, drew the first frame again).",
+                    steps: 'Loads an APNG that plays once: 1.5 s red, then 0.1 s blue. Passes 2.2 s after it has loaded; the screenshot does the checking.',
+                    shows: 'A blue square: the last frame. Red means the first frame lasted too long.',
                 }}
             />
         </View>
@@ -13384,6 +13405,15 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
                 }}
             />,
         ],
+    },
+    {
+        // On its own: the group's screenshot waits for its slowest case, and
+        // by then the image has played anyway.
+        name: 'apng-first-frame',
+        description: {
+            checks: "An APNG's first frame shows for its delay.",
+        },
+        cases: [<ApngFirstFrameCase key="apng-first-frame" />],
     },
     {
         name: 'svg',

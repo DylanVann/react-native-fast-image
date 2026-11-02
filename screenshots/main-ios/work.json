@@ -1536,6 +1536,11 @@
         "load http://localhost:8090/formats/animated.png source main": 6,
         "request /formats/animated.png": 1
     },
+    "apng-first-frame": {
+        "decode http://localhost:8090/slow-once.png?first-frame 8x8 for 144x144 at full": 1,
+        "load http://localhost:8090/slow-once.png?first-frame source main": 1,
+        "request /slow-once.png?first-frame": 1
+    },
     "svg": {
         "load http://localhost:8081/assets/src/images/svg-flag.svg?platform=ios&hash=HASH source main": 1,
         "load http://localhost:8090/mislabeled/svg-flag.svg source main": 1,

@@ -250,11 +250,12 @@ final class FastImageApng {
         // setVisible(true) has (auto play): APNG4Android's start() stops and
         // starts a running decoder, and a stop made while the decoder is
         // still starting can win over that start, leaving it stopped on its
-        // first frame. A running one is reset to its first frame instead.
+        // first frame. A running one is reset to its first frame instead,
+        // unless it's still there: that would show it for its delay again.
         @Override
         public void start() {
             if (isRunning()) {
-                getFrameSeqDecoder().reset();
+                if (getFrameSeqDecoder().getFrameIndex() > 0) getFrameSeqDecoder().reset();
                 return;
             }
             super.start();
