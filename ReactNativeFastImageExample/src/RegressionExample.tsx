@@ -7228,6 +7228,34 @@ function ImageRenderingCase({
     )
 }
 
+// A require()d animated image: from Metro in debug builds, and from the app in
+// release builds. It stays red if it only shows its first frame.
+function BundledAnimatedCase({
+    id,
+    name,
+    source,
+}: {
+    id: string
+    name: string
+    source: number
+}) {
+    const [status, onLoad] = useLoadedThenOk(1, 3100 + GIF_MARGIN)
+    return (
+        <View style={styles.row}>
+            <FastImage style={styles.image} source={source} onLoad={onLoad} />
+            <CaseStatus
+                id={id}
+                status={status}
+                description={{
+                    checks: `A ${name} bundled with the app animates (run with --release, as a debug build loads it from Metro).`,
+                    steps: `Loads a require()d ${name} that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.`,
+                    shows: 'A blue square: the last frame. Red means it only showed its first frame.',
+                }}
+            />
+        </View>
+    )
+}
+
 // A pixelated image drawn after an APNG: mounted a moment after the APNG has
 // loaded, once its first frame has been drawn.
 function ImageRenderingAfterApngCase() {
@@ -11487,6 +11515,32 @@ export const REGRESSION_GROUPS: RegressionGroup[] = [
             checks: 'A GIF keeps counting its plays when it is resumed. On its own so that CI can run it in the Android release build, where a rule for R8 keeps the count.',
         },
         cases: [<GifResumeCountCase key="gif-resume-count" />],
+    },
+    {
+        name: 'bundled-animated',
+        description: {
+            checks: 'Animated images bundled with the app animate.',
+        },
+        cases: [
+            <BundledAnimatedCase
+                key="bundled-animated-gif"
+                id="bundled-animated-gif"
+                name="GIF"
+                source={require('./images/slow-once-gif.gif')}
+            />,
+            <BundledAnimatedCase
+                key="bundled-animated-webp"
+                id="bundled-animated-webp"
+                name="animated WebP"
+                source={require('./images/slow-once-webp.webp')}
+            />,
+            <BundledAnimatedCase
+                key="bundled-animated-apng"
+                id="bundled-animated-apng"
+                name="APNG"
+                source={require('./images/slow-once-apng.png')}
+            />,
+        ],
     },
     {
         name: 'image-rendering',

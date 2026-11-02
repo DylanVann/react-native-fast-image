@@ -637,6 +637,28 @@
             }
         }
     },
+    "bundled-animated": {
+        "description": {
+            "checks": "Animated images bundled with the app animate."
+        },
+        "cases": {
+            "bundled-animated-gif": {
+                "checks": "A GIF bundled with the app animates (run with --release, as a debug build loads it from Metro).",
+                "steps": "Loads a require()d GIF that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "shows": "A blue square: the last frame. Red means it only showed its first frame."
+            },
+            "bundled-animated-webp": {
+                "checks": "A animated WebP bundled with the app animates (run with --release, as a debug build loads it from Metro).",
+                "steps": "Loads a require()d animated WebP that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "shows": "A blue square: the last frame. Red means it only showed its first frame."
+            },
+            "bundled-animated-apng": {
+                "checks": "A APNG bundled with the app animates (run with --release, as a debug build loads it from Metro).",
+                "steps": "Loads a require()d APNG that plays once: 1.5 s red, then 0.1 s blue. Passes 3.7 s after it has loaded; the screenshot does the checking.",
+                "shows": "A blue square: the last frame. Red means it only showed its first frame."
+            }
+        }
+    },
     "image-rendering": {
         "description": {
             "checks": "imageRendering auto, smooth (iOS only) and pixelated, on images drawn smaller and larger than their size."

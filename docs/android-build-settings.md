@@ -25,6 +25,24 @@ buildscript {
 
 FastImage loads its images with React Native's OkHttp client, so your app's interceptors and cookies apply to them. Images your app loads with Glide itself (a `GlideUrl`, from its own native code or another library) use the same client, with 15 s connect and read timeouts where it has none. Your own `AppGlideModule` (below) can register another client for them in its `registerComponents`: FastImage doesn't replace it.
 
+## APNGs bundled with your app
+
+Android's release builds compress PNGs, which turns a `require()`d APNG into a still image of its first frame. To keep it animated, turn that off in `android/app/build.gradle`:
+
+```groovy
+android {
+    buildTypes {
+        release {
+            crunchPngs false
+        }
+    }
+}
+```
+
+With Expo, set `enablePngCrunchInReleaseBuilds` to `false` under `android` in [`expo-build-properties`](https://docs.expo.dev/versions/latest/sdk/build-properties/).
+
+APNGs loaded from a url aren't affected.
+
 ## If your app has its own AppGlideModule
 
 An app has one Glide `AppGlideModule`. FastImage has one (`FastImageGlideModule`), so if your app has its own, leave FastImage's out with `excludeAppGlideModule = true` (above). FastImage then adds its Glide components (for `onProgress`, `cache: 'web'`, `writeToCache`, SVG images and cookies) to your app's Glide setup itself, when it first loads an image.

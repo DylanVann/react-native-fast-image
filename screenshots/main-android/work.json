@@ -314,6 +314,13 @@
         "load http://10.0.2.2:8090/slow-once.gif?count source main": 1,
         "request /slow-once.gif?count": 1
     },
+    "bundled-animated": {
+        "decode http://localhost:8081/assets/src/images/slow-once-gif.gif?platform=android&hash=HASH gif at 126x126": 1,
+        "decode http://localhost:8081/assets/src/images/slow-once-webp.webp?platform=android&hash=HASH 8x8 for 126x126 at 126x126": 1,
+        "load http://localhost:8081/assets/src/images/slow-once-apng.png?platform=android&hash=HASH source main": 1,
+        "load http://localhost:8081/assets/src/images/slow-once-gif.gif?platform=android&hash=HASH source main": 1,
+        "load http://localhost:8081/assets/src/images/slow-once-webp.webp?platform=android&hash=HASH source main": 1
+    },
     "image-rendering": {
         "decode http://10.0.2.2:8090/sprite-12.png 12x12 for 12x12 at 12x12": 1,
         "decode http://10.0.2.2:8090/sprite-12.png 12x12 for 168x168 at 12x12": 2,
