@@ -7228,13 +7228,11 @@ function ImageRenderingCase({
     )
 }
 
-// A pixelated image drawn after an APNG, which has its first frame drawn by the
-// time the image mounts.
+// A pixelated image drawn after an APNG: mounted a moment after the APNG has
+// loaded, once its first frame has been drawn.
 function ImageRenderingAfterApngCase() {
-    const [apngDrawn, setApngDrawn] = useState(false)
+    const [apng, onApngLoad] = useLoadedThenOk(1)
     const [loaded, setLoaded] = useState(false)
-    const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-    useEffect(() => () => clearTimeout(timer.current), [])
     return (
         <View style={renderingStyles.case}>
             <View style={renderingStyles.modes}>
@@ -7242,14 +7240,9 @@ function ImageRenderingAfterApngCase() {
                     style={renderingStyles.afterApng}
                     source={{ uri: imageUrl('slow-once.png?after-apng') }}
                     paused
-                    onLoad={() => {
-                        timer.current = setTimeout(
-                            () => setApngDrawn(true),
-                            500,
-                        )
-                    }}
+                    onLoad={onApngLoad}
                 />
-                {apngDrawn ? (
+                {apng === 'OK' ? (
                     <FastImage
                         style={[renderingStyles.afterApng, styles.gap]}
                         source={{ uri: imageUrl('sprite-12.png?after-apng') }}
