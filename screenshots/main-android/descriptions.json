@@ -661,6 +661,11 @@
                 "checks": "imageRendering changed after load, from pixelated to auto: on iOS the image moves onto whole pixels then, as sharp as auto from the start.",
                 "steps": "Loads a 1600x1000 page of text into two 40x96 views with downsample and cover: the left with imageRendering=\"pixelated\", changed to auto once both have loaded, the right with auto. Passes once it has changed; the screenshot does the checking.",
                 "shows": "Two tall crops of the middle of the page, the same and both sharp. A blurry left one is a failure."
+            },
+            "image-rendering-after-apng": {
+                "checks": "imageRendering pixelated on an image drawn after an APNG: its pixels stay sharp (on Android, APNG4Android's drawable set a draw filter on the canvas and left it there, which filtered what was drawn after it).",
+                "steps": "Shows a paused APNG, then 500 ms after it has loaded adds 12 px pixel art at 64 points with imageRendering=\"pixelated\". Passes when both have loaded; the screenshot does the checking.",
+                "shows": "A red square, then a large sprite with sharp square pixels."
             }
         }
     },

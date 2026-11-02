@@ -1,5 +1,7 @@
 package com.fastimage;
 
+import android.graphics.Canvas;
+import android.graphics.DrawFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
@@ -224,6 +226,15 @@ final class FastImageApng {
             } else {
                 resume();
             }
+        }
+
+        // It sets a draw filter on the canvas and leaves it there, which would
+        // filter what's drawn after it: pixelated images come out smooth.
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            DrawFilter filter = canvas.getDrawFilter();
+            super.draw(canvas);
+            canvas.setDrawFilter(filter);
         }
 
         // It starts itself when it's shown, which would play one that finished
