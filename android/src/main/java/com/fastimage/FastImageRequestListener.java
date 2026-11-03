@@ -9,13 +9,11 @@ import com.bumptech.glide.request.Request;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class FastImageRequestListener implements RequestListener<Drawable> {
-    static final String REACT_ON_ERROR_EVENT = "onFastImageError";
-    static final String REACT_ON_LOAD_EVENT = "onFastImageLoad";
-    static final String REACT_ON_LOAD_END_EVENT = "onFastImageLoadEnd";
     private final FastImageSource source;
     // Whether the request shows the previous image as a thumbnail meanwhile.
     private final boolean thumbnail;
@@ -43,9 +41,9 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
         FastImageViewWithUrl view = (FastImageViewWithUrl) ((ImageViewTarget) target).getView();
         view.onImageFailed(thumbnail);
         String error = errorMessage(e);
-        WritableMap event = new WritableNativeMap();
-        event.putString("error", error);
-        FastImageEvents.send(view, REACT_ON_ERROR_EVENT, event);
+        Map<String, Object> event = new HashMap<>();
+        event.put("error", error);
+        FastImageEvents.send(view, FastImageEvents.REACT_ON_ERROR_EVENT, event);
         FastImageEvents.sendLoadEnd(view, error);
         return false;
     }
@@ -128,10 +126,10 @@ public class FastImageRequestListener implements RequestListener<Drawable> {
     }
 
     private static void sendLoad(FastImageViewWithUrl view, int[] size) {
-        WritableMap event = new WritableNativeMap();
-        event.putInt("width", size[0]);
-        event.putInt("height", size[1]);
-        FastImageEvents.send(view, REACT_ON_LOAD_EVENT, event);
+        Map<String, Object> event = new HashMap<>();
+        event.put("width", size[0]);
+        event.put("height", size[1]);
+        FastImageEvents.send(view, FastImageEvents.REACT_ON_LOAD_EVENT, event);
         FastImageEvents.sendLoadEnd(view, size[0], size[1]);
     }
 }

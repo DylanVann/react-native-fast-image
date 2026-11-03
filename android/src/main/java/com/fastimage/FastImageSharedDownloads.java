@@ -50,7 +50,7 @@ import okio.BufferedSource;
 // image). Glide only shares a load between requests for the same size and
 // options, so views showing an image at different sizes, or one mounted while
 // a preload downloads it, downloaded it again. Downloads are keyed by key(),
-// which progress is sent by too (FastImageViewManager.onDownloadProgress).
+// which progress is sent by too (FastImageProgress.onDownloadProgress).
 //
 // A download reads its response on a thread of its own, and keeps the bytes:
 // in memory if the response is small (a known length up to MEMORY_MAX, while
@@ -114,7 +114,7 @@ final class FastImageSharedDownloads {
 
     // The download new requests for a key join: in progress, or ended and
     // still being read (or read less than LINGER_MS ago). Guards the downloads' sharing, queue and progress
-    // (taken before a download's own lock, and FastImageViewManager's progress
+    // (taken before a download's own lock, and FastImageProgress's
     // lock).
     private static final Map<String, Download> downloads = new HashMap<>();
     // Guarded by downloads: downloads waiting to start, most urgent first, then
@@ -1015,9 +1015,9 @@ final class FastImageSharedDownloads {
         // load of the key never gets a cancelled download's steps. Without an
         // image with onProgress, nothing is locked.
         private void report(Progress progress, long loaded, long total) {
-            if (!progress.step(loaded, total) || !FastImageViewManager.wantsProgress()) return;
+            if (!progress.step(loaded, total) || !FastImageProgress.wantsProgress()) return;
             synchronized (downloads) {
-                if (!silent) FastImageViewManager.onDownloadProgress(key, Math.min(loaded, total), total);
+                if (!silent) FastImageProgress.onDownloadProgress(key, Math.min(loaded, total), total);
             }
         }
 

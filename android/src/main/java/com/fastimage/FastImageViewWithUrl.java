@@ -1,6 +1,6 @@
 package com.fastimage;
 
-import static com.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_ERROR_EVENT;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -51,23 +51,14 @@ import com.bumptech.glide.request.target.SizeReadyCallback;
 import com.bumptech.glide.request.transition.NoTransition;
 import com.bumptech.glide.request.transition.Transition;
 import com.bumptech.glide.request.transition.TransitionFactory;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
-import com.facebook.react.modules.i18nmanager.I18nUtil;
-import com.facebook.react.touch.ReactHitSlopView;
-import com.facebook.react.uimanager.StateWrapper;
-import com.facebook.react.uimanager.BackgroundStyleApplicator;
-import com.facebook.react.uimanager.PixelUtil;
-import com.facebook.react.uimanager.PointerEvents;
-import com.facebook.react.uimanager.ReactPointerEventsView;
-import com.facebook.react.uimanager.style.LogicalEdge;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
-class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEventsView, ReactHitSlopView {
+class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private FastImageSourceProps mSource = null;
     // The `placeholder` prop.
@@ -88,29 +79,18 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         setCropToPadding(true);
     }
 
-    // The image fills the view inside its borders, and padding doesn't inset
-    // it, as on iOS: the view's padding is the border widths, resolved as
-    // React Native draws the border (its BorderInsets, which isn't public).
-    // React Native passes the layout's padding and borders together, so
-    // FastImageViewManager.setPadding doesn't use them. Called when a border
-    // width or the layout direction changes.
+    // An event for whatever hosts the view (FastImageReactView: JS).
+    void dispatchEvent(String name, Map<String, Object> data) {
+    }
+
+    // Called when the layout direction changes, for a host whose borders
+    // inset the image (FastImageReactView), which calls setBorderPadding.
     void updateBorderPadding() {
-        LogicalEdge left = LogicalEdge.START;
-        LogicalEdge physicalLeft = LogicalEdge.LEFT;
-        LogicalEdge right = LogicalEdge.END;
-        LogicalEdge physicalRight = LogicalEdge.RIGHT;
-        if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) {
-            left = LogicalEdge.END;
-            right = LogicalEdge.START;
-            if (I18nUtil.getInstance().doLeftAndRightSwapInRTL(getContext())) {
-                physicalLeft = LogicalEdge.RIGHT;
-                physicalRight = LogicalEdge.LEFT;
-            }
-        }
-        int paddingLeft = borderWidth(left, physicalLeft, LogicalEdge.HORIZONTAL);
-        int paddingTop = borderWidth(LogicalEdge.BLOCK_START, LogicalEdge.TOP, LogicalEdge.BLOCK, LogicalEdge.VERTICAL);
-        int paddingRight = borderWidth(right, physicalRight, LogicalEdge.HORIZONTAL);
-        int paddingBottom = borderWidth(LogicalEdge.BLOCK_END, LogicalEdge.BOTTOM, LogicalEdge.BLOCK, LogicalEdge.VERTICAL);
+    }
+
+    // The image fills the view inside its borders: the view's padding is
+    // their widths.
+    final void setBorderPadding(int paddingLeft, int paddingTop, int paddingRight, int paddingBottom) {
         // Compared with the padding last set here: getPaddingLeft() and the
         // others resolve the padding, which calls onRtlPropertiesChanged.
         if (paddingLeft == mBorderPaddingLeft && paddingTop == mBorderPaddingTop
@@ -136,29 +116,12 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     private int mBorderPaddingRight;
     private int mBorderPaddingBottom;
 
-    // The first of these edges' border width that's set, else the one for
-    // every edge, in pixels (rounded down, as React Native's layout does).
-    private int borderWidth(LogicalEdge... edges) {
-        Float width = null;
-        for (LogicalEdge edge : edges) {
-            width = BackgroundStyleApplicator.getBorderWidth(this, edge);
-            if (width != null) break;
-        }
-        if (width == null) width = BackgroundStyleApplicator.getBorderWidth(this, LogicalEdge.ALL);
-        return width == null ? 0 : (int) Math.floor(PixelUtil.toPixelFromDIP(width));
-    }
-
     @Override
     public void onRtlPropertiesChanged(int layoutDirection) {
         super.onRtlPropertiesChanged(layoutDirection);
         updateBorderPadding();
     }
 
-    // The View style props FastImage handles itself (FastImageViewManager):
-    // it's a single native view, so they're the image's.
-    private PointerEvents mPointerEvents = PointerEvents.AUTO;
-    @Nullable
-    private Rect mHitSlopRect;
     // overflow: hidden (FastImage's default) or scroll clip the image to the
     // padding box, with the border radius; visible only to the view.
     private boolean mOverflowVisible = false;
@@ -166,26 +129,6 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // (rotateX or rotateY past 90°) is hidden with an opacity of 0.
     private boolean mBackfaceVisible = true;
     private float mBackfaceOpacity = 1f;
-
-    @NonNull
-    @Override
-    public PointerEvents getPointerEvents() {
-        return mPointerEvents;
-    }
-
-    void setPointerEvents(PointerEvents pointerEvents) {
-        mPointerEvents = pointerEvents;
-    }
-
-    @Nullable
-    @Override
-    public Rect getHitSlopRect() {
-        return mHitSlopRect;
-    }
-
-    void setHitSlopRect(@Nullable Rect hitSlopRect) {
-        mHitSlopRect = hitSlopRect;
-    }
 
     // `accessible` and `screenReaderFocusable`: TalkBack stops on the view
     // while either is true (as iOS's VoiceOver does for `accessible`). They
@@ -319,9 +262,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // Several sources: the next load switches to another one for a new view
     // size. It's the same picture at another size, so it doesn't fade in.
     private boolean mSwitchesSource = false;
-    // What the last update was called with, to load once the view has a size.
-    @Nullable
-    private FastImageViewManager mManager;
+    // Whether an update has run, to load once the view has a size.
+    private boolean mUpdated = false;
 
     // The box the image is drawn in: the view inside its padding, which is the
     // border widths (see updateBorderPadding).
@@ -405,7 +347,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // showing until then, without a fade.
     private boolean switchSourceIfResized() {
         if (severalSources() == null || mNeedsReload || mWaitsForSize || contentWidth() <= 0 || contentHeight() <= 0
-                || mManager == null || sourceIndexForSize() == mSourceIndex) {
+                || !mUpdated || sourceIndexForSize() == mSourceIndex) {
             return false;
         }
         mSwitchesSource = true;
@@ -413,7 +355,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         post(new Runnable() {
             @Override
             public void run() {
-                if (mNeedsReload && mManager != null) onAfterUpdate(mManager, requestManager);
+                if (mNeedsReload && mUpdated) onAfterUpdate(requestManager);
             }
         });
         return true;
@@ -423,9 +365,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     // until then (the ref's reload()). Before the first props there's nothing
     // to load yet.
     void reload() {
-        if (mManager == null) return;
+        if (!mUpdated) return;
         mNeedsReload = true;
-        onAfterUpdate(mManager, requestManager);
+        onAfterUpdate(requestManager);
     }
 
     // Shows at once, as a new source placeholder does (see updatePlaceholder),
@@ -658,7 +600,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     // Pauses GIFs on the frame they're showing (the view's own animation).
     private boolean mPaused = false;
-    // Progress (see FastImageViewManager.onDownloadProgress): the url its
+    // Progress (see FastImageProgress.onDownloadProgress): the url its
     // current load downloads (null for a local image, and once the load has
     // ended), the progress key the view gets progress for (the loading url's,
     // while it has an onProgress), the last step downloads reported before the
@@ -691,7 +633,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         cancelSizeWait();
         // Its shadow node is gone: a load that still finishes doesn't set
         // its state.
-        mStateWrapper = null;
+        clearLayoutState();
         // A dropped view can still be drawn: react-native-screens keeps a
         // popped screen's views on screen for its exit animation
         // (startViewTransition), and React Native drops them as it starts.
@@ -725,9 +667,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                 ? FastImageSharedDownloads.key(mLoadingUrl)
                 : null;
         if (key == null ? mTrackedKey == null : key.equals(mTrackedKey)) return;
-        if (mTrackedKey != null) FastImageViewManager.untrackProgress(mTrackedKey, this);
+        if (mTrackedKey != null) FastImageProgress.untrackProgress(mTrackedKey, this);
         mTrackedKey = key;
-        if (key != null) FastImageViewManager.trackProgress(key, this);
+        if (key != null) FastImageProgress.trackProgress(key, this);
     }
 
     // The `transition` prop (from the next load): how long a loaded image
@@ -939,13 +881,21 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
             getDrawingRect(bounds);
             canvas.clipRect(bounds);
         } else {
-            BackgroundStyleApplicator.clipToPaddingBox(this, canvas);
+            clipToBorders(canvas);
         }
         try {
             drawImage(canvas);
         } finally {
             canvas.restoreToCount(saved);
         }
+    }
+
+    // Clips what's drawn to the view, or for a host with borders
+    // (FastImageReactView) to the box inside them.
+    void clipToBorders(Canvas canvas) {
+        Rect bounds = new Rect();
+        getDrawingRect(bounds);
+        canvas.clipRect(bounds);
     }
 
     private void drawImage(Canvas canvas) {
@@ -1479,7 +1429,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // and a blur or objectFit change that waited for it.
         if (size == null) return;
         reloadIfResized();
-        if ((mBlurChanged || mFitChanged || mCropChanged) && mManager != null) onAfterUpdate(mManager, requestManager);
+        if ((mBlurChanged || mFitChanged || mCropChanged) && mUpdated) onAfterUpdate(requestManager);
     }
 
     // The loaded image's own size won't be known (not read for a local
@@ -1496,14 +1446,21 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         mReadingImageSize = true;
     }
 
-    // The shadow node's state (see FastImageAutoViewShadowNode; none for a
-    // FastImageView): the loaded image's size in dp, which the view's layout
-    // follows where its style leaves it open (the autoSize prop), or 0 after
-    // an image failed or without a source, as before one loads. Only set
-    // then: a state update lays out the whole screen again. The last size
-    // set, so the same one isn't set again.
-    @Nullable
-    private StateWrapper mStateWrapper;
+    // What the host's layout follows where its style leaves it open (the
+    // autoSize prop; FastImageReactView: the shadow node's state): the loaded
+    // image's size in dp, or 0 after an image failed or without a source, as
+    // before one loads. Only set then: a state update lays out the whole
+    // screen again. The last size set, so the same one isn't set again.
+    boolean hasLayoutState() {
+        return false;
+    }
+
+    void clearLayoutState() {
+    }
+
+    void setLayoutState(float width, float height) {
+    }
+
     // The autoSize prop's bits: the sides the style leaves open.
     static final int AUTO_WIDTH = 1;
     static final int AUTO_HEIGHT = 2;
@@ -1521,12 +1478,10 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     @Nullable
     private Object mSizedModel;
 
-    void setStateWrapper(@Nullable StateWrapper stateWrapper) {
-        mStateWrapper = stateWrapper;
-        ReadableMap data = stateWrapper != null ? stateWrapper.getStateData() : null;
+    final void setLaidOutImageSize(float width, float height) {
         boolean wasHidden = laysOutOneSide();
-        mLaidOutWidth = data != null && data.hasKey("width") ? (float) data.getDouble("width") : 0;
-        mLaidOutHeight = data != null && data.hasKey("height") ? (float) data.getDouble("height") : 0;
+        mLaidOutWidth = width;
+        mLaidOutHeight = height;
         if (laysOutOneSide() != wasHidden) invalidate();
         updateSizeState();
         // The layout for the shown image: a fitted cover image is cropped if
@@ -1614,16 +1569,13 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
     }
 
     private void updateSizeState() {
-        if (mAutoSize == 0 || mStateWrapper == null) return;
+        if (mAutoSize == 0 || !hasLayoutState()) return;
         if (mLayoutWidth == mStateWidth && mLayoutHeight == mStateHeight) return;
         mStateWidth = mLayoutWidth;
         mStateHeight = mLayoutHeight;
-        WritableMap state = new WritableNativeMap();
-        state.putDouble("width", mLayoutWidth);
-        state.putDouble("height", mLayoutHeight);
         // A layout of the whole screen (debug builds: FastImageWork).
         if (FastImageWork.enabled()) FastImageWork.record("layout-state", mModel, mLayoutWidth + "x" + mLayoutHeight);
-        mStateWrapper.updateState(state);
+        setLayoutState(mLayoutWidth, mLayoutHeight);
     }
 
     // Pixels on screen per pixel of the loaded image at its own size: an image
@@ -2236,10 +2188,9 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
 
     @SuppressLint("CheckResult")
     public void onAfterUpdate(
-            @Nonnull FastImageViewManager manager,
             @Nullable RequestManager requestManager) {
         if (mDropped) return;
-        mManager = manager;
+        mUpdated = true;
         if ((mBlurChanged || mFitChanged || mCropChanged) && !mNeedsReload && !mReadingImageSize) {
             mBlurChanged = false;
             mFitChanged = false;
@@ -2269,7 +2220,7 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
                         if (!mWaitsForSize) return;
                         mWaitsForSize = false;
                         mWaitedForSize = true;
-                        onAfterUpdate(manager, requestManager);
+                        onAfterUpdate(requestManager);
                     }
                 });
                 return;
@@ -2329,8 +2280,8 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         if (mSource != null && (imageSource == null || imageSource.getUri().toString().length() == 0)) {
             // Without its thumbhash or blurDataUri (a data uri can be long).
             String error = "Invalid source: " + mSource.describe();
-            WritableMap event = new WritableNativeMap();
-            event.putString("error", error);
+            Map<String, Object> event = new HashMap<>();
+            event.put("error", error);
             FastImageEvents.send(this, REACT_ON_ERROR_EVENT, event);
             FastImageEvents.sendLoadEnd(this, error);
 
@@ -2364,14 +2315,14 @@ class FastImageViewWithUrl extends AppCompatImageView implements ReactPointerEve
         // A restart (reblur) is the same load: its progress doesn't go back,
         // and steps already on their way to it still count.
         if (!restarting) {
-            mProgressSince = FastImageViewManager.progressStep();
+            mProgressSince = FastImageProgress.progressStep();
             mProgressFraction = 0;
         }
         updateProgressTracking();
 
         if (imageSource != null && !restarting) {
             // This is an orphan even without a load/loadend when only loading a placeholder
-            FastImageEvents.send(this, FastImageViewManager.REACT_ON_LOAD_START_EVENT);
+            FastImageEvents.send(this, FastImageEvents.REACT_ON_LOAD_START_EVENT);
         }
 
         if (requestManager != null) {

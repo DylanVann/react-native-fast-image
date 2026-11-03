@@ -34,7 +34,7 @@ public class FastImageAccessibilityTest {
 
     @Before
     public void setUp() {
-        view = new FastImageViewWithUrl(RuntimeEnvironment.getApplication(), null);
+        view = new FastImageReactView(RuntimeEnvironment.getApplication(), null);
         manager = new FastImageViewManager();
         delegate = manager.getDelegate();
     }

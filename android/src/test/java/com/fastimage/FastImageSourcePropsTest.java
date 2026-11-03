@@ -25,7 +25,7 @@ import java.util.Map;
 public class FastImageSourcePropsTest {
     @Test
     public void readsEachValue() {
-        FastImageSourceProps source = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps source = FastImageReactSource.parse(JavaOnlyMap.of(
                 "uri", "https://example.com/a.jpg",
                 "headers", JavaOnlyMap.of("x-token", "fast-image"),
                 "cache", "web",
@@ -56,7 +56,7 @@ public class FastImageSourcePropsTest {
 
     @Test
     public void missingValuesAreTheDefaults() {
-        FastImageSourceProps source = FastImageSourceProps.parse(new JavaOnlyMap());
+        FastImageSourceProps source = FastImageReactSource.parse(new JavaOnlyMap());
         assertNull(source.uri);
         assertFalse(source.hasUri());
         assertSame(Headers.DEFAULT, source.headers);
@@ -78,7 +78,7 @@ public class FastImageSourcePropsTest {
     // know.
     @Test
     public void valuesOfAnotherTypeAreTheDefaults() {
-        FastImageSourceProps source = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps source = FastImageReactSource.parse(JavaOnlyMap.of(
                 "uri", 1,
                 "headers", JavaOnlyArray.of("x-token"),
                 "cache", 1,
@@ -107,13 +107,13 @@ public class FastImageSourcePropsTest {
         // but the keys still make a `placeholder` prop a preview.
         assertNull(source.placeholder);
         assertTrue(source.hasPlaceholderKey);
-        assertSame(Headers.DEFAULT, FastImageSourceProps.parse(JavaOnlyMap.of("headers", null)).headers);
-        assertSame(Headers.DEFAULT, FastImageSourceProps.parse(JavaOnlyMap.of("headers", "x")).headers);
+        assertSame(Headers.DEFAULT, FastImageReactSource.parse(JavaOnlyMap.of("headers", null)).headers);
+        assertSame(Headers.DEFAULT, FastImageReactSource.parse(JavaOnlyMap.of("headers", "x")).headers);
     }
 
     @Test
     public void unknownStringsAreTheDefaults() {
-        FastImageSourceProps source = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps source = FastImageReactSource.parse(JavaOnlyMap.of(
                 "cache", "reload",
                 "priority", "urgent",
                 "cacheKey", "",
@@ -125,7 +125,7 @@ public class FastImageSourcePropsTest {
         assertFalse(source.hasUri());
         // React Native's value for cacheOnly.
         assertEquals(FastImageCacheControl.CACHE_ONLY,
-                FastImageSourceProps.parse(JavaOnlyMap.of("cache", "only-if-cached")).cache);
+                FastImageReactSource.parse(JavaOnlyMap.of("cache", "only-if-cached")).cache);
     }
 
     // Only string values are sent: JS converts numbers and booleans (as
@@ -133,7 +133,7 @@ public class FastImageSourcePropsTest {
     // an object) is left out.
     @Test
     public void headersKeepOnlyStringValues() {
-        Map<String, String> headers = FastImageSourceProps.parse(JavaOnlyMap.of("headers", JavaOnlyMap.of(
+        Map<String, String> headers = FastImageReactSource.parse(JavaOnlyMap.of("headers", JavaOnlyMap.of(
                 "x-token", "fast-image",
                 "x-number", 1,
                 "x-null", null,
@@ -146,12 +146,12 @@ public class FastImageSourcePropsTest {
         assertFalse(headers.containsKey("x-object"));
         // None left: the same headers (and cache key) as no headers.
         assertSame(Headers.DEFAULT,
-                FastImageSourceProps.parse(JavaOnlyMap.of("headers", JavaOnlyMap.of("x-null", null))).headers);
+                FastImageReactSource.parse(JavaOnlyMap.of("headers", JavaOnlyMap.of("x-null", null))).headers);
     }
 
     @Test
     public void placeholderIsTheThumbhashOrADataUri() {
-        assertEquals("data:image/png;base64,AAAA", FastImageSourceProps.parse(JavaOnlyMap.of(
+        assertEquals("data:image/png;base64,AAAA", FastImageReactSource.parse(JavaOnlyMap.of(
                 "thumbhash", "",
                 "blurDataUri", "data:image/png;base64,AAAA")).placeholder);
     }
@@ -160,42 +160,42 @@ public class FastImageSourcePropsTest {
     // thumbhash doesn't load the image again.
     @Test
     public void equalsIgnoresThePlaceholder() {
-        FastImageSourceProps a = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps a = FastImageReactSource.parse(JavaOnlyMap.of(
                 "uri", "https://example.com/a.jpg", "headers", JavaOnlyMap.of("x-token", "a"), "thumbhash", "a"));
-        FastImageSourceProps b = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps b = FastImageReactSource.parse(JavaOnlyMap.of(
                 "uri", "https://example.com/a.jpg", "headers", JavaOnlyMap.of("x-token", "a"), "thumbhash", "b"));
-        FastImageSourceProps c = FastImageSourceProps.parse(JavaOnlyMap.of(
+        FastImageSourceProps c = FastImageReactSource.parse(JavaOnlyMap.of(
                 "uri", "https://example.com/a.jpg", "headers", JavaOnlyMap.of("x-token", "c")));
         assertEquals(a, b);
         assertNotEquals(a, c);
         // NaN (e.g. a size worked out from an undefined value) is the same
         // NaN: an unchanged source doesn't load again.
-        assertEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)),
-                FastImageSourceProps.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)));
+        assertEquals(FastImageReactSource.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)),
+                FastImageReactSource.parse(JavaOnlyMap.of("uri", "a", "width", Double.NaN)));
         // Two different invalid sources aren't the same: the second fires
         // onError too.
-        assertNotEquals(FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1)),
-                FastImageSourceProps.parse(JavaOnlyMap.of("uri", 2)));
+        assertNotEquals(FastImageReactSource.parse(JavaOnlyMap.of("uri", 1)),
+                FastImageReactSource.parse(JavaOnlyMap.of("uri", 2)));
         // The same one with its keys in another order is the same.
-        assertEquals(FastImageSourceProps.parse(JavaOnlyMap.of("cacheKey", "a", "uri", 1, "thumbhash", "x")),
-                FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1, "cacheKey", "a")));
+        assertEquals(FastImageReactSource.parse(JavaOnlyMap.of("cacheKey", "a", "uri", 1, "thumbhash", "x")),
+                FastImageReactSource.parse(JavaOnlyMap.of("uri", 1, "cacheKey", "a")));
     }
 
     // An invalid source's error: one without a uri as JS sent it (without its
     // thumbhash, which can be long), one with a uri by its uri.
     @Test
     public void describesASourceForItsError() {
-        String noUri = FastImageSourceProps.parse(JavaOnlyMap.of("uri", 1, "thumbhash", "a")).describe();
+        String noUri = FastImageReactSource.parse(JavaOnlyMap.of("uri", 1, "thumbhash", "a")).describe();
         assertTrue(noUri, noUri.contains("uri=1"));
         assertFalse(noUri, noUri.contains("thumbhash"));
-        assertEquals("{uri=photo.jpg}", FastImageSourceProps.parse(JavaOnlyMap.of("uri", "photo.jpg")).describe());
+        assertEquals("{uri=photo.jpg}", FastImageReactSource.parse(JavaOnlyMap.of("uri", "photo.jpg")).describe());
     }
 
     @Test
     public void anArrayEntryThatIsntAnObjectIsNoSource() {
         JavaOnlyArray sources = JavaOnlyArray.of(JavaOnlyMap.of("uri", "a"), null, "b");
-        assertEquals("a", FastImageSourceProps.parse(sources, 0).uri);
-        assertNull(FastImageSourceProps.parse(sources, 1));
-        assertNull(FastImageSourceProps.parse(sources, 2));
+        assertEquals("a", FastImageReactSource.parse(sources, 0).uri);
+        assertNull(FastImageReactSource.parse(sources, 1));
+        assertNull(FastImageReactSource.parse(sources, 2));
     }
 }

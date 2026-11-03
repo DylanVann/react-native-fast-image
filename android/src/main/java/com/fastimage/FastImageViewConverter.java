@@ -13,7 +13,6 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
-import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -111,7 +110,7 @@ class FastImageViewConverter {
         if (propValue == null) propValue = defaultPropValue;
         T value = map.get(propValue);
         if (value == null)
-            throw new JSApplicationIllegalArgumentException("FastImage, invalid " + propName + " : " + propValue);
+            throw new IllegalArgumentException("FastImage, invalid " + propName + " : " + propValue);
         return value;
     }
 }

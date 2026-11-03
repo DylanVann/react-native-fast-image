@@ -1,8 +1,8 @@
 #import "FFFastImageView.h"
+#import "FFFCacheLimits.h"
 #import "FFFWork.h"
 #import <SDWebImage/UIImage+MultiFormat.h>
 #import <SDWebImage/UIView+WebCache.h>
-#import <React/RCTUtils.h>
 #import <SDWebImage/SDWebImageError.h>
 #import <SDWebImage/SDImageTransformer.h>
 #import "FFFDownsampledImage.h"
@@ -1770,7 +1770,7 @@ NSString *FFFErrorMessage(NSError *error)
                 if (weakSelf.loadCount != load) {
                     return;
                 }
-                RCTDirectEventBlock onProgress = weakSelf.onFastImageProgress;
+                FFFEventBlock onProgress = weakSelf.onFastImageProgress;
                 if (onProgress) {
                     onProgress(@{
                             @"loaded": @(receivedSize),
@@ -1934,7 +1934,9 @@ NSString *FFFErrorMessage(NSError *error)
 // another load started meanwhile).
 - (void) downloadWhenActive: (FFFastImageSource*)source options: (SDWebImageOptions)options context: (SDWebImageContext*)context {
     // nil in app extensions, which don't get these notifications.
-    UIApplication* application = RCTSharedApplication();
+    UIApplication* application = [NSBundle.mainBundle.bundlePath.pathExtension isEqualToString: @"appex"]
+        ? nil
+        : [UIApplication performSelector: @selector(sharedApplication)];
     if (!application || application.applicationState == UIApplicationStateActive) {
         FFFWork(@"load", source.url, @"after-background");
         [self downloadImage: source options: options context: context events: YES];
