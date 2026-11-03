@@ -1,0 +1,1025 @@
+{
+    "scenarios": [
+        {
+            "name": "fade",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#000000"
+                        }
+                    }
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-memory",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-memory-none",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000,
+                        "skipOnCacheHit": "none"
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-blur",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "blurRadius": 6
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#000000"
+                        }
+                    }
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "waitFor": {
+                        "fadeStarted": "image"
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-web",
+            "steps": [
+                {
+                    "respond": "/max-age/cyan.png",
+                    "fixture": "cyan.png",
+                    "headers": {
+                        "Cache-Control": "max-age=3600"
+                    }
+                },
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web",
+                    "transition": {
+                        "duration": 300
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-web-transition",
+            "steps": [
+                {
+                    "respond": "/max-age/cyan.png",
+                    "fixture": "cyan.png",
+                    "headers": {
+                        "Cache-Control": "max-age=3600"
+                    }
+                },
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-web-none",
+            "steps": [
+                {
+                    "respond": "/max-age/cyan.png",
+                    "fixture": "cyan.png",
+                    "headers": {
+                        "Cache-Control": "max-age=3600"
+                    }
+                },
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/max-age/cyan.png",
+                    "cache": "web",
+                    "transition": {
+                        "duration": 1000,
+                        "skipOnCacheHit": "none"
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-change",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/magenta.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "advance": 1500
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-file",
+            "steps": [
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "url": "file:cyan.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-change-download",
+            "steps": [
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/magenta.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "advance": 1500
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-between",
+            "steps": [
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/magenta.png",
+                    "transition": {
+                        "duration": 1000,
+                        "betweenImages": true
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "advance": 1500
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#8080ff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-between-memory",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/magenta.png",
+                    "transition": {
+                        "duration": 1000,
+                        "betweenImages": true,
+                        "skipOnCacheHit": "none"
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "advance": 1500
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#8080ff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#8080ff", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-translucent",
+            "steps": [
+                {
+                    "hold": "/cyan-half.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan-half.png"
+                },
+                {
+                    "release": "/cyan-half.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#8040c0", "#008080"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-contain",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 144],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "objectFit": "contain",
+                    "sample": [24, 24]
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#800080", "#000000"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-edge",
+            "only": "android",
+            "steps": [
+                {
+                    "hold": "/cyan-short.png"
+                },
+                {
+                    "view": "image",
+                    "size": [42, 42],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "objectFit": "contain",
+                    "magnify": 8,
+                    "sample": [21, 0.25]
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan-short.png"
+                },
+                {
+                    "release": "/cyan-short.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#800080", "#000000"]
+                }
+            ]
+        },
+        {
+            "name": "fade-animated-webp",
+            "steps": [
+                {
+                    "hold": "/cyan-animated.webp"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "url": "/cyan-animated.webp",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#000000"
+                        }
+                    }
+                },
+                {
+                    "release": "/cyan-animated.webp"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-vector-contain",
+            "only": "android",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 144],
+                    "defaultSource": "magenta-vector",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "objectFit": "contain",
+                    "sample": [24, 24]
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#800080", "#000000"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-animated-translucent",
+            "only": "android",
+            "steps": [
+                {
+                    "hold": "/cyan-half.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "defaultSource": "magenta-animated",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#ff00ff"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan-half.png"
+                },
+                {
+                    "release": "/cyan-half.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#ff00ff", "#8040c0", "#008080"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-opacity",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "opacity": 0.5
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#800080"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#800080", "#404080", "#008080"]
+                }
+            ]
+        },
+        {
+            "name": "fade-between-opacity",
+            "steps": [
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "url": "/magenta.png",
+                    "parentOpacity": 0.5,
+                    "transition": {
+                        "duration": 1000,
+                        "betweenImages": true
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "advance": 1500
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#800080"
+                        }
+                    }
+                },
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#800080", "#404080", "#008080"]
+                }
+            ]
+        },
+        {
+            "name": "fade-placeholder-animation",
+            "only": "android",
+            "steps": [
+                {
+                    "hold": "/cyan.png"
+                },
+                {
+                    "view": "image",
+                    "size": [48, 48],
+                    "defaultSource": "magenta",
+                    "transition": {
+                        "duration": 1000
+                    },
+                    "alphaAnimation": 0.5
+                },
+                {
+                    "expect": {
+                        "colors": {
+                            "image": "#800080"
+                        }
+                    }
+                },
+                {
+                    "set": "image",
+                    "url": "/cyan.png"
+                },
+                {
+                    "release": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#800080", "#404080", "#008080"]
+                }
+            ]
+        },
+        {
+            "name": "fade-disk",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "remove": "loader"
+                },
+                {
+                    "clearMemoryCache": true
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#000000", "#008080", "#00ffff"]
+                }
+            ]
+        },
+        {
+            "name": "fade-disk-all",
+            "steps": [
+                {
+                    "view": "loader",
+                    "size": [48, 48],
+                    "url": "/cyan.png"
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["loader"]
+                    }
+                },
+                {
+                    "remove": "loader"
+                },
+                {
+                    "clearMemoryCache": true
+                },
+                {
+                    "view": "image",
+                    "at": [60, 0],
+                    "size": [48, 48],
+                    "url": "/cyan.png",
+                    "transition": {
+                        "duration": 1000,
+                        "skipOnCacheHit": "all"
+                    }
+                },
+                {
+                    "waitFor": {
+                        "loaded": ["image"]
+                    }
+                },
+                {
+                    "fade": "image",
+                    "duration": 1000,
+                    "expect": ["#00ffff", "#00ffff", "#00ffff"]
+                }
+            ]
+        }
+    ]
+}

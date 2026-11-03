@@ -176,6 +176,10 @@ cd ReactNativeFastImageExample/android
 
 The results are in `android/build/reports/tests/testDebugUnitTest/`. The npm package doesn't include `android/src/test`, so apps don't get the tests or their dependencies.
 
+### Native scenarios
+
+`scenario-tests/` runs what the native views draw, without React Native: XCTest in the simulator on iOS (`fast-image-ios`), Robolectric on Android (`fast-image-android`). They read the same JSON, and take a few seconds. The e2e workflow runs them. See `scenario-tests/README.md`.
+
 ### Maestro flows
 
 - `maestro/touch.yaml` taps the touchable and pointer-events cases while the runner shows them (run by the regression step, not with the flows; tagged `runner`).

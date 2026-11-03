@@ -1,0 +1,71 @@
+# Fast Image's native view without React Native, and its visual tests:
+# `xcodegen generate`, then `xcodebuild test -scheme FastImageTests`.
+name: FastImage
+options:
+    bundleIdPrefix: com.fastimage
+    deploymentTarget:
+        iOS: '15.1'
+    createIntermediateGroups: true
+packages:
+    SDWebImage:
+        url: https://github.com/SDWebImage/SDWebImage.git
+        exactVersion: 5.21.7
+    SDWebImageWebPCoder:
+        url: https://github.com/SDWebImage/SDWebImageWebPCoder.git
+        exactVersion: 0.15.0
+    SDWebImageSVGCoder:
+        url: https://github.com/SDWebImage/SDWebImageSVGCoder.git
+        exactVersion: 1.8.0
+    SDWebImagePhotosPlugin:
+        url: https://github.com/SDWebImage/SDWebImagePhotosPlugin.git
+        exactVersion: 1.2.1
+targets:
+    # The app the tests run in: drawHierarchy needs a window in a scene.
+    FastImageHost:
+        type: application
+        platform: iOS
+        sources: [Host]
+        info:
+            path: Host/Info.plist
+            properties:
+                UILaunchScreen: {}
+                UIApplicationSceneManifest:
+                    UIApplicationSupportsMultipleScenes: false
+                    UISceneConfigurations: {}
+        settings:
+            CODE_SIGNING_ALLOWED: NO
+    FastImageTests:
+        type: bundle.unit-test
+        platform: iOS
+        sources:
+            - path: Tests
+              excludes:
+                  - PackageHeaders
+            - path: ../ios/FastImage
+              excludes:
+                  - FFFastImageModule.*
+                  - FFFastImageViewComponentView.*
+                  - RCTConvert+FFFastImage.*
+                  - PrivacyInfo.xcprivacy
+        dependencies:
+            - target: FastImageHost
+            - package: SDWebImage
+            - package: SDWebImageWebPCoder
+            - package: SDWebImageSVGCoder
+            - package: SDWebImagePhotosPlugin
+        settings:
+            CODE_SIGNING_ALLOWED: NO
+            GENERATE_INFOPLIST_FILE: YES
+            SWIFT_VERSION: '5.0'
+            SWIFT_OBJC_BRIDGING_HEADER: Tests/FastImageTests-Bridging-Header.h
+            HEADER_SEARCH_PATHS:
+                - $(SRCROOT)/Tests/PackageHeaders
+                - $(SRCROOT)/../ios/FastImage
+schemes:
+    FastImageTests:
+        build:
+            targets:
+                FastImageHost: all
+                FastImageTests: [test]
+        test:
+            targets: [FastImageTests]
