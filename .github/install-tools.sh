@@ -5,8 +5,9 @@
 #     autolinking runs npx);
 #   - ffmpeg and ffprobe, for the video samples: static builds (Homebrew took
 #     about 20 s, apt about 14 s);
-#   - macOS: XCLogParser (where xcodebuild's time went) and simslim (slimming
-#     the simulator for later runs);
+#   - macOS: XCLogParser (where xcodebuild's time went), simslim (slimming the
+#     simulator for later runs) and XcodeGen (in xcodegen/bin, beside its
+#     presets, for the native scenarios' project; Homebrew took about 90 s);
 #   - Linux: ccache, which React Native's CMake compiles the Android apps' C++
 #     through when it's on the PATH (static build).
 # The jobs keep them in R2, keyed by this file and .node-version, so they're
@@ -25,14 +26,16 @@ if [ "$(uname -s)" = Darwin ]; then
     get -o ffmpeg.zip "$ffmpeg/ffmpeg.zip" -o ffprobe.zip "$ffmpeg/ffprobe.zip"
     get -o xclogparser.zip https://github.com/MobileNativeFoundation/XCLogParser/releases/download/v0.2.49/XCLogParser-macOS-arm64-v0.2.49.zip
     get -o simslim.tar.gz https://github.com/MobAI-App/simslim/releases/download/v0.12.2/simslim-v0.12.2-macos-arm64.tar.gz
+    get -o xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
     shasum -a 256 -c <<'EOF'
 c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924  ffmpeg.zip
 fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6  ffprobe.zip
 96e4793d6c3c23a0238e18520c6742f5a1f3ac495857e13253223b0b9cbea5fa  xclogparser.zip
 b47302da6fb83b8b4c21f4fdd61507469770c07b0ff07fd1f48207bda4270887  simslim.tar.gz
+4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  xcodegen.zip
 EOF
-    unzip -q xclogparser.zip -d bin && tar -xzf simslim.tar.gz -C bin
-    rm xclogparser.zip simslim.tar.gz
+    unzip -q xclogparser.zip -d bin && tar -xzf simslim.tar.gz -C bin && unzip -q xcodegen.zip
+    rm xclogparser.zip simslim.tar.gz xcodegen.zip
 else
     node=node-$node_version-linux-x64
     ffmpeg=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2

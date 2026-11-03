@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The magenta defaultSource as a vector drawable (a VectorDrawable), for the
+     fade-drawables cases. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="144dp"
+    android:viewportWidth="48" android:viewportHeight="144">
+    <path android:fillColor="#FFFF00FF" android:pathData="M0,0h48v144h-48z" />
+</vector>

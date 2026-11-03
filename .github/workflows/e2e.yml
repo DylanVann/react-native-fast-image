@@ -1,6 +1,8 @@
 name: e2e
 # The regression cases (scripts/verify.mts) on the iOS simulator and the
-# Android emulator, for each example app. The JS checks are in ci.yml.
+# Android emulator, for each example app, and the native scenarios
+# (scenario-tests), which run the views without React Native. The JS checks are
+# in ci.yml.
 # Runs for pull requests (skipping the apps for one that only changes docs),
 # and by hand (Actions tab, or `gh workflow run e2e.yml --ref <branch>`): a run
 # takes about 10 minutes with its caches. main only takes pull requests rebased
@@ -307,6 +309,17 @@ jobs:
         continue-on-error: true
         run: bun scripts/group-times.ts record ios-${{ matrix.app }}-${{ matrix.shard }}
         env: *group-times
+      # The native scenarios (scenario-tests), on this simulator. In this job,
+      # the shortest that always runs, as a macOS job of their own would make
+      # one of the others wait when the tvOS jobs run.
+      - name: Run the native scenarios
+        if: ${{ !cancelled() && matrix.app == 'main' && matrix.shard == 2 }}
+        timeout-minutes: 10
+        working-directory: fast-image-ios
+        run: |
+          "$RUNNER_TEMP/tools/xcodegen/bin/xcodegen" generate
+          xcodebuild test -project FastImage.xcodeproj -scheme FastImageTests -destination "platform=iOS Simulator,name=$SIMULATOR" -derivedDataPath build CODE_SIGNING_ALLOWED=NO | grep --line-buffered -E 'scenarios: |XCTAssert|error:|Test Case .*(passed|failed)|\*\* TEST'
+          test "${PIPESTATUS[0]}" = 0
       # The Expo example's web version (verify.mts --app expo --web), in
       # Playwright's Chromium: after the minimum example's groups (this job ends
       # a few minutes before the main example's), and after their times were
@@ -776,13 +789,36 @@ jobs:
             !verify-output/**/*.mp4
             !verify-output/xcode-build.json
           retention-days: 14
+  # The native scenarios (scenario-tests) on Android, in Robolectric: no
+  # emulator, so a Linux job of its own.
+  android-scenarios:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Without the reference screenshots, most of the repo's size.
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/screenshots/
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run the scenarios
+        working-directory: fast-image-android
+        run: ./gradlew testDebugUnitTest --console=plain
   # The one check main's ruleset requires (the ios and android jobs' names
   # change with their matrices, so the ruleset can't list them). Passes when
   # every job passed, or for a docs-only pull request, whose ios and android
   # jobs were skipped. It runs even when the run is cancelled, and fails then:
   # skipped, it would count as passing.
   e2e:
-    needs: [changes, ios, android]
+    needs: [changes, ios, android, android-scenarios]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -793,12 +829,13 @@ jobs:
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
           IOS: ${{ needs.ios.result }}
           ANDROID: ${{ needs.android.result }}
+          ANDROID_SCENARIOS: ${{ needs.android-scenarios.result }}
         run: |
-          echo "changes: $CHANGES, docs only: $DOCS_ONLY, ios: $IOS, android: $ANDROID"
+          echo "changes: $CHANGES, docs only: $DOCS_ONLY, ios: $IOS, android: $ANDROID, android scenarios: $ANDROID_SCENARIOS"
           if [ "$CHANGES" != success ]; then
             exit 1
           fi
           if [ "$DOCS_ONLY" = true ]; then
             exit 0
           fi
-          [ "$IOS" = success ] && [ "$ANDROID" = success ]
+          [ "$IOS" = success ] && [ "$ANDROID" = success ] && [ "$ANDROID_SCENARIOS" = success ]
