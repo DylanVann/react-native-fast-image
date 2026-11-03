@@ -1,8 +1,10 @@
 package com.fastimage;
 
-import static com.fastimage.FastImageRequestListener.REACT_ON_ERROR_EVENT;
-import static com.fastimage.FastImageRequestListener.REACT_ON_LOAD_END_EVENT;
-import static com.fastimage.FastImageRequestListener.REACT_ON_LOAD_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_ERROR_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_LOAD_END_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_LOAD_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_LOAD_START_EVENT;
+import static com.fastimage.FastImageEvents.REACT_ON_PROGRESS_EVENT;
 
 import android.app.Activity;
 import android.content.Context;
@@ -23,14 +25,11 @@ import com.facebook.react.bridge.DynamicFromObject;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.BackgroundStyleApplicator;
 import com.facebook.react.uimanager.LengthPercentage;
 import com.facebook.react.uimanager.PointerEvents;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.bridge.ReactContext;
-import com.facebook.react.bridge.UiThreadUtil;
 import com.facebook.react.uimanager.Spacing;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.PixelUtil;
@@ -48,11 +47,8 @@ import com.facebook.react.views.imagehelper.ResourceDrawableIdHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nullable;
 
@@ -62,32 +58,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
         implements FastImageViewManagerInterface<FastImageViewWithUrl> {
 
     static final String REACT_CLASS = "FastImageView";
-    static final String REACT_ON_LOAD_START_EVENT = "onFastImageLoadStart";
-    static final String REACT_ON_PROGRESS_EVENT = "onFastImageProgress";
-    // Download progress, by the key downloads are shared by
-    // (FastImageSharedDownloads.key): the views that get it, those with an onProgress from
-    // their load's onLoadStart to its onLoad or onError, and the latest step a
-    // download reported, until the UI thread sends it. The UI thread adds and
-    // removes views, and downloads report steps on their own threads: only
-    // used under its lock.
-    private static final Map<String, Progress> PROGRESS = new HashMap<>();
-    // Numbers the steps downloads report, so a view can tell those reported
-    // before its load started (see FastImageViewWithUrl.takesProgress).
-    private static final AtomicLong REPORTED_STEPS = new AtomicLong();
-    // Whether any view gets progress (set under PROGRESS's lock), so downloads
-    // can skip reporting without taking any lock.
-    private static volatile boolean tracking = false;
-
-    private static final class Progress {
-        final Set<FastImageViewWithUrl> views = new LinkedHashSet<>();
-        // A step waits to be sent: later ones replace it meanwhile, so a url
-        // has at most one step waiting at a time.
-        boolean posted;
-        long loaded;
-        long total;
-        long step;
-    }
-
     // Codegen's delegate, plus the View props that React Native's View and
     // Image managers handle themselves and its base delegate drops for other
     // views (see setViewProperty). FastImage is a single native view: they're
@@ -207,11 +177,11 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
                 view.setOverflow(value instanceof String ? (String) value : null);
                 return true;
             case ViewProps.POINTER_EVENTS:
-                view.setPointerEvents(
+                ((FastImageReactView) view).setPointerEvents(
                         PointerEvents.parsePointerEvents(value instanceof String ? (String) value : null));
                 return true;
             case "hitSlop":
-                view.setHitSlopRect(hitSlopRect(value));
+                ((FastImageReactView) view).setHitSlopRect(hitSlopRect(value));
                 return true;
             case "backfaceVisibility":
                 view.setBackfaceVisibility(value instanceof String ? (String) value : "visible");
@@ -270,7 +240,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
 
     // React Native passes the layout's padding and borders together, but
     // padding doesn't inset the image: the view's padding is its border
-    // widths instead (FastImageViewWithUrl.updateBorderPadding), as on iOS.
+    // widths instead (FastImageReactView.updateBorderPadding), as on iOS.
     @Override
     public void setPadding(FastImageViewWithUrl view, int left, int top, int right, int bottom) {}
 
@@ -318,7 +288,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             requestManager = Glide.with(reactContext.getApplicationContext());
         }
 
-        return new FastImageViewWithUrl(reactContext, requestManager);
+        return new FastImageReactView(reactContext, requestManager);
     }
 
     @Override
@@ -329,12 +299,12 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             case Array: {
                 ReadableArray array = source.asArray();
                 FastImageSourceProps[] sources = new FastImageSourceProps[array.size()];
-                for (int i = 0; i < sources.length; i++) sources[i] = FastImageSourceProps.parse(array, i);
+                for (int i = 0; i < sources.length; i++) sources[i] = FastImageReactSource.parse(array, i);
                 view.setSource(sources);
                 break;
             }
             case Map:
-                view.setSource(new FastImageSourceProps[]{FastImageSourceProps.parse(source.asMap())});
+                view.setSource(new FastImageSourceProps[]{FastImageReactSource.parse(source.asMap())});
                 break;
             default:
                 view.setSource(null);
@@ -347,7 +317,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     public void setPlaceholder(FastImageViewWithUrl view, Dynamic source) {
         if (source.getType() == ReadableType.Map) {
-            FastImageSourceProps placeholder = FastImageSourceProps.parse(source.asMap());
+            FastImageSourceProps placeholder = FastImageReactSource.parse(source.asMap());
             view.setPlaceholder(null);
             view.setPlaceholderHash(placeholder.hasPlaceholderKey ? placeholder.placeholder : null);
             view.setPlaceholderSource(placeholder.hasPlaceholderKey ? null : placeholder);
@@ -442,7 +412,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     }
 
     // Which events JS has a handler for (FastImageEvents); with onProgress,
-    // the view gets its download's progress (see onDownloadProgress).
+    // the view gets its download's progress (see FastImageProgress).
     @Override
     public void setHandledEvents(FastImageViewWithUrl view, int handledEvents) {
         view.setHandledEvents(handledEvents);
@@ -486,7 +456,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Nullable
     @Override
     public Object updateState(@NonNull FastImageViewWithUrl view, ReactStylesDiffMap props, StateWrapper stateWrapper) {
-        view.setStateWrapper(stateWrapper);
+        ((FastImageReactView) view).setStateWrapper(stateWrapper);
         return null;
     }
 
@@ -515,100 +485,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
             events.put(name, event);
         }
         return events;
-    }
-
-    // On the UI thread (FastImageViewWithUrl's updateProgressTracking).
-    static void trackProgress(String key, FastImageViewWithUrl view) {
-        synchronized (PROGRESS) {
-            Progress progress = PROGRESS.get(key);
-            if (progress == null) {
-                progress = new Progress();
-                PROGRESS.put(key, progress);
-            }
-            progress.views.add(view);
-            tracking = true;
-        }
-    }
-
-    // On the UI thread. A key's entry goes once it has no views.
-    static void untrackProgress(String key, FastImageViewWithUrl view) {
-        synchronized (PROGRESS) {
-            Progress progress = PROGRESS.get(key);
-            if (progress == null) return;
-            progress.views.remove(view);
-            if (progress.views.isEmpty()) PROGRESS.remove(key);
-            tracking = !PROGRESS.isEmpty();
-        }
-    }
-
-    // Whether any view gets progress now (a hint: a view can start loading
-    // just after).
-    static boolean wantsProgress() {
-        return tracking;
-    }
-
-    // The latest step downloads reported (for a load that starts now).
-    static long progressStep() {
-        return REPORTED_STEPS.get();
-    }
-
-    // A download's progress (FastImageSharedDownloads), on its thread, which
-    // only notes it if a view wants it (so downloads of images without an
-    // onProgress post nothing). The UI thread, where views start and end their
-    // loads, picks the views that take it, and posts it behind their other
-    // events (FastImageEvents.send): a view only gets it during its own load,
-    // after its onLoadStart, not after its onLoad or once it loads again, and
-    // progress posted during a download comes before the onLoad Glide posts
-    // after it.
-    static void onDownloadProgress(final String key, long loaded, long total) {
-        synchronized (PROGRESS) {
-            Progress progress = PROGRESS.get(key);
-            if (progress == null) return;
-            // While a post is waiting, it keeps the furthest step: another
-            // download of the key may report one behind it meanwhile. A step
-            // kept keeps its number, so a load that started after it (e.g. a
-            // reload, whose download reports behind it) doesn't take it.
-            if (!progress.posted || (double) loaded / total >= (double) progress.loaded / progress.total) {
-                progress.loaded = loaded;
-                progress.total = total;
-                progress.step = REPORTED_STEPS.incrementAndGet();
-            }
-            if (progress.posted) return;
-            progress.posted = true;
-        }
-        UiThreadUtil.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                sendProgress(key);
-            }
-        });
-    }
-
-    private static void sendProgress(String key) {
-        List<FastImageViewWithUrl> views;
-        long loaded;
-        long total;
-        long step;
-        synchronized (PROGRESS) {
-            Progress progress = PROGRESS.get(key);
-            // Sent already, or no view wants it any more.
-            if (progress == null || !progress.posted) return;
-            progress.posted = false;
-            loaded = progress.loaded;
-            total = progress.total;
-            step = progress.step;
-            views = new ArrayList<>(progress.views);
-        }
-        for (FastImageViewWithUrl view : views) {
-            if (!view.takesProgress(step, loaded, total)) continue;
-            WritableMap event = new WritableNativeMap();
-            event.putInt("loaded", (int) loaded);
-            event.putInt("total", (int) total);
-            // Downloads only report a known length (see FastImageSharedDownloads).
-            event.putDouble("progress", Math.min(1.0, Math.max(0.0, (double) loaded / total)));
-            // Posted after the view's onLoadStart, which may still be waiting.
-            FastImageEvents.send(view, REACT_ON_PROGRESS_EVENT, event);
-        }
     }
 
     private static boolean isValidContextForGlide(final Context context) {
@@ -665,6 +541,6 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl>
     @Override
     protected void onAfterUpdateTransaction(@NonNull FastImageViewWithUrl view) {
         super.onAfterUpdateTransaction(view);
-        view.onAfterUpdate(this, view.requestManager);
+        view.onAfterUpdate(view.requestManager);
     }
 }

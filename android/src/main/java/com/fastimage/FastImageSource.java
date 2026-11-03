@@ -9,15 +9,16 @@ import android.util.LruCache;
 
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.Headers;
-import com.facebook.react.views.imagehelper.ImageSource;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
-public class FastImageSource extends ImageSource {
+public class FastImageSource {
     private static final String DATA_SCHEME = "data";
     private static final String LOCAL_RESOURCE_SCHEME = "res";
     private static final String ANDROID_RESOURCE_SCHEME = "android.resource";
@@ -25,6 +26,8 @@ public class FastImageSource extends ImageSource {
     private static final String LOCAL_FILE_SCHEME = "file";
     private static final String ASSET_SCHEME = "asset";
     private final Headers mHeaders;
+    @Nullable
+    private final String mSource;
     private Uri mUri;
     // A data uri, as base64 (see base64DataUri).
     @Nullable
@@ -54,22 +57,14 @@ public class FastImageSource extends ImageSource {
         return ASSET_SCHEME.equals(uri.getScheme());
     }
 
-    public FastImageSource(Context context, String source) {
-        this(context, source, null);
-    }
-
-    public FastImageSource(Context context, String source, @Nullable Headers headers) {
-        this(context, source, 0.0d, 0.0d, headers);
-    }
-
-    public FastImageSource(Context context, String source, double width, double height, @Nullable Headers headers) {
-        super(context, source, width, height);
+    public FastImageSource(Context context, @Nullable String source, @Nullable Headers headers) {
+        mSource = source;
         mHeaders = headers == null ? Headers.DEFAULT : headers;
-        mUri = super.getUri();
+        mUri = sourceUri(context, source);
         if (mUri == null || TextUtils.isEmpty(mUri.toString())) {
             // A bundled image that release builds package as a raw resource
-            // (e.g. an SVG, which isn't a drawable): React Native's
-            // ImageSource only looks for drawables.
+            // (e.g. an SVG, which isn't a drawable): sourceUri only looks for
+            // drawables.
             Uri raw = rawResourceUri(context, source);
             if (raw != null) mUri = raw;
         }
@@ -149,6 +144,41 @@ public class FastImageSource extends ImageSource {
     }
 
 
+    // The source's uri, or for one without a scheme (a bundled image's
+    // resource name) the drawable with that name, or an empty uri.
+    private static Uri sourceUri(Context context, @Nullable String source) {
+        if (source != null) {
+            Uri uri = Uri.parse(source);
+            if (uri.getScheme() != null) return uri;
+        }
+        int id = drawableId(context, source);
+        return id > 0 ? new Uri.Builder().scheme(LOCAL_RESOURCE_SCHEME).path(String.valueOf(id)).build() : Uri.EMPTY;
+    }
+
+    // The drawables looked up so far: a source is made again at every load.
+    private static final Map<String, Integer> DRAWABLE_IDS = new HashMap<>();
+
+    private static int drawableId(Context context, @Nullable String name) {
+        if (name == null || name.isEmpty()) return 0;
+        String normalized = name.toLowerCase(Locale.ROOT).replace("-", "_");
+        // It could be a resource id.
+        if (TextUtils.isDigitsOnly(normalized)) {
+            try {
+                return Integer.parseInt(normalized);
+            } catch (NumberFormatException e) {
+                // Too long for one.
+            }
+        }
+        synchronized (DRAWABLE_IDS) {
+            Integer id = DRAWABLE_IDS.get(normalized);
+            if (id == null) {
+                id = context.getResources().getIdentifier(normalized, "drawable", context.getPackageName());
+                DRAWABLE_IDS.put(normalized, id);
+            }
+            return id;
+        }
+    }
+
     // The raw resource with the source's name (a bundled image's source is
     // its resource name, e.g. src_images_logo), or null.
     @Nullable
@@ -181,6 +211,11 @@ public class FastImageSource extends ImageSource {
         return mUri != null && FastImageSource.isContentUri(mUri);
     }
 
+    @Nullable
+    public String getSource() {
+        return mSource;
+    }
+
     public Object getSourceForLoad() {
         if (isContentUri()) {
             return getSource();
@@ -197,7 +232,6 @@ public class FastImageSource extends ImageSource {
         return new FastImageUrl(getGlideUrl());
     }
 
-    @Override
     public Uri getUri() {
         return mUri;
     }

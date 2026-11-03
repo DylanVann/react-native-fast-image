@@ -6,10 +6,6 @@ import androidx.annotation.Nullable;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.model.Headers;
 import com.bumptech.glide.load.model.LazyHeaders;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
-import com.facebook.react.bridge.ReadableType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -77,11 +73,11 @@ final class FastImageSourceProps {
     @Nullable
     private final HashMap<String, Object> invalidSource;
 
-    private FastImageSourceProps(ReadableMap map) {
+    private FastImageSourceProps(Map<String, Object> map) {
         uri = string(map, "uri");
         headers = headers(map);
         cache = CACHE_CONTROLS.getOrDefault(string(map, "cache"), FastImageCacheControl.IMMUTABLE);
-        priority = map.hasKey("priority") && !map.isNull("priority")
+        priority = map.get("priority") != null
                 ? PRIORITIES.getOrDefault(string(map, "priority"), Priority.NORMAL)
                 : null;
         memoryCache = bool(map, "memoryCache", true);
@@ -91,8 +87,8 @@ final class FastImageSourceProps {
         width = number(map, "width", 0);
         height = number(map, "height", 0);
         scale = number(map, "scale", 1);
-        packagerAsset = map.hasKey("__packager_asset");
-        hasPlaceholderKey = map.hasKey("thumbhash") || map.hasKey("blurDataUri");
+        packagerAsset = map.containsKey("__packager_asset");
+        hasPlaceholderKey = map.containsKey("thumbhash") || map.containsKey("blurDataUri");
         String thumbhash = string(map, "thumbhash");
         String blurDataUri = string(map, "blurDataUri");
         placeholder = thumbhash != null && !thumbhash.isEmpty() ? thumbhash
@@ -101,14 +97,8 @@ final class FastImageSourceProps {
         invalidSource = hasUri() ? null : withoutPlaceholders(map);
     }
 
-    static FastImageSourceProps parse(ReadableMap map) {
+    static FastImageSourceProps parse(Map<String, Object> map) {
         return new FastImageSourceProps(map);
-    }
-
-    // The array's entry as a source, or null for one that isn't an object.
-    @Nullable
-    static FastImageSourceProps parse(ReadableArray array, int index) {
-        return array.getType(index) == ReadableType.Map ? new FastImageSourceProps(array.getMap(index)) : null;
     }
 
     // Whether it has a uri to load (not missing, null or blank).
@@ -126,38 +116,39 @@ final class FastImageSourceProps {
         return invalidSource != null ? invalidSource.toString() : "{uri=" + uri + "}";
     }
 
-    private static HashMap<String, Object> withoutPlaceholders(ReadableMap map) {
-        HashMap<String, Object> source = map.toHashMap();
+    private static HashMap<String, Object> withoutPlaceholders(Map<String, Object> map) {
+        HashMap<String, Object> source = new HashMap<>(map);
         source.remove("thumbhash");
         source.remove("blurDataUri");
         return source;
     }
 
-    private static Headers headers(ReadableMap map) {
-        if (!map.hasKey("headers") || map.getType("headers") != ReadableType.Map) return Headers.DEFAULT;
-        ReadableMap headers = map.getMap("headers");
-        ReadableMapKeySetIterator iterator = headers.keySetIterator();
+    private static Headers headers(Map<String, Object> map) {
+        Object headers = map.get("headers");
+        if (!(headers instanceof Map)) return Headers.DEFAULT;
         LazyHeaders.Builder builder = null;
-        while (iterator.hasNextKey()) {
-            String name = iterator.nextKey();
-            if (headers.getType(name) != ReadableType.String) continue;
+        for (Map.Entry<?, ?> header : ((Map<?, ?>) headers).entrySet()) {
+            if (!(header.getKey() instanceof String) || !(header.getValue() instanceof String)) continue;
             if (builder == null) builder = new LazyHeaders.Builder();
-            builder.addHeader(name, headers.getString(name));
+            builder.addHeader((String) header.getKey(), (String) header.getValue());
         }
         return builder != null ? builder.build() : Headers.DEFAULT;
     }
 
     @Nullable
-    private static String string(ReadableMap map, String key) {
-        return map.hasKey(key) && map.getType(key) == ReadableType.String ? map.getString(key) : null;
+    private static String string(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value instanceof String ? (String) value : null;
     }
 
-    private static boolean bool(ReadableMap map, String key, boolean fallback) {
-        return map.hasKey(key) && map.getType(key) == ReadableType.Boolean ? map.getBoolean(key) : fallback;
+    private static boolean bool(Map<String, Object> map, String key, boolean fallback) {
+        Object value = map.get(key);
+        return value instanceof Boolean ? (Boolean) value : fallback;
     }
 
-    private static double number(ReadableMap map, String key, double fallback) {
-        return map.hasKey(key) && map.getType(key) == ReadableType.Number ? map.getDouble(key) : fallback;
+    private static double number(Map<String, Object> map, String key, double fallback) {
+        Object value = map.get(key);
+        return value instanceof Number ? ((Number) value).doubleValue() : fallback;
     }
 
     // The same image, loaded the same way: everything but the placeholder. Two

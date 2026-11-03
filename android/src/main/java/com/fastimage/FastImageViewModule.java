@@ -131,7 +131,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
                 };
                 for (int i = 0; i < count; i++) {
                     final int index = i;
-                    final FastImageSourceProps source = FastImageSourceProps.parse(sources, i);
+                    final FastImageSourceProps source = FastImageReactSource.parse(sources, i);
                     // Glide throws on an empty url. Invalid sources fail
                     // without taking a slot.
                     if (source == null || !source.hasUri()) {
@@ -413,7 +413,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     @Override
     public void getCachePath(final ReadableMap map, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
-        final FastImageSourceProps source = FastImageSourceProps.parse(map);
+        final FastImageSourceProps source = FastImageReactSource.parse(map);
         if (!source.diskCache) {
             promise.resolve(failure(NOT_ON_DISK));
             return;
@@ -554,7 +554,7 @@ class FastImageViewModule extends NativeFastImageModuleSpec {
     @Override
     public void writeToCache(final ReadableMap map, final String file, final Promise promise) {
         final ReactApplicationContext context = getReactApplicationContext();
-        final FastImageSourceProps source = FastImageSourceProps.parse(map);
+        final FastImageSourceProps source = FastImageReactSource.parse(map);
         if (!source.diskCache) {
             promise.resolve(failure(NOT_ON_DISK));
             return;

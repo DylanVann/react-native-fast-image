@@ -3,9 +3,11 @@
 #import <SDWebImage/SDAnimatedImageView+WebCache.h>
 #import <SDWebImage/SDWebImageDownloader.h>
 
-#import <React/RCTComponent.h>
-
 #import "FFFastImageSource.h"
+
+// An event's payload, for whatever hosts the view (React Native's component
+// view sends it to JS).
+typedef void (^FFFEventBlock)(NSDictionary *body);
 
 // objectFit, as CSS's object-fit.
 typedef NS_ENUM(NSInteger, FFFObjectFit) {
@@ -20,13 +22,13 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 
 @interface FFFastImageView : SDAnimatedImageView
 
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadStart;
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageProgress;
+@property (nonatomic, copy) FFFEventBlock onFastImageLoadStart;
+@property (nonatomic, copy) FFFEventBlock onFastImageProgress;
 // Whether to send progress events (the image has an onProgress).
 @property (nonatomic, assign) BOOL trackProgress;
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageError;
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageLoad;
-@property (nonatomic, copy) RCTDirectEventBlock onFastImageLoadEnd;
+@property (nonatomic, copy) FFFEventBlock onFastImageError;
+@property (nonatomic, copy) FFFEventBlock onFastImageLoad;
+@property (nonatomic, copy) FFFEventBlock onFastImageLoadEnd;
 // The loaded image's own size in points, as each image loads (whatever events
 // JS handles), for the view's layout.
 @property (nonatomic, copy) void (^onImageSize)(CGSize size);
@@ -108,10 +110,3 @@ typedef NS_ENUM(NSInteger, FFFObjectFit) {
 
 // An error's description, with the HTTP status code when there is one.
 FOUNDATION_EXTERN NSString *FFFErrorMessage(NSError *error);
-
-// Applies the app's cache limits (saved by configureCache, or in its
-// Info.plist) to SDWebImage's cache, once, before FastImage loads an image
-// (in FFFastImageModule.mm).
-FOUNDATION_EXTERN void FFFApplyCacheLimits(void);
-
-

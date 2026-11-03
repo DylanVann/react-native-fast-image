@@ -17,9 +17,6 @@ import com.bumptech.glide.load.model.ModelLoader;
 import com.bumptech.glide.load.model.ModelLoaderFactory;
 import com.bumptech.glide.load.model.MultiModelLoaderFactory;
 import com.bumptech.glide.module.LibraryGlideModule;
-import com.facebook.react.modules.network.CookieJarContainer;
-import com.facebook.react.modules.network.ForwardingCookieHandler;
-import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +28,6 @@ import okhttp3.Cache;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
-import okhttp3.JavaNetCookieJar;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
@@ -106,16 +102,8 @@ public class FastImageOkHttpProgressGlideModule extends LibraryGlideModule {
     // itself, after the app's setup, which keeps what it registered for the
     // app's other loads.
     void register(Context context, Glide glide, Registry registry, boolean otherLoads) {
-        OkHttpClient sharedClient = OkHttpClientProvider.getOkHttpClient();
+        OkHttpClient sharedClient = FastImageHttpClient.shared();
         OkHttpClient.Builder builder = sharedClient.newBuilder();
-        // React Native's shared client comes with an empty cookie jar (React
-        // Native only fills it in for its networking and Image clients), so
-        // images were loaded without the app's cookies, unlike on iOS. Use the
-        // same cookie store (Android's CookieManager, through React Native's
-        // ForwardingCookieHandler). A cookie jar the app set up itself is kept.
-        if (sharedClient.cookieJar() instanceof CookieJarContainer) {
-            builder.cookieJar(new JavaNetCookieJar(new ForwardingCookieHandler()));
-        }
         // React Native's shared client has no timeouts, so a download that
         // stopped (e.g. on a connection that died) never ended, and every
         // request sharing it waited. As on iOS (SDWebImage's 15 s), one that
